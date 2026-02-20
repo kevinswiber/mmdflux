@@ -26,6 +26,7 @@ export function createPreviewController(
   return {
     showResult: (result) => {
       hideError();
+      elements.output.classList.toggle("is-svg", result.format === "svg");
       if (result.format === "svg") {
         elements.output.innerHTML = result.output;
         return;

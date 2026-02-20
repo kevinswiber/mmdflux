@@ -432,6 +432,11 @@ body {
   white-space: pre;
 }
 
+.preview-output.is-svg {
+  overflow: hidden;
+  white-space: normal;
+}
+
 .editor-codemirror {
   overflow: hidden;
 }
@@ -528,6 +533,8 @@ body {
 .preview-output svg {
   display: block;
   margin: 0 auto;
+  max-width: none;
+  max-height: none;
   transform-origin: top left;
   touch-action: none;
 }

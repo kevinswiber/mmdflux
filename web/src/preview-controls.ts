@@ -16,7 +16,7 @@ interface PanzoomInstance {
 type StatusReporter = (message: string) => void;
 
 interface PreviewControlDependencies {
-  createPanzoom: (target: SVGSVGElement) => PanzoomInstance;
+  createPanzoom: (target: SVGElement) => PanzoomInstance;
   createObjectUrl: (blob: Blob) => string;
   revokeObjectUrl: (url: string) => void;
   createAnchor: () => HTMLAnchorElement;
@@ -47,11 +47,16 @@ export interface PreviewControlsController {
 }
 
 const MIN_SCALE = 0.2;
-const MAX_SCALE = 6;
+const MAX_SCALE = 20;
 const ZOOM_STEP = 0.2;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+function readCssPixels(value: string): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function readNumericAttribute(
@@ -89,6 +94,44 @@ function getSvgDimensions(svg: SVGSVGElement): {
   };
 }
 
+function getRenderedDimensions(element: SVGElement): {
+  width: number;
+  height: number;
+} {
+  const rect = element.getBoundingClientRect();
+  return {
+    width: Math.max(rect.width, 0),
+    height: Math.max(rect.height, 0),
+  };
+}
+
+function getViewportDimensions(element: HTMLElement): {
+  width: number;
+  height: number;
+} {
+  const style = window.getComputedStyle(element);
+  const paddingX =
+    readCssPixels(style.paddingLeft) + readCssPixels(style.paddingRight);
+  const paddingY = readCssPixels(style.paddingTop) + readCssPixels(style.paddingBottom);
+
+  return {
+    width: Math.max(0, element.clientWidth - paddingX),
+    height: Math.max(0, element.clientHeight - paddingY),
+  };
+}
+
+function normalizeSvgSize(svg: SVGSVGElement): {
+  width: number;
+  height: number;
+} {
+  const dimensions = getSvgDimensions(svg);
+  if (dimensions.width > 0 && dimensions.height > 0) {
+    svg.setAttribute("width", String(dimensions.width));
+    svg.setAttribute("height", String(dimensions.height));
+  }
+  return dimensions;
+}
+
 function serializeSvg(svg: SVGSVGElement): string {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   if (!clone.getAttribute("xmlns")) {
@@ -108,8 +151,10 @@ function defaultDependencies(): PreviewControlDependencies {
   return {
     createPanzoom: (target) =>
       Panzoom(target, {
+        canvas: true,
         maxScale: MAX_SCALE,
         minScale: MIN_SCALE,
+        roundPixels: true,
       }) as unknown as PanzoomInstance,
     createObjectUrl: (blob) => URL.createObjectURL(blob),
     revokeObjectUrl: (url) => URL.revokeObjectURL(url),
@@ -131,8 +176,22 @@ export function createPreviewControls(
   let outputRoot: HTMLElement | null = null;
   let currentFormat: WorkerOutputFormat = "text";
   let currentSvg: SVGSVGElement | null = null;
+  let currentPanTarget: SVGElement | null = null;
+  let currentPanTargetDimensions: { width: number; height: number } | null = null;
   let panzoom: PanzoomInstance | null = null;
   let wheelHost: HTMLElement | null = null;
+  let fitTicket = 0;
+
+  const forceSvgRepaint = (): void => {
+    if (!currentSvg) {
+      return;
+    }
+
+    const previousOutline = currentSvg.style.outline;
+    currentSvg.style.outline = "1px solid transparent";
+    void currentSvg.getBoundingClientRect();
+    currentSvg.style.outline = previousOutline;
+  };
 
   const resetZoomLabel = (): void => {
     options.zoomLabel.textContent = percentageLabel(1);
@@ -148,12 +207,15 @@ export function createPreviewControls(
   };
 
   const teardownPanzoom = (): void => {
+    fitTicket += 1;
     if (wheelHost) {
       wheelHost.removeEventListener("wheel", handleWheel as EventListener);
     }
     wheelHost = null;
     panzoom?.destroy();
     panzoom = null;
+    currentPanTarget = null;
+    currentPanTargetDimensions = null;
     currentSvg = null;
     resetZoomLabel();
   };
@@ -182,9 +244,25 @@ export function createPreviewControls(
       return;
     }
 
-    const outputWidth = outputRoot.clientWidth;
-    const outputHeight = outputRoot.clientHeight;
-    const { width, height } = getSvgDimensions(currentSvg);
+    const measuredTargetDimensions = currentPanTarget
+      ? getRenderedDimensions(currentPanTarget)
+      : null;
+    if (
+      measuredTargetDimensions &&
+      measuredTargetDimensions.width > 0 &&
+      measuredTargetDimensions.height > 0
+    ) {
+      currentPanTargetDimensions = measuredTargetDimensions;
+    }
+
+    const { width: outputWidth, height: outputHeight } =
+      getViewportDimensions(outputRoot);
+    const baseDimensions =
+      currentPanTargetDimensions ??
+      (currentPanTarget ? getRenderedDimensions(currentPanTarget) : null) ??
+      getSvgDimensions(currentSvg);
+    const width = baseDimensions?.width ?? 0;
+    const height = baseDimensions?.height ?? 0;
     if (outputWidth <= 0 || outputHeight <= 0 || width <= 0 || height <= 0) {
       panzoom.reset();
       updateZoomLabel();
@@ -196,27 +274,61 @@ export function createPreviewControls(
       MIN_SCALE,
       MAX_SCALE,
     );
-    const panX = (outputWidth - width * nextScale) / 2;
-    const panY = (outputHeight - height * nextScale) / 2;
-    panzoom.zoom(nextScale, { animate: false });
-    panzoom.pan(panX, panY, { animate: false });
+    const panX = (outputWidth / nextScale - width) / 2;
+    const panY = (outputHeight / nextScale - height) / 2;
+    panzoom.zoom(nextScale, { animate: false, force: true });
+    panzoom.pan(panX, panY, { animate: false, force: true });
     updateZoomLabel();
+    forceSvgRepaint();
   };
 
   const attachPanzoom = (svg: SVGSVGElement): void => {
-    if (currentSvg === svg && panzoom) {
+    const panTarget: SVGElement = svg;
+    if (currentSvg === svg && currentPanTarget === panTarget && panzoom) {
       updateZoomLabel();
       return;
     }
 
     teardownPanzoom();
     currentSvg = svg;
-    panzoom = dependencies.createPanzoom(svg);
+    currentPanTarget = panTarget;
+    const normalizedDimensions = normalizeSvgSize(svg);
+    const measuredTargetDimensions = getRenderedDimensions(panTarget);
+    currentPanTargetDimensions =
+      measuredTargetDimensions.width > 0 && measuredTargetDimensions.height > 0
+        ? measuredTargetDimensions
+        : normalizedDimensions;
+    panzoom = dependencies.createPanzoom(panTarget);
     wheelHost = outputRoot;
     wheelHost?.addEventListener("wheel", handleWheel as EventListener, {
       passive: false,
     });
     fitToViewport();
+
+    const currentTicket = ++fitTicket;
+    const deferredFit = (): void => {
+      if (currentTicket !== fitTicket || !panzoom || currentSvg !== svg) {
+        return;
+      }
+
+      // Force a post-attach layout read before applying a second fit.
+      // This avoids occasional SVG/foreignObject text paint glitches.
+      void svg.getBoundingClientRect();
+      fitToViewport();
+      forceSvgRepaint();
+    };
+
+    if (
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+    ) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(deferredFit);
+      });
+      return;
+    }
+
+    setTimeout(deferredFit, 0);
   };
 
   const refresh = (): void => {
@@ -242,6 +354,7 @@ export function createPreviewControls(
     }
     panzoom.zoomWithWheel(event);
     updateZoomLabel();
+    forceSvgRepaint();
   }
 
   const withCurrentSvg = (): SVGSVGElement | null => {
@@ -377,6 +490,7 @@ export function createPreviewControls(
 
     panzoom.zoomOut({ step: ZOOM_STEP });
     updateZoomLabel();
+    forceSvgRepaint();
   });
 
   options.zoomInButton.addEventListener("click", () => {
@@ -386,6 +500,7 @@ export function createPreviewControls(
 
     panzoom.zoomIn({ step: ZOOM_STEP });
     updateZoomLabel();
+    forceSvgRepaint();
   });
 
   options.zoomFitButton.addEventListener("click", () => {
@@ -399,6 +514,7 @@ export function createPreviewControls(
 
     panzoom.reset();
     updateZoomLabel();
+    forceSvgRepaint();
   });
 
   options.exportToggleButton.addEventListener("click", () => {
