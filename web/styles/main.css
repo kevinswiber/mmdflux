@@ -500,7 +500,7 @@ body {
   color: var(--snippet-code-text);
   min-height: 96px;
   max-height: 132px;
-  overflow: auto;
+  overflow: hidden;
   padding: 0.64rem;
   font:
     500 0.77rem / 1.4 "IBM Plex Mono",
