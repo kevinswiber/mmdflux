@@ -413,7 +413,6 @@ export function renderApp(
       <header class="toolbar">
         <div class="toolbar-title-group">
           <h1>mmdflux playground <a href="https://github.com/kevinswiber/mmdflux" target="_blank" rel="noopener noreferrer" class="repo-link">kevinswiber/mmdflux</a></h1>
-          <p class="toolbar-subtitle">Render Mermaid diagrams in text, SVG, and MMDS with instant feedback.</p>
         </div>
         <div class="toolbar-actions toolbar-actions-primary">
           <label class="example-picker">
@@ -425,7 +424,7 @@ export function renderApp(
             <button type="button" role="tab" data-format="svg" aria-selected="false">SVG</button>
             <button type="button" role="tab" data-format="mmds" aria-selected="false">MMDS</button>
           </div>
-          <button type="button" class="toolbar-button" data-advanced-toggle aria-expanded="false">Advanced settings</button>
+          <button type="button" class="toolbar-button toolbar-button-toggle" data-advanced-toggle aria-expanded="false" aria-controls="advanced-controls-panel">Advanced controls</button>
           <div class="export-control">
             <button type="button" class="toolbar-button" data-export-toggle hidden>Export</button>
             <div class="export-menu" data-export-menu hidden>
@@ -438,7 +437,7 @@ export function renderApp(
         </div>
       </header>
 
-      <section class="advanced-panel" data-advanced-panel hidden>
+      <section id="advanced-controls-panel" class="advanced-panel" data-advanced-panel hidden>
         <h2>Render Settings</h2>
         <div class="render-settings-grid">
           <div class="render-setting" data-setting="layoutEngine">
@@ -847,9 +846,6 @@ export function renderApp(
     advancedPanel.hidden = !open;
     advancedToggleButton.setAttribute("aria-expanded", String(open));
     advancedToggleButton.classList.toggle("is-active", open);
-    advancedToggleButton.textContent = open
-      ? "Hide Advanced settings"
-      : "Advanced settings";
   };
 
   const setFormat = (format: PlaygroundFormat): void => {

@@ -7,7 +7,7 @@ describe("renderApp", () => {
     renderApp(root);
 
     expect(root.textContent).toContain("mmdflux playground");
-    expect(root.textContent).toContain("Advanced settings");
+    expect(root.textContent).toContain("Advanced controls");
     expect(root.textContent).toContain("Syntax snippets");
     expect(root.querySelector("[data-preview-controls]")).not.toBeNull();
   });

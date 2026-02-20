@@ -15,10 +15,10 @@ export const PLAYGROUND_EXAMPLES: PlaygroundExample[] = [
     category: "flowchart",
     featured: true,
     input: `graph TD
-A[Start] --> B{Ready?}
-B -->|Yes| C[Deploy]
-B -->|No| D[Wait]
-D --> B`,
+    A[Start] --> B{Ready?}
+    B -->|Yes| C[Deploy]
+    B -->|No| D[Wait]
+    D --> B`,
   },
   {
     id: "flowchart-fanout",
@@ -27,10 +27,10 @@ D --> B`,
     category: "flowchart",
     featured: true,
     input: `graph LR
-API --> Auth
-API --> Billing
-API --> Search
-API --> Profile`,
+    API --> Auth
+    API --> Billing
+    API --> Search
+    API --> Profile`,
   },
   {
     id: "flowchart-cycle",
@@ -39,9 +39,9 @@ API --> Profile`,
     category: "flowchart",
     featured: false,
     input: `graph TD
-A[Start] --> B[Process]
-B --> C[Review]
-C --> A`,
+    A[Start] --> B[Process]
+    B --> C[Review]
+    C --> A`,
   },
   {
     id: "flowchart-edge-styles",
@@ -50,10 +50,10 @@ C --> A`,
     category: "flowchart",
     featured: false,
     input: `graph TD
-A[Solid] --> B[Normal]
-C[Dotted] -.-> D[Arrow]
-E[Thick] ==> F[Arrow]
-G[Open] --- H[Line]`,
+    A[Solid] --> B[Normal]
+    C[Dotted] -.-> D[Arrow]
+    E[Thick] ==> F[Arrow]
+    G[Open] --- H[Line]`,
   },
   {
     id: "flowchart-labeled-edges",
@@ -62,11 +62,11 @@ G[Open] --- H[Line]`,
     category: "flowchart",
     featured: false,
     input: `graph TD
-Start[Begin] -->|initialize| Setup[Setup]
-Setup -->|configure| Config{Valid?}
-Config -->|yes| Run[Execute]
-Config -->|no| Error[Handle Error]
-Error -.->|retry| Setup`,
+    Start[Begin] -->|initialize| Setup[Setup]
+    Setup -->|configure| Config{Valid?}
+    Config -->|yes| Run[Execute]
+    Config -->|no| Error[Handle Error]
+    Error -.->|retry| Setup`,
   },
   {
     id: "flowchart-direction-bt",
@@ -75,8 +75,8 @@ Error -.->|retry| Setup`,
     category: "flowchart",
     featured: false,
     input: `graph BT
-Foundation[Foundation] --> Structure[Structure]
-Structure --> Roof[Roof]`,
+    Foundation[Foundation] --> Structure[Structure]
+    Structure --> Roof[Roof]`,
   },
   {
     id: "flowchart-ci-pipeline",
@@ -85,12 +85,12 @@ Structure --> Roof[Roof]`,
     category: "flowchart",
     featured: false,
     input: `graph LR
-Push[Git Push] --> Build[Build]
-Build --> Test[Run Tests]
-Test --> Lint[Lint Check]
-Lint --> Deploy{Deploy?}
-Deploy -->|staging| Staging[Staging Env]
-Deploy -->|production| Prod[Production]`,
+    Push[Git Push] --> Build[Build]
+    Build --> Test[Run Tests]
+    Test --> Lint[Lint Check]
+    Lint --> Deploy{Deploy?}
+    Deploy -->|staging| Staging[Staging Env]
+    Deploy -->|production| Prod[Production]`,
   },
   {
     id: "flowchart-complex",
@@ -99,16 +99,16 @@ Deploy -->|production| Prod[Production]`,
     category: "flowchart",
     featured: false,
     input: `graph TD
-A[Input] --> B{Validate}
-B -->|valid| C[Process]
-B -->|invalid| D(Error Handler)
-C --> E{More Data?}
-E -->|yes| A
-E -->|no| F[Output]
-D -.-> G[Log Error]
-D ==> H[Notify Admin]
-G & H --> I[Cleanup]
-I --> F`,
+    A[Input] --> B{Validate}
+    B -->|valid| C[Process]
+    B -->|invalid| D(Error Handler)
+    C --> E{More Data?}
+    E -->|yes| A
+    E -->|no| F[Output]
+    D -.-> G[Log Error]
+    D ==> H[Notify Admin]
+    G & H --> I[Cleanup]
+    I --> F`,
   },
   {
     id: "flowchart-nested-subgraph",
@@ -117,13 +117,13 @@ I --> F`,
     category: "flowchart",
     featured: false,
     input: `graph TD
-subgraph outer[Outer]
-A[Start]
-subgraph inner[Inner]
-B[Process] --> C[End]
-end
-end
-A --> B`,
+    subgraph outer[Outer]
+        A[Start]
+        subgraph inner[Inner]
+            B[Process] --> C[End]
+        end
+    end
+    A --> B`,
   },
   {
     id: "flowchart-subgraph-direction-override",
@@ -149,14 +149,14 @@ A --> B`,
     category: "class",
     featured: true,
     input: `classDiagram
-class Animal {
-  +String name
-  +eat()
-}
-class Dog {
-  +bark()
-}
-Animal <|-- Dog`,
+    class Animal {
+      +String name
+      +eat()
+    }
+    class Dog {
+      +bark()
+    }
+    Animal <|-- Dog`,
   },
   {
     id: "class-relationships",
@@ -165,13 +165,13 @@ Animal <|-- Dog`,
     category: "class",
     featured: true,
     input: `classDiagram
-class User
-class Order
-class Product
-class Service
-User --> Order : places
-Order *-- Product : contains
-Service ..> User : authenticates`,
+    class User
+    class Order
+    class Product
+    class Service
+    User --> Order : places
+    Order *-- Product : contains
+    Service ..> User : authenticates`,
   },
 ];
 
