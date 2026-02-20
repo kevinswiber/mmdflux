@@ -615,6 +615,50 @@ body {
     monospace;
 }
 
+.snippet-token {
+  color: var(--snippet-code-text);
+}
+
+.snippet-token-type {
+  color: var(--editor-token-type);
+  font-weight: 700;
+}
+
+.snippet-token-keyword {
+  color: var(--editor-token-keyword);
+  font-weight: 600;
+}
+
+.snippet-token-comment {
+  color: var(--editor-token-comment);
+  font-style: italic;
+}
+
+.snippet-token-string {
+  color: var(--editor-token-string);
+}
+
+.snippet-token-number {
+  color: var(--editor-token-number);
+}
+
+.snippet-token-variable {
+  color: var(--editor-token-variable);
+}
+
+.snippet-token-class {
+  color: var(--editor-token-class);
+}
+
+.snippet-token-transition {
+  color: var(--editor-token-transition);
+  font-weight: 700;
+}
+
+.snippet-token-delimiter {
+  color: var(--editor-token-delimiter);
+}
+
 .snippet-actions {
   display: flex;
   gap: 0.45rem;

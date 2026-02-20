@@ -19,6 +19,20 @@ describe("playground examples", () => {
     vi.useRealTimers();
   });
 
+  it("renders syntax-highlighted snippet previews", () => {
+    const root = document.createElement("div");
+    renderApp(root);
+
+    const previews = [
+      ...root.querySelectorAll<HTMLElement>(".snippet-preview"),
+    ];
+
+    expect(previews.length).toBeGreaterThan(0);
+    for (const preview of previews) {
+      expect(preview.querySelector(".snippet-token")).not.toBeNull();
+    }
+  });
+
   it("loads selected example into editor and triggers render", async () => {
     vi.useFakeTimers();
     const root = document.createElement("div");

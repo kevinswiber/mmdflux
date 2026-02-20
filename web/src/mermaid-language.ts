@@ -1,8 +1,8 @@
 import {
   HighlightStyle,
+  StringStream,
   StreamLanguage,
   type StreamParser,
-  type StringStream,
   syntaxHighlighting,
 } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
@@ -483,3 +483,53 @@ export const mermaidSyntaxHighlighting: Extension[] = [
   mermaidLanguage,
   syntaxHighlighting(mermaidHighlightStyle),
 ];
+
+export interface MermaidTokenSpan {
+  token: string | null;
+  text: string;
+}
+
+export type MermaidTokenLine = MermaidTokenSpan[];
+
+function advanceOneCharacter(stream: StringStream): void {
+  if (stream.eol()) {
+    return;
+  }
+  stream.next();
+}
+
+export function tokenizeMermaidText(input: string): MermaidTokenLine[] {
+  const startState = mermaidStreamParser.startState;
+  if (!startState) {
+    return [];
+  }
+
+  const state = startState(2);
+  const lines = input.split("\n");
+  const tokenLines: MermaidTokenLine[] = [];
+
+  for (const line of lines) {
+    const stream = new StringStream(line, 2, 2);
+    const lineTokens: MermaidTokenLine = [];
+
+    while (!stream.eol()) {
+      stream.start = stream.pos;
+      const token = mermaidStreamParser.token(stream, state);
+      if (stream.pos === stream.start) {
+        advanceOneCharacter(stream);
+      }
+
+      const segment = line.slice(stream.start, stream.pos);
+      if (segment.length > 0) {
+        lineTokens.push({
+          token: token ?? null,
+          text: segment,
+        });
+      }
+    }
+
+    tokenLines.push(lineTokens);
+  }
+
+  return tokenLines;
+}

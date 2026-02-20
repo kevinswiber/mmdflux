@@ -17,6 +17,7 @@ import {
   createLiveUpdateController,
   type LiveUpdateDebounceSetting,
 } from "./live-update";
+import { tokenizeMermaidText } from "./mermaid-language";
 import { createPreviewController } from "./preview";
 import { createPreviewControls } from "./preview-controls";
 import {
@@ -101,6 +102,17 @@ const CATEGORY_LABELS: Record<ExampleCategory, string> = {
   class: "Class",
 };
 const SNIPPET_PREVIEW_LINES = 7;
+const SNIPPET_TOKEN_CLASS_BY_TOKEN: Partial<Record<string, string>> = {
+  atom: "snippet-token-type",
+  keyword: "snippet-token-keyword",
+  comment: "snippet-token-comment",
+  string: "snippet-token-string",
+  number: "snippet-token-number",
+  variable: "snippet-token-variable",
+  def: "snippet-token-class",
+  operator: "snippet-token-transition",
+  punctuation: "snippet-token-delimiter",
+};
 
 export interface RenderAppOptions {
   renderClientFactory?: () => RenderWorkerClient | null;
@@ -296,6 +308,33 @@ function getSnippetPreview(input: string): string {
     previewLines.push("...");
   }
   return previewLines.join("\n");
+}
+
+function renderSnippetPreview(previewBlock: HTMLElement, input: string): void {
+  previewBlock.replaceChildren();
+  const previewText = getSnippetPreview(input);
+  const tokenLines = tokenizeMermaidText(previewText);
+
+  tokenLines.forEach((line, lineIndex) => {
+    for (const tokenSpan of line) {
+      const className = tokenSpan.token
+        ? SNIPPET_TOKEN_CLASS_BY_TOKEN[tokenSpan.token]
+        : undefined;
+      if (!className) {
+        previewBlock.append(document.createTextNode(tokenSpan.text));
+        continue;
+      }
+
+      const span = document.createElement("span");
+      span.className = `snippet-token ${className}`;
+      span.textContent = tokenSpan.text;
+      previewBlock.append(span);
+    }
+
+    if (lineIndex < tokenLines.length - 1) {
+      previewBlock.append(document.createTextNode("\n"));
+    }
+  });
 }
 
 function populateExampleSelect(select: HTMLSelectElement): void {
@@ -689,7 +728,7 @@ export function renderApp(
 
       const previewBlock = document.createElement("pre");
       previewBlock.className = "snippet-preview";
-      previewBlock.textContent = getSnippetPreview(example.input);
+      renderSnippetPreview(previewBlock, example.input);
 
       const actionRow = document.createElement("div");
       actionRow.className = "snippet-actions";
