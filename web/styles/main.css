@@ -478,14 +478,33 @@ body {
   );
 }
 
-.editor-codemirror .cm-tooltip.cm-tooltip-lint {
+.editor-codemirror .cm-tooltip .cm-tooltip-lint {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   border: 1px solid var(--surface-border);
+  border-radius: 10px;
   background: var(--panel-bg);
   color: var(--text-main);
 }
 
-.editor-codemirror .cm-diagnostic {
+.editor-codemirror .cm-tooltip .cm-diagnostic {
   font-size: 0.82rem;
+  color: inherit;
+}
+
+.editor-codemirror .cm-tooltip .cm-diagnosticText {
+  color: inherit;
+}
+
+.editor-codemirror .cm-tooltip .cm-diagnosticSource {
+  color: var(--text-muted);
+}
+
+.editor-codemirror .cm-tooltip .cm-diagnosticAction {
+  border: 1px solid var(--button-border);
+  background: var(--button-bg);
+  color: var(--button-text);
 }
 
 .editor-input {
