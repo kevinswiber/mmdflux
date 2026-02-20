@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagram::{
-    CornerStyle, EdgeRouting, InterpolationStyle, OutputFormat, PathDetail, RenderConfig,
+    CornerStyle, EdgeRouting, InterpolationStyle, OutputFormat, PathSimplification, RenderConfig,
     RoutingStyle,
 };
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
@@ -526,7 +526,7 @@ fn style_segment_monitor_report_for_svg(
         options.svg.interpolation_style = InterpolationStyle::Linear;
         options.svg.corner_style = CornerStyle::Sharp;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = PathDetail::Full;
+        options.path_simplification = PathSimplification::None;
         let svg = render_svg(&diagram, &options);
 
         for line in svg.lines().map(str::trim) {
@@ -762,7 +762,7 @@ fn render_fixture_svg(
     options.svg.routing_style = style.0;
     options.svg.interpolation_style = style.1;
     options.svg.corner_style = style.2;
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     render_svg(diagram, &options)
 }
 
@@ -839,7 +839,7 @@ fn svg_orthogonal_mode_renders_axis_aligned_path_commands() {
 }
 
 #[test]
-fn svg_compact_path_detail_sits_between_full_and_simplified_for_orthogonal_route() {
+fn svg_lossless_path_simplification_sits_between_none_and_lossy_for_orthogonal_route() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
@@ -849,19 +849,19 @@ fn svg_compact_path_detail_sits_between_full_and_simplified_for_orthogonal_route
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
     let diagram = build_diagram(&flowchart);
 
-    let render_with = |path_detail: PathDetail| {
+    let render_with = |path_simplification: PathSimplification| {
         let mut options = RenderOptions::default_svg();
         options.svg.routing_style = RoutingStyle::Orthogonal;
         options.svg.interpolation_style = InterpolationStyle::Linear;
         options.svg.corner_style = CornerStyle::Rounded;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = path_detail;
+        options.path_simplification = path_simplification;
         render_svg(&diagram, &options)
     };
 
-    let full = render_with(PathDetail::Full);
-    let compact = render_with(PathDetail::Compact);
-    let simplified = render_with(PathDetail::Simplified);
+    let full = render_with(PathSimplification::None);
+    let compact = render_with(PathSimplification::Lossless);
+    let simplified = render_with(PathSimplification::Lossy);
 
     let full_segments = total_svg_edge_segments(&full);
     let compact_segments = total_svg_edge_segments(&compact);
@@ -878,7 +878,7 @@ fn svg_compact_path_detail_sits_between_full_and_simplified_for_orthogonal_route
 }
 
 #[test]
-fn routed_svg_defaults_to_full_path_detail() {
+fn routed_svg_defaults_to_none_path_simplification() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
@@ -903,12 +903,12 @@ fn routed_svg_defaults_to_full_path_detail() {
     let default_points = edge_path_for_svg_order(&diagram, &default_svg, edge_index);
 
     let mut full_options = default_options;
-    full_options.path_detail = PathDetail::Full;
+    full_options.path_simplification = PathSimplification::None;
     let full_svg = render_svg(&diagram, &full_options);
     let full_points = edge_path_for_svg_order(&diagram, &full_svg, edge_index);
 
     let mut simplified_options = full_options;
-    simplified_options.path_detail = PathDetail::Simplified;
+    simplified_options.path_simplification = PathSimplification::Lossy;
     let simplified_svg = render_svg(&diagram, &simplified_options);
     let simplified_points = edge_path_for_svg_order(&diagram, &simplified_svg, edge_index);
 
@@ -943,7 +943,7 @@ fn svg_orthogonal_orthogonal_route_labeled_edges_labels_remain_attached_to_activ
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     let failures = svg_label_drift_failures(
@@ -967,7 +967,7 @@ fn svg_orthogonal_orthogonal_route_inline_label_flowchart_labels_remain_attached
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     let failures = svg_label_drift_failures(
@@ -990,7 +990,7 @@ fn svg_orthogonal_orthogonal_route_inline_label_flowchart_avoids_known_node_intr
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     let cache_to_validate = edge_index(&diagram, "cache", "validate");
@@ -1051,7 +1051,7 @@ fn svg_orthogonal_orthogonal_route_inline_label_flowchart_avoids_known_node_intr
 }
 
 #[test]
-fn path_detail_monotonicity_holds_full_compact_simplified() {
+fn path_simplification_monotonicity_holds_none_lossless_lossy() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
@@ -1067,20 +1067,20 @@ fn path_detail_monotonicity_holds_full_compact_simplified() {
         .expect("fixture should contain edge Bmid -> F")
         .index;
 
-    let render_for = |path_detail: PathDetail| {
+    let render_for = |path_simplification: PathSimplification| {
         let mut options = RenderOptions::default_svg();
         options.svg.routing_style = RoutingStyle::Orthogonal;
         options.svg.interpolation_style = InterpolationStyle::Linear;
         options.svg.corner_style = CornerStyle::Rounded;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = path_detail;
+        options.path_simplification = path_simplification;
         let svg = render_svg(&diagram, &options);
         edge_path_for_svg_order(&diagram, &svg, edge_index).len()
     };
 
-    let full = render_for(PathDetail::Full);
-    let compact = render_for(PathDetail::Compact);
-    let simplified = render_for(PathDetail::Simplified);
+    let full = render_for(PathSimplification::None);
+    let compact = render_for(PathSimplification::Lossless);
+    let simplified = render_for(PathSimplification::Lossy);
 
     assert!(
         full >= compact && compact >= simplified,
@@ -1110,7 +1110,7 @@ fn svg_orthogonal_orthogonal_route_preserves_clear_terminal_stem_into_arrowhead(
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
     assert!(
@@ -1185,7 +1185,7 @@ fn svg_orthogonal_orthogonal_route_does_not_add_short_staircase_jogs_after_adjus
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Sharp;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
     let svg_segments = points.len().saturating_sub(1);
@@ -1215,7 +1215,7 @@ fn svg_orthogonal_orthogonal_route_multiple_cycles_avoids_tiny_terminal_staircas
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in edges {
@@ -1255,7 +1255,7 @@ fn svg_orthogonal_orthogonal_route_double_skip_avoids_tiny_leading_lateral_jog()
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
     assert!(
@@ -1294,7 +1294,7 @@ fn svg_orthogonal_orthogonal_route_decision_diamond_outbound_prefers_horizontal_
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in edges {
@@ -1340,7 +1340,7 @@ fn svg_orthogonal_orthogonal_route_hexagon_outbound_departure_insets_from_bottom
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in edges {
@@ -1381,7 +1381,7 @@ fn svg_orthogonal_orthogonal_route_nested_subgraph_edge_avoids_large_lateral_det
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in edges {
@@ -1407,7 +1407,7 @@ fn svg_curved_orthogonal_route_ampersand_avoids_tiny_terminal_hook_before_arrow(
     options.svg.interpolation_style = InterpolationStyle::Bezier;
     options.svg.corner_style = CornerStyle::Sharp;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in merge_in_edges {
@@ -1447,7 +1447,7 @@ fn svg_non_orth_orthogonal_route_backward_edges_terminal_tangent_points_toward_t
 
             options.svg.corner_style = style.2;
             options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-            options.path_detail = PathDetail::Full;
+            options.path_simplification = PathSimplification::None;
             let svg = render_svg(&diagram, &options);
             let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
 
@@ -1489,7 +1489,7 @@ fn svg_straight_orthogonal_route_avoids_primary_axis_backtrack_for_bmid_to_f() {
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Sharp;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
 
@@ -1521,7 +1521,7 @@ fn svg_curved_orthogonal_route_avoids_primary_axis_backtrack_for_bmid_to_f() {
     options.svg.interpolation_style = InterpolationStyle::Bezier;
     options.svg.corner_style = CornerStyle::Sharp;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
 
@@ -1553,7 +1553,7 @@ fn svg_rounded_orthogonal_route_avoids_primary_axis_backtrack_for_bmid_to_f() {
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
 
@@ -1590,7 +1590,7 @@ fn svg_non_orth_orthogonal_route_keeps_endpoint_pulled_back_for_visible_arrow_ti
 
         options.svg.corner_style = style.2;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = PathDetail::Full;
+        options.path_simplification = PathSimplification::None;
         let svg = render_svg(&diagram, &options);
         let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
         let end = points
@@ -1633,7 +1633,7 @@ fn svg_non_orth_orthogonal_route_fan_in_lr_terminal_arrowheads_do_not_end_inside
 
         options.svg.corner_style = style.2;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = PathDetail::Full;
+        options.path_simplification = PathSimplification::None;
         let svg = render_svg(&diagram, &options);
         let (tx, ty, tw, th) =
             node_rect_for_label(&svg, "Target").expect("target rect should exist");
@@ -1679,7 +1679,7 @@ fn svg_non_orth_orthogonal_route_backward_edges_keep_terminal_arrowheads_visible
 
             options.svg.corner_style = style.2;
             options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-            options.path_detail = PathDetail::Full;
+            options.path_simplification = PathSimplification::None;
             let svg = render_svg(&diagram, &options);
             let (tx, ty, tw, th) = node_rect_for_label(&svg, target_label)
                 .unwrap_or_else(|| panic!("target rect should exist for {target_label}"));
@@ -1716,7 +1716,7 @@ fn svg_non_orth_orthogonal_route_backward_in_subgraph_avoids_tiny_terminal_tail_
 
         options.svg.corner_style = style.2;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = PathDetail::Full;
+        options.path_simplification = PathSimplification::None;
         let svg = render_svg(&diagram, &options);
         let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
         assert!(
@@ -1756,7 +1756,7 @@ fn svg_orthogonal_orthogonal_route_complex_backward_edge_keeps_arrowhead_visible
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let (tx, ty, tw, th) =
         node_rect_for_label(&svg, "Input").expect("target rect should exist for Input");
@@ -1784,7 +1784,7 @@ fn svg_orthogonal_orthogonal_route_complex_backward_edge_terminal_tangent_points
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let rect = node_rect_for_label(&svg, "Input").expect("target rect should exist for Input");
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
@@ -1829,7 +1829,7 @@ fn svg_orthogonal_route_complex_top_diamond_loop_avoids_single_edge_micro_jogs()
     straight_options.svg.interpolation_style = InterpolationStyle::Linear;
     straight_options.svg.corner_style = CornerStyle::Sharp;
     straight_options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    straight_options.path_detail = PathDetail::Full;
+    straight_options.path_simplification = PathSimplification::None;
     let straight_svg = render_svg(&diagram, &straight_options);
 
     for (from, to) in [("C", "E"), ("E", "A")] {
@@ -1851,7 +1851,7 @@ fn svg_orthogonal_route_complex_top_diamond_loop_avoids_single_edge_micro_jogs()
     orth_options.svg.interpolation_style = InterpolationStyle::Linear;
     orth_options.svg.corner_style = CornerStyle::Rounded;
     orth_options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    orth_options.path_detail = PathDetail::Full;
+    orth_options.path_simplification = PathSimplification::None;
     let orth_svg = render_svg(&diagram, &orth_options);
     let backward_idx = edge_index(&diagram, "E", "A");
     let backward_points = edge_path_for_svg_order(&diagram, &orth_svg, backward_idx);
@@ -1877,7 +1877,7 @@ fn svg_non_orth_orthogonal_route_complex_backward_edge_avoids_center_biased_inpu
 
         options.svg.corner_style = style.2;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = PathDetail::Full;
+        options.path_simplification = PathSimplification::None;
         let svg = render_svg(&diagram, &options);
 
         let rect = node_rect_for_label(&svg, "Input").expect("target rect should exist for Input");
@@ -1906,7 +1906,7 @@ fn svg_straight_orthogonal_route_ci_pipeline_diamond_exits_avoid_extra_elbow_jog
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Sharp;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     for (from, to) in [("Deploy", "Staging"), ("Deploy", "Prod")] {
@@ -1993,7 +1993,7 @@ fn svg_orthogonal_orthogonal_route_label_spacing_keeps_td_departure_stems_from_s
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     for (from, to) in [("A", "B"), ("A", "C")] {
@@ -2036,7 +2036,7 @@ fn svg_non_orth_orthogonal_route_fan_in_backward_channel_conflict_keeps_backward
 
         options.svg.corner_style = style.2;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = PathDetail::Full;
+        options.path_simplification = PathSimplification::None;
         let svg = render_svg(&diagram, &options);
         let (tx, ty, tw, th) = match rect {
             Some(rect) => rect,
@@ -2074,7 +2074,7 @@ fn svg_curved_orthogonal_route_fan_in_backward_channel_conflict_avoids_tiny_term
     options.svg.interpolation_style = InterpolationStyle::Bezier;
     options.svg.corner_style = CornerStyle::Sharp;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
 
@@ -2106,7 +2106,7 @@ fn svg_non_orth_orthogonal_route_fan_in_backward_channel_conflict_preserves_lowe
 
         options.svg.corner_style = style.2;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = PathDetail::Full;
+        options.path_simplification = PathSimplification::None;
         let svg = render_svg(&diagram, &options);
         let (_tx, ty, _tw, th) = match rect {
             Some(rect) => rect,
@@ -2141,7 +2141,7 @@ fn svg_orthogonal_orthogonal_route_fan_in_backward_channel_conflict_avoids_termi
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
 
@@ -2161,7 +2161,7 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_avoids_source_elbow_ax
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
 
@@ -2184,7 +2184,7 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_uses_right_face_to_avo
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
     let start_rect =
@@ -2226,7 +2226,7 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_preserves_routed_termi
     options.svg.interpolation_style = InterpolationStyle::Linear;
     options.svg.corner_style = CornerStyle::Rounded;
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
     assert!(
@@ -2258,7 +2258,7 @@ fn svg_straight_fan_in_backward_channel_interaction_fixture_matrix_matches_docum
         options.svg.interpolation_style = InterpolationStyle::Linear;
         options.svg.corner_style = CornerStyle::Sharp;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = PathDetail::Full;
+        options.path_simplification = PathSimplification::None;
         let svg = render_svg(&diagram, &options);
         let rect = node_rect_for_label(&svg, target_label)
             .unwrap_or_else(|| panic!("missing target rect for {target_label} in {fixture_name}"));
@@ -2367,7 +2367,7 @@ fn svg_straight_fan_in_backward_channel_interaction_fixture_matrix_matches_docum
         options.svg.interpolation_style = InterpolationStyle::Linear;
         options.svg.corner_style = CornerStyle::Sharp;
         options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-        options.path_detail = PathDetail::Full;
+        options.path_simplification = PathSimplification::None;
         let svg = render_svg(&diagram, &options);
         let source_rect = node_rect_for_label(&svg, source_label)
             .unwrap_or_else(|| panic!("missing source rect for {source_label} in {fixture_name}"));
@@ -2425,7 +2425,7 @@ fn svg_curved_orthogonal_route_five_fan_in_keeps_mirrored_pairs_visually_symmetr
     options.svg.routing_style = RoutingStyle::Orthogonal;
     options.svg.interpolation_style = InterpolationStyle::Bezier;
     options.svg.corner_style = CornerStyle::Sharp;
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     let b_points = edge_path_for_svg_order(&diagram, &svg, b_edge);
@@ -2463,7 +2463,7 @@ fn svg_curved_orthogonal_route_git_workflow_backward_edge_keeps_terminal_support
     options.svg.routing_style = RoutingStyle::Orthogonal;
     options.svg.interpolation_style = InterpolationStyle::Bezier;
     options.svg.corner_style = CornerStyle::Sharp;
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     let svg = render_svg(&diagram, &options);
 
     let points = edge_path_for_svg_order(&diagram, &svg, backward_edge);
@@ -2532,7 +2532,7 @@ fn orthogonal_route_diamond_boundary_clipping_matches_shape_boundary() {
 
     let mut options = RenderOptions::default_svg();
     options.edge_routing = Some(EdgeRouting::OrthogonalRoute);
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
 
     let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());

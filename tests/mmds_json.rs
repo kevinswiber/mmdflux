@@ -6,7 +6,9 @@
 
 use std::path::Path;
 
-use mmdflux::diagram::{EngineAlgorithmId, GeometryLevel, OutputFormat, PathDetail, RenderConfig};
+use mmdflux::diagram::{
+    EngineAlgorithmId, GeometryLevel, OutputFormat, PathSimplification, RenderConfig,
+};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::mmds::MmdsOutput;
 use mmdflux::registry::DiagramInstance;
@@ -175,9 +177,9 @@ fn mmds_layout_node_shapes() {
 }
 
 #[test]
-fn mmds_compact_path_detail_sits_between_full_and_simplified() {
+fn mmds_lossless_path_simplification_sits_between_none_and_lossy() {
     let input = flowchart_fixture("multi_subgraph_direction_override.mmd");
-    let render_for = |path_detail: PathDetail| {
+    let render_for = |path_simplification: PathSimplification| {
         let mut instance = FlowchartInstance::new();
         instance.parse(&input).unwrap();
         instance
@@ -185,7 +187,7 @@ fn mmds_compact_path_detail_sits_between_full_and_simplified() {
                 OutputFormat::Mmds,
                 &RenderConfig {
                     geometry_level: GeometryLevel::Routed,
-                    path_detail,
+                    path_simplification,
                     layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
                     ..RenderConfig::default()
                 },
@@ -193,9 +195,9 @@ fn mmds_compact_path_detail_sits_between_full_and_simplified() {
             .unwrap()
     };
 
-    let full = render_for(PathDetail::Full);
-    let compact = render_for(PathDetail::Compact);
-    let simplified = render_for(PathDetail::Simplified);
+    let full = render_for(PathSimplification::None);
+    let compact = render_for(PathSimplification::Lossless);
+    let simplified = render_for(PathSimplification::Lossy);
 
     let full: MmdsOutput = serde_json::from_str(&full).unwrap();
     let compact: MmdsOutput = serde_json::from_str(&compact).unwrap();
@@ -235,9 +237,9 @@ fn mmds_compact_path_detail_sits_between_full_and_simplified() {
 }
 
 #[test]
-fn routed_mmds_defaults_to_full_path_detail() {
+fn routed_mmds_defaults_to_none_path_simplification() {
     let input = flowchart_fixture("multi_subgraph_direction_override.mmd");
-    let render_for = |path_detail: Option<PathDetail>| {
+    let render_for = |path_simplification: Option<PathSimplification>| {
         let mut instance = FlowchartInstance::new();
         instance.parse(&input).unwrap();
         let mut config = RenderConfig {
@@ -245,8 +247,8 @@ fn routed_mmds_defaults_to_full_path_detail() {
             layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
             ..RenderConfig::default()
         };
-        if let Some(path_detail) = path_detail {
-            config.path_detail = path_detail;
+        if let Some(path_simplification) = path_simplification {
+            config.path_simplification = path_simplification;
         }
         instance.render(OutputFormat::Mmds, &config).unwrap()
     };
@@ -262,8 +264,8 @@ fn routed_mmds_defaults_to_full_path_detail() {
     };
 
     let default = render_for(None);
-    let full = render_for(Some(PathDetail::Full));
-    let simplified = render_for(Some(PathDetail::Simplified));
+    let full = render_for(Some(PathSimplification::None));
+    let simplified = render_for(Some(PathSimplification::Lossy));
     let default_len = edge_len(&default);
     let full_len = edge_len(&full);
     let simplified_len = edge_len(&simplified);
@@ -285,9 +287,9 @@ fn routed_mmds_defaults_to_full_path_detail() {
 }
 
 #[test]
-fn path_detail_monotonicity_holds_full_compact_simplified() {
+fn path_simplification_monotonicity_holds_none_lossless_lossy() {
     let input = flowchart_fixture("multi_subgraph_direction_override.mmd");
-    let render_for = |path_detail: PathDetail| {
+    let render_for = |path_simplification: PathSimplification| {
         let mut instance = FlowchartInstance::new();
         instance.parse(&input).unwrap();
         instance
@@ -295,7 +297,7 @@ fn path_detail_monotonicity_holds_full_compact_simplified() {
                 OutputFormat::Mmds,
                 &RenderConfig {
                     geometry_level: GeometryLevel::Routed,
-                    path_detail,
+                    path_simplification,
                     layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
                     ..RenderConfig::default()
                 },
@@ -313,9 +315,9 @@ fn path_detail_monotonicity_holds_full_compact_simplified() {
             .unwrap()
     };
 
-    let full = edge_len(&render_for(PathDetail::Full));
-    let compact = edge_len(&render_for(PathDetail::Compact));
-    let simplified = edge_len(&render_for(PathDetail::Simplified));
+    let full = edge_len(&render_for(PathSimplification::None));
+    let compact = edge_len(&render_for(PathSimplification::Lossless));
+    let simplified = edge_len(&render_for(PathSimplification::Lossy));
 
     assert!(
         full >= compact && compact >= simplified,

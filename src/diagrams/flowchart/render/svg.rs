@@ -15,7 +15,7 @@ use super::routing_core::{
 };
 use super::svg_metrics::SvgTextMetrics;
 use super::svg_router;
-use crate::diagram::{CornerStyle, EdgeRouting, InterpolationStyle, PathDetail};
+use crate::diagram::{CornerStyle, EdgeRouting, InterpolationStyle, PathSimplification};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke};
 use crate::layered::{LayoutResult, Point, Rect};
 use crate::render::{RenderOptions, layout_config_for_diagram};
@@ -270,7 +270,7 @@ fn render_svg_with_geometry_context(
         svg_options.corner_style,
         svg_options.edge_radius,
         scale,
-        options.path_detail,
+        options.path_simplification,
     );
     render_edge_labels(
         &mut writer,
@@ -820,7 +820,7 @@ fn render_edges(
     corner_style: CornerStyle,
     edge_radius: f64,
     scale: f64,
-    path_detail: PathDetail,
+    path_simplification: PathSimplification,
 ) -> HashMap<usize, Vec<Point>> {
     let mut edge_paths: Vec<(usize, Vec<Point>)> = geom
         .edges
@@ -981,7 +981,7 @@ fn render_edges(
             edge_routing,
             path_interp,
             path_corner,
-            path_detail,
+            path_simplification,
         );
         let d = path_from_prepared_points(
             &rendered_points,
@@ -2336,7 +2336,7 @@ fn points_for_svg_path(
     edge_routing: EdgeRouting,
     interp_style: InterpolationStyle,
     _corner_style: CornerStyle,
-    path_detail: PathDetail,
+    path_simplification: PathSimplification,
 ) -> Vec<Point> {
     if points.is_empty() {
         return Vec::new();
@@ -2372,16 +2372,17 @@ fn points_for_svg_path(
     } else {
         points
     };
-    match path_detail {
-        PathDetail::Full => points,
-        PathDetail::Compact => {
+    match path_simplification {
+        PathSimplification::None => points,
+        PathSimplification::Lossless => {
             let compacted = compact_visual_staircases(&points, 12.0);
-            PathDetail::Compact.simplify_with_coords(&compacted, |point| (point.x, point.y))
+            PathSimplification::Lossless
+                .simplify_with_coords(&compacted, |point| (point.x, point.y))
         }
-        PathDetail::Simplified if needs_orthogonalization => {
+        PathSimplification::Lossy if needs_orthogonalization => {
             simplify_orthogonal_points(&points, direction)
         }
-        _ => path_detail.simplify_with_coords(&points, |point| (point.x, point.y)),
+        _ => path_simplification.simplify_with_coords(&points, |point| (point.x, point.y)),
     }
 }
 

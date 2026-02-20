@@ -67,11 +67,11 @@ fn rejects_legacy_edge_style_config_key() {
 }
 
 #[wasm_bindgen_test]
-fn applies_geometry_level_and_path_detail_for_mmds() {
+fn applies_geometry_level_and_path_simplification_for_mmds() {
     let output = render(
         "graph TD\nA-->B",
         "mmds",
-        r#"{"geometryLevel":"routed","pathDetail":"endpoints"}"#,
+        r#"{"geometryLevel":"routed","pathSimplification":"minimal"}"#,
     )
     .expect("mmds render with geometry/path config should succeed");
     assert!(output.contains("\"path\""));

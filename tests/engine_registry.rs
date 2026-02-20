@@ -3,7 +3,7 @@
 use mmdflux::diagram::{
     AlgorithmId, CornerStyle, EdgePreset, EngineAlgorithmCapabilities, EngineAlgorithmId,
     EngineConfig, EngineId, GeometryLevel, GraphEngine, GraphSolveRequest, InterpolationStyle,
-    OutputFormat, PathDetail, RenderConfig, RenderError, RouteOwnership, RoutingStyle,
+    OutputFormat, PathSimplification, RenderConfig, RenderError, RouteOwnership, RoutingStyle,
 };
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::diagrams::flowchart::engine::{FluxLayeredEngine, MermaidLayeredEngine};
@@ -373,12 +373,12 @@ fn solve_request_fields_round_trip() {
     let req = GraphSolveRequest {
         output_format: OutputFormat::Text,
         geometry_level: GeometryLevel::Layout,
-        path_detail: PathDetail::Full,
+        path_simplification: PathSimplification::None,
         routing_style: None,
     };
     assert_eq!(req.output_format, OutputFormat::Text);
     assert_eq!(req.geometry_level, GeometryLevel::Layout);
-    assert_eq!(req.path_detail, PathDetail::Full);
+    assert_eq!(req.path_simplification, PathSimplification::None);
 }
 
 #[test]
@@ -425,7 +425,7 @@ fn flux_layered_solve_layout_level_has_no_routed_geometry() {
     let request = GraphSolveRequest {
         output_format: OutputFormat::Text,
         geometry_level: GeometryLevel::Layout,
-        path_detail: PathDetail::Full,
+        path_simplification: PathSimplification::None,
         routing_style: None,
     };
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
@@ -446,7 +446,7 @@ fn flux_layered_solve_routed_level_has_routed_geometry() {
     let request = GraphSolveRequest {
         output_format: OutputFormat::Text,
         geometry_level: GeometryLevel::Routed,
-        path_detail: PathDetail::Full,
+        path_simplification: PathSimplification::None,
         routing_style: None,
     };
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
@@ -488,7 +488,7 @@ fn mermaid_layered_solve_layout_level_has_no_routed_geometry() {
     let request = GraphSolveRequest {
         output_format: OutputFormat::Text,
         geometry_level: GeometryLevel::Layout,
-        path_detail: PathDetail::Full,
+        path_simplification: PathSimplification::None,
         routing_style: None,
     };
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
@@ -509,7 +509,7 @@ fn mermaid_layered_layout_matches_flux_layered_layout() {
     let layout_req = GraphSolveRequest {
         output_format: OutputFormat::Text,
         geometry_level: GeometryLevel::Layout,
-        path_detail: PathDetail::Full,
+        path_simplification: PathSimplification::None,
         routing_style: None,
     };
 
@@ -541,7 +541,7 @@ fn mermaid_layered_solve_routed_level_has_routed_geometry() {
     let request = GraphSolveRequest {
         output_format: OutputFormat::Text,
         geometry_level: GeometryLevel::Routed,
-        path_detail: PathDetail::Full,
+        path_simplification: PathSimplification::None,
         routing_style: None,
     };
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());

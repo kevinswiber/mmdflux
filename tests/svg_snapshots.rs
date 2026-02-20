@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use mmdflux::diagram::{
-    CornerStyle, EngineAlgorithmId, InterpolationStyle, OutputFormat, PathDetail, RenderConfig,
-    RoutingStyle,
+    CornerStyle, EngineAlgorithmId, InterpolationStyle, OutputFormat, PathSimplification,
+    RenderConfig, RoutingStyle,
 };
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::diagrams::mmds::from_mmds_str;
@@ -45,7 +45,7 @@ fn render_svg_fixture(name: &str) -> String {
     let flowchart = parse_flowchart(&input).expect("Failed to parse fixture");
     let diagram = build_diagram(&flowchart);
     let mut options = RenderOptions::default_svg();
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     render_svg(&diagram, &options)
 }
 
@@ -62,7 +62,7 @@ fn render_svg_fixture_with_curve(
     options.svg.routing_style = routing;
     options.svg.interpolation_style = interp;
     options.svg.corner_style = corner;
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     render_svg(&diagram, &options)
 }
 
@@ -71,7 +71,7 @@ fn render_svg_fixture_with_engine(name: &str, engine: &str) -> String {
     let mut instance = FlowchartInstance::new();
     instance.parse(&input).expect("Failed to parse fixture");
     let config = RenderConfig {
-        path_detail: PathDetail::Full,
+        path_simplification: PathSimplification::None,
         layout_engine: Some(EngineAlgorithmId::parse(engine).unwrap()),
         ..RenderConfig::default()
     };
@@ -90,7 +90,7 @@ fn render_svg_mmds_fixture(name: &str) -> String {
         .unwrap_or_else(|e| panic!("Failed to read MMDS fixture {}: {e}", path.display()));
     let diagram = from_mmds_str(&payload).expect("MMDS fixture should hydrate");
     let mut options = RenderOptions::default_svg();
-    options.path_detail = PathDetail::Full;
+    options.path_simplification = PathSimplification::None;
     render_svg(&diagram, &options)
 }
 
@@ -108,7 +108,7 @@ fn render_svg_positioned_mmds_fixture(name: &str) -> String {
         .render(
             OutputFormat::Svg,
             &RenderConfig {
-                path_detail: PathDetail::Full,
+                path_simplification: PathSimplification::None,
                 ..RenderConfig::default()
             },
         )

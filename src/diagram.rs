@@ -673,8 +673,8 @@ pub struct GraphSolveRequest {
     pub output_format: OutputFormat,
     /// Geometry detail level requested by the caller.
     pub geometry_level: GeometryLevel,
-    /// Edge path detail level for routed geometry.
-    pub path_detail: PathDetail,
+    /// Edge path simplification level for routed geometry.
+    pub path_simplification: PathSimplification,
     /// Routing style requested by the caller (after preset resolution).
     ///
     /// `None` means use the engine's default routing for the selected algorithm.
@@ -693,7 +693,7 @@ impl GraphSolveRequest {
         Self {
             output_format,
             geometry_level: config.geometry_level,
-            path_detail: config.path_detail,
+            path_simplification: config.path_simplification,
             routing_style,
         }
     }
@@ -733,69 +733,75 @@ pub trait GraphEngine: Send + Sync {
     ) -> Result<GraphSolveResult, RenderError>;
 }
 
-/// Path detail level for edge waypoints in MMDS and SVG output.
+/// Post-routing path simplification level for MMDS and SVG output.
 ///
-/// Controls how many anchor points are included in edge paths.
+/// Controls how many anchor points are retained after the routing engine
+/// produces fully-routed edge geometry. Higher simplification levels
+/// reduce point counts at the cost of path fidelity.
+///
 /// Ignored for text/ASCII output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum PathDetail {
-    /// All routed waypoints (default).
+pub enum PathSimplification {
+    /// No simplification. All routed waypoints are retained.
     #[default]
-    Full,
-    /// Remove redundant points while preserving path shape.
-    Compact,
-    /// Start, midpoint, and end only (3 points).
-    Simplified,
-    /// Start and end only (2 points).
-    Endpoints,
+    None,
+    /// Lossless: remove redundant collinear and duplicate interior points.
+    /// Path shape is preserved exactly.
+    Lossless,
+    /// Lossy: reduce to start, midpoint, and end (3 points max).
+    /// Path shape may change significantly.
+    Lossy,
+    /// Minimal: start and end only (2 points).
+    /// Maximum simplification.
+    Minimal,
 }
 
-impl std::fmt::Display for PathDetail {
+impl std::fmt::Display for PathSimplification {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PathDetail::Full => write!(f, "full"),
-            PathDetail::Compact => write!(f, "compact"),
-            PathDetail::Simplified => write!(f, "simplified"),
-            PathDetail::Endpoints => write!(f, "endpoints"),
+            PathSimplification::None => write!(f, "none"),
+            PathSimplification::Lossless => write!(f, "lossless"),
+            PathSimplification::Lossy => write!(f, "lossy"),
+            PathSimplification::Minimal => write!(f, "minimal"),
         }
     }
 }
 
-impl PathDetail {
-    /// Parse path detail level from user-provided text.
+impl PathSimplification {
+    /// Parse path simplification level from user-provided text.
     pub fn parse(s: &str) -> Result<Self, RenderError> {
         match normalize_enum_token(s).as_str() {
-            "full" => Ok(PathDetail::Full),
-            "compact" => Ok(PathDetail::Compact),
-            "simplified" => Ok(PathDetail::Simplified),
-            "endpoints" => Ok(PathDetail::Endpoints),
+            "none" => Ok(PathSimplification::None),
+            "lossless" => Ok(PathSimplification::Lossless),
+            "lossy" => Ok(PathSimplification::Lossy),
+            "minimal" => Ok(PathSimplification::Minimal),
             _ => Err(RenderError {
-                message: format!("unknown path detail: {s:?}"),
+                message: format!("unknown path simplification: {s:?}"),
             }),
         }
     }
 }
 
-impl FromStr for PathDetail {
+impl FromStr for PathSimplification {
     type Err = RenderError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        PathDetail::parse(s)
+        PathSimplification::parse(s)
     }
 }
 
-impl PathDetail {
-    /// Simplify a path according to the detail level.
+impl PathSimplification {
+    /// Simplify a path according to the simplification level.
     ///
     /// Returns a new vec with the appropriate number of points:
-    /// - `Full` — all points unchanged
-    /// - `Simplified` — first, middle, last (3 points max)
-    /// - `Endpoints` — first and last only (2 points max)
+    /// - `None` — all points unchanged
+    /// - `Lossy` — first, middle, last (3 points max)
+    /// - `Minimal` — first and last only (2 points max)
     pub fn simplify<T: Clone>(&self, points: &[T]) -> Vec<T> {
         match self {
-            PathDetail::Full => points.to_vec(),
-            PathDetail::Compact => points.to_vec(),
-            PathDetail::Simplified if points.len() > 3 => {
+            PathSimplification::None => points.to_vec(),
+            PathSimplification::Lossless => points.to_vec(),
+            PathSimplification::Lossy if points.len() > 3 => {
                 let mid = points.len() / 2;
                 vec![
                     points[0].clone(),
@@ -803,7 +809,7 @@ impl PathDetail {
                     points[points.len() - 1].clone(),
                 ]
             }
-            PathDetail::Endpoints if points.len() > 2 => {
+            PathSimplification::Minimal if points.len() > 2 => {
                 vec![points[0].clone(), points[points.len() - 1].clone()]
             }
             _ => points.to_vec(),
@@ -812,7 +818,7 @@ impl PathDetail {
 
     /// Simplify path points with coordinate-aware compacting.
     ///
-    /// - `Compact` removes consecutive duplicates and strictly collinear
+    /// - `Lossless` removes consecutive duplicates and strictly collinear
     ///   interior points while preserving overall shape.
     /// - Other variants behave the same as `simplify`.
     pub fn simplify_with_coords<T: Clone>(
@@ -821,7 +827,7 @@ impl PathDetail {
         coords: impl Fn(&T) -> (f64, f64),
     ) -> Vec<T> {
         match self {
-            PathDetail::Compact => compact_points(points, coords),
+            PathSimplification::Lossless => compact_points(points, coords),
             _ => self.simplify(points),
         }
     }
@@ -964,8 +970,8 @@ pub struct RenderConfig {
     pub show_ids: bool,
     /// MMDS geometry level for JSON output.
     pub geometry_level: GeometryLevel,
-    /// Path detail level for edge waypoints (MMDS and SVG).
-    pub path_detail: PathDetail,
+    /// Path simplification level for edge waypoints (MMDS and SVG).
+    pub path_simplification: PathSimplification,
 }
 
 /// Error type for rendering failures.

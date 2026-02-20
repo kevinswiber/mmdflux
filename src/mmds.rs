@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::diagram::{EngineAlgorithmId, GeometryLevel, PathDetail, RenderError};
+use crate::diagram::{EngineAlgorithmId, GeometryLevel, PathSimplification, RenderError};
 use crate::diagrams::flowchart::geometry::{GraphGeometry, PositionedNode, RoutedGraphGeometry};
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
 
@@ -38,7 +38,7 @@ pub fn to_mmds_layout_typed(
         diagram,
         geometry,
         None,
-        PathDetail::Full,
+        PathSimplification::None,
         None,
     );
     serialize_mmds_output(&output)
@@ -68,7 +68,7 @@ pub fn to_mmds_routed_typed(
         diagram,
         geometry,
         Some(routed),
-        PathDetail::Full,
+        PathSimplification::None,
         None,
     );
     serialize_mmds_output(&output)
@@ -80,7 +80,7 @@ pub fn to_mmds_json(
     geometry: &GraphGeometry,
     routed: Option<&RoutedGraphGeometry>,
     level: GeometryLevel,
-    path_detail: PathDetail,
+    path_simplification: PathSimplification,
     engine_id: Option<EngineAlgorithmId>,
 ) -> Result<String, RenderError> {
     to_mmds_json_typed(
@@ -89,7 +89,7 @@ pub fn to_mmds_json(
         geometry,
         routed,
         level,
-        path_detail,
+        path_simplification,
         engine_id,
     )
 }
@@ -101,7 +101,7 @@ pub fn to_mmds_json_typed(
     geometry: &GraphGeometry,
     routed: Option<&RoutedGraphGeometry>,
     level: GeometryLevel,
-    path_detail: PathDetail,
+    path_simplification: PathSimplification,
     engine_id: Option<EngineAlgorithmId>,
 ) -> Result<String, RenderError> {
     match level {
@@ -111,7 +111,7 @@ pub fn to_mmds_json_typed(
                 diagram,
                 geometry,
                 None,
-                path_detail,
+                path_simplification,
                 engine_id,
             );
             Ok(serialize_mmds_output(&output))
@@ -123,7 +123,7 @@ pub fn to_mmds_json_typed(
                     diagram,
                     geometry,
                     Some(routed),
-                    path_detail,
+                    path_simplification,
                     engine_id,
                 );
                 Ok(serialize_mmds_output(&output))
@@ -146,7 +146,7 @@ fn build_mmds_output(
     diagram: &Diagram,
     geometry: &GraphGeometry,
     routed: Option<&RoutedGraphGeometry>,
-    path_detail: PathDetail,
+    path_simplification: PathSimplification,
     engine_id: Option<EngineAlgorithmId>,
 ) -> MmdsOutput {
     let level = if routed.is_some() { "routed" } else { "layout" };
@@ -193,7 +193,8 @@ fn build_mmds_output(
             {
                 let full_path: Vec<[f64; 2]> = re.path.iter().map(|p| [p.x, p.y]).collect();
                 mmds_edge.path = Some(
-                    path_detail.simplify_with_coords(&full_path, |point| (point[0], point[1])),
+                    path_simplification
+                        .simplify_with_coords(&full_path, |point| (point[0], point[1])),
                 );
                 mmds_edge.label_position =
                     re.label_position.map(|p| MmdsPosition { x: p.x, y: p.y });
@@ -686,7 +687,7 @@ mod tests {
             &geom,
             None,
             GeometryLevel::Layout,
-            PathDetail::Full,
+            PathSimplification::None,
             None,
         )
         .unwrap();
@@ -706,7 +707,7 @@ mod tests {
             &geom,
             None,
             GeometryLevel::Layout,
-            PathDetail::Full,
+            PathSimplification::None,
             None,
         )
         .unwrap();
@@ -725,7 +726,7 @@ mod tests {
             &geom,
             None,
             GeometryLevel::Layout,
-            PathDetail::Full,
+            PathSimplification::None,
             None,
         )
         .unwrap();
@@ -743,7 +744,7 @@ mod tests {
             &geom,
             None,
             GeometryLevel::Layout,
-            PathDetail::Full,
+            PathSimplification::None,
             None,
         )
         .unwrap();
@@ -759,7 +760,7 @@ mod tests {
             &geom,
             None,
             GeometryLevel::Layout,
-            PathDetail::Full,
+            PathSimplification::None,
             None,
         )
         .unwrap();
@@ -875,7 +876,7 @@ mod tests {
             &geom,
             Some(&routed),
             GeometryLevel::Layout,
-            PathDetail::Full,
+            PathSimplification::None,
             None,
         )
         .unwrap();
@@ -886,7 +887,7 @@ mod tests {
             &geom,
             Some(&routed),
             GeometryLevel::Routed,
-            PathDetail::Full,
+            PathSimplification::None,
             None,
         )
         .unwrap();
@@ -901,7 +902,7 @@ mod tests {
             &geom,
             None,
             GeometryLevel::Routed,
-            PathDetail::Full,
+            PathSimplification::None,
             None,
         )
         .unwrap_err();

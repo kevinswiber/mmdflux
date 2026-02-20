@@ -1,6 +1,6 @@
 use mmdflux::diagram::{
     AlgorithmId, CornerStyle, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel,
-    InterpolationStyle, OutputFormat, PathDetail, RenderConfig, RenderError, RoutingStyle,
+    InterpolationStyle, OutputFormat, PathSimplification, RenderConfig, RenderError, RoutingStyle,
 };
 use mmdflux::layered::Ranker;
 use mmdflux::registry::default_registry;
@@ -25,7 +25,7 @@ struct WasmRenderConfig {
     svg_node_padding_y: Option<f64>,
     show_ids: Option<bool>,
     geometry_level: Option<String>,
-    path_detail: Option<String>,
+    path_simplification: Option<String>,
     layout: Option<WasmLayoutConfig>,
 }
 
@@ -129,8 +129,8 @@ impl WasmRenderConfig {
         if let Some(geometry_level) = self.geometry_level {
             config.geometry_level = parse_geometry_level(&geometry_level)?;
         }
-        if let Some(path_detail) = self.path_detail {
-            config.path_detail = parse_path_detail(&path_detail)?;
+        if let Some(path_simplification) = self.path_simplification {
+            config.path_simplification = parse_path_simplification(&path_simplification)?;
         }
         if let Some(layout) = self.layout {
             if let Some(node_sep) = layout.node_sep {
@@ -166,7 +166,7 @@ fn parse_geometry_level(value: &str) -> Result<GeometryLevel, JsError> {
     parse_via_render_error(value)
 }
 
-fn parse_path_detail(value: &str) -> Result<PathDetail, JsError> {
+fn parse_path_simplification(value: &str) -> Result<PathSimplification, JsError> {
     parse_via_render_error(value)
 }
 
@@ -276,12 +276,12 @@ mod tests {
     fn parse_render_config_applies_mmds_geometry_and_path_fields() {
         let config = parse_render_config(
             OutputFormat::Mmds,
-            r#"{"geometryLevel":"routed","pathDetail":"endpoints"}"#,
+            r#"{"geometryLevel":"routed","pathSimplification":"minimal"}"#,
         )
         .expect("mmds config parsing should succeed");
 
         assert_eq!(config.geometry_level, GeometryLevel::Routed);
-        assert_eq!(config.path_detail, PathDetail::Endpoints);
+        assert_eq!(config.path_simplification, PathSimplification::Minimal);
     }
 
     #[test]

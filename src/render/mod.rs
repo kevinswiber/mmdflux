@@ -14,7 +14,7 @@ pub use chars::CharSet;
 
 use crate::diagram::{
     AlgorithmId, CornerStyle, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId,
-    InterpolationStyle, OutputFormat, PathDetail, RenderConfig, RoutingStyle,
+    InterpolationStyle, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
 };
 pub use crate::diagrams::flowchart::render::edge::{
     render_all_edges, render_all_edges_with_labels, render_edge,
@@ -102,7 +102,7 @@ impl From<&RenderConfig> for RenderOptions {
             margin: Some(config.layout.margin),
             cluster_ranksep: config.cluster_ranksep,
             padding: config.padding,
-            path_detail: config.path_detail,
+            path_simplification: config.path_simplification,
             edge_routing: Some(edge_routing),
         }
     }
@@ -169,8 +169,8 @@ pub struct RenderOptions {
     pub cluster_ranksep: Option<f64>,
     /// ASCII padding around the diagram (diagramPadding analog).
     pub padding: Option<usize>,
-    /// Edge path detail level (MMDS and SVG only).
-    pub path_detail: PathDetail,
+    /// Path simplification level (MMDS and SVG only).
+    pub path_simplification: PathSimplification,
     /// Optional edge routing override for graph-family renderers.
     pub edge_routing: Option<EdgeRouting>,
 }
@@ -187,7 +187,7 @@ impl Default for RenderOptions {
             margin: None,
             cluster_ranksep: None,
             padding: None,
-            path_detail: PathDetail::default(),
+            path_simplification: PathSimplification::default(),
             edge_routing: None,
         }
     }

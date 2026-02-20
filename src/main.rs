@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use clap::{Parser, ValueEnum};
 use mmdflux::diagram::{
     CornerStyle, EdgePreset, EngineAlgorithmId, GeometryLevel, InterpolationStyle, LayoutConfig,
-    OutputFormat, PathDetail, RenderConfig, RoutingStyle,
+    OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
 };
 use mmdflux::layered::Ranker;
 use mmdflux::registry::default_registry;
@@ -115,10 +115,10 @@ struct Cli {
     #[arg(long, value_enum)]
     geometry_level: Option<GeometryLevelArg>,
 
-    /// Edge path detail level for MMDS and SVG output.
+    /// Path simplification level for MMDS and SVG output.
     /// Ignored for text/ASCII.
     #[arg(long, value_enum)]
-    path_detail: Option<PathDetailArg>,
+    path_simplification: Option<PathSimplificationArg>,
 }
 
 #[derive(Clone, Copy, ValueEnum, Debug)]
@@ -181,24 +181,24 @@ impl From<GeometryLevelArg> for GeometryLevel {
 }
 
 #[derive(Clone, Copy, ValueEnum, Debug)]
-enum PathDetailArg {
-    /// All routed waypoints (default)
-    Full,
-    /// Remove redundant interior points while preserving path shape
-    Compact,
-    /// Start, midpoint, and end only
-    Simplified,
-    /// Start and end only
-    Endpoints,
+enum PathSimplificationArg {
+    /// No simplification — all routed waypoints (default)
+    None,
+    /// Lossless: remove redundant interior points, preserve path shape
+    Lossless,
+    /// Lossy: start, midpoint, and end only
+    Lossy,
+    /// Minimal: start and end only
+    Minimal,
 }
 
-impl From<PathDetailArg> for PathDetail {
-    fn from(arg: PathDetailArg) -> Self {
+impl From<PathSimplificationArg> for PathSimplification {
+    fn from(arg: PathSimplificationArg) -> Self {
         match arg {
-            PathDetailArg::Full => PathDetail::Full,
-            PathDetailArg::Compact => PathDetail::Compact,
-            PathDetailArg::Simplified => PathDetail::Simplified,
-            PathDetailArg::Endpoints => PathDetail::Endpoints,
+            PathSimplificationArg::None => PathSimplification::None,
+            PathSimplificationArg::Lossless => PathSimplification::Lossless,
+            PathSimplificationArg::Lossy => PathSimplification::Lossy,
+            PathSimplificationArg::Minimal => PathSimplification::Minimal,
         }
     }
 }
@@ -325,7 +325,7 @@ fn main() -> io::Result<()> {
         svg_diagram_padding: cli.svg_diagram_padding,
         show_ids: cli.show_ids,
         geometry_level: cli.geometry_level.map(Into::into).unwrap_or_default(),
-        path_detail: cli.path_detail.map(Into::into).unwrap_or_default(),
+        path_simplification: cli.path_simplification.map(Into::into).unwrap_or_default(),
     };
 
     // Use registry for detection and rendering

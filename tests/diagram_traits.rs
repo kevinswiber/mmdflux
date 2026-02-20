@@ -1,5 +1,5 @@
 use mmdflux::diagram::{
-    DiagramFamily, DiagramModel, EngineConfig, OutputFormat, PathDetail, RenderConfig,
+    DiagramFamily, DiagramModel, EngineConfig, OutputFormat, PathSimplification, RenderConfig,
 };
 
 #[test]
@@ -60,6 +60,9 @@ fn render_config_default_layout_engine_is_none() {
 }
 
 #[test]
-fn path_detail_compact_parses() {
-    assert_eq!(PathDetail::parse("compact").unwrap(), PathDetail::Compact);
+fn path_simplification_lossless_parses() {
+    assert_eq!(
+        PathSimplification::parse("lossless").unwrap(),
+        PathSimplification::Lossless
+    );
 }

@@ -82,7 +82,7 @@ impl DiagramInstance for FlowchartInstance {
                     &result.geometry,
                     result.routed.as_ref(),
                     config.geometry_level,
-                    config.path_detail,
+                    config.path_simplification,
                     Some(engine_id),
                 )
             }
