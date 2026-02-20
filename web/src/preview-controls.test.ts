@@ -109,6 +109,8 @@ function createHarness(
     exportToggleButton,
     exportSvgButton,
     exportPngButton,
+    zoomFitButton,
+    zoomResetButton,
     output,
   };
 }
@@ -244,7 +246,7 @@ describe("preview controls", () => {
     harness.controller.dispose();
   });
 
-  it("preserves viewport center anchor across SVG updates", () => {
+  it("auto-fits newly rendered SVG updates", () => {
     const panzoom = createPanzoomMock();
     const harness = createHarness({
       createPanzoom: () => panzoom,
@@ -270,10 +272,157 @@ describe("preview controls", () => {
       '<svg viewBox="0 0 400 200"><rect width="400" height="200" /></svg>';
     harness.controller.onResult("svg");
 
-    const matchingPanCall = panzoom.pan.mock.calls.find(
-      ([x, y]) => x === -80 && y === -10,
-    );
-    expect(matchingPanCall).toBeDefined();
+    const pan = panzoom.getPan();
+    expect(panzoom.getScale()).toBe(1);
+    expect(pan.x).toBe(0);
+    expect(pan.y).toBe(0);
+
+    harness.controller.dispose();
+  });
+
+  it("keeps fit stable when clicked repeatedly", () => {
+    const panzoom = createPanzoomMock();
+    const harness = createHarness({
+      createPanzoom: () => panzoom,
+    });
+
+    Object.defineProperty(harness.output, "clientWidth", {
+      configurable: true,
+      value: 500,
+    });
+    Object.defineProperty(harness.output, "clientHeight", {
+      configurable: true,
+      value: 300,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 1200 400"><rect width="1200" height="400" /></svg>';
+    harness.controller.onResult("svg");
+
+    panzoom.zoom(2);
+    panzoom.pan(-300, -120);
+
+    harness.zoomFitButton.click();
+    const firstScale = panzoom.getScale();
+    const firstPan = panzoom.getPan();
+
+    harness.zoomFitButton.click();
+    const secondScale = panzoom.getScale();
+    const secondPan = panzoom.getPan();
+
+    expect(secondScale).toBe(firstScale);
+    expect(secondPan.x).toBe(firstPan.x);
+    expect(secondPan.y).toBe(firstPan.y);
+
+    harness.controller.dispose();
+  });
+
+  it("reset centers large diagrams at 100% zoom", () => {
+    const panzoom = createPanzoomMock();
+    const harness = createHarness({
+      createPanzoom: () => panzoom,
+    });
+
+    Object.defineProperty(harness.output, "clientWidth", {
+      configurable: true,
+      value: 500,
+    });
+    Object.defineProperty(harness.output, "clientHeight", {
+      configurable: true,
+      value: 300,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 3000 1200"><rect width="3000" height="1200" /></svg>';
+    harness.controller.onResult("svg");
+
+    panzoom.zoom(3);
+    panzoom.pan(-700, -250);
+
+    harness.zoomResetButton.click();
+
+    const pan = panzoom.getPan();
+    expect(panzoom.getScale()).toBe(1);
+    expect(pan.x).toBe(-1250);
+    expect(pan.y).toBe(-450);
+
+    harness.controller.dispose();
+  });
+
+  it("centers fit and reset for offset viewBox origins", () => {
+    const panzoom = createPanzoomMock();
+    const harness = createHarness({
+      createPanzoom: () => panzoom,
+    });
+
+    Object.defineProperty(harness.output, "clientWidth", {
+      configurable: true,
+      value: 500,
+    });
+    Object.defineProperty(harness.output, "clientHeight", {
+      configurable: true,
+      value: 300,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="-100 -50 200 100"><rect x="-100" y="-50" width="200" height="100" /></svg>';
+    harness.controller.onResult("svg");
+
+    const fitPan = panzoom.getPan();
+    expect(fitPan.x).toBe(250);
+    expect(fitPan.y).toBe(150);
+
+    panzoom.zoom(1.8);
+    panzoom.pan(10, 20);
+    harness.zoomResetButton.click();
+
+    const resetPan = panzoom.getPan();
+    expect(resetPan.x).toBe(250);
+    expect(resetPan.y).toBe(150);
+    expect(panzoom.getScale()).toBe(1);
+
+    harness.controller.dispose();
+  });
+
+  it("uses viewBox bounds even when content bbox is offset", () => {
+    const panzoom = createPanzoomMock();
+    const harness = createHarness({
+      createPanzoom: () => panzoom,
+    });
+
+    Object.defineProperty(harness.output, "clientWidth", {
+      configurable: true,
+      value: 500,
+    });
+    Object.defineProperty(harness.output, "clientHeight", {
+      configurable: true,
+      value: 300,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 1000 200"><g class="root"><rect x="0" y="0" width="1000" height="200" /></g></svg>';
+
+    const svg = harness.output.querySelector("svg");
+    const root = harness.output.querySelector("g.root");
+    if (!svg || !root) {
+      throw new Error("failed to create svg test fixture");
+    }
+
+    Object.defineProperty(root, "getBBox", {
+      configurable: true,
+      value: () => ({ x: 400, y: 0, width: 400, height: 200 }),
+    });
+    Object.defineProperty(svg, "getBBox", {
+      configurable: true,
+      value: () => ({ x: 400, y: 0, width: 400, height: 200 }),
+    });
+
+    harness.controller.onResult("svg");
+
+    const pan = panzoom.getPan();
+    expect(panzoom.getScale()).toBe(0.5);
+    expect(pan.x).toBe(0);
+    expect(pan.y).toBe(200);
 
     harness.controller.dispose();
   });

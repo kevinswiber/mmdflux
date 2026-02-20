@@ -532,7 +532,7 @@ body {
 
 .preview-output svg {
   display: block;
-  margin: 0 auto;
+  margin: 0;
   max-width: none;
   max-height: none;
   transform-origin: top left;

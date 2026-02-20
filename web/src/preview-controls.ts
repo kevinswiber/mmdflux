@@ -22,6 +22,13 @@ interface ViewAnchor {
   scale: number;
 }
 
+interface DiagramBounds {
+  minX: number;
+  minY: number;
+  width: number;
+  height: number;
+}
+
 interface PreviewControlDependencies {
   createPanzoom: (target: SVGElement) => PanzoomInstance;
   createObjectUrl: (blob: Blob) => string;
@@ -83,33 +90,103 @@ function getSvgDimensions(svg: SVGSVGElement): {
   width: number;
   height: number;
 } {
+  const bounds = getSvgBounds(svg);
+  return { width: bounds.width, height: bounds.height };
+}
+
+function getSvgBounds(svg: SVGSVGElement): DiagramBounds {
   const viewBox = svg.viewBox.baseVal;
   if (viewBox.width > 0 && viewBox.height > 0) {
-    return { width: viewBox.width, height: viewBox.height };
+    return {
+      minX: viewBox.x,
+      minY: viewBox.y,
+      width: viewBox.width,
+      height: viewBox.height,
+    };
   }
 
   const width = readNumericAttribute(svg, "width");
   const height = readNumericAttribute(svg, "height");
   if (width > 0 && height > 0) {
-    return { width, height };
+    return {
+      minX: 0,
+      minY: 0,
+      width,
+      height,
+    };
   }
 
   const rect = svg.getBoundingClientRect();
   return {
+    minX: 0,
+    minY: 0,
     width: Math.max(rect.width, 1),
     height: Math.max(rect.height, 1),
   };
 }
 
-function getRenderedDimensions(element: SVGElement): {
+function hasUsableViewBox(svg: SVGSVGElement): boolean {
+  const viewBox = svg.viewBox.baseVal;
+  return viewBox.width > 0 && viewBox.height > 0;
+}
+
+function toFiniteBounds(bounds: {
+  x: number;
+  y: number;
   width: number;
   height: number;
-} {
-  const rect = element.getBoundingClientRect();
+}): DiagramBounds | null {
+  if (
+    !Number.isFinite(bounds.x) ||
+    !Number.isFinite(bounds.y) ||
+    !Number.isFinite(bounds.width) ||
+    !Number.isFinite(bounds.height) ||
+    bounds.width <= 0 ||
+    bounds.height <= 0
+  ) {
+    return null;
+  }
+
   return {
-    width: Math.max(rect.width, 0),
-    height: Math.max(rect.height, 0),
+    minX: bounds.x,
+    minY: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
   };
+}
+
+function getSvgContentBounds(svg: SVGSVGElement): DiagramBounds | null {
+  const rootGroup = svg.querySelector<SVGGraphicsElement>("g.root");
+  if (rootGroup) {
+    try {
+      const rootBounds = toFiniteBounds(rootGroup.getBBox());
+      if (rootBounds) {
+        return rootBounds;
+      }
+    } catch {
+      // ignore and fall through
+    }
+  }
+
+  try {
+    const svgBounds = toFiniteBounds(svg.getBBox());
+    if (svgBounds) {
+      return svgBounds;
+    }
+  } catch {
+    // ignore and fall through
+  }
+
+  return null;
+}
+
+function getDiagramBounds(svg: SVGSVGElement): DiagramBounds {
+  const svgBounds = getSvgBounds(svg);
+  if (hasUsableViewBox(svg)) {
+    return svgBounds;
+  }
+
+  return getSvgContentBounds(svg) ?? svgBounds;
 }
 
 function getViewportDimensions(element: HTMLElement): {
@@ -134,11 +211,11 @@ function clampRatio(value: number): number {
 function captureViewAnchor(
   outputRoot: HTMLElement,
   panzoom: PanzoomInstance,
-  dimensions: { width: number; height: number },
+  bounds: DiagramBounds,
 ): ViewAnchor | null {
   const { width: viewportWidth, height: viewportHeight } =
     getViewportDimensions(outputRoot);
-  const { width, height } = dimensions;
+  const { minX, minY, width, height } = bounds;
   if (viewportWidth <= 0 || viewportHeight <= 0 || width <= 0 || height <= 0) {
     return null;
   }
@@ -152,22 +229,33 @@ function captureViewAnchor(
   const centerX = viewportWidth / (2 * scale) - pan.x;
   const centerY = viewportHeight / (2 * scale) - pan.y;
   return {
-    centerXRatio: clampRatio(centerX / width),
-    centerYRatio: clampRatio(centerY / height),
+    centerXRatio: clampRatio((centerX - minX) / width),
+    centerYRatio: clampRatio((centerY - minY) / height),
     scale,
   };
 }
 
-function normalizeSvgSize(svg: SVGSVGElement): {
-  width: number;
-  height: number;
-} {
-  const dimensions = getSvgDimensions(svg);
-  if (dimensions.width > 0 && dimensions.height > 0) {
-    svg.setAttribute("width", String(dimensions.width));
-    svg.setAttribute("height", String(dimensions.height));
+function normalizeSvgSize(svg: SVGSVGElement): DiagramBounds {
+  const bounds = getSvgBounds(svg);
+  if (bounds.width > 0 && bounds.height > 0) {
+    svg.setAttribute("width", String(bounds.width));
+    svg.setAttribute("height", String(bounds.height));
   }
-  return dimensions;
+  return bounds;
+}
+
+function panForCenteredView(
+  viewportWidth: number,
+  viewportHeight: number,
+  bounds: DiagramBounds,
+  scale: number,
+): { x: number; y: number } {
+  const centerX = bounds.minX + bounds.width / 2;
+  const centerY = bounds.minY + bounds.height / 2;
+  return {
+    x: viewportWidth / (2 * scale) - centerX,
+    y: viewportHeight / (2 * scale) - centerY,
+  };
 }
 
 function serializeSvg(svg: SVGSVGElement): string {
@@ -215,7 +303,7 @@ export function createPreviewControls(
   let currentFormat: WorkerOutputFormat = "text";
   let currentSvg: SVGSVGElement | null = null;
   let currentPanTarget: SVGElement | null = null;
-  let currentPanTargetDimensions: { width: number; height: number } | null = null;
+  let currentPanTargetBounds: DiagramBounds | null = null;
   let panzoom: PanzoomInstance | null = null;
   let wheelHost: HTMLElement | null = null;
   let fitTicket = 0;
@@ -246,8 +334,8 @@ export function createPreviewControls(
   };
 
   const teardownPanzoom = (): void => {
-    if (panzoom && outputRoot && currentPanTargetDimensions) {
-      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetDimensions);
+    if (panzoom && outputRoot && currentPanTargetBounds) {
+      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetBounds);
     }
     fitTicket += 1;
     if (wheelHost) {
@@ -257,7 +345,7 @@ export function createPreviewControls(
     panzoom?.destroy();
     panzoom = null;
     currentPanTarget = null;
-    currentPanTargetDimensions = null;
+    currentPanTargetBounds = null;
     currentSvg = null;
     resetZoomLabel();
   };
@@ -286,25 +374,14 @@ export function createPreviewControls(
       return;
     }
 
-    const measuredTargetDimensions = currentPanTarget
-      ? getRenderedDimensions(currentPanTarget)
-      : null;
-    if (
-      measuredTargetDimensions &&
-      measuredTargetDimensions.width > 0 &&
-      measuredTargetDimensions.height > 0
-    ) {
-      currentPanTargetDimensions = measuredTargetDimensions;
-    }
-
     const { width: outputWidth, height: outputHeight } =
       getViewportDimensions(outputRoot);
-    const baseDimensions =
-      currentPanTargetDimensions ??
-      (currentPanTarget ? getRenderedDimensions(currentPanTarget) : null) ??
-      getSvgDimensions(currentSvg);
-    const width = baseDimensions?.width ?? 0;
-    const height = baseDimensions?.height ?? 0;
+    if (!currentPanTargetBounds || hasUsableViewBox(currentSvg)) {
+      currentPanTargetBounds = getDiagramBounds(currentSvg);
+    }
+    const bounds = currentPanTargetBounds;
+    const width = bounds.width;
+    const height = bounds.height;
     if (outputWidth <= 0 || outputHeight <= 0 || width <= 0 || height <= 0) {
       panzoom.reset();
       updateZoomLabel();
@@ -316,10 +393,9 @@ export function createPreviewControls(
       MIN_SCALE,
       MAX_SCALE,
     );
-    const panX = (outputWidth / nextScale - width) / 2;
-    const panY = (outputHeight / nextScale - height) / 2;
+    const centeredPan = panForCenteredView(outputWidth, outputHeight, bounds, nextScale);
     panzoom.zoom(nextScale, { animate: false, force: true });
-    panzoom.pan(panX, panY, { animate: false, force: true });
+    panzoom.pan(centeredPan.x, centeredPan.y, { animate: false, force: true });
     viewAnchor = {
       centerXRatio: 0.5,
       centerYRatio: 0.5,
@@ -332,13 +408,13 @@ export function createPreviewControls(
     anchor: ViewAnchor,
     options?: { allowDownscale?: boolean },
   ): boolean => {
-    if (!panzoom || !outputRoot || !currentPanTargetDimensions) {
+    if (!panzoom || !outputRoot || !currentPanTargetBounds) {
       return false;
     }
 
     const { width: outputWidth, height: outputHeight } =
       getViewportDimensions(outputRoot);
-    const { width, height } = currentPanTargetDimensions;
+    const { minX, minY, width, height } = currentPanTargetBounds;
     if (outputWidth <= 0 || outputHeight <= 0 || width <= 0 || height <= 0) {
       return false;
     }
@@ -353,8 +429,8 @@ export function createPreviewControls(
       options?.allowDownscale === true
         ? Math.min(candidateScale, fitScale)
         : candidateScale;
-    const centerX = clampRatio(anchor.centerXRatio) * width;
-    const centerY = clampRatio(anchor.centerYRatio) * height;
+    const centerX = minX + clampRatio(anchor.centerXRatio) * width;
+    const centerY = minY + clampRatio(anchor.centerYRatio) * height;
     const panX = outputWidth / (2 * nextScale) - centerX;
     const panY = outputHeight / (2 * nextScale) - centerY;
     panzoom.zoom(nextScale, { animate: false, force: true });
@@ -378,40 +454,25 @@ export function createPreviewControls(
     teardownPanzoom();
     currentSvg = svg;
     currentPanTarget = panTarget;
-    const normalizedDimensions = normalizeSvgSize(svg);
-    const measuredTargetDimensions = getRenderedDimensions(panTarget);
-    currentPanTargetDimensions =
-      measuredTargetDimensions.width > 0 && measuredTargetDimensions.height > 0
-        ? measuredTargetDimensions
-        : normalizedDimensions;
+    normalizeSvgSize(svg);
+    currentPanTargetBounds = getDiagramBounds(svg);
     panzoom = dependencies.createPanzoom(panTarget);
     wheelHost = outputRoot;
     wheelHost?.addEventListener("wheel", handleWheel as EventListener, {
       passive: false,
     });
-    const didRestore = viewAnchor ? applyViewAnchor(viewAnchor) : false;
-    if (!didRestore) {
-      fitToViewport();
-    }
+    fitToViewport();
 
-    const needsDeferredLayout = !didRestore;
     const currentTicket = ++fitTicket;
     const deferredFit = (): void => {
       if (currentTicket !== fitTicket || !panzoom || currentSvg !== svg) {
         return;
       }
 
-      if (!needsDeferredLayout) {
-        return;
-      }
-
       // Force a post-attach layout read before applying a second fit.
       // This avoids occasional SVG/foreignObject text paint glitches.
       void svg.getBoundingClientRect();
-      const restored = viewAnchor ? applyViewAnchor(viewAnchor) : false;
-      if (!restored) {
-        fitToViewport();
-      }
+      fitToViewport();
       forceSvgRepaint();
     };
 
@@ -450,8 +511,8 @@ export function createPreviewControls(
       return;
     }
     panzoom.zoomWithWheel(event);
-    if (outputRoot && currentPanTargetDimensions) {
-      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetDimensions);
+    if (outputRoot && currentPanTargetBounds) {
+      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetBounds);
     }
     updateZoomLabel();
     forceSvgRepaint();
@@ -589,8 +650,8 @@ export function createPreviewControls(
     }
 
     panzoom.zoomOut({ step: ZOOM_STEP });
-    if (outputRoot && currentPanTargetDimensions) {
-      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetDimensions);
+    if (outputRoot && currentPanTargetBounds) {
+      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetBounds);
     }
     updateZoomLabel();
     forceSvgRepaint();
@@ -602,8 +663,8 @@ export function createPreviewControls(
     }
 
     panzoom.zoomIn({ step: ZOOM_STEP });
-    if (outputRoot && currentPanTargetDimensions) {
-      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetDimensions);
+    if (outputRoot && currentPanTargetBounds) {
+      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetBounds);
     }
     updateZoomLabel();
     forceSvgRepaint();
@@ -618,10 +679,38 @@ export function createPreviewControls(
       return;
     }
 
-    panzoom.reset();
-    if (outputRoot && currentPanTargetDimensions) {
-      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetDimensions);
+    if (!outputRoot || !currentPanTargetBounds) {
+      panzoom.reset();
+      updateZoomLabel();
+      forceSvgRepaint();
+      return;
     }
+
+    const { width: outputWidth, height: outputHeight } =
+      getViewportDimensions(outputRoot);
+    const bounds = currentPanTargetBounds;
+    const { width, height } = bounds;
+    if (outputWidth <= 0 || outputHeight <= 0 || width <= 0 || height <= 0) {
+      panzoom.reset();
+      updateZoomLabel();
+      forceSvgRepaint();
+      return;
+    }
+
+    const resetScale = clamp(1, MIN_SCALE, MAX_SCALE);
+    const centeredPan = panForCenteredView(
+      outputWidth,
+      outputHeight,
+      bounds,
+      resetScale,
+    );
+    panzoom.zoom(resetScale, { animate: false, force: true });
+    panzoom.pan(centeredPan.x, centeredPan.y, { animate: false, force: true });
+    viewAnchor = {
+      centerXRatio: 0.5,
+      centerYRatio: 0.5,
+      scale: resetScale,
+    };
     updateZoomLabel();
     forceSvgRepaint();
   });
