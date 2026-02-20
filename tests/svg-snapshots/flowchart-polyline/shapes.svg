@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 189.77 381.75" style="max-width: 189.77px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+    <marker id="crosshead" viewBox="0 0 11.00 11.00" refX="12.00" refY="5.20" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 1,1 l 9,9 M 10,1 l -9,9" stroke="#333" stroke-width="2" />
+    </marker>
+    <marker id="circlehead" viewBox="0 0 10.00 10.00" refX="11.00" refY="5.00" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="5" stroke="#333" stroke-width="1" fill="#333" />
+    </marker>
+    <marker id="open-arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,0 10.00,5.00 0,10.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+    <marker id="diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="#333" />
+    </marker>
+    <marker id="open-diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M94.89,62.00 L94.89,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M94.89,166.00 L94.89,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+    </g>
+    <g class="nodes">
+      <polygon points="94.89,216.00 173.76,294.88 94.89,373.75 16.01,294.88" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="94.89" y="294.88" text-anchor="middle" dominant-baseline="middle" fill="#333">Diamond Node</text>
+      <rect x="8.00" y="8.00" width="173.77" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="94.89" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rectangle Node</text>
+      <rect x="28.29" y="112.00" width="133.19" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="94.89" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rounded Node</text>
+    </g>
+  </g>
+</svg>

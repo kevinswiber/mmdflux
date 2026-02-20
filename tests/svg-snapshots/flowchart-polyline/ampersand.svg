@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 318.15 278.00" style="max-width: 318.15px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+    <marker id="crosshead" viewBox="0 0 11.00 11.00" refX="12.00" refY="5.20" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 1,1 l 9,9 M 10,1 l -9,9" stroke="#333" stroke-width="2" />
+    </marker>
+    <marker id="circlehead" viewBox="0 0 10.00 10.00" refX="11.00" refY="5.00" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="5" stroke="#333" stroke-width="1" fill="#333" />
+    </marker>
+    <marker id="open-arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,0 10.00,5.00 0,10.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+    <marker id="diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="#333" />
+    </marker>
+    <marker id="open-diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M71.04,62.00 L71.04,73.40 L114.80,73.40 L114.80,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M247.11,62.00 L247.11,73.40 L203.35,73.40 L203.35,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M114.80,166.00 L114.80,177.40 L72.34,177.40 L72.34,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M203.35,166.00 L203.35,177.40 L245.81,177.40 L245.81,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+    </g>
+    <g class="nodes">
+      <rect x="8.00" y="8.00" width="126.07" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="71.04" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source 1</text>
+      <rect x="184.07" y="8.00" width="126.07" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="247.11" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source 2</text>
+      <rect x="106.80" y="112.00" width="104.54" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="159.07" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Merge</text>
+      <rect x="10.60" y="216.00" width="123.48" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="72.34" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output 1</text>
+      <rect x="184.07" y="216.00" width="123.48" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="245.81" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output 2</text>
+    </g>
+  </g>
+</svg>

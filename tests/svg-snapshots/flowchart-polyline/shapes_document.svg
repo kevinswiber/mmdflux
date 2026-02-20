@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 106.16 548.50" style="max-width: 106.16px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+    <marker id="crosshead" viewBox="0 0 11.00 11.00" refX="12.00" refY="5.20" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 1,1 l 9,9 M 10,1 l -9,9" stroke="#333" stroke-width="2" />
+    </marker>
+    <marker id="circlehead" viewBox="0 0 10.00 10.00" refX="11.00" refY="5.00" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="5" stroke="#333" stroke-width="1" fill="#333" />
+    </marker>
+    <marker id="open-arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,0 10.00,5.00 0,10.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+    <marker id="diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="#333" />
+    </marker>
+    <marker id="open-diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M53.08,68.75 L53.08,114.75" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M53.08,196.25 L53.08,242.25" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M53.08,332.50 L53.08,378.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M53.08,436.50 L53.08,482.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+    </g>
+    <g class="nodes">
+      <path d="M28.12,382.50 L90.04,382.50 L90.04,436.50 L16.12,436.50 L16.12,394.50 Z" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="53.08" y="409.50" text-anchor="middle" dominant-baseline="middle" fill="#333">Card</text>
+      <path d="M25.09,62.00 L25.09,62.00 L26.21,62.68 L27.33,63.35 L28.45,64.01 L29.57,64.64 L30.69,65.25 L31.81,65.83 L32.93,66.37 L34.05,66.86 L35.17,67.31 L36.29,67.70 L37.41,68.03 L38.53,68.31 L39.65,68.52 L40.77,68.66 L41.89,68.74 L43.01,68.75 L44.12,68.69 L45.24,68.56 L46.36,68.37 L47.48,68.11 L48.60,67.79 L49.72,67.41 L50.84,66.98 L51.96,66.50 L53.08,65.97 L54.20,65.40 L55.32,64.80 L56.44,64.17 L57.56,63.51 L58.68,62.85 L59.80,62.17 L60.92,61.49 L62.04,60.82 L63.16,60.16 L64.28,59.52 L65.40,58.90 L66.52,58.31 L67.64,57.76 L68.76,57.26 L69.88,56.80 L71.00,56.39 L72.12,56.04 L73.24,55.76 L74.36,55.53 L75.48,55.37 L76.60,55.28 L77.72,55.25 L78.84,55.29 L79.95,55.40 L81.07,55.58 L81.07,8.00 L25.09,8.00 Z" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="53.08" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Doc</text>
+      <path d="M25.82,172.75 L25.82,172.75 L27.11,174.10 L28.40,175.45 L29.69,176.76 L30.98,178.03 L32.27,179.25 L33.56,180.41 L34.85,181.49 L36.15,182.47 L37.44,183.36 L38.73,184.15 L40.02,184.82 L41.31,185.36 L42.60,185.78 L43.89,186.07 L45.18,186.22 L46.47,186.24 L47.76,186.12 L49.05,185.87 L50.34,185.48 L51.63,184.97 L52.92,184.33 L54.21,183.57 L55.50,182.71 L56.79,181.74 L58.08,180.69 L59.37,179.55 L60.66,178.34 L61.95,177.08 L63.24,175.78 L64.53,174.44 L65.82,173.09 L67.12,171.73 L68.41,170.39 L69.70,169.07 L70.99,167.78 L72.28,166.55 L73.57,165.37 L74.86,164.28 L76.15,163.26 L77.44,162.35 L78.73,161.54 L80.02,160.84 L81.31,160.26 L82.60,159.81 L83.89,159.49 L85.18,159.30 L86.47,159.25 L87.76,159.34 L89.05,159.56 L90.34,159.91 L90.34,118.75 L25.82,118.75 Z" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <path d="M20.82,177.75 L20.82,177.75 L22.11,179.10 L23.40,180.45 L24.69,181.76 L25.98,183.03 L27.27,184.25 L28.56,185.41 L29.85,186.49 L31.15,187.47 L32.44,188.36 L33.73,189.15 L35.02,189.82 L36.31,190.36 L37.60,190.78 L38.89,191.07 L40.18,191.22 L41.47,191.24 L42.76,191.12 L44.05,190.87 L45.34,190.48 L46.63,189.97 L47.92,189.33 L49.21,188.57 L50.50,187.71 L51.79,186.74 L53.08,185.69 L54.37,184.55 L55.66,183.34 L56.95,182.08 L58.24,180.78 L59.53,179.44 L60.82,178.09 L62.12,176.73 L63.41,175.39 L64.70,174.07 L65.99,172.78 L67.28,171.55 L68.57,170.37 L69.86,169.28 L71.15,168.26 L72.44,167.35 L73.73,166.54 L75.02,165.84 L76.31,165.26 L77.60,164.81 L78.89,164.49 L80.18,164.30 L81.47,164.25 L82.76,164.34 L84.05,164.56 L85.34,164.91 L85.34,123.75 L20.82,123.75 Z" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <path d="M15.82,182.75 L15.82,182.75 L17.11,184.10 L18.40,185.45 L19.69,186.76 L20.98,188.03 L22.27,189.25 L23.56,190.41 L24.85,191.49 L26.15,192.47 L27.44,193.36 L28.73,194.15 L30.02,194.82 L31.31,195.36 L32.60,195.78 L33.89,196.07 L35.18,196.22 L36.47,196.24 L37.76,196.12 L39.05,195.87 L40.34,195.48 L41.63,194.97 L42.92,194.33 L44.21,193.57 L45.50,192.71 L46.79,191.74 L48.08,190.69 L49.37,189.55 L50.66,188.34 L51.95,187.08 L53.24,185.78 L54.53,184.44 L55.82,183.09 L57.12,181.73 L58.41,180.39 L59.70,179.07 L60.99,177.78 L62.28,176.55 L63.57,175.37 L64.86,174.28 L66.15,173.26 L67.44,172.35 L68.73,171.54 L70.02,170.84 L71.31,170.26 L72.60,169.81 L73.89,169.49 L75.18,169.30 L76.47,169.25 L77.76,169.34 L79.05,169.56 L80.34,169.91 L80.34,128.75 L15.82,128.75 Z" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="48.08" y="155.75" text-anchor="middle" dominant-baseline="middle" fill="#333">Docs</text>
+      <rect x="19.69" y="486.50" width="66.78" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <path d="M75.67,540.50 L86.47,540.50 L86.47,529.70 Z" fill="white" stroke="#333" stroke-width="1.00" />
+      <text x="53.08" y="513.50" text-anchor="middle" dominant-baseline="middle" fill="#333">Tag</text>
+      <path d="M8.00,315.25 L8.00,315.25 L9.80,316.98 L11.61,318.69 L13.41,320.37 L15.21,322.00 L17.02,323.56 L18.82,325.04 L20.62,326.41 L22.43,327.68 L24.23,328.81 L26.03,329.81 L27.84,330.67 L29.64,331.37 L31.44,331.90 L33.25,332.27 L35.05,332.47 L36.85,332.49 L38.66,332.34 L40.46,332.01 L42.26,331.52 L44.07,330.86 L45.87,330.04 L47.67,329.08 L49.48,327.97 L51.28,326.74 L53.08,325.39 L54.89,323.94 L56.69,322.40 L58.49,320.79 L60.30,319.12 L62.10,317.41 L63.90,315.68 L65.71,313.95 L67.51,312.23 L69.31,310.54 L71.12,308.90 L72.92,307.32 L74.72,305.82 L76.53,304.42 L78.33,303.13 L80.13,301.96 L81.94,300.92 L83.74,300.03 L85.54,299.29 L87.35,298.72 L89.15,298.31 L90.95,298.07 L92.75,298.00 L94.56,298.11 L96.36,298.39 L98.16,298.84 L98.16,246.25 L8.00,246.25 Z" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <path d="M80.13,301.96 L80.13,301.96 L81.94,300.92 L83.74,300.03 L85.54,299.29 L87.35,298.72 L89.15,298.31 L90.95,298.07 L92.75,298.00 L94.56,298.11 L96.36,298.39 L98.16,298.84 L98.16,284.71 Z" fill="white" stroke="#333" stroke-width="1.00" />
+      <text x="53.08" y="280.75" text-anchor="middle" dominant-baseline="middle" fill="#333">TagDoc</text>
+    </g>
+  </g>
+</svg>

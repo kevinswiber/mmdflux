@@ -61,8 +61,8 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
 /// post-processing (direction overrides, sublayout reconciliation, padding,
 /// edge rerouting), and converts to `GraphGeometry`. The result's
 /// `rerouted_edges` field carries edge indices rerouted by the subgraph
-/// pipeline. For `EdgeRouting::OrthogonalRoute`, also injects orthogonal paths
-/// and extends `rerouted_edges` to cover all edges.
+/// pipeline. For `EdgeRouting::DirectRoute` and `EdgeRouting::OrthogonalRoute`,
+/// also injects route-mode-specific paths.
 ///
 /// This is the canonical SVG layout pipeline for both `FluxLayeredEngine::solve()`
 /// (via `instance.rs`) and the legacy `render_svg()` path.
@@ -163,7 +163,11 @@ pub(crate) fn build_svg_layout(
 
     // Convert post-processed LayoutResult to engine-agnostic GraphGeometry.
     let mut geom = geometry::from_layered_layout(&layout, diagram);
-    if matches!(edge_routing, EdgeRouting::OrthogonalRoute) {
+    if matches!(edge_routing, EdgeRouting::DirectRoute) {
+        geom = inject_direct_route_paths(diagram, &geom);
+        // Direct mode should use standard endpoint adjustment behavior.
+        rerouted_edges.clear();
+    } else if matches!(edge_routing, EdgeRouting::OrthogonalRoute) {
         geom = inject_orthogonal_route_paths(diagram, &geom);
         rerouted_edges.extend(geom.edges.iter().map(|e| e.index));
     }
@@ -183,7 +187,9 @@ pub fn render_svg_from_geometry(
     // Merge mode-derived rerouted edges with any engine-provided rerouted edges
     // (e.g., direction-override subgraph edges set by build_svg_layout).
     let mut rerouted_edges = rerouted_edge_indexes_for_mode(geom, edge_routing);
-    rerouted_edges.extend(geom.rerouted_edges.iter().copied());
+    if !matches!(edge_routing, EdgeRouting::DirectRoute) {
+        rerouted_edges.extend(geom.rerouted_edges.iter().copied());
+    }
     let override_nodes = svg_router::build_override_node_map(diagram);
     render_svg_with_geometry_context(
         diagram,
@@ -206,8 +212,26 @@ fn rerouted_edge_indexes_for_mode(
         // Orthgonal routes already encode endpoint intent and should not
         // be shape-adjusted again in SVG (all path styles).
         EdgeRouting::OrthogonalRoute => geom.edges.iter().map(|e| e.index).collect(),
+        // Direct and polyline routes need normal endpoint adjustment.
+        EdgeRouting::DirectRoute => HashSet::new(),
         EdgeRouting::PolylineRoute => HashSet::new(),
     }
+}
+
+fn inject_direct_route_paths(diagram: &Diagram, geom: &GraphGeometry) -> GraphGeometry {
+    let routed = crate::diagrams::flowchart::routing::route_graph_geometry(
+        diagram,
+        geom,
+        EdgeRouting::DirectRoute,
+    );
+    let mut updated = geom.clone();
+    for edge in routed.edges {
+        if let Some(layout_edge) = updated.edges.iter_mut().find(|e| e.index == edge.index) {
+            layout_edge.layout_path_hint = Some(edge.path);
+            layout_edge.label_position = edge.label_position;
+        }
+    }
+    updated
 }
 
 fn inject_orthogonal_route_paths(diagram: &Diagram, geom: &GraphGeometry) -> GraphGeometry {
@@ -2347,7 +2371,7 @@ fn points_for_svg_path(
     //    and do not need axis-aligned segments.
     // Corner style (sharp vs rounded) does not affect whether orthogonalization is needed;
     // both require axis-aligned points to produce correct 90° paths.
-    // Polyline routing (PolylineRoute) intentionally allows diagonal segments — skip.
+    // Direct/polyline routing intentionally allows diagonal segments — skip.
     let needs_orthogonalization = matches!(edge_routing, EdgeRouting::OrthogonalRoute)
         && matches!(interp_style, InterpolationStyle::Linear);
     let points: Vec<Point> = if needs_orthogonalization && !points_are_axis_aligned(points) {

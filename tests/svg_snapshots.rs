@@ -272,6 +272,19 @@ fn svg_snapshot_all_fixtures_straight() {
         assert_preset_snapshot(
             "straight",
             &fixture,
+            RoutingStyle::Direct,
+            InterpolationStyle::Linear,
+            CornerStyle::Sharp,
+        );
+    }
+}
+
+#[test]
+fn svg_snapshot_all_fixtures_polyline() {
+    for fixture in list_fixtures() {
+        assert_preset_snapshot(
+            "polyline",
+            &fixture,
             RoutingStyle::Polyline,
             InterpolationStyle::Linear,
             CornerStyle::Sharp,

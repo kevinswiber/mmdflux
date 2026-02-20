@@ -1,6 +1,6 @@
 use mmdflux::diagram::{
     CornerStyle, EdgePreset, EdgeRouting, EngineAlgorithmId, InterpolationStyle, OutputFormat,
-    RenderConfig, RenderError, RoutingStyle,
+    PathSimplification, RenderConfig, RenderError, RoutingStyle,
 };
 
 #[test]
@@ -153,8 +153,8 @@ fn render_options_default_flux_engine_selects_orthogonal_route() {
 }
 
 #[test]
-fn render_options_straight_preset_selects_polyline_route_on_flux() {
-    // Straight preset → Polyline routing → PolylineRoute on flux-layered (Native).
+fn render_options_straight_preset_selects_direct_route_on_flux() {
+    // Straight preset → Direct routing → DirectRoute on flux-layered (Native).
     let config = RenderConfig {
         edge_preset: Some(EdgePreset::Straight),
         ..Default::default()
@@ -162,8 +162,23 @@ fn render_options_straight_preset_selects_polyline_route_on_flux() {
     let options: mmdflux::render::RenderOptions = (&config).into();
     assert_eq!(
         options.edge_routing,
+        Some(EdgeRouting::DirectRoute),
+        "Straight preset (Direct routing) on flux-layered should select DirectRoute"
+    );
+}
+
+#[test]
+fn render_options_polyline_preset_selects_polyline_route_on_flux() {
+    // Polyline preset → Polyline routing → PolylineRoute on flux-layered (Native).
+    let config = RenderConfig {
+        edge_preset: Some(EdgePreset::Polyline),
+        ..Default::default()
+    };
+    let options: mmdflux::render::RenderOptions = (&config).into();
+    assert_eq!(
+        options.edge_routing,
         Some(EdgeRouting::PolylineRoute),
-        "Straight preset (Polyline routing) on flux-layered should select PolylineRoute"
+        "Polyline preset on flux-layered should select PolylineRoute"
     );
 }
 
@@ -175,17 +190,45 @@ fn render_options_interpolation_change_does_not_affect_edge_routing_selection() 
         edge_preset: Some(EdgePreset::Bezier), // Polyline + Bezier
         ..Default::default()
     };
-    let config_straight = RenderConfig {
-        edge_preset: Some(EdgePreset::Straight), // Polyline + Linear
+    let config_polyline = RenderConfig {
+        edge_preset: Some(EdgePreset::Polyline), // Polyline + Linear
         ..Default::default()
     };
     let opts_bezier: mmdflux::render::RenderOptions = (&config_bezier).into();
-    let opts_straight: mmdflux::render::RenderOptions = (&config_straight).into();
+    let opts_polyline: mmdflux::render::RenderOptions = (&config_polyline).into();
     // Both are Polyline routing → both should get PolylineRoute (same edge routing).
     assert_eq!(
-        opts_bezier.edge_routing, opts_straight.edge_routing,
+        opts_bezier.edge_routing, opts_polyline.edge_routing,
         "interpolation style change should not affect EdgeRouting selection (same routing style)"
     );
+}
+
+#[test]
+fn render_options_path_simplification_is_orthogonal_to_style_selection() {
+    let cases = [
+        (Some(EdgePreset::Straight), None),
+        (Some(EdgePreset::Polyline), None),
+        (Some(EdgePreset::Step), None),
+        (Some(EdgePreset::Bezier), None),
+        (None, Some(RoutingStyle::Direct)),
+        (None, Some(RoutingStyle::Polyline)),
+        (None, Some(RoutingStyle::Orthogonal)),
+    ];
+
+    for (edge_preset, routing_style) in cases {
+        let config = RenderConfig {
+            edge_preset,
+            routing_style,
+            path_simplification: PathSimplification::Lossless,
+            ..Default::default()
+        };
+        let options: mmdflux::render::RenderOptions = (&config).into();
+        assert_eq!(
+            options.path_simplification,
+            PathSimplification::Lossless,
+            "path simplification should remain unchanged for edge_preset={edge_preset:?} routing_style={routing_style:?}"
+        );
+    }
 }
 
 #[test]

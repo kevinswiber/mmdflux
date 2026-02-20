@@ -4,6 +4,7 @@ use mmdflux::diagram::{CornerStyle, EdgePreset, InterpolationStyle, RoutingStyle
 
 #[test]
 fn routing_style_parse_accepts_canonical_values() {
+    assert_eq!(RoutingStyle::parse("direct").unwrap(), RoutingStyle::Direct);
     assert_eq!(
         RoutingStyle::parse("polyline").unwrap(),
         RoutingStyle::Polyline
@@ -16,6 +17,7 @@ fn routing_style_parse_accepts_canonical_values() {
 
 #[test]
 fn routing_style_parse_is_case_insensitive() {
+    assert_eq!(RoutingStyle::parse("DIRECT").unwrap(), RoutingStyle::Direct);
     assert_eq!(
         RoutingStyle::parse("Polyline").unwrap(),
         RoutingStyle::Polyline
@@ -27,27 +29,20 @@ fn routing_style_parse_is_case_insensitive() {
 }
 
 #[test]
-fn routing_style_parse_rejects_direct_as_deferred() {
-    let err = RoutingStyle::parse("direct").unwrap_err();
-    let message = err.to_string();
-    assert!(
-        message.contains("direct"),
-        "error should mention the rejected value: {message}"
-    );
-}
-
-#[test]
 fn routing_style_parse_rejects_unknown() {
     let err = RoutingStyle::parse("bogus").unwrap_err();
     let message = err.to_string();
     assert!(
-        message.contains("polyline") || message.contains("orthogonal"),
+        message.contains("direct")
+            || message.contains("polyline")
+            || message.contains("orthogonal"),
         "error should list valid options: {message}"
     );
 }
 
 #[test]
 fn routing_style_display_roundtrips() {
+    assert_eq!(RoutingStyle::Direct.to_string(), "direct");
     assert_eq!(RoutingStyle::Polyline.to_string(), "polyline");
     assert_eq!(RoutingStyle::Orthogonal.to_string(), "orthogonal");
 }
@@ -115,6 +110,7 @@ fn corner_style_display_roundtrips() {
 #[test]
 fn edge_preset_parse_accepts_canonical_values() {
     assert_eq!(EdgePreset::parse("straight").unwrap(), EdgePreset::Straight);
+    assert_eq!(EdgePreset::parse("polyline").unwrap(), EdgePreset::Polyline);
     assert_eq!(EdgePreset::parse("step").unwrap(), EdgePreset::Step);
     assert_eq!(
         EdgePreset::parse("smoothstep").unwrap(),
@@ -126,6 +122,7 @@ fn edge_preset_parse_accepts_canonical_values() {
 #[test]
 fn edge_preset_parse_is_case_insensitive() {
     assert_eq!(EdgePreset::parse("Straight").unwrap(), EdgePreset::Straight);
+    assert_eq!(EdgePreset::parse("POLYLINE").unwrap(), EdgePreset::Polyline);
     assert_eq!(EdgePreset::parse("BEZIER").unwrap(), EdgePreset::Bezier);
     assert_eq!(
         EdgePreset::parse("SmoothStep").unwrap(),
@@ -134,11 +131,11 @@ fn edge_preset_parse_is_case_insensitive() {
 }
 
 #[test]
-fn edge_preset_parse_rejects_direct_as_deferred() {
+fn edge_preset_parse_rejects_direct_as_not_a_preset() {
     let err = EdgePreset::parse("direct").unwrap_err();
     let message = err.to_string();
     assert!(
-        message.contains("direct"),
+        message.contains("routing style") || message.contains("straight"),
         "error should mention the rejected value: {message}"
     );
 }
@@ -148,7 +145,7 @@ fn edge_preset_parse_rejects_unknown() {
     let err = EdgePreset::parse("bogus").unwrap_err();
     let message = err.to_string();
     assert!(
-        message.contains("straight") || message.contains("bezier"),
+        message.contains("straight") || message.contains("polyline"),
         "error should list valid presets: {message}"
     );
 }
@@ -156,6 +153,7 @@ fn edge_preset_parse_rejects_unknown() {
 #[test]
 fn edge_preset_display_roundtrips() {
     assert_eq!(EdgePreset::Straight.to_string(), "straight");
+    assert_eq!(EdgePreset::Polyline.to_string(), "polyline");
     assert_eq!(EdgePreset::Step.to_string(), "step");
     assert_eq!(EdgePreset::SmoothStep.to_string(), "smoothstep");
     assert_eq!(EdgePreset::Bezier.to_string(), "bezier");
@@ -164,6 +162,14 @@ fn edge_preset_display_roundtrips() {
 #[test]
 fn edge_preset_expand_straight() {
     let (routing, interp, corner) = EdgePreset::Straight.expand();
+    assert_eq!(routing, RoutingStyle::Direct);
+    assert_eq!(interp, InterpolationStyle::Linear);
+    assert_eq!(corner, CornerStyle::Sharp);
+}
+
+#[test]
+fn edge_preset_expand_polyline() {
+    let (routing, interp, corner) = EdgePreset::Polyline.expand();
     assert_eq!(routing, RoutingStyle::Polyline);
     assert_eq!(interp, InterpolationStyle::Linear);
     assert_eq!(corner, CornerStyle::Sharp);

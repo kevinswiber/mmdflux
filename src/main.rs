@@ -77,13 +77,13 @@ struct Cli {
     #[arg(long)]
     svg_node_padding_y: Option<f64>,
 
-    /// Edge style preset (straight, step, smoothstep, or bezier).
+    /// Edge style preset (straight, polyline, step, smoothstep, or bezier).
     /// Expands to routing + interpolation + corner defaults.
     /// Explicit --routing-style / --interpolation-style / --corner-style take precedence.
     #[arg(long)]
     edge_preset: Option<String>,
 
-    /// SVG routing style (polyline or orthogonal).
+    /// SVG routing style (direct, polyline, or orthogonal).
     /// Overrides the routing component of --edge-preset when both are set.
     #[arg(long)]
     routing_style: Option<String>,

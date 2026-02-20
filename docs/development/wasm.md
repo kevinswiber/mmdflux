@@ -46,8 +46,8 @@ Supported top-level keys:
 - `clusterRanksep`
 - `padding`
 - `svgScale`
-- `edgePreset` (`straight`, `step`, `smoothstep`, `bezier`)
-- `routingStyle` (`polyline`, `orthogonal`)
+- `edgePreset` (`straight`, `polyline`, `step`, `smoothstep`, `bezier`)
+- `routingStyle` (`direct`, `polyline`, `orthogonal`)
 - `interpolationStyle` (`linear`, `bezier`)
 - `cornerStyle` (`sharp`, `rounded`)
 - `edgeRadius`

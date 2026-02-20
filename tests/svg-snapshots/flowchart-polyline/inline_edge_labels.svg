@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 115.16 582.00" style="max-width: 115.16px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+    <marker id="crosshead" viewBox="0 0 11.00 11.00" refX="12.00" refY="5.20" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 1,1 l 9,9 M 10,1 l -9,9" stroke="#333" stroke-width="2" />
+    </marker>
+    <marker id="circlehead" viewBox="0 0 10.00 10.00" refX="11.00" refY="5.00" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="5" stroke="#333" stroke-width="1" fill="#333" />
+    </marker>
+    <marker id="open-arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,0 10.00,5.00 0,10.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+    <marker id="diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="#333" />
+    </marker>
+    <marker id="open-diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M57.58,62.00 L57.58,132.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M57.58,190.00 L57.58,260.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
+      <path d="M57.58,318.00 L57.58,388.00" stroke="#333" stroke-width="2.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M57.58,446.00 L57.58,516.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+      <text x="57.58" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="57.58" y="227.00" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <text x="57.58" y="355.00" text-anchor="middle" dominant-baseline="middle" fill="#333">final step</text>
+      <text x="57.58" y="483.00" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+    </g>
+    <g class="nodes">
+      <rect x="9.95" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="57.58" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      <rect x="11.62" y="136.00" width="91.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="57.58" y="163.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Next</text>
+      <rect x="8.00" y="264.00" width="99.16" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="57.58" y="291.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Again</text>
+      <rect x="10.32" y="392.00" width="94.52" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="57.58" y="419.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
+      <rect x="11.62" y="520.00" width="91.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="57.58" y="547.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Stop</text>
+    </g>
+  </g>
+</svg>

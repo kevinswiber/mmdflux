@@ -147,6 +147,15 @@ fn cli_accepts_edge_preset_straight() {
 }
 
 #[test]
+fn cli_accepts_edge_preset_polyline() {
+    mmdflux()
+        .args(["--format", "svg", "--edge-preset", "polyline"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .success();
+}
+
+#[test]
 fn cli_accepts_edge_preset_step() {
     mmdflux()
         .args(["--format", "svg", "--edge-preset", "step"])
@@ -174,16 +183,16 @@ fn cli_accepts_edge_preset_bezier() {
 }
 
 #[test]
-fn cli_rejects_edge_preset_direct_as_deferred() {
+fn cli_rejects_edge_preset_direct_as_not_a_preset() {
     mmdflux()
         .args(["--format", "svg", "--edge-preset", "direct"])
         .write_stdin("graph TD\nA-->B")
         .assert()
         .failure()
         .stderr(
-            predicate::str::contains("not yet implemented")
-                .or(predicate::str::contains("not implemented"))
-                .or(predicate::str::contains("deferred")),
+            predicate::str::contains("routing style")
+                .or(predicate::str::contains("--routing-style direct"))
+                .or(predicate::str::contains("straight")),
         );
 }
 
@@ -208,17 +217,12 @@ fn cli_accepts_routing_style_orthogonal() {
 }
 
 #[test]
-fn cli_rejects_routing_style_direct_as_deferred() {
+fn cli_accepts_routing_style_direct() {
     mmdflux()
         .args(["--format", "svg", "--routing-style", "direct"])
         .write_stdin("graph TD\nA-->B")
         .assert()
-        .failure()
-        .stderr(
-            predicate::str::contains("not yet implemented")
-                .or(predicate::str::contains("not implemented"))
-                .or(predicate::str::contains("deferred")),
-        );
+        .success();
 }
 
 // --- --interpolation-style flag ---

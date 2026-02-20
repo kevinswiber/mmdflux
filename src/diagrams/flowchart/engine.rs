@@ -127,7 +127,11 @@ impl GraphEngine for FluxLayeredEngine {
         EngineAlgorithmCapabilities {
             route_ownership: RouteOwnership::Native,
             supports_subgraphs: true,
-            supported_routing_styles: &[RoutingStyle::Polyline, RoutingStyle::Orthogonal],
+            supported_routing_styles: &[
+                RoutingStyle::Direct,
+                RoutingStyle::Polyline,
+                RoutingStyle::Orthogonal,
+            ],
         }
     }
 

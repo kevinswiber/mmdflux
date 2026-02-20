@@ -90,7 +90,7 @@ policy-driven geometry decisions that are hard to get from layout-only engines.
 | Capability           | `flux-layered`                             | `mermaid-layered`                    |
 | -------------------- | ------------------------------------------ | ------------------------------------ |
 | Route ownership      | Native                                     | Hint-driven                          |
-| Routing styles       | `orthogonal`, `polyline`                   | `polyline`                           |
+| Routing styles       | `direct`, `orthogonal`, `polyline`         | `polyline`                           |
 | Default SVG behavior | Orthogonal topology + smooth interpolation | Mermaid-compatible polyline defaults |
 | Subgraph support     | Yes                                        | Yes                                  |
 | Best fit             | Deterministic routed SVG/MMDS output       | Mermaid-style compatibility output   |

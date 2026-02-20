@@ -3766,7 +3766,7 @@ fn polyline_route_rollback_is_stable_for_text_and_svg() {
                 format,
                 &RenderConfig {
                     layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
-                    edge_preset: Some(EdgePreset::Straight),
+                    edge_preset: Some(EdgePreset::Polyline),
                     ..RenderConfig::default()
                 },
             )

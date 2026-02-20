@@ -40,14 +40,14 @@ pub enum OutputFormat {
 /// Path routing topology for SVG edge generation.
 ///
 /// Controls how edge paths are computed between waypoints.
-/// `Direct` routing (straight line from source to target, bypassing waypoints) is
-/// recognized but not yet implemented.
 ///
 /// Engine constraints:
-/// - `flux-layered` supports both `Polyline` and `Orthogonal`.
+/// - `flux-layered` supports `Direct`, `Polyline`, and `Orthogonal`.
 /// - `mermaid-layered` supports `Polyline` only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RoutingStyle {
+    /// Direct routing: single segment from source to target, bypassing waypoints.
+    Direct,
     /// Polyline routing: engine computes waypoints; SVG connects them with line segments.
     Polyline,
     /// Orthogonal routing: engine enforces axis-aligned path segments.
@@ -57,6 +57,7 @@ pub enum RoutingStyle {
 impl std::fmt::Display for RoutingStyle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            RoutingStyle::Direct => write!(f, "direct"),
             RoutingStyle::Polyline => write!(f, "polyline"),
             RoutingStyle::Orthogonal => write!(f, "orthogonal"),
         }
@@ -66,20 +67,15 @@ impl std::fmt::Display for RoutingStyle {
 impl RoutingStyle {
     /// Parse routing style from user-provided text.
     ///
-    /// Accepts: `polyline`, `orthogonal`.
-    /// `direct` is recognized but returns a "not yet implemented" error.
+    /// Accepts: `direct`, `polyline`, `orthogonal`.
     pub fn parse(s: &str) -> Result<Self, RenderError> {
         match normalize_enum_token(s).as_str() {
+            "direct" => Ok(RoutingStyle::Direct),
             "polyline" => Ok(RoutingStyle::Polyline),
             "orthogonal" => Ok(RoutingStyle::Orthogonal),
-            "direct" => Err(RenderError {
-                message: "\"direct\" routing is recognized but not yet implemented. \
-                          Use \"polyline\" or \"orthogonal\"."
-                    .into(),
-            }),
             _ => Err(RenderError {
                 message: format!(
-                    "unknown routing style: {s:?} (expected one of: polyline, orthogonal)"
+                    "unknown routing style: {s:?} (expected one of: direct, polyline, orthogonal)"
                 ),
             }),
         }
@@ -193,18 +189,19 @@ impl FromStr for CornerStyle {
 /// User-facing edge style preset.
 ///
 /// Expands deterministically to `(RoutingStyle, InterpolationStyle, CornerStyle)`:
-/// - `Straight` → `Polyline + Linear + Sharp`
+/// - `Straight` → `Direct + Linear + Sharp`
+/// - `Polyline` → `Polyline + Linear + Sharp`
 /// - `Step` → `Orthogonal + Linear + Sharp`
 /// - `SmoothStep` → `Orthogonal + Linear + Rounded`
 /// - `Bezier` → `Polyline + Bezier` (corner treatment ignored)
 ///
-/// `Direct` routing is recognized but deferred.
-///
 /// Precedence: explicit low-level fields > preset defaults > engine defaults.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EdgePreset {
-    /// Straight polyline with sharp corners.
+    /// Direct straight segment with sharp corners.
     Straight,
+    /// Multi-segment polyline with sharp corners.
+    Polyline,
     /// Orthogonal (right-angle) path with sharp corners.
     Step,
     /// Orthogonal path with rounded arc corners.
@@ -218,6 +215,11 @@ impl EdgePreset {
     pub fn expand(self) -> (RoutingStyle, InterpolationStyle, CornerStyle) {
         match self {
             EdgePreset::Straight => (
+                RoutingStyle::Direct,
+                InterpolationStyle::Linear,
+                CornerStyle::Sharp,
+            ),
+            EdgePreset::Polyline => (
                 RoutingStyle::Polyline,
                 InterpolationStyle::Linear,
                 CornerStyle::Sharp,
@@ -242,22 +244,22 @@ impl EdgePreset {
 
     /// Parse edge preset from user-provided text.
     ///
-    /// Accepts: `straight`, `step`, `smoothstep`, `bezier`.
-    /// `direct` is recognized but returns a "not yet implemented" error.
+    /// Accepts: `straight`, `polyline`, `step`, `smoothstep`, `bezier`.
     pub fn parse(s: &str) -> Result<Self, RenderError> {
         match normalize_enum_token(s).as_str() {
             "straight" => Ok(EdgePreset::Straight),
+            "polyline" => Ok(EdgePreset::Polyline),
             "step" => Ok(EdgePreset::Step),
             "smoothstep" | "smooth-step" => Ok(EdgePreset::SmoothStep),
             "bezier" => Ok(EdgePreset::Bezier),
             "direct" => Err(RenderError {
-                message: "\"direct\" preset is recognized but not yet implemented. \
-                          Use one of: straight, step, smoothstep, bezier."
+                message: "\"direct\" is a routing style, not an edge preset. \
+                          Use --routing-style direct or --edge-preset straight."
                     .into(),
             }),
             _ => Err(RenderError {
                 message: format!(
-                    "unknown edge preset: {s:?} (expected one of: straight, step, smoothstep, bezier)"
+                    "unknown edge preset: {s:?} (expected one of: straight, polyline, step, smoothstep, bezier)"
                 ),
             }),
         }
@@ -268,6 +270,7 @@ impl std::fmt::Display for EdgePreset {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             EdgePreset::Straight => write!(f, "straight"),
+            EdgePreset::Polyline => write!(f, "polyline"),
             EdgePreset::Step => write!(f, "step"),
             EdgePreset::SmoothStep => write!(f, "smoothstep"),
             EdgePreset::Bezier => write!(f, "bezier"),
@@ -540,7 +543,11 @@ impl EngineAlgorithmId {
             (EngineId::Flux, AlgorithmId::Layered) => EngineAlgorithmCapabilities {
                 route_ownership: RouteOwnership::Native,
                 supports_subgraphs: true,
-                supported_routing_styles: &[RoutingStyle::Polyline, RoutingStyle::Orthogonal],
+                supported_routing_styles: &[
+                    RoutingStyle::Direct,
+                    RoutingStyle::Polyline,
+                    RoutingStyle::Orthogonal,
+                ],
             },
             (EngineId::Mermaid, AlgorithmId::Layered) => EngineAlgorithmCapabilities {
                 route_ownership: RouteOwnership::HintDriven,
@@ -574,6 +581,7 @@ impl EngineAlgorithmId {
     pub fn edge_routing_for_style(&self, routing_style: Option<RoutingStyle>) -> EdgeRouting {
         match self.capabilities().route_ownership {
             RouteOwnership::Native => match routing_style {
+                Some(RoutingStyle::Direct) => EdgeRouting::DirectRoute,
                 Some(RoutingStyle::Polyline) => EdgeRouting::PolylineRoute,
                 _ => EdgeRouting::OrthogonalRoute,
             },
@@ -637,6 +645,8 @@ impl From<LayoutConfig> for EngineConfig {
 /// Controls how the rendering pipeline processes edge paths after layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EdgeRouting {
+    /// Engine provides node positions; emit direct source→target paths.
+    DirectRoute,
     /// Engine provides only node positions; run full edge routing.
     PolylineRoute,
     /// Engine provides routed edge paths; apply clipping and spacing only.
@@ -652,8 +662,7 @@ pub enum EdgeRouting {
 /// ## Style model vocabulary (Phase 7 taxonomy)
 ///
 /// Graph-level:
-/// - `RoutingStyle` (`Polyline`, `Orthogonal`) — path topology requested by caller.
-///   `Direct` routing (source→target straight line) is deferred and not yet supported.
+/// - `RoutingStyle` (`Direct`, `Polyline`, `Orthogonal`) — path topology requested by caller.
 ///
 /// Render-level (applied after routing, does not affect path topology):
 /// - `InterpolationStyle` (`Linear`, `Bezier`) — segment drawing treatment.
@@ -661,7 +670,8 @@ pub enum EdgeRouting {
 /// - `CornerStyle` (`Sharp`, `Rounded`) — corner arc treatment (only meaningful for `Linear`).
 ///
 /// User-facing presets (expand to routing + render defaults):
-/// - `Straight` → `Polyline + Linear + Sharp`
+/// - `Straight` → `Direct + Linear + Sharp`
+/// - `Polyline` → `Polyline + Linear + Sharp`
 /// - `Step` → `Orthogonal + Linear + Sharp`
 /// - `SmoothStep` → `Orthogonal + Linear + Rounded`
 /// - `Bezier` → `Polyline + Bezier` (corner treatment ignored)

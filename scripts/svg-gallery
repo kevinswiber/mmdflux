@@ -9,7 +9,7 @@
 #
 # Environment overrides (comma-separated):
 #   ENGINES="flux-layered,mermaid-layered"
-#   PRESETS="bezier,straight,step,smoothstep"
+#   PRESETS="bezier,straight,polyline,step,smoothstep"
 #   FAMILIES="flowchart,class"
 #   FIXTURES="simple,chain"   # stem substring match
 
@@ -48,7 +48,7 @@ ENGINES=()
 while IFS= read -r e; do ENGINES+=("$e"); done < <(read_csv_array "${ENGINES:-flux-layered,mermaid-layered}")
 
 PRESETS=()
-while IFS= read -r p; do PRESETS+=("$p"); done < <(read_csv_array "${PRESETS:-bezier,straight,step,smoothstep}")
+while IFS= read -r p; do PRESETS+=("$p"); done < <(read_csv_array "${PRESETS:-bezier,straight,polyline,step,smoothstep}")
 
 FAMILIES=()
 while IFS= read -r f; do FAMILIES+=("$f"); done < <(read_csv_array "${FAMILIES:-flowchart,class}")
@@ -171,6 +171,7 @@ cat <<'HTML_HEAD'
     /* preset */
     .pre-bezier     { color: #bfdbfe; background: #1e3a8a44; border-color: #3b82f6; }
     .pre-straight   { color: #fde68a; background: #78350f44; border-color: #d97706; }
+    .pre-polyline   { color: #ddd6fe; background: #312e8144; border-color: #6366f1; }
     .pre-step       { color: #fca5a5; background: #7f1d1d44; border-color: #ef4444; }
     .pre-smoothstep { color: #a7f3d0; background: #064e3b44; border-color: #10b981; }
     .card-body { background: #fff; line-height: 0; }

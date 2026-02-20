@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 369.61 304.00" style="max-width: 369.61px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+    <marker id="crosshead" viewBox="0 0 11.00 11.00" refX="12.00" refY="5.20" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 1,1 l 9,9 M 10,1 l -9,9" stroke="#333" stroke-width="2" />
+    </marker>
+    <marker id="circlehead" viewBox="0 0 10.00 10.00" refX="11.00" refY="5.00" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="5" stroke="#333" stroke-width="1" fill="#333" />
+    </marker>
+    <marker id="open-arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,0 10.00,5.00 0,10.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+    <marker id="diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="#333" />
+    </marker>
+    <marker id="open-diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+  </defs>
+  <g transform="translate(15.00,15.00)">
+    <g class="clusters">
+      <rect class="subgraph" x="-0.41" y="147.00" width="347.02" height="134.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="173.10" y="151.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Input</text>
+      <rect class="subgraph" x="-7.00" y="-7.00" width="344.05" height="134.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="165.03" y="-3.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Output</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M95.55,187.00 L95.55,91.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M244.06,187.00 L244.06,91.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+    </g>
+    <g class="nodes">
+      <rect x="49.59" y="187.00" width="91.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="95.55" y="214.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Data</text>
+      <rect x="191.51" y="187.00" width="105.10" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="244.06" y="214.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Config</text>
+      <rect x="43.00" y="33.00" width="105.10" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="95.55" y="60.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Result</text>
+      <rect x="201.07" y="33.00" width="85.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="244.06" y="60.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Log</text>
+    </g>
+  </g>
+</svg>
