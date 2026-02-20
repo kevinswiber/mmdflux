@@ -436,8 +436,8 @@ fn subgraph_bounds_as_node(bounds: &SubgraphBounds) -> NodeBounds {
         y: bounds.y,
         width: bounds.width,
         height: bounds.height,
-        dagre_center_x: None,
-        dagre_center_y: None,
+        layout_center_x: None,
+        layout_center_y: None,
     }
 }
 

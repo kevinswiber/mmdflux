@@ -149,8 +149,8 @@ fn make_bounds_sized(x: usize, y: usize, width: usize, height: usize) -> NodeBou
         y,
         width,
         height,
-        dagre_center_x: None,
-        dagre_center_y: None,
+        layout_center_x: None,
+        layout_center_y: None,
     }
 }
 

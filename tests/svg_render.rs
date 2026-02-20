@@ -6,7 +6,7 @@ use mmdflux::diagram::{
     CornerStyle, EdgeRouting, InterpolationStyle, OutputFormat, PathDetail, RenderConfig,
     RoutingStyle,
 };
-use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_dagre_layout};
+use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
 use mmdflux::graph::Stroke;
 use mmdflux::registry::DiagramInstance;
@@ -777,7 +777,7 @@ fn edge_index(diagram: &mmdflux::Diagram, from: &str, to: &str) -> usize {
 
 fn node_center_for_id(diagram: &mmdflux::Diagram, node_id: &str) -> (f64, f64) {
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let geom = run_dagre_layout(&MeasurementMode::Text, diagram, &config)
+    let geom = run_layered_layout(&MeasurementMode::Text, diagram, &config)
         .expect("layout should succeed for center lookup");
     let node = geom
         .nodes
@@ -1168,8 +1168,8 @@ fn svg_orthogonal_orthogonal_route_does_not_add_short_staircase_jogs_after_adjus
         .index;
 
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let geom =
-        run_dagre_layout(&MeasurementMode::Text, &diagram, &config).expect("layout should succeed");
+    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+        .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
     let routed_edge = routed
         .edges
@@ -1326,7 +1326,7 @@ fn svg_orthogonal_orthogonal_route_hexagon_outbound_departure_insets_from_bottom
 
     let measurement_mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let geom = run_dagre_layout(&measurement_mode, &diagram, &config)
+    let geom = run_layered_layout(&measurement_mode, &diagram, &config)
         .expect("layout should succeed for hexagon_flow fixture");
     let source_rect = geom
         .nodes
@@ -2206,7 +2206,7 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_preserves_routed_termi
 
     let measurement_mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let geom = run_dagre_layout(&measurement_mode, &diagram, &config)
+    let geom = run_layered_layout(&measurement_mode, &diagram, &config)
         .expect("layout should succeed for decision fixture");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
     let routed_edge = routed
@@ -2536,7 +2536,7 @@ fn orthogonal_route_diamond_boundary_clipping_matches_shape_boundary() {
 
     let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let geom = run_dagre_layout(&mode, &diagram, &config).unwrap();
+    let geom = run_layered_layout(&mode, &diagram, &config).unwrap();
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     // B is a diamond; B->D is a forward edge — verify source endpoint is on diamond boundary
@@ -2910,7 +2910,7 @@ fn assert_mmds_svg_endpoint_convergence(
     // MMDS path (no SVG post-adjustment)
     let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let geom = run_dagre_layout(&mode, diagram, &config).unwrap();
+    let geom = run_layered_layout(&mode, diagram, &config).unwrap();
     let routed = route_graph_geometry(diagram, &geom, EdgeRouting::OrthogonalRoute);
     let mmds_edge = routed
         .edges

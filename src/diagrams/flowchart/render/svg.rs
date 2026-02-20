@@ -162,7 +162,7 @@ pub(crate) fn build_svg_layout(
     rerouted_edges.extend(sg_node_rerouted);
 
     // Convert post-processed LayoutResult to engine-agnostic GraphGeometry.
-    let mut geom = geometry::from_dagre_layout(&layout, diagram);
+    let mut geom = geometry::from_layered_layout(&layout, diagram);
     if matches!(edge_routing, EdgeRouting::OrthogonalRoute) {
         geom = inject_orthogonal_route_paths(diagram, &geom);
         rerouted_edges.extend(geom.edges.iter().map(|e| e.index));

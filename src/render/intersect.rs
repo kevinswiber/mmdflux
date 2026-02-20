@@ -284,8 +284,8 @@ mod tests {
             y: 5,
             width: 10,
             height: 5,
-            dagre_center_x: None,
-            dagre_center_y: None,
+            layout_center_x: None,
+            layout_center_y: None,
         }
     }
 
@@ -406,16 +406,16 @@ mod tests {
             y: 5,
             width: 10,
             height: 3,
-            dagre_center_x: None,
-            dagre_center_y: None,
+            layout_center_x: None,
+            layout_center_y: None,
         };
         let target = NodeBounds {
             x: 10,
             y: 15,
             width: 10,
             height: 3,
-            dagre_center_x: None,
-            dagre_center_y: None,
+            layout_center_x: None,
+            layout_center_y: None,
         };
 
         let (src_attach, tgt_attach) =
@@ -434,16 +434,16 @@ mod tests {
             y: 5,
             width: 10,
             height: 3,
-            dagre_center_x: None,
-            dagre_center_y: None,
+            layout_center_x: None,
+            layout_center_y: None,
         };
         let target = NodeBounds {
             x: 30,
             y: 15,
             width: 10,
             height: 3,
-            dagre_center_x: None,
-            dagre_center_y: None,
+            layout_center_x: None,
+            layout_center_y: None,
         };
         let waypoints = [(20, 10), (25, 12)];
 
@@ -551,16 +551,16 @@ mod tests {
             y: 5,
             width: 10,
             height: 5,
-            dagre_center_x: None,
-            dagre_center_y: None,
+            layout_center_x: None,
+            layout_center_y: None,
         };
         let target = NodeBounds {
             x: 10,
             y: 20,
             width: 10,
             height: 3,
-            dagre_center_x: None,
-            dagre_center_y: None,
+            layout_center_x: None,
+            layout_center_y: None,
         };
 
         let (src_attach, tgt_attach) =

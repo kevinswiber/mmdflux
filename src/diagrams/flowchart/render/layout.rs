@@ -593,8 +593,8 @@ fn reconcile_sublayouts_draw(
                     y: final_y,
                     width: *w,
                     height: *h,
-                    dagre_center_x: Some(final_x + w / 2),
-                    dagre_center_y: Some(final_y + h / 2),
+                    layout_center_x: Some(final_x + w / 2),
+                    layout_center_y: Some(final_y + h / 2),
                 },
             );
         }
@@ -721,7 +721,7 @@ fn resolve_sibling_overlaps_draw(
                             }
                             if let Some(b) = node_bounds.get_mut(*node_id) {
                                 b.x += shift;
-                                if let Some(ref mut cx) = b.dagre_center_x {
+                                if let Some(ref mut cx) = b.layout_center_x {
                                     *cx += shift;
                                 }
                             }
@@ -755,7 +755,7 @@ fn resolve_sibling_overlaps_draw(
                             }
                             if let Some(b) = node_bounds.get_mut(*node_id) {
                                 b.y += shift;
-                                if let Some(ref mut cy) = b.dagre_center_y {
+                                if let Some(ref mut cy) = b.layout_center_y {
                                     *cy += shift;
                                 }
                             }
@@ -783,10 +783,10 @@ fn resolve_sibling_overlaps_draw(
                     if let Some(b) = node_bounds.get_mut(member_id) {
                         b.x += shift_x;
                         b.y += shift_y;
-                        if let Some(ref mut cx) = b.dagre_center_x {
+                        if let Some(ref mut cx) = b.layout_center_x {
                             *cx += shift_x;
                         }
-                        if let Some(ref mut cy) = b.dagre_center_y {
+                        if let Some(ref mut cy) = b.layout_center_y {
                             *cy += shift_y;
                         }
                     }
@@ -886,7 +886,7 @@ fn align_cross_boundary_siblings_draw(
                 }
                 if let Some(b) = node_bounds.get_mut(*node_id) {
                     b.y = new_y;
-                    b.dagre_center_y = Some(new_y + nb.height / 2);
+                    b.layout_center_y = Some(new_y + nb.height / 2);
                 }
             } else {
                 let node_cx = nb.x + nb.width / 2;
@@ -899,7 +899,7 @@ fn align_cross_boundary_siblings_draw(
                 }
                 if let Some(b) = node_bounds.get_mut(*node_id) {
                     b.x = new_x;
-                    b.dagre_center_x = Some(new_x + nb.width / 2);
+                    b.layout_center_x = Some(new_x + nb.width / 2);
                 }
             }
             affected_parents.insert(sg_id.clone());
@@ -1915,9 +1915,9 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
     // Convert post-processed LayoutResult to engine-agnostic GraphGeometry.
     // From this point on, phases read from `geom` (and `dagre_hints` for
     // rank-annotated data) instead of the raw `result`.
-    let geom = super::super::geometry::from_dagre_layout(&result, diagram);
+    let geom = super::super::geometry::from_layered_layout(&result, diagram);
     let dagre_hints = match &geom.engine_hints {
-        Some(super::super::geometry::EngineHints::Dagre(h)) => h,
+        Some(super::super::geometry::EngineHints::Layered(h)) => h,
         _ => unreachable!("dagre adapter always produces dagre hints"),
     };
 
@@ -2094,8 +2094,8 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
                 y,
                 width: rc.w,
                 height: rc.h,
-                dagre_center_x: Some(center_x + config.padding + config.left_label_margin),
-                dagre_center_y: Some(center_y + config.padding),
+                layout_center_x: Some(center_x + config.padding + config.left_label_margin),
+                layout_center_y: Some(center_y + config.padding),
             },
         );
     }
@@ -2131,8 +2131,8 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
         if let Some(&(w, h)) = node_dims.get(id) {
             // Preserve dagre center from the initial pass
             let prev = node_bounds.get(id);
-            let dagre_center_x = prev.and_then(|b| b.dagre_center_x);
-            let dagre_center_y = prev.and_then(|b| b.dagre_center_y);
+            let layout_center_x = prev.and_then(|b| b.layout_center_x);
+            let layout_center_y = prev.and_then(|b| b.layout_center_y);
             node_bounds.insert(
                 id.clone(),
                 NodeBounds {
@@ -2140,8 +2140,8 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
                     y,
                     width: w,
                     height: h,
-                    dagre_center_x,
-                    dagre_center_y,
+                    layout_center_x,
+                    layout_center_y,
                 },
             );
         }
@@ -2267,7 +2267,7 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
         overhang_y: max_overhang_y,
     };
 
-    // Transient adapter glue: convert DagreHints back to WaypointWithRank for
+    // Transient adapter glue: convert LayeredHints back to WaypointWithRank for
     // the transform functions. This conversion will be removed when the transform
     // functions are updated to consume geometry IR types directly (Plan 0055).
     let edge_waypoints_raw: HashMap<usize, Vec<WaypointWithRank>> = dagre_hints

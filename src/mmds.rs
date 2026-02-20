@@ -593,12 +593,12 @@ mod tests {
 
     fn layout_geometry(input: &str) -> (Diagram, GraphGeometry) {
         use crate::diagram::EngineConfig;
-        use crate::diagrams::flowchart::engine::{MeasurementMode, run_dagre_layout};
+        use crate::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 
         let fc = parse_flowchart(input).unwrap();
         let diagram = build_diagram(&fc);
         let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
-        let geom = run_dagre_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
+        let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
         (diagram, geom)
     }
 

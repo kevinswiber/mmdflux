@@ -122,7 +122,7 @@ pub struct LayoutEdge {
 #[derive(Debug, Clone)]
 pub struct SubgraphGeometry {
     pub id: String,
-    /// Bounding rect (x,y = center for dagre-style, or top-left for others).
+    /// Bounding rect (x,y = center for layered-style, or top-left for others).
     pub rect: FRect,
     pub title: String,
     pub depth: usize,
@@ -144,18 +144,18 @@ pub struct SelfEdgeGeometry {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum EngineHints {
-    Dagre(DagreHints),
+    Layered(LayeredHints),
 }
 
-/// Dagre-specific layout metadata needed during migration.
+/// Layered-layout-specific metadata needed during migration.
 ///
-/// Preserves rank-annotated data from dagre that the text pipeline needs
-/// for grid-snap coordinate transformation. Other engines won't populate this.
+/// Preserves rank-annotated data from the layered layout that the text pipeline
+/// needs for grid-snap coordinate transformation. Other engines won't populate this.
 #[derive(Debug, Clone)]
-pub struct DagreHints {
-    /// Per-node rank assignments from dagre (node_id → dagre rank).
+pub struct LayeredHints {
+    /// Per-node rank assignments (node_id → rank).
     pub node_ranks: HashMap<String, i32>,
-    /// Rank → (primary_start, primary_end) coordinates in dagre float space.
+    /// Rank → (primary_start, primary_end) coordinates in layout float space.
     /// Primary axis is Y for TD/BT, X for LR/RL.
     pub rank_to_position: HashMap<i32, (f64, f64)>,
     /// Waypoints with rank info for grid-snap transformation.
@@ -167,7 +167,7 @@ pub struct DagreHints {
 }
 
 // ---------------------------------------------------------------------------
-// Conversions between geometry IR and dagre types
+// Conversions between geometry IR and layered layout types
 // ---------------------------------------------------------------------------
 
 impl From<FPoint> for layered::Point {
@@ -200,14 +200,14 @@ impl From<layered::Rect> for FRect {
 }
 
 // ---------------------------------------------------------------------------
-// Dagre normalization adapter
+// Layered layout normalization adapter
 // ---------------------------------------------------------------------------
 
-/// Convert dagre `LayoutResult` + `Diagram` into engine-agnostic `GraphGeometry`.
+/// Convert layered `LayoutResult` + `Diagram` into engine-agnostic `GraphGeometry`.
 ///
-/// Maps all dagre output fields into the geometry IR, preserving dagre-specific
-/// rank metadata in `DagreHints` for the text pipeline's grid-snap transformation.
-pub fn from_dagre_layout(result: &layered::LayoutResult, diagram: &Diagram) -> GraphGeometry {
+/// Maps all layout output fields into the geometry IR, preserving layout-specific
+/// rank metadata in `LayeredHints` for the text pipeline's grid-snap transformation.
+pub fn from_layered_layout(result: &layered::LayoutResult, diagram: &Diagram) -> GraphGeometry {
     // 1. Map nodes (skip compound/subgraph entries)
     let nodes: HashMap<String, PositionedNode> = result
         .nodes
@@ -313,7 +313,7 @@ pub fn from_dagre_layout(result: &layered::LayoutResult, diagram: &Diagram) -> G
     // 5. Build per-node effective directions
     let node_directions = super::render::route_policy::build_node_directions(diagram);
 
-    // 6. Build dagre hints with rank-annotated data
+    // 6. Build layered hints with rank-annotated data
     let hint_node_ranks: HashMap<String, i32> = result
         .node_ranks
         .iter()
@@ -348,7 +348,7 @@ pub fn from_dagre_layout(result: &layered::LayoutResult, diagram: &Diagram) -> G
         node_directions,
         bounds: FRect::new(0.0, 0.0, result.width, result.height),
         reversed_edges: result.reversed_edges.clone(),
-        engine_hints: Some(EngineHints::Dagre(DagreHints {
+        engine_hints: Some(EngineHints::Layered(LayeredHints {
             node_ranks: hint_node_ranks,
             rank_to_position: result.rank_to_position.clone(),
             edge_waypoints: hint_edge_waypoints,
@@ -418,8 +418,8 @@ mod tests {
     use crate::layered::normalize::WaypointWithRank;
     use crate::layered::types::{EdgeLayout, NodeId, Point, Rect, SelfEdgeLayout};
 
-    /// Build a simple dagre LayoutResult with two nodes and one edge.
-    fn sample_dagre_result() -> layered::LayoutResult {
+    /// Build a simple LayoutResult with two nodes and one edge.
+    fn sample_layout_result() -> layered::LayoutResult {
         let mut nodes = HashMap::new();
         nodes.insert(
             NodeId::from("A"),
@@ -470,7 +470,7 @@ mod tests {
         }
     }
 
-    /// Build a matching Diagram for the sample dagre result.
+    /// Build a matching Diagram for the sample layout result.
     fn sample_diagram() -> Diagram {
         let mut diagram = Diagram::new(Direction::TopDown);
         diagram.add_node(Node::new("A"));
@@ -480,10 +480,10 @@ mod tests {
     }
 
     #[test]
-    fn dagre_adapter_produces_nodes_and_edges() {
-        let result = sample_dagre_result();
+    fn layered_adapter_produces_nodes_and_edges() {
+        let result = sample_layout_result();
         let diagram = sample_diagram();
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
 
         assert_eq!(geom.nodes.len(), 2);
         assert_eq!(geom.edges.len(), 1);
@@ -492,10 +492,10 @@ mod tests {
     }
 
     #[test]
-    fn dagre_adapter_maps_node_rect() {
-        let result = sample_dagre_result();
+    fn layered_adapter_maps_node_rect() {
+        let result = sample_layout_result();
         let diagram = sample_diagram();
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
 
         let node_a = &geom.nodes["A"];
         assert_eq!(node_a.rect.x, 50.0);
@@ -508,10 +508,10 @@ mod tests {
     }
 
     #[test]
-    fn dagre_adapter_maps_edge() {
-        let result = sample_dagre_result();
+    fn layered_adapter_maps_edge() {
+        let result = sample_layout_result();
         let diagram = sample_diagram();
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
 
         let edge = &geom.edges[0];
         assert_eq!(edge.index, 0);
@@ -529,8 +529,8 @@ mod tests {
     }
 
     #[test]
-    fn dagre_adapter_maps_waypoints_with_ranks() {
-        let mut result = sample_dagre_result();
+    fn layered_adapter_maps_waypoints_with_ranks() {
+        let mut result = sample_layout_result();
         result.edge_waypoints.insert(
             0,
             vec![WaypointWithRank {
@@ -547,7 +547,7 @@ mod tests {
         );
 
         let diagram = sample_diagram();
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
 
         // Check geometry IR waypoints (positions only)
         assert_eq!(geom.edges[0].waypoints.len(), 1);
@@ -555,10 +555,10 @@ mod tests {
         assert_eq!(geom.edges[0].waypoints[0].y, 50.0);
         assert!(geom.edges[0].label_position.is_some());
 
-        // Check dagre hints preserve rank info
+        // Check layered hints preserve rank info
         let hints = match &geom.engine_hints {
-            Some(EngineHints::Dagre(h)) => h,
-            _ => panic!("expected dagre hints"),
+            Some(EngineHints::Layered(h)) => h,
+            _ => panic!("expected layered hints"),
         };
         let wp_ranks = &hints.edge_waypoints[&0];
         assert_eq!(wp_ranks.len(), 1);
@@ -569,14 +569,14 @@ mod tests {
     }
 
     #[test]
-    fn dagre_adapter_maps_dagre_hints() {
-        let result = sample_dagre_result();
+    fn layered_adapter_maps_dagre_hints() {
+        let result = sample_layout_result();
         let diagram = sample_diagram();
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
 
         let hints = match &geom.engine_hints {
-            Some(EngineHints::Dagre(h)) => h,
-            _ => panic!("expected dagre hints"),
+            Some(EngineHints::Layered(h)) => h,
+            _ => panic!("expected layered hints"),
         };
         assert_eq!(hints.node_ranks["A"], 0);
         assert_eq!(hints.node_ranks["B"], 2);
@@ -585,26 +585,26 @@ mod tests {
     }
 
     #[test]
-    fn dagre_adapter_maps_reversed_edges() {
-        let mut result = sample_dagre_result();
+    fn layered_adapter_maps_reversed_edges() {
+        let mut result = sample_layout_result();
         result.reversed_edges = vec![0];
         let diagram = sample_diagram();
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
         assert_eq!(geom.reversed_edges, vec![0]);
     }
 
     #[test]
-    fn dagre_adapter_maps_bounds() {
-        let result = sample_dagre_result();
+    fn layered_adapter_maps_bounds() {
+        let result = sample_layout_result();
         let diagram = sample_diagram();
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
         assert_eq!(geom.bounds.width, 100.0);
         assert_eq!(geom.bounds.height, 100.0);
     }
 
     #[test]
-    fn dagre_adapter_maps_self_edges() {
-        let mut result = sample_dagre_result();
+    fn layered_adapter_maps_self_edges() {
+        let mut result = sample_layout_result();
         result.self_edges.push(SelfEdgeLayout {
             node: NodeId::from("A"),
             edge_index: 1,
@@ -616,7 +616,7 @@ mod tests {
             ],
         });
         let diagram = sample_diagram();
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
 
         assert_eq!(geom.self_edges.len(), 1);
         assert_eq!(geom.self_edges[0].node_id, "A");
@@ -625,8 +625,8 @@ mod tests {
     }
 
     #[test]
-    fn dagre_adapter_maps_subgraph_bounds() {
-        let mut result = sample_dagre_result();
+    fn layered_adapter_maps_subgraph_bounds() {
+        let mut result = sample_layout_result();
         result.subgraph_bounds.insert(
             "sg1".into(),
             Rect {
@@ -649,7 +649,7 @@ mod tests {
             },
         );
 
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
         assert_eq!(geom.subgraphs.len(), 1);
         let sg = &geom.subgraphs["sg1"];
         assert_eq!(sg.title, "Group 1");
@@ -658,10 +658,10 @@ mod tests {
     }
 
     #[test]
-    fn dagre_adapter_node_directions() {
-        let result = sample_dagre_result();
+    fn layered_adapter_node_directions() {
+        let result = sample_layout_result();
         let diagram = sample_diagram();
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
 
         // Both nodes should have root direction (no subgraph overrides)
         assert_eq!(geom.node_directions["A"], Direction::TopDown);
@@ -669,10 +669,10 @@ mod tests {
     }
 
     #[test]
-    fn dagre_adapter_skips_compound_nodes() {
-        // If dagre result has a subgraph as a node entry (compound graph),
+    fn layered_adapter_skips_compound_nodes() {
+        // If layout result has a subgraph as a node entry (compound graph),
         // it should not appear in geometry nodes (only in subgraphs).
-        let mut result = sample_dagre_result();
+        let mut result = sample_layout_result();
         result.nodes.insert(
             NodeId::from("sg1"),
             Rect {
@@ -704,7 +704,7 @@ mod tests {
             },
         );
 
-        let geom = from_dagre_layout(&result, &diagram);
+        let geom = from_layered_layout(&result, &diagram);
         // sg1 should NOT appear in nodes (not in diagram.nodes)
         assert!(!geom.nodes.contains_key("sg1"));
         // sg1 SHOULD appear in subgraphs
@@ -731,14 +731,14 @@ mod tests {
     }
 
     #[test]
-    fn engine_hints_dagre_construction() {
-        let hints = EngineHints::Dagre(DagreHints {
+    fn engine_hints_layered_construction() {
+        let hints = EngineHints::Layered(LayeredHints {
             node_ranks: HashMap::new(),
             rank_to_position: HashMap::new(),
             edge_waypoints: HashMap::new(),
             label_positions: HashMap::new(),
         });
-        assert!(matches!(hints, EngineHints::Dagre(_)));
+        assert!(matches!(hints, EngineHints::Layered(_)));
     }
 
     #[test]

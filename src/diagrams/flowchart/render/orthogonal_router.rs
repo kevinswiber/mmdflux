@@ -1799,7 +1799,7 @@ fn edge_rank_span(
     geometry: &GraphGeometry,
     edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
 ) -> Option<usize> {
-    let EngineHints::Dagre(hints) = geometry.engine_hints.as_ref()?;
+    let EngineHints::Layered(hints) = geometry.engine_hints.as_ref()?;
     let src_rank = *hints.node_ranks.get(&edge.from)?;
     let dst_rank = *hints.node_ranks.get(&edge.to)?;
     Some(src_rank.abs_diff(dst_rank) as usize)

@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagram::{EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig};
-use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_dagre_layout};
+use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 use mmdflux::diagrams::flowchart::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
 use mmdflux::diagrams::mmds::from_mmds_str;
@@ -95,8 +95,8 @@ fn assert_all_distinct(values: &[usize], context: &str) {
 fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
     let diagram = parse_and_build(fixture);
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let geom =
-        run_dagre_layout(&MeasurementMode::Text, &diagram, &config).expect("layout should succeed");
+    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+        .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
 }
 
@@ -104,8 +104,8 @@ fn route_input_orthogonal(input: &str) -> RoutedGraphGeometry {
     let flowchart = parse_flowchart(input).expect("fixture input should parse");
     let diagram = build_diagram(&flowchart);
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let geom =
-        run_dagre_layout(&MeasurementMode::Text, &diagram, &config).expect("layout should succeed");
+    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+        .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
 }
 
@@ -2653,8 +2653,8 @@ fn test_route_policy_effective_edge_direction_with_nested_override_fixture() {
 fn test_orthogonal_route_routed_geometry_is_axis_aligned_for_forward_edges() {
     let diagram = parse_and_build("simple.mmd");
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let geom =
-        run_dagre_layout(&MeasurementMode::Text, &diagram, &config).expect("layout should succeed");
+    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+        .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     for edge in routed.edges.iter().filter(|edge| !edge.is_backward) {
@@ -3433,7 +3433,7 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
         let diagram = build_diagram(&flowchart);
         let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
         let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-        let geom = run_dagre_layout(&mode, &diagram, &config).expect("layout should succeed");
+        let geom = run_layered_layout(&mode, &diagram, &config).expect("layout should succeed");
 
         let source_rect = geom
             .nodes
@@ -3583,7 +3583,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let diagram = build_diagram(&flowchart);
         let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
         let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-        let geom = run_dagre_layout(&mode, &diagram, &config).expect("layout should succeed");
+        let geom = run_layered_layout(&mode, &diagram, &config).expect("layout should succeed");
         assert_eq!(
             geom.direction,
             Direction::LeftRight,
@@ -3670,7 +3670,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let flowchart = parse_flowchart(&input).expect("fixture should parse");
         let diagram = build_diagram(&flowchart);
         let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-        let geom = run_dagre_layout(&MeasurementMode::Text, &diagram, &config)
+        let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
             .expect("layout should succeed");
 
         let source_rect = geom
@@ -3978,8 +3978,8 @@ fn classify_face_matches_expected_common_approaches() {
         y: 10,
         width: 20,
         height: 10,
-        dagre_center_x: None,
-        dagre_center_y: None,
+        layout_center_x: None,
+        layout_center_y: None,
     };
 
     assert_eq!(

@@ -15,7 +15,7 @@ use std::path::Path;
 
 use mmdflux::diagram::{EngineConfig, OutputFormat, RenderConfig};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_dagre_layout};
+use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 use mmdflux::diagrams::flowchart::geometry::{GraphGeometry, LayoutEdge};
 use mmdflux::diagrams::mmds::from_mmds_str;
 use mmdflux::graph::{Diagram, Subgraph};
@@ -236,7 +236,7 @@ fn floats_eq(a: f64, b: f64) -> bool {
 fn check_layout(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
     let engine_config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
 
-    let direct_geom = match run_dagre_layout(&MeasurementMode::Text, direct, &engine_config) {
+    let direct_geom = match run_layered_layout(&MeasurementMode::Text, direct, &engine_config) {
         Ok(geom) => geom,
         Err(e) => {
             return TierResult {
@@ -246,7 +246,8 @@ fn check_layout(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
         }
     };
 
-    let roundtrip_geom = match run_dagre_layout(&MeasurementMode::Text, roundtrip, &engine_config) {
+    let roundtrip_geom = match run_layered_layout(&MeasurementMode::Text, roundtrip, &engine_config)
+    {
         Ok(geom) => geom,
         Err(e) => {
             return TierResult {
