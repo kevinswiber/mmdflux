@@ -146,7 +146,7 @@ pub struct LayoutResult {
     /// Waypoints for each edge derived from dummy node positions during normalization.
     /// Key: original edge index, Value: list of waypoints with rank information.
     /// Empty for short edges (span 1 rank), populated for long edges.
-    /// The rank information is needed to transform waypoints from dagre coordinates to draw coordinates.
+    /// The rank information is needed to transform waypoints from layout coordinates to draw coordinates.
     pub edge_waypoints: HashMap<usize, Vec<WaypointWithRank>>,
 
     /// Pre-computed label positions for edges with labels.
@@ -163,15 +163,15 @@ pub struct LayoutResult {
     /// Self-edge layout data (loops where source == target).
     pub self_edges: Vec<SelfEdgeLayout>,
 
-    /// Dagre rank to position mapping for waypoint transformation.
-    /// Key: dagre rank, Value: (primary_start, primary_end) coordinates in dagre space.
+    /// Layout rank to position mapping for waypoint transformation.
+    /// Key: layout rank, Value: (primary_start, primary_end) coordinates in layout space.
     /// The primary axis is Y for TD/BT layouts and X for LR/RL layouts.
     /// Includes all position nodes (user nodes + border nodes), used to convert
     /// waypoint ranks to draw coordinates.
     pub rank_to_position: HashMap<i32, (f64, f64)>,
 
-    /// Dagre rank for each user node.
-    /// Key: node ID, Value: dagre rank.
+    /// Layout rank for each user node.
+    /// Key: node ID, Value: layout rank.
     /// Used to compute layer_starts from actual node bounds in render layer.
     pub node_ranks: HashMap<NodeId, i32>,
 }

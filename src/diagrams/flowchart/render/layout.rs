@@ -1833,7 +1833,7 @@ where
     if std::env::var("MMDFLUX_DEBUG_NODE_POS").is_ok_and(|v| v == "1") {
         for (id, rect) in &result.nodes {
             eprintln!(
-                "[dagre_nodes] {} x={:.2} y={:.2} w={:.2} h={:.2}",
+                "[layered_nodes] {} x={:.2} y={:.2} w={:.2} h={:.2}",
                 id.0, rect.x, rect.y, rect.width, rect.height
             );
         }
@@ -1915,10 +1915,10 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
     expand_parent_bounds(diagram, &mut result, 0.0, 0.0);
 
     // Convert post-processed LayoutResult to engine-agnostic GraphGeometry.
-    // From this point on, phases read from `geom` (and `dagre_hints` for
+    // From this point on, phases read from `geom` (and `engine_hints` for
     // rank-annotated data) instead of the raw `result`.
     let geom = super::super::geometry::from_layered_layout(&result, diagram);
-    let dagre_hints = match &geom.engine_hints {
+    let engine_hints = match &geom.engine_hints {
         Some(super::super::geometry::EngineHints::Layered(h)) => h,
         _ => unreachable!("layered adapter always produces layered hints"),
     };
@@ -2188,7 +2188,7 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
     // neighboring real node ranks.
     let rank_to_actual_bounds: HashMap<i32, (usize, usize)> = {
         let mut rank_bounds: HashMap<i32, (usize, usize)> = HashMap::new();
-        for (node_id, &rank) in &dagre_hints.node_ranks {
+        for (node_id, &rank) in &engine_hints.node_ranks {
             if let Some(bounds) = node_bounds.get(node_id) {
                 let (start, end) = if is_vertical {
                     (bounds.y, bounds.y + bounds.height)
@@ -2210,7 +2210,7 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
     // Build layer_starts as a Vec indexed by layout rank.
     // Real node ranks use the actual node bounds extent.
     // Missing ranks (e.g., dummy/label ranks) interpolate between the nearest neighbors.
-    let max_rank = dagre_hints
+    let max_rank = engine_hints
         .node_ranks
         .values()
         .copied()
@@ -2272,7 +2272,7 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
     // Transient adapter glue: convert LayeredHints back to WaypointWithRank for
     // the transform functions. This conversion will be removed when the transform
     // functions are updated to consume geometry IR types directly (Plan 0055).
-    let edge_waypoints_raw: HashMap<usize, Vec<WaypointWithRank>> = dagre_hints
+    let edge_waypoints_raw: HashMap<usize, Vec<WaypointWithRank>> = engine_hints
         .edge_waypoints
         .iter()
         .map(|(&idx, wps)| {
@@ -2287,7 +2287,7 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
             )
         })
         .collect();
-    let label_positions_raw: HashMap<usize, WaypointWithRank> = dagre_hints
+    let label_positions_raw: HashMap<usize, WaypointWithRank> = engine_hints
         .label_positions
         .iter()
         .map(|(&idx, (fp, rank))| {
@@ -2302,7 +2302,7 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
         .collect();
 
     if std::env::var("MMDFLUX_DEBUG_WAYPOINTS").is_ok_and(|v| v == "1") {
-        eprintln!("[node_ranks] {:?}", dagre_hints.node_ranks);
+        eprintln!("[node_ranks] {:?}", engine_hints.node_ranks);
         eprintln!("[rank_to_actual_bounds] {:?}", rank_to_actual_bounds);
         eprintln!("[layer_starts] {:?}", layer_starts);
         for (edge_idx, wps) in &edge_waypoints_raw {
@@ -2392,17 +2392,17 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
     };
     // Transient adapter glue: convert GraphGeometry subgraphs back to layered Rect map
     // for subgraph_bounds_to_draw. Will be removed in Plan 0055.
-    let dagre_sg_bounds: HashMap<String, Rect> = geom
+    let layout_sg_bounds: HashMap<String, Rect> = geom
         .subgraphs
         .iter()
         .map(|(id, sg)| (id.clone(), sg.rect.into()))
         .collect();
     let mut subgraph_bounds =
-        subgraph_bounds_to_draw(&diagram.subgraphs, &dagre_sg_bounds, &coord_transform);
+        subgraph_bounds_to_draw(&diagram.subgraphs, &layout_sg_bounds, &coord_transform);
     debug_compare_subgraph_bounds(
         &diagram.subgraphs,
         &subgraph_bounds,
-        &dagre_sg_bounds,
+        &layout_sg_bounds,
         &coord_transform,
     );
     shrink_subgraph_vertical_gaps(
@@ -2876,12 +2876,12 @@ fn build_children_map(
 /// expand to contain their children. This ensures proper nesting of bounds.
 fn subgraph_bounds_to_draw(
     subgraphs: &HashMap<String, crate::graph::Subgraph>,
-    dagre_bounds: &HashMap<String, Rect>,
+    layout_bounds: &HashMap<String, Rect>,
     transform: &CoordTransform,
 ) -> HashMap<String, SubgraphBounds> {
     let mut bounds: HashMap<String, SubgraphBounds> = HashMap::new();
 
-    for (sg_id, rect) in dagre_bounds {
+    for (sg_id, rect) in layout_bounds {
         let sg = match subgraphs.get(sg_id) {
             Some(sg) => sg,
             None => continue,
@@ -2941,7 +2941,7 @@ fn subgraph_bounds_to_draw(
 fn debug_compare_subgraph_bounds(
     subgraphs: &HashMap<String, crate::graph::Subgraph>,
     computed: &HashMap<String, SubgraphBounds>,
-    dagre_bounds: &HashMap<String, Rect>,
+    layout_bounds: &HashMap<String, Rect>,
     transform: &CoordTransform,
 ) {
     if !std::env::var("MMDFLUX_DEBUG_SUBGRAPH_BOUNDS").is_ok_and(|v| v == "1") {
@@ -2951,26 +2951,26 @@ fn debug_compare_subgraph_bounds(
     let mut ids: HashSet<String> = HashSet::new();
     ids.extend(subgraphs.keys().cloned());
     ids.extend(computed.keys().cloned());
-    ids.extend(dagre_bounds.keys().cloned());
+    ids.extend(layout_bounds.keys().cloned());
 
     eprintln!("[subgraph_bounds] comparing computed vs layout-derived");
     let mut ids: Vec<String> = ids.into_iter().collect();
     ids.sort();
     for id in ids {
         let computed_bounds = computed.get(&id);
-        let dagre_rect = dagre_bounds.get(&id);
-        if computed_bounds.is_none() && dagre_rect.is_none() {
+        let layout_rect = layout_bounds.get(&id);
+        if computed_bounds.is_none() && layout_rect.is_none() {
             continue;
         }
 
-        if let Some(rect) = dagre_rect {
+        if let Some(rect) = layout_rect {
             eprintln!(
                 "[subgraph_bounds] raw {} = ({:.2}, {:.2}, {:.2}, {:.2})",
                 id, rect.x, rect.y, rect.width, rect.height
             );
         }
 
-        let dagre_draw = dagre_rect.map(|rect| {
+        let layout_draw = layout_rect.map(|rect| {
             let (x0, y0) = transform.to_draw(rect.x, rect.y);
             let (x1, y1) = transform.to_draw(rect.x + rect.width, rect.y + rect.height);
             (x0, y0, x1.saturating_sub(x0), y1.saturating_sub(y0))
@@ -2980,7 +2980,7 @@ fn debug_compare_subgraph_bounds(
 
         eprintln!(
             "[subgraph_bounds] {} computed={:?} layout={:?}",
-            id, computed_tuple, dagre_draw
+            id, computed_tuple, layout_draw
         );
     }
 }
@@ -3596,12 +3596,12 @@ impl TransformContext {
     }
 
     /// Transform a layout (x, y) coordinate to ASCII draw coordinates.
-    fn to_ascii(&self, dagre_x: f64, dagre_y: f64) -> (usize, usize) {
-        let x = ((dagre_x - self.layout_min_x) * self.scale_x).round() as usize
+    fn to_ascii(&self, layout_x: f64, layout_y: f64) -> (usize, usize) {
+        let x = ((layout_x - self.layout_min_x) * self.scale_x).round() as usize
             + self.overhang_x
             + self.padding
             + self.left_label_margin;
-        let y = ((dagre_y - self.layout_min_y) * self.scale_y).round() as usize
+        let y = ((layout_y - self.layout_min_y) * self.scale_y).round() as usize
             + self.overhang_y
             + self.padding;
         (x, y)
@@ -4603,8 +4603,8 @@ mod tests {
             },
         );
 
-        let mut dagre_bounds = HashMap::new();
-        dagre_bounds.insert(
+        let mut layout_bounds = HashMap::new();
+        layout_bounds.insert(
             "sg1".to_string(),
             Rect {
                 x: 10.0,
@@ -4613,7 +4613,7 @@ mod tests {
                 height: 5.0,
             },
         );
-        dagre_bounds.insert(
+        layout_bounds.insert(
             "sg2".to_string(),
             Rect {
                 x: 40.0,
@@ -4639,7 +4639,7 @@ mod tests {
             config: &config,
         };
 
-        let result = subgraph_bounds_to_draw(&subgraphs, &dagre_bounds, &transform);
+        let result = subgraph_bounds_to_draw(&subgraphs, &layout_bounds, &transform);
 
         let a = &result["sg1"];
         let b = &result["sg2"];
@@ -4677,8 +4677,8 @@ mod tests {
             },
         );
 
-        let mut dagre_bounds = HashMap::new();
-        dagre_bounds.insert(
+        let mut layout_bounds = HashMap::new();
+        layout_bounds.insert(
             "sg1".to_string(),
             Rect {
                 x: 10.0,
@@ -4704,7 +4704,7 @@ mod tests {
             config: &config,
         };
 
-        let result = subgraph_bounds_to_draw(&subgraphs, &dagre_bounds, &transform);
+        let result = subgraph_bounds_to_draw(&subgraphs, &layout_bounds, &transform);
 
         let b = &result["sg1"];
         // Title "G" requires min width = len("G") + 6 = 7, which exceeds rect width 5.

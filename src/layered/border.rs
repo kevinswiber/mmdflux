@@ -167,7 +167,7 @@ pub fn remove_nodes(lg: &mut LayoutGraph) -> HashMap<String, Rect> {
         // to be correctly positioned at content edges. Our BK alignment doesn't
         // guarantee this, so we use left/right which span the full y range.
         //
-        // NOTE: Extra vertical padding in LR layouts matches current dagre output.
+        // NOTE: Extra vertical padding in LR layouts matches current layout output.
         // If we ever want to tighten this, it will be a deliberate parity deviation
         // and should be validated against Mermaid rendering expectations.
         let mut x_min = f64::INFINITY;

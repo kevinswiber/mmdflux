@@ -13,7 +13,7 @@ use mmdflux::diagrams::flowchart::geometry::*;
 use mmdflux::diagrams::flowchart::routing::{route_graph_geometry, snap_path_to_grid_preview};
 use mmdflux::{EngineConfig, OutputFormat, RenderConfig, build_diagram, parse_flowchart};
 
-/// Parse input and produce (Diagram, GraphGeometry) via the dagre engine.
+/// Parse input and produce (Diagram, GraphGeometry) via the layout engine.
 fn layout_test(input: &str) -> (mmdflux::Diagram, GraphGeometry) {
     let fc = parse_flowchart(input).unwrap();
     let diagram = build_diagram(&fc);

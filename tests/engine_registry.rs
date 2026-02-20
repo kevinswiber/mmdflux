@@ -503,7 +503,7 @@ fn mermaid_layered_solve_layout_level_has_no_routed_geometry() {
 
 #[test]
 fn mermaid_layered_layout_matches_flux_layered_layout() {
-    // Both engines share the dagre kernel — node positions should be identical
+    // Both engines share the layered layout kernel — node positions should be identical
     let diagram = build_simple_diagram();
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
     let layout_req = GraphSolveRequest {

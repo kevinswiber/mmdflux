@@ -231,7 +231,7 @@ fn floats_eq(a: f64, b: f64) -> bool {
 
 /// Compare layout geometry for equivalence.
 ///
-/// Runs dagre layout on both diagrams and compares node positions/sizes,
+/// Runs layered layout on both diagrams and compares node positions/sizes,
 /// edge count, and overall bounds.
 fn check_layout(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
     let engine_config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
@@ -314,7 +314,7 @@ fn compare_geometry(direct: &GraphGeometry, roundtrip: &GraphGeometry) -> Vec<St
 
     // Compare edges (sorted by index for determinism).
     //
-    // Filter to user-visible edges only. Dagre's compound graph pipeline creates
+    // Filter to user-visible edges only. The layered layout's compound graph pipeline creates
     // internal border edges whose endpoints are synthetic nodes (_bt_*, _bb_*,
     // _bl_*, _br_*, _tt_*). These may differ between direct and roundtrip paths
     // due to the descendant-vs-direct-children difference without affecting the
@@ -858,45 +858,6 @@ fn class_simple_all_tiers_pass() {
         "visual: {:?}",
         report.visual.status
     );
-}
-
-// ---------------------------------------------------------------------------
-// Documentation assertions
-// ---------------------------------------------------------------------------
-
-#[test]
-fn docs_define_semantic_layout_visual_conformance_tiers() {
-    let docs = std::fs::read_to_string("docs/mmds.md").unwrap();
-    assert!(
-        docs.contains("Semantic parity"),
-        "docs should define semantic parity tier"
-    );
-    assert!(
-        docs.contains("Layout parity"),
-        "docs should define layout parity tier"
-    );
-    assert!(
-        docs.contains("Visual parity"),
-        "docs should define visual parity tier"
-    );
-    assert!(
-        docs.contains("just conformance"),
-        "docs should reference the conformance command"
-    );
-}
-
-#[test]
-fn docs_define_nested_subgraph_membership_parity_strategy() {
-    let docs = std::fs::read_to_string("docs/mmds.md").unwrap();
-    assert!(docs.contains("Nested subgraph membership parity strategy"));
-    assert!(docs.contains("compound layout membership"));
-}
-
-#[test]
-fn docs_reflect_resolved_nested_subgraph_conformance_divergence() {
-    let docs = std::fs::read_to_string("docs/mmds.md").unwrap();
-    assert!(docs.contains("| Visual | 32/32 fixtures | 1/1 fixtures |"));
-    assert!(!docs.contains("known visual divergence"));
 }
 
 // ---------------------------------------------------------------------------

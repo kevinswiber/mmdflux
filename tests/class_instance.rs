@@ -163,7 +163,7 @@ fn class_instance_unknown_engine_rejected_at_parse_boundary() {
 
 #[cfg(not(feature = "engine-elk"))]
 #[test]
-fn class_instance_known_non_dagre_engine_errors_cleanly() {
+fn class_instance_unknown_engine_errors_cleanly() {
     let mut instance = ClassInstance::new();
     instance.parse("classDiagram\nA --> B").unwrap();
     let result = instance.render(

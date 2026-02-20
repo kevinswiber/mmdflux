@@ -216,7 +216,7 @@ fn parse_elk_output(output: &str, diagram: &Diagram) -> Result<GraphGeometry, Re
 
             let parent = diagram.nodes.get(id).and_then(|n| n.parent.clone());
 
-            // ELK uses top-left coordinates; convert to center for consistency with dagre
+            // ELK uses top-left coordinates; convert to center for consistency with flux-layered layout
             nodes.insert(
                 id.to_string(),
                 PositionedNode {

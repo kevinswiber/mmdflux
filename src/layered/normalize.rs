@@ -16,10 +16,10 @@ use super::graph::LayoutGraph;
 use super::types::{NodeId, Point};
 
 /// A waypoint with its associated rank (layer) information.
-/// Used for coordinate transformation from dagre space to draw space.
+/// Used for coordinate transformation from layout space to draw space.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WaypointWithRank {
-    /// The position in dagre's coordinate system.
+    /// The position in the layout's coordinate system.
     pub point: Point,
     /// The rank (layer) this waypoint belongs to.
     pub rank: i32,
@@ -332,7 +332,7 @@ pub(crate) fn run(graph: &mut LayoutGraph, edge_labels: &HashMap<usize, EdgeLabe
 ///
 /// # Returns
 /// A map from original edge index to a list of waypoints with rank information.
-/// The rank is needed to transform waypoints from dagre coordinates to draw coordinates.
+/// The rank is needed to transform waypoints from layout coordinates to draw coordinates.
 pub(crate) fn denormalize(graph: &LayoutGraph) -> HashMap<usize, Vec<WaypointWithRank>> {
     let mut waypoints: HashMap<usize, Vec<WaypointWithRank>> = HashMap::new();
 

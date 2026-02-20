@@ -888,7 +888,7 @@ mod direct_layout {
     #[test]
     fn direct_preserves_cross_axis_stagger() {
         // fan_out.mmd: A→B, A→C, A→D — layer 1 has B, C, D which should
-        // have distinct x positions from dagre's BK algorithm.
+        // have distinct x positions from layered layout's BK algorithm.
         let (_, layout) = layout_fixture("fan_out.mmd");
 
         let b_x = layout.node_bounds["B"].center_x();

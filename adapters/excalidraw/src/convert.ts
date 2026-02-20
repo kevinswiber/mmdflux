@@ -3,7 +3,7 @@
 // Uses routed-level MMDS when available (polyline edge paths).
 // Falls back to layout-level (straight center-to-center arrows).
 
-// MMDS coordinates are unitless dagre layout-space floats. A low SCALE keeps
+// MMDS coordinates are unitless layout-space floats. A low SCALE keeps
 // edge lengths short while text-based sizing ensures nodes fit their labels.
 const SCALE = Number(process.env.SCALE) || 3;
 
@@ -385,7 +385,7 @@ export function convert(mmds: MmdsDocument): ConvertResult {
   }
 
   // Phase 2: auto-compute minimum scale that prevents node overlap.
-  // Dagre positions assume dagre-sized boxes; text-based sizes can be much larger.
+  // Layout positions assume unitless float-sized boxes; text-based sizes can be much larger.
   // Two nodes overlap when they overlap on BOTH axes — find the minimum scale
   // that separates every pair on at least one axis.
   const NODE_GAP = 20;

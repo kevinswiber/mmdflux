@@ -13,10 +13,10 @@ MMDS input support is active:
 
 ### MMDS Input Render Capability Matrix
 
-| `geometry_level` | text | ascii | svg | mmds/json |
-|------------------|------|-------|-----|-----------|
-| `layout` | ✅ | ✅ | ✅ | ✅ |
-| `routed` (positioned) | ✅* | ✅* | ✅ | ✅ |
+| `geometry_level`      | text | ascii | svg | mmds/json |
+| --------------------- | ---- | ----- | --- | --------- |
+| `layout`              | ✅    | ✅     | ✅   | ✅         |
+| `routed` (positioned) | ✅*   | ✅*    | ✅   | ✅         |
 
 \* For text/ascii, routed path fields are currently ignored and output is re-routed on the text grid from core topology.
 
@@ -163,18 +163,18 @@ mmdflux --format mmds --geometry-level routed diagram.mmd
 
 ### Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `version` | `1` | Integer schema version. Increment only for breaking MMDS changes. |
-| `profiles` | string[] | Optional behavior bundles for capability negotiation. |
-| `extensions` | object | Optional namespaced extension payloads keyed by versioned namespace ID (`*.v{number}`). |
-| `defaults` | object | Document-level defaults for omitted node/edge fields |
-| `geometry_level` | `"layout"` or `"routed"` | Geometry detail level |
-| `metadata.diagram_type` | string | `"flowchart"` or `"class"` |
-| `metadata.direction` | string | `"TD"`, `"BT"`, `"LR"`, or `"RL"` |
-| `metadata.bounds` | object | Overall diagram canvas extents (`width`, `height`) in unitless MMDS coordinate space (currently SVG-pixel-aligned in mmdflux output) |
-| `metadata.engine` | string? | Engine+algorithm that produced this output (e.g., `"flux-layered"`). Omitted when not produced via the solve pipeline. |
-| `subgraphs` | array | Subgraph inventory (omitted when empty) |
+| Field                   | Type                     | Description                                                                                                                          |
+| ----------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `version`               | `1`                      | Integer schema version. Increment only for breaking MMDS changes.                                                                    |
+| `profiles`              | string[]                 | Optional behavior bundles for capability negotiation.                                                                                |
+| `extensions`            | object                   | Optional namespaced extension payloads keyed by versioned namespace ID (`*.v{number}`).                                              |
+| `defaults`              | object                   | Document-level defaults for omitted node/edge fields                                                                                 |
+| `geometry_level`        | `"layout"` or `"routed"` | Geometry detail level                                                                                                                |
+| `metadata.diagram_type` | string                   | `"flowchart"` or `"class"`                                                                                                           |
+| `metadata.direction`    | string                   | `"TD"`, `"BT"`, `"LR"`, or `"RL"`                                                                                                    |
+| `metadata.bounds`       | object                   | Overall diagram canvas extents (`width`, `height`) in unitless MMDS coordinate space (currently SVG-pixel-aligned in mmdflux output) |
+| `metadata.engine`       | string?                  | Engine+algorithm that produced this output (e.g., `"flux-layered"`). Omitted when not produced via the solve pipeline.               |
+| `subgraphs`             | array                    | Subgraph inventory (omitted when empty)                                                                                              |
 
 ## Profiles and Extensions Governance
 
@@ -209,43 +209,43 @@ MMDS keeps core graph semantics compact while allowing renderer- or adapter-spec
 
 ### Node
 
-| Field | Type | Level | Description |
-|-------|------|-------|-------------|
-| `id` | string | both | Node identifier |
-| `label` | string | both | Display label |
-| `shape` | string | both | Shape name (snake_case), omitted when equal to `defaults.node.shape` |
-| `parent` | string? | both | Parent subgraph ID |
-| `position` | `{x, y}` | both | Center position (not top-left) |
-| `size` | `{width, height}` | both | Bounding box |
+| Field      | Type              | Level | Description                                                          |
+| ---------- | ----------------- | ----- | -------------------------------------------------------------------- |
+| `id`       | string            | both  | Node identifier                                                      |
+| `label`    | string            | both  | Display label                                                        |
+| `shape`    | string            | both  | Shape name (snake_case), omitted when equal to `defaults.node.shape` |
+| `parent`   | string?           | both  | Parent subgraph ID                                                   |
+| `position` | `{x, y}`          | both  | Center position (not top-left)                                       |
+| `size`     | `{width, height}` | both  | Bounding box                                                         |
 
 ### Edge
 
-| Field | Type | Level | Description |
-|-------|------|-------|-------------|
-| `source` | string | both | Source node ID |
-| `target` | string | both | Target node ID |
-| `id` | string | both | Deterministic edge ID (`e{declaration_index}`) |
-| `label` | string? | both | Edge label |
-| `from_subgraph` | string? | both | Optional source subgraph endpoint intent (for subgraph-as-source edges) |
-| `to_subgraph` | string? | both | Optional target subgraph endpoint intent (for subgraph-as-target edges) |
-| `stroke` | string | both | `"solid"`, `"dotted"`, `"thick"`, `"invisible"`; omitted when equal to `defaults.edge.stroke` |
-| `arrow_start` | string | both | `"none"`, `"normal"`, `"cross"`, `"circle"`, `"open_triangle"`, `"diamond"`, `"open_diamond"`; omitted when equal to `defaults.edge.arrow_start` |
-| `arrow_end` | string | both | `"none"`, `"normal"`, `"cross"`, `"circle"`, `"open_triangle"`, `"diamond"`, `"open_diamond"`; omitted when equal to `defaults.edge.arrow_end` |
-| `minlen` | integer | both | Minimum rank separation; omitted when equal to `defaults.edge.minlen` |
-| `path` | `[[x,y],...]` | routed | Polyline path coordinates |
-| `label_position` | `{x, y}` | routed | Label center |
-| `is_backward` | boolean | routed | Flows backward in layout |
+| Field            | Type          | Level  | Description                                                                                                                                      |
+| ---------------- | ------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `source`         | string        | both   | Source node ID                                                                                                                                   |
+| `target`         | string        | both   | Target node ID                                                                                                                                   |
+| `id`             | string        | both   | Deterministic edge ID (`e{declaration_index}`)                                                                                                   |
+| `label`          | string?       | both   | Edge label                                                                                                                                       |
+| `from_subgraph`  | string?       | both   | Optional source subgraph endpoint intent (for subgraph-as-source edges)                                                                          |
+| `to_subgraph`    | string?       | both   | Optional target subgraph endpoint intent (for subgraph-as-target edges)                                                                          |
+| `stroke`         | string        | both   | `"solid"`, `"dotted"`, `"thick"`, `"invisible"`; omitted when equal to `defaults.edge.stroke`                                                    |
+| `arrow_start`    | string        | both   | `"none"`, `"normal"`, `"cross"`, `"circle"`, `"open_triangle"`, `"diamond"`, `"open_diamond"`; omitted when equal to `defaults.edge.arrow_start` |
+| `arrow_end`      | string        | both   | `"none"`, `"normal"`, `"cross"`, `"circle"`, `"open_triangle"`, `"diamond"`, `"open_diamond"`; omitted when equal to `defaults.edge.arrow_end`   |
+| `minlen`         | integer       | both   | Minimum rank separation; omitted when equal to `defaults.edge.minlen`                                                                            |
+| `path`           | `[[x,y],...]` | routed | Polyline path coordinates                                                                                                                        |
+| `label_position` | `{x, y}`      | routed | Label center                                                                                                                                     |
+| `is_backward`    | boolean       | routed | Flows backward in layout                                                                                                                         |
 
 ### Subgraph
 
-| Field | Type | Level | Description |
-|-------|------|-------|-------------|
-| `id` | string | both | Subgraph identifier |
-| `title` | string | both | Display title |
-| `children` | string[] | both | Direct child node IDs |
-| `parent` | string? | both | Parent subgraph ID |
-| `direction` | string? | both | Direction override: `"TD"`, `"BT"`, `"LR"`, or `"RL"` |
-| `bounds` | `{width, height}` | routed | Bounding box dimensions |
+| Field       | Type              | Level  | Description                                           |
+| ----------- | ----------------- | ------ | ----------------------------------------------------- |
+| `id`        | string            | both   | Subgraph identifier                                   |
+| `title`     | string            | both   | Display title                                         |
+| `children`  | string[]          | both   | Direct child node IDs                                 |
+| `parent`    | string?           | both   | Parent subgraph ID                                    |
+| `direction` | string?           | both   | Direction override: `"TD"`, `"BT"`, `"LR"`, or `"RL"` |
+| `bounds`    | `{width, height}` | routed | Bounding box dimensions                               |
 
 ## Schema
 
@@ -292,7 +292,7 @@ Graph structure equivalence: nodes, edges, subgraphs, direction, labels, strokes
 
 MMDS keeps `subgraph.children` as direct children at the interchange boundary. This remains the canonical payload contract for validation, hydration, and downstream adapters.
 
-For runtime/layout internals, mmdflux deterministically reconstructs any additional compound layout membership needed by dagre from parent links and subgraph topology. In other words:
+For runtime/layout internals, mmdflux deterministically reconstructs any additional compound layout membership needed by the layout from parent links and subgraph topology. In other words:
 
 - MMDS payload contract: direct children only.
 - Runtime compound layout membership: reconstructed descendants as needed for compound layout membership parity with direct Mermaid parsing behavior.
@@ -301,7 +301,7 @@ This split preserves a stable external schema while allowing internal layout beh
 
 ### Layout parity
 
-Geometry equivalence: both pipelines produce the same dagre layout — identical node positions, sizes, edge endpoints, waypoints, label positions, subgraph bounds, and overall bounds within float tolerance (0.01).
+Geometry equivalence: both pipelines produce the same layout — identical node positions, sizes, edge endpoints, waypoints, label positions, subgraph bounds, and overall bounds within float tolerance (0.01).
 
 ### Visual parity
 
@@ -309,11 +309,11 @@ Rendered output equivalence: both text and SVG output are byte-identical between
 
 ### Current status
 
-| Tier | Flowchart | Class |
-|------|-----------|-------|
+| Tier     | Flowchart      | Class        |
+| -------- | -------------- | ------------ |
 | Semantic | 32/32 fixtures | 1/1 fixtures |
-| Layout | 32/32 fixtures | 1/1 fixtures |
-| Visual | 32/32 fixtures | 1/1 fixtures |
+| Layout   | 32/32 fixtures | 1/1 fixtures |
+| Visual   | 32/32 fixtures | 1/1 fixtures |
 
 Nested subgraph fixtures now pass visual parity after runtime compound-membership reconstruction. The MMDS contract remains direct children only, while runtime layout internals reconstruct descendants as needed for parity.
 
@@ -325,8 +325,8 @@ just conformance
 
 ## Supported Diagram Types
 
-| Type | `diagram_type` | Status |
-|------|---------------|--------|
-| Flowchart | `"flowchart"` | Supported |
-| Class | `"class"` | Supported |
-| Sequence | — | Not supported (timeline family) |
+| Type      | `diagram_type` | Status                          |
+| --------- | -------------- | ------------------------------- |
+| Flowchart | `"flowchart"`  | Supported                       |
+| Class     | `"class"`      | Supported                       |
+| Sequence  | —              | Not supported (timeline family) |

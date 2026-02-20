@@ -16,7 +16,7 @@ pub type NodeIndex = usize;
 
 /// Set of conflicts indexed by node pairs for O(1) lookup.
 ///
-/// Conflicts are stored by node indices (unordered), matching dagre's
+/// Conflicts are stored by node indices (unordered)
 /// node-based conflict checks.
 pub type ConflictSet = HashSet<(NodeIndex, NodeIndex)>;
 
