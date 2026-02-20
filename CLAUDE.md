@@ -33,7 +33,7 @@ echo 'graph LR\nA-->B' | cargo run
 Four-stage pipeline: **Parser → Graph → Layout → Render**
 
 ```
-Mermaid Text → Parser (pest PEG) → AST → Graph Builder → Diagram → Dagre Layout → Router → Canvas → Text
+Mermaid Text → Parser (pest PEG) → AST → Graph Builder → Diagram → Layered Layout → Router → Canvas → Text
 ```
 
 ### Module Structure

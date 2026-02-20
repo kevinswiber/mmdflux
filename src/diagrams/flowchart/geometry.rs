@@ -521,7 +521,7 @@ mod tests {
         assert!(edge.label_position.is_none());
         assert!(edge.from_subgraph.is_none());
         assert!(edge.to_subgraph.is_none());
-        // layout_path_hint is populated from dagre edge points
+        // layout_path_hint is populated from layout edge points
         let path = edge.layout_path_hint.as_ref().unwrap();
         assert_eq!(path.len(), 2);
         assert_eq!(path[0].x, 50.0);
@@ -569,7 +569,7 @@ mod tests {
     }
 
     #[test]
-    fn layered_adapter_maps_dagre_hints() {
+    fn layered_adapter_maps_layout_hints() {
         let result = sample_layout_result();
         let diagram = sample_diagram();
         let geom = from_layered_layout(&result, &diagram);

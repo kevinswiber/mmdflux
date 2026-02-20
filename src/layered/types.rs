@@ -1,4 +1,4 @@
-//! Shared types for the dagre layout module.
+//! Shared types for the layered layout module.
 
 use std::collections::HashMap;
 

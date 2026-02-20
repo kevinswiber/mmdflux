@@ -36,7 +36,7 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
     let mut config = layout_config_for_diagram(diagram, options);
     config.ranker = options.ranker;
     if options.cluster_ranksep.is_none() {
-        // Mermaid's dagre renderer does not add extra rank separation for clusters.
+        // Mermaid's renderer does not add extra rank separation for clusters.
         // Keep the default for text output but disable it for SVG unless overridden.
         config.cluster_rank_sep = 0.0;
     }
@@ -57,7 +57,7 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
 
 /// Build fully post-processed SVG layout geometry.
 ///
-/// Runs the dagre layout with SVG pixel metrics, applies all subgraph
+/// Runs the layered layout with SVG pixel metrics, applies all subgraph
 /// post-processing (direction overrides, sublayout reconciliation, padding,
 /// edge rerouting), and converts to `GraphGeometry`. The result's
 /// `rerouted_edges` field carries edge indices rerouted by the subgraph
@@ -2736,7 +2736,7 @@ fn adjust_edge_points_for_shapes(
     // In orthogonal routing mode the router already places forward non-rect shape
     // endpoints on the actual shape boundary — these are authoritative and must
     // not be re-projected (different approach angles would shift them).
-    // In polyline routing mode dagre only clips to the bounding rect, so non-rect
+    // In polyline routing mode the layout only clips to the bounding rect, so non-rect
     // shapes always need re-projection to the actual shape boundary.
     let router_placed_source = matches!(edge_routing, EdgeRouting::OrthogonalRoute)
         && !is_self_loop
@@ -3840,9 +3840,10 @@ fn compute_self_edge_paths(
         if se.points.is_empty() {
             continue;
         }
-        let dagre_rect: Rect = pos_node.rect.into();
-        let dagre_points: Vec<Point> = se.points.iter().map(|p| (*p).into()).collect();
-        let adjusted = adjust_self_edge_points(&dagre_rect, &dagre_points, diagram.direction, pad);
+        let layout_rect: Rect = pos_node.rect.into();
+        let layout_points: Vec<Point> = se.points.iter().map(|p| (*p).into()).collect();
+        let adjusted =
+            adjust_self_edge_points(&layout_rect, &layout_points, diagram.direction, pad);
         paths.insert(se.edge_index, adjusted);
     }
 

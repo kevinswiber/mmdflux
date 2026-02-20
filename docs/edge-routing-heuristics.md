@@ -14,7 +14,7 @@
 
 This document defines the product requirements for mmdflux's edge routing system across all supported output formats (text/ASCII, SVG, MMDS JSON). It consolidates research findings, architectural constraints, and design decisions into a single reference that guides implementation of edge path construction, port attachment, and visual quality across the four supported edge styles.
 
-The routing system is the most complex subsystem in mmdflux's graph-family pipeline. It sits between layout (Sugiyama/dagre coordinate assignment) and rendering, and its quality directly determines diagram readability.
+The routing system is the most complex subsystem in mmdflux's graph-family pipeline. It sits between layout (Sugiyama coordinate assignment) and rendering, and its quality directly determines diagram readability.
 
 ---
 
@@ -34,7 +34,7 @@ The routing system is the most complex subsystem in mmdflux's graph-family pipel
 ### Out of scope
 
 - Sequence diagram lifeline routing (timeline family, separate pipeline)
-- Layout engine internals (dagre ranking, crossing reduction, coordinate assignment)
+- Layout engine internals (Sugiyama ranking, crossing reduction, coordinate assignment)
 - Node shape rendering
 - Force-directed or radial layout modes
 

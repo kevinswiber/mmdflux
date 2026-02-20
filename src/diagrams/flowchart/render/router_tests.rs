@@ -587,7 +587,7 @@ fn test_backward_edge_with_waypoints_td() {
 
 #[test]
 fn test_short_backward_edge_uses_synthetic_waypoints() {
-    // B→A backward edge spanning 1 rank — no dummies, no dagre waypoints
+    // B→A backward edge spanning 1 rank — no dummies, no layout waypoints
     // With synthetic waypoints, should route around the right side of nodes
     let mut diagram = Diagram::new(Direction::TopDown);
     diagram.add_node(Node::new("A").with_label("Top"));

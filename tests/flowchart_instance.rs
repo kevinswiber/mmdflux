@@ -281,7 +281,7 @@ fn text_snapshots_stable_after_geometry_driven_cutover() {
 // --- Engine selection tests (Task 2.2) ---
 
 #[test]
-fn engine_selection_none_uses_default_dagre() {
+fn engine_selection_none_uses_default_layered() {
     let mut instance = FlowchartInstance::new();
     instance.parse("graph TD\nA-->B").unwrap();
 
@@ -292,7 +292,7 @@ fn engine_selection_none_uses_default_dagre() {
 }
 
 #[test]
-fn engine_selection_explicit_dagre_matches_default() {
+fn engine_selection_explicit_layered_matches_default() {
     let mut instance = FlowchartInstance::new();
     instance.parse("graph TD\nA-->B").unwrap();
 
@@ -300,13 +300,15 @@ fn engine_selection_explicit_dagre_matches_default() {
         .render(OutputFormat::Text, &RenderConfig::default())
         .unwrap();
 
-    let dagre_config = RenderConfig {
+    let layered_config = RenderConfig {
         layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
         ..Default::default()
     };
-    let dagre_output = instance.render(OutputFormat::Text, &dagre_config).unwrap();
+    let layered_output = instance
+        .render(OutputFormat::Text, &layered_config)
+        .unwrap();
 
-    assert_eq!(default_output, dagre_output);
+    assert_eq!(default_output, layered_output);
 }
 
 #[cfg(not(feature = "engine-elk"))]

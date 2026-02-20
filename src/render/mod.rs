@@ -157,13 +157,13 @@ pub struct RenderOptions {
     pub svg: SvgOptions,
     /// Ranking algorithm override. None uses the default (NetworkSimplex).
     pub ranker: Option<crate::layered::types::Ranker>,
-    /// Dagre nodesep override (node spacing).
+    /// Node spacing override (nodesep).
     pub node_spacing: Option<f64>,
-    /// Dagre ranksep override (rank spacing).
+    /// Rank spacing override (ranksep).
     pub rank_spacing: Option<f64>,
-    /// Dagre edgesep override (edge segment spacing).
+    /// Edge segment spacing override (edgesep).
     pub edge_spacing: Option<f64>,
-    /// Dagre margin override (translateGraph margin).
+    /// Layout margin override (translateGraph margin).
     pub margin: Option<f64>,
     /// Extra ranksep applied when subgraphs are present (Mermaid clusters).
     pub cluster_ranksep: Option<f64>,

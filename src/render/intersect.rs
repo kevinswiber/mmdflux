@@ -5,7 +5,7 @@
 //! we calculate where a line from an external point would intersect the node's
 //! boundary.
 //!
-//! This is a key part of the dagre/Sugiyama framework that enables edges to
+//! This is a key part of the Sugiyama framework that enables edges to
 //! fan out naturally from nodes rather than overlapping at the center.
 
 use crate::diagrams::flowchart::geometry::{FPoint, FRect};

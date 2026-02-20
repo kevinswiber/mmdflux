@@ -627,7 +627,7 @@ fn inner_segments(segments: &[Segment]) -> &[Segment] {
 /// For forward edges (few segments), returns the last vertical segment
 /// approaching the target — labels near the target are clear for short paths.
 ///
-/// For backward edges (many segments routed via dagre waypoints), returns the
+/// For backward edges (many segments routed via layout waypoints), returns the
 /// longest vertical segment. This is typically the long waypoint path spanning
 /// multiple ranks, which is isolated from other edges and avoids crowding near
 /// the target node.
@@ -644,7 +644,7 @@ fn select_label_segment(segments: &[Segment]) -> Option<&Segment> {
             .max_by_key(|s| vertical_length(s))
     }
 
-    // Backward edges routed through dagre waypoints typically have 6+ segments.
+    // Backward edges routed through layout waypoints typically have 6+ segments.
     // Forward Z-paths typically have 3-4 segments.
     let is_long_path = segments.len() >= 6;
 

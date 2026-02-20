@@ -253,7 +253,7 @@ pub const BACKWARD_ROUTE_GAP: usize = 2;
 /// Generate synthetic waypoints for a single-rank-span backward edge.
 ///
 /// Routes around the right side (TD/BT) or bottom side (LR/RL) of the nodes
-/// when no dagre-assigned waypoints exist.
+/// when no layout-assigned waypoints exist.
 ///
 /// Returns empty vec for forward edges or same-position nodes.
 pub fn generate_backward_waypoints(
@@ -347,7 +347,7 @@ pub fn route_edge(
         let is_backward = is_backward_edge(&from_bounds, &to_bounds, diagram_direction);
 
         // For backward edges, reverse waypoints so they go from source to target.
-        // Dagre stores them in effective/forward order (low rank → high rank),
+        // The layout stores them in effective/forward order (low rank → high rank),
         // but the backward edge goes from high rank → low rank.
         let waypoints: Vec<(usize, usize)> = if is_backward {
             wps.iter().rev().copied().collect()
@@ -366,7 +366,7 @@ pub fn route_edge(
         );
     }
 
-    // For backward edges with no dagre waypoints, generate synthetic ones
+    // For backward edges with no layout waypoints, generate synthetic ones
     if is_backward_edge(&from_bounds, &to_bounds, diagram_direction) {
         let synthetic_wps =
             generate_backward_waypoints(&from_bounds, &to_bounds, diagram_direction);
@@ -476,7 +476,7 @@ fn route_edge_with_waypoints(
         add_connector_segment(&mut segments, src_attach, start);
     }
 
-    // When dagre's float-space waypoints collapse to ≤1 cell offset from the
+    // When the layout's float-space waypoints collapse to ≤1 cell offset from the
     // straight path on the discrete text grid, they produce stub artifacts
     // (e.g. `├─`). Project them onto the straight path to eliminate the jog
     // while preserving segment splits (important for label placement).
@@ -1285,7 +1285,7 @@ fn orthogonalize_segment(from: Point, to: Point, vertical_first: bool) -> Vec<Se
 
 /// Convert a series of waypoints into orthogonal path segments.
 ///
-/// Waypoints from dagre's normalization may be at arbitrary positions. This
+/// Waypoints from the layout's normalization may be at arbitrary positions. This
 /// function converts each consecutive pair of points into axis-aligned segments,
 /// creating Z-paths for any diagonal sections.
 ///

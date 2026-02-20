@@ -1,4 +1,4 @@
-//! Dagre-style hierarchical graph layout.
+//! Hierarchical graph layout (Sugiyama framework).
 //!
 //! Implements the Sugiyama framework:
 //! 1. Cycle removal (make graph acyclic)
@@ -9,7 +9,7 @@
 //! # Example
 //!
 //! ```
-//! use mmdflux::dagre::{DiGraph, layout, LayoutConfig, Direction};
+//! use mmdflux::layered::{DiGraph, layout, LayoutConfig, Direction};
 //!
 //! // Create a graph with node dimensions
 //! let mut graph = DiGraph::new();

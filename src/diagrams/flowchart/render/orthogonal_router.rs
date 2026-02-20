@@ -2143,7 +2143,7 @@ fn ensure_backward_outer_lane_clearance(
     }
 }
 
-/// After `align_backward_outer_lane_to_hint` pulls interior points to dagre's
+/// After `align_backward_outer_lane_to_hint` pulls interior points to the layout's
 /// channel hint, the channel lane may sit too close to the node envelope.
 /// This function enforces a minimum clearance between the node faces and
 /// the backward channel lane, matching R-BACK-8/9/10.

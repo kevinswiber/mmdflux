@@ -53,7 +53,7 @@ Open the resulting `.excalidraw` file in [excalidraw.com](https://excalidraw.com
 
 ### Scale
 
-Node and edge coordinates are scaled from dagre layout units to pixel space. The default scale factor is 3. Override it with the `SCALE` environment variable:
+Node and edge coordinates are scaled from layout units to pixel space. The default scale factor is 3. Override it with the `SCALE` environment variable:
 
 ```bash
 mmdflux --format mmds diagram.mmd | SCALE=5 npx mmds-to-excalidraw > out.excalidraw

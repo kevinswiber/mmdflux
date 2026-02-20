@@ -41,14 +41,14 @@ fn dummy_model_compiles() {
 // --- EngineConfig tests (Task 1.2) ---
 
 #[test]
-fn engine_config_dagre_variant_exists() {
-    let dagre_cfg = mmdflux::layered::LayoutConfig::default();
-    let ec = EngineConfig::Layered(dagre_cfg);
+fn engine_config_layered_variant_exists() {
+    let layered_cfg = mmdflux::layered::LayoutConfig::default();
+    let ec = EngineConfig::Layered(layered_cfg);
     assert!(matches!(ec, EngineConfig::Layered(_)));
 }
 
 #[test]
-fn render_config_layout_converts_to_engine_config_dagre() {
+fn render_config_layout_converts_to_engine_config_layered() {
     let cfg: EngineConfig = RenderConfig::default().layout.into();
     assert!(matches!(cfg, EngineConfig::Layered(_)));
 }

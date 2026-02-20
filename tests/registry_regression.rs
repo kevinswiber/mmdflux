@@ -112,11 +112,11 @@ fn regression_engine_selection_via_registry() {
     let mut instance = registry.create("flowchart").unwrap();
     instance.parse(input).unwrap();
 
-    // Default (None) and explicit "dagre" should produce identical output
+    // Default (None) and explicit "layered" should produce identical output
     let default_out = instance
         .render(OutputFormat::Text, &RenderConfig::default())
         .unwrap();
-    let dagre_out = instance
+    let layered_out = instance
         .render(
             OutputFormat::Text,
             &RenderConfig {
@@ -125,7 +125,7 @@ fn regression_engine_selection_via_registry() {
             },
         )
         .unwrap();
-    assert_eq!(default_out, dagre_out);
+    assert_eq!(default_out, layered_out);
 
     // Unknown engine should error
     let err = instance.render(
@@ -139,39 +139,39 @@ fn regression_engine_selection_via_registry() {
 }
 
 // =============================================================================
-// Dagre stability: high-risk fixtures that exercise complex layout paths
+// Layered stability: high-risk fixtures that exercise complex layout paths
 // =============================================================================
 
 #[test]
-fn dagre_stability_double_skip() {
+fn layered_stability_double_skip() {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/double_skip.mmd")
         .expect("double_skip.mmd fixture");
     compare_outputs(&input, false);
 }
 
 #[test]
-fn dagre_stability_skip_edge_collision() {
+fn layered_stability_skip_edge_collision() {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/skip_edge_collision.mmd")
         .expect("skip_edge_collision.mmd fixture");
     compare_outputs(&input, false);
 }
 
 #[test]
-fn dagre_stability_simple_cycle() {
+fn layered_stability_simple_cycle() {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/simple_cycle.mmd")
         .expect("simple_cycle.mmd");
     compare_outputs(&input, false);
 }
 
 #[test]
-fn dagre_stability_multiple_cycles() {
+fn layered_stability_multiple_cycles() {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/multiple_cycles.mmd")
         .expect("multiple_cycles.mmd");
     compare_outputs(&input, false);
 }
 
 #[test]
-fn dagre_stability_nested_subgraph() {
+fn layered_stability_nested_subgraph() {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/nested_subgraph.mmd")
         .expect("nested_subgraph.mmd fixture");
     compare_outputs(&input, false);
@@ -182,8 +182,8 @@ fn dagre_stability_nested_subgraph() {
 // =============================================================================
 
 #[test]
-fn dagre_stability_engine_selection_consistent() {
-    // Verify that explicit dagre selection produces same output as default
+fn layered_stability_engine_selection_consistent() {
+    // Verify that explicit layered selection produces same output as default
     // for all high-risk fixtures
     let fixtures = [
         "tests/fixtures/flowchart/double_skip.mmd",
@@ -201,7 +201,7 @@ fn dagre_stability_engine_selection_consistent() {
         let default_out = instance
             .render(OutputFormat::Text, &RenderConfig::default())
             .unwrap();
-        let dagre_out = instance
+        let layered_out = instance
             .render(
                 OutputFormat::Text,
                 &RenderConfig {
@@ -212,7 +212,7 @@ fn dagre_stability_engine_selection_consistent() {
             .unwrap();
 
         assert_eq!(
-            default_out, dagre_out,
+            default_out, layered_out,
             "Engine selection changed output for {path}"
         );
     }
@@ -277,7 +277,7 @@ fn cross_family_class_does_not_steal_flowchart_detection() {
 }
 
 #[test]
-fn class_engine_selection_default_matches_explicit_dagre() {
+fn class_engine_selection_default_matches_explicit_layered() {
     let registry = default_registry();
     let mut instance = registry.create("class").unwrap();
     instance
@@ -287,7 +287,7 @@ fn class_engine_selection_default_matches_explicit_dagre() {
     let default_out = instance
         .render(OutputFormat::Text, &RenderConfig::default())
         .unwrap();
-    let dagre_out = instance
+    let layered_out = instance
         .render(
             OutputFormat::Text,
             &RenderConfig {
@@ -298,7 +298,7 @@ fn class_engine_selection_default_matches_explicit_dagre() {
         .unwrap();
 
     // Class doesn't use engine selection path yet, but output should still be stable
-    assert_eq!(default_out, dagre_out);
+    assert_eq!(default_out, layered_out);
 }
 
 // =============================================================================

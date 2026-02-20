@@ -1,7 +1,7 @@
 //! SVG edge routing for direction-override subgraphs.
 //!
 //! After sublayout reconciliation repositions nodes inside direction-override
-//! subgraphs, dagre's pre-computed Bézier paths are stale. This module computes
+//! subgraphs, the layout's pre-computed Bézier paths are stale. This module computes
 //! fresh orthogonal edge paths in float coordinates for all edges touching
 //! override subgraphs.
 
@@ -443,7 +443,7 @@ pub fn ensure_cross_boundary_edge_spacing(
 
 /// Reroute edges where one or both endpoints target a subgraph (subgraph-as-node).
 ///
-/// Dagre routes these through resolved child nodes inside the subgraph, creating
+/// The layout routes these through resolved child nodes inside the subgraph, creating
 /// waypoints with small horizontal offsets.  The B-spline curve amplifies these
 /// into visible curves.  This function replaces those paths with fresh orthogonal
 /// routes computed from the subgraph bounds, producing straight lines or clean

@@ -233,8 +233,8 @@ pub(crate) fn plan_attachments(
         let edge_dir = layout.effective_edge_direction(&edge.from, &edge.to, fallback_direction);
         let is_subgraph_edge = edge.from_subgraph.is_some() || edge.to_subgraph.is_some();
         let is_backward = is_backward_edge(&src_bounds, &tgt_bounds, edge_dir);
-        let has_dagre_waypoints = waypoints.is_some_and(|wps| !wps.is_empty());
-        let (mut src_face, mut tgt_face) = if is_backward && !has_dagre_waypoints {
+        let has_layout_waypoints = waypoints.is_some_and(|wps| !wps.is_empty());
+        let (mut src_face, mut tgt_face) = if is_backward && !has_layout_waypoints {
             backward_routing_faces(edge_dir)
         } else if matches!(edge_dir, Direction::TopDown | Direction::BottomTop)
             && !is_backward
@@ -871,7 +871,7 @@ fn segment_sign(delta: f64) -> i8 {
 /// orthogonal router and SVG renderer.
 ///
 /// Coordinate convention: `FRect` uses top-left origin `(rect.x, rect.y)`
-/// with `width`/`height` extending right and down, matching SVG's `dagre::Rect`.
+/// with `width`/`height` extending right and down, matching SVG's `layered::Rect`.
 pub(crate) fn intersect_shape_boundary_float(
     rect: FRect,
     shape: Shape,
