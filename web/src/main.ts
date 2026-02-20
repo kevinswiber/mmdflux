@@ -64,6 +64,7 @@ export interface RenderWorkerClient {
 type PlaygroundFormat = CapabilityPlaygroundFormat;
 type StateStorage = Pick<Storage, "getItem" | "setItem">;
 type ExampleCategory = PlaygroundExample["category"];
+type ExampleSelectionId = PlaygroundExample["id"] | "__draft__";
 
 interface PersistedPlaygroundStateV1 {
   v: 1;
@@ -78,15 +79,27 @@ interface PersistedPlaygroundStateV2 {
   renderSettings: ShareRenderSettings;
 }
 
+interface PersistedPlaygroundStateV3 {
+  v: 3;
+  input: string;
+  format: PlaygroundFormat;
+  renderSettings: ShareRenderSettings;
+  selectedExampleId: ExampleSelectionId;
+  customInput: string;
+}
+
 interface EffectivePlaygroundState {
   input: string;
   format: PlaygroundFormat;
   renderSettings: ShareRenderSettings;
+  selectedExampleId: ExampleSelectionId;
+  customInput: string;
 }
 
 type PersistedPlaygroundState =
   | PersistedPlaygroundStateV1
-  | PersistedPlaygroundStateV2;
+  | PersistedPlaygroundStateV2
+  | PersistedPlaygroundStateV3;
 
 interface RenderControlBinding {
   control: RenderControlId;
@@ -96,6 +109,8 @@ interface RenderControlBinding {
 }
 
 const PLAYGROUND_STATE_STORAGE_KEY = "mmdflux-playground-state";
+const DRAFT_EXAMPLE_ID = "__draft__";
+const LEGACY_CUSTOM_EXAMPLE_ID = "__custom__";
 const CATEGORY_ORDER: ExampleCategory[] = ["flowchart", "class"];
 const CATEGORY_LABELS: Record<ExampleCategory, string> = {
   flowchart: "Flowchart",
@@ -197,7 +212,7 @@ function parsePersistedPlaygroundState(
 
   try {
     const parsed = JSON.parse(rawValue) as Partial<PersistedPlaygroundState>;
-    if (parsed.v !== 1 && parsed.v !== 2) {
+    if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3) {
       return null;
     }
     if (typeof parsed.input !== "string") {
@@ -210,15 +225,39 @@ function parsePersistedPlaygroundState(
       return null;
     }
 
+    const parsedRenderSettings =
+      "renderSettings" in parsed ? parsed.renderSettings : undefined;
     const renderSettings =
-      parsed.v === 2
-        ? normalizeShareRenderSettings(parsed.renderSettings)
-        : DEFAULT_SHARE_RENDER_SETTINGS;
+      parsed.v === 1
+        ? DEFAULT_SHARE_RENDER_SETTINGS
+        : normalizeShareRenderSettings(parsedRenderSettings);
+
+    const matchingExample = PLAYGROUND_EXAMPLES.find(
+      (example) => example.input === parsed.input,
+    );
+    const parsedSelectedExampleId =
+      parsed.v === 3 && typeof parsed.selectedExampleId === "string"
+        ? parsed.selectedExampleId === LEGACY_CUSTOM_EXAMPLE_ID
+          ? DRAFT_EXAMPLE_ID
+          : parsed.selectedExampleId
+        : null;
+    const selectedExampleId =
+      parsedSelectedExampleId &&
+      (parsedSelectedExampleId === DRAFT_EXAMPLE_ID ||
+        Boolean(findExampleById(parsedSelectedExampleId)))
+        ? (parsedSelectedExampleId as ExampleSelectionId)
+        : (matchingExample?.id ?? DRAFT_EXAMPLE_ID);
+    const customInput =
+      parsed.v === 3 && typeof parsed.customInput === "string"
+        ? parsed.customInput
+        : parsed.input;
 
     return {
       input: parsed.input,
       format: parsed.format,
       renderSettings,
+      selectedExampleId,
+      customInput,
     };
   } catch {
     return null;
@@ -245,11 +284,13 @@ function persistPlaygroundState(
     return;
   }
 
-  const persisted: PersistedPlaygroundStateV2 = {
-    v: 2,
+  const persisted: PersistedPlaygroundStateV3 = {
+    v: 3,
     input: state.input,
     format: state.format,
     renderSettings: state.renderSettings,
+    selectedExampleId: state.selectedExampleId,
+    customInput: state.customInput,
   };
   storage.setItem(PLAYGROUND_STATE_STORAGE_KEY, JSON.stringify(persisted));
 }
@@ -392,6 +433,12 @@ function renderSnippetPreview(previewBlock: HTMLElement, input: string): void {
 function populateExampleSelect(select: HTMLSelectElement): void {
   select.replaceChildren();
 
+  const customOption = document.createElement("option");
+  customOption.value = DRAFT_EXAMPLE_ID;
+  customOption.textContent = "Draft";
+  customOption.dataset.custom = "true";
+  select.append(customOption);
+
   for (const category of CATEGORY_ORDER) {
     const group = document.createElement("optgroup");
     group.label = CATEGORY_LABELS[category];
@@ -408,13 +455,6 @@ function populateExampleSelect(select: HTMLSelectElement): void {
 
     select.append(group);
   }
-}
-
-function removeCustomExampleOption(select: HTMLSelectElement): void {
-  const customOption = select.querySelector<HTMLOptionElement>(
-    'option[value="__custom__"]',
-  );
-  customOption?.remove();
 }
 
 export function createRenderWorkerClient(
@@ -487,11 +527,19 @@ export function renderApp(
   const restoredLocalState = readPersistedPlaygroundState(stateStorage);
   const defaultExample =
     findExampleById(DEFAULT_EXAMPLE_ID) ?? PLAYGROUND_EXAMPLES[0];
-  const initialInput =
+  const sharedExampleMatch = restoredShareState
+    ? PLAYGROUND_EXAMPLES.find((example) => example.input === restoredShareState.input)
+    : null;
+  const initialSelectedExampleId: ExampleSelectionId = restoredShareState
+    ? (sharedExampleMatch?.id ?? DRAFT_EXAMPLE_ID)
+    : restoredLocalState?.selectedExampleId ?? DRAFT_EXAMPLE_ID;
+  const initialDraftInput =
+    restoredLocalState?.customInput ??
     restoredShareState?.input ??
-    restoredLocalState?.input ??
     defaultExample?.input ??
     "";
+  const initialInput =
+    restoredShareState?.input ?? restoredLocalState?.input ?? initialDraftInput;
   const initialFormat =
     restoredShareState?.format ?? restoredLocalState?.format ?? "text";
   const initialRenderSettings =
@@ -576,6 +624,7 @@ export function renderApp(
         <div class="panel">
           <h2>Input</h2>
           <div data-editor-root></div>
+          <p class="editor-status" data-editor-status hidden></p>
         </div>
         <div class="panel">
           <h2>Preview</h2>
@@ -606,6 +655,7 @@ export function renderApp(
   const previewOutput = root.querySelector<HTMLElement>(
     "[data-preview-output]",
   );
+  const editorStatus = root.querySelector<HTMLElement>("[data-editor-status]");
   const previewError = root.querySelector<HTMLElement>("[data-preview-error]");
   const shareStatus = root.querySelector<HTMLElement>("[data-share-status]");
   const shareButton = root.querySelector<HTMLButtonElement>("[data-share]");
@@ -684,6 +734,7 @@ export function renderApp(
   if (
     !editorRoot ||
     !previewOutput ||
+    !editorStatus ||
     !previewError ||
     !shareStatus ||
     !shareButton ||
@@ -808,19 +859,11 @@ export function renderApp(
 
   renderSnippetCards();
 
-  const matchedExample = PLAYGROUND_EXAMPLES.find(
-    (example) => example.input === initialInput,
-  );
-  if (matchedExample) {
-    exampleSelect.value = matchedExample.id;
-  } else {
-    const customOption = document.createElement("option");
-    customOption.value = "__custom__";
-    customOption.textContent = "Custom from URL";
-    customOption.dataset.custom = "true";
-    exampleSelect.prepend(customOption);
-    exampleSelect.value = "__custom__";
-  }
+  const selectedInitialExample =
+    initialSelectedExampleId === DRAFT_EXAMPLE_ID
+      ? null
+      : findExampleById(initialSelectedExampleId);
+  exampleSelect.value = selectedInitialExample?.id ?? DRAFT_EXAMPLE_ID;
 
   const matchMedia =
     typeof window.matchMedia === "function"
@@ -849,6 +892,9 @@ export function renderApp(
   let renderSettings: ShareRenderSettings = normalizeShareRenderSettings(
     initialRenderSettings,
   );
+  let selectedExampleId: ExampleSelectionId =
+    selectedInitialExample?.id ?? DRAFT_EXAMPLE_ID;
+  let draftInput = initialDraftInput;
   let advancedOpen = false;
 
   const workerClient = options.renderClientFactory
@@ -887,6 +933,30 @@ export function renderApp(
   const updateShareStatus = (message: string): void => {
     shareStatus.hidden = false;
     shareStatus.textContent = message;
+  };
+
+  const updateEditorStatus = (message: string): void => {
+    editorStatus.hidden = false;
+    editorStatus.textContent = message;
+  };
+
+  const clearEditorStatus = (): void => {
+    editorStatus.hidden = true;
+    editorStatus.textContent = "";
+  };
+
+  const syncSelectionOnEditorInput = (input: string): void => {
+    if (selectedExampleId === DRAFT_EXAMPLE_ID) {
+      draftInput = input;
+      return;
+    }
+
+    const selectedExample = findExampleById(selectedExampleId);
+    if (!selectedExample || input !== selectedExample.input) {
+      selectedExampleId = DRAFT_EXAMPLE_ID;
+      exampleSelect.value = DRAFT_EXAMPLE_ID;
+      draftInput = input;
+    }
   };
 
   previewControls.setStatusReporter((message) => {
@@ -958,6 +1028,8 @@ export function renderApp(
       input: editor.getValue(),
       format: selectedFormat,
       renderSettings,
+      selectedExampleId,
+      customInput: draftInput,
     });
   };
 
@@ -1045,23 +1117,44 @@ export function renderApp(
       return;
     }
 
+    if (selectedExampleId === DRAFT_EXAMPLE_ID) {
+      draftInput = editor.getValue();
+    }
+
     previewControls.fitOnNextSvg();
-    removeCustomExampleOption(exampleSelect);
+    selectedExampleId = snippet.id;
     exampleSelect.value = snippet.id;
     editor.setValue(snippet.input);
+    clearEditorStatus();
     persistCurrentState();
     scheduleRender();
     scrollWorkspaceIntoView(workspace);
-    updateShareStatus(`Loaded snippet in editor: ${snippet.name}.`);
+    updateEditorStatus(`Loaded snippet in editor: ${snippet.name}.`);
   });
 
   exampleSelect.addEventListener("change", () => {
-    const nextExample = findExampleById(exampleSelect.value);
-    if (!nextExample) {
+    const nextSelection = exampleSelect.value;
+    if (nextSelection === DRAFT_EXAMPLE_ID) {
+      selectedExampleId = DRAFT_EXAMPLE_ID;
+      editor.setValue(draftInput);
+      clearEditorStatus();
+      persistCurrentState();
+      scheduleRender();
       return;
     }
 
+    const nextExample = findExampleById(nextSelection);
+    if (!nextExample) {
+      exampleSelect.value = selectedExampleId;
+      return;
+    }
+
+    if (selectedExampleId === DRAFT_EXAMPLE_ID) {
+      draftInput = editor.getValue();
+    }
+    selectedExampleId = nextExample.id;
     editor.setValue(nextExample.input);
+    clearEditorStatus();
     persistCurrentState();
     scheduleRender();
   });
@@ -1138,7 +1231,9 @@ export function renderApp(
     });
   });
 
-  editor.onChange(() => {
+  editor.onChange((value) => {
+    clearEditorStatus();
+    syncSelectionOnEditorInput(value);
     persistCurrentState();
     scheduleRender();
   });

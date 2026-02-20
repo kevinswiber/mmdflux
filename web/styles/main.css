@@ -352,6 +352,7 @@ body {
 }
 
 .share-status,
+.editor-status,
 .preview-error {
   margin: 0 0 0.7rem;
   padding: 0.58rem 0.75rem;
@@ -359,10 +360,15 @@ body {
   font-size: 0.84rem;
 }
 
-.share-status {
+.share-status,
+.editor-status {
   border: 1px solid var(--status-border);
   background: var(--status-bg);
   color: var(--status-text);
+}
+
+.editor-status {
+  margin: 0.7rem 0 0;
 }
 
 .preview-error {
@@ -372,6 +378,7 @@ body {
 }
 
 .share-status[hidden],
+.editor-status[hidden],
 .preview-error[hidden] {
   display: none;
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RenderWorkerClient } from "../src/main";
 import { renderApp } from "../src/main";
+import { encodeShareState } from "../src/share";
 
 interface MemoryStorage {
   getItem: (key: string) => string | null;
@@ -31,6 +32,72 @@ function createFakeRenderClient() {
 }
 
 describe("playground state persistence", () => {
+  it("labels restored local draft content as Draft", () => {
+    const storage = createMemoryStorage({
+      "mmdflux-playground-state": JSON.stringify({
+        v: 2,
+        input: "graph TD\nLocalCustom-->State",
+        format: "text",
+        renderSettings: {
+          layoutEngine: "auto",
+          edgePreset: "auto",
+          geometryLevel: "layout",
+          pathDetail: "full",
+        },
+      }),
+    });
+    const root = document.createElement("div");
+
+    renderApp(root, {
+      renderClientFactory: () => createFakeRenderClient(),
+      stateStorage: storage,
+    });
+
+    const exampleSelect = root.querySelector<HTMLSelectElement>(
+      "[data-example-select]",
+    );
+    const draftOption = root.querySelector<HTMLOptionElement>(
+      '[data-example-select] option[value="__draft__"]',
+    );
+
+    expect(exampleSelect?.value).toBe("__draft__");
+    expect(draftOption?.textContent).toBe("Draft");
+  });
+
+  it("labels hash-restored custom content as Draft", () => {
+    const shareHash = encodeShareState({
+      input: "graph TD\nHashCustom-->State",
+      format: "text",
+      renderSettings: {
+        layoutEngine: "auto",
+        edgePreset: "auto",
+        geometryLevel: "layout",
+        pathDetail: "full",
+      },
+    });
+    try {
+      history.replaceState(null, "", `#${shareHash}`);
+
+      const root = document.createElement("div");
+      renderApp(root, {
+        renderClientFactory: () => createFakeRenderClient(),
+        stateStorage: createMemoryStorage(),
+      });
+
+      const exampleSelect = root.querySelector<HTMLSelectElement>(
+        "[data-example-select]",
+      );
+      const draftOption = root.querySelector<HTMLOptionElement>(
+        '[data-example-select] option[value="__draft__"]',
+      );
+
+      expect(exampleSelect?.value).toBe("__draft__");
+      expect(draftOption?.textContent).toBe("Draft");
+    } finally {
+      history.replaceState(null, "", window.location.pathname);
+    }
+  });
+
   it("restores editor input and format from persisted state", () => {
     const storage = createMemoryStorage({
       "mmdflux-playground-state": JSON.stringify({
@@ -102,13 +169,19 @@ describe("playground state persistence", () => {
     const persisted = JSON.parse(
       storage.getItem("mmdflux-playground-state") ?? "{}",
     ) as {
+      v?: number;
       input?: string;
       format?: string;
+      selectedExampleId?: string;
+      customInput?: string;
       renderSettings?: Record<string, string>;
     };
 
+    expect(persisted.v).toBe(3);
     expect(persisted.input).toBe("graph TD\nA-->Saved");
     expect(persisted.format).toBe("mmds");
+    expect(persisted.selectedExampleId).toBe("__draft__");
+    expect(persisted.customInput).toBe("graph TD\nA-->Saved");
     expect(persisted.renderSettings).toMatchObject({
       layoutEngine: "mermaid-layered",
       geometryLevel: "routed",

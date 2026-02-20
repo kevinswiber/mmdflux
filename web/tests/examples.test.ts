@@ -100,6 +100,93 @@ describe("playground examples", () => {
     });
   });
 
+  it("shows run notice under editor and clears it on typing with draft selection", async () => {
+    vi.useFakeTimers();
+    const root = document.createElement("div");
+    const renderClient = createFakeRenderClient();
+
+    renderApp(root, {
+      renderClientFactory: () => renderClient,
+      debounceMs: 50,
+    });
+
+    const runButton = root.querySelector<HTMLButtonElement>(
+      '[data-snippet-run="flowchart-subgraph-direction-override"]',
+    );
+    const editorInput =
+      root.querySelector<HTMLTextAreaElement>(".editor-input");
+    const editorStatus =
+      root.querySelector<HTMLElement>("[data-editor-status]");
+    const exampleSelect = root.querySelector<HTMLSelectElement>(
+      "[data-example-select]",
+    );
+
+    if (!runButton || !editorInput || !editorStatus || !exampleSelect) {
+      throw new Error("expected run button, editor input, editor status, and example select");
+    }
+
+    runButton.click();
+    vi.advanceTimersByTime(50);
+    await Promise.resolve();
+
+    expect(editorStatus.hidden).toBe(false);
+    expect(editorStatus.textContent).toContain("Loaded snippet in editor");
+    expect(exampleSelect.value).toBe("flowchart-subgraph-direction-override");
+
+    editorInput.value = `${editorInput.value}\n%% user edit`;
+    editorInput.dispatchEvent(new Event("input"));
+    vi.advanceTimersByTime(50);
+    await Promise.resolve();
+
+    const draftOption = exampleSelect.querySelector<HTMLOptionElement>(
+      'option[value="__draft__"]',
+    );
+
+    expect(editorStatus.hidden).toBe(true);
+    expect(exampleSelect.value).toBe("__draft__");
+    expect(draftOption?.textContent).toBe("Draft");
+  });
+
+  it("restores draft content after viewing an example", async () => {
+    vi.useFakeTimers();
+    const root = document.createElement("div");
+    const renderClient = createFakeRenderClient();
+
+    renderApp(root, {
+      renderClientFactory: () => renderClient,
+      debounceMs: 50,
+    });
+
+    const exampleSelect = root.querySelector<HTMLSelectElement>(
+      "[data-example-select]",
+    );
+    const editorInput =
+      root.querySelector<HTMLTextAreaElement>(".editor-input");
+
+    if (!exampleSelect || !editorInput) {
+      throw new Error("expected example select and editor input");
+    }
+
+    editorInput.value = "graph TD\nIdea-->Work";
+    editorInput.dispatchEvent(new Event("input"));
+    vi.advanceTimersByTime(50);
+    await Promise.resolve();
+
+    exampleSelect.value = "class-basics";
+    exampleSelect.dispatchEvent(new Event("change"));
+    vi.advanceTimersByTime(50);
+    await Promise.resolve();
+    expect(editorInput.value).toContain("classDiagram");
+
+    exampleSelect.value = "__draft__";
+    exampleSelect.dispatchEvent(new Event("change"));
+    vi.advanceTimersByTime(50);
+    await Promise.resolve();
+
+    expect(editorInput.value).toBe("graph TD\nIdea-->Work");
+    expect(exampleSelect.value).toBe("__draft__");
+  });
+
   it("scrolls workspace into view when running snippets from off-screen", () => {
     const root = document.createElement("div");
     const renderClient = createFakeRenderClient();
