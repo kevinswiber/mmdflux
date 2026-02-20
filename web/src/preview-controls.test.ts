@@ -3,12 +3,20 @@ import { createPreviewControls } from "./preview-controls";
 
 function createPanzoomMock() {
   let scale = 1;
+  let x = 0;
+  let y = 0;
   return {
     destroy: vi.fn(),
+    getPan: vi.fn(() => ({ x, y })),
     getScale: vi.fn(() => scale),
-    pan: vi.fn(),
+    pan: vi.fn((nextX: number, nextY: number) => {
+      x = nextX;
+      y = nextY;
+    }),
     reset: vi.fn(() => {
       scale = 1;
+      x = 0;
+      y = 0;
     }),
     zoom: vi.fn((nextScale: number) => {
       scale = nextScale;
@@ -232,6 +240,40 @@ describe("preview controls", () => {
     });
     expect(createObjectUrl).toHaveBeenCalled();
     expect(revokeObjectUrl).toHaveBeenCalled();
+
+    harness.controller.dispose();
+  });
+
+  it("preserves viewport center anchor across SVG updates", () => {
+    const panzoom = createPanzoomMock();
+    const harness = createHarness({
+      createPanzoom: () => panzoom,
+    });
+
+    Object.defineProperty(harness.output, "clientWidth", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(harness.output, "clientHeight", {
+      configurable: true,
+      value: 200,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 200 100"><rect width="200" height="100" /></svg>';
+    harness.controller.onResult("svg");
+
+    panzoom.zoom(2);
+    panzoom.pan(10, 20);
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 400 200"><rect width="400" height="200" /></svg>';
+    harness.controller.onResult("svg");
+
+    const matchingPanCall = panzoom.pan.mock.calls.find(
+      ([x, y]) => x === -80 && y === -10,
+    );
+    expect(matchingPanCall).toBeDefined();
 
     harness.controller.dispose();
   });
