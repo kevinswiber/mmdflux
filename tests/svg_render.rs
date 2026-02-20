@@ -808,6 +808,52 @@ fn render_svg_basic_flowchart_has_svg_root() {
 }
 
 #[test]
+fn svg_direct_route_straight_uses_source_and_target_ports() {
+    let diagram = load_flowchart_fixture_diagram("chain.mmd");
+    let mut options = RenderOptions::default_svg();
+    options.edge_routing = Some(EdgeRouting::DirectRoute);
+    options.svg.routing_style = RoutingStyle::Direct;
+    options.svg.interpolation_style = InterpolationStyle::Linear;
+    options.svg.corner_style = CornerStyle::Sharp;
+    options.path_simplification = PathSimplification::None;
+    let svg = render_svg(&diagram, &options);
+
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.stroke != Stroke::Invisible)
+        .expect("chain fixture should contain at least one visible edge");
+    let points = edge_path_for_svg_order(&diagram, &svg, edge.index);
+
+    let source_label = &diagram
+        .nodes
+        .get(&edge.from)
+        .expect("source node should exist")
+        .label;
+    let target_label = &diagram
+        .nodes
+        .get(&edge.to)
+        .expect("target node should exist")
+        .label;
+    let source_rect =
+        node_rect_for_label(&svg, source_label).expect("source rect should exist in rendered SVG");
+    let target_rect =
+        node_rect_for_label(&svg, target_label).expect("target rect should exist in rendered SVG");
+
+    let source_face = svg_source_departure_face(source_rect, &points);
+    let target_face = svg_terminal_approach_face_relaxed(target_rect, &points);
+
+    assert_eq!(
+        source_face, "bottom",
+        "direct/straight source should depart from the TD bottom face: points={points:?}"
+    );
+    assert_eq!(
+        target_face, "top",
+        "direct/straight target should attach on the TD top face: points={points:?}"
+    );
+}
+
+#[test]
 fn svg_orthogonal_mode_renders_axis_aligned_path_commands() {
     let input = "graph TD\nA --> B\nA --> C\n";
     let flowchart = parse_flowchart(input).unwrap();

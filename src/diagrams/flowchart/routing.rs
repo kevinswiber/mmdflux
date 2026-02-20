@@ -313,8 +313,8 @@ mod tests {
         let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
         let path = &routed.edges[0].path;
         assert_eq!(path.len(), 2);
-        assert_eq!(path[0], FPoint::new(50.0, 25.0));
-        assert_eq!(path[1], FPoint::new(50.0, 75.0));
+        assert_eq!(path[0], FPoint::new(70.0, 35.0));
+        assert_eq!(path[1], FPoint::new(70.0, 85.0));
     }
 
     #[test]

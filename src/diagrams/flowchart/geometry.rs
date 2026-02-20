@@ -33,11 +33,11 @@ impl FRect {
     }
 
     pub fn center_x(&self) -> f64 {
-        self.x
+        self.x + self.width / 2.0
     }
 
     pub fn center_y(&self) -> f64 {
-        self.y
+        self.y + self.height / 2.0
     }
 }
 
@@ -760,7 +760,7 @@ mod tests {
     #[test]
     fn frect_center() {
         let r = FRect::new(10.0, 20.0, 100.0, 50.0);
-        assert_eq!(r.center_x(), 10.0);
-        assert_eq!(r.center_y(), 20.0);
+        assert_eq!(r.center_x(), 60.0);
+        assert_eq!(r.center_y(), 45.0);
     }
 }
