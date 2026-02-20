@@ -25,6 +25,15 @@
   --error-bg: #ffecec;
   --error-border: #e15d5d;
   --error-text: #9d2020;
+  --editor-token-type: #7a44cd;
+  --editor-token-keyword: #275f98;
+  --editor-token-comment: #6a7f95;
+  --editor-token-string: #926100;
+  --editor-token-number: #5f48bf;
+  --editor-token-variable: #9f237f;
+  --editor-token-class: #1a8b74;
+  --editor-token-transition: #0a8146;
+  --editor-token-delimiter: #355a82;
   --snippet-code-bg: #0d1b2f;
   --snippet-code-text: #d5e4f8;
   --focus-ring: 0 0 0 2px rgba(31, 111, 235, 0.3);
@@ -56,6 +65,15 @@
   --error-bg: rgba(140, 35, 35, 0.38);
   --error-border: rgba(240, 132, 132, 0.65);
   --error-text: #ffd7d7;
+  --editor-token-type: #b68dff;
+  --editor-token-keyword: #79b8ff;
+  --editor-token-comment: #7f97b3;
+  --editor-token-string: #f0bf6d;
+  --editor-token-number: #b99bff;
+  --editor-token-variable: #f291de;
+  --editor-token-class: #7be3c5;
+  --editor-token-transition: #66dfa5;
+  --editor-token-delimiter: #b8cde5;
   --snippet-code-bg: #0a1323;
   --snippet-code-text: #bfd6f4;
 }
@@ -358,7 +376,7 @@ body {
   display: none;
 }
 
-.editor-input,
+.editor-codemirror,
 .preview-output {
   width: 100%;
   min-height: 430px;
@@ -371,11 +389,6 @@ body {
     "Iosevka",
     "SFMono-Regular",
     monospace;
-}
-
-.editor-input {
-  resize: vertical;
-  padding: 0.86rem;
 }
 
 .preview-toolbar {
@@ -417,6 +430,62 @@ body {
   padding: 0.75rem;
   overflow: auto;
   white-space: pre;
+}
+
+.editor-codemirror {
+  overflow: hidden;
+}
+
+.editor-codemirror .cm-editor {
+  height: 100%;
+  min-height: inherit;
+  background: transparent;
+  color: var(--text-main);
+}
+
+.editor-codemirror .cm-scroller {
+  font:
+    500 0.93rem / 1.45 "IBM Plex Mono",
+    "Iosevka",
+    "SFMono-Regular",
+    monospace;
+}
+
+.editor-codemirror .cm-content {
+  min-height: 100%;
+  padding: 0.86rem;
+}
+
+.editor-codemirror .cm-line {
+  padding: 0;
+}
+
+.editor-codemirror .cm-gutters {
+  border-right: 0;
+  background: transparent;
+}
+
+.editor-codemirror .cm-cursor,
+.editor-codemirror .cm-dropCursor {
+  border-left-color: var(--text-main);
+}
+
+.editor-input {
+  resize: vertical;
+  padding: 0.86rem;
+}
+
+.editor-input-sync {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .preview-output svg {
@@ -581,6 +650,7 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .editor-codemirror,
   .editor-input,
   .preview-output {
     min-height: 340px;

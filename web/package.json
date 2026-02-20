@@ -33,7 +33,13 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.2",
+    "@codemirror/language": "^6.12.1",
+    "@codemirror/state": "^6.5.4",
+    "@codemirror/view": "^6.39.14",
+    "@lezer/highlight": "^1.2.3",
     "@panzoom/panzoom": "^4.6.1",
+    "codemirror": "^6.0.2",
     "mermaid": "^11.12.1"
   }
 }
