@@ -340,21 +340,21 @@ pub fn layout_config_for_diagram(diagram: &Diagram, options: &RenderOptions) -> 
         }
     }
 
-    // Apply dagre config overrides (Mermaid/dagre parity knobs)
+    // Apply layout config overrides
     if let Some(node_spacing) = options.node_spacing {
-        config.dagre_node_sep = node_spacing;
+        config.node_sep = node_spacing;
     }
     if let Some(rank_spacing) = options.rank_spacing {
-        config.dagre_rank_sep = rank_spacing;
+        config.rank_sep = rank_spacing;
     }
     if let Some(edge_spacing) = options.edge_spacing {
-        config.dagre_edge_sep = edge_spacing;
+        config.edge_sep = edge_spacing;
     }
     if let Some(margin) = options.margin {
-        config.dagre_margin = margin;
+        config.margin = margin;
     }
     if let Some(cluster_ranksep) = options.cluster_ranksep {
-        config.dagre_cluster_rank_sep = cluster_ranksep;
+        config.cluster_rank_sep = cluster_ranksep;
     }
     if let Some(padding) = options.padding {
         config.padding = padding;

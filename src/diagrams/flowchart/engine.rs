@@ -4,7 +4,7 @@
 //! modes, and implements `GraphEngine` for `FluxLayeredEngine` and `MermaidLayeredEngine`.
 
 use super::geometry::GraphGeometry;
-use super::render::layout::build_dagre_layout;
+use super::render::layout::build_layered_layout;
 use super::render::svg::svg_node_dimensions;
 use super::render::svg_metrics::SvgTextMetrics;
 use crate::diagram::{
@@ -69,7 +69,7 @@ pub fn run_layered_layout(
     let layout_config = layout_config_from_layered(layered_cfg, diagram);
     let direction = diagram.direction;
     let result = match mode {
-        MeasurementMode::Text => build_dagre_layout(
+        MeasurementMode::Text => build_layered_layout(
             diagram,
             &layout_config,
             |node| {
@@ -82,7 +82,7 @@ pub fn run_layered_layout(
                     .map(|label| text_edge_label_dimensions(label))
             },
         ),
-        MeasurementMode::Svg(metrics) => build_dagre_layout(
+        MeasurementMode::Svg(metrics) => build_layered_layout(
             diagram,
             &layout_config,
             |node| svg_node_dimensions(metrics, node, direction),
@@ -170,7 +170,7 @@ impl GraphEngine for FluxLayeredEngine {
             let EngineConfig::Layered(ref layered_cfg) = *config;
             let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
             // SVG does not add extra rank separation for clusters (matches Mermaid).
-            layout_config.dagre_cluster_rank_sep = 0.0;
+            layout_config.cluster_rank_sep = 0.0;
             let edge_routing = self.id().edge_routing_for_style(request.routing_style);
             let geometry = super::render::svg::build_svg_layout(
                 diagram,
@@ -284,7 +284,7 @@ impl GraphEngine for MermaidLayeredEngine {
             };
             let EngineConfig::Layered(ref layered_cfg) = *config;
             let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
-            layout_config.dagre_cluster_rank_sep = 0.0;
+            layout_config.cluster_rank_sep = 0.0;
             let geometry = super::render::svg::build_svg_layout(
                 diagram,
                 &layout_config,
@@ -344,10 +344,10 @@ fn layout_config_from_layered(
     };
 
     FlowchartLayoutConfig {
-        dagre_node_sep: layered_cfg.node_sep,
-        dagre_edge_sep: layered_cfg.edge_sep,
-        dagre_rank_sep: layered_cfg.rank_sep,
-        dagre_margin: layered_cfg.margin,
+        node_sep: layered_cfg.node_sep,
+        edge_sep: layered_cfg.edge_sep,
+        rank_sep: layered_cfg.rank_sep,
+        margin: layered_cfg.margin,
         ranker: Some(layered_cfg.ranker),
         padding: defaults.padding + extra_padding,
         ..defaults
