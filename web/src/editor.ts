@@ -3,6 +3,7 @@ import { indentUnit } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { minimalSetup } from "codemirror";
+import { mermaidLintExtension } from "./mermaid-diagnostics";
 import { mermaidSyntaxHighlighting } from "./mermaid-language";
 
 export interface EditorController {
@@ -90,6 +91,7 @@ export function createEditorController(
         EditorView.lineWrapping,
         indentUnit.of("  "),
         ...mermaidSyntaxHighlighting,
+        mermaidLintExtension,
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) {
             return;

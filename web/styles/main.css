@@ -470,6 +470,24 @@ body {
   border-left-color: var(--text-main);
 }
 
+.editor-codemirror .cm-lintRange-error {
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(100% - 2px),
+    var(--error-border) calc(100% - 2px)
+  );
+}
+
+.editor-codemirror .cm-tooltip.cm-tooltip-lint {
+  border: 1px solid var(--surface-border);
+  background: var(--panel-bg);
+  color: var(--text-main);
+}
+
+.editor-codemirror .cm-diagnostic {
+  font-size: 0.82rem;
+}
+
 .editor-input {
   resize: vertical;
   padding: 0.86rem;
