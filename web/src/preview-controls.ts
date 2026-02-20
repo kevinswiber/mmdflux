@@ -82,8 +82,44 @@ function readNumericAttribute(
     return 0;
   }
 
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.endsWith("%")) {
+    return 0;
+  }
+
+  if (!/^-?\d+(\.\d+)?([a-zA-Z]+)?$/.test(trimmed)) {
+    return 0;
+  }
+
   const parsed = Number.parseFloat(raw);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseViewBoxAttribute(svg: SVGSVGElement): DiagramBounds | null {
+  const raw = svg.getAttribute("viewBox");
+  if (!raw) {
+    return null;
+  }
+
+  const parts = raw
+    .trim()
+    .split(/[,\s]+/)
+    .map((value) => Number.parseFloat(value));
+  if (
+    parts.length !== 4 ||
+    parts.some((value) => !Number.isFinite(value)) ||
+    parts[2] <= 0 ||
+    parts[3] <= 0
+  ) {
+    return null;
+  }
+
+  return {
+    minX: parts[0],
+    minY: parts[1],
+    width: parts[2],
+    height: parts[3],
+  };
 }
 
 function getSvgDimensions(svg: SVGSVGElement): {
@@ -95,6 +131,11 @@ function getSvgDimensions(svg: SVGSVGElement): {
 }
 
 function getSvgBounds(svg: SVGSVGElement): DiagramBounds {
+  const attributeViewBox = parseViewBoxAttribute(svg);
+  if (attributeViewBox) {
+    return attributeViewBox;
+  }
+
   const viewBox = svg.viewBox.baseVal;
   if (viewBox.width > 0 && viewBox.height > 0) {
     return {
@@ -126,6 +167,10 @@ function getSvgBounds(svg: SVGSVGElement): DiagramBounds {
 }
 
 function hasUsableViewBox(svg: SVGSVGElement): boolean {
+  if (parseViewBoxAttribute(svg)) {
+    return true;
+  }
+
   const viewBox = svg.viewBox.baseVal;
   return viewBox.width > 0 && viewBox.height > 0;
 }
@@ -280,6 +325,7 @@ function defaultDependencies(): PreviewControlDependencies {
         canvas: true,
         maxScale: MAX_SCALE,
         minScale: MIN_SCALE,
+        origin: "0 0",
         roundPixels: true,
       }) as unknown as PanzoomInstance,
     createObjectUrl: (blob) => URL.createObjectURL(blob),

@@ -426,4 +426,49 @@ describe("preview controls", () => {
 
     harness.controller.dispose();
   });
+
+  it("parses viewBox attribute when animated viewBox values are unavailable", () => {
+    const panzoom = createPanzoomMock();
+    const harness = createHarness({
+      createPanzoom: () => panzoom,
+    });
+
+    Object.defineProperty(harness.output, "clientWidth", {
+      configurable: true,
+      value: 500,
+    });
+    Object.defineProperty(harness.output, "clientHeight", {
+      configurable: true,
+      value: 300,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 1000 200" width="100%" style="max-width: 1000px"><g class="root"><rect x="0" y="0" width="1000" height="200" /></g></svg>';
+
+    const svg = harness.output.querySelector("svg");
+    if (!svg) {
+      throw new Error("failed to create svg test fixture");
+    }
+
+    Object.defineProperty(svg, "viewBox", {
+      configurable: true,
+      value: {
+        baseVal: {
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+        },
+      },
+    });
+
+    harness.controller.onResult("svg");
+
+    const pan = panzoom.getPan();
+    expect(panzoom.getScale()).toBe(0.5);
+    expect(pan.x).toBe(0);
+    expect(pan.y).toBe(200);
+
+    harness.controller.dispose();
+  });
 });
