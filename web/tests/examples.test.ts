@@ -63,7 +63,7 @@ describe("playground examples", () => {
     expect(editorInput.value).toContain("subgraph lr_group");
     expect(renderClient.render).toHaveBeenCalledTimes(1);
     expect(renderClient.render.mock.calls[0]?.[0]).toMatchObject({
-      format: "text",
+      format: "svg",
     });
   });
 
@@ -96,7 +96,7 @@ describe("playground examples", () => {
     expect(editorInput.value).toContain("subgraph lr_group");
     expect(renderClient.render).toHaveBeenCalledTimes(1);
     expect(renderClient.render.mock.calls[0]?.[0]).toMatchObject({
-      format: "text",
+      format: "svg",
     });
   });
 

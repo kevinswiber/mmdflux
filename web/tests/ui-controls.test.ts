@@ -25,6 +25,9 @@ describe("format-aware controls", () => {
       debounceMs: 0,
     });
 
+    const textTab = root.querySelector<HTMLButtonElement>(
+      'button[data-format="text"]',
+    );
     const svgTab = root.querySelector<HTMLButtonElement>(
       'button[data-format="svg"]',
     );
@@ -34,46 +37,44 @@ describe("format-aware controls", () => {
 
     const edgePresetSelect =
       root.querySelector<HTMLSelectElement>("[data-edge-preset]");
-    const geometryLevelSelect = root.querySelector<HTMLSelectElement>(
-      "[data-geometry-level]",
-    );
     const pathDetailSelect =
       root.querySelector<HTMLSelectElement>("[data-path-detail]");
 
     const edgeHelp = root.querySelector<HTMLElement>("[data-help-edge-preset]");
-    const geometryHelp = root.querySelector<HTMLElement>(
-      "[data-help-geometry-level]",
-    );
     const pathHelp = root.querySelector<HTMLElement>("[data-help-path-detail]");
+    const geometryLevelSelect = root.querySelector<HTMLSelectElement>(
+      "[data-geometry-level]",
+    );
 
     if (
+      !textTab ||
       !svgTab ||
       !mmdsTab ||
       !edgePresetSelect ||
-      !geometryLevelSelect ||
       !pathDetailSelect ||
       !edgeHelp ||
-      !geometryHelp ||
       !pathHelp
     ) {
       throw new Error("expected format controls and helper text elements");
     }
 
+    expect(geometryLevelSelect).toBeNull();
+    expect(edgePresetSelect.disabled).toBe(false);
+    expect(pathDetailSelect.disabled).toBe(false);
+
+    textTab.click();
     expect(edgePresetSelect.disabled).toBe(true);
-    expect(geometryLevelSelect.disabled).toBe(true);
     expect(pathDetailSelect.disabled).toBe(true);
     expect(edgeHelp.textContent).toContain("SVG output only");
-    expect(geometryHelp.textContent).toContain("MMDS output only");
     expect(pathHelp.textContent).toContain("SVG and MMDS");
-
-    svgTab.click();
-    expect(edgePresetSelect.disabled).toBe(false);
-    expect(geometryLevelSelect.disabled).toBe(true);
-    expect(pathDetailSelect.disabled).toBe(false);
 
     mmdsTab.click();
     expect(edgePresetSelect.disabled).toBe(true);
-    expect(geometryLevelSelect.disabled).toBe(false);
+    expect(pathDetailSelect.disabled).toBe(false);
+    expect(edgeHelp.textContent).toContain("SVG output only");
+
+    svgTab.click();
+    expect(edgePresetSelect.disabled).toBe(false);
     expect(pathDetailSelect.disabled).toBe(false);
   });
 

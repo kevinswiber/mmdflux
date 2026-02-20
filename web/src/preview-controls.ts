@@ -44,6 +44,8 @@ interface PreviewControlDependencies {
 }
 
 interface CreatePreviewControlsOptions {
+  controlsOverlayRoot: HTMLElement;
+  controlsToggleButton: HTMLButtonElement;
   controlsRoot: HTMLElement;
   zoomOutButton: HTMLButtonElement;
   zoomInButton: HTMLButtonElement;
@@ -348,6 +350,8 @@ export function createPreviewControls(
   let fitTicket = 0;
   let fitOnNextSvg = false;
   let viewAnchor: ViewAnchor | null = null;
+  let controlsExpanded = false;
+  let controlsVisible = false;
 
   const syncAnchorFromPanzoom = (): void => {
     if (!panzoom) {
@@ -428,12 +432,30 @@ export function createPreviewControls(
     return currentFormat === "svg" && Boolean(resolveSvgFromOutput());
   };
 
+  const setControlsExpanded = (expanded: boolean): void => {
+    controlsExpanded = expanded;
+    options.controlsRoot.hidden = !expanded;
+    options.controlsOverlayRoot.classList.toggle("is-expanded", expanded);
+    options.controlsToggleButton.setAttribute("aria-expanded", String(expanded));
+    options.controlsToggleButton.setAttribute(
+      "aria-label",
+      expanded ? "Hide zoom controls" : "Show zoom controls",
+    );
+    options.controlsToggleButton.title = expanded
+      ? "Hide zoom controls"
+      : "Show zoom controls";
+  };
+
   const setControlsVisibility = (visible: boolean): void => {
-    options.controlsRoot.hidden = !visible;
+    options.controlsOverlayRoot.hidden = !visible;
     options.exportToggleButton.hidden = !visible;
     if (!visible) {
       options.exportMenu.hidden = true;
+      setControlsExpanded(false);
+    } else if (!controlsVisible) {
+      setControlsExpanded(false);
     }
+    controlsVisible = visible;
   };
 
   const fitToViewport = (): void => {
@@ -693,6 +715,21 @@ export function createPreviewControls(
     options.exportMenu.hidden = true;
   };
 
+  const toggleControlPanel = (): void => {
+    if (options.controlsOverlayRoot.hidden) {
+      return;
+    }
+
+    setControlsExpanded(!controlsExpanded);
+  };
+
+  const collapseControlPanel = (): void => {
+    if (!controlsExpanded) {
+      return;
+    }
+    setControlsExpanded(false);
+  };
+
   const handleDocumentClick = (event: MouseEvent): void => {
     const target = event.target;
     if (!(target instanceof Node)) {
@@ -702,9 +739,24 @@ export function createPreviewControls(
       options.exportMenu.contains(target) ||
       options.exportToggleButton.contains(target)
     ) {
+      // keep export menu open
+    } else {
+      closeExportMenu();
+    }
+
+    if (options.controlsOverlayRoot.contains(target)) {
       return;
     }
+    collapseControlPanel();
+  };
+
+  const handleDocumentKeydown = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape") {
+      return;
+    }
+
     closeExportMenu();
+    collapseControlPanel();
   };
 
   options.zoomOutButton.addEventListener("click", () => {
@@ -774,6 +826,11 @@ export function createPreviewControls(
     forceSvgRepaint();
   });
 
+  options.controlsToggleButton.addEventListener("click", (event) => {
+    event.preventDefault();
+    toggleControlPanel();
+  });
+
   options.exportToggleButton.addEventListener("click", () => {
     toggleExportMenu();
   });
@@ -789,8 +846,10 @@ export function createPreviewControls(
   });
 
   document.addEventListener("click", handleDocumentClick);
+  document.addEventListener("keydown", handleDocumentKeydown);
 
   resetZoomLabel();
+  setControlsExpanded(false);
   setControlsVisibility(false);
 
   return {
@@ -810,6 +869,7 @@ export function createPreviewControls(
     },
     dispose: () => {
       document.removeEventListener("click", handleDocumentClick);
+      document.removeEventListener("keydown", handleDocumentKeydown);
       teardownPanzoom();
       setControlsVisibility(false);
     },

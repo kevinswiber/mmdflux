@@ -38,12 +38,15 @@ function createHarness(
 ) {
   const host = document.createElement("div");
   host.innerHTML = `
-    <div data-controls hidden>
-      <button type="button" data-zoom-out>-</button>
-      <span data-zoom-label>100%</span>
-      <button type="button" data-zoom-in>+</button>
-      <button type="button" data-zoom-fit>Fit</button>
-      <button type="button" data-zoom-reset>Reset</button>
+    <div data-controls-overlay hidden>
+      <button type="button" data-controls-toggle>Toggle</button>
+      <div data-controls hidden>
+        <button type="button" data-zoom-out>-</button>
+        <span data-zoom-label>100%</span>
+        <button type="button" data-zoom-in>+</button>
+        <button type="button" data-zoom-fit>Fit</button>
+        <button type="button" data-zoom-reset>Reset</button>
+      </div>
     </div>
     <button type="button" data-export-toggle hidden>Export</button>
     <div data-export-menu hidden>
@@ -53,6 +56,12 @@ function createHarness(
     <div data-output></div>
   `;
 
+  const controlsOverlayRoot = host.querySelector<HTMLElement>(
+    "[data-controls-overlay]",
+  );
+  const controlsToggleButton = host.querySelector<HTMLButtonElement>(
+    "[data-controls-toggle]",
+  );
   const controlsRoot = host.querySelector<HTMLElement>("[data-controls]");
   const zoomOutButton =
     host.querySelector<HTMLButtonElement>("[data-zoom-out]");
@@ -73,6 +82,8 @@ function createHarness(
   const output = host.querySelector<HTMLElement>("[data-output]");
 
   if (
+    !controlsOverlayRoot ||
+    !controlsToggleButton ||
     !controlsRoot ||
     !zoomOutButton ||
     !zoomInButton ||
@@ -89,6 +100,8 @@ function createHarness(
   }
 
   const controller = createPreviewControls({
+    controlsOverlayRoot,
+    controlsToggleButton,
     controlsRoot,
     zoomOutButton,
     zoomInButton,
@@ -105,6 +118,8 @@ function createHarness(
 
   return {
     controller,
+    controlsOverlayRoot,
+    controlsToggleButton,
     controlsRoot,
     exportToggleButton,
     exportSvgButton,
@@ -116,7 +131,7 @@ function createHarness(
 }
 
 describe("preview controls", () => {
-  it("hides controls for non-SVG and shows them for SVG", () => {
+  it("hides controls for non-SVG and shows collapsed overlay for SVG", () => {
     const panzoom = createPanzoomMock();
     const harness = createHarness({
       createPanzoom: () => panzoom,
@@ -125,12 +140,43 @@ describe("preview controls", () => {
     harness.output.innerHTML = '<svg viewBox="0 0 100 80"></svg>';
 
     harness.controller.onResult("text");
+    expect(harness.controlsOverlayRoot.hidden).toBe(true);
     expect(harness.controlsRoot.hidden).toBe(true);
     expect(harness.exportToggleButton.hidden).toBe(true);
 
     harness.controller.onResult("svg");
-    expect(harness.controlsRoot.hidden).toBe(false);
+    expect(harness.controlsOverlayRoot.hidden).toBe(false);
+    expect(harness.controlsRoot.hidden).toBe(true);
     expect(harness.exportToggleButton.hidden).toBe(false);
+
+    harness.controller.dispose();
+  });
+
+  it("expands and collapses overlay controls on toggle, outside click, and Escape", () => {
+    const panzoom = createPanzoomMock();
+    const harness = createHarness({
+      createPanzoom: () => panzoom,
+    });
+
+    harness.output.innerHTML = '<svg viewBox="0 0 100 80"></svg>';
+    harness.controller.onResult("svg");
+
+    harness.controlsToggleButton.click();
+    expect(harness.controlsRoot.hidden).toBe(false);
+    expect(harness.controlsToggleButton.getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+
+    document.body.click();
+    expect(harness.controlsRoot.hidden).toBe(true);
+    expect(harness.controlsToggleButton.getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+
+    harness.controlsToggleButton.click();
+    expect(harness.controlsRoot.hidden).toBe(false);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(harness.controlsRoot.hidden).toBe(true);
 
     harness.controller.dispose();
   });

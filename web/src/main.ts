@@ -26,7 +26,6 @@ import {
   encodeShareState,
   normalizeShareRenderSettings,
   type ShareEdgePreset,
-  type ShareGeometryLevel,
   type ShareLayoutEngine,
   type SharePathDetail,
   type ShareRenderSettings,
@@ -190,10 +189,6 @@ function isEdgePreset(value: string): value is ShareEdgePreset {
   );
 }
 
-function isGeometryLevel(value: string): value is ShareGeometryLevel {
-  return value === "layout" || value === "routed";
-}
-
 function isPathDetail(value: string): value is SharePathDetail {
   return (
     value === "full" ||
@@ -319,6 +314,21 @@ function nextThemePreference(current: ThemePreference): ThemePreference {
   return "system";
 }
 
+const THEME_LABELS: Record<ThemePreference, string> = {
+  system: "System",
+  light: "Light",
+  dark: "Dark",
+};
+
+const THEME_ICONS: Record<ThemePreference, string> = {
+  light:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.75V5.25"></path><path d="M12 18.75V21.25"></path><path d="M4.75 12H2.75"></path><path d="M21.25 12H19.25"></path><path d="M6.86 6.86L5.1 5.1"></path><path d="M18.9 18.9L17.14 17.14"></path><path d="M17.14 6.86L18.9 5.1"></path><path d="M5.1 18.9L6.86 17.14"></path></svg>',
+  dark:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3.3a8.7 8.7 0 1 0 6.2 14.8A9.2 9.2 0 0 1 14.5 3.3Z"></path></svg>',
+  system:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M9 20h6"></path><path d="M12 16v4"></path></svg>',
+};
+
 function viewportHeight(): number {
   return window.innerHeight || document.documentElement.clientHeight || 0;
 }
@@ -371,14 +381,20 @@ function scrollWorkspaceIntoView(workspace: HTMLElement): void {
   });
 }
 
-function formatThemeLabel(preference: ThemePreference): string {
-  if (preference === "system") {
-    return "Theme: System";
-  }
-  if (preference === "light") {
-    return "Theme: Light";
-  }
-  return "Theme: Dark";
+function updateThemeToggleButton(
+  button: HTMLButtonElement,
+  preference: ThemePreference,
+): void {
+  const nextPreference = nextThemePreference(preference);
+  const currentLabel = THEME_LABELS[preference];
+  const nextLabel = THEME_LABELS[nextPreference];
+  button.dataset.themeMode = preference;
+  button.setAttribute(
+    "aria-label",
+    `Theme: ${currentLabel}. Switch to ${nextLabel}.`,
+  );
+  button.title = `Theme: ${currentLabel}.`;
+  button.innerHTML = THEME_ICONS[preference];
 }
 
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -541,7 +557,7 @@ export function renderApp(
   const initialInput =
     restoredShareState?.input ?? restoredLocalState?.input ?? initialDraftInput;
   const initialFormat =
-    restoredShareState?.format ?? restoredLocalState?.format ?? "text";
+    restoredShareState?.format ?? restoredLocalState?.format ?? "svg";
   const initialRenderSettings =
     restoredShareState?.renderSettings ??
     restoredLocalState?.renderSettings ??
@@ -554,25 +570,29 @@ export function renderApp(
           <h1>mmdflux playground <a href="https://github.com/kevinswiber/mmdflux" target="_blank" rel="noopener noreferrer" class="repo-link">kevinswiber/mmdflux</a></h1>
         </div>
         <div class="toolbar-actions toolbar-actions-primary">
-          <label class="example-picker">
-            <span>Example</span>
-            <select data-example-select></select>
-          </label>
-          <div class="format-tabs" role="tablist" aria-label="Output format">
-            <button type="button" role="tab" data-format="text" aria-selected="true" class="is-active">Text</button>
-            <button type="button" role="tab" data-format="svg" aria-selected="false">SVG</button>
-            <button type="button" role="tab" data-format="mmds" aria-selected="false">MMDS</button>
-          </div>
-          <button type="button" class="toolbar-button toolbar-button-toggle" data-advanced-toggle aria-expanded="false" aria-controls="advanced-controls-panel">Advanced controls</button>
-          <div class="export-control">
-            <button type="button" class="toolbar-button" data-export-toggle hidden>Export</button>
-            <div class="export-menu" data-export-menu hidden>
-              <button type="button" data-export-svg>Download SVG</button>
-              <button type="button" data-export-png>Download PNG</button>
+          <div class="toolbar-actions-left">
+            <label class="example-picker">
+              <span>Example</span>
+              <select data-example-select></select>
+            </label>
+            <div class="format-tabs" role="tablist" aria-label="Output format">
+              <button type="button" role="tab" data-format="text" aria-selected="true" class="is-active">Text</button>
+              <button type="button" role="tab" data-format="svg" aria-selected="false">SVG</button>
+              <button type="button" role="tab" data-format="mmds" aria-selected="false">MMDS</button>
+            </div>
+            <button type="button" class="toolbar-button toolbar-button-toggle" data-advanced-toggle aria-expanded="false" aria-controls="advanced-controls-panel">Advanced controls</button>
+            <div class="export-control">
+              <button type="button" class="toolbar-button" data-export-toggle hidden>Export</button>
+              <div class="export-menu" data-export-menu hidden>
+                <button type="button" data-export-svg>Download SVG</button>
+                <button type="button" data-export-png>Download PNG</button>
+              </div>
             </div>
           </div>
-          <button type="button" class="toolbar-button" data-theme-toggle>Theme: System</button>
-          <button type="button" class="toolbar-button" data-share>Copy Share URL</button>
+          <div class="toolbar-actions-right">
+            <button type="button" class="toolbar-button theme-cycler" data-theme-toggle aria-live="polite"></button>
+            <button type="button" class="toolbar-button" data-share>Copy Share URL</button>
+          </div>
         </div>
       </header>
 
@@ -599,14 +619,6 @@ export function renderApp(
             </select>
             <p class="render-help" data-help-edge-preset></p>
           </div>
-          <div class="render-setting" data-setting="geometryLevel">
-            <label for="geometry-level-select">Geometry Level</label>
-            <select id="geometry-level-select" data-geometry-level>
-              <option value="layout">layout</option>
-              <option value="routed">routed</option>
-            </select>
-            <p class="render-help" data-help-geometry-level></p>
-          </div>
           <div class="render-setting" data-setting="pathDetail">
             <label for="path-detail-select">Path Detail</label>
             <select id="path-detail-select" data-path-detail>
@@ -625,19 +637,36 @@ export function renderApp(
           <h2>Input</h2>
           <div data-editor-root></div>
           <p class="editor-status" data-editor-status hidden></p>
+          <p class="preview-error" data-preview-error hidden></p>
         </div>
         <div class="panel">
           <h2>Preview</h2>
           <p class="share-status" data-share-status hidden></p>
-          <p class="preview-error" data-preview-error hidden></p>
-          <div class="preview-toolbar" data-preview-controls hidden>
-            <button type="button" class="preview-toolbar-button" data-zoom-out>-</button>
-            <span class="preview-zoom-label" data-zoom-label>100%</span>
-            <button type="button" class="preview-toolbar-button" data-zoom-in>+</button>
-            <button type="button" class="preview-toolbar-button" data-zoom-fit>Fit</button>
-            <button type="button" class="preview-toolbar-button" data-zoom-reset>Reset</button>
+          <div class="preview-stage" data-preview-stage>
+            <div class="preview-controls-overlay" data-preview-controls-overlay hidden>
+              <button
+                type="button"
+                class="preview-controls-toggle"
+                data-preview-controls-toggle
+                aria-expanded="false"
+                aria-label="Show zoom controls"
+                title="Show zoom controls"
+              >
+                <svg class="preview-controls-toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6"></circle>
+                  <path d="M20 20L16.2 16.2"></path>
+                </svg>
+              </button>
+              <div class="preview-toolbar" data-preview-controls hidden>
+                <button type="button" class="preview-toolbar-button" data-zoom-out>-</button>
+                <span class="preview-zoom-label" data-zoom-label>100%</span>
+                <button type="button" class="preview-toolbar-button" data-zoom-in>+</button>
+                <button type="button" class="preview-toolbar-button" data-zoom-fit>Fit</button>
+                <button type="button" class="preview-toolbar-button" data-zoom-reset>Reset</button>
+              </div>
+            </div>
+            <div class="preview-output" data-preview-output></div>
           </div>
-          <div class="preview-output" data-preview-output></div>
         </div>
       </section>
 
@@ -652,6 +681,7 @@ export function renderApp(
   `;
 
   const editorRoot = root.querySelector<HTMLElement>("[data-editor-root]");
+  const previewStage = root.querySelector<HTMLElement>("[data-preview-stage]");
   const previewOutput = root.querySelector<HTMLElement>(
     "[data-preview-output]",
   );
@@ -682,9 +712,6 @@ export function renderApp(
   );
   const edgePresetSelect =
     root.querySelector<HTMLSelectElement>("[data-edge-preset]");
-  const geometryLevelSelect = root.querySelector<HTMLSelectElement>(
-    "[data-geometry-level]",
-  );
   const pathDetailSelect =
     root.querySelector<HTMLSelectElement>("[data-path-detail]");
 
@@ -692,9 +719,6 @@ export function renderApp(
     "[data-help-layout-engine]",
   );
   const edgeHelp = root.querySelector<HTMLElement>("[data-help-edge-preset]");
-  const geometryHelp = root.querySelector<HTMLElement>(
-    "[data-help-geometry-level]",
-  );
   const pathHelp = root.querySelector<HTMLElement>("[data-help-path-detail]");
 
   const layoutSetting = root.querySelector<HTMLElement>(
@@ -703,13 +727,16 @@ export function renderApp(
   const edgeSetting = root.querySelector<HTMLElement>(
     '[data-setting="edgePreset"]',
   );
-  const geometrySetting = root.querySelector<HTMLElement>(
-    '[data-setting="geometryLevel"]',
-  );
   const pathSetting = root.querySelector<HTMLElement>(
     '[data-setting="pathDetail"]',
   );
 
+  const previewControlsOverlayRoot = root.querySelector<HTMLElement>(
+    "[data-preview-controls-overlay]",
+  );
+  const previewControlsToggleButton = root.querySelector<HTMLButtonElement>(
+    "[data-preview-controls-toggle]",
+  );
   const previewControlsRoot = root.querySelector<HTMLElement>(
     "[data-preview-controls]",
   );
@@ -733,6 +760,7 @@ export function renderApp(
 
   if (
     !editorRoot ||
+    !previewStage ||
     !previewOutput ||
     !editorStatus ||
     !previewError ||
@@ -746,16 +774,15 @@ export function renderApp(
     !snippetGrid ||
     !layoutEngineSelect ||
     !edgePresetSelect ||
-    !geometryLevelSelect ||
     !pathDetailSelect ||
     !layoutHelp ||
     !edgeHelp ||
-    !geometryHelp ||
     !pathHelp ||
     !layoutSetting ||
     !edgeSetting ||
-    !geometrySetting ||
     !pathSetting ||
+    !previewControlsOverlayRoot ||
+    !previewControlsToggleButton ||
     !previewControlsRoot ||
     !zoomOutButton ||
     !zoomInButton ||
@@ -779,6 +806,8 @@ export function renderApp(
     initialValue: initialInput,
   });
   const previewControls = createPreviewControls({
+    controlsOverlayRoot: previewControlsOverlayRoot,
+    controlsToggleButton: previewControlsToggleButton,
     controlsRoot: previewControlsRoot,
     zoomOutButton,
     zoomInButton,
@@ -884,9 +913,7 @@ export function renderApp(
     matchMedia,
   });
   themeController.apply();
-  themeToggleButton.textContent = formatThemeLabel(
-    themeController.getPreference(),
-  );
+  updateThemeToggleButton(themeToggleButton, themeController.getPreference());
 
   let selectedFormat: PlaygroundFormat = initialFormat;
   let renderSettings: ShareRenderSettings = normalizeShareRenderSettings(
@@ -915,12 +942,6 @@ export function renderApp(
       select: edgePresetSelect,
       help: edgeHelp,
       container: edgeSetting,
-    },
-    {
-      control: "geometryLevel",
-      select: geometryLevelSelect,
-      help: geometryHelp,
-      container: geometrySetting,
     },
     {
       control: "pathDetail",
@@ -966,7 +987,6 @@ export function renderApp(
   const applyRenderSettingsToControls = (): void => {
     layoutEngineSelect.value = renderSettings.layoutEngine;
     edgePresetSelect.value = renderSettings.edgePreset;
-    geometryLevelSelect.value = renderSettings.geometryLevel;
     pathDetailSelect.value = renderSettings.pathDetail;
   };
 
@@ -995,7 +1015,7 @@ export function renderApp(
     }
 
     if (selectedFormat === "mmds") {
-      config.geometryLevel = renderSettings.geometryLevel;
+      config.geometryLevel = "routed";
       if (renderSettings.pathDetail !== "full") {
         config.pathDetail = renderSettings.pathDetail;
       }
@@ -1181,17 +1201,6 @@ export function renderApp(
     }
   });
 
-  geometryLevelSelect.addEventListener("change", () => {
-    if (isGeometryLevel(geometryLevelSelect.value)) {
-      renderSettings = {
-        ...renderSettings,
-        geometryLevel: geometryLevelSelect.value,
-      };
-      persistCurrentState();
-      scheduleRender();
-    }
-  });
-
   pathDetailSelect.addEventListener("change", () => {
     if (isPathDetail(pathDetailSelect.value)) {
       renderSettings = {
@@ -1206,9 +1215,7 @@ export function renderApp(
   themeToggleButton.addEventListener("click", () => {
     const nextPreference = nextThemePreference(themeController.getPreference());
     themeController.setPreference(nextPreference);
-    themeToggleButton.textContent = formatThemeLabel(
-      themeController.getPreference(),
-    );
+    updateThemeToggleButton(themeToggleButton, themeController.getPreference());
   });
 
   shareButton.addEventListener("click", () => {

@@ -3,7 +3,6 @@ export type PlaygroundFormat = "text" | "svg" | "mmds";
 export type RenderControlId =
   | "layoutEngine"
   | "edgePreset"
-  | "geometryLevel"
   | "pathDetail";
 
 interface RenderControlCapability {
@@ -22,12 +21,6 @@ const CONTROL_CAPABILITIES: Record<RenderControlId, RenderControlCapability> = {
     description: "Pick the SVG edge style preset for routed curves.",
     supportedFormats: ["svg"],
     reasonWhenDisabled: "Edge preset applies to SVG output only.",
-  },
-  geometryLevel: {
-    description:
-      "Choose whether MMDS emits layout-only or fully routed geometry.",
-    supportedFormats: ["mmds"],
-    reasonWhenDisabled: "Geometry level applies to MMDS output only.",
   },
   pathDetail: {
     description: "Control how much path waypoint detail is included.",
