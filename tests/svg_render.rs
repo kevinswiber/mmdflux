@@ -854,6 +854,25 @@ fn svg_direct_route_straight_uses_source_and_target_ports() {
 }
 
 #[test]
+fn svg_direct_route_double_skip_uses_avoidance_path_for_long_skip_edges() {
+    let diagram = load_flowchart_fixture_diagram("double_skip.mmd");
+    let mut options = RenderOptions::default_svg();
+    options.edge_routing = Some(EdgeRouting::DirectRoute);
+    options.svg.routing_style = RoutingStyle::Direct;
+    options.svg.interpolation_style = InterpolationStyle::Linear;
+    options.svg.corner_style = CornerStyle::Sharp;
+    options.path_simplification = PathSimplification::None;
+    let svg = render_svg(&diagram, &options);
+
+    let skip_edge_index = edge_index(&diagram, "A", "D");
+    let points = edge_path_for_svg_order(&diagram, &svg, skip_edge_index);
+    assert!(
+        points.len() > 2,
+        "direct mode should preserve avoidance geometry when the straight skip edge would cut through intermediate nodes: points={points:?}"
+    );
+}
+
+#[test]
 fn svg_orthogonal_mode_renders_axis_aligned_path_commands() {
     let input = "graph TD\nA --> B\nA --> C\n";
     let flowchart = parse_flowchart(input).unwrap();

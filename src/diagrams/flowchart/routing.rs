@@ -109,7 +109,81 @@ fn build_direct_path(
         end = nudge_for_direction(start, direction);
     }
 
+    if direct_segment_crosses_non_endpoint_nodes(start, end, edge, geometry) {
+        return build_path_from_hints(edge, geometry);
+    }
+
     vec![start, end]
+}
+
+fn direct_segment_crosses_non_endpoint_nodes(
+    start: FPoint,
+    end: FPoint,
+    edge: &LayoutEdge,
+    geometry: &GraphGeometry,
+) -> bool {
+    geometry.nodes.iter().any(|(id, node)| {
+        if id == &edge.from || id == &edge.to {
+            return false;
+        }
+        segment_crosses_rect_interior(start, end, node.rect)
+    })
+}
+
+fn segment_crosses_rect_interior(start: FPoint, end: FPoint, rect: FRect) -> bool {
+    const EPS: f64 = 1e-6;
+    let left = rect.x + EPS;
+    let right = rect.x + rect.width - EPS;
+    let top = rect.y + EPS;
+    let bottom = rect.y + rect.height - EPS;
+    if left >= right || top >= bottom {
+        return false;
+    }
+
+    let dx = end.x - start.x;
+    let dy = end.y - start.y;
+    let mut t0 = 0.0;
+    let mut t1 = 1.0;
+
+    if !clip_test(-dx, start.x - left, &mut t0, &mut t1) {
+        return false;
+    }
+    if !clip_test(dx, right - start.x, &mut t0, &mut t1) {
+        return false;
+    }
+    if !clip_test(-dy, start.y - top, &mut t0, &mut t1) {
+        return false;
+    }
+    if !clip_test(dy, bottom - start.y, &mut t0, &mut t1) {
+        return false;
+    }
+
+    t0 < t1
+}
+
+fn clip_test(p: f64, q: f64, t0: &mut f64, t1: &mut f64) -> bool {
+    const EPS: f64 = 1e-12;
+    if p.abs() <= EPS {
+        return q >= 0.0;
+    }
+
+    let r = q / p;
+    if p < 0.0 {
+        if r > *t1 {
+            return false;
+        }
+        if r > *t0 {
+            *t0 = r;
+        }
+    } else {
+        if r < *t0 {
+            return false;
+        }
+        if r < *t1 {
+            *t1 = r;
+        }
+    }
+    true
 }
 
 fn points_are_same(a: FPoint, b: FPoint) -> bool {
@@ -357,6 +431,79 @@ mod tests {
         let path = &routed.edges[0].path;
         assert_eq!(path.len(), 2);
         assert_ne!(path[0], path[1]);
+    }
+
+    #[test]
+    fn direct_route_falls_back_when_straight_segment_crosses_node_interior() {
+        let mut diagram = Diagram::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_node(crate::graph::Node::new("B"));
+        diagram.add_node(crate::graph::Node::new("C"));
+        diagram.add_edge(crate::graph::Edge::new("A", "C"));
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(0.0, 0.0, 20.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(60.0, 60.0, 40.0, 40.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "C".into(),
+            PositionedNode {
+                id: "C".into(),
+                rect: FRect::new(120.0, 120.0, 20.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "C".into(),
+                parent: None,
+            },
+        );
+
+        let direct_hint = vec![
+            FPoint::new(10.0, 20.0),
+            FPoint::new(170.0, 20.0),
+            FPoint::new(170.0, 120.0),
+            FPoint::new(130.0, 120.0),
+        ];
+
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![LayoutEdge {
+                index: 0,
+                from: "A".into(),
+                to: "C".into(),
+                waypoints: vec![],
+                label_position: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: Some(direct_hint.clone()),
+            }],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(0.0, 0.0, 200.0, 200.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            rerouted_edges: std::collections::HashSet::new(),
+        };
+
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        assert_eq!(routed.edges[0].path, direct_hint);
     }
 
     #[test]
