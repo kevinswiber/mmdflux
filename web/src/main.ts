@@ -278,6 +278,58 @@ function nextThemePreference(current: ThemePreference): ThemePreference {
   return "system";
 }
 
+function viewportHeight(): number {
+  return window.innerHeight || document.documentElement.clientHeight || 0;
+}
+
+function visibleHeightInViewport(rect: DOMRect): number {
+  const viewHeight = viewportHeight();
+  if (viewHeight <= 0) {
+    return 0;
+  }
+
+  const top = Math.max(rect.top, 0);
+  const bottom = Math.min(rect.bottom, viewHeight);
+  return Math.max(0, bottom - top);
+}
+
+function workspaceMostlyOffscreen(workspace: HTMLElement): boolean {
+  const rect = workspace.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    return false;
+  }
+
+  const viewHeight = viewportHeight();
+  if (viewHeight <= 0) {
+    return false;
+  }
+
+  const visibleHeight = visibleHeightInViewport(rect);
+  const effectiveHeight = Math.min(rect.height, viewHeight);
+  if (effectiveHeight <= 0) {
+    return false;
+  }
+
+  const visibleRatio = visibleHeight / effectiveHeight;
+  return visibleRatio < 0.6;
+}
+
+function scrollWorkspaceIntoView(workspace: HTMLElement): void {
+  if (!workspaceMostlyOffscreen(workspace)) {
+    return;
+  }
+
+  const prefersReducedMotion =
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  workspace.scrollIntoView({
+    behavior: prefersReducedMotion ? "auto" : "smooth",
+    block: "start",
+    inline: "nearest",
+  });
+}
+
 function formatThemeLabel(preference: ThemePreference): string {
   if (preference === "system") {
     return "Theme: System";
@@ -572,6 +624,7 @@ export function renderApp(
   const advancedPanel = root.querySelector<HTMLElement>(
     "[data-advanced-panel]",
   );
+  const workspace = root.querySelector<HTMLElement>(".workspace");
   const snippetGrid = root.querySelector<HTMLElement>("[data-snippet-grid]");
 
   const layoutEngineSelect = root.querySelector<HTMLSelectElement>(
@@ -638,6 +691,7 @@ export function renderApp(
     !exampleSelect ||
     !advancedToggleButton ||
     !advancedPanel ||
+    !workspace ||
     !snippetGrid ||
     !layoutEngineSelect ||
     !edgePresetSelect ||
@@ -997,6 +1051,7 @@ export function renderApp(
     editor.setValue(snippet.input);
     persistCurrentState();
     scheduleRender();
+    scrollWorkspaceIntoView(workspace);
     updateShareStatus(`Loaded snippet in editor: ${snippet.name}.`);
   });
 

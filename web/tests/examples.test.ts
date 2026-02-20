@@ -100,6 +100,132 @@ describe("playground examples", () => {
     });
   });
 
+  it("scrolls workspace into view when running snippets from off-screen", () => {
+    const root = document.createElement("div");
+    const renderClient = createFakeRenderClient();
+
+    renderApp(root, {
+      renderClientFactory: () => renderClient,
+    });
+
+    const runButton = root.querySelector<HTMLButtonElement>(
+      '[data-snippet-run="flowchart-subgraph-direction-override"]',
+    );
+    const workspace = root.querySelector<HTMLElement>(".workspace");
+
+    if (!runButton || !workspace) {
+      throw new Error("expected snippet run button and workspace");
+    }
+
+    const scrollIntoView = vi.fn();
+    workspace.scrollIntoView = scrollIntoView;
+    Object.defineProperty(workspace, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        x: 0,
+        y: -900,
+        width: 1200,
+        height: 700,
+        top: -900,
+        right: 1200,
+        bottom: -200,
+        left: 0,
+        toJSON: () => ({}),
+      }),
+    });
+
+    const originalMatchMedia = window.matchMedia;
+    const originalInnerHeight = window.innerHeight;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 800,
+    });
+
+    runButton.click();
+
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+      inline: "nearest",
+    });
+
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: originalInnerHeight,
+    });
+    if (originalMatchMedia) {
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        value: originalMatchMedia,
+      });
+    } else {
+      delete (window as Window & { matchMedia?: unknown }).matchMedia;
+    }
+  });
+
+  it("does not scroll workspace when already mostly visible", () => {
+    const root = document.createElement("div");
+    const renderClient = createFakeRenderClient();
+
+    renderApp(root, {
+      renderClientFactory: () => renderClient,
+    });
+
+    const runButton = root.querySelector<HTMLButtonElement>(
+      '[data-snippet-run="flowchart-subgraph-direction-override"]',
+    );
+    const workspace = root.querySelector<HTMLElement>(".workspace");
+
+    if (!runButton || !workspace) {
+      throw new Error("expected snippet run button and workspace");
+    }
+
+    const scrollIntoView = vi.fn();
+    workspace.scrollIntoView = scrollIntoView;
+    Object.defineProperty(workspace, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        x: 0,
+        y: 20,
+        width: 1200,
+        height: 700,
+        top: 20,
+        right: 1200,
+        bottom: 720,
+        left: 0,
+        toJSON: () => ({}),
+      }),
+    });
+
+    const originalInnerHeight = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 800,
+    });
+
+    runButton.click();
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: originalInnerHeight,
+    });
+  });
+
   it("preserves current format while swapping examples", async () => {
     vi.useFakeTimers();
     const root = document.createElement("div");
