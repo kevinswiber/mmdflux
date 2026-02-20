@@ -246,7 +246,7 @@ describe("preview controls", () => {
     harness.controller.dispose();
   });
 
-  it("auto-fits newly rendered SVG updates", () => {
+  it("preserves viewport anchor across SVG updates", () => {
     const panzoom = createPanzoomMock();
     const harness = createHarness({
       createPanzoom: () => panzoom,
@@ -267,15 +267,183 @@ describe("preview controls", () => {
 
     panzoom.zoom(2);
     panzoom.pan(10, 20);
+    harness.output
+      .querySelector("svg")
+      ?.dispatchEvent(new CustomEvent("panzoomchange"));
 
     harness.output.innerHTML =
       '<svg viewBox="0 0 400 200"><rect width="400" height="200" /></svg>';
     harness.controller.onResult("svg");
 
     const pan = panzoom.getPan();
-    expect(panzoom.getScale()).toBe(1);
-    expect(pan.x).toBe(0);
-    expect(pan.y).toBe(0);
+    expect(panzoom.getScale()).toBe(2);
+    expect(pan.x).toBe(10);
+    expect(pan.y).toBe(20);
+
+    harness.controller.dispose();
+  });
+
+  it("retains tracked pan when prior SVG is detached before teardown", () => {
+    const createPanzoom = vi.fn(
+      (
+        target: SVGElement,
+        initialState?: { panX: number; panY: number; scale: number },
+      ) => {
+        let scale = initialState?.scale ?? 1;
+        let x = initialState?.panX ?? 0;
+        let y = initialState?.panY ?? 0;
+        const emitChange = () => {
+          target.dispatchEvent(new CustomEvent("panzoomchange"));
+        };
+
+        return {
+          destroy: vi.fn(),
+          getPan: vi.fn(() =>
+            target.parentElement ? { x, y } : { x: 0, y: 0 },
+          ),
+          getScale: vi.fn(() => scale),
+          pan: vi.fn((nextX: number, nextY: number) => {
+            x = nextX;
+            y = nextY;
+            emitChange();
+          }),
+          reset: vi.fn(() => {
+            scale = 1;
+            x = 0;
+            y = 0;
+            emitChange();
+          }),
+          zoom: vi.fn((nextScale: number) => {
+            scale = nextScale;
+            emitChange();
+          }),
+          zoomIn: vi.fn(() => {
+            scale += 0.2;
+            emitChange();
+          }),
+          zoomOut: vi.fn(() => {
+            scale -= 0.2;
+            emitChange();
+          }),
+          zoomWithWheel: vi.fn(),
+        };
+      },
+    );
+
+    const harness = createHarness({
+      createPanzoom,
+    });
+
+    Object.defineProperty(harness.output, "clientWidth", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(harness.output, "clientHeight", {
+      configurable: true,
+      value: 200,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 200 100"><rect width="200" height="100" /></svg>';
+    harness.controller.onResult("svg");
+
+    const firstPanzoom = createPanzoom.mock.results[0]
+      ?.value as ReturnType<typeof createPanzoomMock>;
+    firstPanzoom.zoom(2);
+    firstPanzoom.pan(-120, -90);
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 220 110"><rect width="220" height="110" /></svg>';
+    harness.controller.onResult("svg");
+
+    expect(createPanzoom).toHaveBeenCalledTimes(2);
+    expect(createPanzoom.mock.calls[1]?.[1]).toEqual({
+      panX: -120,
+      panY: -90,
+      scale: 2,
+    });
+
+    harness.controller.dispose();
+  });
+
+  it("fits next SVG render when requested", () => {
+    const createPanzoom = vi.fn(
+      (
+        target: SVGElement,
+        initialState?: { panX: number; panY: number; scale: number },
+      ) => {
+        let scale = initialState?.scale ?? 1;
+        let x = initialState?.panX ?? 0;
+        let y = initialState?.panY ?? 0;
+        const emitChange = () => {
+          target.dispatchEvent(new CustomEvent("panzoomchange"));
+        };
+
+        return {
+          destroy: vi.fn(),
+          getPan: vi.fn(() => ({ x, y })),
+          getScale: vi.fn(() => scale),
+          pan: vi.fn((nextX: number, nextY: number) => {
+            x = nextX;
+            y = nextY;
+            emitChange();
+          }),
+          reset: vi.fn(() => {
+            scale = 1;
+            x = 0;
+            y = 0;
+            emitChange();
+          }),
+          zoom: vi.fn((nextScale: number) => {
+            scale = nextScale;
+            emitChange();
+          }),
+          zoomIn: vi.fn(() => {
+            scale += 0.2;
+            emitChange();
+          }),
+          zoomOut: vi.fn(() => {
+            scale -= 0.2;
+            emitChange();
+          }),
+          zoomWithWheel: vi.fn(),
+        };
+      },
+    );
+
+    const harness = createHarness({
+      createPanzoom,
+    });
+
+    Object.defineProperty(harness.output, "clientWidth", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(harness.output, "clientHeight", {
+      configurable: true,
+      value: 200,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 200 100"><rect width="200" height="100" /></svg>';
+    harness.controller.onResult("svg");
+
+    const firstPanzoom = createPanzoom.mock.results[0]
+      ?.value as ReturnType<typeof createPanzoomMock>;
+    firstPanzoom.zoom(2);
+    firstPanzoom.pan(-120, -90);
+
+    harness.controller.fitOnNextSvg();
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 200 100"><rect width="200" height="100" /></svg>';
+    harness.controller.onResult("svg");
+
+    expect(createPanzoom).toHaveBeenCalledTimes(2);
+    expect(createPanzoom.mock.calls[1]?.[1]).toEqual({
+      panX: 100,
+      panY: 50,
+      scale: 1,
+    });
 
     harness.controller.dispose();
   });

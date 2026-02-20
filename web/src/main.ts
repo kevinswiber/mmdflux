@@ -991,6 +991,7 @@ export function renderApp(
       return;
     }
 
+    previewControls.fitOnNextSvg();
     removeCustomExampleOption(exampleSelect);
     exampleSelect.value = snippet.id;
     editor.setValue(snippet.input);

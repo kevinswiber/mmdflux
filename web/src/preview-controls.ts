@@ -15,10 +15,11 @@ interface PanzoomInstance {
 }
 
 type StatusReporter = (message: string) => void;
+type PanzoomChangeEvent = Event;
 
 interface ViewAnchor {
-  centerXRatio: number;
-  centerYRatio: number;
+  panX: number;
+  panY: number;
   scale: number;
 }
 
@@ -30,7 +31,10 @@ interface DiagramBounds {
 }
 
 interface PreviewControlDependencies {
-  createPanzoom: (target: SVGElement) => PanzoomInstance;
+  createPanzoom: (
+    target: SVGElement,
+    initialState?: ViewAnchor,
+  ) => PanzoomInstance;
   createObjectUrl: (blob: Blob) => string;
   revokeObjectUrl: (url: string) => void;
   createAnchor: () => HTMLAnchorElement;
@@ -55,6 +59,7 @@ interface CreatePreviewControlsOptions {
 
 export interface PreviewControlsController {
   attachTo: (outputRoot: HTMLElement) => void;
+  fitOnNextSvg: () => void;
   onResult: (format: WorkerOutputFormat) => void;
   setStatusReporter: (reporter: StatusReporter) => void;
   dispose: () => void;
@@ -249,33 +254,18 @@ function getViewportDimensions(element: HTMLElement): {
   };
 }
 
-function clampRatio(value: number): number {
-  return clamp(value, 0, 1);
-}
-
 function captureViewAnchor(
-  outputRoot: HTMLElement,
   panzoom: PanzoomInstance,
-  bounds: DiagramBounds,
 ): ViewAnchor | null {
-  const { width: viewportWidth, height: viewportHeight } =
-    getViewportDimensions(outputRoot);
-  const { minX, minY, width, height } = bounds;
-  if (viewportWidth <= 0 || viewportHeight <= 0 || width <= 0 || height <= 0) {
-    return null;
-  }
-
   const scale = panzoom.getScale();
   if (!Number.isFinite(scale) || scale <= 0) {
     return null;
   }
 
   const pan = panzoom.getPan();
-  const centerX = viewportWidth / (2 * scale) - pan.x;
-  const centerY = viewportHeight / (2 * scale) - pan.y;
   return {
-    centerXRatio: clampRatio((centerX - minX) / width),
-    centerYRatio: clampRatio((centerY - minY) / height),
+    panX: pan.x,
+    panY: pan.y,
     scale,
   };
 }
@@ -320,13 +310,16 @@ function percentageLabel(scale: number): string {
 
 function defaultDependencies(): PreviewControlDependencies {
   return {
-    createPanzoom: (target) =>
+    createPanzoom: (target, initialState) =>
       Panzoom(target, {
         canvas: true,
         maxScale: MAX_SCALE,
         minScale: MIN_SCALE,
         origin: "0 0",
         roundPixels: true,
+        startScale: initialState?.scale ?? 1,
+        startX: initialState?.panX ?? 0,
+        startY: initialState?.panY ?? 0,
       }) as unknown as PanzoomInstance,
     createObjectUrl: (blob) => URL.createObjectURL(blob),
     revokeObjectUrl: (url) => URL.revokeObjectURL(url),
@@ -353,7 +346,26 @@ export function createPreviewControls(
   let panzoom: PanzoomInstance | null = null;
   let wheelHost: HTMLElement | null = null;
   let fitTicket = 0;
+  let fitOnNextSvg = false;
   let viewAnchor: ViewAnchor | null = null;
+
+  const syncAnchorFromPanzoom = (): void => {
+    if (!panzoom) {
+      return;
+    }
+
+    const nextAnchor = captureViewAnchor(panzoom);
+    if (!nextAnchor) {
+      return;
+    }
+
+    viewAnchor = nextAnchor;
+    updateZoomLabel();
+  };
+
+  const handlePanzoomChange = (_event: PanzoomChangeEvent): void => {
+    syncAnchorFromPanzoom();
+  };
 
   const forceSvgRepaint = (): void => {
     if (!currentSvg) {
@@ -380,10 +392,19 @@ export function createPreviewControls(
   };
 
   const teardownPanzoom = (): void => {
-    if (panzoom && outputRoot && currentPanTargetBounds) {
-      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetBounds);
+    if (panzoom && currentPanTarget && outputRoot?.contains(currentPanTarget)) {
+      const nextAnchor = captureViewAnchor(panzoom);
+      if (nextAnchor) {
+        viewAnchor = nextAnchor;
+      }
     }
     fitTicket += 1;
+    if (currentPanTarget) {
+      currentPanTarget.removeEventListener(
+        "panzoomchange",
+        handlePanzoomChange as EventListener,
+      );
+    }
     if (wheelHost) {
       wheelHost.removeEventListener("wheel", handleWheel as EventListener);
     }
@@ -420,6 +441,22 @@ export function createPreviewControls(
       return;
     }
 
+    const fitAnchor = computeFitAnchor();
+    if (!fitAnchor) {
+      panzoom.reset();
+      updateZoomLabel();
+      return;
+    }
+
+    applyViewAnchor(fitAnchor);
+    updateZoomLabel();
+  };
+
+  const computeFitAnchor = (): ViewAnchor | null => {
+    if (!currentSvg || !outputRoot) {
+      return null;
+    }
+
     const { width: outputWidth, height: outputHeight } =
       getViewportDimensions(outputRoot);
     if (!currentPanTargetBounds || hasUsableViewBox(currentSvg)) {
@@ -429,9 +466,7 @@ export function createPreviewControls(
     const width = bounds.width;
     const height = bounds.height;
     if (outputWidth <= 0 || outputHeight <= 0 || width <= 0 || height <= 0) {
-      panzoom.reset();
-      updateZoomLabel();
-      return;
+      return null;
     }
 
     const nextScale = clamp(
@@ -440,51 +475,27 @@ export function createPreviewControls(
       MAX_SCALE,
     );
     const centeredPan = panForCenteredView(outputWidth, outputHeight, bounds, nextScale);
-    panzoom.zoom(nextScale, { animate: false, force: true });
-    panzoom.pan(centeredPan.x, centeredPan.y, { animate: false, force: true });
-    viewAnchor = {
-      centerXRatio: 0.5,
-      centerYRatio: 0.5,
+    return {
+      panX: centeredPan.x,
+      panY: centeredPan.y,
       scale: nextScale,
     };
-    updateZoomLabel();
   };
 
-  const applyViewAnchor = (
-    anchor: ViewAnchor,
-    options?: { allowDownscale?: boolean },
-  ): boolean => {
-    if (!panzoom || !outputRoot || !currentPanTargetBounds) {
+  const applyViewAnchor = (anchor: ViewAnchor): boolean => {
+    if (!panzoom) {
       return false;
     }
 
-    const { width: outputWidth, height: outputHeight } =
-      getViewportDimensions(outputRoot);
-    const { minX, minY, width, height } = currentPanTargetBounds;
-    if (outputWidth <= 0 || outputHeight <= 0 || width <= 0 || height <= 0) {
-      return false;
-    }
-
-    const fitScale = clamp(
-      Math.min(1, outputWidth / width, outputHeight / height),
-      MIN_SCALE,
-      MAX_SCALE,
-    );
     const candidateScale = clamp(anchor.scale, MIN_SCALE, MAX_SCALE);
-    const nextScale =
-      options?.allowDownscale === true
-        ? Math.min(candidateScale, fitScale)
-        : candidateScale;
-    const centerX = minX + clampRatio(anchor.centerXRatio) * width;
-    const centerY = minY + clampRatio(anchor.centerYRatio) * height;
-    const panX = outputWidth / (2 * nextScale) - centerX;
-    const panY = outputHeight / (2 * nextScale) - centerY;
-    panzoom.zoom(nextScale, { animate: false, force: true });
+    const panX = Number.isFinite(anchor.panX) ? anchor.panX : 0;
+    const panY = Number.isFinite(anchor.panY) ? anchor.panY : 0;
+    panzoom.zoom(candidateScale, { animate: false, force: true });
     panzoom.pan(panX, panY, { animate: false, force: true });
     viewAnchor = {
-      centerXRatio: clampRatio(anchor.centerXRatio),
-      centerYRatio: clampRatio(anchor.centerYRatio),
-      scale: nextScale,
+      panX,
+      panY,
+      scale: candidateScale,
     };
     updateZoomLabel();
     return true;
@@ -502,23 +513,31 @@ export function createPreviewControls(
     currentPanTarget = panTarget;
     normalizeSvgSize(svg);
     currentPanTargetBounds = getDiagramBounds(svg);
-    panzoom = dependencies.createPanzoom(panTarget);
+    const fallbackFitAnchor = computeFitAnchor();
+    const nextAnchor = fitOnNextSvg
+      ? fallbackFitAnchor ?? { panX: 0, panY: 0, scale: 1 }
+      : viewAnchor ?? fallbackFitAnchor ?? { panX: 0, panY: 0, scale: 1 };
+    fitOnNextSvg = false;
+    panzoom = dependencies.createPanzoom(panTarget, nextAnchor);
+    panTarget.addEventListener(
+      "panzoomchange",
+      handlePanzoomChange as EventListener,
+    );
     wheelHost = outputRoot;
     wheelHost?.addEventListener("wheel", handleWheel as EventListener, {
       passive: false,
     });
-    fitToViewport();
+    applyViewAnchor(nextAnchor);
 
     const currentTicket = ++fitTicket;
-    const deferredFit = (): void => {
+    const deferredRepaint = (): void => {
       if (currentTicket !== fitTicket || !panzoom || currentSvg !== svg) {
         return;
       }
 
-      // Force a post-attach layout read before applying a second fit.
+      // Force a post-attach layout read after transform update.
       // This avoids occasional SVG/foreignObject text paint glitches.
       void svg.getBoundingClientRect();
-      fitToViewport();
       forceSvgRepaint();
     };
 
@@ -527,12 +546,12 @@ export function createPreviewControls(
       typeof window.requestAnimationFrame === "function"
     ) {
       window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(deferredFit);
+        window.requestAnimationFrame(deferredRepaint);
       });
       return;
     }
 
-    setTimeout(deferredFit, 0);
+    setTimeout(deferredRepaint, 0);
   };
 
   const refresh = (): void => {
@@ -557,9 +576,7 @@ export function createPreviewControls(
       return;
     }
     panzoom.zoomWithWheel(event);
-    if (outputRoot && currentPanTargetBounds) {
-      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetBounds);
-    }
+    viewAnchor = captureViewAnchor(panzoom);
     updateZoomLabel();
     forceSvgRepaint();
   }
@@ -696,9 +713,7 @@ export function createPreviewControls(
     }
 
     panzoom.zoomOut({ step: ZOOM_STEP });
-    if (outputRoot && currentPanTargetBounds) {
-      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetBounds);
-    }
+    viewAnchor = captureViewAnchor(panzoom);
     updateZoomLabel();
     forceSvgRepaint();
   });
@@ -709,9 +724,7 @@ export function createPreviewControls(
     }
 
     panzoom.zoomIn({ step: ZOOM_STEP });
-    if (outputRoot && currentPanTargetBounds) {
-      viewAnchor = captureViewAnchor(outputRoot, panzoom, currentPanTargetBounds);
-    }
+    viewAnchor = captureViewAnchor(panzoom);
     updateZoomLabel();
     forceSvgRepaint();
   });
@@ -753,8 +766,8 @@ export function createPreviewControls(
     panzoom.zoom(resetScale, { animate: false, force: true });
     panzoom.pan(centeredPan.x, centeredPan.y, { animate: false, force: true });
     viewAnchor = {
-      centerXRatio: 0.5,
-      centerYRatio: 0.5,
+      panX: centeredPan.x,
+      panY: centeredPan.y,
       scale: resetScale,
     };
     updateZoomLabel();
@@ -784,6 +797,9 @@ export function createPreviewControls(
     attachTo: (nextOutputRoot) => {
       outputRoot = nextOutputRoot;
       refresh();
+    },
+    fitOnNextSvg: () => {
+      fitOnNextSvg = true;
     },
     onResult: (format) => {
       currentFormat = format;
