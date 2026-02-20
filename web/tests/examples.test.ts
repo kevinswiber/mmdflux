@@ -41,12 +41,45 @@ describe("playground examples", () => {
 
     renderClient.render.mockClear();
 
-    exampleSelect.value = "sequence-basics";
+    exampleSelect.value = "flowchart-subgraph-direction-override";
     exampleSelect.dispatchEvent(new Event("change"));
     vi.advanceTimersByTime(50);
     await Promise.resolve();
 
-    expect(editorInput.value).toContain("sequenceDiagram");
+    expect(editorInput.value).toContain("subgraph lr_group");
+    expect(renderClient.render).toHaveBeenCalledTimes(1);
+    expect(renderClient.render.mock.calls[0]?.[0]).toMatchObject({
+      format: "text",
+    });
+  });
+
+  it("runs snippet cards in editor and triggers render", async () => {
+    vi.useFakeTimers();
+    const root = document.createElement("div");
+    const renderClient = createFakeRenderClient();
+
+    renderApp(root, {
+      renderClientFactory: () => renderClient,
+      debounceMs: 50,
+    });
+
+    const runButton = root.querySelector<HTMLButtonElement>(
+      '[data-snippet-run="flowchart-subgraph-direction-override"]',
+    );
+    const editorInput =
+      root.querySelector<HTMLTextAreaElement>(".editor-input");
+
+    if (!runButton || !editorInput) {
+      throw new Error("expected snippet run button and editor input");
+    }
+
+    renderClient.render.mockClear();
+
+    runButton.click();
+    vi.advanceTimersByTime(50);
+    await Promise.resolve();
+
+    expect(editorInput.value).toContain("subgraph lr_group");
     expect(renderClient.render).toHaveBeenCalledTimes(1);
     expect(renderClient.render.mock.calls[0]?.[0]).toMatchObject({
       format: "text",
@@ -82,6 +115,43 @@ describe("playground examples", () => {
 
     exampleSelect.value = "class-basics";
     exampleSelect.dispatchEvent(new Event("change"));
+    vi.advanceTimersByTime(50);
+    await Promise.resolve();
+
+    expect(renderClient.render).toHaveBeenCalledTimes(1);
+    expect(renderClient.render.mock.calls[0]?.[0]).toMatchObject({
+      format: "svg",
+    });
+  });
+
+  it("preserves current format when running snippet cards", async () => {
+    vi.useFakeTimers();
+    const root = document.createElement("div");
+    const renderClient = createFakeRenderClient();
+
+    renderApp(root, {
+      renderClientFactory: () => renderClient,
+      debounceMs: 50,
+    });
+
+    const svgTab = root.querySelector<HTMLButtonElement>(
+      'button[data-format="svg"]',
+    );
+    const runButton = root.querySelector<HTMLButtonElement>(
+      '[data-snippet-run="class-basics"]',
+    );
+
+    if (!svgTab || !runButton) {
+      throw new Error("expected svg tab and snippet run button");
+    }
+
+    svgTab.click();
+    vi.advanceTimersByTime(50);
+    await Promise.resolve();
+
+    renderClient.render.mockClear();
+
+    runButton.click();
     vi.advanceTimersByTime(50);
     await Promise.resolve();
 

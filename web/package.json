@@ -33,6 +33,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@panzoom/panzoom": "^4.6.1",
     "mermaid": "^11.12.1"
   }
 }
