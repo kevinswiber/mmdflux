@@ -45,7 +45,7 @@ function createHarness(
         <span data-zoom-label>100%</span>
         <button type="button" data-zoom-in>+</button>
         <button type="button" data-zoom-fit>Fit</button>
-        <button type="button" data-zoom-reset>Reset</button>
+        <button type="button" data-zoom-reset>100%</button>
       </div>
     </div>
     <button type="button" data-export-toggle hidden>Export</button>

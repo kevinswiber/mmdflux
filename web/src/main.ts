@@ -664,7 +664,7 @@ export function renderApp(
                 <span class="preview-zoom-label" data-zoom-label>100%</span>
                 <button type="button" class="preview-toolbar-button" data-zoom-in>+</button>
                 <button type="button" class="preview-toolbar-button" data-zoom-fit>Fit</button>
-                <button type="button" class="preview-toolbar-button" data-zoom-reset>Reset</button>
+                <button type="button" class="preview-toolbar-button" data-zoom-reset>100%</button>
               </div>
             </div>
             <div class="preview-output" data-preview-output></div>
