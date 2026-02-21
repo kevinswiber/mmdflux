@@ -568,6 +568,9 @@ export function renderApp(
       <header class="toolbar">
         <div class="toolbar-title-group">
           <h1>mmdflux playground <a href="https://github.com/kevinswiber/mmdflux" target="_blank" rel="noopener noreferrer" class="repo-link">kevinswiber/mmdflux</a></h1>
+          <div class="toolbar-title-actions">
+            <button type="button" class="toolbar-button theme-cycler theme-cycler-subtle" data-theme-toggle aria-live="polite"></button>
+          </div>
         </div>
         <div class="toolbar-actions toolbar-actions-primary">
           <div class="toolbar-actions-left">
@@ -590,7 +593,6 @@ export function renderApp(
             </div>
           </div>
           <div class="toolbar-actions-right">
-            <button type="button" class="toolbar-button theme-cycler" data-theme-toggle aria-live="polite"></button>
             <button type="button" class="toolbar-button" data-share>Copy Share URL</button>
           </div>
         </div>
@@ -806,6 +808,7 @@ export function renderApp(
     initialValue: initialInput,
   });
   const previewControls = createPreviewControls({
+    viewportRoot: previewStage,
     controlsOverlayRoot: previewControlsOverlayRoot,
     controlsToggleButton: previewControlsToggleButton,
     controlsRoot: previewControlsRoot,

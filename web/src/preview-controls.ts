@@ -44,6 +44,7 @@ interface PreviewControlDependencies {
 }
 
 interface CreatePreviewControlsOptions {
+  viewportRoot?: HTMLElement;
   controlsOverlayRoot: HTMLElement;
   controlsToggleButton: HTMLButtonElement;
   controlsRoot: HTMLElement;
@@ -70,6 +71,7 @@ export interface PreviewControlsController {
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 20;
 const ZOOM_STEP = 0.2;
+const EXPANDED_CONTROLS_TOP_PADDING = 8;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -234,11 +236,44 @@ function getSvgContentBounds(svg: SVGSVGElement): DiagramBounds | null {
 
 function getDiagramBounds(svg: SVGSVGElement): DiagramBounds {
   const svgBounds = getSvgBounds(svg);
-  if (hasUsableViewBox(svg)) {
+  const contentBounds = getSvgContentBounds(svg);
+  if (!contentBounds) {
     return svgBounds;
   }
 
-  return getSvgContentBounds(svg) ?? svgBounds;
+  if (!hasUsableViewBox(svg)) {
+    return contentBounds;
+  }
+
+  const svgMaxX = svgBounds.minX + svgBounds.width;
+  const svgMaxY = svgBounds.minY + svgBounds.height;
+  const contentMaxX = contentBounds.minX + contentBounds.width;
+  const contentMaxY = contentBounds.minY + contentBounds.height;
+
+  const overflowLeft = Math.max(0, svgBounds.minX - contentBounds.minX);
+  const overflowTop = Math.max(0, svgBounds.minY - contentBounds.minY);
+  const overflowRight = Math.max(0, contentMaxX - svgMaxX);
+  const overflowBottom = Math.max(0, contentMaxY - svgMaxY);
+
+  // Clamp expansion so pathological BBoxes cannot shrink the whole diagram to a tiny strip.
+  const maxExpandX = Math.max(32, svgBounds.width * 0.15);
+  const maxExpandY = Math.max(32, svgBounds.height * 0.15);
+
+  const expandLeft = Math.min(overflowLeft, maxExpandX);
+  const expandTop = Math.min(overflowTop, maxExpandY);
+  const expandRight = Math.min(overflowRight, maxExpandX);
+  const expandBottom = Math.min(overflowBottom, maxExpandY);
+
+  const minX = svgBounds.minX - expandLeft;
+  const minY = svgBounds.minY - expandTop;
+  const maxX = svgMaxX + expandRight;
+  const maxY = svgMaxY + expandBottom;
+  return {
+    minX,
+    minY,
+    width: Math.max(maxX - minX, 1),
+    height: Math.max(maxY - minY, 1),
+  };
 }
 
 function getViewportDimensions(element: HTMLElement): {
@@ -274,10 +309,13 @@ function captureViewAnchor(
 
 function normalizeSvgSize(svg: SVGSVGElement): DiagramBounds {
   const bounds = getSvgBounds(svg);
-  if (bounds.width > 0 && bounds.height > 0) {
-    svg.setAttribute("width", String(bounds.width));
-    svg.setAttribute("height", String(bounds.height));
-  }
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "100%");
+  svg.style.width = "100%";
+  svg.style.height = "100%";
+  svg.style.maxWidth = "none";
+  svg.style.maxHeight = "none";
+  svg.style.overflow = "visible";
   return bounds;
 }
 
@@ -286,12 +324,16 @@ function panForCenteredView(
   viewportHeight: number,
   bounds: DiagramBounds,
   scale: number,
+  topInset = 0,
 ): { x: number; y: number } {
   const centerX = bounds.minX + bounds.width / 2;
   const centerY = bounds.minY + bounds.height / 2;
+  const clampedTopInset = Math.max(0, Math.min(topInset, viewportHeight));
+  const targetCenterY =
+    clampedTopInset + (viewportHeight - clampedTopInset) / 2;
   return {
     x: viewportWidth / (2 * scale) - centerX,
-    y: viewportHeight / (2 * scale) - centerY,
+    y: targetCenterY / scale - centerY,
   };
 }
 
@@ -434,7 +476,7 @@ export function createPreviewControls(
 
   const setControlsExpanded = (expanded: boolean): void => {
     controlsExpanded = expanded;
-    options.controlsRoot.hidden = !expanded;
+    options.controlsRoot.hidden = !controlsVisible;
     options.controlsOverlayRoot.classList.toggle("is-expanded", expanded);
     options.controlsToggleButton.setAttribute("aria-expanded", String(expanded));
     options.controlsToggleButton.setAttribute(
@@ -446,16 +488,30 @@ export function createPreviewControls(
       : "Show zoom controls";
   };
 
+  const controlsTopInset = (): number => {
+    if (
+      !controlsVisible ||
+      !controlsExpanded ||
+      options.controlsOverlayRoot.hidden
+    ) {
+      return 0;
+    }
+
+    const height = options.controlsOverlayRoot.getBoundingClientRect().height;
+    if (!Number.isFinite(height) || height <= 0) {
+      return 0;
+    }
+    return height + EXPANDED_CONTROLS_TOP_PADDING;
+  };
+
   const setControlsVisibility = (visible: boolean): void => {
+    controlsVisible = visible;
     options.controlsOverlayRoot.hidden = !visible;
     options.exportToggleButton.hidden = !visible;
     if (!visible) {
       options.exportMenu.hidden = true;
-      setControlsExpanded(false);
-    } else if (!controlsVisible) {
-      setControlsExpanded(false);
     }
-    controlsVisible = visible;
+    setControlsExpanded(false);
   };
 
   const fitToViewport = (): void => {
@@ -479,8 +535,9 @@ export function createPreviewControls(
       return null;
     }
 
+    const viewportRoot = options.viewportRoot ?? outputRoot;
     const { width: outputWidth, height: outputHeight } =
-      getViewportDimensions(outputRoot);
+      getViewportDimensions(viewportRoot);
     if (!currentPanTargetBounds || hasUsableViewBox(currentSvg)) {
       currentPanTargetBounds = getDiagramBounds(currentSvg);
     }
@@ -490,13 +547,24 @@ export function createPreviewControls(
     if (outputWidth <= 0 || outputHeight <= 0 || width <= 0 || height <= 0) {
       return null;
     }
+    const topInset = controlsTopInset();
+    const availableHeight = Math.max(outputHeight - topInset, 0);
+    if (availableHeight <= 0) {
+      return null;
+    }
 
     const nextScale = clamp(
-      Math.min(1, outputWidth / width, outputHeight / height),
+      Math.min(1, outputWidth / width, availableHeight / height),
       MIN_SCALE,
       MAX_SCALE,
     );
-    const centeredPan = panForCenteredView(outputWidth, outputHeight, bounds, nextScale);
+    const centeredPan = panForCenteredView(
+      outputWidth,
+      outputHeight,
+      bounds,
+      nextScale,
+      topInset,
+    );
     return {
       panX: centeredPan.x,
       panY: centeredPan.y,
@@ -797,8 +865,9 @@ export function createPreviewControls(
       return;
     }
 
+    const viewportRoot = options.viewportRoot ?? outputRoot;
     const { width: outputWidth, height: outputHeight } =
-      getViewportDimensions(outputRoot);
+      getViewportDimensions(viewportRoot);
     const bounds = currentPanTargetBounds;
     const { width, height } = bounds;
     if (outputWidth <= 0 || outputHeight <= 0 || width <= 0 || height <= 0) {
@@ -809,11 +878,13 @@ export function createPreviewControls(
     }
 
     const resetScale = clamp(1, MIN_SCALE, MAX_SCALE);
+    const topInset = controlsTopInset();
     const centeredPan = panForCenteredView(
       outputWidth,
       outputHeight,
       bounds,
       resetScale,
+      topInset,
     );
     panzoom.zoom(resetScale, { animate: false, force: true });
     panzoom.pan(centeredPan.x, centeredPan.y, { animate: false, force: true });

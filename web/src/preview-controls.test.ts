@@ -146,7 +146,10 @@ describe("preview controls", () => {
 
     harness.controller.onResult("svg");
     expect(harness.controlsOverlayRoot.hidden).toBe(false);
-    expect(harness.controlsRoot.hidden).toBe(true);
+    expect(harness.controlsRoot.hidden).toBe(false);
+    expect(
+      harness.controlsOverlayRoot.classList.contains("is-expanded"),
+    ).toBe(false);
     expect(harness.exportToggleButton.hidden).toBe(false);
 
     harness.controller.dispose();
@@ -163,12 +166,18 @@ describe("preview controls", () => {
 
     harness.controlsToggleButton.click();
     expect(harness.controlsRoot.hidden).toBe(false);
+    expect(
+      harness.controlsOverlayRoot.classList.contains("is-expanded"),
+    ).toBe(true);
     expect(harness.controlsToggleButton.getAttribute("aria-expanded")).toBe(
       "true",
     );
 
     document.body.click();
-    expect(harness.controlsRoot.hidden).toBe(true);
+    expect(harness.controlsRoot.hidden).toBe(false);
+    expect(
+      harness.controlsOverlayRoot.classList.contains("is-expanded"),
+    ).toBe(false);
     expect(harness.controlsToggleButton.getAttribute("aria-expanded")).toBe(
       "false",
     );
@@ -176,7 +185,10 @@ describe("preview controls", () => {
     harness.controlsToggleButton.click();
     expect(harness.controlsRoot.hidden).toBe(false);
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-    expect(harness.controlsRoot.hidden).toBe(true);
+    expect(harness.controlsRoot.hidden).toBe(false);
+    expect(
+      harness.controlsOverlayRoot.classList.contains("is-expanded"),
+    ).toBe(false);
 
     harness.controller.dispose();
   });
@@ -678,10 +690,57 @@ describe("preview controls", () => {
 
     harness.controller.onResult("svg");
 
+    expect(svg.getAttribute("width")).toBe("100%");
+    expect(svg.getAttribute("height")).toBe("100%");
     const pan = panzoom.getPan();
     expect(panzoom.getScale()).toBe(0.5);
     expect(pan.x).toBe(0);
     expect(pan.y).toBe(200);
+
+    harness.controller.dispose();
+  });
+
+  it("caps pathological content overflow when viewBox is sane", () => {
+    const panzoom = createPanzoomMock();
+    const harness = createHarness({
+      createPanzoom: () => panzoom,
+    });
+
+    Object.defineProperty(harness.output, "clientWidth", {
+      configurable: true,
+      value: 500,
+    });
+    Object.defineProperty(harness.output, "clientHeight", {
+      configurable: true,
+      value: 300,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 1000 200"><g class="root"><rect x="0" y="0" width="1000" height="200" /></g></svg>';
+
+    const svg = harness.output.querySelector("svg");
+    const root = harness.output.querySelector("g.root");
+    if (!svg || !root) {
+      throw new Error("failed to create svg test fixture");
+    }
+
+    Object.defineProperty(root, "getBBox", {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, width: 1000, height: 10000 }),
+    });
+    Object.defineProperty(svg, "getBBox", {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, width: 1000, height: 10000 }),
+    });
+
+    harness.controller.onResult("svg");
+
+    expect(panzoom.getScale()).toBeGreaterThan(0.4);
+    expect(panzoom.getScale()).toBeLessThanOrEqual(1);
+    const pan = panzoom.getPan();
+    expect(pan.x).toBeGreaterThanOrEqual(-30);
+    expect(pan.x).toBeLessThanOrEqual(30);
+    expect(pan.y).toBeGreaterThan(120);
 
     harness.controller.dispose();
   });
