@@ -71,7 +71,8 @@ export interface PreviewControlsController {
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 20;
 const ZOOM_STEP = 0.2;
-const EXPANDED_CONTROLS_TOP_PADDING = 8;
+const CONTENT_BOUNDS_PADDING_PX = 8;
+const MIN_USABLE_BBOX_SIZE = 2;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -209,71 +210,163 @@ function toFiniteBounds(bounds: {
   };
 }
 
-function getSvgContentBounds(svg: SVGSVGElement): DiagramBounds | null {
-  const rootGroup = svg.querySelector<SVGGraphicsElement>("g.root");
-  if (rootGroup) {
-    try {
-      const rootBounds = toFiniteBounds(rootGroup.getBBox());
-      if (rootBounds) {
-        return rootBounds;
-      }
-    } catch {
-      // ignore and fall through
-    }
-  }
-
+function getGraphicsBounds(target: SVGGraphicsElement): DiagramBounds | null {
   try {
-    const svgBounds = toFiniteBounds(svg.getBBox());
-    if (svgBounds) {
-      return svgBounds;
+    const bounds = toFiniteBounds(target.getBBox());
+    if (!bounds) {
+      return null;
     }
+    if (bounds.width < MIN_USABLE_BBOX_SIZE || bounds.height < MIN_USABLE_BBOX_SIZE) {
+      return null;
+    }
+    return bounds;
   } catch {
-    // ignore and fall through
+    return null;
   }
-
-  return null;
 }
 
-function getDiagramBounds(svg: SVGSVGElement): DiagramBounds {
-  const svgBounds = getSvgBounds(svg);
-  const contentBounds = getSvgContentBounds(svg);
-  if (!contentBounds) {
-    return svgBounds;
-  }
+function getDiagramBounds(
+  svg: SVGSVGElement,
+  panTarget: SVGGraphicsElement,
+): DiagramBounds {
+  const mapUserRectToCssPixels = (
+    userBounds: DiagramBounds,
+  ): DiagramBounds | null => {
+    const matrix =
+      typeof svg.getScreenCTM === "function" ? svg.getScreenCTM() : null;
+    const svgRect = svg.getBoundingClientRect();
+    if (!matrix || !Number.isFinite(svgRect.left) || !Number.isFinite(svgRect.top)) {
+      return null;
+    }
 
-  if (!hasUsableViewBox(svg)) {
-    return contentBounds;
-  }
+    const corners = [
+      new DOMPoint(userBounds.minX, userBounds.minY).matrixTransform(matrix),
+      new DOMPoint(userBounds.minX + userBounds.width, userBounds.minY).matrixTransform(
+        matrix,
+      ),
+      new DOMPoint(userBounds.minX, userBounds.minY + userBounds.height).matrixTransform(
+        matrix,
+      ),
+      new DOMPoint(
+        userBounds.minX + userBounds.width,
+        userBounds.minY + userBounds.height,
+      ).matrixTransform(matrix),
+    ];
 
-  const svgMaxX = svgBounds.minX + svgBounds.width;
-  const svgMaxY = svgBounds.minY + svgBounds.height;
-  const contentMaxX = contentBounds.minX + contentBounds.width;
-  const contentMaxY = contentBounds.minY + contentBounds.height;
+    if (
+      corners.some(
+        (point) => !Number.isFinite(point.x) || !Number.isFinite(point.y),
+      )
+    ) {
+      return null;
+    }
 
-  const overflowLeft = Math.max(0, svgBounds.minX - contentBounds.minX);
-  const overflowTop = Math.max(0, svgBounds.minY - contentBounds.minY);
-  const overflowRight = Math.max(0, contentMaxX - svgMaxX);
-  const overflowBottom = Math.max(0, contentMaxY - svgMaxY);
-
-  // Clamp expansion so pathological BBoxes cannot shrink the whole diagram to a tiny strip.
-  const maxExpandX = Math.max(32, svgBounds.width * 0.15);
-  const maxExpandY = Math.max(32, svgBounds.height * 0.15);
-
-  const expandLeft = Math.min(overflowLeft, maxExpandX);
-  const expandTop = Math.min(overflowTop, maxExpandY);
-  const expandRight = Math.min(overflowRight, maxExpandX);
-  const expandBottom = Math.min(overflowBottom, maxExpandY);
-
-  const minX = svgBounds.minX - expandLeft;
-  const minY = svgBounds.minY - expandTop;
-  const maxX = svgMaxX + expandRight;
-  const maxY = svgMaxY + expandBottom;
-  return {
-    minX,
-    minY,
-    width: Math.max(maxX - minX, 1),
-    height: Math.max(maxY - minY, 1),
+    const minX = Math.min(...corners.map((point) => point.x)) - svgRect.left;
+    const minY = Math.min(...corners.map((point) => point.y)) - svgRect.top;
+    const maxX = Math.max(...corners.map((point) => point.x)) - svgRect.left;
+    const maxY = Math.max(...corners.map((point) => point.y)) - svgRect.top;
+    return {
+      minX,
+      minY,
+      width: Math.max(maxX - minX, 1),
+      height: Math.max(maxY - minY, 1),
+    };
   };
+
+  const toCssPixelBounds = (userBounds: DiagramBounds): DiagramBounds => {
+    if (!hasUsableViewBox(svg)) {
+      return userBounds;
+    }
+
+    const mappedBounds = mapUserRectToCssPixels(userBounds);
+    if (mappedBounds) {
+      return mappedBounds;
+    }
+
+    const svgRect = svg.getBoundingClientRect();
+    if (
+      !Number.isFinite(svgRect.width) ||
+      !Number.isFinite(svgRect.height) ||
+      svgRect.width <= 0 ||
+      svgRect.height <= 0
+    ) {
+      return userBounds;
+    }
+
+    const svgUserBounds = getSvgBounds(svg);
+    if (svgUserBounds.width <= 0 || svgUserBounds.height <= 0) {
+      return userBounds;
+    }
+
+    const scaleX = svgRect.width / svgUserBounds.width;
+    const scaleY = svgRect.height / svgUserBounds.height;
+    return {
+      minX: (userBounds.minX - svgUserBounds.minX) * scaleX,
+      minY: (userBounds.minY - svgUserBounds.minY) * scaleY,
+      width: userBounds.width * scaleX,
+      height: userBounds.height * scaleY,
+    };
+  };
+
+  const contentBounds = getGraphicsBounds(panTarget);
+  if (!contentBounds) {
+    return toCssPixelBounds(getSvgBounds(svg));
+  }
+
+  const cssBounds = toCssPixelBounds(contentBounds);
+  const padding = CONTENT_BOUNDS_PADDING_PX;
+  return {
+    minX: cssBounds.minX - padding,
+    minY: cssBounds.minY - padding,
+    width: Math.max(cssBounds.width + padding * 2, 1),
+    height: Math.max(cssBounds.height + padding * 2, 1),
+  };
+}
+
+function isStructuralSvgElement(element: Element): boolean {
+  const tag = element.tagName.toLowerCase();
+  return (
+    tag === "defs" ||
+    tag === "style" ||
+    tag === "title" ||
+    tag === "desc" ||
+    tag === "metadata" ||
+    tag === "script"
+  );
+}
+
+function ensurePanzoomViewport(svg: SVGSVGElement): SVGGraphicsElement | null {
+  for (const child of Array.from(svg.children)) {
+    if (
+      child instanceof SVGGraphicsElement &&
+      child.getAttribute("data-panzoom-viewport") === "true"
+    ) {
+      return child;
+    }
+  }
+
+  const viewport = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "g",
+  );
+  viewport.setAttribute("data-panzoom-viewport", "true");
+
+  let movedChildren = 0;
+  for (const child of Array.from(svg.children)) {
+    if (isStructuralSvgElement(child)) {
+      continue;
+    }
+
+    viewport.appendChild(child);
+    movedChildren += 1;
+  }
+
+  if (movedChildren > 0) {
+    svg.appendChild(viewport);
+    return viewport;
+  }
+
+  return svg.querySelector<SVGGraphicsElement>("g");
 }
 
 function getViewportDimensions(element: HTMLElement): {
@@ -313,8 +406,8 @@ function normalizeSvgSize(svg: SVGSVGElement): DiagramBounds {
   svg.setAttribute("height", "100%");
   svg.style.width = "100%";
   svg.style.height = "100%";
-  svg.style.maxWidth = "none";
-  svg.style.maxHeight = "none";
+  svg.style.maxWidth = "100%";
+  svg.style.maxHeight = "100%";
   svg.style.overflow = "visible";
   return bounds;
 }
@@ -385,7 +478,7 @@ export function createPreviewControls(
   let outputRoot: HTMLElement | null = null;
   let currentFormat: WorkerOutputFormat = "text";
   let currentSvg: SVGSVGElement | null = null;
-  let currentPanTarget: SVGElement | null = null;
+  let currentPanTarget: SVGGraphicsElement | null = null;
   let currentPanTargetBounds: DiagramBounds | null = null;
   let panzoom: PanzoomInstance | null = null;
   let wheelHost: HTMLElement | null = null;
@@ -489,19 +582,9 @@ export function createPreviewControls(
   };
 
   const controlsTopInset = (): number => {
-    if (
-      !controlsVisible ||
-      !controlsExpanded ||
-      options.controlsOverlayRoot.hidden
-    ) {
-      return 0;
-    }
-
-    const height = options.controlsOverlayRoot.getBoundingClientRect().height;
-    if (!Number.isFinite(height) || height <= 0) {
-      return 0;
-    }
-    return height + EXPANDED_CONTROLS_TOP_PADDING;
+    // Keep fit/reset deterministic regardless of overlay expanded/collapsed state.
+    // The toolbar floats above the viewport content and should not change anchor math.
+    return 0;
   };
 
   const setControlsVisibility = (visible: boolean): void => {
@@ -531,16 +614,14 @@ export function createPreviewControls(
   };
 
   const computeFitAnchor = (): ViewAnchor | null => {
-    if (!currentSvg || !outputRoot) {
+    if (!currentSvg || !outputRoot || !currentPanTarget) {
       return null;
     }
 
     const viewportRoot = options.viewportRoot ?? outputRoot;
     const { width: outputWidth, height: outputHeight } =
       getViewportDimensions(viewportRoot);
-    if (!currentPanTargetBounds || hasUsableViewBox(currentSvg)) {
-      currentPanTargetBounds = getDiagramBounds(currentSvg);
-    }
+    currentPanTargetBounds = getDiagramBounds(currentSvg, currentPanTarget);
     const bounds = currentPanTargetBounds;
     const width = bounds.width;
     const height = bounds.height;
@@ -592,7 +673,12 @@ export function createPreviewControls(
   };
 
   const attachPanzoom = (svg: SVGSVGElement): void => {
-    const panTarget: SVGElement = svg;
+    const panTarget = ensurePanzoomViewport(svg);
+    if (!panTarget) {
+      teardownPanzoom();
+      return;
+    }
+
     if (currentSvg === svg && currentPanTarget === panTarget && panzoom) {
       updateZoomLabel();
       return;
@@ -602,8 +688,9 @@ export function createPreviewControls(
     currentSvg = svg;
     currentPanTarget = panTarget;
     normalizeSvgSize(svg);
-    currentPanTargetBounds = getDiagramBounds(svg);
+    currentPanTargetBounds = getDiagramBounds(svg, panTarget);
     const fallbackFitAnchor = computeFitAnchor();
+    const shouldStabilizeFit = fitOnNextSvg || !viewAnchor;
     const nextAnchor = fitOnNextSvg
       ? fallbackFitAnchor ?? { panX: 0, panY: 0, scale: 1 }
       : viewAnchor ?? fallbackFitAnchor ?? { panX: 0, panY: 0, scale: 1 };
@@ -628,6 +715,12 @@ export function createPreviewControls(
       // Force a post-attach layout read after transform update.
       // This avoids occasional SVG/foreignObject text paint glitches.
       void svg.getBoundingClientRect();
+      if (shouldStabilizeFit) {
+        const stabilizedAnchor = computeFitAnchor();
+        if (stabilizedAnchor) {
+          applyViewAnchor(stabilizedAnchor);
+        }
+      }
       forceSvgRepaint();
     };
 

@@ -808,7 +808,7 @@ export function renderApp(
     initialValue: initialInput,
   });
   const previewControls = createPreviewControls({
-    viewportRoot: previewStage,
+    viewportRoot: previewOutput,
     controlsOverlayRoot: previewControlsOverlayRoot,
     controlsToggleButton: previewControlsToggleButton,
     controlsRoot: previewControlsRoot,
@@ -1080,12 +1080,16 @@ export function renderApp(
     },
   });
 
-  const scheduleRender = (): void => {
+  const scheduleRender = (inputOverride?: string): void => {
     liveUpdate.schedule({
-      input: editor.getValue(),
+      input: inputOverride ?? editor.getValue(),
       format: selectedFormat,
       configJson: currentConfigJson(),
     });
+  };
+
+  const setEditorValueProgrammatically = (value: string): void => {
+    editor.setValue(value);
   };
 
   for (const button of formatButtons) {
@@ -1147,10 +1151,10 @@ export function renderApp(
     previewControls.fitOnNextSvg();
     selectedExampleId = snippet.id;
     exampleSelect.value = snippet.id;
-    editor.setValue(snippet.input);
+    setEditorValueProgrammatically(snippet.input);
     clearEditorStatus();
     persistCurrentState();
-    scheduleRender();
+    scheduleRender(snippet.input);
     scrollWorkspaceIntoView(workspace);
     updateEditorStatus(`Loaded snippet in editor: ${snippet.name}.`);
   });
@@ -1159,10 +1163,10 @@ export function renderApp(
     const nextSelection = exampleSelect.value;
     if (nextSelection === DRAFT_EXAMPLE_ID) {
       selectedExampleId = DRAFT_EXAMPLE_ID;
-      editor.setValue(draftInput);
+      setEditorValueProgrammatically(draftInput);
       clearEditorStatus();
       persistCurrentState();
-      scheduleRender();
+      scheduleRender(draftInput);
       return;
     }
 
@@ -1176,10 +1180,10 @@ export function renderApp(
       draftInput = editor.getValue();
     }
     selectedExampleId = nextExample.id;
-    editor.setValue(nextExample.input);
+    setEditorValueProgrammatically(nextExample.input);
     clearEditorStatus();
     persistCurrentState();
-    scheduleRender();
+    scheduleRender(nextExample.input);
   });
 
   layoutEngineSelect.addEventListener("change", () => {
@@ -1245,7 +1249,7 @@ export function renderApp(
     clearEditorStatus();
     syncSelectionOnEditorInput(value);
     persistCurrentState();
-    scheduleRender();
+    scheduleRender(value);
   });
 
   applyRenderSettingsToControls();

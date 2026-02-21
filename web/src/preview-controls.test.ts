@@ -155,6 +155,31 @@ describe("preview controls", () => {
     harness.controller.dispose();
   });
 
+  it("targets an inner viewport group for pan/zoom", () => {
+    const panzoom = createPanzoomMock();
+    const createPanzoom = vi.fn((_: SVGElement) => panzoom);
+    const harness = createHarness({
+      createPanzoom,
+    });
+
+    harness.output.innerHTML =
+      '<svg viewBox="0 0 100 80"><defs><marker id="arrow"></marker></defs><g class="root"><rect width="100" height="80" /></g></svg>';
+    harness.controller.onResult("svg");
+
+    const svg = harness.output.querySelector("svg");
+    if (!svg) {
+      throw new Error("failed to create svg test fixture");
+    }
+
+    const viewport = svg.querySelector('g[data-panzoom-viewport="true"]');
+    expect(viewport).not.toBeNull();
+    expect(viewport?.querySelector("g.root")).not.toBeNull();
+    expect(svg.querySelector("defs")).not.toBeNull();
+    expect(createPanzoom.mock.calls[0]?.[0]).toBe(viewport);
+
+    harness.controller.dispose();
+  });
+
   it("expands and collapses overlay controls on toggle, outside click, and Escape", () => {
     const panzoom = createPanzoomMock();
     const harness = createHarness({
@@ -326,7 +351,7 @@ describe("preview controls", () => {
     panzoom.zoom(2);
     panzoom.pan(10, 20);
     harness.output
-      .querySelector("svg")
+      .querySelector("[data-panzoom-viewport]")
       ?.dispatchEvent(new CustomEvent("panzoomchange"));
 
     harness.output.innerHTML =
