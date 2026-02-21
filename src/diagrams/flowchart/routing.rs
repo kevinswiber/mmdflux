@@ -122,6 +122,8 @@ fn direct_segment_crosses_non_endpoint_nodes(
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
 ) -> bool {
+    // TODO: This is currently O(V) per direct-routed edge (overall O(E*V)).
+    // If large graphs make this hot, replace with a spatial index over node rects.
     geometry.nodes.iter().any(|(id, node)| {
         if id == &edge.from || id == &edge.to {
             return false;

@@ -95,6 +95,12 @@ policy-driven geometry decisions that are hard to get from layout-only engines.
 | Subgraph support     | Yes                                        | Yes                                  |
 | Best fit             | Deterministic routed SVG/MMDS output       | Mermaid-style compatibility output   |
 
+Routing semantics note:
+`--edge-preset straight` now maps to direct routing (`Direct + Linear + Sharp`).
+Direct routing prefers a single segment when unobstructed, and falls back to
+node-avoidance geometry when a direct segment would cross node interiors.
+Use `--edge-preset polyline` for the old straight/passthrough behavior.
+
 ## Install
 
 ### Homebrew (recommended)

@@ -79,11 +79,15 @@ struct Cli {
 
     /// Edge style preset (straight, polyline, step, smoothstep, or bezier).
     /// Expands to routing + interpolation + corner defaults.
+    /// `straight` uses direct routing (prefers one segment, but falls back to
+    /// node-avoidance geometry when a direct segment would cross node interiors).
+    /// Use `polyline` for the previous straight preset behavior.
     /// Explicit --routing-style / --interpolation-style / --corner-style take precedence.
     #[arg(long)]
     edge_preset: Option<String>,
 
     /// SVG routing style (direct, polyline, or orthogonal).
+    /// `direct` prefers a single segment when clear, with collision-aware fallback.
     /// Overrides the routing component of --edge-preset when both are set.
     #[arg(long)]
     routing_style: Option<String>,
