@@ -198,6 +198,21 @@ function isPathDetail(value: string): value is SharePathDetail {
   );
 }
 
+function pathSimplificationForDetail(
+  detail: SharePathDetail,
+): "lossless" | "lossy" | "minimal" | null {
+  switch (detail) {
+    case "full":
+      return null;
+    case "compact":
+      return "lossless";
+    case "simplified":
+      return "lossy";
+    case "endpoints":
+      return "minimal";
+  }
+}
+
 function parsePersistedPlaygroundState(
   rawValue: string | null,
 ): EffectivePlaygroundState | null {
@@ -1012,15 +1027,18 @@ export function renderApp(
       if (renderSettings.edgePreset !== "auto") {
         config.edgePreset = renderSettings.edgePreset;
       }
-      if (renderSettings.pathDetail !== "full") {
-        config.pathDetail = renderSettings.pathDetail;
-      }
     }
 
     if (selectedFormat === "mmds") {
       config.geometryLevel = "routed";
-      if (renderSettings.pathDetail !== "full") {
-        config.pathDetail = renderSettings.pathDetail;
+    }
+
+    if (selectedFormat === "svg" || selectedFormat === "mmds") {
+      const pathSimplification = pathSimplificationForDetail(
+        renderSettings.pathDetail,
+      );
+      if (pathSimplification) {
+        config.pathSimplification = pathSimplification;
       }
     }
 

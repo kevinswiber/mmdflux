@@ -438,7 +438,7 @@ describe("playground examples", () => {
     expect(JSON.parse(payload?.configJson ?? "{}")).toEqual({
       layoutEngine: "mermaid-layered",
       edgePreset: "bezier",
-      pathDetail: "endpoints",
+      pathSimplification: "minimal",
     });
   });
 });

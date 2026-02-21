@@ -259,4 +259,49 @@ describe("playground state persistence", () => {
       history.replaceState(null, "", window.location.pathname);
     }
   });
+
+  it("maps MMDS path detail to pathSimplification config", async () => {
+    const shareHash = encodeShareState({
+      input: "graph TD\nA-->B",
+      format: "mmds",
+      renderSettings: {
+        layoutEngine: "auto",
+        edgePreset: "auto",
+        geometryLevel: "layout",
+        pathDetail: "compact",
+      },
+    });
+    const renderClient = createFakeRenderClient();
+
+    try {
+      history.replaceState(null, "", `#${shareHash}`);
+
+      const root = document.createElement("div");
+      renderApp(root, {
+        renderClientFactory: () => renderClient,
+        debounceMs: 0,
+        stateStorage: createMemoryStorage(),
+      });
+
+      await Promise.resolve();
+
+      expect(renderClient.render).toHaveBeenCalledTimes(1);
+      const request = renderClient.render.mock.calls[0]?.[0] as {
+        format: string;
+        configJson?: string;
+      };
+      expect(request.format).toBe("mmds");
+      const config = JSON.parse(request.configJson ?? "{}") as Record<
+        string,
+        string
+      >;
+      expect(config).toMatchObject({
+        geometryLevel: "routed",
+        pathSimplification: "lossless",
+      });
+      expect(config.pathDetail).toBeUndefined();
+    } finally {
+      history.replaceState(null, "", window.location.pathname);
+    }
+  });
 });
