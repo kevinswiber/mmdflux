@@ -42,7 +42,7 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
     }
 
     let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
-    let geom = build_svg_layout(diagram, &config, &metrics, edge_routing);
+    let geom = build_svg_layout(diagram, &config, &metrics, edge_routing, false);
     let rerouted_edges = geom.rerouted_edges.clone();
     let override_nodes = svg_router::build_override_node_map(diagram);
     render_svg_with_geometry_context(
@@ -71,6 +71,7 @@ pub(crate) fn build_svg_layout(
     config: &super::layout::LayoutConfig,
     metrics: &SvgTextMetrics,
     edge_routing: EdgeRouting,
+    skip_non_isolated_overrides: bool,
 ) -> GraphGeometry {
     let direction = diagram.direction;
     let mut layout = build_layered_layout(
@@ -94,6 +95,7 @@ pub(crate) fn build_svg_layout(
                 .as_ref()
                 .map(|label| metrics.edge_label_dimensions(label))
         },
+        skip_non_isolated_overrides,
     );
     let title_pad_y = metrics.font_size;
     let content_pad_y = metrics.font_size * 0.3;
@@ -116,7 +118,9 @@ pub(crate) fn build_svg_layout(
     expand_parent_bounds(diagram, &mut layout, child_margin, title_margin);
 
     // Push external nodes that now overlap with reconciled subgraph bounds.
-    let overlap_gap = metrics.node_padding_y + metrics.font_size;
+    // Account for post-padding expansion (2 * node_padding_y for adjacent
+    // subgraphs) plus visual breathing room (font_size).
+    let overlap_gap = metrics.node_padding_y * 2.0 + metrics.font_size;
     resolve_sublayout_overlaps(diagram, &mut layout, overlap_gap);
 
     // Align sibling nodes with their cross-boundary edge targets on the

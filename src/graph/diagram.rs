@@ -1,6 +1,6 @@
 //! Diagram container holding nodes, edges, and layout direction.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::Serialize;
 
@@ -114,6 +114,20 @@ impl Diagram {
         );
     }
 
+    /// Returns true if any edge crosses the subgraph boundary
+    /// (one endpoint inside, one outside).
+    pub fn subgraph_has_cross_boundary_edges(&self, sg_id: &str) -> bool {
+        let Some(sg) = self.subgraphs.get(sg_id) else {
+            return false;
+        };
+        let sg_nodes: HashSet<&str> = sg.nodes.iter().map(|s| s.as_str()).collect();
+        self.edges.iter().any(|edge| {
+            let from_in = sg_nodes.contains(edge.from.as_str());
+            let to_in = sg_nodes.contains(edge.to.as_str());
+            from_in != to_in
+        })
+    }
+
     /// Return the nesting depth of a subgraph (0 = top-level).
     pub fn subgraph_depth(&self, sg_id: &str) -> usize {
         let mut depth = 0;
@@ -200,6 +214,53 @@ mod tests {
                 "Cloud".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn cross_boundary_edges_isolated_subgraph() {
+        use crate::graph::builder::build_diagram;
+        use crate::parser::parse_flowchart;
+        let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> D";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = build_diagram(&flowchart);
+        assert!(!diagram.subgraph_has_cross_boundary_edges("sg1"));
+    }
+
+    #[test]
+    fn cross_boundary_edges_non_isolated_subgraph() {
+        use crate::graph::builder::build_diagram;
+        use crate::parser::parse_flowchart;
+        let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> A";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = build_diagram(&flowchart);
+        assert!(diagram.subgraph_has_cross_boundary_edges("sg1"));
+    }
+
+    #[test]
+    fn cross_boundary_edges_outgoing() {
+        use crate::graph::builder::build_diagram;
+        use crate::parser::parse_flowchart;
+        let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nB --> C";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = build_diagram(&flowchart);
+        assert!(diagram.subgraph_has_cross_boundary_edges("sg1"));
+    }
+
+    #[test]
+    fn cross_boundary_edges_nonexistent_subgraph() {
+        let diagram = Diagram::new(Direction::TopDown);
+        assert!(!diagram.subgraph_has_cross_boundary_edges("nope"));
+    }
+
+    #[test]
+    fn cross_boundary_edges_nested_outer_has_inner_does_not() {
+        use crate::graph::builder::build_diagram;
+        use crate::parser::parse_flowchart;
+        let input = "graph TD\nsubgraph outer[Outer]\ndirection LR\nsubgraph inner[Inner]\ndirection BT\nA --> B\nend\nC --> D\nend\nE --> C";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = build_diagram(&flowchart);
+        assert!(diagram.subgraph_has_cross_boundary_edges("outer"));
+        assert!(!diagram.subgraph_has_cross_boundary_edges("inner"));
     }
 
     #[test]

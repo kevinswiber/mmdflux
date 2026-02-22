@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- `mermaid-layered` engine now ignores subgraph `direction` overrides when the
+  subgraph has cross-boundary edges, matching Mermaid.js/dagre behavior.
+  `flux-layered` continues to always respect direction overrides.
+
+### Fixed
+
+- Sibling subgraph bounds no longer overlap after sublayout reconciliation.
+- Added margin between adjacent subgraph borders for visual breathing room.
+
 ### Changed
 
 - Routing semantics: `--edge-preset straight` now means direct routing

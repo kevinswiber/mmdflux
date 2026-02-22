@@ -181,6 +181,7 @@ impl GraphEngine for FluxLayeredEngine {
                 &layout_config,
                 metrics,
                 edge_routing,
+                false, // flux-layered: always respect direction overrides
             );
             return Ok(GraphSolveResult {
                 engine_id: self.id(),
@@ -294,6 +295,7 @@ impl GraphEngine for MermaidLayeredEngine {
                 &layout_config,
                 metrics,
                 EdgeRouting::PolylineRoute,
+                true, // mermaid-layered: skip overrides for non-isolated subgraphs
             );
             return Ok(GraphSolveResult {
                 engine_id: self.id(),
@@ -424,6 +426,141 @@ mod tests {
             err.message.contains("unknown engine"),
             "error should mention unknown: {}",
             err.message
+        );
+    }
+
+    // =========================================================================
+    // Subgraph direction override tests (plan-0085)
+    // =========================================================================
+
+    fn solve_svg(engine: &dyn GraphEngine, diagram: &Diagram) -> GraphSolveResult {
+        use crate::diagram::PathSimplification;
+        let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        let request = GraphSolveRequest {
+            output_format: OutputFormat::Svg,
+            geometry_level: GeometryLevel::Layout,
+            path_simplification: PathSimplification::None,
+            routing_style: Some(RoutingStyle::Polyline),
+        };
+        engine.solve(diagram, &config, &request).unwrap()
+    }
+
+    #[test]
+    fn subgraph_direction_isolated_both_engines_respect_override() {
+        let input =
+            include_str!("../../../tests/fixtures/flowchart/subgraph_direction_isolated.mmd");
+        let flowchart = crate::parser::parse_flowchart(input).unwrap();
+        let diagram = crate::graph::build_diagram(&flowchart);
+        let metrics = SvgTextMetrics::new(16.0, 15.0, 15.0);
+
+        let flux = FluxLayeredEngine::with_mode(MeasurementMode::Svg(metrics.clone()));
+        let flux_result = solve_svg(&flux, &diagram);
+        let a_flux = &flux_result.geometry.nodes["A"].rect;
+        let b_flux = &flux_result.geometry.nodes["B"].rect;
+        // LR override respected: A,B side-by-side (different X, similar Y)
+        assert!(
+            (a_flux.y - b_flux.y).abs() < 1.0,
+            "flux: A.y={} B.y={} should be similar (LR override)",
+            a_flux.y,
+            b_flux.y
+        );
+        assert!(
+            (a_flux.x - b_flux.x).abs() > 10.0,
+            "flux: A.x={} B.x={} should differ (LR override)",
+            a_flux.x,
+            b_flux.x
+        );
+
+        let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Svg(metrics));
+        let mermaid_result = solve_svg(&mermaid, &diagram);
+        let a_mermaid = &mermaid_result.geometry.nodes["A"].rect;
+        let b_mermaid = &mermaid_result.geometry.nodes["B"].rect;
+        // Isolated subgraph: mermaid also respects LR override
+        assert!(
+            (a_mermaid.y - b_mermaid.y).abs() < 1.0,
+            "mermaid: A.y={} B.y={} should be similar (LR override respected for isolated sg)",
+            a_mermaid.y,
+            b_mermaid.y
+        );
+        assert!(
+            (a_mermaid.x - b_mermaid.x).abs() > 10.0,
+            "mermaid: A.x={} B.x={} should differ (LR override respected for isolated sg)",
+            a_mermaid.x,
+            b_mermaid.x
+        );
+    }
+
+    #[test]
+    fn subgraph_direction_cross_boundary_engines_diverge() {
+        let input =
+            include_str!("../../../tests/fixtures/flowchart/subgraph_direction_cross_boundary.mmd");
+        let flowchart = crate::parser::parse_flowchart(input).unwrap();
+        let diagram = crate::graph::build_diagram(&flowchart);
+        let metrics = SvgTextMetrics::new(16.0, 15.0, 15.0);
+
+        // Flux: LR sublayout applied (A,B side-by-side with significant X spread)
+        let flux = FluxLayeredEngine::with_mode(MeasurementMode::Svg(metrics.clone()));
+        let flux_result = solve_svg(&flux, &diagram);
+        let a_flux = &flux_result.geometry.nodes["A"].rect;
+        let b_flux = &flux_result.geometry.nodes["B"].rect;
+        let flux_x_spread = (a_flux.x - b_flux.x).abs();
+        assert!(
+            (a_flux.y - b_flux.y).abs() < 1.0,
+            "flux: A.y={} B.y={} should be similar (LR sublayout applied)",
+            a_flux.y,
+            b_flux.y
+        );
+        assert!(
+            flux_x_spread > 10.0,
+            "flux: A-B X spread={flux_x_spread} should be large (LR sublayout)",
+        );
+
+        // Mermaid: LR override ignored → sublayout uses parent TD direction
+        let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Svg(metrics));
+        let mermaid_result = solve_svg(&mermaid, &diagram);
+        let a_mermaid = &mermaid_result.geometry.nodes["A"].rect;
+        let b_mermaid = &mermaid_result.geometry.nodes["B"].rect;
+        // TD sublayout: A and B should be stacked (different Y)
+        assert!(
+            (a_mermaid.y - b_mermaid.y).abs() > 10.0,
+            "mermaid: A.y={} B.y={} should differ (TD sublayout, LR override ignored)",
+            a_mermaid.y,
+            b_mermaid.y
+        );
+    }
+
+    #[test]
+    fn subgraph_direction_nested_mixed_isolation() {
+        let input =
+            include_str!("../../../tests/fixtures/flowchart/subgraph_direction_nested_mixed.mmd");
+        let flowchart = crate::parser::parse_flowchart(input).unwrap();
+        let diagram = crate::graph::build_diagram(&flowchart);
+        let metrics = SvgTextMetrics::new(16.0, 15.0, 15.0);
+
+        // Mermaid engine: outer LR skipped (cross-boundary from E-->C), inner BT respected
+        let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Svg(metrics.clone()));
+        let mermaid_result = solve_svg(&mermaid, &diagram);
+        let a_mermaid = &mermaid_result.geometry.nodes["A"].rect;
+        let b_mermaid = &mermaid_result.geometry.nodes["B"].rect;
+        // Inner subgraph has BT direction and is isolated → B should be above A (lower Y)
+        assert!(
+            b_mermaid.y < a_mermaid.y,
+            "mermaid: B.y={} should be less than A.y={} (BT override respected for isolated inner)",
+            b_mermaid.y,
+            a_mermaid.y
+        );
+
+        // Flux engine: both overrides respected
+        let flux = FluxLayeredEngine::with_mode(MeasurementMode::Svg(metrics));
+        let flux_result = solve_svg(&flux, &diagram);
+        let a_flux = &flux_result.geometry.nodes["A"].rect;
+        let b_flux = &flux_result.geometry.nodes["B"].rect;
+        // Inner BT respected here too
+        assert!(
+            b_flux.y < a_flux.y,
+            "flux: B.y={} should be less than A.y={} (BT override respected)",
+            b_flux.y,
+            a_flux.y
         );
     }
 }

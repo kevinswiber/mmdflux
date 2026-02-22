@@ -247,6 +247,7 @@ pub(crate) fn compute_sublayouts<FN, FE>(
     parent_layered_config: &LayeredConfig,
     node_dims: FN,
     edge_label_dims: FE,
+    skip_non_isolated_overrides: bool,
 ) -> HashMap<String, SubLayoutResult>
 where
     FN: Fn(&Node) -> (f64, f64),
@@ -260,7 +261,14 @@ where
             None => continue,
         };
 
-        let layered_direction = to_layered_direction(sub_dir);
+        let layered_direction =
+            if skip_non_isolated_overrides && diagram.subgraph_has_cross_boundary_edges(sg_id) {
+                // Non-isolated subgraph in mermaid-compat mode: ignore the direction
+                // override and use the parent direction instead (matches dagre behavior).
+                parent_layered_config.direction
+            } else {
+                to_layered_direction(sub_dir)
+            };
 
         let mut sub_graph: layered::DiGraph<(f64, f64)> = layered::DiGraph::new();
 
@@ -1707,6 +1715,21 @@ pub(crate) fn resolve_sublayout_overlaps(
             }
         }
 
+        // Shift sibling subgraph bounds that are below the pushing subgraph.
+        let sibling_ids: Vec<String> = layout
+            .subgraph_bounds
+            .keys()
+            .filter(|id| *id != sg_id)
+            .cloned()
+            .collect();
+        for sibling_id in sibling_ids {
+            if let Some(bounds) = layout.subgraph_bounds.get_mut(&sibling_id)
+                && bounds.y + bounds.height / 2.0 > sg_cy
+            {
+                bounds.y += max_shift;
+            }
+        }
+
         // Update layout height.
         layout.height += max_shift;
     }
@@ -1893,6 +1916,7 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
                 .as_ref()
                 .map(|label| text_edge_label_dimensions(label))
         },
+        false,
     );
 
     let mut result = build_layered_layout_with_config(
@@ -5428,5 +5452,59 @@ mod tests {
         assert!(result.nodes.contains_key(&layered::NodeId::from("B")));
         assert!(!result.nodes.contains_key(&layered::NodeId::from("Start")));
         assert!(!result.nodes.contains_key(&layered::NodeId::from("End")));
+    }
+
+    #[test]
+    fn compute_sublayouts_uses_parent_dir_for_non_isolated_when_flag_set() {
+        use crate::graph::build_diagram;
+        use crate::parser::parse_flowchart;
+
+        // sg1 has direction LR but cross-boundary edge C --> A
+        let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> A";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = build_diagram(&flowchart);
+        let layered_config = LayeredConfig::default(); // direction = TopBottom
+
+        // With flag false: sublayout uses override direction (LR)
+        let subs_false = compute_sublayouts(
+            &diagram,
+            &layered_config,
+            |_node| (40.0, 20.0),
+            |_edge| None,
+            false,
+        );
+        let lr_result = &subs_false["sg1"];
+        let a_lr = lr_result.result.nodes[&layered::NodeId::from("A")];
+        let b_lr = lr_result.result.nodes[&layered::NodeId::from("B")];
+        // LR: A and B should be side-by-side (different x, similar y)
+        assert!(
+            (a_lr.y - b_lr.y).abs() < 1.0,
+            "LR: A.y={} B.y={} should be similar",
+            a_lr.y,
+            b_lr.y
+        );
+
+        // With flag true: sublayout uses parent direction (TD) instead of LR
+        let subs_true = compute_sublayouts(
+            &diagram,
+            &layered_config,
+            |_node| (40.0, 20.0),
+            |_edge| None,
+            true,
+        );
+        assert!(
+            subs_true.contains_key("sg1"),
+            "sublayout should still exist"
+        );
+        let td_result = &subs_true["sg1"];
+        let a_td = td_result.result.nodes[&layered::NodeId::from("A")];
+        let b_td = td_result.result.nodes[&layered::NodeId::from("B")];
+        // TD: A and B should be stacked (similar x, different y)
+        assert!(
+            (a_td.y - b_td.y).abs() > 1.0,
+            "TD: A.y={} B.y={} should differ",
+            a_td.y,
+            b_td.y
+        );
     }
 }

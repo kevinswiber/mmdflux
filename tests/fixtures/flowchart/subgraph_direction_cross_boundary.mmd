@@ -1,9 +1,11 @@
 graph TD
-    subgraph s1[Horizontal Section]
+    subgraph sg1[Horizontal Section]
         direction LR
         A --> B
     end
+    C --> E
+    E --> A
     C --> A
-    C --> X --> Y --> Z --> A
-    A --> E --> F --> D
+    B --> F
+    F --> D
     B --> D

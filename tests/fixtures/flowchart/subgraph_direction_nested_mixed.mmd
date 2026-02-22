@@ -1,0 +1,10 @@
+graph TD
+    subgraph outer[Outer LR]
+        direction LR
+        subgraph inner[Inner BT]
+            direction BT
+            A --> B
+        end
+        C --> D
+    end
+    E --> C
