@@ -14,14 +14,16 @@
 use std::collections::{HashMap, HashSet};
 
 use super::layout::{
-    Layout, LayoutConfig, RawCenter, TransformContext, collision_repair,
+    CoordTransform, Layout, LayoutConfig, RawCenter, TransformContext, collision_repair,
     compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts,
     compute_layout_from_geometry, layered_config_for_layout, nudge_colliding_waypoints,
-    rank_gap_repair, transform_label_positions_direct, transform_waypoints_direct,
+    rank_gap_repair, shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps,
+    subgraph_bounds_to_draw, transform_label_positions_direct, transform_waypoints_direct,
 };
 use super::shape::{NodeBounds, node_dimensions};
 use crate::diagrams::flowchart::geometry::GraphGeometry;
-use crate::graph::{Diagram, Direction};
+use crate::graph::{Diagram, Direction, Shape};
+use crate::layered::Rect;
 
 /// Convert engine-produced `GraphGeometry` (with text-scale node dimensions)
 /// to the integer-coordinate `Layout` struct consumed by the text renderer.
@@ -343,10 +345,47 @@ pub fn geometry_to_text_layout(
         height,
     );
 
-    // --- Phases J+: take from delegate ---
+    // --- Phase J: Collect node shapes ---
+    let node_shapes: HashMap<String, Shape> = diagram
+        .nodes
+        .iter()
+        .map(|(id, node)| (id.clone(), node.shape))
+        .collect();
+
+    // --- Phase K: Convert subgraph bounds to draw coordinates ---
+    let coord_transform = CoordTransform {
+        scale_x,
+        scale_y,
+        layout_min_x,
+        layout_min_y,
+        max_overhang_x,
+        max_overhang_y,
+        config,
+    };
+    let layout_sg_bounds: HashMap<String, Rect> = geometry
+        .subgraphs
+        .iter()
+        .map(|(id, sg)| (id.clone(), sg.rect.into()))
+        .collect();
+    let mut subgraph_bounds =
+        subgraph_bounds_to_draw(&diagram.subgraphs, &layout_sg_bounds, &coord_transform);
+    shrink_subgraph_vertical_gaps(
+        &diagram.subgraphs,
+        &diagram.edges,
+        &node_bounds,
+        &mut subgraph_bounds,
+        diagram.direction,
+    );
+    shrink_subgraph_horizontal_gaps(
+        &diagram.subgraphs,
+        &diagram.edges,
+        &node_bounds,
+        &mut subgraph_bounds,
+        diagram.direction,
+    );
+
+    // --- Phases L+: take from delegate ---
     // width/height from delegate includes subgraph/self-edge canvas expansion.
-    // draw_positions/node_bounds from adapter match delegate (same geometry,
-    // same code, no Phase M for this branch).
     Layout {
         grid_positions,
         draw_positions,
@@ -357,8 +396,8 @@ pub fn geometry_to_text_layout(
         v_spacing: config.v_spacing,
         edge_waypoints,
         edge_label_positions,
-        node_shapes: delegate.node_shapes,
-        subgraph_bounds: delegate.subgraph_bounds,
+        node_shapes,
+        subgraph_bounds,
         self_edges: delegate.self_edges,
         node_directions: delegate.node_directions,
     }

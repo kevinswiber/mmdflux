@@ -51,19 +51,19 @@ pub struct GridPos {
 ///
 /// Encapsulates the scaling, offset, and padding parameters needed to convert
 /// the layout engine's floating-point coordinates to integer character-grid positions.
-struct CoordTransform<'a> {
-    scale_x: f64,
-    scale_y: f64,
-    layout_min_x: f64,
-    layout_min_y: f64,
-    max_overhang_x: usize,
-    max_overhang_y: usize,
-    config: &'a LayoutConfig,
+pub(crate) struct CoordTransform<'a> {
+    pub(crate) scale_x: f64,
+    pub(crate) scale_y: f64,
+    pub(crate) layout_min_x: f64,
+    pub(crate) layout_min_y: f64,
+    pub(crate) max_overhang_x: usize,
+    pub(crate) max_overhang_y: usize,
+    pub(crate) config: &'a LayoutConfig,
 }
 
 impl CoordTransform<'_> {
     /// Convert layout coordinates to draw coordinates.
-    fn to_draw(&self, x: f64, y: f64) -> (usize, usize) {
+    pub(crate) fn to_draw(&self, x: f64, y: f64) -> (usize, usize) {
         let dx = ((x - self.layout_min_x) * self.scale_x).round() as isize;
         let dy = ((y - self.layout_min_y) * self.scale_y).round() as isize;
         let draw_x = dx.max(0) as usize
@@ -2979,7 +2979,7 @@ fn build_children_map(
 ///
 /// Uses inside-out (bottom-up) computation: leaf subgraphs first, then parents
 /// expand to contain their children. This ensures proper nesting of bounds.
-fn subgraph_bounds_to_draw(
+pub(crate) fn subgraph_bounds_to_draw(
     subgraphs: &HashMap<String, crate::graph::Subgraph>,
     layout_bounds: &HashMap<String, Rect>,
     transform: &CoordTransform,
@@ -3140,7 +3140,7 @@ fn debug_subgraph_gaps(
     }
 }
 
-fn shrink_subgraph_vertical_gaps(
+pub(crate) fn shrink_subgraph_vertical_gaps(
     subgraphs: &HashMap<String, crate::graph::Subgraph>,
     edges: &[crate::graph::Edge],
     node_bounds: &HashMap<String, NodeBounds>,
@@ -3362,7 +3362,7 @@ fn ensure_external_edge_spacing(
     }
 }
 
-fn shrink_subgraph_horizontal_gaps(
+pub(crate) fn shrink_subgraph_horizontal_gaps(
     subgraphs: &HashMap<String, crate::graph::Subgraph>,
     edges: &[crate::graph::Edge],
     node_bounds: &HashMap<String, NodeBounds>,
