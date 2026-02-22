@@ -6,7 +6,9 @@
 use std::collections::HashMap;
 
 use super::geometry::GraphGeometry;
-use super::render::layout::build_layered_layout;
+use super::render::layout::{
+    build_layered_layout, center_override_subgraphs, expand_parent_bounds,
+};
 use super::render::svg::svg_node_dimensions;
 use super::render::svg_metrics::SvgTextMetrics;
 use crate::diagram::{
@@ -157,7 +159,7 @@ pub fn run_layered_layout(
     let EngineConfig::Layered(layered_cfg) = config;
     let layout_config = layout_config_from_layered(layered_cfg, diagram);
     let direction = diagram.direction;
-    let result = match mode {
+    let mut result = match mode {
         MeasurementMode::Text => build_layered_layout(
             diagram,
             &layout_config,
@@ -182,6 +184,12 @@ pub fn run_layered_layout(
             },
         ),
     };
+
+    // Apply subgraph fixups to match compute_layout_direct() behavior:
+    // center direction-override subgraph predecessors and expand parent bounds.
+    center_override_subgraphs(diagram, &mut result);
+    expand_parent_bounds(diagram, &mut result, 0.0, 0.0);
+
     Ok(geometry::from_layered_layout(&result, diagram))
 }
 
@@ -525,6 +533,53 @@ mod tests {
         assert!(
             svg_w > text_w * 3.0,
             "SVG width ({svg_w}) should be much larger than text width ({text_w})"
+        );
+    }
+
+    #[test]
+    fn run_layered_layout_applies_subgraph_centering_and_expansion() {
+        // direction_override.mmd: TD graph with LR subgraph containing A → B → C
+        // plus external edges: Start → A, C → End.
+        // After centering, "Start" should be positioned above the center of the
+        // A/B/C cluster, not at the leftmost node.
+        let input = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/flowchart/direction_override.mmd"
+        ))
+        .unwrap();
+        let flowchart = crate::parser::parse_flowchart(&input).unwrap();
+        let diagram = crate::graph::build_diagram(&flowchart);
+
+        let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
+
+        // Subgraph bounds should encompass all member nodes.
+        let sg_bounds = geom.subgraphs.get("sg1").expect("sg1 should exist");
+        for member in &["A", "B", "C"] {
+            let node = geom
+                .nodes
+                .get(*member)
+                .unwrap_or_else(|| panic!("{member} missing"));
+            let nr = &node.rect;
+            let sr = &sg_bounds.rect;
+            assert!(
+                nr.x >= sr.x
+                    && nr.x + nr.width <= sr.x + sr.width
+                    && nr.y >= sr.y
+                    && nr.y + nr.height <= sr.y + sr.height,
+                "Node {member} at {:?} should be within sg1 bounds {:?}",
+                nr,
+                sr,
+            );
+        }
+
+        // "Start" should be roughly centered over the subgraph horizontally.
+        let start = geom.nodes.get("Start").expect("Start should exist");
+        let sg_center_x = sg_bounds.rect.x + sg_bounds.rect.width / 2.0;
+        let start_center_x = start.rect.x + start.rect.width / 2.0;
+        assert!(
+            (start_center_x - sg_center_x).abs() < sg_bounds.rect.width * 0.4,
+            "Start center ({start_center_x}) should be near sg1 center ({sg_center_x})"
         );
     }
 
