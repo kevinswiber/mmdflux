@@ -13,7 +13,7 @@ use canvas::{Cell, Connections};
 pub use chars::CharSet;
 
 use crate::diagram::{
-    AlgorithmId, CornerStyle, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId,
+    AlgorithmId, CornerStyle, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId, GraphEngine,
     InterpolationStyle, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
 };
 pub use crate::diagrams::flowchart::render::edge::{
@@ -221,11 +221,38 @@ pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
         return render_svg(diagram, options);
     }
 
-    // Step 1: Compute layout with direction-aware spacing
+    // Engine → text adapter → text renderer.
     let mut config = layout_config_for_diagram(diagram, options);
     config.ranker = options.ranker;
-    let layout = compute_layout_direct(diagram, &config);
 
+    let engine = crate::diagrams::flowchart::engine::FluxLayeredEngine::text();
+    // Construct LayeredConfig from raw LayoutConfig values. Do NOT call
+    // layered_config_for_layout() here — the engine's internal round-trip
+    // (layout_config_from_layered → build_layered_layout → layered_config_for_layout)
+    // applies cluster_rank_sep once. Pre-applying it here would double it.
+    let engine_config = crate::diagram::EngineConfig::Layered(crate::layered::LayoutConfig {
+        direction: match diagram.direction {
+            Direction::TopDown => crate::layered::Direction::TopBottom,
+            Direction::BottomTop => crate::layered::Direction::BottomTop,
+            Direction::LeftRight => crate::layered::Direction::LeftRight,
+            Direction::RightLeft => crate::layered::Direction::RightLeft,
+        },
+        node_sep: config.node_sep,
+        edge_sep: config.edge_sep,
+        rank_sep: config.rank_sep,
+        margin: config.margin,
+        acyclic: true,
+        ranker: config.ranker.unwrap_or_default(),
+    });
+    let request = crate::diagram::GraphSolveRequest::from_config(
+        &RenderConfig::default(),
+        options.output_format,
+    );
+    let result = engine
+        .solve(diagram, &engine_config, &request)
+        .expect("engine solve failed in render()");
+
+    let layout = geometry_to_text_layout(diagram, &result.geometry, &config);
     render_text_from_layout(diagram, &layout, options)
 }
 
