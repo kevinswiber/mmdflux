@@ -92,7 +92,7 @@ fn mermaid_subgraph_has_tainting_cross_boundary_edges(diagram: &Diagram, sg_id: 
 ///
 /// Effective behavior (default `inheritDir: false`):
 /// - explicit dir + isolated: use explicit dir
-/// - explicit dir + non-isolated: ignore (inherit parent)
+/// - explicit dir + non-isolated: ignore explicit, inherit parent
 /// - no explicit dir + isolated: use default alternating direction
 /// - no explicit dir + non-isolated: inherit parent
 ///
@@ -123,7 +123,7 @@ fn apply_mermaid_subgraph_direction_policy(diagram: &Diagram) -> Option<Diagram>
 
         let normalized_dir = match sg.dir {
             Some(explicit) if isolated => Some(explicit),
-            Some(_) => None,
+            Some(_) => Some(parent_effective),
             None if isolated => Some(mermaid_default_subgraph_direction(parent_effective)),
             None => None,
         };
@@ -391,7 +391,7 @@ impl GraphEngine for MermaidLayeredEngine {
                 &layout_config,
                 metrics,
                 EdgeRouting::PolylineRoute,
-                false, // policy normalization above decides which subgraphs carry overrides
+                true, // mermaid compat: skip tainting non-isolated sublayout extraction
             );
             let routed: Option<RoutedGraphGeometry> = if matches!(
                 (request.output_format, request.geometry_level),
@@ -821,6 +821,64 @@ mod tests {
             a.x,
             b.x,
             c.x
+        );
+    }
+
+    #[test]
+    fn mermaid_nested_subgraph_bounds_are_compact_after_policy_normalization() {
+        let input = include_str!("../../../tests/fixtures/flowchart/nested_subgraph.mmd");
+        let flowchart = crate::parser::parse_flowchart(input).unwrap();
+        let diagram = crate::graph::build_diagram(&flowchart);
+        let metrics = SvgTextMetrics::new(16.0, 15.0, 15.0);
+        let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Svg(metrics));
+        let result = solve_svg(&mermaid, &diagram);
+
+        let outer = result.geometry.subgraphs["outer"].rect;
+        let inner = result.geometry.subgraphs["inner"].rect;
+        assert!(
+            inner.height < 160.0,
+            "mermaid nested_subgraph: inner height should stay compact; got {}",
+            inner.height
+        );
+        assert!(
+            outer.height < 220.0,
+            "mermaid nested_subgraph: outer height should stay compact; got {}",
+            outer.height
+        );
+    }
+
+    #[test]
+    fn mermaid_multi_subgraph_direction_override_bottom_cluster_is_compact_and_centered() {
+        let input =
+            include_str!("../../../tests/fixtures/flowchart/multi_subgraph_direction_override.mmd");
+        let flowchart = crate::parser::parse_flowchart(input).unwrap();
+        let diagram = crate::graph::build_diagram(&flowchart);
+        let metrics = SvgTextMetrics::new(16.0, 15.0, 15.0);
+        let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Svg(metrics));
+        let result = solve_svg(&mermaid, &diagram);
+
+        let g = result.geometry.subgraphs["G"].rect;
+        let e = result.geometry.nodes["E"].rect;
+        let f = result.geometry.nodes["F"].rect;
+        let g_center_x = g.x + g.width / 2.0;
+        let feed_center_x = ((e.x + e.width / 2.0) + (f.x + f.width / 2.0)) / 2.0;
+
+        assert!(
+            g.height < 180.0,
+            "mermaid multi_subgraph_direction_override: G height should be compact; got {}",
+            g.height
+        );
+        assert!(
+            g.y > e.y,
+            "mermaid multi_subgraph_direction_override: G should be below middle tier; G.y={} E.y={}",
+            g.y,
+            e.y
+        );
+        assert!(
+            (g_center_x - feed_center_x).abs() < 120.0,
+            "mermaid multi_subgraph_direction_override: G should stay centered under incoming feeds; G.cx={} feeds.cx={}",
+            g_center_x,
+            feed_center_x
         );
     }
 }
