@@ -450,8 +450,8 @@ impl GraphEngine for MermaidLayeredEngine {
 fn layout_config_from_layered(
     layered_cfg: &crate::layered::types::LayoutConfig,
     diagram: &Diagram,
-) -> crate::diagrams::flowchart::render::layout::LayoutConfig {
-    use crate::diagrams::flowchart::render::layout::LayoutConfig as FlowchartLayoutConfig;
+) -> crate::diagrams::flowchart::render::layout::TextLayoutConfig {
+    use crate::diagrams::flowchart::render::layout::TextLayoutConfig as FlowchartLayoutConfig;
 
     let defaults = FlowchartLayoutConfig::default();
     let extra_padding = if diagram.has_subgraphs() {

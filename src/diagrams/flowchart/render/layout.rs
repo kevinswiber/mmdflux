@@ -171,9 +171,12 @@ impl Layout {
     }
 }
 
-/// Configuration for layout computation.
+/// Configuration for text layout computation.
+///
+/// Controls integer character-grid spacing, padding, and the underlying
+/// layered-layout engine parameters used by the text rendering pipeline.
 #[derive(Debug, Clone)]
-pub struct LayoutConfig {
+pub struct TextLayoutConfig {
     /// Horizontal spacing between nodes.
     pub h_spacing: usize,
     /// Vertical spacing between nodes.
@@ -198,7 +201,10 @@ pub struct LayoutConfig {
     pub cluster_rank_sep: f64,
 }
 
-impl Default for LayoutConfig {
+/// Temporary alias for backwards compatibility during rename.
+pub type LayoutConfig = TextLayoutConfig;
+
+impl Default for TextLayoutConfig {
     fn default() -> Self {
         Self {
             h_spacing: 4,

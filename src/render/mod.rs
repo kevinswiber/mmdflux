@@ -19,7 +19,9 @@ use crate::diagram::{
 pub use crate::diagrams::flowchart::render::edge::{
     render_all_edges, render_all_edges_with_labels, render_edge,
 };
-pub use crate::diagrams::flowchart::render::layout::{Layout, LayoutConfig, SubgraphBounds};
+pub use crate::diagrams::flowchart::render::layout::{
+    Layout, LayoutConfig, SubgraphBounds, TextLayoutConfig,
+};
 pub use crate::diagrams::flowchart::render::router::{
     Point, RoutedEdge, Segment, route_all_edges, route_edge,
 };
