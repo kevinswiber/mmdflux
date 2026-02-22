@@ -3,6 +3,7 @@
 pub mod edge;
 pub mod layout;
 pub(crate) mod layout_building;
+pub(crate) mod layout_subgraph_ops;
 pub(crate) mod orthogonal_router;
 pub mod route_policy;
 pub mod router;
