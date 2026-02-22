@@ -14,8 +14,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::layout::{
-    CoordTransform, Layout, LayoutConfig, RawCenter, TransformContext, collision_repair,
-    compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts,
+    CoordTransform, Layout, LayoutConfig, RawCenter, SelfEdgeDrawData, TransformContext,
+    collision_repair, compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts,
     compute_layout_from_geometry, layered_config_for_layout, nudge_colliding_waypoints,
     rank_gap_repair, shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps,
     subgraph_bounds_to_draw, transform_label_positions_direct, transform_waypoints_direct,
@@ -23,7 +23,7 @@ use super::layout::{
 use super::shape::{NodeBounds, node_dimensions};
 use crate::diagrams::flowchart::geometry::GraphGeometry;
 use crate::graph::{Diagram, Direction, Shape};
-use crate::layered::Rect;
+use crate::layered::{Direction as LayeredDirection, Rect};
 
 /// Convert engine-produced `GraphGeometry` (with text-scale node dimensions)
 /// to the integer-coordinate `Layout` struct consumed by the text renderer.
@@ -384,21 +384,103 @@ pub fn geometry_to_text_layout(
         diagram.direction,
     );
 
-    // --- Phases L+: take from delegate ---
-    // width/height from delegate includes subgraph/self-edge canvas expansion.
+    // --- Phase L: Compute self-edge loop paths in draw coordinates ---
+    let layered_direction = layered_config.direction;
+    let self_edges: Vec<SelfEdgeDrawData> = geometry
+        .self_edges
+        .iter()
+        .filter_map(|se| {
+            let bounds = node_bounds.get(&se.node_id)?;
+            let loop_extent = 3;
+
+            let points = match layered_direction {
+                LayeredDirection::TopBottom => {
+                    let right = bounds.x + bounds.width;
+                    let loop_x = right + loop_extent;
+                    let top_y = bounds.y;
+                    let bot_y = bounds.y + bounds.height - 1;
+                    vec![
+                        (right, top_y),
+                        (loop_x, top_y),
+                        (loop_x, bot_y),
+                        (right, bot_y),
+                    ]
+                }
+                LayeredDirection::BottomTop => {
+                    let right = bounds.x + bounds.width;
+                    let loop_x = right + loop_extent;
+                    let top_y = bounds.y;
+                    let bot_y = bounds.y + bounds.height - 1;
+                    vec![
+                        (right, bot_y),
+                        (loop_x, bot_y),
+                        (loop_x, top_y),
+                        (right, top_y),
+                    ]
+                }
+                LayeredDirection::LeftRight => {
+                    let bot = bounds.y + bounds.height;
+                    let loop_y = bot + loop_extent;
+                    let left_x = bounds.x;
+                    let right_x = bounds.x + bounds.width - 1;
+                    vec![
+                        (right_x, bot),
+                        (right_x, loop_y),
+                        (left_x, loop_y),
+                        (left_x, bot),
+                    ]
+                }
+                LayeredDirection::RightLeft => {
+                    let bot = bounds.y + bounds.height;
+                    let loop_y = bot + loop_extent;
+                    let left_x = bounds.x;
+                    let right_x = bounds.x + bounds.width - 1;
+                    vec![
+                        (left_x, bot),
+                        (left_x, loop_y),
+                        (right_x, loop_y),
+                        (right_x, bot),
+                    ]
+                }
+            };
+
+            Some(SelfEdgeDrawData {
+                node_id: se.node_id.clone(),
+                edge_index: se.edge_index,
+                points,
+            })
+        })
+        .collect();
+
+    // Expand canvas to fit subgraph borders and self-edge loops
+    let mut width = width;
+    let mut height = height;
+    for sb in subgraph_bounds.values() {
+        width = width.max(sb.x + sb.width + config.padding);
+        height = height.max(sb.y + sb.height + config.padding);
+    }
+    for se in &self_edges {
+        for &(x, y) in &se.points {
+            width = width.max(x + config.padding + 1);
+            height = height.max(y + config.padding + 1);
+        }
+    }
+
+    // --- Phases M+: take from delegate ---
+    // node_directions from delegate (Phase M reconciliation not yet migrated).
     Layout {
         grid_positions,
         draw_positions,
         node_bounds,
-        width: delegate.width,
-        height: delegate.height,
+        width,
+        height,
         h_spacing: config.h_spacing,
         v_spacing: config.v_spacing,
         edge_waypoints,
         edge_label_positions,
         node_shapes,
         subgraph_bounds,
-        self_edges: delegate.self_edges,
+        self_edges,
         node_directions: delegate.node_directions,
     }
 }
