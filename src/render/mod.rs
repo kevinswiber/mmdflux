@@ -29,6 +29,7 @@ pub use crate::diagrams::flowchart::render::shape::{NodeBounds, node_dimensions,
 use crate::diagrams::flowchart::render::subgraph;
 pub use crate::diagrams::flowchart::render::svg::{render_svg, render_svg_from_geometry};
 use crate::diagrams::flowchart::render::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
+pub use crate::diagrams::flowchart::render::text_adapter::geometry_to_text_layout;
 use crate::graph::{Diagram, Direction};
 
 /// Engine defaults for SVG style (routing + interpolation + corner).
@@ -220,15 +221,28 @@ pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
         return render_svg(diagram, options);
     }
 
-    let charset = match options.output_format {
-        OutputFormat::Ascii => CharSet::ascii(),
-        _ => CharSet::unicode(),
-    };
-
     // Step 1: Compute layout with direction-aware spacing
     let mut config = layout_config_for_diagram(diagram, options);
     config.ranker = options.ranker;
     let layout = compute_layout_direct(diagram, &config);
+
+    render_text_from_layout(diagram, &layout, options)
+}
+
+/// Render a diagram to text from a pre-computed `Layout`.
+///
+/// This is the text rendering pipeline: Layout → Canvas → String.
+/// Separated from `render()` so that callers who produce a Layout via a
+/// different path (e.g. the text adapter) can share the same rendering logic.
+pub fn render_text_from_layout(
+    diagram: &Diagram,
+    layout: &Layout,
+    options: &RenderOptions,
+) -> String {
+    let charset = match options.output_format {
+        OutputFormat::Ascii => CharSet::ascii(),
+        _ => CharSet::unicode(),
+    };
 
     // Step 2: Create canvas
     let mut canvas = Canvas::new(layout.width, layout.height);

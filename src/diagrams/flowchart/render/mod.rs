@@ -11,3 +11,4 @@ pub mod subgraph;
 pub mod svg;
 pub(crate) mod svg_metrics;
 pub(crate) mod svg_router;
+pub mod text_adapter;
