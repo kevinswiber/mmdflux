@@ -948,9 +948,16 @@ fn render_edges(
         let is_sharp = matches!(interp_style, InterpolationStyle::Linear)
             && matches!(corner_style, CornerStyle::Sharp);
 
-        // Only densify corners for sharp (linear+sharp) edges; bezier and rounded-corner
-        // styles handle smoothing natively from sparse waypoints.
-        if is_sharp && !preserve_orthogonal_endpoint_contract {
+        // Only densify corners for direct/orthogonal sharp paths. For engine-provided
+        // polyline geometry, this synthetic densification introduces tiny visible jogs
+        // on axis-to-diagonal turns (for example ampersand fan-in).
+        if is_sharp
+            && !preserve_orthogonal_endpoint_contract
+            && !matches!(
+                edge_routing,
+                EdgeRouting::PolylineRoute | EdgeRouting::EngineProvided
+            )
+        {
             points = fix_corner_points(&points);
         }
         if matches!(edge_routing, EdgeRouting::OrthogonalRoute)

@@ -1,6 +1,49 @@
-use mmdflux::diagram::{EngineAlgorithmId, GeometryLevel, OutputFormat, RenderConfig};
+use mmdflux::diagram::{EdgePreset, EngineAlgorithmId, GeometryLevel, OutputFormat, RenderConfig};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::registry::DiagramInstance;
+
+fn edge_path_data(svg: &str) -> Vec<String> {
+    svg.lines()
+        .map(str::trim)
+        .filter(|line| {
+            line.starts_with("<path d=\"")
+                && (line.contains("marker-end=") || line.contains("marker-start="))
+        })
+        .filter_map(|line| {
+            let start = line.find("d=\"")?;
+            let after = &line[start + 3..];
+            let end = after.find('"')?;
+            Some(after[..end].to_string())
+        })
+        .collect()
+}
+
+fn parse_svg_path_points(path_data: &str) -> Vec<(f64, f64)> {
+    path_data
+        .split_whitespace()
+        .filter_map(|token| {
+            let token = token.trim_start_matches(|c: char| c.is_ascii_alphabetic());
+            let (x, y) = token.split_once(',')?;
+            let x = x.parse::<f64>().ok()?;
+            let y = y.parse::<f64>().ok()?;
+            Some((x, y))
+        })
+        .collect()
+}
+
+fn min_segment_len(points: &[(f64, f64)]) -> f64 {
+    if points.len() < 2 {
+        return 0.0;
+    }
+    points
+        .windows(2)
+        .map(|segment| {
+            let dx = segment[1].0 - segment[0].0;
+            let dy = segment[1].1 - segment[0].1;
+            (dx * dx + dy * dy).sqrt()
+        })
+        .fold(f64::INFINITY, f64::min)
+}
 
 #[test]
 fn flowchart_instance_parse_simple() {
@@ -339,4 +382,41 @@ fn engine_selection_unknown_engine_rejected_at_parse_boundary() {
         "error should mention unknown engine: {}",
         err.message
     );
+}
+
+#[test]
+fn flowchart_instance_svg_polyline_ampersand_avoids_micro_corner_jogs_for_layered_engines() {
+    let input = std::fs::read_to_string("tests/fixtures/flowchart/ampersand.mmd")
+        .expect("fixture should load");
+
+    for engine in ["flux-layered", "mermaid-layered"] {
+        let mut instance = FlowchartInstance::new();
+        instance.parse(&input).expect("fixture should parse");
+        let config = RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse(engine).expect("engine id should parse")),
+            edge_preset: Some(EdgePreset::Polyline),
+            ..Default::default()
+        };
+
+        let svg = instance
+            .render(OutputFormat::Svg, &config)
+            .expect("svg render should succeed");
+        let paths: Vec<Vec<(f64, f64)>> = edge_path_data(&svg)
+            .iter()
+            .map(|path| parse_svg_path_points(path))
+            .collect();
+        assert!(
+            paths.len() >= 4,
+            "ampersand should render four routed edges, got {} for {engine}",
+            paths.len()
+        );
+
+        for (edge_pos, path) in paths.iter().take(2).enumerate() {
+            let min_len = min_segment_len(path);
+            assert!(
+                min_len >= 8.0,
+                "ampersand fan-in edge {edge_pos} should not contain tiny corner jog segments for {engine}: min_segment={min_len:.2}, path={path:?}"
+            );
+        }
+    }
 }

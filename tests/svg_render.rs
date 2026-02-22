@@ -2577,17 +2577,27 @@ fn svg_straight_orthogonal_route_self_loop_tail_does_not_collapse_upward_before_
     let orthogonal_points = edge_path_for_svg_order(&diagram, &orthogonal_svg, edge_idx);
 
     assert!(
-        full_points.len() >= 5 && orthogonal_points.len() >= 5,
-        "expected self-loop to contain at least 5 points; full={full_points:?}, orthogonal={orthogonal_points:?}"
+        full_points.len() >= 4 && orthogonal_points.len() >= 4,
+        "expected self-loop to contain at least 4 points; full={full_points:?}, orthogonal={orthogonal_points:?}"
     );
 
-    let full_tail_elbow = full_points[full_points.len() - 3];
-    let orthogonal_tail_elbow = orthogonal_points[orthogonal_points.len() - 3];
-    let delta_y = (full_tail_elbow.1 - orthogonal_tail_elbow.1).abs();
+    // Compare the bottom loop lane instead of relying on a fixed elbow index.
+    // Polyline cleanup can reduce intermediate points while preserving loop shape.
+    let full_tail_lane_y = full_points
+        .iter()
+        .take(full_points.len().saturating_sub(1))
+        .map(|point| point.1)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let orthogonal_tail_lane_y = orthogonal_points
+        .iter()
+        .take(orthogonal_points.len().saturating_sub(1))
+        .map(|point| point.1)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let delta_y = (full_tail_lane_y - orthogonal_tail_lane_y).abs();
 
     assert!(
         delta_y <= 12.0,
-        "self-loop tail elbow should remain near polyline routing in orthogonal straight mode (avoid upward collapse); full_tail_elbow={full_tail_elbow:?}, orthogonal_tail_elbow={orthogonal_tail_elbow:?}, delta_y={delta_y}, full_points={full_points:?}, orthogonal_points={orthogonal_points:?}"
+        "self-loop tail lane should remain near polyline routing in orthogonal straight mode (avoid upward collapse); full_tail_lane_y={full_tail_lane_y}, orthogonal_tail_lane_y={orthogonal_tail_lane_y}, delta_y={delta_y}, full_points={full_points:?}, orthogonal_points={orthogonal_points:?}"
     );
 }
 
