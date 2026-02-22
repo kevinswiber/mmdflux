@@ -19,9 +19,7 @@ use crate::diagram::{
 pub use crate::diagrams::flowchart::render::edge::{
     render_all_edges, render_all_edges_with_labels, render_edge,
 };
-pub use crate::diagrams::flowchart::render::layout::{
-    Layout, LayoutConfig, SubgraphBounds, compute_layout_direct, compute_layout_from_geometry,
-};
+pub use crate::diagrams::flowchart::render::layout::{Layout, LayoutConfig, SubgraphBounds};
 pub use crate::diagrams::flowchart::render::router::{
     Point, RoutedEdge, Segment, route_all_edges, route_edge,
 };
@@ -29,7 +27,9 @@ pub use crate::diagrams::flowchart::render::shape::{NodeBounds, node_dimensions,
 use crate::diagrams::flowchart::render::subgraph;
 pub use crate::diagrams::flowchart::render::svg::{render_svg, render_svg_from_geometry};
 use crate::diagrams::flowchart::render::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
-pub use crate::diagrams::flowchart::render::text_adapter::geometry_to_text_layout;
+pub use crate::diagrams::flowchart::render::text_adapter::{
+    compute_layout, geometry_to_text_layout,
+};
 use crate::graph::{Diagram, Direction};
 
 /// Engine defaults for SVG style (routing + interpolation + corner).

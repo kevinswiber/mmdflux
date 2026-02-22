@@ -12,8 +12,8 @@ use mmdflux::diagrams::flowchart::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
 use mmdflux::diagrams::mmds::from_mmds_str;
 use mmdflux::render::{
-    Layout, LayoutConfig, RenderOptions, compute_layout_direct, render,
-    render_all_edges_with_labels, route_all_edges,
+    Layout, LayoutConfig, RenderOptions, compute_layout, render, render_all_edges_with_labels,
+    route_all_edges,
 };
 use mmdflux::{
     Diagram, Direction, EdgeRouting, EngineConfig, Shape, build_diagram, default_registry,
@@ -50,7 +50,7 @@ fn parse_and_build(name: &str) -> Diagram {
 /// Parse, build, and compute layout for a fixture file.
 fn layout_fixture(name: &str) -> (Diagram, Layout) {
     let diagram = parse_and_build(name);
-    let layout = compute_layout_direct(&diagram, &LayoutConfig::default());
+    let layout = compute_layout(&diagram, &LayoutConfig::default());
     (diagram, layout)
 }
 
@@ -3904,7 +3904,7 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
         parse_flowchart("graph TD\nA[Very Wide Source Node] -->|cfg| B[Very Wide Target Node]\n")
             .expect("fixture should parse");
     let diagram = build_diagram(&flowchart);
-    let layout = compute_layout_direct(&diagram, &LayoutConfig::default());
+    let layout = compute_layout(&diagram, &LayoutConfig::default());
     let routed_edges = route_all_edges(&diagram.edges, &layout, diagram.direction);
 
     let target_edge = diagram

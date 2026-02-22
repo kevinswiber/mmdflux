@@ -26,6 +26,42 @@ use crate::diagrams::flowchart::geometry::GraphGeometry;
 use crate::graph::{Diagram, Direction, Shape};
 use crate::layered::{Direction as LayeredDirection, Rect};
 
+/// Convenience: run the full engine → adapter pipeline to produce a `Layout`.
+///
+/// This is the canonical way to compute a text layout from a `Diagram` and
+/// `LayoutConfig`. Internally runs `FluxLayeredEngine::text().solve()` then
+/// `geometry_to_text_layout()`.
+pub fn compute_layout(diagram: &Diagram, config: &LayoutConfig) -> Layout {
+    use crate::diagram::{
+        EngineConfig, GraphEngine, GraphSolveRequest, OutputFormat, RenderConfig,
+    };
+    use crate::diagrams::flowchart::engine::FluxLayeredEngine;
+    use crate::layered::LayoutConfig as LayeredConfig;
+
+    let engine = FluxLayeredEngine::text();
+    // Construct raw LayeredConfig without pre-applying cluster_rank_sep.
+    // The engine's internal round-trip applies it exactly once.
+    let engine_config = EngineConfig::Layered(LayeredConfig {
+        direction: match diagram.direction {
+            Direction::TopDown => LayeredDirection::TopBottom,
+            Direction::BottomTop => LayeredDirection::BottomTop,
+            Direction::LeftRight => LayeredDirection::LeftRight,
+            Direction::RightLeft => LayeredDirection::RightLeft,
+        },
+        node_sep: config.node_sep,
+        edge_sep: config.edge_sep,
+        rank_sep: config.rank_sep,
+        margin: config.margin,
+        acyclic: true,
+        ranker: config.ranker.unwrap_or_default(),
+    });
+    let request = GraphSolveRequest::from_config(&RenderConfig::default(), OutputFormat::Text);
+    let result = engine
+        .solve(diagram, &engine_config, &request)
+        .expect("engine solve failed");
+    geometry_to_text_layout(diagram, &result.geometry, config)
+}
+
 /// Convert engine-produced `GraphGeometry` (with text-scale node dimensions)
 /// to the integer-coordinate `Layout` struct consumed by the text renderer.
 ///

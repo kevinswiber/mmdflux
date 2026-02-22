@@ -52,7 +52,7 @@ fn main() {
     let edge_sep = config.edge_sep;
     let mut ranksep = config.rank_sep;
     // Apply cluster rank_sep offset when subgraphs are present, matching
-    // compute_layout_direct which adds cluster_rank_sep for compound graphs.
+    // the engine pipeline which adds cluster_rank_sep for compound graphs.
     if diagram.has_subgraphs() && render_config.cluster_rank_sep > 0.0 {
         ranksep += render_config.cluster_rank_sep;
     }
