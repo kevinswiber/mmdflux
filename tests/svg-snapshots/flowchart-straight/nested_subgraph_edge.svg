@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 435.88 414.00" style="max-width: 435.88px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 355.88 390.00" style="max-width: 355.88px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -19,24 +19,24 @@
       <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
     </marker>
   </defs>
-  <g transform="translate(15.00,21.00)">
+  <g transform="translate(-25.00,12.00)">
     <g class="clusters">
-      <rect class="subgraph" x="-7.00" y="91.00" width="419.88" height="190.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="202.94" y="95.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Cloud</text>
-      <rect class="subgraph" x="13.00" y="122.00" width="379.88" height="134.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="202.94" y="126.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US East</text>
+      <rect class="subgraph" x="33.00" y="100.00" width="339.88" height="146.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="202.94" y="104.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Cloud</text>
+      <rect class="subgraph" x="48.00" y="131.00" width="309.88" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="202.94" y="135.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US East</text>
     </g>
     <g class="edgePaths">
-      <path d="M202.94,41.00 L202.94,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M202.94,281.00 L202.94,327.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M202.94,50.00 L202.94,96.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M202.94,246.00 L202.94,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>
     <g class="nodes">
-      <rect x="152.34" y="-13.00" width="101.20" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="202.94" y="14.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Client</text>
-      <rect x="134.52" y="331.00" width="136.84" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="202.94" y="358.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Monitoring</text>
+      <rect x="152.34" y="-4.00" width="101.20" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="202.94" y="23.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Client</text>
+      <rect x="134.52" y="316.00" width="136.84" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="202.94" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Monitoring</text>
       <rect x="63.00" y="162.00" width="114.94" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="120.47" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server1</text>
       <rect x="227.94" y="162.00" width="114.94" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />

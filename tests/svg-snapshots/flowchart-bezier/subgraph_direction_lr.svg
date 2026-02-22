@@ -21,8 +21,8 @@
   </defs>
   <g transform="translate(59.50,0.00)">
     <g class="clusters">
-      <rect class="subgraph" x="-51.50" y="109.20" width="457.00" height="109.60" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="177.00" y="113.20" text-anchor="middle" dominant-baseline="hanging" fill="#333">Horizontal Flow</text>
+      <rect class="subgraph" x="-51.50" y="114.00" width="457.00" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="177.00" y="118.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Horizontal Flow</text>
     </g>
     <g class="edgePaths">
       <path d="M80.12,62.00 L80.12,65.00 C80.12,68.00 80.12,74.00 69.77,84.17 C59.42,94.33 38.71,108.67 28.35,118.83 C18.00,129.00 18.00,135.00 18.00,138.00 L18.00,141.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

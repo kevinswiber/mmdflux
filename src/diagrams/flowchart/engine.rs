@@ -3,6 +3,8 @@
 //! Provides layered layout via `run_layered_layout` for text and SVG measurement
 //! modes, and implements `GraphEngine` for `FluxLayeredEngine` and `MermaidLayeredEngine`.
 
+use std::collections::HashMap;
+
 use super::geometry::GraphGeometry;
 use super::render::layout::build_layered_layout;
 use super::render::svg::svg_node_dimensions;
@@ -15,7 +17,6 @@ use crate::diagram::{
 use crate::diagrams::flowchart::geometry::RoutedGraphGeometry;
 use crate::graph::Diagram;
 use crate::render::SvgOptions;
-use std::collections::HashMap;
 
 /// Measurement mode controls whether layout uses text-grid character
 /// dimensions or SVG pixel dimensions for node sizing.
