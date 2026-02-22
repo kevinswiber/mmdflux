@@ -5,18 +5,19 @@
 //! coordinates via `MeasurementMode::Text`) and text rendering (which
 //! operates on character-grid integer coordinates).
 //!
-//! **Migration status:** Phases B-G (node placement, scaling, collision repair,
-//! canvas sizing, rank-to-draw mapping) are implemented inline for diagrams
-//! without direction overrides. Phases H+ delegate to
-//! `compute_layout_from_geometry()`. Direction-override diagrams fully
-//! delegate until Phase M is migrated.
+//! **Migration status:** Phases B-I.5 (node placement, scaling, collision repair,
+//! canvas sizing, rank-to-draw mapping, waypoint transform, backward strip,
+//! nudge) are implemented inline for diagrams without direction overrides.
+//! Phases J+ delegate to `compute_layout_from_geometry()`. Direction-override
+//! diagrams fully delegate until Phase M is migrated.
 
 use std::collections::{HashMap, HashSet};
 
 use super::layout::{
-    Layout, LayoutConfig, RawCenter, collision_repair, compute_ascii_scale_factors,
-    compute_grid_positions, compute_layer_starts, compute_layout_from_geometry,
-    layered_config_for_layout, rank_gap_repair,
+    Layout, LayoutConfig, RawCenter, TransformContext, collision_repair,
+    compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts,
+    compute_layout_from_geometry, layered_config_for_layout, nudge_colliding_waypoints,
+    rank_gap_repair, transform_label_positions_direct, transform_waypoints_direct,
 };
 use super::shape::{NodeBounds, node_dimensions};
 use crate::diagrams::flowchart::geometry::GraphGeometry;
@@ -245,14 +246,104 @@ pub fn geometry_to_text_layout(
         }
     }
 
+    // --- Phase F: Compute canvas size ---
+    let has_backward_edges = !geometry.reversed_edges.is_empty();
+    let backward_margin = if has_backward_edges {
+        super::router::BACKWARD_ROUTE_GAP + 2
+    } else {
+        0
+    };
+
+    let base_width = node_bounds
+        .values()
+        .map(|b| b.x + b.width)
+        .max()
+        .unwrap_or(0)
+        + config.padding
+        + config.right_label_margin;
+    let base_height = node_bounds
+        .values()
+        .map(|b| b.y + b.height)
+        .max()
+        .unwrap_or(0)
+        + config.padding;
+
+    let (width, height) = if is_vertical {
+        (base_width + backward_margin, base_height)
+    } else {
+        (base_width, base_height + backward_margin)
+    };
+
     // --- Phase G: Rank-to-draw mapping ---
     let engine_hints = match &geometry.engine_hints {
         Some(crate::diagrams::flowchart::geometry::EngineHints::Layered(h)) => h,
         _ => unreachable!("text adapter requires layered engine hints"),
     };
-    let _layer_starts = compute_layer_starts(&engine_hints.node_ranks, &node_bounds, is_vertical);
+    let layer_starts = compute_layer_starts(&engine_hints.node_ranks, &node_bounds, is_vertical);
 
-    // --- Phases H+: take from delegate ---
+    // --- Phase H: Transform waypoints and labels ---
+    let ctx = TransformContext {
+        layout_min_x,
+        layout_min_y,
+        scale_x,
+        scale_y,
+        padding: config.padding,
+        left_label_margin: config.left_label_margin,
+        overhang_x: max_overhang_x,
+        overhang_y: max_overhang_y,
+    };
+
+    let edge_waypoints_converted = transform_waypoints_direct(
+        &engine_hints.edge_waypoints,
+        &diagram.edges,
+        &ctx,
+        &layer_starts,
+        is_vertical,
+        width,
+        height,
+    );
+
+    let edge_label_positions = transform_label_positions_direct(
+        &engine_hints.label_positions,
+        &diagram.edges,
+        &ctx,
+        &layer_starts,
+        is_vertical,
+        width,
+        height,
+    );
+
+    // --- Phase I: Strip layout waypoints from backward edges ---
+    // When ranks are doubled (labels present), backward edges get inflated layout
+    // waypoints from normalization dummies. Strip them so the router falls through
+    // to synthetic compact routing via generate_backward_waypoints().
+    let mut edge_waypoints = edge_waypoints_converted;
+    const BACKWARD_WAYPOINT_STRIP_THRESHOLD: usize = 6;
+    // The engine always doubles minlen for edge labels (ranks_doubled_for_layers=true).
+    if is_vertical {
+        for edge in &diagram.edges {
+            if let (Some(from_b), Some(to_b)) =
+                (node_bounds.get(&edge.from), node_bounds.get(&edge.to))
+                && super::router::is_backward_edge(from_b, to_b, diagram.direction)
+                && edge_waypoints
+                    .get(&edge.index)
+                    .is_some_and(|wps| wps.len() >= BACKWARD_WAYPOINT_STRIP_THRESHOLD)
+            {
+                edge_waypoints.remove(&edge.index);
+            }
+        }
+    }
+
+    // --- Phase I.5: Nudge waypoints that collide with nodes ---
+    nudge_colliding_waypoints(
+        &mut edge_waypoints,
+        &node_bounds,
+        is_vertical,
+        width,
+        height,
+    );
+
+    // --- Phases J+: take from delegate ---
     // width/height from delegate includes subgraph/self-edge canvas expansion.
     // draw_positions/node_bounds from adapter match delegate (same geometry,
     // same code, no Phase M for this branch).
@@ -264,8 +355,8 @@ pub fn geometry_to_text_layout(
         height: delegate.height,
         h_spacing: config.h_spacing,
         v_spacing: config.v_spacing,
-        edge_waypoints: delegate.edge_waypoints,
-        edge_label_positions: delegate.edge_label_positions,
+        edge_waypoints,
+        edge_label_positions,
         node_shapes: delegate.node_shapes,
         subgraph_bounds: delegate.subgraph_bounds,
         self_edges: delegate.self_edges,

@@ -6,10 +6,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::shape::{NodeBounds, node_dimensions};
+use crate::diagrams::flowchart::geometry::FPoint;
 use crate::graph::{Diagram, Direction, Edge, Node, Shape, Stroke};
-#[cfg(test)]
-use crate::layered::Point;
-use crate::layered::normalize::WaypointWithRank;
 use crate::layered::{self, Direction as LayeredDirection, LayoutConfig as LayeredConfig, Rect};
 
 /// Bounding box for a subgraph border in draw coordinates.
@@ -2345,42 +2343,10 @@ fn compute_layout_impl(
         overhang_y: max_overhang_y,
     };
 
-    // Transient adapter glue: convert LayeredHints back to WaypointWithRank for
-    // the transform functions. This conversion will be removed when the transform
-    // functions are updated to consume geometry IR types directly (Plan 0055).
-    let edge_waypoints_raw: HashMap<usize, Vec<WaypointWithRank>> = engine_hints
-        .edge_waypoints
-        .iter()
-        .map(|(&idx, wps)| {
-            (
-                idx,
-                wps.iter()
-                    .map(|(fp, rank)| WaypointWithRank {
-                        point: layered::Point { x: fp.x, y: fp.y },
-                        rank: *rank,
-                    })
-                    .collect(),
-            )
-        })
-        .collect();
-    let label_positions_raw: HashMap<usize, WaypointWithRank> = engine_hints
-        .label_positions
-        .iter()
-        .map(|(&idx, (fp, rank))| {
-            (
-                idx,
-                WaypointWithRank {
-                    point: layered::Point { x: fp.x, y: fp.y },
-                    rank: *rank,
-                },
-            )
-        })
-        .collect();
-
     if std::env::var("MMDFLUX_DEBUG_WAYPOINTS").is_ok_and(|v| v == "1") {
         eprintln!("[node_ranks] {:?}", engine_hints.node_ranks);
         eprintln!("[layer_starts] {:?}", layer_starts);
-        for (edge_idx, wps) in &edge_waypoints_raw {
+        for (edge_idx, wps) in &engine_hints.edge_waypoints {
             if let Some(edge) = diagram.edges.get(*edge_idx) {
                 eprintln!(
                     "[raw layout waypoints] {} -> {}: {:?}",
@@ -2391,7 +2357,7 @@ fn compute_layout_impl(
     }
 
     let edge_waypoints_converted = transform_waypoints_direct(
-        &edge_waypoints_raw,
+        &engine_hints.edge_waypoints,
         &diagram.edges,
         &ctx,
         &layer_starts,
@@ -2409,7 +2375,7 @@ fn compute_layout_impl(
     }
 
     let mut edge_label_positions_converted = transform_label_positions_direct(
-        &label_positions_raw,
+        &engine_hints.label_positions,
         &diagram.edges,
         &ctx,
         &layer_starts,
@@ -3679,7 +3645,7 @@ fn expand_parent_subgraph_bounds(
 /// If a waypoint falls inside a node, push it just past the node's edge along the
 /// cross-axis (X for vertical layouts, Y for horizontal). The waypoint is then
 /// clamped to stay within canvas bounds.
-fn nudge_colliding_waypoints(
+pub(crate) fn nudge_colliding_waypoints(
     edge_waypoints: &mut HashMap<usize, Vec<(usize, usize)>>,
     node_bounds: &HashMap<String, NodeBounds>,
     is_vertical: bool,
@@ -3705,15 +3671,15 @@ fn nudge_colliding_waypoints(
 }
 
 /// Shared parameters for transforming layout coordinates to ASCII draw coordinates.
-struct TransformContext {
-    layout_min_x: f64,
-    layout_min_y: f64,
-    scale_x: f64,
-    scale_y: f64,
-    padding: usize,
-    left_label_margin: usize,
-    overhang_x: usize,
-    overhang_y: usize,
+pub(crate) struct TransformContext {
+    pub(crate) layout_min_x: f64,
+    pub(crate) layout_min_y: f64,
+    pub(crate) scale_x: f64,
+    pub(crate) scale_y: f64,
+    pub(crate) padding: usize,
+    pub(crate) left_label_margin: usize,
+    pub(crate) overhang_x: usize,
+    pub(crate) overhang_y: usize,
 }
 
 impl TransformContext {
@@ -3752,8 +3718,8 @@ impl TransformContext {
 /// The primary axis (Y for TD/BT, X for LR/RL) uses `layer_starts` to snap to
 /// the correct rank position. The cross axis uses uniform scaling from layout
 /// coordinates, ensuring consistency with node positions.
-fn transform_waypoints_direct(
-    edge_waypoints: &HashMap<usize, Vec<WaypointWithRank>>,
+pub(crate) fn transform_waypoints_direct(
+    edge_waypoints: &HashMap<usize, Vec<(FPoint, i32)>>,
     edges: &[Edge],
     ctx: &TransformContext,
     layer_starts: &[usize],
@@ -3767,10 +3733,10 @@ fn transform_waypoints_direct(
         if edges.get(*edge_idx).is_some() {
             let wps: Vec<(usize, usize)> = waypoints
                 .iter()
-                .map(|wp| {
-                    let rank_idx = wp.rank as usize;
+                .map(|(fp, rank)| {
+                    let rank_idx = *rank as usize;
                     let layer_pos = layer_starts.get(rank_idx).copied().unwrap_or(0);
-                    let (scaled_x, scaled_y) = ctx.to_ascii(wp.point.x, wp.point.y);
+                    let (scaled_x, scaled_y) = ctx.to_ascii(fp.x, fp.y);
 
                     if is_vertical {
                         (scaled_x.min(canvas_width.saturating_sub(1)), layer_pos)
@@ -3792,8 +3758,8 @@ fn transform_waypoints_direct(
 /// The primary axis (Y for TD/BT, X for LR/RL) uses rank-based snapping via
 /// `layer_starts[rank]`, matching how `transform_waypoints_direct()` works.
 /// The cross axis uses uniform scaling from layout coordinates.
-fn transform_label_positions_direct(
-    label_positions: &HashMap<usize, WaypointWithRank>,
+pub(crate) fn transform_label_positions_direct(
+    label_positions: &HashMap<usize, (FPoint, i32)>,
     edges: &[Edge],
     ctx: &TransformContext,
     layer_starts: &[usize],
@@ -3803,11 +3769,11 @@ fn transform_label_positions_direct(
 ) -> HashMap<usize, (usize, usize)> {
     let mut converted = HashMap::new();
 
-    for (edge_idx, wp) in label_positions {
+    for (edge_idx, (fp, rank)) in label_positions {
         if edges.get(*edge_idx).is_some() {
-            let rank_idx = wp.rank as usize;
+            let rank_idx = *rank as usize;
             let layer_pos = layer_starts.get(rank_idx).copied().unwrap_or(0);
-            let (scaled_x, scaled_y) = ctx.to_ascii(wp.point.x, wp.point.y);
+            let (scaled_x, scaled_y) = ctx.to_ascii(fp.x, fp.y);
 
             let pos = if is_vertical {
                 (scaled_x.min(canvas_width.saturating_sub(1)), layer_pos)
@@ -4181,13 +4147,7 @@ mod tests {
         ];
 
         let mut waypoints = HashMap::new();
-        waypoints.insert(
-            0usize,
-            vec![WaypointWithRank {
-                point: Point { x: 100.0, y: 75.0 },
-                rank: 1,
-            }],
-        );
+        waypoints.insert(0usize, vec![(FPoint::new(100.0, 75.0), 1)]);
 
         let layer_starts = vec![1, 5, 9];
         let ctx = TransformContext {
@@ -4223,13 +4183,7 @@ mod tests {
         ];
 
         let mut waypoints = HashMap::new();
-        waypoints.insert(
-            0usize,
-            vec![WaypointWithRank {
-                point: Point { x: 75.0, y: 100.0 },
-                rank: 1,
-            }],
-        );
+        waypoints.insert(0usize, vec![(FPoint::new(75.0, 100.0), 1)]);
 
         let layer_starts = vec![1, 8, 15];
         let ctx = TransformContext {
@@ -4260,13 +4214,7 @@ mod tests {
         ];
 
         let mut waypoints = HashMap::new();
-        waypoints.insert(
-            0usize,
-            vec![WaypointWithRank {
-                point: Point { x: 5000.0, y: 50.0 },
-                rank: 0,
-            }],
-        );
+        waypoints.insert(0usize, vec![(FPoint::new(5000.0, 50.0), 0)]);
 
         let layer_starts = vec![1];
         let ctx = TransformContext {
@@ -4289,7 +4237,7 @@ mod tests {
     #[test]
     fn waypoint_transform_empty_input() {
         let edges: Vec<Edge> = vec![];
-        let waypoints: HashMap<usize, Vec<WaypointWithRank>> = HashMap::new();
+        let waypoints: HashMap<usize, Vec<(FPoint, i32)>> = HashMap::new();
         let ctx = TransformContext {
             layout_min_x: 0.0,
             layout_min_y: 0.0,
@@ -4319,13 +4267,7 @@ mod tests {
         ];
 
         let mut labels = HashMap::new();
-        labels.insert(
-            0usize,
-            WaypointWithRank {
-                point: Point { x: 150.0, y: 100.0 },
-                rank: 1,
-            },
-        );
+        labels.insert(0usize, (FPoint::new(150.0, 100.0), 1));
 
         let ctx = TransformContext {
             layout_min_x: 50.0,
@@ -4359,13 +4301,7 @@ mod tests {
         ];
 
         let mut labels = HashMap::new();
-        labels.insert(
-            0usize,
-            WaypointWithRank {
-                point: Point { x: 150.0, y: 100.0 },
-                rank: 1,
-            },
-        );
+        labels.insert(0usize, (FPoint::new(150.0, 100.0), 1));
 
         let ctx = TransformContext {
             layout_min_x: 50.0,
@@ -4388,7 +4324,7 @@ mod tests {
     #[test]
     fn label_transform_empty_input() {
         let edges: Vec<Edge> = vec![];
-        let labels: HashMap<usize, WaypointWithRank> = HashMap::new();
+        let labels: HashMap<usize, (FPoint, i32)> = HashMap::new();
         let ctx = TransformContext {
             layout_min_x: 0.0,
             layout_min_y: 0.0,
@@ -4562,13 +4498,7 @@ mod tests {
         ];
 
         let mut labels = HashMap::new();
-        labels.insert(
-            5usize,
-            WaypointWithRank {
-                point: Point { x: 100.0, y: 100.0 },
-                rank: 0,
-            },
-        );
+        labels.insert(5usize, (FPoint::new(100.0, 100.0), 0));
 
         let ctx = TransformContext {
             layout_min_x: 0.0,
