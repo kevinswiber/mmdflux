@@ -6,14 +6,14 @@ use std::fmt::Write;
 use super::super::geometry::{self, GraphGeometry};
 use super::orthogonal_router::{OrthogonalRoutingOptions, route_edges_orthogonal};
 use super::route_policy::effective_edge_direction;
-use super::routing_core::{
-    build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
-};
 use super::svg_metrics::SvgTextMetrics;
 use super::svg_router;
 use super::text_layout::{
     build_layered_layout, center_override_subgraphs, compute_sublayouts, expand_parent_bounds,
     layered_config_for_layout, reconcile_sublayouts, resolve_sublayout_overlaps,
+};
+use super::text_routing_core::{
+    build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
 };
 use crate::diagram::{CornerStyle, EdgeRouting, InterpolationStyle, PathSimplification};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke};

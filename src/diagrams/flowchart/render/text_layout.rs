@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 pub(crate) use super::layout_building::{
     SubLayoutResult, build_layered_layout, compute_sublayouts, layered_config_for_layout,
 };
-use super::shape::{NodeBounds, node_dimensions};
+use super::text_shape::{NodeBounds, node_dimensions};
 pub(crate) use super::text_types::{CoordTransform, RawCenter, TransformContext};
 // Re-export text types from their canonical location.
 pub use super::text_types::{

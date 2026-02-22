@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use super::shape::NodeBounds;
+use super::text_shape::NodeBounds;
 use crate::graph::{Direction, Shape};
 use crate::layered::Rect;
 

@@ -6,7 +6,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::route_policy::{build_override_node_map, effective_edge_direction};
-use super::routing_core::{
+use super::text_routing_core::{
     Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
     fan_in_overflow_face_for_slot, fan_in_primary_face_capacity, fan_in_primary_target_face,
     intersect_shape_boundary_float, normalize_orthogonal_route_contracts,

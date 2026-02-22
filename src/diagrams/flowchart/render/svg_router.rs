@@ -13,7 +13,7 @@ pub use super::route_policy::build_node_directions as build_node_directions_svg;
 pub use super::route_policy::{
     build_override_node_map, effective_edge_direction as effective_edge_direction_svg,
 };
-use super::routing_core::{
+use super::text_routing_core::{
     AttachmentCandidate, AttachmentSide, Face, build_orthogonal_path_float,
     edge_faces as shared_edge_faces, plan_attachment_candidates,
     point_on_face_float as shared_point_on_face_float,

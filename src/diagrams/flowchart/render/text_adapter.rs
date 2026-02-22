@@ -11,7 +11,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::shape::{NodeBounds, node_dimensions};
 use super::text_layout::{
     CoordTransform, Layout, LayoutConfig, RawCenter, SelfEdgeDrawData, TransformContext,
     align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
@@ -22,6 +21,7 @@ use super::text_layout::{
     subgraph_bounds_to_draw, text_edge_label_dimensions, transform_label_positions_direct,
     transform_waypoints_direct,
 };
+use super::text_shape::{NodeBounds, node_dimensions};
 use crate::diagrams::flowchart::geometry::GraphGeometry;
 use crate::graph::{Diagram, Direction, Shape};
 use crate::layered::{Direction as LayeredDirection, Rect};
@@ -292,7 +292,7 @@ pub fn geometry_to_text_layout(
     // --- Phase F: Compute canvas size ---
     let has_backward_edges = !geometry.reversed_edges.is_empty();
     let backward_margin = if has_backward_edges {
-        super::router::BACKWARD_ROUTE_GAP + 2
+        super::text_router::BACKWARD_ROUTE_GAP + 2
     } else {
         0
     };
@@ -367,7 +367,7 @@ pub fn geometry_to_text_layout(
         for edge in &diagram.edges {
             if let (Some(from_b), Some(to_b)) =
                 (node_bounds.get(&edge.from), node_bounds.get(&edge.to))
-                && super::router::is_backward_edge(from_b, to_b, diagram.direction)
+                && super::text_router::is_backward_edge(from_b, to_b, diagram.direction)
                 && edge_waypoints
                     .get(&edge.index)
                     .is_some_and(|wps| wps.len() >= BACKWARD_WAYPOINT_STRIP_THRESHOLD)

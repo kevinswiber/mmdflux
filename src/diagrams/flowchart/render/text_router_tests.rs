@@ -2,7 +2,7 @@ use super::super::text_adapter::compute_layout;
 use super::super::text_layout::LayoutConfig;
 use super::*;
 use crate::diagrams::flowchart::geometry::{FPoint, FRect};
-use crate::diagrams::flowchart::render::routing_core::{
+use crate::diagrams::flowchart::render::text_routing_core::{
     Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
     classify_face_float, edge_faces, fan_in_overflow_face_for_slot, fan_in_primary_face_capacity,
     plan_attachments, point_on_face_float, resolve_overflow_backward_channel_conflict,

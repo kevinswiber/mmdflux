@@ -16,22 +16,24 @@ use crate::diagram::{
     AlgorithmId, CornerStyle, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId, GraphEngine,
     InterpolationStyle, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
 };
-pub use crate::diagrams::flowchart::render::edge::{
-    render_all_edges, render_all_edges_with_labels, render_edge,
-};
-pub use crate::diagrams::flowchart::render::router::{
-    Point, RoutedEdge, Segment, route_all_edges, route_edge,
-};
-pub use crate::diagrams::flowchart::render::shape::{NodeBounds, node_dimensions, render_node};
-use crate::diagrams::flowchart::render::subgraph;
 pub use crate::diagrams::flowchart::render::svg::{render_svg, render_svg_from_geometry};
 use crate::diagrams::flowchart::render::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
 pub use crate::diagrams::flowchart::render::text_adapter::{
     compute_layout, geometry_to_text_layout,
 };
+pub use crate::diagrams::flowchart::render::text_edge::{
+    render_all_edges, render_all_edges_with_labels, render_edge,
+};
 pub use crate::diagrams::flowchart::render::text_layout::{
     Layout, LayoutConfig, SubgraphBounds, TextLayoutConfig,
 };
+pub use crate::diagrams::flowchart::render::text_router::{
+    Point, RoutedEdge, Segment, route_all_edges, route_edge,
+};
+pub use crate::diagrams::flowchart::render::text_shape::{
+    NodeBounds, node_dimensions, render_node,
+};
+use crate::diagrams::flowchart::render::text_subgraph;
 use crate::graph::{Diagram, Direction};
 
 /// Engine defaults for SVG style (routing + interpolation + corner).
@@ -278,7 +280,7 @@ pub fn render_text_from_layout(
 
     // Step 2.5: Render subgraph borders FIRST (z-order: background)
     if !layout.subgraph_bounds.is_empty() {
-        subgraph::render_subgraph_borders(&mut canvas, &layout.subgraph_bounds, &charset);
+        text_subgraph::render_subgraph_borders(&mut canvas, &layout.subgraph_bounds, &charset);
     }
 
     // Step 3: Render nodes
