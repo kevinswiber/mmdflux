@@ -2431,8 +2431,7 @@ fn compute_layout_impl(
         max_overhang_y,
         config,
     };
-    // Transient adapter glue: convert GraphGeometry subgraphs back to layered Rect map
-    // for subgraph_bounds_to_draw. Will be removed in Plan 0055.
+    // Convert GraphGeometry subgraphs to layered Rect map for subgraph_bounds_to_draw.
     let layout_sg_bounds: HashMap<String, Rect> = geom
         .subgraphs
         .iter()
