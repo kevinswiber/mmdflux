@@ -1,5 +1,5 @@
-use super::super::layout::LayoutConfig;
 use super::super::text_adapter::compute_layout;
+use super::super::text_layout::LayoutConfig;
 use super::*;
 use crate::diagrams::flowchart::geometry::{FPoint, FRect};
 use crate::diagrams::flowchart::render::routing_core::{

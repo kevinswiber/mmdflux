@@ -1,7 +1,6 @@
 //! Flowchart-specific rendering and routing modules.
 
 pub mod edge;
-pub mod layout;
 pub(crate) mod layout_building;
 pub(crate) mod layout_subgraph_ops;
 pub(crate) mod orthogonal_router;
@@ -14,4 +13,5 @@ pub mod svg;
 pub(crate) mod svg_metrics;
 pub(crate) mod svg_router;
 pub mod text_adapter;
+pub mod text_layout;
 pub mod text_types;

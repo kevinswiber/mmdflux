@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use super::layout::SubgraphBounds;
+use super::text_layout::SubgraphBounds;
 use crate::render::canvas::Canvas;
 use crate::render::chars::CharSet;
 

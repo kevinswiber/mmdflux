@@ -6,11 +6,11 @@
 use std::collections::HashMap;
 
 use super::geometry::GraphGeometry;
-use super::render::layout::{
-    build_layered_layout, center_override_subgraphs, expand_parent_bounds,
-};
 use super::render::svg::svg_node_dimensions;
 use super::render::svg_metrics::SvgTextMetrics;
+use super::render::text_layout::{
+    build_layered_layout, center_override_subgraphs, expand_parent_bounds,
+};
 use crate::diagram::{
     AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineConfig, EngineId,
     GeometryLevel, GraphEngine, GraphSolveRequest, GraphSolveResult, OutputFormat, RenderConfig,
@@ -450,8 +450,8 @@ impl GraphEngine for MermaidLayeredEngine {
 fn layout_config_from_layered(
     layered_cfg: &crate::layered::types::LayoutConfig,
     diagram: &Diagram,
-) -> crate::diagrams::flowchart::render::layout::TextLayoutConfig {
-    use crate::diagrams::flowchart::render::layout::TextLayoutConfig as FlowchartLayoutConfig;
+) -> crate::diagrams::flowchart::render::text_layout::TextLayoutConfig {
+    use crate::diagrams::flowchart::render::text_layout::TextLayoutConfig as FlowchartLayoutConfig;
 
     let defaults = FlowchartLayoutConfig::default();
     let extra_padding = if diagram.has_subgraphs() {

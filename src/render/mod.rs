@@ -19,9 +19,6 @@ use crate::diagram::{
 pub use crate::diagrams::flowchart::render::edge::{
     render_all_edges, render_all_edges_with_labels, render_edge,
 };
-pub use crate::diagrams::flowchart::render::layout::{
-    Layout, LayoutConfig, SubgraphBounds, TextLayoutConfig,
-};
 pub use crate::diagrams::flowchart::render::router::{
     Point, RoutedEdge, Segment, route_all_edges, route_edge,
 };
@@ -31,6 +28,9 @@ pub use crate::diagrams::flowchart::render::svg::{render_svg, render_svg_from_ge
 use crate::diagrams::flowchart::render::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
 pub use crate::diagrams::flowchart::render::text_adapter::{
     compute_layout, geometry_to_text_layout,
+};
+pub use crate::diagrams::flowchart::render::text_layout::{
+    Layout, LayoutConfig, SubgraphBounds, TextLayoutConfig,
 };
 use crate::graph::{Diagram, Direction};
 

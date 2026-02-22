@@ -1089,9 +1089,9 @@ fn draw_label_direct(
 
 #[cfg(test)]
 mod tests {
-    use super::super::layout::LayoutConfig;
     use super::super::router::route_edge;
     use super::super::text_adapter::compute_layout;
+    use super::super::text_layout::LayoutConfig;
     use super::*;
     use crate::graph::{Diagram, Edge, Node};
 

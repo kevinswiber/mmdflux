@@ -4,10 +4,6 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
 use super::super::geometry::{self, GraphGeometry};
-use super::layout::{
-    build_layered_layout, center_override_subgraphs, compute_sublayouts, expand_parent_bounds,
-    layered_config_for_layout, reconcile_sublayouts, resolve_sublayout_overlaps,
-};
 use super::orthogonal_router::{OrthogonalRoutingOptions, route_edges_orthogonal};
 use super::route_policy::effective_edge_direction;
 use super::routing_core::{
@@ -15,6 +11,10 @@ use super::routing_core::{
 };
 use super::svg_metrics::SvgTextMetrics;
 use super::svg_router;
+use super::text_layout::{
+    build_layered_layout, center_override_subgraphs, compute_sublayouts, expand_parent_bounds,
+    layered_config_for_layout, reconcile_sublayouts, resolve_sublayout_overlaps,
+};
 use crate::diagram::{CornerStyle, EdgeRouting, InterpolationStyle, PathSimplification};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke};
 use crate::layered::{LayoutResult, Point, Rect};
@@ -68,7 +68,7 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
 /// (via `instance.rs`) and the legacy `render_svg()` path.
 pub(crate) fn build_svg_layout(
     diagram: &Diagram,
-    config: &super::layout::LayoutConfig,
+    config: &super::text_layout::LayoutConfig,
     metrics: &SvgTextMetrics,
     edge_routing: EdgeRouting,
     skip_non_isolated_overrides: bool,

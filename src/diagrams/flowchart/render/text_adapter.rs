@@ -11,7 +11,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::layout::{
+use super::shape::{NodeBounds, node_dimensions};
+use super::text_layout::{
     CoordTransform, Layout, LayoutConfig, RawCenter, SelfEdgeDrawData, TransformContext,
     align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
     compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts, compute_sublayouts,
@@ -21,7 +22,6 @@ use super::layout::{
     subgraph_bounds_to_draw, text_edge_label_dimensions, transform_label_positions_direct,
     transform_waypoints_direct,
 };
-use super::shape::{NodeBounds, node_dimensions};
 use crate::diagrams::flowchart::geometry::GraphGeometry;
 use crate::graph::{Diagram, Direction, Shape};
 use crate::layered::{Direction as LayeredDirection, Rect};

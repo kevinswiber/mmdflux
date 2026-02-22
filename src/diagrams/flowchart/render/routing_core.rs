@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use super::layout::{Layout, SubgraphBounds};
 use super::shape::NodeBounds;
+use super::text_layout::{Layout, SubgraphBounds};
 use crate::diagrams::flowchart::geometry::{FPoint, FRect};
 use crate::graph::{Direction, Edge, Shape, Stroke};
 use crate::render::intersect::{NodeFace, classify_face};
