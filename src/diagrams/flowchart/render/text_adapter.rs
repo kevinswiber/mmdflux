@@ -5,20 +5,21 @@
 //! coordinates via `MeasurementMode::Text`) and text rendering (which
 //! operates on character-grid integer coordinates).
 //!
-//! **Migration status:** Phases B-I.5 (node placement, scaling, collision repair,
-//! canvas sizing, rank-to-draw mapping, waypoint transform, backward strip,
-//! nudge) are implemented inline for diagrams without direction overrides.
-//! Phases J+ delegate to `compute_layout_from_geometry()`. Direction-override
-//! diagrams fully delegate until Phase M is migrated.
+//! All phases (B-N) are implemented inline, reading directly from
+//! `GraphGeometry` and its `LayeredHints`. Direction-override subgraphs
+//! are handled by Phase M (sublayout reconciliation).
 
 use std::collections::{HashMap, HashSet};
 
 use super::layout::{
     CoordTransform, Layout, LayoutConfig, RawCenter, SelfEdgeDrawData, TransformContext,
-    collision_repair, compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts,
-    compute_layout_from_geometry, layered_config_for_layout, nudge_colliding_waypoints,
-    rank_gap_repair, shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps,
-    subgraph_bounds_to_draw, transform_label_positions_direct, transform_waypoints_direct,
+    align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
+    compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts, compute_sublayouts,
+    ensure_external_edge_spacing, expand_parent_subgraph_bounds, layered_config_for_layout,
+    nudge_colliding_waypoints, rank_gap_repair, reconcile_sublayouts_draw,
+    resolve_sibling_overlaps_draw, shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps,
+    subgraph_bounds_to_draw, text_edge_label_dimensions, transform_label_positions_direct,
+    transform_waypoints_direct,
 };
 use super::shape::{NodeBounds, node_dimensions};
 use crate::diagrams::flowchart::geometry::GraphGeometry;
@@ -28,31 +29,35 @@ use crate::layered::{Direction as LayeredDirection, Rect};
 /// Convert engine-produced `GraphGeometry` (with text-scale node dimensions)
 /// to the integer-coordinate `Layout` struct consumed by the text renderer.
 ///
-/// Phases B-F (node placement, scaling, collision repair, canvas sizing)
-/// read directly from `GraphGeometry` for diagrams without direction overrides.
-/// Diagrams with direction overrides fully delegate to
-/// `compute_layout_from_geometry()` until Phase M is migrated.
+/// All phases (B-N) are implemented inline, reading directly from
+/// `GraphGeometry`. Direction-override subgraphs are handled by
+/// Phase M (sublayout reconciliation).
 pub fn geometry_to_text_layout(
     diagram: &Diagram,
     geometry: &GraphGeometry,
     config: &LayoutConfig,
 ) -> Layout {
-    // Phase M (sublayout reconciliation) modifies draw_positions and node_bounds
-    // for direction-override subgraphs. Until Phase M is migrated to the adapter,
-    // delegate entirely for those diagrams.
-    let has_dir_overrides = diagram.subgraphs.values().any(|sg| sg.dir.is_some());
-
-    // Delegate handles all phases consistently from the same geometry.
-    let delegate = compute_layout_from_geometry(diagram, geometry, config);
-
-    if has_dir_overrides {
-        return delegate;
-    }
-
-    // --- Phase B: Group nodes into layers ---
     let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomTop);
     let direction = diagram.direction;
     let layered_config = layered_config_for_layout(diagram, config);
+
+    // Pre-compute sub-layouts for subgraphs with direction overrides.
+    let sublayouts = compute_sublayouts(
+        diagram,
+        &layered_config,
+        |node| {
+            let (w, h) = node_dimensions(node, direction);
+            (w as f64, h as f64)
+        },
+        |edge| {
+            edge.label
+                .as_ref()
+                .map(|label| text_edge_label_dimensions(label))
+        },
+        false,
+    );
+
+    // --- Phase B: Group nodes into layers ---
 
     let subgraph_ids: HashSet<&str> = diagram.subgraphs.keys().map(|s| s.as_str()).collect();
 
@@ -305,7 +310,7 @@ pub fn geometry_to_text_layout(
         height,
     );
 
-    let edge_label_positions = transform_label_positions_direct(
+    let mut edge_label_positions = transform_label_positions_direct(
         &engine_hints.label_positions,
         &diagram.edges,
         &ctx,
@@ -466,8 +471,106 @@ pub fn geometry_to_text_layout(
         }
     }
 
-    // --- Phases M+: take from delegate ---
-    // node_directions from delegate (Phase M reconciliation not yet migrated).
+    // --- Phase M: Direction-override sub-layout reconciliation ---
+    if !sublayouts.is_empty() {
+        reconcile_sublayouts_draw(
+            diagram,
+            config,
+            &sublayouts,
+            &mut draw_positions,
+            &mut node_bounds,
+            &mut subgraph_bounds,
+            &mut width,
+            &mut height,
+        );
+
+        expand_parent_subgraph_bounds(&diagram.subgraphs, &mut subgraph_bounds);
+
+        resolve_sibling_overlaps_draw(
+            diagram,
+            &mut node_bounds,
+            &mut draw_positions,
+            &mut subgraph_bounds,
+        );
+
+        align_cross_boundary_siblings_draw(
+            diagram,
+            &mut node_bounds,
+            &mut draw_positions,
+            &mut subgraph_bounds,
+        );
+
+        expand_parent_subgraph_bounds(&diagram.subgraphs, &mut subgraph_bounds);
+
+        // --- Phase N: Ensure external-edge spacing ---
+        ensure_external_edge_spacing(
+            diagram,
+            &mut draw_positions,
+            &mut node_bounds,
+            &mut subgraph_bounds,
+        );
+
+        // Invalidate/adjust waypoints for edges touching override subgraphs.
+        for sg in diagram.subgraphs.values() {
+            if sg.dir.is_none() {
+                continue;
+            }
+            let sg_node_set: HashSet<&str> = sg.nodes.iter().map(|s| s.as_str()).collect();
+            for edge in &diagram.edges {
+                let from_in = sg_node_set.contains(edge.from.as_str());
+                let to_in = sg_node_set.contains(edge.to.as_str());
+                if !(from_in || to_in) {
+                    continue;
+                }
+                let key = edge.index;
+                if from_in && to_in {
+                    edge_waypoints.remove(&key);
+                } else if let Some(bounds) = subgraph_bounds.get(&sg.id)
+                    && let Some(wps) = edge_waypoints.get(&key).cloned()
+                {
+                    let clipped = clip_waypoints_to_subgraph(&wps, bounds, from_in, to_in);
+                    if to_in && !from_in {
+                        let stale = node_bounds.get(&edge.from).is_some_and(|src_nb| {
+                            clipped.last().is_some_and(|last| {
+                                let src_cy = src_nb.y + src_nb.height / 2;
+                                let src_cx = src_nb.x + src_nb.width / 2;
+                                let on_top = last.1 == bounds.y;
+                                let on_bottom =
+                                    last.1 == bounds.y + bounds.height.saturating_sub(1);
+                                let on_left = last.0 == bounds.x;
+                                let on_right = last.0 == bounds.x + bounds.width.saturating_sub(1);
+                                (src_cy < bounds.y && !on_top)
+                                    || (src_cy > bounds.y + bounds.height && !on_bottom)
+                                    || (src_cx < bounds.x && !on_left)
+                                    || (src_cx > bounds.x + bounds.width && !on_right)
+                            })
+                        });
+                        if stale {
+                            edge_waypoints.remove(&key);
+                        } else {
+                            edge_waypoints.insert(key, clipped);
+                        }
+                    } else {
+                        edge_waypoints.insert(key, clipped);
+                    }
+                }
+                edge_label_positions.remove(&key);
+            }
+        }
+
+        // Re-expand canvas after Phase N shifts.
+        for sb in subgraph_bounds.values() {
+            width = width.max(sb.x + sb.width + config.padding);
+            height = height.max(sb.y + sb.height + config.padding);
+        }
+        for nb in node_bounds.values() {
+            width = width.max(nb.x + nb.width + config.padding);
+            height = height.max(nb.y + nb.height + config.padding);
+        }
+    }
+
+    let node_directions = geometry.node_directions.clone();
+
     Layout {
         grid_positions,
         draw_positions,
@@ -481,6 +584,6 @@ pub fn geometry_to_text_layout(
         node_shapes,
         subgraph_bounds,
         self_edges,
-        node_directions: delegate.node_directions,
+        node_directions,
     }
 }

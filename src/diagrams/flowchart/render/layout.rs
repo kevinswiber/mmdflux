@@ -402,7 +402,7 @@ where
 /// 3. Center the sub-layout's draw positions within the subgraph bounds
 /// 4. Override draw_positions, node_bounds, and subgraph_bounds
 #[allow(clippy::too_many_arguments)]
-fn reconcile_sublayouts_draw(
+pub(crate) fn reconcile_sublayouts_draw(
     diagram: &Diagram,
     config: &LayoutConfig,
     sublayouts: &HashMap<String, SubLayoutResult>,
@@ -654,7 +654,7 @@ fn reconcile_sublayouts_draw(
 /// For each direction-override parent, detect nodes that overlap with sibling
 /// child subgraph bounds and shift the subgraph (and all its contents) away
 /// to create separation.
-fn resolve_sibling_overlaps_draw(
+pub(crate) fn resolve_sibling_overlaps_draw(
     diagram: &Diagram,
     node_bounds: &mut HashMap<String, NodeBounds>,
     draw_positions: &mut HashMap<String, (usize, usize)>,
@@ -837,7 +837,7 @@ fn resolve_sibling_overlaps_draw(
 /// direction.  Without this, a node like C in an LR subgraph may stay vertically
 /// aligned with B (top of a BT child subgraph) instead of A (its actual target at
 /// the bottom), forcing the C→A edge to route diagonally through B's area.
-fn align_cross_boundary_siblings_draw(
+pub(crate) fn align_cross_boundary_siblings_draw(
     diagram: &Diagram,
     node_bounds: &mut HashMap<String, NodeBounds>,
     draw_positions: &mut HashMap<String, (usize, usize)>,
@@ -1976,7 +1976,7 @@ where
     build_layered_layout_with_config(diagram, &layered_config, node_dims, edge_label_dims)
 }
 
-fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
+pub(crate) fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
     let lines: Vec<&str> = label.split('\n').collect();
     let width = lines
         .iter()
@@ -3250,7 +3250,7 @@ pub(crate) fn shrink_subgraph_vertical_gaps(
 ///
 /// For each direction-override subgraph with external edges, this pushes the
 /// border inward so there is a 1-cell gap on the entry side.
-fn ensure_external_edge_spacing(
+pub(crate) fn ensure_external_edge_spacing(
     diagram: &Diagram,
     draw_positions: &mut HashMap<String, (usize, usize)>,
     node_bounds: &mut HashMap<String, NodeBounds>,
@@ -3599,7 +3599,7 @@ fn is_node_in_subgraph(
     false
 }
 
-fn expand_parent_subgraph_bounds(
+pub(crate) fn expand_parent_subgraph_bounds(
     subgraphs: &HashMap<String, crate::graph::Subgraph>,
     subgraph_bounds: &mut HashMap<String, SubgraphBounds>,
 ) {
@@ -3854,7 +3854,7 @@ fn segment_bounds_intersection(
         .map(|(_, point)| point)
 }
 
-fn clip_waypoints_to_subgraph(
+pub(crate) fn clip_waypoints_to_subgraph(
     waypoints: &[(usize, usize)],
     bounds: &SubgraphBounds,
     clip_start: bool,
