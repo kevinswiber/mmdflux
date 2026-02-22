@@ -224,6 +224,7 @@ fn parse_error_to_diagnostic(err: &ParseError) -> LintDiagnostic {
             line,
             column,
             message,
+            ..
         } => LintDiagnostic {
             severity: Severity::Error,
             line: Some(*line),
