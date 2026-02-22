@@ -25,7 +25,7 @@ pub use crate::diagrams::flowchart::render::text_edge::{
     render_all_edges, render_all_edges_with_labels, render_edge,
 };
 pub use crate::diagrams::flowchart::render::text_layout::{
-    Layout, LayoutConfig, SubgraphBounds, TextLayoutConfig,
+    Layout, SubgraphBounds, TextLayoutConfig,
 };
 pub use crate::diagrams::flowchart::render::text_router::{
     Point, RoutedEdge, Segment, route_all_edges, route_edge,
@@ -318,8 +318,8 @@ pub fn render_text_from_layout(
 /// Compute layout configuration appropriate for the diagram.
 ///
 /// For LR/RL layouts, we need more horizontal spacing to accommodate edge labels.
-pub fn layout_config_for_diagram(diagram: &Diagram, options: &RenderOptions) -> LayoutConfig {
-    let mut config = LayoutConfig::default();
+pub fn layout_config_for_diagram(diagram: &Diagram, options: &RenderOptions) -> TextLayoutConfig {
+    let mut config = TextLayoutConfig::default();
 
     // Check if any edges have labels
     let max_label_len = diagram

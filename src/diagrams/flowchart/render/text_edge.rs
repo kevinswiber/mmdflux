@@ -1090,7 +1090,7 @@ fn draw_label_direct(
 #[cfg(test)]
 mod tests {
     use super::super::text_adapter::compute_layout;
-    use super::super::text_layout::LayoutConfig;
+    use super::super::text_layout::TextLayoutConfig;
     use super::super::text_router::route_edge;
     use super::*;
     use crate::graph::{Diagram, Edge, Node};
@@ -1106,7 +1106,7 @@ mod tests {
     #[test]
     fn test_render_vertical_edge() {
         let diagram = simple_diagram();
-        let config = LayoutConfig::default();
+        let config = TextLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let mut canvas = Canvas::new(layout.width, layout.height);
@@ -1131,7 +1131,7 @@ mod tests {
     #[test]
     fn test_render_edge_with_arrow() {
         let diagram = simple_diagram();
-        let config = LayoutConfig::default();
+        let config = TextLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let mut canvas = Canvas::new(layout.width, layout.height);
@@ -1160,7 +1160,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("B"));
         diagram.add_edge(Edge::new("A", "B").with_stroke(Stroke::Dotted));
 
-        let config = LayoutConfig::default();
+        let config = TextLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let mut canvas = Canvas::new(layout.width, layout.height);
@@ -1189,7 +1189,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("B"));
         diagram.add_edge(Edge::new("A", "B").with_arrow(Arrow::None));
 
-        let config = LayoutConfig::default();
+        let config = TextLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let mut canvas = Canvas::new(layout.width, layout.height);
@@ -1251,7 +1251,7 @@ mod tests {
     #[test]
     fn test_render_all_edges() {
         let diagram = simple_diagram();
-        let config = LayoutConfig::default();
+        let config = TextLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let mut canvas = Canvas::new(layout.width, layout.height);
@@ -1400,7 +1400,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("End"));
         diagram.add_edge(Edge::new("A", "B").with_label("yes"));
 
-        let config = LayoutConfig::default();
+        let config = TextLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         // The A->B edge should have waypoints from the label dummy
@@ -1549,7 +1549,7 @@ mod tests {
         edge.label = Some("test".to_string());
         diagram.add_edge(edge);
 
-        let config = LayoutConfig::default();
+        let config = TextLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
         let charset = CharSet::unicode();
 

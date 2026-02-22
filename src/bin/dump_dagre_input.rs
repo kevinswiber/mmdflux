@@ -47,7 +47,7 @@ fn main() {
 
     // Match dagre defaults (Mermaid flowchart defaults).
     let config = LayoutConfig::default();
-    let render_config = mmdflux::render::LayoutConfig::default();
+    let render_config = mmdflux::render::TextLayoutConfig::default();
     let node_sep = config.node_sep;
     let edge_sep = config.edge_sep;
     let mut ranksep = config.rank_sep;

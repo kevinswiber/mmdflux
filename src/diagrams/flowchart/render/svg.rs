@@ -68,7 +68,7 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
 /// (via `instance.rs`) and the legacy `render_svg()` path.
 pub(crate) fn build_svg_layout(
     diagram: &Diagram,
-    config: &super::text_layout::LayoutConfig,
+    config: &super::text_layout::TextLayoutConfig,
     metrics: &SvgTextMetrics,
     edge_routing: EdgeRouting,
     skip_non_isolated_overrides: bool,

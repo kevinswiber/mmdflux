@@ -12,7 +12,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::text_layout::{
-    CoordTransform, Layout, LayoutConfig, RawCenter, SelfEdgeDrawData, TransformContext,
+    CoordTransform, Layout, RawCenter, SelfEdgeDrawData, TextLayoutConfig, TransformContext,
     align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
     compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts, compute_sublayouts,
     ensure_external_edge_spacing, expand_parent_subgraph_bounds, layered_config_for_layout,
@@ -29,9 +29,9 @@ use crate::layered::{Direction as LayeredDirection, Rect};
 /// Convenience: run the full engine → adapter pipeline to produce a `Layout`.
 ///
 /// This is the canonical way to compute a text layout from a `Diagram` and
-/// `LayoutConfig`. Internally runs `FluxLayeredEngine::text().solve()` then
+/// `TextLayoutConfig`. Internally runs `FluxLayeredEngine::text().solve()` then
 /// `geometry_to_text_layout()`.
-pub fn compute_layout(diagram: &Diagram, config: &LayoutConfig) -> Layout {
+pub fn compute_layout(diagram: &Diagram, config: &TextLayoutConfig) -> Layout {
     use crate::diagram::{
         EngineConfig, GraphEngine, GraphSolveRequest, OutputFormat, RenderConfig,
     };
@@ -71,7 +71,7 @@ pub fn compute_layout(diagram: &Diagram, config: &LayoutConfig) -> Layout {
 pub fn geometry_to_text_layout(
     diagram: &Diagram,
     geometry: &GraphGeometry,
-    config: &LayoutConfig,
+    config: &TextLayoutConfig,
 ) -> Layout {
     let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomTop);
     let direction = diagram.direction;

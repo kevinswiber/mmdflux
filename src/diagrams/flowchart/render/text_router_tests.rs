@@ -1,5 +1,5 @@
 use super::super::text_adapter::compute_layout;
-use super::super::text_layout::LayoutConfig;
+use super::super::text_layout::TextLayoutConfig;
 use super::*;
 use crate::diagrams::flowchart::geometry::{FPoint, FRect};
 use crate::diagrams::flowchart::render::text_routing_core::{
@@ -21,7 +21,7 @@ fn simple_td_diagram() -> Diagram {
 #[test]
 fn test_route_edge_straight_vertical() {
     let diagram = simple_td_diagram();
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     let edge = &diagram.edges[0];
@@ -64,7 +64,7 @@ fn test_route_edge_with_bend() {
     diagram.add_edge(Edge::new("A", "B"));
     diagram.add_edge(Edge::new("A", "C"));
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     // Route edge from A to C (which will be offset horizontally)
@@ -80,7 +80,7 @@ fn test_route_edge_with_bend() {
 #[test]
 fn test_route_all_edges() {
     let diagram = simple_td_diagram();
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     let routed = route_all_edges(&diagram.edges, &layout, Direction::TopDown);
@@ -437,7 +437,7 @@ fn test_route_backward_edge_td() {
     diagram.add_edge(Edge::new("A", "B")); // Forward
     diagram.add_edge(Edge::new("B", "A")); // Backward
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     // Route the backward edge
@@ -469,7 +469,7 @@ fn test_route_backward_edge_lr() {
     diagram.add_edge(Edge::new("A", "B")); // Forward
     diagram.add_edge(Edge::new("B", "A")); // Backward
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     // Route the backward edge
@@ -496,7 +496,7 @@ fn test_route_backward_edge_lr() {
 fn test_forward_edge_entry_direction_td() {
     // Forward edges should have standard entry direction
     let diagram = simple_td_diagram();
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     let edge = &diagram.edges[0];
@@ -513,7 +513,7 @@ fn test_forward_edge_entry_direction_lr() {
     diagram.add_node(Node::new("B").with_label("End"));
     diagram.add_edge(Edge::new("A", "B"));
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     let edge = &diagram.edges[0];
@@ -535,7 +535,7 @@ fn test_multiple_backward_edges_route_successfully() {
     diagram.add_edge(Edge::new("C", "A")); // Backward to A
     diagram.add_edge(Edge::new("C", "B")); // Backward to B
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     // Route both backward edges — they should both produce valid paths
@@ -565,7 +565,7 @@ fn test_backward_edge_with_waypoints_td() {
     diagram.add_edge(Edge::new("B", "C"));
     diagram.add_edge(Edge::new("C", "A")); // Backward spanning 2 ranks
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     let backward_edge = &diagram.edges[2];
@@ -596,7 +596,7 @@ fn test_short_backward_edge_uses_synthetic_waypoints() {
     diagram.add_edge(Edge::new("A", "B"));
     diagram.add_edge(Edge::new("B", "A")); // Backward, 1 rank
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     let backward_edge = &diagram.edges[1];
@@ -630,7 +630,7 @@ fn test_backward_edge_lr_with_waypoints() {
     diagram.add_edge(Edge::new("B", "C"));
     diagram.add_edge(Edge::new("C", "A")); // Backward, spans 2 ranks
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
 
     let backward_edge = &diagram.edges[2];
@@ -662,7 +662,7 @@ fn test_backward_edge_expands_canvas_for_routing() {
     diagram_no_cycle.add_node(Node::new("B").with_label("Bottom"));
     diagram_no_cycle.add_edge(Edge::new("A", "B"));
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout_cycle = compute_layout(&diagram_with_cycle, &config);
     let layout_no_cycle = compute_layout(&diagram_no_cycle, &config);
 
@@ -688,7 +688,7 @@ fn test_lr_zero_gap_entry_direction() {
     diagram.add_edge(Edge::new("Input", "Process"));
     diagram.add_edge(Edge::new("Process", "Output"));
 
-    let config = LayoutConfig::default();
+    let config = TextLayoutConfig::default();
     let layout = compute_layout(&diagram, &config);
     let routed_edges = route_all_edges(&diagram.edges, &layout, Direction::LeftRight);
 
@@ -1284,7 +1284,7 @@ fn plan_attachments_spreads_edges_monotonically_on_same_face() {
     diagram.add_edge(Edge::new("A", "C"));
     diagram.add_edge(Edge::new("A", "D"));
 
-    let layout = compute_layout(&diagram, &LayoutConfig::default());
+    let layout = compute_layout(&diagram, &TextLayoutConfig::default());
     let plan = plan_attachments(&diagram.edges, &layout, Direction::TopDown);
     let fractions = plan.source_fractions_for("A", Face::Bottom);
 
@@ -1303,7 +1303,7 @@ fn plan_attachments_is_stable_for_equal_cross_axis_positions() {
     diagram.add_edge(Edge::new("A", "B"));
     diagram.add_edge(Edge::new("A", "B"));
 
-    let layout = compute_layout(&diagram, &LayoutConfig::default());
+    let layout = compute_layout(&diagram, &TextLayoutConfig::default());
     let first = plan_attachments(&diagram.edges, &layout, Direction::TopDown);
     let second = plan_attachments(&diagram.edges, &layout, Direction::TopDown);
 
@@ -1325,7 +1325,7 @@ fn shared_planner_adapter_spreads_fan_in_arrivals() {
     diagram.add_edge(Edge::new("A", "E"));
     diagram.add_edge(Edge::new("A", "F"));
 
-    let layout = compute_layout(&diagram, &LayoutConfig::default());
+    let layout = compute_layout(&diagram, &TextLayoutConfig::default());
     let overrides =
         compute_attachment_plan_from_shared_planner(&diagram.edges, &layout, Direction::TopDown);
 

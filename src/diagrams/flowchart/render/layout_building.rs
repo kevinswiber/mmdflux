@@ -6,7 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::text_types::{LayoutConfig, TextLayoutConfig};
+use super::text_types::TextLayoutConfig;
 use crate::graph::{Diagram, Direction, Edge, Node, Stroke};
 use crate::layered::{self, Direction as LayeredDirection, LayoutConfig as LayeredConfig};
 
@@ -365,7 +365,7 @@ where
 
 pub(crate) fn build_layered_layout<FN, FE>(
     diagram: &Diagram,
-    config: &LayoutConfig,
+    config: &TextLayoutConfig,
     node_dims: FN,
     edge_label_dims: FE,
 ) -> layered::LayoutResult

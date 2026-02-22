@@ -202,9 +202,6 @@ pub struct TextLayoutConfig {
     pub cluster_rank_sep: f64,
 }
 
-/// Temporary alias for backwards compatibility during rename.
-pub type LayoutConfig = TextLayoutConfig;
-
 impl Default for TextLayoutConfig {
     fn default() -> Self {
         Self {
