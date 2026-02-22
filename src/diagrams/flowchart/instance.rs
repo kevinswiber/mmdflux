@@ -10,7 +10,7 @@ use crate::graph::{Diagram, build_diagram};
 use crate::mmds::to_mmds_json;
 use crate::parser::parse_flowchart;
 use crate::registry::DiagramInstance;
-use crate::render::{RenderOptions, render};
+use crate::render::{RenderOptions, layout_config_for_diagram, render_text_from_layout};
 
 /// Flowchart diagram instance.
 ///
@@ -109,11 +109,27 @@ impl DiagramInstance for FlowchartInstance {
                     edge_routing,
                 ))
             }
-            // Text/Ascii: render() handles layout internally using character-grid
-            // coordinates. The solve result uses float pixel coordinates —
-            // a different coordinate system that requires a mapping layer not yet
-            // implemented (task 4.2 decision).
-            _ => Ok(render(diagram, &options)),
+            _ => {
+                // Text/Ascii: engine → text adapter → text renderer.
+                let request = GraphSolveRequest::from_config(config, format);
+                let registry = GraphEngineRegistry::default();
+                let engine = registry.get_solver(engine_id).ok_or_else(|| RenderError {
+                    message: format!("no engine registered for: {engine_id}"),
+                })?;
+                let result = engine.solve(
+                    diagram,
+                    &EngineConfig::Layered(config.layout.clone()),
+                    &request,
+                )?;
+                let mut text_config = layout_config_for_diagram(diagram, &options);
+                text_config.ranker = options.ranker;
+                let layout = super::render::text_adapter::geometry_to_text_layout(
+                    diagram,
+                    &result.geometry,
+                    &text_config,
+                );
+                Ok(render_text_from_layout(diagram, &layout, &options))
+            }
         }
     }
 
