@@ -12,3 +12,4 @@ pub mod svg;
 pub(crate) mod svg_metrics;
 pub(crate) mod svg_router;
 pub mod text_adapter;
+pub mod text_types;
