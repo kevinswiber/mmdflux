@@ -2331,82 +2331,7 @@ fn compute_layout_impl(
     };
 
     // --- Phase G: Build layout-rank → draw-coordinate mapping ---
-    // Use actual node_bounds to compute layer positions, ensuring waypoints are positioned
-    // relative to where nodes are actually rendered (not scaled layout positions).
-    //
-    // For each rank with user nodes, compute the extent (start, end) on the primary axis
-    // from the actual node_bounds. For dummy ranks (no user nodes), interpolate between
-    // neighboring real node ranks.
-    let rank_to_actual_bounds: HashMap<i32, (usize, usize)> = {
-        let mut rank_bounds: HashMap<i32, (usize, usize)> = HashMap::new();
-        for (node_id, &rank) in &engine_hints.node_ranks {
-            if let Some(bounds) = node_bounds.get(node_id) {
-                let (start, end) = if is_vertical {
-                    (bounds.y, bounds.y + bounds.height)
-                } else {
-                    (bounds.x, bounds.x + bounds.width)
-                };
-                rank_bounds
-                    .entry(rank)
-                    .and_modify(|(s, e)| {
-                        *s = (*s).min(start);
-                        *e = (*e).max(end);
-                    })
-                    .or_insert((start, end));
-            }
-        }
-        rank_bounds
-    };
-
-    // Build layer_starts as a Vec indexed by layout rank.
-    // Real node ranks use the actual node bounds extent.
-    // Missing ranks (e.g., dummy/label ranks) interpolate between the nearest neighbors.
-    let max_rank = engine_hints
-        .node_ranks
-        .values()
-        .copied()
-        .max()
-        .unwrap_or(0)
-        .max(0) as usize;
-
-    // Helper: find nearest lower rank that has actual bounds
-    let find_lower_bound = |rank: i32| -> Option<(i32, usize)> {
-        (0..rank)
-            .rev()
-            .find_map(|r| rank_to_actual_bounds.get(&r).map(|&(_, end)| (r, end)))
-    };
-
-    // Helper: find nearest upper rank that has actual bounds
-    let find_upper_bound = |rank: i32, max: i32| -> Option<(i32, usize)> {
-        ((rank + 1)..=max).find_map(|r| rank_to_actual_bounds.get(&r).map(|&(start, _)| (r, start)))
-    };
-
-    let layer_starts: Vec<usize> = (0..=max_rank)
-        .map(|rank| {
-            let rank_i32 = rank as i32;
-            if let Some(&(start, _end)) = rank_to_actual_bounds.get(&rank_i32) {
-                // Real node rank — use its actual draw position
-                start
-            } else {
-                // Dummy/label rank — interpolate between nearest actual bounds
-                let lower = find_lower_bound(rank_i32);
-                let upper = find_upper_bound(rank_i32, max_rank as i32);
-
-                match (lower, upper) {
-                    (Some((lower_rank, lower_end)), Some((upper_rank, upper_start))) => {
-                        // Linearly interpolate between lower_end and upper_start
-                        let rank_span = upper_rank - lower_rank;
-                        let rank_offset = rank_i32 - lower_rank;
-                        let pos_span = upper_start as i32 - lower_end as i32;
-                        (lower_end as i32 + (pos_span * rank_offset) / rank_span) as usize
-                    }
-                    (Some((_, lower_end)), None) => lower_end,
-                    (None, Some((_, upper_start))) => upper_start,
-                    (None, None) => 0,
-                }
-            }
-        })
-        .collect();
+    let layer_starts = compute_layer_starts(&engine_hints.node_ranks, &node_bounds, is_vertical);
 
     // --- Phase H: Transform waypoints and labels ---
     let ctx = TransformContext {
@@ -2454,7 +2379,6 @@ fn compute_layout_impl(
 
     if std::env::var("MMDFLUX_DEBUG_WAYPOINTS").is_ok_and(|v| v == "1") {
         eprintln!("[node_ranks] {:?}", engine_hints.node_ranks);
-        eprintln!("[rank_to_actual_bounds] {:?}", rank_to_actual_bounds);
         eprintln!("[layer_starts] {:?}", layer_starts);
         for (edge_idx, wps) in &edge_waypoints_raw {
             if let Some(edge) = diagram.edges.get(*edge_idx) {
@@ -3002,6 +2926,70 @@ pub(crate) struct RawCenter {
     pub(crate) cy: usize,
     pub(crate) w: usize,
     pub(crate) h: usize,
+}
+
+/// Compute rank-to-draw-coordinate mapping for waypoint transformation.
+///
+/// For each layout rank that contains real nodes, computes the primary-axis
+/// draw-coordinate extent from `node_bounds`. For ranks without real nodes
+/// (dummy/label ranks from edge normalization), linearly interpolates between
+/// the nearest neighboring real-node ranks.
+///
+/// Returns a `Vec<usize>` indexed by rank, where `layer_starts[rank]` gives
+/// the primary-axis draw coordinate for that rank.
+pub(crate) fn compute_layer_starts(
+    node_ranks: &HashMap<String, i32>,
+    node_bounds: &HashMap<String, NodeBounds>,
+    is_vertical: bool,
+) -> Vec<usize> {
+    // Map each rank to its draw-coordinate extent (start, end) from real nodes
+    let mut rank_to_actual_bounds: HashMap<i32, (usize, usize)> = HashMap::new();
+    for (node_id, &rank) in node_ranks {
+        if let Some(bounds) = node_bounds.get(node_id.as_str()) {
+            let (start, end) = if is_vertical {
+                (bounds.y, bounds.y + bounds.height)
+            } else {
+                (bounds.x, bounds.x + bounds.width)
+            };
+            rank_to_actual_bounds
+                .entry(rank)
+                .and_modify(|(s, e)| {
+                    *s = (*s).min(start);
+                    *e = (*e).max(end);
+                })
+                .or_insert((start, end));
+        }
+    }
+
+    let max_rank = node_ranks.values().copied().max().unwrap_or(0).max(0) as usize;
+
+    (0..=max_rank)
+        .map(|rank| {
+            let rank_i32 = rank as i32;
+            if let Some(&(start, _end)) = rank_to_actual_bounds.get(&rank_i32) {
+                start
+            } else {
+                // Interpolate between nearest real-node ranks
+                let lower = (0..rank_i32)
+                    .rev()
+                    .find_map(|r| rank_to_actual_bounds.get(&r).map(|&(_, end)| (r, end)));
+                let upper = ((rank_i32 + 1)..=(max_rank as i32))
+                    .find_map(|r| rank_to_actual_bounds.get(&r).map(|&(start, _)| (r, start)));
+
+                match (lower, upper) {
+                    (Some((lower_rank, lower_end)), Some((upper_rank, upper_start))) => {
+                        let rank_span = upper_rank - lower_rank;
+                        let rank_offset = rank_i32 - lower_rank;
+                        let pos_span = upper_start as i32 - lower_end as i32;
+                        (lower_end as i32 + (pos_span * rank_offset) / rank_span) as usize
+                    }
+                    (Some((_, lower_end)), None) => lower_end,
+                    (None, Some((_, upper_start))) => upper_start,
+                    (None, None) => 0,
+                }
+            }
+        })
+        .collect()
 }
 
 /// Build a map from parent subgraph ID to list of direct child subgraph IDs.

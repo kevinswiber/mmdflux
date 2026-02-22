@@ -5,17 +5,18 @@
 //! coordinates via `MeasurementMode::Text`) and text rendering (which
 //! operates on character-grid integer coordinates).
 //!
-//! **Migration status:** Phases B-F (node placement, scaling, collision repair,
-//! canvas sizing) are implemented inline for diagrams without direction
-//! overrides. Phases G+ delegate to `compute_layout_from_geometry()`.
-//! Direction-override diagrams fully delegate until Phase M is migrated.
+//! **Migration status:** Phases B-G (node placement, scaling, collision repair,
+//! canvas sizing, rank-to-draw mapping) are implemented inline for diagrams
+//! without direction overrides. Phases H+ delegate to
+//! `compute_layout_from_geometry()`. Direction-override diagrams fully
+//! delegate until Phase M is migrated.
 
 use std::collections::{HashMap, HashSet};
 
 use super::layout::{
     Layout, LayoutConfig, RawCenter, collision_repair, compute_ascii_scale_factors,
-    compute_grid_positions, compute_layout_from_geometry, layered_config_for_layout,
-    rank_gap_repair,
+    compute_grid_positions, compute_layer_starts, compute_layout_from_geometry,
+    layered_config_for_layout, rank_gap_repair,
 };
 use super::shape::{NodeBounds, node_dimensions};
 use crate::diagrams::flowchart::geometry::GraphGeometry;
@@ -244,7 +245,14 @@ pub fn geometry_to_text_layout(
         }
     }
 
-    // --- Phases G+: take from delegate ---
+    // --- Phase G: Rank-to-draw mapping ---
+    let engine_hints = match &geometry.engine_hints {
+        Some(crate::diagrams::flowchart::geometry::EngineHints::Layered(h)) => h,
+        _ => unreachable!("text adapter requires layered engine hints"),
+    };
+    let _layer_starts = compute_layer_starts(&engine_hints.node_ranks, &node_bounds, is_vertical);
+
+    // --- Phases H+: take from delegate ---
     // width/height from delegate includes subgraph/self-edge canvas expansion.
     // draw_positions/node_bounds from adapter match delegate (same geometry,
     // same code, no Phase M for this branch).
