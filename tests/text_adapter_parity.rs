@@ -1,11 +1,10 @@
 //! Parity tests for the text adapter.
 //!
 //! Verifies that `geometry_to_text_layout()` produces rendered output identical
-//! to the existing `render()` path for all flowchart fixtures.
+//! to `compute_layout_from_geometry()` for all flowchart fixtures.
 //!
-//! Compares rendered text (not raw Layout fields) because the Sugiyama pipeline
-//! has HashMap-derived non-determinism that can produce different intermediate
-//! layouts for the same input across calls.
+//! Both paths use the same `GraphGeometry` input, ensuring the comparison is
+//! meaningful despite HashMap-derived non-determinism in the Sugiyama pipeline.
 
 use std::path::Path;
 
@@ -13,8 +12,8 @@ use mmdflux::diagram::EngineConfig;
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 use mmdflux::diagrams::flowchart::geometry::GraphGeometry;
 use mmdflux::render::{
-    LayoutConfig, RenderOptions, geometry_to_text_layout, layout_config_for_diagram, render,
-    render_text_from_layout,
+    LayoutConfig, RenderOptions, compute_layout_from_geometry, geometry_to_text_layout,
+    layout_config_for_diagram, render_text_from_layout,
 };
 use mmdflux::{Diagram, build_diagram, parse_flowchart};
 
@@ -25,6 +24,11 @@ fn parse_and_build(input: &str) -> Diagram {
 }
 
 /// Produce GraphGeometry via the engine path with text measurement mode.
+///
+/// Note: rank_sep is NOT pre-adjusted for subgraphs here — the internal
+/// round-trip through `layout_config_from_layered` → `layered_config_for_layout`
+/// applies cluster_rank_sep automatically. Pre-adjusting would cause a
+/// double-adjustment.
 fn produce_geometry_for_text(diagram: &Diagram, config: &LayoutConfig) -> GraphGeometry {
     use mmdflux::layered::types::{
         Direction as LayeredDirection, LayoutConfig as LayeredConfig, Ranker,
@@ -37,16 +41,11 @@ fn produce_geometry_for_text(diagram: &Diagram, config: &LayoutConfig) -> GraphG
         mmdflux::Direction::RightLeft => LayeredDirection::RightLeft,
     };
 
-    let mut rank_sep = config.rank_sep;
-    if diagram.has_subgraphs() && config.cluster_rank_sep > 0.0 {
-        rank_sep += config.cluster_rank_sep;
-    }
-
     let layered_config = LayeredConfig {
         direction,
         node_sep: config.node_sep,
         edge_sep: config.edge_sep,
-        rank_sep,
+        rank_sep: config.rank_sep,
         margin: config.margin,
         acyclic: true,
         ranker: config.ranker.unwrap_or(Ranker::NetworkSimplex),
@@ -56,6 +55,8 @@ fn produce_geometry_for_text(diagram: &Diagram, config: &LayoutConfig) -> GraphG
         .expect("run_layered_layout failed")
 }
 
+/// Verify the adapter produces identical rendered text as the reference path
+/// for all flowchart fixtures, using the same geometry for both paths.
 #[test]
 fn adapter_produces_identical_render_for_all_fixtures() {
     let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -81,18 +82,24 @@ fn adapter_produces_identical_render_for_all_fixtures() {
 
         let diagram = parse_and_build(&input);
         let options = RenderOptions::default();
-
-        // Old path: render() computes layout internally
-        let old_text = render(&diagram, &options);
-
-        // New path: engine geometry → adapter → Layout → render from layout
         let mut config = layout_config_for_diagram(&diagram, &options);
         config.ranker = options.ranker;
-        let geometry = produce_geometry_for_text(&diagram, &config);
-        let new_layout = geometry_to_text_layout(&diagram, &geometry, &config);
-        let new_text = render_text_from_layout(&diagram, &new_layout, &options);
 
-        assert_eq!(old_text, new_text, "[{name}] rendered text mismatch");
+        // Produce geometry once, shared by both paths
+        let geometry = produce_geometry_for_text(&diagram, &config);
+
+        // Reference path: compute_layout_from_geometry → render
+        let ref_layout = compute_layout_from_geometry(&diagram, &geometry, &config);
+        let ref_text = render_text_from_layout(&diagram, &ref_layout, &options);
+
+        // Adapter path: geometry_to_text_layout → render
+        let adapter_layout = geometry_to_text_layout(&diagram, &geometry, &config);
+        let adapter_text = render_text_from_layout(&diagram, &adapter_layout, &options);
+
+        assert_eq!(
+            ref_text, adapter_text,
+            "[{name}] adapter text mismatch vs reference"
+        );
         tested += 1;
     }
 

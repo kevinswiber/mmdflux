@@ -20,7 +20,7 @@ pub use crate::diagrams::flowchart::render::edge::{
     render_all_edges, render_all_edges_with_labels, render_edge,
 };
 pub use crate::diagrams::flowchart::render::layout::{
-    Layout, LayoutConfig, SubgraphBounds, compute_layout_direct,
+    Layout, LayoutConfig, SubgraphBounds, compute_layout_direct, compute_layout_from_geometry,
 };
 pub use crate::diagrams::flowchart::render::router::{
     Point, RoutedEdge, Segment, route_all_edges, route_edge,
@@ -263,7 +263,7 @@ pub fn render_text_from_layout(
     }
 
     // Step 4: Route and render edges
-    let routed_edges = route_all_edges(&diagram.edges, &layout, diagram.direction);
+    let routed_edges = route_all_edges(&diagram.edges, layout, diagram.direction);
     render_all_edges_with_labels(
         &mut canvas,
         &routed_edges,

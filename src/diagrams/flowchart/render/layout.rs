@@ -1997,7 +1997,27 @@ fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
 /// 2. Apply uniform scaling + rounding to all layout coordinates
 /// 3. Enforce minimum spacing via collision repair
 pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout {
-    // --- Phase A: Build layered graph ---
+    compute_layout_impl(diagram, config, None)
+}
+
+/// Compute a text-rendering `Layout` from pre-computed `GraphGeometry`.
+///
+/// This runs phases B-N (node placement, scaling, collision repair, waypoint
+/// transform, subgraph bounds, self-edges, sublayout reconciliation) using the
+/// provided geometry instead of computing a fresh layout internally.
+pub fn compute_layout_from_geometry(
+    diagram: &Diagram,
+    geom: &super::super::geometry::GraphGeometry,
+    config: &LayoutConfig,
+) -> Layout {
+    compute_layout_impl(diagram, config, Some(geom))
+}
+
+fn compute_layout_impl(
+    diagram: &Diagram,
+    config: &LayoutConfig,
+    precomputed_geom: Option<&super::super::geometry::GraphGeometry>,
+) -> Layout {
     let layered_config = layered_config_for_layout(diagram, config);
     let layered_direction = layered_config.direction;
 
@@ -2018,29 +2038,37 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
         false,
     );
 
-    let mut result = build_layered_layout_with_config(
-        diagram,
-        &layered_config,
-        |node| {
-            let (w, h) = node_dimensions(node, direction);
-            (w as f64, h as f64)
-        },
-        |edge| {
-            edge.label
-                .as_ref()
-                .map(|label| text_edge_label_dimensions(label))
-        },
-    );
+    // --- Phase A: Build layered graph (skipped when geometry is pre-computed) ---
+    let owned_geom;
+    let geom = if let Some(g) = precomputed_geom {
+        g
+    } else {
+        let mut result = build_layered_layout_with_config(
+            diagram,
+            &layered_config,
+            |node| {
+                let (w, h) = node_dimensions(node, direction);
+                (w as f64, h as f64)
+            },
+            |edge| {
+                edge.label
+                    .as_ref()
+                    .map(|label| text_edge_label_dimensions(label))
+            },
+        );
 
-    // Shift external predecessors of direction-override subgraphs to align
-    // with the subgraph center, before coordinate transformation.
-    center_override_subgraphs(diagram, &mut result);
-    expand_parent_bounds(diagram, &mut result, 0.0, 0.0);
+        // Shift external predecessors of direction-override subgraphs to align
+        // with the subgraph center, before coordinate transformation.
+        center_override_subgraphs(diagram, &mut result);
+        expand_parent_bounds(diagram, &mut result, 0.0, 0.0);
 
-    // Convert post-processed LayoutResult to engine-agnostic GraphGeometry.
+        // Convert post-processed LayoutResult to engine-agnostic GraphGeometry.
+        owned_geom = super::super::geometry::from_layered_layout(&result, diagram);
+        &owned_geom
+    };
+
     // From this point on, phases read from `geom` (and `engine_hints` for
-    // rank-annotated data) instead of the raw `result`.
-    let geom = super::super::geometry::from_layered_layout(&result, diagram);
+    // rank-annotated data) instead of the raw layout result.
     let engine_hints = match &geom.engine_hints {
         Some(super::super::geometry::EngineHints::Layered(h)) => h,
         _ => unreachable!("layered adapter always produces layered hints"),
@@ -2179,7 +2207,7 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
     let mut max_overhang_y: usize = 0;
 
     for (node_id, pos_node) in &geom.nodes {
-        if let Some(&(w, h)) = node_dims.get(node_id) {
+        if let Some(&(w, h)) = node_dims.get(node_id.as_str()) {
             let cx = ((pos_node.rect.x + pos_node.rect.width / 2.0 - layout_min_x) * scale_x)
                 .round() as usize;
             let cy = ((pos_node.rect.y + pos_node.rect.height / 2.0 - layout_min_y) * scale_y)
@@ -2784,7 +2812,7 @@ pub fn compute_layout_direct(diagram: &Diagram, config: &LayoutConfig) -> Layout
 }
 
 /// Assign grid positions to nodes based on layers.
-fn compute_grid_positions(layers: &[Vec<String>]) -> HashMap<String, GridPos> {
+pub(crate) fn compute_grid_positions(layers: &[Vec<String>]) -> HashMap<String, GridPos> {
     let mut positions = HashMap::new();
 
     for (layer_idx, layer) in layers.iter().enumerate() {
@@ -2815,7 +2843,7 @@ fn compute_grid_positions(layers: &[Vec<String>]) -> HashMap<String, GridPos> {
 /// For horizontal layouts (LR/RL):
 ///   - scale_x (primary) = (max_w + h_spacing) / (max_w + rank_sep)
 ///   - scale_y (cross)   = (avg_h + v_spacing) / (avg_h + node_sep)
-fn compute_ascii_scale_factors(
+pub(crate) fn compute_ascii_scale_factors(
     node_dims: &HashMap<String, (usize, usize)>,
     rank_sep: f64,
     node_sep: f64,
@@ -2867,7 +2895,7 @@ fn compute_ascii_scale_factors(
 ///
 /// For vertical layouts (`is_vertical = true`), the cross-axis is X.
 /// For horizontal layouts (`is_vertical = false`), the cross-axis is Y.
-fn collision_repair(
+pub(crate) fn collision_repair(
     layers: &[Vec<String>],
     draw_positions: &mut HashMap<String, (usize, usize)>,
     node_dims: &HashMap<String, (usize, usize)>,
@@ -2913,7 +2941,7 @@ fn collision_repair(
 /// If the closest node in the next layer is too close to the farthest node
 /// in the previous layer, shift the entire next layer (and all subsequent layers)
 /// forward to maintain the minimum gap.
-fn rank_gap_repair(
+pub(crate) fn rank_gap_repair(
     layers: &[Vec<String>],
     draw_positions: &mut HashMap<String, (usize, usize)>,
     node_dims: &HashMap<String, (usize, usize)>,
@@ -2968,12 +2996,12 @@ fn rank_gap_repair(
 
 /// Intermediate result for a node's scaled center and dimensions, used between
 /// the overhang-detection pass and the draw-position pass.
-struct RawCenter {
-    id: String,
-    cx: usize,
-    cy: usize,
-    w: usize,
-    h: usize,
+pub(crate) struct RawCenter {
+    pub(crate) id: String,
+    pub(crate) cx: usize,
+    pub(crate) cy: usize,
+    pub(crate) w: usize,
+    pub(crate) h: usize,
 }
 
 /// Build a map from parent subgraph ID to list of direct child subgraph IDs.
