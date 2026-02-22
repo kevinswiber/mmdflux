@@ -12,6 +12,12 @@
 
 - Sibling subgraph bounds no longer overlap after sublayout reconciliation.
 - Added margin between adjacent subgraph borders for visual breathing room.
+- SVG polyline rendering no longer injects tiny synthetic jogs on
+  axis-to-diagonal turns (for example `ampersand.mmd`) in both
+  `flux-layered` and `mermaid-layered`.
+- Self-loop tail regression coverage now validates loop-lane drift without
+  assuming a fixed elbow index, preventing false failures when valid polyline
+  cleanup reduces intermediate points.
 
 ### Changed
 
