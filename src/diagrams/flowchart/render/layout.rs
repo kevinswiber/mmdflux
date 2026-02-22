@@ -1713,11 +1713,28 @@ pub(crate) fn resolve_sublayout_overlaps(
 
         let sg_bottom = sg_bounds.y + sg_bounds.height;
         let sg_node_set: HashSet<&str> = sg.nodes.iter().map(|s| s.as_str()).collect();
+        // Treat nested subgraph compound nodes as internal to this subgraph.
+        // `sg.nodes` contains leaf members, so without this descendants are
+        // misclassified as external blockers during overlap resolution.
+        let mut internal_subgraph_ids: HashSet<&str> = HashSet::new();
+        let mut stack = vec![sg_id.as_str()];
+        while let Some(parent_id) = stack.pop() {
+            for (child_id, child) in &diagram.subgraphs {
+                if child.parent.as_deref() == Some(parent_id)
+                    && internal_subgraph_ids.insert(child_id.as_str())
+                {
+                    stack.push(child_id.as_str());
+                }
+            }
+        }
 
         // Find the maximum shift needed to clear overlapping external nodes.
         let mut max_shift = 0.0f64;
         for (nid, rect) in &layout.nodes {
-            if sg_node_set.contains(nid.0.as_str()) || nid.0 == *sg_id {
+            if sg_node_set.contains(nid.0.as_str())
+                || nid.0 == *sg_id
+                || internal_subgraph_ids.contains(nid.0.as_str())
+            {
                 continue;
             }
             // Only consider nodes whose center is below the subgraph center
@@ -1739,7 +1756,10 @@ pub(crate) fn resolve_sublayout_overlaps(
         // Shift all nodes below the subgraph center.
         let sg_cy = sg_bounds.y + sg_bounds.height / 2.0;
         for (nid, rect) in layout.nodes.iter_mut() {
-            if sg_node_set.contains(nid.0.as_str()) || nid.0 == *sg_id {
+            if sg_node_set.contains(nid.0.as_str())
+                || nid.0 == *sg_id
+                || internal_subgraph_ids.contains(nid.0.as_str())
+            {
                 continue;
             }
             if rect.y + rect.height / 2.0 > sg_cy {
@@ -1780,6 +1800,9 @@ pub(crate) fn resolve_sublayout_overlaps(
             .cloned()
             .collect();
         for sibling_id in sibling_ids {
+            if internal_subgraph_ids.contains(sibling_id.as_str()) {
+                continue;
+            }
             if let Some(bounds) = layout.subgraph_bounds.get_mut(&sibling_id)
                 && bounds.y + bounds.height / 2.0 > sg_cy
             {

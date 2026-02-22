@@ -881,4 +881,29 @@ mod tests {
             feed_center_x
         );
     }
+
+    #[test]
+    fn mermaid_nested_subgraph_edge_keeps_compact_subgraph_to_node_gap() {
+        let input = include_str!("../../../tests/fixtures/flowchart/nested_subgraph_edge.mmd");
+        let flowchart = crate::parser::parse_flowchart(input).unwrap();
+        let diagram = crate::graph::build_diagram(&flowchart);
+        let metrics = SvgTextMetrics::new(16.0, 15.0, 15.0);
+        let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Svg(metrics));
+        let result = solve_svg(&mermaid, &diagram);
+
+        let cloud = result.geometry.subgraphs["cloud"].rect;
+        let monitoring = result.geometry.nodes["Monitoring"].rect;
+        let gap = monitoring.y - (cloud.y + cloud.height);
+
+        assert!(
+            gap > 8.0,
+            "mermaid nested_subgraph_edge: subgraph->node gap should remain visible; got {}",
+            gap
+        );
+        assert!(
+            gap < 90.0,
+            "mermaid nested_subgraph_edge: subgraph->node gap should stay compact; got {}",
+            gap
+        );
+    }
 }
