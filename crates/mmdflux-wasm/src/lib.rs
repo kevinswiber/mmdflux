@@ -1,8 +1,10 @@
+use mmdflux::ParseDiagnostic;
 use mmdflux::diagram::{
     AlgorithmId, CornerStyle, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel,
     InterpolationStyle, OutputFormat, PathSimplification, RenderConfig, RenderError, RoutingStyle,
 };
 use mmdflux::layered::Ranker;
+use mmdflux::parser::ParseError;
 use mmdflux::registry::default_registry;
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
@@ -75,6 +77,62 @@ pub fn detect(input: &str) -> Option<String> {
 #[wasm_bindgen]
 pub fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Validate Mermaid input and return structured parse diagnostics as JSON.
+///
+/// Returns a JSON string with shape:
+/// - `{"valid": true}` on success
+/// - `{"valid": false, "diagnostics": [{"line": N, "column": N, ...}]}` on error
+#[wasm_bindgen]
+pub fn validate(input: &str) -> String {
+    let registry = default_registry();
+
+    let diagram_id = match registry.detect(input) {
+        Some(id) => id,
+        None => {
+            return serde_json::json!({
+                "valid": false,
+                "diagnostics": [{"message": "unknown diagram type"}]
+            })
+            .to_string();
+        }
+    };
+
+    let mut instance = match registry.create(diagram_id) {
+        Some(inst) => inst,
+        None => {
+            return serde_json::json!({
+                "valid": false,
+                "diagnostics": [{
+                    "message": format!("no implementation for diagram type: {diagram_id}")
+                }]
+            })
+            .to_string();
+        }
+    };
+
+    match instance.parse(input) {
+        Ok(()) => serde_json::json!({ "valid": true }).to_string(),
+        Err(error) => {
+            let diagnostic = match error.downcast_ref::<ParseError>() {
+                Some(parse_error) => ParseDiagnostic::from(parse_error),
+                None => ParseDiagnostic {
+                    line: None,
+                    column: None,
+                    end_line: None,
+                    end_column: None,
+                    message: error.to_string(),
+                },
+            };
+
+            serde_json::json!({
+                "valid": false,
+                "diagnostics": [diagnostic]
+            })
+            .to_string()
+        }
+    }
 }
 
 fn parse_render_config(format: OutputFormat, config_json: &str) -> Result<RenderConfig, JsError> {
@@ -292,5 +350,47 @@ mod tests {
             config.layout_engine,
             Some(EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered))
         );
+    }
+
+    #[test]
+    fn validate_export_signature_is_stable() {
+        let _validate: fn(&str) -> String = validate;
+    }
+
+    #[test]
+    fn validate_returns_valid_true_for_good_input() {
+        let result = validate("graph TD\nA-->B");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
+    }
+
+    #[test]
+    fn validate_returns_diagnostics_for_invalid_flowchart() {
+        let result = validate("graph TD\n!!!");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], false);
+        let diagnostics = value["diagnostics"].as_array().unwrap();
+        assert!(!diagnostics.is_empty());
+        let diag = &diagnostics[0];
+        assert!(diag["line"].is_number());
+        assert!(diag["column"].is_number());
+        assert!(diag["message"].is_string());
+    }
+
+    #[test]
+    fn validate_returns_valid_false_for_unknown_diagram_type() {
+        let result = validate("not a diagram at all");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], false);
+        let diagnostics = value["diagnostics"].as_array().unwrap();
+        assert!(!diagnostics.is_empty());
+        assert!(diagnostics[0]["message"].is_string());
+    }
+
+    #[test]
+    fn validate_returns_valid_true_for_pie_chart() {
+        let result = validate("pie\n\"Apples\": 50\n\"Bananas\": 50");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
     }
 }
