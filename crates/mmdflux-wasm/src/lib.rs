@@ -4,7 +4,7 @@ use mmdflux::diagram::{
     InterpolationStyle, OutputFormat, PathSimplification, RenderConfig, RenderError, RoutingStyle,
 };
 use mmdflux::layered::Ranker;
-use mmdflux::lint::collect_unsupported_warnings;
+use mmdflux::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
 use mmdflux::parser::{
     DiagramType, ParseError, ParseOptions, detect_diagram_type, parse_flowchart_with_options,
 };
@@ -119,6 +119,7 @@ pub fn validate(input: &str) -> String {
         Ok(()) => {
             let mut warnings: Vec<ParseDiagnostic> = collect_unsupported_warnings(input)
                 .into_iter()
+                .chain(collect_subgraph_warnings(input))
                 .map(|w| ParseDiagnostic::warning(w.line, w.column, w.message))
                 .collect();
 
@@ -529,5 +530,21 @@ mod tests {
         let w = strict_warning.unwrap();
         assert!(w["line"].is_number(), "warning should have line number");
         assert!(w["column"].is_number(), "warning should have column number");
+    }
+
+    #[test]
+    fn validate_warns_on_subgraph_missing_end() {
+        let input = "graph TD\n    subgraph lr_group[Left to Right]\n        direction LR\n        A --> B\n    en";
+        let result = validate(input);
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
+        let diagnostics = value["diagnostics"].as_array().unwrap();
+        let subgraph_warning = diagnostics
+            .iter()
+            .find(|d| {
+                d["severity"] == "warning" && d["message"].as_str().unwrap_or("").contains("end")
+            })
+            .expect("should have a subgraph missing-end warning");
+        assert_eq!(subgraph_warning["line"], 2);
     }
 }

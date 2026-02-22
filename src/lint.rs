@@ -222,6 +222,64 @@ pub fn collect_unsupported_warnings(input: &str) -> Vec<LintDiagnostic> {
     warnings
 }
 
+fn ci_starts_with(line: &str, prefix: &str) -> bool {
+    line.len() >= prefix.len()
+        && line.as_bytes()[..prefix.len()]
+            .iter()
+            .zip(prefix.as_bytes())
+            .all(|(a, b)| a.eq_ignore_ascii_case(b))
+}
+
+/// Collect warnings for subgraph blocks that appear to be missing an `end` keyword.
+///
+/// Scans the input for lines that look like `subgraph` declarations and counts
+/// matching `end` keywords. When there are more `subgraph` openings than `end`
+/// closings, the unmatched subgraph lines are reported as warnings — these
+/// typically get silently reinterpreted as regular nodes by the parser.
+pub fn collect_subgraph_warnings(input: &str) -> Vec<LintDiagnostic> {
+    let mut subgraph_lines: Vec<usize> = Vec::new();
+    let mut end_count: usize = 0;
+
+    for (line_num, line) in input.lines().enumerate() {
+        let trimmed = line.trim();
+
+        // Count subgraph openings
+        if ci_starts_with(trimmed, "subgraph ") || trimmed.eq_ignore_ascii_case("subgraph") {
+            subgraph_lines.push(line_num + 1);
+        }
+
+        // Count end closings
+        if trimmed.eq_ignore_ascii_case("end")
+            || ci_starts_with(trimmed, "end ")
+            || ci_starts_with(trimmed, "end;")
+        {
+            end_count += 1;
+        }
+    }
+
+    // If there are more subgraph lines than end lines, some are unmatched.
+    // Warn starting from the last unmatched subgraph (LIFO matching).
+    let unmatched = subgraph_lines.len().saturating_sub(end_count);
+    if unmatched == 0 {
+        return Vec::new();
+    }
+
+    // The last `unmatched` subgraph lines are the ones without a matching end.
+    subgraph_lines
+        .into_iter()
+        .rev()
+        .take(unmatched)
+        .map(|line_num| LintDiagnostic {
+            severity: Severity::Warning,
+            line: Some(line_num),
+            column: Some(1),
+            message: "Subgraph may be missing an 'end' keyword. \
+                      Without 'end', the subgraph keyword is treated as a node identifier."
+                .to_string(),
+        })
+        .collect()
+}
+
 fn parse_error_to_diagnostic(err: &ParseError) -> LintDiagnostic {
     match err {
         ParseError::Syntax {
@@ -440,5 +498,46 @@ mod tests {
             lint("graph TD\nA --> B\nstyle A fill:#f9f\nclassDef x fill:#0f0\nclass A x\n");
         assert!(result.is_valid());
         assert!(result.warnings.len() >= 2);
+    }
+
+    #[test]
+    fn test_subgraph_warning_missing_end() {
+        let input = "graph TD\n    subgraph test\n        A --> B\n    en";
+        let warnings = collect_subgraph_warnings(input);
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].severity, Severity::Warning);
+        assert_eq!(warnings[0].line, Some(2));
+        assert!(warnings[0].message.contains("end"));
+    }
+
+    #[test]
+    fn test_subgraph_warning_no_false_positive_with_end() {
+        let input = "graph TD\n    subgraph test\n        A --> B\n    end";
+        let warnings = collect_subgraph_warnings(input);
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_subgraph_warning_multiple_missing_ends() {
+        let input = "graph TD\n  subgraph one\n    A --> B\n  subgraph two\n    C --> D";
+        let warnings = collect_subgraph_warnings(input);
+        assert_eq!(warnings.len(), 2);
+    }
+
+    #[test]
+    fn test_subgraph_warning_partial_match() {
+        // One subgraph has end, one doesn't
+        let input = "graph TD\n  subgraph one\n    A --> B\n  end\n  subgraph two\n    C --> D";
+        let warnings = collect_subgraph_warnings(input);
+        assert_eq!(warnings.len(), 1);
+        // The unmatched one is "subgraph two" (line 5)
+        assert_eq!(warnings[0].line, Some(5));
+    }
+
+    #[test]
+    fn test_subgraph_warning_case_insensitive() {
+        let input = "graph TD\n    Subgraph Test\n        A --> B\n    en";
+        let warnings = collect_subgraph_warnings(input);
+        assert_eq!(warnings.len(), 1);
     }
 }
