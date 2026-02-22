@@ -186,7 +186,11 @@ const UNSUPPORTED_KEYWORDS: &[(&str, &str)] = &[
     ),
 ];
 
-fn collect_unsupported_warnings(input: &str) -> Vec<LintDiagnostic> {
+/// Collect warnings for unsupported keywords that are parsed but ignored in rendering.
+///
+/// Returns warnings for `classDef`, `style`, `click`, `linkStyle`, and `class`
+/// statements with their line numbers.
+pub fn collect_unsupported_warnings(input: &str) -> Vec<LintDiagnostic> {
     let mut warnings = Vec::new();
 
     for (line_num, line) in input.lines().enumerate() {

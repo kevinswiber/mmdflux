@@ -4,7 +4,10 @@ use mmdflux::diagram::{
     InterpolationStyle, OutputFormat, PathSimplification, RenderConfig, RenderError, RoutingStyle,
 };
 use mmdflux::layered::Ranker;
-use mmdflux::parser::ParseError;
+use mmdflux::lint::collect_unsupported_warnings;
+use mmdflux::parser::{
+    DiagramType, ParseError, ParseOptions, detect_diagram_type, parse_flowchart_with_options,
+};
 use mmdflux::registry::default_registry;
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
@@ -113,11 +116,42 @@ pub fn validate(input: &str) -> String {
     };
 
     match instance.parse(input) {
-        Ok(()) => serde_json::json!({ "valid": true }).to_string(),
+        Ok(()) => {
+            let mut warnings: Vec<ParseDiagnostic> = collect_unsupported_warnings(input)
+                .into_iter()
+                .map(|w| ParseDiagnostic::warning(w.line, w.column, w.message))
+                .collect();
+
+            // For flowcharts: if permissive parse succeeded but strict parse
+            // would fail, surface the strict error as a warning. This catches
+            // cases like a subgraph without `end` where the permissive
+            // preprocessor silently strips or reinterprets the input.
+            if detect_diagram_type(input) == Some(DiagramType::Flowchart) {
+                let strict = ParseOptions { strict: true };
+                if let Err(strict_err) = parse_flowchart_with_options(input, &strict) {
+                    let mut diag = ParseDiagnostic::from(&strict_err);
+                    diag.severity = "warning".to_string();
+                    diag.message =
+                        format!("Strict parsing would reject this input: {}", diag.message);
+                    warnings.push(diag);
+                }
+            }
+
+            if warnings.is_empty() {
+                serde_json::json!({ "valid": true }).to_string()
+            } else {
+                serde_json::json!({
+                    "valid": true,
+                    "diagnostics": warnings
+                })
+                .to_string()
+            }
+        }
         Err(error) => {
             let diagnostic = match error.downcast_ref::<ParseError>() {
                 Some(parse_error) => ParseDiagnostic::from(parse_error),
                 None => ParseDiagnostic {
+                    severity: "error".to_string(),
                     line: None,
                     column: None,
                     end_line: None,
@@ -392,5 +426,108 @@ mod tests {
         let result = validate("pie\n\"Apples\": 50\n\"Bananas\": 50");
         let value: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(value["valid"], true);
+    }
+
+    #[test]
+    fn validate_returns_warning_for_style_statement() {
+        let result = validate("graph TD\nA --> B\nstyle A fill:#f9f");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
+        let diagnostics = value["diagnostics"].as_array().unwrap();
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0]["severity"], "warning");
+        assert!(diagnostics[0]["line"].is_number());
+        assert!(
+            diagnostics[0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("style")
+        );
+    }
+
+    #[test]
+    fn validate_returns_warning_for_classdef_statement() {
+        let result = validate("graph TD\nA --> B\nclassDef highlight fill:#ff0");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
+        let diagnostics = value["diagnostics"].as_array().unwrap();
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0]["severity"], "warning");
+        assert!(
+            diagnostics[0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("classDef")
+        );
+    }
+
+    #[test]
+    fn validate_returns_no_diagnostics_for_clean_input() {
+        let result = validate("graph TD\nA --> B");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
+        assert!(value["diagnostics"].is_null());
+    }
+
+    #[test]
+    fn validate_error_diagnostics_have_error_severity() {
+        let result = validate("graph TD\n!!!");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], false);
+        let diagnostics = value["diagnostics"].as_array().unwrap();
+        assert_eq!(diagnostics[0]["severity"], "error");
+    }
+
+    #[test]
+    fn validate_warns_when_strict_would_reject_directive() {
+        // Directive is stripped in permissive mode but rejected in strict mode
+        let result = validate("%%{init: {}}%%\ngraph TD\nA --> B");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
+        let diagnostics = value["diagnostics"].as_array().unwrap();
+        assert!(!diagnostics.is_empty());
+        let strict_warning = diagnostics
+            .iter()
+            .find(|d| {
+                d["severity"] == "warning"
+                    && d["message"]
+                        .as_str()
+                        .unwrap_or("")
+                        .contains("Strict parsing")
+            })
+            .expect("should have a strict-parsing warning");
+        assert!(strict_warning["line"].is_number());
+    }
+
+    #[test]
+    fn validate_no_strict_warning_for_clean_flowchart() {
+        let result = validate("graph TD\nA --> B\nB --> C");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
+        // No diagnostics at all for clean input
+        assert!(value["diagnostics"].is_null());
+    }
+
+    #[test]
+    fn validate_strict_warning_has_position_info() {
+        // Directive is stripped in permissive mode but rejected in strict mode.
+        // The strict parse error should carry line/column position info.
+        let result = validate("%%{init: {}}%%\ngraph TD\nA --> B");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
+        let diagnostics = value["diagnostics"].as_array().unwrap();
+        let strict_warning = diagnostics.iter().find(|d| {
+            d["message"]
+                .as_str()
+                .unwrap_or("")
+                .contains("Strict parsing")
+        });
+        assert!(
+            strict_warning.is_some(),
+            "should have a strict-parsing warning"
+        );
+        let w = strict_warning.unwrap();
+        assert!(w["line"].is_number(), "warning should have line number");
+        assert!(w["column"].is_number(), "warning should have column number");
     }
 }

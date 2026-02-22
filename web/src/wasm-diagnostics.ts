@@ -2,6 +2,7 @@ import { type Diagnostic, linter } from "@codemirror/lint";
 import type { Extension } from "@codemirror/state";
 
 interface ValidateDiagnostic {
+  severity?: string;
   line?: number;
   column?: number;
   end_line?: number;
@@ -93,10 +94,13 @@ function diagnosticFromValidateEntry(
     to = Math.min(inputLength, from + 1);
   }
 
+  const severity =
+    diag.severity === "warning" ? ("warning" as const) : ("error" as const);
+
   return {
     from,
     to,
-    severity: "error",
+    severity,
     source: "mmdflux",
     message: diag.message,
   };
@@ -107,7 +111,7 @@ export function normalizeValidateResultToDiagnostics(
   validateJson: string,
 ): Diagnostic[] {
   const result: ValidateResult = JSON.parse(validateJson);
-  if (result.valid || !result.diagnostics?.length) {
+  if (!result.diagnostics?.length) {
     return [];
   }
 

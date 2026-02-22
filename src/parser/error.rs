@@ -33,6 +33,8 @@ pub enum ParseError {
 /// as JSON rather than a flat error string.
 #[derive(Debug, Serialize)]
 pub struct ParseDiagnostic {
+    /// Severity level: `"error"` or `"warning"`.
+    pub severity: String,
     /// Start line (1-indexed), if known.
     pub line: Option<usize>,
     /// Start column (1-indexed), if known.
@@ -45,6 +47,20 @@ pub struct ParseDiagnostic {
     pub message: String,
 }
 
+impl ParseDiagnostic {
+    /// Create a warning diagnostic with the given position and message.
+    pub fn warning(line: Option<usize>, column: Option<usize>, message: String) -> Self {
+        ParseDiagnostic {
+            severity: "warning".to_string(),
+            line,
+            column,
+            end_line: None,
+            end_column: None,
+            message,
+        }
+    }
+}
+
 impl From<&ParseError> for ParseDiagnostic {
     fn from(err: &ParseError) -> Self {
         match err {
@@ -55,6 +71,7 @@ impl From<&ParseError> for ParseDiagnostic {
                 end_column,
                 message,
             } => ParseDiagnostic {
+                severity: "error".to_string(),
                 line: Some(*line),
                 column: Some(*column),
                 end_line: *end_line,
@@ -62,6 +79,7 @@ impl From<&ParseError> for ParseDiagnostic {
                 message: message.clone(),
             },
             other => ParseDiagnostic {
+                severity: "error".to_string(),
                 line: None,
                 column: None,
                 end_line: None,
@@ -106,6 +124,7 @@ mod tests {
         let diag = ParseDiagnostic::from(&err);
         let json = serde_json::to_string(&diag).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["severity"], "error");
         assert_eq!(value["line"], 5);
         assert_eq!(value["column"], 12);
         assert_eq!(value["end_line"], 5);
@@ -180,5 +199,21 @@ mod tests {
             err.to_string(),
             "Parse error at line 3, column 1: unexpected token"
         );
+    }
+
+    #[test]
+    fn warning_diagnostic_has_warning_severity() {
+        let diag = ParseDiagnostic::warning(
+            Some(5),
+            Some(1),
+            "style statements are parsed but ignored".to_string(),
+        );
+        let json = serde_json::to_string(&diag).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(value["severity"], "warning");
+        assert_eq!(value["line"], 5);
+        assert_eq!(value["column"], 1);
+        assert!(value["end_line"].is_null());
+        assert_eq!(value["message"], "style statements are parsed but ignored");
     }
 }

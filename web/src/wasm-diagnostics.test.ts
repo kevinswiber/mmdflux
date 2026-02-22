@@ -108,4 +108,49 @@ describe("normalizeValidateResultToDiagnostics", () => {
     expect(result[0].from).toBeLessThanOrEqual(input.length);
     expect(result[0].to).toBeLessThanOrEqual(input.length);
   });
+
+  it("defaults to error severity when severity field is absent", () => {
+    const input = "graph TD\n!!!";
+    const validateResult = JSON.stringify({
+      valid: false,
+      diagnostics: [{ line: 2, column: 1, message: "syntax error" }],
+    });
+    const result = normalizeValidateResultToDiagnostics(input, validateResult);
+    expect(result).toHaveLength(1);
+    expect(result[0].severity).toBe("error");
+  });
+
+  it("maps warning severity from validate result", () => {
+    const input = "graph TD\nA --> B\nstyle A fill:#f9f";
+    const validateResult = JSON.stringify({
+      valid: true,
+      diagnostics: [
+        {
+          severity: "warning",
+          line: 3,
+          column: 1,
+          message: "style statements are parsed but ignored in rendering",
+        },
+      ],
+    });
+    const result = normalizeValidateResultToDiagnostics(input, validateResult);
+    expect(result).toHaveLength(1);
+    expect(result[0].severity).toBe("warning");
+    expect(result[0].message).toBe(
+      "style statements are parsed but ignored in rendering",
+    );
+  });
+
+  it("maps error severity explicitly from validate result", () => {
+    const input = "graph TD\n!!!";
+    const validateResult = JSON.stringify({
+      valid: false,
+      diagnostics: [
+        { severity: "error", line: 2, column: 1, message: "syntax error" },
+      ],
+    });
+    const result = normalizeValidateResultToDiagnostics(input, validateResult);
+    expect(result).toHaveLength(1);
+    expect(result[0].severity).toBe("error");
+  });
 });
