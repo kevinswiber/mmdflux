@@ -458,6 +458,8 @@ fn cli_accepts_flux_layered_engine() {
 fn cli_accepts_mermaid_layered_engine() {
     mmdflux()
         .args([
+            "--format",
+            "svg",
             "--layout-engine",
             "mermaid-layered",
             "tests/fixtures/flowchart/simple.mmd",

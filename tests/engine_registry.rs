@@ -73,33 +73,8 @@ fn cose_bilkent_rejected_at_parse_boundary() {
 }
 
 // =============================================================================
-// Flux vs Mermaid routing: text-mode invariant
+// Flux vs Mermaid routing: SVG-divergent test
 // =============================================================================
-
-#[test]
-fn flux_vs_mermaid_text_output_identical_for_simple() {
-    let input = std::fs::read_to_string("tests/fixtures/flowchart/simple.mmd").unwrap();
-    let mut instance = FlowchartInstance::new();
-    instance.parse(&input).unwrap();
-
-    let flux_config = RenderConfig {
-        layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-        ..RenderConfig::default()
-    };
-    let mermaid_config = RenderConfig {
-        layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
-        ..RenderConfig::default()
-    };
-
-    let flux_out = instance.render(OutputFormat::Text, &flux_config).unwrap();
-    let mermaid_out = instance
-        .render(OutputFormat::Text, &mermaid_config)
-        .unwrap();
-    assert_eq!(
-        flux_out, mermaid_out,
-        "text output should be routing-independent"
-    );
-}
 
 #[test]
 fn flux_vs_mermaid_svg_output_may_diverge_for_cycle() {
@@ -490,7 +465,7 @@ fn flux_layered_solve_routed_level_has_routed_geometry() {
 
 #[test]
 fn mermaid_layered_engine_id() {
-    let engine = MermaidLayeredEngine::text();
+    let engine = MermaidLayeredEngine::new();
     assert_eq!(
         engine.id(),
         EngineAlgorithmId::new(EngineId::Mermaid, AlgorithmId::Layered)
@@ -499,7 +474,7 @@ fn mermaid_layered_engine_id() {
 
 #[test]
 fn mermaid_layered_capabilities_are_hint_driven() {
-    let engine = MermaidLayeredEngine::text();
+    let engine = MermaidLayeredEngine::new();
     let caps = engine.capabilities();
     assert_eq!(caps.route_ownership, RouteOwnership::HintDriven);
     assert!(caps.supports_subgraphs);
@@ -508,9 +483,9 @@ fn mermaid_layered_capabilities_are_hint_driven() {
 #[test]
 fn mermaid_layered_solve_layout_level_has_no_routed_geometry() {
     let diagram = build_simple_diagram();
-    let engine = MermaidLayeredEngine::text();
+    let engine = MermaidLayeredEngine::new();
     let request = GraphSolveRequest {
-        output_format: OutputFormat::Text,
+        output_format: OutputFormat::Mmds,
         geometry_level: GeometryLevel::Layout,
         path_simplification: PathSimplification::None,
         routing_style: None,
@@ -531,7 +506,7 @@ fn mermaid_layered_layout_matches_flux_layered_layout() {
     let diagram = build_simple_diagram();
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
     let layout_req = GraphSolveRequest {
-        output_format: OutputFormat::Text,
+        output_format: OutputFormat::Mmds,
         geometry_level: GeometryLevel::Layout,
         path_simplification: PathSimplification::None,
         routing_style: None,
@@ -540,7 +515,7 @@ fn mermaid_layered_layout_matches_flux_layered_layout() {
     let flux = FluxLayeredEngine::text()
         .solve(&diagram, &config, &layout_req)
         .unwrap();
-    let mermaid = MermaidLayeredEngine::text()
+    let mermaid = MermaidLayeredEngine::new()
         .solve(&diagram, &config, &layout_req)
         .unwrap();
 
@@ -561,9 +536,9 @@ fn mermaid_layered_layout_matches_flux_layered_layout() {
 #[test]
 fn mermaid_layered_solve_routed_level_has_routed_geometry() {
     let diagram = build_simple_diagram();
-    let engine = MermaidLayeredEngine::text();
+    let engine = MermaidLayeredEngine::new();
     let request = GraphSolveRequest {
-        output_format: OutputFormat::Text,
+        output_format: OutputFormat::Mmds,
         geometry_level: GeometryLevel::Routed,
         path_simplification: PathSimplification::None,
         routing_style: None,

@@ -320,11 +320,26 @@ pub struct MermaidLayeredEngine {
     mode: MeasurementMode,
 }
 
+impl Default for MermaidLayeredEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MermaidLayeredEngine {
-    /// Create with text-grid measurement mode.
-    pub fn text() -> Self {
+    /// Create with default SVG measurement mode.
+    ///
+    /// MermaidLayeredEngine only supports SVG and MMDS output (not text/ascii),
+    /// matching Mermaid.js which only renders to SVG.
+    pub fn new() -> Self {
+        let defaults = crate::render::SvgOptions::default();
+        let metrics = super::render::svg_metrics::SvgTextMetrics::new(
+            defaults.font_size,
+            defaults.node_padding_x,
+            defaults.node_padding_y,
+        );
         Self {
-            mode: MeasurementMode::Text,
+            mode: MeasurementMode::Svg(metrics),
         }
     }
 
@@ -355,6 +370,19 @@ impl GraphEngine for MermaidLayeredEngine {
     ) -> Result<GraphSolveResult, RenderError> {
         use crate::diagram::EdgeRouting;
         use crate::render::SvgOptions;
+
+        // MermaidLayeredEngine only supports SVG and MMDS output.
+        // Mermaid.js itself only renders to SVG; text/ascii output should use
+        // FluxLayeredEngine (which produces identical text layout anyway).
+        if matches!(
+            request.output_format,
+            OutputFormat::Text | OutputFormat::Ascii
+        ) {
+            return Err(RenderError {
+                message: "mermaid-layered does not support text output; use flux-layered instead"
+                    .to_string(),
+            });
+        }
 
         // Build a transient Mermaid-compatible view that normalizes per-subgraph
         // direction semantics to match Mermaid dagre behavior.

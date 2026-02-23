@@ -49,7 +49,7 @@ impl Default for GraphEngineRegistry {
         );
         registry.register_solver(
             EngineAlgorithmId::new(EngineId::Mermaid, AlgorithmId::Layered),
-            Box::new(MermaidLayeredEngine::text()),
+            Box::new(MermaidLayeredEngine::new()),
         );
 
         registry
