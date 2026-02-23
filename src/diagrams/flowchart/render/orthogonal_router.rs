@@ -5,6 +5,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use super::backward_policy::{can_apply_td_bt_backward_hint_parity, prefer_backward_side_channel};
 use super::route_policy::{build_override_node_map, effective_edge_direction};
 use super::text_routing_core::{
     Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
@@ -1103,16 +1104,14 @@ fn backward_td_bt_face_overrides(
     _target_overflowed: bool,
     rank_span: usize,
 ) -> (Option<Face>, Option<Face>) {
-    const MIN_OVERRIDE_RECT_SPAN: f64 = 20.0;
     if !is_backward || !matches!(direction, Direction::TopDown | Direction::BottomTop) {
         return (None, None);
     }
-    if edge.from_subgraph.is_some() || edge.to_subgraph.is_some() {
+    let has_subgraph_endpoint = edge.from_subgraph.is_some() || edge.to_subgraph.is_some();
+    if has_subgraph_endpoint {
         return (None, None);
     }
-    // Long backward edges (3+ user-visible rank gaps, normalized rank_span >= 6)
-    // use side-face channel routing (R-BACK-7 Heuristic 4).
-    if rank_span >= 6 {
+    if prefer_backward_side_channel(is_backward, true, Some(rank_span)) {
         return (None, None);
     }
     let hint = edge.layout_path_hint.as_ref();
@@ -1133,15 +1132,6 @@ fn backward_td_bt_face_overrides(
     else {
         return (None, None);
     };
-    // Restrict parity overrides to geometry with stable floating-point extents.
-    // Tiny text-grid rectangles are too coarse and can overfit corner hints.
-    if source_rect.width < MIN_OVERRIDE_RECT_SPAN
-        || source_rect.height < MIN_OVERRIDE_RECT_SPAN
-        || target_rect.width < MIN_OVERRIDE_RECT_SPAN
-        || target_rect.height < MIN_OVERRIDE_RECT_SPAN
-    {
-        return (None, None);
-    }
 
     let source_hint = hint[0];
     let target_hint = hint[hint.len() - 1];
@@ -1162,8 +1152,15 @@ fn backward_td_bt_face_overrides(
     // Note: when the source center is still within the target's x-span, any
     // parity approach is nearly vertical and does not cross the forward edge.
     let source_center_x = source_rect.x + source_rect.width / 2.0;
-    let target_right = target_rect.x + target_rect.width;
-    if source_center_x > target_right {
+    if !can_apply_td_bt_backward_hint_parity(
+        direction,
+        is_backward,
+        has_subgraph_endpoint,
+        rank_span,
+        source_rect,
+        target_rect,
+        source_center_x,
+    ) {
         return (None, None);
     }
 

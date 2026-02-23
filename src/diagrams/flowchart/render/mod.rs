@@ -1,5 +1,6 @@
 //! Flowchart-specific rendering and routing modules.
 
+pub(crate) mod backward_policy;
 pub(crate) mod layout_building;
 pub(crate) mod layout_subgraph_ops;
 pub(crate) mod orthogonal_router;

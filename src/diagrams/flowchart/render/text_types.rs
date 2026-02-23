@@ -100,6 +100,11 @@ pub struct Layout {
     /// Empty for short edges (span 1 rank), populated for long edges.
     pub edge_waypoints: HashMap<usize, Vec<(usize, usize)>>,
 
+    /// Fully-routed edge paths transformed to draw coordinates.
+    /// When present for an edge, text routing can consume these points directly
+    /// and only perform grid/character conversion.
+    pub routed_edge_paths: HashMap<usize, Vec<(usize, usize)>>,
+
     /// Pre-computed label positions for edges with labels.
     /// Key: edge index in `Diagram::edges`, Value: (x, y) position for the label center.
     /// Only populated for edges that have labels.

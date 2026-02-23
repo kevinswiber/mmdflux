@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use super::backward_policy::prefer_backward_side_channel;
 use super::text_layout::{Layout, SubgraphBounds};
 use super::text_shape::NodeBounds;
 use crate::diagrams::flowchart::geometry::{FPoint, FRect};
@@ -234,7 +235,9 @@ pub(crate) fn plan_attachments(
         let is_subgraph_edge = edge.from_subgraph.is_some() || edge.to_subgraph.is_some();
         let is_backward = is_backward_edge(&src_bounds, &tgt_bounds, edge_dir);
         let has_layout_waypoints = waypoints.is_some_and(|wps| !wps.is_empty());
-        let (mut src_face, mut tgt_face) = if is_backward && !has_layout_waypoints {
+        let use_backward_channel = !is_subgraph_edge
+            && prefer_backward_side_channel(is_backward, has_layout_waypoints, None);
+        let (mut src_face, mut tgt_face) = if use_backward_channel {
             backward_routing_faces(edge_dir)
         } else if matches!(edge_dir, Direction::TopDown | Direction::BottomTop)
             && !is_backward

@@ -123,9 +123,13 @@ impl DiagramInstance for FlowchartInstance {
                 )?;
                 let mut text_config = layout_config_for_diagram(diagram, &options);
                 text_config.ranker = options.ranker;
-                let layout = super::render::text_adapter::geometry_to_text_layout(
+                let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
+                let routed =
+                    super::routing::route_graph_geometry(diagram, &result.geometry, edge_routing);
+                let layout = super::render::text_adapter::geometry_to_text_layout_with_routed(
                     diagram,
                     &result.geometry,
+                    Some(&routed),
                     &text_config,
                 );
                 Ok(render_text_from_layout(diagram, &layout, &options))

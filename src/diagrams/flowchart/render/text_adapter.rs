@@ -22,7 +22,7 @@ use super::text_layout::{
     transform_waypoints_direct,
 };
 use super::text_shape::{NodeBounds, node_dimensions};
-use crate::diagrams::flowchart::geometry::GraphGeometry;
+use crate::diagrams::flowchart::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::{Diagram, Direction, Shape};
 use crate::layered::{Direction as LayeredDirection, Rect};
 
@@ -71,6 +71,17 @@ pub fn compute_layout(diagram: &Diagram, config: &TextLayoutConfig) -> Layout {
 pub fn geometry_to_text_layout(
     diagram: &Diagram,
     geometry: &GraphGeometry,
+    config: &TextLayoutConfig,
+) -> Layout {
+    geometry_to_text_layout_with_routed(diagram, geometry, None, config)
+}
+
+/// Convert engine-produced `GraphGeometry` (with optional routed edge paths)
+/// to the integer-coordinate `Layout` consumed by the text renderer.
+pub fn geometry_to_text_layout_with_routed(
+    diagram: &Diagram,
+    geometry: &GraphGeometry,
+    routed: Option<&RoutedGraphGeometry>,
     config: &TextLayoutConfig,
 ) -> Layout {
     let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomTop);
@@ -345,6 +356,22 @@ pub fn geometry_to_text_layout(
         width,
         height,
     );
+    let mut routed_edge_paths: HashMap<usize, Vec<(usize, usize)>> = HashMap::new();
+    if let Some(routed) = routed {
+        for edge in &routed.edges {
+            if edge.path.is_empty() {
+                continue;
+            }
+            let mut converted: Vec<(usize, usize)> = Vec::with_capacity(edge.path.len());
+            for point in &edge.path {
+                converted.push(ctx.to_ascii(point.x, point.y));
+            }
+            converted.dedup();
+            if converted.len() >= 2 {
+                routed_edge_paths.insert(edge.index, converted);
+            }
+        }
+    }
 
     let mut edge_label_positions = transform_label_positions_direct(
         &engine_hints.label_positions,
@@ -506,6 +533,12 @@ pub fn geometry_to_text_layout(
             height = height.max(y + config.padding + 1);
         }
     }
+    for points in routed_edge_paths.values() {
+        for &(x, y) in points {
+            width = width.max(x + config.padding + 1);
+            height = height.max(y + config.padding + 1);
+        }
+    }
 
     // --- Phase M: Direction-override sub-layout reconciliation ---
     if !sublayouts.is_empty() {
@@ -561,6 +594,7 @@ pub fn geometry_to_text_layout(
                 let key = edge.index;
                 if from_in && to_in {
                     edge_waypoints.remove(&key);
+                    routed_edge_paths.remove(&key);
                 } else if let Some(bounds) = subgraph_bounds.get(&sg.id)
                     && let Some(wps) = edge_waypoints.get(&key).cloned()
                 {
@@ -583,12 +617,15 @@ pub fn geometry_to_text_layout(
                         });
                         if stale {
                             edge_waypoints.remove(&key);
+                            routed_edge_paths.remove(&key);
                         } else {
                             edge_waypoints.insert(key, clipped);
                         }
                     } else {
                         edge_waypoints.insert(key, clipped);
                     }
+                } else {
+                    routed_edge_paths.remove(&key);
                 }
                 edge_label_positions.remove(&key);
             }
@@ -603,6 +640,12 @@ pub fn geometry_to_text_layout(
             width = width.max(nb.x + nb.width + config.padding);
             height = height.max(nb.y + nb.height + config.padding);
         }
+        for points in routed_edge_paths.values() {
+            for &(x, y) in points {
+                width = width.max(x + config.padding + 1);
+                height = height.max(y + config.padding + 1);
+            }
+        }
     }
 
     let node_directions = geometry.node_directions.clone();
@@ -616,6 +659,7 @@ pub fn geometry_to_text_layout(
         h_spacing: config.h_spacing,
         v_spacing: config.v_spacing,
         edge_waypoints,
+        routed_edge_paths,
         edge_label_positions,
         node_shapes,
         subgraph_bounds,

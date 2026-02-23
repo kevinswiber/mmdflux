@@ -19,7 +19,7 @@ use crate::diagram::{
 pub use crate::diagrams::flowchart::render::svg::{render_svg, render_svg_from_geometry};
 use crate::diagrams::flowchart::render::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
 pub use crate::diagrams::flowchart::render::text_adapter::{
-    compute_layout, geometry_to_text_layout,
+    compute_layout, geometry_to_text_layout, geometry_to_text_layout_with_routed,
 };
 pub use crate::diagrams::flowchart::render::text_edge::{
     render_all_edges, render_all_edges_with_labels, render_edge,
@@ -255,8 +255,14 @@ pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
     let result = engine
         .solve(diagram, &engine_config, &request)
         .expect("engine solve failed in render()");
-
-    let layout = geometry_to_text_layout(diagram, &result.geometry, &config);
+    let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
+    let routed = crate::diagrams::flowchart::routing::route_graph_geometry(
+        diagram,
+        &result.geometry,
+        edge_routing,
+    );
+    let layout =
+        geometry_to_text_layout_with_routed(diagram, &result.geometry, Some(&routed), &config);
     render_text_from_layout(diagram, &layout, options)
 }
 

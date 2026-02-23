@@ -109,6 +109,19 @@ fn bounds_for_node_id(layout: &Layout, node_id: &str) -> Option<NodeBounds> {
         .map(subgraph_bounds_as_node)
 }
 
+fn node_inside_any_subgraph(layout: &Layout, node_id: &str) -> bool {
+    let Some(bounds) = layout.node_bounds.get(node_id) else {
+        return false;
+    };
+    let node_right = bounds.x + bounds.width;
+    let node_bottom = bounds.y + bounds.height;
+    layout.subgraph_bounds.values().any(|sg| {
+        let sg_right = sg.x + sg.width;
+        let sg_bottom = sg.y + sg.height;
+        bounds.x >= sg.x && bounds.y >= sg.y && node_right <= sg_right && node_bottom <= sg_bottom
+    })
+}
+
 /// A point on the canvas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Point {
@@ -338,6 +351,31 @@ pub fn route_edge(
         to_shape,
     };
 
+    let use_routed_draw_path =
+        matches!(diagram_direction, Direction::TopDown | Direction::BottomTop)
+            && edge.from_subgraph.is_none()
+            && edge.to_subgraph.is_none()
+            && !node_inside_any_subgraph(layout, &edge.from)
+            && !node_inside_any_subgraph(layout, &edge.to)
+            && from_bounds.center_x() <= to_bounds.x + to_bounds.width
+            && is_backward_edge(&from_bounds, &to_bounds, diagram_direction);
+
+    if use_routed_draw_path
+        && let Some(draw_path) = layout.routed_edge_paths.get(&edge.index)
+        && let Some(routed) = route_edge_from_draw_path(
+            edge,
+            layout,
+            &endpoints,
+            draw_path,
+            diagram_direction,
+            src_attach_override,
+            tgt_attach_override,
+            src_first_vertical,
+        )
+    {
+        return Some(routed);
+    }
+
     // Check for waypoints from normalization — works for both forward and backward long edges
     let allow_waypoints = edge.from_subgraph.is_none() && edge.to_subgraph.is_none();
     if allow_waypoints
@@ -408,6 +446,177 @@ pub fn route_edge(
     )
 }
 
+fn route_edge_from_draw_path(
+    edge: &Edge,
+    layout: &Layout,
+    ep: &EdgeEndpoints,
+    draw_path: &[(usize, usize)],
+    direction: Direction,
+    src_attach_override: Option<(usize, usize)>,
+    tgt_attach_override: Option<(usize, usize)>,
+    src_first_vertical: bool,
+) -> Option<RoutedEdge> {
+    if draw_path.len() < 3 {
+        return None;
+    }
+
+    let mut points: Vec<(usize, usize)> = draw_path.to_vec();
+    points.dedup();
+    if points.len() < 3 {
+        return None;
+    }
+
+    let waypoints = waypoints_from_draw_path(&points);
+    if waypoints.is_empty() {
+        return None;
+    }
+
+    let first_anchor = waypoints.first().copied().unwrap_or(points[1]);
+    let last_anchor = waypoints
+        .last()
+        .copied()
+        .unwrap_or(points[points.len().saturating_sub(2)]);
+    let inferred_src_override = source_face_from_step(&points)
+        .map(|face| clamp_to_face(&ep.from_bounds, face, first_anchor));
+    let inferred_tgt_override =
+        target_face_from_step(&points).map(|face| clamp_to_face(&ep.to_bounds, face, last_anchor));
+    if source_face_from_step(&points)
+        .is_some_and(|face| !waypoint_is_outside_face(first_anchor, &ep.from_bounds, face))
+        || target_face_from_step(&points)
+            .is_some_and(|face| !waypoint_is_outside_face(last_anchor, &ep.to_bounds, face))
+    {
+        return None;
+    }
+
+    let routed = route_edge_with_waypoints(
+        edge,
+        ep,
+        &waypoints,
+        direction,
+        inferred_src_override.or(src_attach_override),
+        inferred_tgt_override.or(tgt_attach_override),
+        src_first_vertical,
+    )?;
+    if segments_collide_with_other_nodes(routed.segments.as_slice(), layout, edge) {
+        return None;
+    }
+
+    if std::env::var("MMDFLUX_DEBUG_ROUTE_SEGMENTS").is_ok_and(|value| value == "1") {
+        eprintln!(
+            "[route-routed] {} -> {}: points={points:?} waypoints={waypoints:?} start={:?} end={:?} segments={:?}",
+            edge.from, edge.to, routed.start, routed.end, routed.segments
+        );
+    }
+
+    Some(routed)
+}
+
+fn source_face_from_step(points: &[(usize, usize)]) -> Option<NodeFace> {
+    let first = points.first().copied()?;
+    let second = points.iter().copied().find(|point| *point != first)?;
+    let dx = second.0 as isize - first.0 as isize;
+    let dy = second.1 as isize - first.1 as isize;
+    if dx.abs() >= dy.abs() && dx != 0 {
+        if dx > 0 {
+            Some(NodeFace::Right)
+        } else {
+            Some(NodeFace::Left)
+        }
+    } else if dy != 0 {
+        if dy > 0 {
+            Some(NodeFace::Bottom)
+        } else {
+            Some(NodeFace::Top)
+        }
+    } else {
+        None
+    }
+}
+
+fn target_face_from_step(points: &[(usize, usize)]) -> Option<NodeFace> {
+    let end = points.last().copied()?;
+    let prev = points.iter().rev().copied().find(|point| *point != end)?;
+    let dx = end.0 as isize - prev.0 as isize;
+    let dy = end.1 as isize - prev.1 as isize;
+    if dx.abs() >= dy.abs() && dx != 0 {
+        if dx > 0 {
+            Some(NodeFace::Left)
+        } else {
+            Some(NodeFace::Right)
+        }
+    } else if dy != 0 {
+        if dy > 0 {
+            Some(NodeFace::Top)
+        } else {
+            Some(NodeFace::Bottom)
+        }
+    } else {
+        None
+    }
+}
+
+fn waypoints_from_draw_path(points: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    let mut waypoints = Vec::new();
+    for &(x, y) in points.iter().skip(1).take(points.len().saturating_sub(2)) {
+        if waypoints.last().copied() != Some((x, y)) {
+            waypoints.push((x, y));
+        }
+    }
+    waypoints
+}
+
+fn waypoint_is_outside_face(waypoint: (usize, usize), bounds: &NodeBounds, face: NodeFace) -> bool {
+    let left = bounds.x;
+    let right = bounds.x + bounds.width.saturating_sub(1);
+    let top = bounds.y;
+    let bottom = bounds.y + bounds.height.saturating_sub(1);
+    match face {
+        NodeFace::Top => waypoint.1 < top,
+        NodeFace::Bottom => waypoint.1 > bottom,
+        NodeFace::Left => waypoint.0 < left,
+        NodeFace::Right => waypoint.0 > right,
+    }
+}
+
+fn segments_collide_with_other_nodes(segments: &[Segment], layout: &Layout, edge: &Edge) -> bool {
+    layout.node_bounds.iter().any(|(node_id, bounds)| {
+        if node_id == &edge.from || node_id == &edge.to {
+            return false;
+        }
+        segments
+            .iter()
+            .any(|segment| segment_intersects_bounds(*segment, bounds))
+    })
+}
+
+fn segment_intersects_bounds(segment: Segment, bounds: &NodeBounds) -> bool {
+    let left = bounds.x;
+    let right = bounds.x + bounds.width.saturating_sub(1);
+    let top = bounds.y;
+    let bottom = bounds.y + bounds.height.saturating_sub(1);
+
+    match segment {
+        Segment::Vertical { x, y_start, y_end } => {
+            if x < left || x > right {
+                return false;
+            }
+            ranges_overlap(y_start, y_end, top, bottom)
+        }
+        Segment::Horizontal { y, x_start, x_end } => {
+            if y < top || y > bottom {
+                return false;
+            }
+            ranges_overlap(x_start, x_end, left, right)
+        }
+    }
+}
+
+fn ranges_overlap(a1: usize, a2: usize, b1: usize, b2: usize) -> bool {
+    let (a_min, a_max) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
+    let (b_min, b_max) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
+    a_min <= b_max && b_min <= a_max
+}
+
 /// Route an edge using waypoints from normalization.
 ///
 /// Uses dynamic intersection calculation to determine attachment points
@@ -452,7 +661,11 @@ fn route_edge_with_waypoints(
             classify_face(&ep.to_bounds, tgt_attach, ep.to_shape),
         )
     } else {
-        edge_faces(direction, is_backward)
+        let (default_src_face, default_tgt_face) = edge_faces(direction, is_backward);
+        (
+            infer_face_from_attachment(&ep.from_bounds, src_attach, default_src_face),
+            infer_face_from_attachment(&ep.to_bounds, tgt_attach, default_tgt_face),
+        )
     };
     let mut start = offset_for_face(src_attach, src_face);
     let end = offset_for_face(tgt_attach, tgt_face);
@@ -832,7 +1045,25 @@ fn resolve_attachment_points(
     if matches!(direction, Direction::TopDown | Direction::BottomTop)
         && let (Some(&first_wp), Some(&last_wp)) = (waypoints.first(), waypoints.last())
     {
-        let (src_face, tgt_face) = edge_faces(direction, is_backward);
+        let (src_face, tgt_face) = if is_backward {
+            let (default_src_face, default_tgt_face) = edge_faces(direction, is_backward);
+            let inferred_src_face = classify_face(&from_bounds, first_wp, ep.from_shape);
+            let inferred_tgt_face = classify_face(&to_bounds, last_wp, ep.to_shape);
+            (
+                if matches!(inferred_src_face, NodeFace::Left | NodeFace::Right) {
+                    inferred_src_face
+                } else {
+                    default_src_face
+                },
+                if matches!(inferred_tgt_face, NodeFace::Left | NodeFace::Right) {
+                    inferred_tgt_face
+                } else {
+                    default_tgt_face
+                },
+            )
+        } else {
+            edge_faces(direction, is_backward)
+        };
         let src = src_override.unwrap_or_else(|| clamp_to_face(&from_bounds, src_face, first_wp));
         let tgt = tgt_override.unwrap_or_else(|| clamp_to_face(&to_bounds, tgt_face, last_wp));
         return (src, tgt);
@@ -860,6 +1091,29 @@ fn clamp_to_face(bounds: &NodeBounds, face: NodeFace, waypoint: (usize, usize)) 
     match face {
         NodeFace::Top | NodeFace::Bottom => (waypoint.0.clamp(min, max), fixed),
         NodeFace::Left | NodeFace::Right => (fixed, waypoint.1.clamp(min, max)),
+    }
+}
+
+fn infer_face_from_attachment(
+    bounds: &NodeBounds,
+    attach: (usize, usize),
+    fallback: NodeFace,
+) -> NodeFace {
+    let left = bounds.x;
+    let right = bounds.x + bounds.width.saturating_sub(1);
+    let top = bounds.y;
+    let bottom = bounds.y + bounds.height.saturating_sub(1);
+
+    if attach.0 == left {
+        NodeFace::Left
+    } else if attach.0 == right {
+        NodeFace::Right
+    } else if attach.1 == top {
+        NodeFace::Top
+    } else if attach.1 == bottom {
+        NodeFace::Bottom
+    } else {
+        fallback
     }
 }
 
@@ -946,7 +1200,7 @@ fn add_connector_segment(segments: &mut Vec<Segment>, boundary: (usize, usize), 
 /// - Horizontal final segment going right → entry from Left (arrow ►)
 /// - Horizontal final segment going left → entry from Right (arrow ◄)
 fn entry_direction_from_segments(segments: &[Segment]) -> AttachDirection {
-    match segments.last() {
+    match segments.iter().rev().find(|segment| segment.length() > 0) {
         Some(Segment::Vertical { y_start, y_end, .. }) if *y_end > *y_start => AttachDirection::Top,
         Some(Segment::Vertical { .. }) => AttachDirection::Bottom,
         Some(Segment::Horizontal { x_start, x_end, .. }) if *x_end > *x_start => {
@@ -1236,7 +1490,9 @@ fn compute_vertical_first_path(start: Point, end: Point) -> Vec<Segment> {
 /// * `vertical_first` - If true, prefer vertical-then-horizontal routing (for TD/BT).
 ///   If false, prefer horizontal-then-vertical routing (for LR/RL).
 fn orthogonalize_segment(from: Point, to: Point, vertical_first: bool) -> Vec<Segment> {
-    if from.x == to.x {
+    if from == to {
+        vec![]
+    } else if from.x == to.x {
         // Already vertical
         vec![Segment::Vertical {
             x: from.x,
