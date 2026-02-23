@@ -358,6 +358,10 @@ pub fn route_edge(
             && !node_inside_any_subgraph(layout, &edge.from)
             && !node_inside_any_subgraph(layout, &edge.to)
             && from_bounds.center_x() <= to_bounds.x + to_bounds.width
+            && layout
+                .edge_waypoints
+                .get(&edge.index)
+                .is_some_and(|wps| wps.len() >= 4)
             && is_backward_edge(&from_bounds, &to_bounds, diagram_direction);
 
     if use_routed_draw_path
@@ -471,18 +475,21 @@ fn route_edge_from_draw_path(
         return None;
     }
 
+    let inferred_src_face = source_face_from_step(&points);
+    let inferred_tgt_face = target_face_from_step(&points);
+
     let first_anchor = waypoints.first().copied().unwrap_or(points[1]);
     let last_anchor = waypoints
         .last()
         .copied()
         .unwrap_or(points[points.len().saturating_sub(2)]);
-    let inferred_src_override = source_face_from_step(&points)
-        .map(|face| clamp_to_face(&ep.from_bounds, face, first_anchor));
+    let inferred_src_override =
+        inferred_src_face.map(|face| clamp_to_face(&ep.from_bounds, face, first_anchor));
     let inferred_tgt_override =
-        target_face_from_step(&points).map(|face| clamp_to_face(&ep.to_bounds, face, last_anchor));
-    if source_face_from_step(&points)
+        inferred_tgt_face.map(|face| clamp_to_face(&ep.to_bounds, face, last_anchor));
+    if inferred_src_face
         .is_some_and(|face| !waypoint_is_outside_face(first_anchor, &ep.from_bounds, face))
-        || target_face_from_step(&points)
+        || inferred_tgt_face
             .is_some_and(|face| !waypoint_is_outside_face(last_anchor, &ep.to_bounds, face))
     {
         return None;
@@ -1045,7 +1052,7 @@ fn resolve_attachment_points(
     if matches!(direction, Direction::TopDown | Direction::BottomTop)
         && let (Some(&first_wp), Some(&last_wp)) = (waypoints.first(), waypoints.last())
     {
-        let (src_face, tgt_face) = if is_backward {
+        let (src_face, tgt_face) = if is_backward && waypoints.len() <= 1 {
             let (default_src_face, default_tgt_face) = edge_faces(direction, is_backward);
             let inferred_src_face = classify_face(&from_bounds, first_wp, ep.from_shape);
             let inferred_tgt_face = classify_face(&to_bounds, last_wp, ep.to_shape);
