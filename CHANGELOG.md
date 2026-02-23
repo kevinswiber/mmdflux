@@ -12,6 +12,10 @@
 
 - Sibling subgraph bounds no longer overlap after sublayout reconciliation.
 - Added margin between adjacent subgraph borders for visual breathing room.
+- Text backward-edge routing now reuses shared routed paths for long TD/BT
+  backward edges while preserving text-specific fallback heuristics for short
+  cycles, fixing wrong-facing arrowheads and attachment/segment artifacts
+  (for example in `complex.mmd` and `multiple_cycles.mmd`).
 - SVG polyline rendering no longer injects tiny synthetic jogs on
   axis-to-diagonal turns (for example `ampersand.mmd`) in both
   `flux-layered` and `mermaid-layered`.

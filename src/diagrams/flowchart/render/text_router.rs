@@ -24,6 +24,12 @@ struct EdgeEndpoints {
     to_shape: Shape,
 }
 
+struct RoutingOverrides {
+    src_attach: Option<(usize, usize)>,
+    tgt_attach: Option<(usize, usize)>,
+    src_first_vertical: bool,
+}
+
 fn subgraph_edge_face(bounds: &NodeBounds, other: &NodeBounds, direction: Direction) -> NodeFace {
     let bounds_right = bounds.x + bounds.width.saturating_sub(1);
     let bounds_bottom = bounds.y + bounds.height.saturating_sub(1);
@@ -372,9 +378,11 @@ pub fn route_edge(
             &endpoints,
             draw_path,
             diagram_direction,
-            src_attach_override,
-            tgt_attach_override,
-            src_first_vertical,
+            RoutingOverrides {
+                src_attach: src_attach_override,
+                tgt_attach: tgt_attach_override,
+                src_first_vertical,
+            },
         )
     {
         return Some(routed);
@@ -456,9 +464,7 @@ fn route_edge_from_draw_path(
     ep: &EdgeEndpoints,
     draw_path: &[(usize, usize)],
     direction: Direction,
-    src_attach_override: Option<(usize, usize)>,
-    tgt_attach_override: Option<(usize, usize)>,
-    src_first_vertical: bool,
+    overrides: RoutingOverrides,
 ) -> Option<RoutedEdge> {
     if draw_path.len() < 3 {
         return None;
@@ -500,9 +506,9 @@ fn route_edge_from_draw_path(
         ep,
         &waypoints,
         direction,
-        inferred_src_override.or(src_attach_override),
-        inferred_tgt_override.or(tgt_attach_override),
-        src_first_vertical,
+        inferred_src_override.or(overrides.src_attach),
+        inferred_tgt_override.or(overrides.tgt_attach),
+        overrides.src_first_vertical,
     )?;
     if segments_collide_with_other_nodes(routed.segments.as_slice(), layout, edge) {
         return None;
