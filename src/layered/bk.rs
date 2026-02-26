@@ -1087,6 +1087,9 @@ pub fn calculate_width(
     direction: Direction,
 ) -> f64 {
     let (min_x, max_x) = find_bounds(graph, result, direction);
+    if !(min_x.is_finite() && max_x.is_finite()) {
+        return f64::INFINITY;
+    }
     (max_x - min_x).max(0.0)
 }
 
@@ -1133,20 +1136,20 @@ fn find_smallest_width(
     results: &HashMap<AlignmentDirection, CompactionResult>,
     direction: Direction,
 ) -> AlignmentDirection {
-    let mut best_dir = AlignmentDirection::UL;
+    let mut best_dir: Option<AlignmentDirection> = None;
     let mut best_width = f64::INFINITY;
 
     for dir in AlignmentDirection::all() {
         if let Some(result) = results.get(&dir) {
             let width = calculate_width(graph, result, direction);
-            if width < best_width {
+            if width.is_finite() && width < best_width {
                 best_width = width;
-                best_dir = dir;
+                best_dir = Some(dir);
             }
         }
     }
 
-    best_dir
+    best_dir.unwrap_or(AlignmentDirection::UL)
 }
 
 /// Find the bounding box (min_x, max_x) of a compaction result.
@@ -1173,8 +1176,13 @@ fn align_to_smallest(
     results: &mut HashMap<AlignmentDirection, CompactionResult>,
     smallest: AlignmentDirection,
 ) {
-    let smallest_result = results.get(&smallest).unwrap();
+    let Some(smallest_result) = results.get(&smallest) else {
+        return;
+    };
     let (target_min, target_max) = find_center_bounds(smallest_result);
+    if !(target_min.is_finite() && target_max.is_finite()) {
+        return;
+    }
 
     for (dir, result) in results.iter_mut() {
         if *dir == smallest {
@@ -1182,11 +1190,17 @@ fn align_to_smallest(
         }
 
         let (result_min, result_max) = find_center_bounds(result);
+        if !(result_min.is_finite() && result_max.is_finite()) {
+            continue;
+        }
         let shift = if dir.prefers_left() {
             target_min - result_min
         } else {
             target_max - result_max
         };
+        if !shift.is_finite() {
+            continue;
+        }
 
         // Apply shift to all coordinates
         for x in result.x.values_mut() {
@@ -1263,6 +1277,7 @@ pub fn position_x(graph: &LayoutGraph, config: &BKConfig) -> HashMap<NodeIndex, 
     if graph.node_ids.is_empty() {
         return HashMap::new();
     }
+    let bk_trace = std::env::var("MMDFLUX_DEBUG_BK_TRACE").is_ok_and(|v| v == "1");
 
     // Step 1: Find all conflicts
     let conflicts = find_all_conflicts(graph);
@@ -1270,6 +1285,22 @@ pub fn position_x(graph: &LayoutGraph, config: &BKConfig) -> HashMap<NodeIndex, 
 
     // Step 2: Compute all 4 alignments
     let mut results = compute_all_alignments(graph, &conflicts, config);
+    if bk_trace {
+        for dir in AlignmentDirection::all() {
+            if let Some(result) = results.get(&dir) {
+                let (center_min, center_max) = find_center_bounds(result);
+                let (bounds_min, bounds_max) = find_bounds(graph, result, config.direction);
+                let width = calculate_width(graph, result, config.direction);
+                let finite = result.x.values().filter(|x| x.is_finite()).count();
+                eprintln!(
+                    "[BK] {:?}: nodes={} finite={} center=[{center_min}, {center_max}] bounds=[{bounds_min}, {bounds_max}] width={width}",
+                    dir,
+                    result.x.len(),
+                    finite,
+                );
+            }
+        }
+    }
 
     // Step 3: Find smallest width
     let smallest = find_smallest_width(graph, &results, config.direction);

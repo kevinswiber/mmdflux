@@ -255,11 +255,12 @@ impl GraphEngine for FluxLayeredEngine {
     ) -> Result<GraphSolveResult, RenderError> {
         use crate::render::SvgOptions;
 
-        // Flux-layered always enables layout quality enhancements.
+        // Flux-layered keeps layout quality enhancements enabled by default,
+        // but model-order tie-breaking is now opt-in via config.
         let EngineConfig::Layered(ref input_cfg) = *config;
         let enhanced_config = EngineConfig::Layered(crate::layered::LayoutConfig {
             greedy_switch: true,
-            model_order_tiebreak: true,
+            model_order_tiebreak: input_cfg.model_order_tiebreak,
             variable_rank_spacing: true,
             track_reversed_chains: true,
             per_edge_label_spacing: true,

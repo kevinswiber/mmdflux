@@ -1346,9 +1346,9 @@ mod tests {
         crate::layered::acyclic::run(&mut lg);
         rank::run(&mut lg, &LayoutConfig::default());
         rank::normalize(&mut lg);
-        crate::layered::normalize::run(&mut lg, &std::collections::HashMap::new());
+        crate::layered::normalize::run(&mut lg, &std::collections::HashMap::new(), false);
 
-        run(&mut lg);
+        run(&mut lg, false);
 
         let layers = rank::by_rank(&lg);
         let edges = effective_edges_weighted_filtered(&lg);
