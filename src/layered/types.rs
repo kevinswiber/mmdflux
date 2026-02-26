@@ -134,6 +134,12 @@ pub struct LayoutConfig {
     /// Enable variable per-gap rank spacing from edge density (flux-layered only).
     pub variable_rank_spacing: bool,
 
+    /// Use compound-style crossing reduction sweeps even for flat graphs.
+    ///
+    /// Mermaid-layered keeps this enabled for dagre parity.
+    /// Flux-layered defaults this to false.
+    pub always_compound_ordering: bool,
+
     /// Track reversed chain edges in `reversed_edges` after normalization.
     /// When true, chain edges created from reversed long edges are marked as
     /// reversed, affecting effective edge direction in ordering and positioning.
@@ -182,6 +188,7 @@ impl Default for LayoutConfig {
             greedy_switch: false,
             model_order_tiebreak: false,
             variable_rank_spacing: false,
+            always_compound_ordering: false,
             track_reversed_chains: false,
             per_edge_label_spacing: false,
             label_side_selection: false,

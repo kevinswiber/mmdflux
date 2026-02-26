@@ -163,6 +163,7 @@ pub fn run_layered_layout(
     lc.greedy_switch = layered_cfg.greedy_switch;
     lc.model_order_tiebreak = layered_cfg.model_order_tiebreak;
     lc.variable_rank_spacing = layered_cfg.variable_rank_spacing;
+    lc.always_compound_ordering = layered_cfg.always_compound_ordering;
     lc.track_reversed_chains = layered_cfg.track_reversed_chains;
     lc.per_edge_label_spacing = layered_cfg.per_edge_label_spacing;
     lc.label_side_selection = layered_cfg.label_side_selection;
@@ -255,19 +256,42 @@ impl GraphEngine for FluxLayeredEngine {
     ) -> Result<GraphSolveResult, RenderError> {
         use crate::render::SvgOptions;
 
-        // Flux-layered keeps layout quality enhancements enabled by default,
-        // but model-order tie-breaking is now opt-in via config.
+        // Flux-layered enhancement policy.
+        //
+        // Polyline routing is used for Mermaid-compatible edge rendering
+        // (e.g., basis/polyline presets). Keep ordering in the dagre-like
+        // compound sweep path there, and avoid forcing extra flux enhancements.
+        //
+        // Orthogonal/direct routing keeps the stronger flux defaults.
         let EngineConfig::Layered(ref input_cfg) = *config;
-        let enhanced_config = EngineConfig::Layered(crate::layered::LayoutConfig {
-            greedy_switch: true,
-            model_order_tiebreak: input_cfg.model_order_tiebreak,
-            variable_rank_spacing: true,
-            track_reversed_chains: true,
-            per_edge_label_spacing: true,
-            label_side_selection: true,
-            label_dummy_strategy: crate::layered::LabelDummyStrategy::WidestLayer,
-            ..input_cfg.clone()
-        });
+        let edge_routing = self.id().edge_routing_for_style(request.routing_style);
+        let enhanced_layout_cfg =
+            if matches!(edge_routing, crate::diagram::EdgeRouting::PolylineRoute) {
+                crate::layered::LayoutConfig {
+                    greedy_switch: input_cfg.greedy_switch,
+                    model_order_tiebreak: input_cfg.model_order_tiebreak,
+                    variable_rank_spacing: input_cfg.variable_rank_spacing,
+                    always_compound_ordering: true,
+                    track_reversed_chains: input_cfg.track_reversed_chains,
+                    per_edge_label_spacing: input_cfg.per_edge_label_spacing,
+                    label_side_selection: input_cfg.label_side_selection,
+                    label_dummy_strategy: input_cfg.label_dummy_strategy,
+                    ..input_cfg.clone()
+                }
+            } else {
+                crate::layered::LayoutConfig {
+                    greedy_switch: true,
+                    model_order_tiebreak: input_cfg.model_order_tiebreak,
+                    variable_rank_spacing: true,
+                    always_compound_ordering: input_cfg.always_compound_ordering,
+                    track_reversed_chains: true,
+                    per_edge_label_spacing: true,
+                    label_side_selection: true,
+                    label_dummy_strategy: crate::layered::LabelDummyStrategy::WidestLayer,
+                    ..input_cfg.clone()
+                }
+            };
+        let enhanced_config = EngineConfig::Layered(enhanced_layout_cfg);
         let config = &enhanced_config;
 
         // For SVG/MMDS output, pixel-accurate SVG measurement mode is required.
@@ -302,7 +326,6 @@ impl GraphEngine for FluxLayeredEngine {
             let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
             // SVG does not add extra rank separation for clusters (matches Mermaid).
             layout_config.cluster_rank_sep = 0.0;
-            let edge_routing = self.id().edge_routing_for_style(request.routing_style);
             let geometry = super::render::svg::build_svg_layout_with_flags(
                 diagram,
                 &layout_config,
@@ -439,7 +462,7 @@ impl GraphEngine for MermaidLayeredEngine {
         };
 
         // SVG/MMDS output: run the full SVG layout pipeline (subgraph post-processing,
-        // direction overrides, padding, edge rerouting) via build_svg_layout().
+        // direction overrides, padding, edge rerouting) via build_svg_layout_with_flags().
         // MermaidLayeredEngine uses PolylineRoute routing (no orthogonal path
         // injection), preserving the legacy render_svg() behavior for this engine.
         if matches!(
@@ -454,12 +477,17 @@ impl GraphEngine for MermaidLayeredEngine {
             let EngineConfig::Layered(ref layered_cfg) = *config;
             let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
             layout_config.cluster_rank_sep = 0.0;
-            let geometry = super::render::svg::build_svg_layout(
+            let mermaid_flags = crate::layered::LayoutConfig {
+                always_compound_ordering: true,
+                ..Default::default()
+            };
+            let geometry = super::render::svg::build_svg_layout_with_flags(
                 diagram,
                 &layout_config,
                 metrics,
                 EdgeRouting::PolylineRoute,
                 true, // mermaid compat: skip tainting non-isolated sublayout extraction
+                Some(&mermaid_flags),
             );
             let routed: Option<RoutedGraphGeometry> = if matches!(
                 (request.output_format, request.geometry_level),

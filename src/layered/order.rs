@@ -729,6 +729,19 @@ fn layers_sorted_by_order(layers: &[Vec<usize>], graph: &LayoutGraph) -> Vec<Vec
 /// - Best-order tracking across iterations
 /// - Terminates after 4 consecutive non-improving iterations
 pub fn run(graph: &mut LayoutGraph, enable_greedy_switch: bool) {
+    run_with_options(graph, enable_greedy_switch, false);
+}
+
+/// Run crossing reduction with optional "always compound" sweep behavior.
+///
+/// When `always_compound_ordering` is `true`, the constraint-graph based
+/// `sort_subgraph` pipeline is used for every sweep, even on flat graphs.
+/// When `false`, flat graphs use the classic `reorder_layer` sweeps.
+pub fn run_with_options(
+    graph: &mut LayoutGraph,
+    enable_greedy_switch: bool,
+    always_compound_ordering: bool,
+) {
     let layers = rank::by_rank_filtered(graph, |node| graph.is_position_node(node));
     if layers.len() < 2 {
         return;
@@ -752,18 +765,19 @@ pub fn run(graph: &mut LayoutGraph, enable_greedy_switch: bool) {
     // last_best increments every iteration, resets to 0 on strict improvement
     let mut i: usize = 0;
     let mut last_best: usize = 0;
+    let use_compound_sweeps = always_compound_ordering || !graph.compound_nodes.is_empty();
 
     while last_best < 4 {
         let bias_right = (i % 4) >= 2;
 
-        // Always use the compound ordering path (sort_subgraph + constraint
-        // graph) even for flat graphs.  Dagre v0.8.5 always runs this pipeline
-        // because Mermaid creates graphs with `compound: true`, and the
-        // constraint graph propagates ordering decisions across layers within a
-        // sweep, finding lower-crossing solutions that the simpler flat
-        // reorder_layer path misses.
-        let downward = !i.is_multiple_of(2); // odd = down, even = up
-        sweep_compound(graph, &layers, &edges, bias_right, downward);
+        if use_compound_sweeps {
+            let downward = !i.is_multiple_of(2); // odd = down, even = up
+            sweep_compound(graph, &layers, &edges, bias_right, downward);
+        } else if i.is_multiple_of(2) {
+            sweep_up(graph, &layers, &edges, bias_right);
+        } else {
+            sweep_down(graph, &layers, &edges, bias_right);
+        }
 
         let cc = count_all_crossings(graph, &layers, &edges);
 
@@ -888,12 +902,37 @@ fn sweep_compound(
     }
 }
 
+fn sweep_down(
+    graph: &mut LayoutGraph,
+    layers: &[Vec<usize>],
+    edges: &[(usize, usize, f64)],
+    bias_right: bool,
+) {
+    for i in 1..layers.len() {
+        let fixed = &layers[i - 1];
+        let free = &layers[i];
+        reorder_layer(graph, fixed, free, edges, true, bias_right);
+    }
+}
+
+fn sweep_up(
+    graph: &mut LayoutGraph,
+    layers: &[Vec<usize>],
+    edges: &[(usize, usize, f64)],
+    bias_right: bool,
+) {
+    for i in (0..layers.len() - 1).rev() {
+        let fixed = &layers[i + 1];
+        let free = &layers[i];
+        reorder_layer(graph, fixed, free, edges, false, bias_right);
+    }
+}
+
 /// Reorder nodes in `free` layer based on barycenter of connections to `fixed` layer.
 ///
 /// Uses dagre v0.8.5's partition-and-interleave algorithm: nodes with neighbors
 /// in the fixed layer are "sortable" (sorted by barycenter), while nodes without
 /// neighbors are "unsortable" (interleaved at their original positions).
-#[cfg(test)]
 fn reorder_layer(
     graph: &mut LayoutGraph,
     fixed: &[usize],

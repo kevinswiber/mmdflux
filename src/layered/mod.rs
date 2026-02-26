@@ -948,7 +948,11 @@ where
     }
 
     // Phase 3: Reduce crossings (now includes dummy nodes and border segments)
-    order::run(&mut lg, config.greedy_switch);
+    if config.always_compound_ordering {
+        order::run_with_options(&mut lg, config.greedy_switch, true);
+    } else {
+        order::run(&mut lg, config.greedy_switch);
+    }
     debug_dump_pipeline(&lg, "after_order");
 
     // Phase 3.6: Assign Above/Below sides to label dummies to reduce overlaps

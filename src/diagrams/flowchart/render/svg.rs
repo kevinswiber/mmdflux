@@ -75,38 +75,9 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
     )
 }
 
-/// Build fully post-processed SVG layout geometry.
-///
-/// Runs the layered layout with SVG pixel metrics, applies all subgraph
-/// post-processing (direction overrides, sublayout reconciliation, padding,
-/// edge rerouting), and converts to `GraphGeometry`. The result's
-/// `rerouted_edges` field carries edge indices rerouted by the subgraph
-/// pipeline. For `EdgeRouting::DirectRoute` and `EdgeRouting::OrthogonalRoute`,
-/// also injects route-mode-specific paths.
-///
-/// This is the canonical SVG layout pipeline for both `FluxLayeredEngine::solve()`
-/// (via `instance.rs`) and the legacy `render_svg()` path.
-pub(crate) fn build_svg_layout(
-    diagram: &Diagram,
-    config: &super::text_layout::TextLayoutConfig,
-    metrics: &SvgTextMetrics,
-    edge_routing: EdgeRouting,
-    skip_non_isolated_overrides: bool,
-) -> GraphGeometry {
-    build_svg_layout_with_flags(
-        diagram,
-        config,
-        metrics,
-        edge_routing,
-        skip_non_isolated_overrides,
-        None,
-    )
-}
-
 /// Build SVG layout with optional engine layout config for enhancement flags.
 ///
-/// When `engine_flags` is provided, the three layout enhancement flags
-/// (greedy_switch, model_order_tiebreak, variable_rank_spacing) are overlaid
+/// When `engine_flags` is provided, engine-specific layout flags are overlaid
 /// onto the internal LayoutConfig. Without it, flags default to false.
 pub(crate) fn build_svg_layout_with_flags(
     diagram: &Diagram,
@@ -122,6 +93,7 @@ pub(crate) fn build_svg_layout_with_flags(
         layered_config.greedy_switch = flags.greedy_switch;
         layered_config.model_order_tiebreak = flags.model_order_tiebreak;
         layered_config.variable_rank_spacing = flags.variable_rank_spacing;
+        layered_config.always_compound_ordering = flags.always_compound_ordering;
         layered_config.track_reversed_chains = flags.track_reversed_chains;
         layered_config.per_edge_label_spacing = flags.per_edge_label_spacing;
         layered_config.label_side_selection = flags.label_side_selection;
