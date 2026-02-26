@@ -283,7 +283,7 @@ impl GraphEngine for FluxLayeredEngine {
                     greedy_switch: true,
                     model_order_tiebreak: input_cfg.model_order_tiebreak,
                     variable_rank_spacing: true,
-                    always_compound_ordering: input_cfg.always_compound_ordering,
+                    always_compound_ordering: true,
                     track_reversed_chains: true,
                     per_edge_label_spacing: true,
                     label_side_selection: true,
