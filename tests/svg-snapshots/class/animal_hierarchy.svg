@@ -20,13 +20,6 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M260.10,210.00 L260.10,211.67 C260.10,213.33 260.10,216.67 233.94,221.50 C207.78,226.33 155.46,232.67 129.30,238.67 C103.15,244.67 103.15,250.33 103.15,253.17 L103.15,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
-      <path d="M336.20,210.00 L336.20,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
-      <path d="M412.30,210.00 L412.30,211.67 C412.30,213.33 412.30,216.67 435.92,221.50 C459.54,226.33 506.79,232.67 530.41,238.67 C554.03,244.67 554.03,250.33 554.03,253.17 L554.03,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
-    </g>
-    <g class="edgeLabels">
-    </g>
     <g class="nodes">
       <rect x="252.10" y="8.00" width="168.20" height="198.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="336.20" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Animal</text>
@@ -55,6 +48,13 @@
       <text x="489.11" y="331.00" text-anchor="start" dominant-baseline="middle" fill="#333">+bool is_wild</text>
       <line x1="474.11" y1="355.00" x2="633.96" y2="355.00" stroke="#333" stroke-width="1.00" />
       <text x="489.11" y="379.00" text-anchor="start" dominant-baseline="middle" fill="#333">+run()</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M260.10,210.00 L260.10,212.11 C260.10,214.22 260.10,218.44 248.26,223.33 C236.42,228.22 212.74,233.78 200.90,239.33 C189.06,244.89 189.06,250.44 189.06,253.22 L189.06,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
+      <path d="M336.20,210.00 L336.20,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
+      <path d="M412.30,210.00 L412.30,212.11 C412.30,214.22 412.30,218.44 423.93,223.33 C435.57,228.22 458.84,233.78 470.47,239.33 C482.11,244.89 482.11,250.44 482.11,253.22 L482.11,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>

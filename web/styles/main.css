@@ -608,13 +608,13 @@ body {
 .preview-output.is-svg.is-draggable *,
 .preview-output.is-svg.is-draggable svg,
 .preview-output.is-svg.is-draggable [data-panzoom-viewport] {
-  cursor: grab !important;
+  cursor: grab;
 }
 
 .preview-output.is-svg.is-dragging *,
 .preview-output.is-svg.is-dragging svg,
 .preview-output.is-svg.is-dragging [data-panzoom-viewport] {
-  cursor: grabbing !important;
+  cursor: grabbing;
 }
 
 .editor-codemirror {

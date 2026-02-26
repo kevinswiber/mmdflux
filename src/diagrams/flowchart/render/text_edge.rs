@@ -33,6 +33,58 @@ pub fn calc_label_position(segments: &[Segment]) -> Option<Point> {
     segments.last().map(Segment::end_point)
 }
 
+/// Calculate label positions near the start and end of a routed path.
+///
+/// Returns `(head_position, tail_position)` where head is near the path end
+/// (target) and tail is near the path start (source). Positions are offset
+/// 15% from each endpoint along the path. Returns `None` for each if the
+/// path is too short.
+pub fn calc_end_label_positions(segments: &[Segment]) -> (Option<Point>, Option<Point>) {
+    if segments.is_empty() {
+        return (None, None);
+    }
+    let total_length: usize = segments.iter().map(Segment::length).sum();
+    if total_length < 3 {
+        return (None, None);
+    }
+
+    let fraction = (total_length as f64 * 0.15).max(1.0) as usize;
+
+    // Tail: near path start
+    let tail = {
+        let target = fraction;
+        let mut accumulated = 0usize;
+        let mut pos = None;
+        for seg in segments {
+            let seg_len = seg.length();
+            if accumulated + seg_len >= target {
+                pos = Some(seg.point_at_offset(target - accumulated));
+                break;
+            }
+            accumulated += seg_len;
+        }
+        pos.or_else(|| segments.first().map(Segment::start_point))
+    };
+
+    // Head: near path end
+    let head = {
+        let target = total_length.saturating_sub(fraction);
+        let mut accumulated = 0usize;
+        let mut pos = None;
+        for seg in segments {
+            let seg_len = seg.length();
+            if accumulated + seg_len >= target {
+                pos = Some(seg.point_at_offset(target - accumulated));
+                break;
+            }
+            accumulated += seg_len;
+        }
+        pos.or_else(|| segments.last().map(Segment::end_point))
+    };
+
+    (head, tail)
+}
+
 const PRECOMPUTED_LABEL_MAX_DRIFT: f64 = 2.0;
 const LABEL_POINT_EPS: f64 = 0.000_001;
 
@@ -1018,6 +1070,53 @@ pub fn render_all_edges_with_labels(
             };
 
             if let Some(p) = placed {
+                placed_labels.push(p);
+            }
+        }
+    }
+
+    // Third pass: draw head/tail end labels
+    for routed in routed_edges {
+        if routed.edge.stroke == Stroke::Invisible {
+            continue;
+        }
+        let has_head = routed.edge.head_label.is_some();
+        let has_tail = routed.edge.tail_label.is_some();
+        if !has_head && !has_tail {
+            continue;
+        }
+        let (head_pos, tail_pos) = calc_end_label_positions(&routed.segments);
+        if let (Some(label), Some(pos)) = (&routed.edge.head_label, head_pos) {
+            let block = label_block(label);
+            let base_x = pos.x.saturating_sub(block.width / 2);
+            let base_y = label_top_for_center(pos.y, block.height);
+            let (safe_x, safe_y) = find_safe_label_position(
+                canvas,
+                (base_x, base_y),
+                (block.width, block.height),
+                diagram_direction,
+                &placed_labels,
+                false,
+                charset,
+            );
+            if let Some(p) = draw_label_direct(canvas, label, safe_x, safe_y, charset) {
+                placed_labels.push(p);
+            }
+        }
+        if let (Some(label), Some(pos)) = (&routed.edge.tail_label, tail_pos) {
+            let block = label_block(label);
+            let base_x = pos.x.saturating_sub(block.width / 2);
+            let base_y = label_top_for_center(pos.y, block.height);
+            let (safe_x, safe_y) = find_safe_label_position(
+                canvas,
+                (base_x, base_y),
+                (block.width, block.height),
+                diagram_direction,
+                &placed_labels,
+                false,
+                charset,
+            );
+            if let Some(p) = draw_label_direct(canvas, label, safe_x, safe_y, charset) {
                 placed_labels.push(p);
             }
         }

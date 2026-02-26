@@ -20,12 +20,6 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M113.08,162.00 L113.08,163.67 C113.08,165.33 113.08,168.67 109.34,173.50 C105.60,178.33 98.11,184.67 94.36,190.67 C90.62,196.67 90.62,202.33 90.62,205.17 L90.62,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-start="url(#open-arrowhead)" />
-      <path d="M268.63,162.00 L268.63,163.67 C268.63,165.33 268.63,168.67 272.37,173.50 C276.12,178.33 283.61,184.67 287.35,190.67 C291.10,196.67 291.10,202.33 291.10,205.17 L291.10,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-start="url(#open-arrowhead)" />
-    </g>
-    <g class="edgeLabels">
-    </g>
     <g class="nodes">
       <rect x="8.00" y="208.00" width="165.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="90.62" y="235.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ConsoleLogger</text>
@@ -37,6 +31,12 @@
       <line x1="105.08" y1="83.00" x2="276.63" y2="83.00" stroke="#333" stroke-width="1.00" />
       <line x1="105.08" y1="107.00" x2="276.63" y2="107.00" stroke="#333" stroke-width="1.00" />
       <text x="120.08" y="131.00" text-anchor="start" dominant-baseline="middle" fill="#333">+log(message)</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M113.08,162.00 L113.08,164.11 C113.08,166.22 113.08,170.44 112.31,175.33 C111.53,180.22 109.98,185.78 109.20,191.33 C108.42,196.89 108.42,202.44 108.42,205.22 L108.42,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-start="url(#open-arrowhead)" />
+      <path d="M268.63,162.00 L268.63,164.11 C268.63,166.22 268.63,170.44 269.41,175.33 C270.18,180.22 271.74,185.78 272.51,191.33 C273.29,196.89 273.29,202.44 273.29,205.22 L273.29,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-start="url(#open-arrowhead)" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>

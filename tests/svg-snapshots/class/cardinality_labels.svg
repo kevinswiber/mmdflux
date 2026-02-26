@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 279.36 198.00" style="max-width: 279.36px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 279.36 223.00" style="max-width: 279.36px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -20,23 +20,23 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M66.12,62.00 L66.12,132.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M222.43,62.00 L222.43,132.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-    </g>
-    <g class="edgeLabels">
-      <text x="66.12" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">owns</text>
-      <text x="222.43" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
-    </g>
     <g class="nodes">
-      <rect x="174.24" y="136.00" width="96.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="222.43" y="163.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Item</text>
+      <rect x="174.24" y="161.00" width="96.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="222.43" y="188.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Item</text>
       <rect x="173.49" y="8.00" width="97.86" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="222.43" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Order</text>
-      <rect x="8.00" y="136.00" width="116.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="66.12" y="163.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Session</text>
+      <rect x="8.00" y="161.00" width="116.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="66.12" y="188.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Session</text>
       <rect x="20.16" y="8.00" width="91.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="66.12" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">User</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M66.12,62.00 L66.12,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M222.43,62.00 L222.43,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+      <text x="66.12" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">owns</text>
+      <text x="222.43" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
     </g>
   </g>
 </svg>

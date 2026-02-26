@@ -148,9 +148,9 @@ describe("preview controls", () => {
     harness.controller.onResult("svg");
     expect(harness.controlsOverlayRoot.hidden).toBe(false);
     expect(harness.controlsRoot.hidden).toBe(false);
-    expect(
-      harness.controlsOverlayRoot.classList.contains("is-expanded"),
-    ).toBe(false);
+    expect(harness.controlsOverlayRoot.classList.contains("is-expanded")).toBe(
+      false,
+    );
     expect(harness.exportToggleButton.hidden).toBe(false);
 
     harness.controller.dispose();
@@ -224,18 +224,18 @@ describe("preview controls", () => {
 
     harness.controlsToggleButton.click();
     expect(harness.controlsRoot.hidden).toBe(false);
-    expect(
-      harness.controlsOverlayRoot.classList.contains("is-expanded"),
-    ).toBe(true);
+    expect(harness.controlsOverlayRoot.classList.contains("is-expanded")).toBe(
+      true,
+    );
     expect(harness.controlsToggleButton.getAttribute("aria-expanded")).toBe(
       "true",
     );
 
     document.body.click();
     expect(harness.controlsRoot.hidden).toBe(false);
-    expect(
-      harness.controlsOverlayRoot.classList.contains("is-expanded"),
-    ).toBe(false);
+    expect(harness.controlsOverlayRoot.classList.contains("is-expanded")).toBe(
+      false,
+    );
     expect(harness.controlsToggleButton.getAttribute("aria-expanded")).toBe(
       "false",
     );
@@ -244,9 +244,9 @@ describe("preview controls", () => {
     expect(harness.controlsRoot.hidden).toBe(false);
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(harness.controlsRoot.hidden).toBe(false);
-    expect(
-      harness.controlsOverlayRoot.classList.contains("is-expanded"),
-    ).toBe(false);
+    expect(harness.controlsOverlayRoot.classList.contains("is-expanded")).toBe(
+      false,
+    );
 
     harness.controller.dispose();
   });
@@ -463,8 +463,9 @@ describe("preview controls", () => {
       '<svg viewBox="0 0 200 100"><rect width="200" height="100" /></svg>';
     harness.controller.onResult("svg");
 
-    const firstPanzoom = createPanzoom.mock.results[0]
-      ?.value as ReturnType<typeof createPanzoomMock>;
+    const firstPanzoom = createPanzoom.mock.results[0]?.value as ReturnType<
+      typeof createPanzoomMock
+    >;
     firstPanzoom.zoom(2);
     firstPanzoom.pan(-120, -90);
 
@@ -544,8 +545,9 @@ describe("preview controls", () => {
       '<svg viewBox="0 0 200 100"><rect width="200" height="100" /></svg>';
     harness.controller.onResult("svg");
 
-    const firstPanzoom = createPanzoom.mock.results[0]
-      ?.value as ReturnType<typeof createPanzoomMock>;
+    const firstPanzoom = createPanzoom.mock.results[0]?.value as ReturnType<
+      typeof createPanzoomMock
+    >;
     firstPanzoom.zoom(2);
     firstPanzoom.pan(-120, -90);
 

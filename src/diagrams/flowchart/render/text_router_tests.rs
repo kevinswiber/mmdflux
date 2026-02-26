@@ -452,9 +452,10 @@ fn test_route_backward_edge_td() {
     )
     .unwrap();
 
-    // Backward edge uses synthetic waypoints. In the current routed geometry,
-    // the final segment into the target is vertical, so entry is from Bottom.
-    assert_eq!(routed.entry_direction, AttachDirection::Bottom);
+    // Backward edge uses synthetic waypoints. With per-edge label spacing
+    // (no labels here), nodes are at adjacent ranks — the backward path enters
+    // the target from the right side.
+    assert_eq!(routed.entry_direction, AttachDirection::Right);
 
     // Should have segments connecting B to A
     assert!(!routed.segments.is_empty());

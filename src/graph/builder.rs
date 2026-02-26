@@ -116,6 +116,8 @@ fn resolve_subgraph_edges(diagram: &mut Diagram) {
             arrow_start: edge.arrow_start,
             arrow_end: edge.arrow_end,
             label: edge.label.clone(),
+            head_label: edge.head_label.clone(),
+            tail_label: edge.tail_label.clone(),
             minlen: edge.minlen,
             index: edge.index,
         });

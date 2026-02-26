@@ -15,11 +15,11 @@ use super::text_layout::{
     CoordTransform, Layout, RawCenter, SelfEdgeDrawData, TextLayoutConfig, TransformContext,
     align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
     compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts, compute_sublayouts,
-    ensure_external_edge_spacing, expand_parent_subgraph_bounds, layered_config_for_layout,
-    nudge_colliding_waypoints, rank_gap_repair, reconcile_sublayouts_draw,
-    resolve_sibling_overlaps_draw, shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps,
-    subgraph_bounds_to_draw, text_edge_label_dimensions, transform_label_positions_direct,
-    transform_waypoints_direct,
+    ensure_external_edge_spacing, ensure_subgraph_contains_members, expand_parent_subgraph_bounds,
+    layered_config_for_layout, nudge_colliding_waypoints, rank_gap_repair,
+    reconcile_sublayouts_draw, resolve_sibling_overlaps_draw, shrink_subgraph_horizontal_gaps,
+    shrink_subgraph_vertical_gaps, subgraph_bounds_to_draw, text_edge_label_dimensions,
+    transform_label_positions_direct, transform_waypoints_direct,
 };
 use super::text_shape::{NodeBounds, node_dimensions};
 use crate::diagrams::flowchart::geometry::{GraphGeometry, RoutedGraphGeometry};
@@ -54,6 +54,7 @@ pub fn compute_layout(diagram: &Diagram, config: &TextLayoutConfig) -> Layout {
         margin: config.margin,
         acyclic: true,
         ranker: config.ranker.unwrap_or_default(),
+        ..Default::default()
     });
     let request = GraphSolveRequest::from_config(&RenderConfig::default(), OutputFormat::Text);
     let result = engine
@@ -451,6 +452,10 @@ pub fn geometry_to_text_layout_with_routed(
         &mut subgraph_bounds,
         diagram.direction,
     );
+
+    // Ensure subgraph bounds contain all member nodes after coordinate
+    // transformation and shrink passes (rounding can cause 1-2 char losses).
+    ensure_subgraph_contains_members(diagram, &node_bounds, &mut subgraph_bounds);
 
     // --- Phase L: Compute self-edge loop paths in draw coordinates ---
     let layered_direction = layered_config.direction;

@@ -184,14 +184,13 @@ function isEdgePreset(value: string): value is ShareEdgePreset {
     value === "auto" ||
     value === "straight" ||
     value === "step" ||
-    value === "smoothstep" ||
-    value === "bezier"
+    value === "smooth-step" ||
+    value === "curved-step" ||
+    value === "basis"
   );
 }
 
-function isPathSimplification(
-  value: string,
-): value is SharePathSimplification {
+function isPathSimplification(value: string): value is SharePathSimplification {
   return (
     value === "none" ||
     value === "lossless" ||
@@ -325,8 +324,7 @@ const THEME_LABELS: Record<ThemePreference, string> = {
 const THEME_ICONS: Record<ThemePreference, string> = {
   light:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.75V5.25"></path><path d="M12 18.75V21.25"></path><path d="M4.75 12H2.75"></path><path d="M21.25 12H19.25"></path><path d="M6.86 6.86L5.1 5.1"></path><path d="M18.9 18.9L17.14 17.14"></path><path d="M17.14 6.86L18.9 5.1"></path><path d="M5.1 18.9L6.86 17.14"></path></svg>',
-  dark:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3.3a8.7 8.7 0 1 0 6.2 14.8A9.2 9.2 0 0 1 14.5 3.3Z"></path></svg>',
+  dark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3.3a8.7 8.7 0 1 0 6.2 14.8A9.2 9.2 0 0 1 14.5 3.3Z"></path></svg>',
   system:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M9 20h6"></path><path d="M12 16v4"></path></svg>',
 };
@@ -546,11 +544,13 @@ export function renderApp(
   const defaultExample =
     findExampleById(DEFAULT_EXAMPLE_ID) ?? PLAYGROUND_EXAMPLES[0];
   const sharedExampleMatch = restoredShareState
-    ? PLAYGROUND_EXAMPLES.find((example) => example.input === restoredShareState.input)
+    ? PLAYGROUND_EXAMPLES.find(
+        (example) => example.input === restoredShareState.input,
+      )
     : null;
   const initialSelectedExampleId: ExampleSelectionId = restoredShareState
     ? (sharedExampleMatch?.id ?? DRAFT_EXAMPLE_ID)
-    : restoredLocalState?.selectedExampleId ?? DRAFT_EXAMPLE_ID;
+    : (restoredLocalState?.selectedExampleId ?? DRAFT_EXAMPLE_ID);
   const initialDraftInput =
     restoredLocalState?.customInput ??
     restoredShareState?.input ??
@@ -618,8 +618,9 @@ export function renderApp(
               <option value="auto">Auto</option>
               <option value="straight">straight</option>
               <option value="step">step</option>
-              <option value="smoothstep">smoothstep</option>
-              <option value="bezier">bezier</option>
+              <option value="smooth-step">smooth-step</option>
+              <option value="curved-step">curved-step</option>
+              <option value="basis">basis</option>
             </select>
             <p class="render-help" data-help-edge-preset></p>
           </div>

@@ -4,14 +4,11 @@ export type ShareEdgePreset =
   | "auto"
   | "straight"
   | "step"
-  | "smoothstep"
-  | "bezier";
+  | "smooth-step"
+  | "curved-step"
+  | "basis";
 export type ShareGeometryLevel = "layout" | "routed";
-export type SharePathSimplification =
-  | "none"
-  | "lossless"
-  | "lossy"
-  | "minimal";
+export type SharePathSimplification = "none" | "lossless" | "lossy" | "minimal";
 type LegacySharePathDetail = "full" | "compact" | "simplified" | "endpoints";
 
 export interface ShareRenderSettings {
@@ -64,9 +61,23 @@ function isEdgePreset(value: string): value is ShareEdgePreset {
     value === "auto" ||
     value === "straight" ||
     value === "step" ||
-    value === "smoothstep" ||
-    value === "bezier"
+    value === "smooth-step" ||
+    value === "curved-step" ||
+    value === "basis"
   );
+}
+
+function normalizeEdgePreset(value: string): ShareEdgePreset | null {
+  if (isEdgePreset(value)) {
+    return value;
+  }
+  if (value === "smoothstep") {
+    return "smooth-step";
+  }
+  if (value === "curvedstep") {
+    return "curved-step";
+  }
+  return null;
 }
 
 function isGeometryLevel(value: string): value is ShareGeometryLevel {
@@ -122,8 +133,9 @@ export function normalizeShareRenderSettings(
       ? settings.layoutEngine
       : DEFAULT_SHARE_RENDER_SETTINGS.layoutEngine;
   const edgePreset =
-    typeof settings.edgePreset === "string" && isEdgePreset(settings.edgePreset)
-      ? settings.edgePreset
+    typeof settings.edgePreset === "string"
+      ? (normalizeEdgePreset(settings.edgePreset) ??
+        DEFAULT_SHARE_RENDER_SETTINGS.edgePreset)
       : DEFAULT_SHARE_RENDER_SETTINGS.edgePreset;
   const geometryLevel =
     typeof settings.geometryLevel === "string" &&

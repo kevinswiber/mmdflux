@@ -1,8 +1,8 @@
 import {
   HighlightStyle,
-  StringStream,
   StreamLanguage,
   type StreamParser,
+  StringStream,
   syntaxHighlighting,
 } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";

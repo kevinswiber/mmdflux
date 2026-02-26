@@ -20,14 +20,6 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M62.78,62.00 L62.78,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M218.71,62.00 L218.71,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
-      <path d="M371.49,62.00 L371.49,108.00" stroke="#333" stroke-width="2.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M518.34,62.00 L518.34,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-    </g>
-    <g class="edgeLabels">
-    </g>
     <g class="nodes">
       <rect x="15.15" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="62.78" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Solid</text>
@@ -45,6 +37,14 @@
       <text x="518.34" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Open</text>
       <rect x="473.02" y="112.00" width="90.62" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="518.34" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Line</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M62.78,62.00 L62.78,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M218.71,62.00 L218.71,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
+      <path d="M371.49,62.00 L371.49,108.00" stroke="#333" stroke-width="2.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M518.34,62.00 L518.34,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>

@@ -1,9 +1,9 @@
 //! Engine registry tests: typed engine IDs, parsing, availability, and registry lookup.
 
 use mmdflux::diagram::{
-    AlgorithmId, CornerStyle, EdgePreset, EngineAlgorithmCapabilities, EngineAlgorithmId,
-    EngineConfig, EngineId, GeometryLevel, GraphEngine, GraphSolveRequest, InterpolationStyle,
-    OutputFormat, PathSimplification, RenderConfig, RenderError, RouteOwnership, RoutingStyle,
+    AlgorithmId, CornerStyle, Curve, EdgePreset, EngineAlgorithmCapabilities, EngineAlgorithmId,
+    EngineConfig, EngineId, GeometryLevel, GraphEngine, GraphSolveRequest, OutputFormat,
+    PathSimplification, RenderConfig, RenderError, RouteOwnership, RoutingStyle,
 };
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::diagrams::flowchart::engine::{FluxLayeredEngine, MermaidLayeredEngine};
@@ -300,19 +300,16 @@ fn routing_style_parses_orthogonal() {
 }
 
 #[test]
-fn interpolation_style_parses_linear() {
+fn curve_parses_linear() {
     assert_eq!(
-        InterpolationStyle::parse("linear").unwrap(),
-        InterpolationStyle::Linear
+        Curve::parse("linear").unwrap(),
+        Curve::Linear(CornerStyle::Sharp)
     );
 }
 
 #[test]
-fn interpolation_style_parses_bezier() {
-    assert_eq!(
-        InterpolationStyle::parse("bezier").unwrap(),
-        InterpolationStyle::Bezier
-    );
+fn curve_parses_basis() {
+    assert_eq!(Curve::parse("basis").unwrap(), Curve::Basis);
 }
 
 #[test]
@@ -331,18 +328,21 @@ fn edge_preset_parses_all_values() {
     assert_eq!(EdgePreset::parse("polyline").unwrap(), EdgePreset::Polyline);
     assert_eq!(EdgePreset::parse("step").unwrap(), EdgePreset::Step);
     assert_eq!(
-        EdgePreset::parse("smoothstep").unwrap(),
+        EdgePreset::parse("smooth-step").unwrap(),
         EdgePreset::SmoothStep
     );
-    assert_eq!(EdgePreset::parse("bezier").unwrap(), EdgePreset::Bezier);
+    assert_eq!(
+        EdgePreset::parse("curved-step").unwrap(),
+        EdgePreset::CurvedStep
+    );
+    assert_eq!(EdgePreset::parse("basis").unwrap(), EdgePreset::Basis);
 }
 
 #[test]
 fn edge_preset_expand_is_deterministic() {
-    let (r, i, c) = EdgePreset::Straight.expand();
+    let (r, curve) = EdgePreset::Straight.expand();
     assert_eq!(r, RoutingStyle::Direct);
-    assert_eq!(i, InterpolationStyle::Linear);
-    assert_eq!(c, CornerStyle::Sharp);
+    assert_eq!(curve, Curve::Linear(CornerStyle::Sharp));
 }
 
 // =============================================================================
@@ -502,7 +502,11 @@ fn mermaid_layered_solve_layout_level_has_no_routed_geometry() {
 
 #[test]
 fn mermaid_layered_layout_matches_flux_layered_layout() {
-    // Both engines share the layered layout kernel — node positions should be identical
+    // Both engines share the layered layout kernel, but Flux enables
+    // per_edge_label_spacing which halves rank_sep and uses minlen=1 for
+    // unlabeled edges.  For a simple A-->B (unlabeled), Flux produces a more
+    // compact layout.  We verify that x-coordinates still match and that
+    // Flux's y-spacing is <= Mermaid's (i.e., more compact or equal).
     let diagram = build_simple_diagram();
     let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
     let layout_req = GraphSolveRequest {
@@ -526,11 +530,17 @@ fn mermaid_layered_layout_matches_flux_layered_layout() {
             flux_node.rect.x, mermaid_node.rect.x,
             "node {id} x mismatch"
         );
-        assert_eq!(
-            flux_node.rect.y, mermaid_node.rect.y,
-            "node {id} y mismatch"
-        );
     }
+
+    // With per-edge label spacing, Flux is more compact for unlabeled edges.
+    let flux_b = flux.geometry.nodes.get("B").unwrap();
+    let mermaid_b = mermaid.geometry.nodes.get("B").unwrap();
+    assert!(
+        flux_b.rect.y <= mermaid_b.rect.y,
+        "Flux should be at least as compact as Mermaid: flux B.y={} mermaid B.y={}",
+        flux_b.rect.y,
+        mermaid_b.rect.y,
+    );
 }
 
 #[test]
@@ -711,8 +721,24 @@ fn mermaid_layered_rejects_step_preset() {
 }
 
 #[test]
-fn mermaid_layered_rejects_smoothstep_preset() {
-    // smoothstep expands to Orthogonal+Linear+Rounded — unsupported on mermaid-layered
+fn mermaid_layered_rejects_curved_step_preset() {
+    // curved-step expands to Orthogonal+Basis — unsupported on mermaid-layered
+    let err = render_with_engine_routing(
+        "graph TD\nA-->B",
+        "mermaid-layered",
+        None,
+        Some(EdgePreset::CurvedStep),
+    )
+    .unwrap_err();
+    assert!(
+        !err.message.is_empty(),
+        "curved-step preset should be rejected on mermaid-layered: {err}"
+    );
+}
+
+#[test]
+fn mermaid_layered_rejects_smooth_step_preset() {
+    // smooth-step expands to Orthogonal+Linear+Rounded — unsupported on mermaid-layered
     let err = render_with_engine_routing(
         "graph TD\nA-->B",
         "mermaid-layered",
@@ -722,22 +748,22 @@ fn mermaid_layered_rejects_smoothstep_preset() {
     .unwrap_err();
     assert!(
         !err.message.is_empty(),
-        "smoothstep preset should be rejected on mermaid-layered: {err}"
+        "smooth-step preset should be rejected on mermaid-layered: {err}"
     );
 }
 
 #[test]
-fn mermaid_layered_accepts_bezier_preset() {
-    // bezier expands to Polyline+Bezier+Sharp — supported on mermaid-layered
+fn mermaid_layered_accepts_basis_preset() {
+    // basis expands to Polyline+Basis — supported on mermaid-layered
     assert!(
         render_with_engine_routing(
             "graph TD\nA-->B",
             "mermaid-layered",
             None,
-            Some(EdgePreset::Bezier),
+            Some(EdgePreset::Basis),
         )
         .is_ok(),
-        "bezier preset should be accepted on mermaid-layered"
+        "basis preset should be accepted on mermaid-layered"
     );
 }
 
@@ -840,47 +866,43 @@ fn flux_polyline_vs_orthogonal_produce_distinct_svg_for_cycle() {
 }
 
 #[test]
-fn bezier_preset_uses_polyline_edge_routing_on_flux() {
-    // bezier expands to Polyline+Bezier+Sharp — should use PolylineRoute (same as explicit Polyline).
+fn basis_preset_uses_polyline_edge_routing_on_flux() {
+    // basis expands to Polyline+Basis — should use PolylineRoute (same as explicit Polyline).
     // Edge path topology should match explicit polyline routing.
-    let bezier = render_cycle_svg_with_preset("flux-layered", EdgePreset::Bezier);
+    let basis = render_cycle_svg_with_preset("flux-layered", EdgePreset::Basis);
     let polyline = render_cycle_svg_with_routing("flux-layered", RoutingStyle::Polyline);
     assert_eq!(
-        bezier, polyline,
-        "bezier preset should produce same edge path topology as explicit polyline routing"
+        basis, polyline,
+        "basis preset should produce same edge path topology as explicit polyline routing"
     );
 }
 
 #[test]
-fn flux_polyline_routing_matches_mermaid_layered_for_cycle() {
-    // Both flux+polyline and mermaid+polyline use PolylineRoute routing.
-    // Edge paths (d attributes) should be identical for the same fixture.
+fn flux_polyline_routing_differs_from_mermaid_layered_for_cycle() {
+    // Flux-layered enables enhanced backward routing (channel alignment) while
+    // mermaid-layered preserves dagre v0.8.5 behavior. For diagrams with backward
+    // edges (cycles), polyline paths should differ between the two engines.
     let flux_polyline = render_cycle_svg_with_routing("flux-layered", RoutingStyle::Polyline);
     let mermaid_polyline = render_cycle_svg_with_routing("mermaid-layered", RoutingStyle::Polyline);
-    assert_eq!(
+    assert_ne!(
         flux_polyline, mermaid_polyline,
-        "flux+polyline and mermaid+polyline should produce identical edge paths (both PolylineRoute)"
+        "flux+polyline should differ from mermaid+polyline due to enhanced backward routing"
     );
 }
 
 // =============================================================================
-// Phase 7.5: Render-style isolation — interpolation/corner do not affect geometry
+// Phase 7.5: Render-style isolation — curve does not affect geometry
 // =============================================================================
 
 /// Helper: render simple_cycle.mmd as MMDS JSON with explicit style settings.
-fn render_cycle_mmds_with_styles(
-    routing: RoutingStyle,
-    interp: InterpolationStyle,
-    corner: CornerStyle,
-) -> String {
+fn render_cycle_mmds_with_styles(routing: RoutingStyle, curve: Curve) -> String {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/simple_cycle.mmd")
         .expect("simple_cycle.mmd should exist");
     let mut instance = FlowchartInstance::new();
     instance.parse(&input).expect("parse should succeed");
     let config = RenderConfig {
         routing_style: Some(routing),
-        interpolation_style: Some(interp),
-        corner_style: Some(corner),
+        curve: Some(curve),
         geometry_level: mmdflux::diagram::GeometryLevel::Layout,
         ..Default::default()
     };
@@ -891,37 +913,26 @@ fn render_cycle_mmds_with_styles(
 
 #[test]
 fn interpolation_style_does_not_affect_mmds_layout_geometry() {
-    // Layout-level MMDS (no paths) should be identical regardless of interpolation style.
-    // Interpolation is a render-time concern — it only affects SVG curve drawing.
-    let bezier = render_cycle_mmds_with_styles(
-        RoutingStyle::Polyline,
-        InterpolationStyle::Bezier,
-        CornerStyle::Sharp,
-    );
-    let linear = render_cycle_mmds_with_styles(
-        RoutingStyle::Polyline,
-        InterpolationStyle::Linear,
-        CornerStyle::Sharp,
-    );
+    // Layout-level MMDS (no paths) should be identical regardless of curve style.
+    // Curve selection is a render-time concern — it only affects SVG path drawing.
+    let basis = render_cycle_mmds_with_styles(RoutingStyle::Polyline, Curve::Basis);
+    let linear =
+        render_cycle_mmds_with_styles(RoutingStyle::Polyline, Curve::Linear(CornerStyle::Sharp));
     assert_eq!(
-        bezier, linear,
-        "layout-level MMDS geometry should be identical regardless of interpolation style"
+        basis, linear,
+        "layout-level MMDS geometry should be identical regardless of curve style"
     );
 }
 
 #[test]
 fn corner_style_does_not_affect_mmds_layout_geometry() {
-    // Layout-level MMDS (no paths) should be identical regardless of corner style.
-    // Corner treatment is a render-time concern — it only affects SVG arc drawing.
-    let sharp = render_cycle_mmds_with_styles(
-        RoutingStyle::Orthogonal,
-        InterpolationStyle::Linear,
-        CornerStyle::Sharp,
-    );
+    // Layout-level MMDS (no paths) should be identical regardless of linear corner style.
+    // Corner treatment is a render-time concern — it only affects SVG corner drawing.
+    let sharp =
+        render_cycle_mmds_with_styles(RoutingStyle::Orthogonal, Curve::Linear(CornerStyle::Sharp));
     let rounded = render_cycle_mmds_with_styles(
         RoutingStyle::Orthogonal,
-        InterpolationStyle::Linear,
-        CornerStyle::Rounded,
+        Curve::Linear(CornerStyle::Rounded),
     );
     assert_eq!(
         sharp, rounded,

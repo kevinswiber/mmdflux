@@ -3,8 +3,8 @@ import { indentUnit } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { minimalSetup } from "codemirror";
-import { wasmLintExtension } from "./wasm-diagnostics";
 import { mermaidSyntaxHighlighting } from "./mermaid-language";
+import { wasmLintExtension } from "./wasm-diagnostics";
 
 export interface EditorController {
   getValue: () => string;

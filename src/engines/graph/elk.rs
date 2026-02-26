@@ -324,6 +324,7 @@ fn parse_elk_output(output: &str, diagram: &Diagram) -> Result<GraphGeometry, Re
                 to,
                 waypoints,
                 label_position,
+                label_side: None,
                 from_subgraph,
                 to_subgraph,
                 layout_path_hint: if path_hint.is_empty() {
@@ -352,6 +353,7 @@ fn parse_elk_output(output: &str, diagram: &Diagram) -> Result<GraphGeometry, Re
         reversed_edges: Vec::new(),
         engine_hints: None,
         rerouted_edges: std::collections::HashSet::new(),
+        enhanced_backward_routing: false,
     })
 }
 

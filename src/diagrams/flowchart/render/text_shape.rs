@@ -106,9 +106,11 @@ impl NodeBounds {
     }
 }
 
-/// Corner style for box-shaped nodes.
+/// Corner style for text node boxes.
+///
+/// This is intentionally node-shape-local and distinct from SVG edge corner styling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CornerStyle {
+pub enum NodeCornerStyle {
     /// Sharp 90-degree corners: `┌┐└┘`
     Square,
     /// Rounded corners: `╭╮╰╯`
@@ -147,7 +149,7 @@ pub enum GlyphKind {
 pub enum ShapeCategory {
     /// Box with borders and optional corner style/modifier
     Box {
-        corners: CornerStyle,
+        corners: NodeCornerStyle,
         modifier: BoxModifier,
     },
     /// Diamond/angular shape: `< >`
@@ -171,36 +173,36 @@ pub enum ShapeCategory {
 pub fn categorize_shape(shape: Shape) -> ShapeCategory {
     match shape {
         Shape::Rectangle => ShapeCategory::Box {
-            corners: CornerStyle::Square,
+            corners: NodeCornerStyle::Square,
             modifier: BoxModifier::default(),
         },
         Shape::Round | Shape::Stadium | Shape::Circle | Shape::DoubleCircle => ShapeCategory::Box {
-            corners: CornerStyle::Rounded,
+            corners: NodeCornerStyle::Rounded,
             modifier: BoxModifier::default(),
         },
         Shape::Subroutine => ShapeCategory::Box {
-            corners: CornerStyle::Square,
+            corners: NodeCornerStyle::Square,
             modifier: BoxModifier {
                 double_vertical: true,
                 ..Default::default()
             },
         },
         Shape::Cylinder => ShapeCategory::Box {
-            corners: CornerStyle::Square,
+            corners: NodeCornerStyle::Square,
             modifier: BoxModifier {
                 cylinder_sides: true,
                 ..Default::default()
             },
         },
         Shape::Document => ShapeCategory::Box {
-            corners: CornerStyle::Square,
+            corners: NodeCornerStyle::Square,
             modifier: BoxModifier {
                 wavy_bottom: true,
                 ..Default::default()
             },
         },
         Shape::Documents => ShapeCategory::Box {
-            corners: CornerStyle::Square,
+            corners: NodeCornerStyle::Square,
             modifier: BoxModifier {
                 wavy_bottom: true,
                 shadow: true,
@@ -208,7 +210,7 @@ pub fn categorize_shape(shape: Shape) -> ShapeCategory {
             },
         },
         Shape::TaggedDocument => ShapeCategory::Box {
-            corners: CornerStyle::Square,
+            corners: NodeCornerStyle::Square,
             modifier: BoxModifier {
                 wavy_bottom: true,
                 folded_corner: true,
@@ -216,7 +218,7 @@ pub fn categorize_shape(shape: Shape) -> ShapeCategory {
             },
         },
         Shape::Card | Shape::TaggedRect => ShapeCategory::Box {
-            corners: CornerStyle::Square,
+            corners: NodeCornerStyle::Square,
             modifier: BoxModifier {
                 folded_corner: true,
                 ..Default::default()
@@ -234,7 +236,7 @@ pub fn categorize_shape(shape: Shape) -> ShapeCategory {
         | Shape::InvParallelogram
         | Shape::ManualInput
         | Shape::Asymmetric => ShapeCategory::Box {
-            corners: CornerStyle::Square,
+            corners: NodeCornerStyle::Square,
             modifier: BoxModifier::default(),
         },
     }
@@ -284,13 +286,13 @@ pub fn render_node(
         }
         ShapeCategory::Box { corners, modifier } => {
             let corners = match corners {
-                CornerStyle::Square => (
+                NodeCornerStyle::Square => (
                     charset.corner_tl,
                     charset.corner_tr,
                     charset.corner_bl,
                     charset.corner_br,
                 ),
-                CornerStyle::Rounded => (
+                NodeCornerStyle::Rounded => (
                     charset.round_tl,
                     charset.round_tr,
                     charset.round_bl,
@@ -726,14 +728,14 @@ mod tests {
     #[test]
     fn test_categorize_shape_fallbacks() {
         if let ShapeCategory::Box { corners, modifier } = categorize_shape(Shape::Rectangle) {
-            assert_eq!(corners, CornerStyle::Square);
+            assert_eq!(corners, NodeCornerStyle::Square);
             assert_eq!(modifier, BoxModifier::default());
         } else {
             panic!("Rectangle should be Box");
         }
 
         if let ShapeCategory::Box { corners, modifier } = categorize_shape(Shape::Round) {
-            assert_eq!(corners, CornerStyle::Rounded);
+            assert_eq!(corners, NodeCornerStyle::Rounded);
             assert_eq!(modifier, BoxModifier::default());
         } else {
             panic!("Round should be Box");
@@ -764,12 +766,24 @@ mod tests {
             Shape::Asymmetric,
         ] {
             if let ShapeCategory::Box { corners, modifier } = categorize_shape(shape) {
-                assert_eq!(corners, CornerStyle::Square);
+                assert_eq!(corners, NodeCornerStyle::Square);
                 assert_eq!(modifier, BoxModifier::default());
             } else {
                 panic!("{shape:?} should be Box fallback");
             }
         }
+    }
+
+    #[test]
+    fn categorize_shape_keeps_rounded_box_for_round_family() {
+        let category = categorize_shape(Shape::Round);
+        assert!(matches!(
+            category,
+            ShapeCategory::Box {
+                corners: NodeCornerStyle::Rounded,
+                ..
+            }
+        ));
     }
 
     #[test]

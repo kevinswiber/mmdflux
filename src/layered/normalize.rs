@@ -48,6 +48,22 @@ pub enum LabelPos {
     Right,
 }
 
+/// Vertical placement of a label relative to the edge line.
+///
+/// `Above` and `Below` place the label on one side of the edge to avoid
+/// overlaps when parallel edges have labels. `Center` places the label
+/// centered on the edge (default, matching dagre behavior).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelSide {
+    /// Label above the edge line.
+    Above,
+    /// Label below the edge line.
+    Below,
+    /// Label centered on the edge line.
+    #[default]
+    Center,
+}
+
 /// Metadata for a dummy node inserted during normalization.
 #[derive(Debug, Clone)]
 pub struct DummyNode {
@@ -63,6 +79,8 @@ pub struct DummyNode {
     pub height: f64,
     /// Label position (only meaningful for EdgeLabel dummies).
     pub label_pos: LabelPos,
+    /// Label side: above, below, or centered on the edge line.
+    pub label_side: LabelSide,
 }
 
 impl DummyNode {
@@ -75,6 +93,7 @@ impl DummyNode {
             width: 0.0,
             height: 0.0,
             label_pos: LabelPos::default(),
+            label_side: LabelSide::default(),
         }
     }
 
@@ -93,6 +112,7 @@ impl DummyNode {
             width,
             height,
             label_pos,
+            label_side: LabelSide::default(),
         }
     }
 
@@ -142,6 +162,8 @@ pub struct EdgeLabelInfo {
     pub height: f64,
     /// Preferred position of the label.
     pub label_pos: LabelPos,
+    /// Edge stroke thickness for label offset computation.
+    pub thickness: f64,
 }
 
 impl EdgeLabelInfo {
@@ -151,6 +173,7 @@ impl EdgeLabelInfo {
             width,
             height,
             label_pos: LabelPos::default(),
+            thickness: 1.0,
         }
     }
 
@@ -186,7 +209,11 @@ fn generate_dummy_id() -> NodeId {
 /// # Arguments
 /// * `graph` - The layout graph to normalize
 /// * `edge_labels` - Optional label information for edges (keyed by original edge index)
-pub(crate) fn run(graph: &mut LayoutGraph, edge_labels: &HashMap<usize, EdgeLabelInfo>) {
+pub(crate) fn run(
+    graph: &mut LayoutGraph,
+    edge_labels: &HashMap<usize, EdgeLabelInfo>,
+    track_reversed_chains: bool,
+) {
     // Clear any existing dummy data
     graph.dummy_nodes.clear();
     graph.dummy_chains.clear();
@@ -199,6 +226,8 @@ pub(crate) fn run(graph: &mut LayoutGraph, edge_labels: &HashMap<usize, EdgeLabe
     // Each chain replacement: Vec of (from_idx, to_idx, orig_edge_idx) edges + weights
     let mut new_chain_edges: Vec<(usize, usize, usize)> = Vec::new();
     let mut new_chain_weights: Vec<f64> = Vec::new();
+    // Track which chain edges originated from reversed long edges
+    let mut new_chain_is_reversed: Vec<bool> = Vec::new();
 
     for (edge_pos, &(from_idx, to_idx, orig_edge_idx)) in graph.edges.iter().enumerate() {
         // Skip excluded edges (nesting edges removed during compound graph cleanup)
@@ -263,6 +292,7 @@ pub(crate) fn run(graph: &mut LayoutGraph, edge_labels: &HashMap<usize, EdgeLabe
             graph.dimensions.push((width, height));
             graph.original_has_predecessor.push(false);
             graph.parents.push(None);
+            graph.model_order.push(None);
             graph.dummy_nodes.insert(dummy_id.clone(), dummy_node);
 
             if is_label_dummy {
@@ -270,15 +300,19 @@ pub(crate) fn run(graph: &mut LayoutGraph, edge_labels: &HashMap<usize, EdgeLabe
             }
             chain.dummy_ids.push(dummy_id);
 
-            // Collect chain edge (NOT reversed — chain flows in effective direction)
+            // Collect chain edge — chain flows in effective direction, but if the
+            // original edge was reversed, mark these chain edges as reversed too
+            // so they are excluded from forward edge counts.
             new_chain_edges.push((prev_idx, dummy_idx, orig_edge_idx));
             new_chain_weights.push(1.0);
+            new_chain_is_reversed.push(is_reversed);
             prev_idx = dummy_idx;
         }
 
         // Final edge to chain end
         new_chain_edges.push((prev_idx, chain_end, orig_edge_idx));
         new_chain_weights.push(1.0);
+        new_chain_is_reversed.push(is_reversed);
 
         graph.dummy_chains.push(chain);
     }
@@ -299,7 +333,10 @@ pub(crate) fn run(graph: &mut LayoutGraph, edge_labels: &HashMap<usize, EdgeLabe
             }
         }
 
-        // Append chain edges (none are reversed) — minlen=1 for chain edges
+        // Append chain edges — minlen=1 for chain edges.
+        // Chain edges from reversed long edges are marked as reversed so they
+        // are excluded from forward edge counts (count_forward_edges_per_gap).
+        let chain_start_pos = rebuilt_edges.len();
         let chain_count = new_chain_edges.len();
         rebuilt_edges.extend(new_chain_edges);
         rebuilt_weights.extend(new_chain_weights);
@@ -311,6 +348,17 @@ pub(crate) fn run(graph: &mut LayoutGraph, edge_labels: &HashMap<usize, EdgeLabe
             .iter()
             .filter_map(|&old_pos| old_to_new.get(&old_pos).copied())
             .collect();
+
+        // Add chain edges from reversed long edges to reversed_edges.
+        // Only when track_reversed_chains is enabled — dagre v0.8.5 does not
+        // track these, so mermaid-layered leaves them out.
+        if track_reversed_chains {
+            for (i, &is_rev) in new_chain_is_reversed.iter().enumerate() {
+                if is_rev {
+                    graph.reversed_edges.insert(chain_start_pos + i);
+                }
+            }
+        }
 
         // Remap excluded_edges so nesting edges remain excluded after rebuild.
         graph.excluded_edges = graph
@@ -373,9 +421,24 @@ pub(crate) fn denormalize(graph: &LayoutGraph) -> HashMap<usize, Vec<WaypointWit
 /// # Returns
 /// The center position of the label with rank information, or None if the edge has no label.
 /// The rank is needed so the render layer can snap the primary axis to `layer_starts`.
+#[cfg(test)]
 pub(crate) fn get_label_position(
     graph: &LayoutGraph,
     edge_index: usize,
+) -> Option<WaypointWithRank> {
+    get_label_position_with_thickness(graph, edge_index, 0.0, 0.0)
+}
+
+/// Get the label position with edge thickness and spacing offset.
+///
+/// For Above labels, subtracts `edge_thickness/2 + edge_label_spacing`.
+/// For Below labels, adds `edge_thickness/2 + edge_label_spacing`.
+/// Center labels are not affected by thickness.
+pub(crate) fn get_label_position_with_thickness(
+    graph: &LayoutGraph,
+    edge_index: usize,
+    edge_thickness: f64,
+    edge_label_spacing: f64,
 ) -> Option<WaypointWithRank> {
     for chain in &graph.dummy_chains {
         if chain.edge_index == edge_index
@@ -386,10 +449,22 @@ pub(crate) fn get_label_position(
                 let pos = graph.positions[idx];
                 let dims = graph.dimensions[idx];
                 let rank = graph.ranks[idx];
+                let dummy = graph.dummy_nodes.get(dummy_id);
+                let side = dummy.map(|d| d.label_side).unwrap_or_default();
+                let thickness_offset = match side {
+                    LabelSide::Above => -(edge_thickness / 2.0 + edge_label_spacing),
+                    LabelSide::Below => edge_thickness / 2.0 + edge_label_spacing,
+                    LabelSide::Center => 0.0,
+                };
+                let y = match side {
+                    LabelSide::Above => pos.y + thickness_offset,
+                    LabelSide::Below => pos.y + dims.1 + thickness_offset,
+                    LabelSide::Center => pos.y + dims.1 / 2.0,
+                };
                 return Some(WaypointWithRank {
                     point: Point {
                         x: pos.x + dims.0 / 2.0,
-                        y: pos.y + dims.1 / 2.0,
+                        y,
                     },
                     rank,
                 });
@@ -418,6 +493,22 @@ mod tests {
     }
 
     #[test]
+    fn label_side_variants_exist() {
+        let _ = LabelSide::Above;
+        let _ = LabelSide::Below;
+        let _ = LabelSide::Center;
+    }
+
+    #[test]
+    fn dummy_node_label_side_defaults_to_center() {
+        let dummy = DummyNode::edge(0, 1);
+        assert_eq!(dummy.label_side, LabelSide::Center);
+
+        let label_dummy = DummyNode::edge_label(0, 1, 30.0, 14.0, LabelPos::Center);
+        assert_eq!(label_dummy.label_side, LabelSide::Center);
+    }
+
+    #[test]
     fn test_normalize_short_edge() {
         // A -> B (spans 1 rank, should not be normalized)
         let mut lg = create_test_graph(&["A", "B"], &[("A", "B")]);
@@ -426,7 +517,7 @@ mod tests {
         rank::normalize(&mut lg);
 
         let edge_labels = HashMap::new();
-        run(&mut lg, &edge_labels);
+        run(&mut lg, &edge_labels, false);
 
         // No dummies should be created
         assert!(lg.dummy_chains.is_empty());
@@ -452,7 +543,7 @@ mod tests {
         assert_eq!(lg.ranks[c_idx], 2);
 
         let edge_labels = HashMap::new();
-        run(&mut lg, &edge_labels);
+        run(&mut lg, &edge_labels, false);
 
         // A->C should be normalized (spans 2 ranks, needs 1 dummy)
         assert_eq!(lg.dummy_chains.len(), 1);
@@ -482,7 +573,7 @@ mod tests {
         let mut edge_labels = HashMap::new();
         edge_labels.insert(3, EdgeLabelInfo::new(20.0, 10.0));
 
-        run(&mut lg, &edge_labels);
+        run(&mut lg, &edge_labels, false);
 
         // A->D needs 2 dummies (rank 1 and rank 2)
         assert_eq!(lg.dummy_chains.len(), 1);
@@ -509,7 +600,7 @@ mod tests {
         rank::normalize(&mut lg);
 
         let edge_labels = HashMap::new();
-        run(&mut lg, &edge_labels);
+        run(&mut lg, &edge_labels, false);
 
         // Set dummy position manually for testing
         let dummy_id = &lg.dummy_chains[0].dummy_ids[0];
@@ -573,6 +664,14 @@ mod tests {
         assert_eq!(info.width, 20.0);
         assert_eq!(info.height, 10.0);
         assert_eq!(info.label_pos, LabelPos::Left);
+        assert_eq!(info.thickness, 1.0); // default
+    }
+
+    #[test]
+    fn edge_label_info_includes_thickness() {
+        let mut info = EdgeLabelInfo::new(30.0, 14.0);
+        info.thickness = 3.0;
+        assert_eq!(info.thickness, 3.0);
     }
 
     #[test]
@@ -596,6 +695,141 @@ mod tests {
         assert_eq!(
             chain.dummy_ids[chain.label_dummy_index.unwrap()],
             NodeId::from("_d1")
+        );
+    }
+
+    /// Build a minimal LayoutGraph with a single label dummy at the given position/dimensions/side.
+    /// Returns (graph, edge_index) for use with get_label_position.
+    fn build_graph_with_positioned_label_dummy(
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        side: LabelSide,
+    ) -> (LayoutGraph, usize) {
+        // Minimal graph: two real nodes + one label dummy in a chain
+        let mut graph: crate::layered::graph::DiGraph<()> = crate::layered::graph::DiGraph::new();
+        graph.add_node("A", ());
+        graph.add_node("B", ());
+        graph.add_edge("A", "B");
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, _| (10.0, 10.0));
+
+        // Set up ranks so A=0, B=2 (long edge needing dummy)
+        let a_idx = lg.node_index[&NodeId::from("A")];
+        let b_idx = lg.node_index[&NodeId::from("B")];
+        lg.ranks[a_idx] = 0;
+        lg.ranks[b_idx] = 2;
+
+        // Add a label dummy node manually
+        let dummy_id = NodeId::from("_label_test");
+        let dummy_idx = lg.node_ids.len();
+        lg.node_ids.push(dummy_id.clone());
+        lg.node_index.insert(dummy_id.clone(), dummy_idx);
+        lg.ranks.push(1);
+        lg.order.push(dummy_idx);
+        lg.positions.push(Point { x, y });
+        lg.dimensions.push((w, h));
+        lg.original_has_predecessor.push(false);
+        lg.parents.push(None);
+        lg.model_order.push(None);
+
+        let mut dummy_node = DummyNode::edge_label(0, 1, w, h, LabelPos::Center);
+        dummy_node.label_side = side;
+        lg.dummy_nodes.insert(dummy_id.clone(), dummy_node);
+
+        // Create dummy chain pointing to this label dummy
+        let mut chain = DummyChain::new(0); // edge_index = 0
+        chain.dummy_ids.push(dummy_id);
+        chain.label_dummy_index = Some(0);
+        lg.dummy_chains.push(chain);
+
+        (lg, 0)
+    }
+
+    #[test]
+    fn label_above_offset_above_center() {
+        let (lg, edge_index) =
+            build_graph_with_positioned_label_dummy(100.0, 50.0, 40.0, 14.0, LabelSide::Above);
+        let pos = get_label_position(&lg, edge_index).unwrap();
+        let center_y = 50.0 + 14.0 / 2.0; // 57.0
+        assert!(
+            pos.point.y < center_y,
+            "Above label should be above center, got y={}, center={}",
+            pos.point.y,
+            center_y
+        );
+    }
+
+    #[test]
+    fn label_below_offset_below_center() {
+        let (lg, edge_index) =
+            build_graph_with_positioned_label_dummy(100.0, 50.0, 40.0, 14.0, LabelSide::Below);
+        let pos = get_label_position(&lg, edge_index).unwrap();
+        let center_y = 50.0 + 14.0 / 2.0; // 57.0
+        assert!(
+            pos.point.y > center_y,
+            "Below label should be below center, got y={}, center={}",
+            pos.point.y,
+            center_y
+        );
+    }
+
+    #[test]
+    fn label_center_no_offset() {
+        let (lg, edge_index) =
+            build_graph_with_positioned_label_dummy(100.0, 50.0, 40.0, 14.0, LabelSide::Center);
+        let pos = get_label_position(&lg, edge_index).unwrap();
+        let center_y = 50.0 + 14.0 / 2.0; // 57.0
+        assert!(
+            (pos.point.y - center_y).abs() < 0.01,
+            "Center label should be at center, got y={}, expected={}",
+            pos.point.y,
+            center_y
+        );
+    }
+
+    #[test]
+    fn thick_edge_above_label_offset() {
+        // Thick edge (3.0px) with Above label, spacing=2.0
+        // Above: y = pos.y + (-(3.0/2 + 2.0)) = 50.0 + (-3.5) = 46.5
+        let (lg, edge_index) =
+            build_graph_with_positioned_label_dummy(100.0, 50.0, 40.0, 14.0, LabelSide::Above);
+        let pos = get_label_position_with_thickness(&lg, edge_index, 3.0, 2.0).unwrap();
+        let expected_y = 50.0 + (-(3.0 / 2.0 + 2.0)); // 46.5
+        assert!(
+            (pos.point.y - expected_y).abs() < 0.01,
+            "Above+thick: expected y={}, got y={}",
+            expected_y,
+            pos.point.y
+        );
+    }
+
+    #[test]
+    fn thick_edge_below_label_offset() {
+        // Below: y = pos.y + dims.1 + (3.0/2 + 2.0) = 50.0 + 14.0 + 3.5 = 67.5
+        let (lg, edge_index) =
+            build_graph_with_positioned_label_dummy(100.0, 50.0, 40.0, 14.0, LabelSide::Below);
+        let pos = get_label_position_with_thickness(&lg, edge_index, 3.0, 2.0).unwrap();
+        let expected_y = 50.0 + 14.0 + (3.0 / 2.0 + 2.0); // 67.5
+        assert!(
+            (pos.point.y - expected_y).abs() < 0.01,
+            "Below+thick: expected y={}, got y={}",
+            expected_y,
+            pos.point.y
+        );
+    }
+
+    #[test]
+    fn thin_edge_center_label_no_thickness_offset() {
+        let (lg, edge_index) =
+            build_graph_with_positioned_label_dummy(100.0, 50.0, 40.0, 14.0, LabelSide::Center);
+        let pos = get_label_position_with_thickness(&lg, edge_index, 1.0, 2.0).unwrap();
+        let center_y = 50.0 + 14.0 / 2.0; // 57.0
+        assert!(
+            (pos.point.y - center_y).abs() < 0.01,
+            "Center: expected y={}, got y={}",
+            center_y,
+            pos.point.y
         );
     }
 
@@ -635,7 +869,7 @@ mod tests {
 
         let mut edge_labels = HashMap::new();
         edge_labels.insert(0, EdgeLabelInfo::new(5.0, 1.0));
-        run(&mut lg, &edge_labels);
+        run(&mut lg, &edge_labels, false);
 
         // Should have one dummy chain for A->B
         assert_eq!(lg.dummy_chains.len(), 1);
@@ -675,7 +909,7 @@ mod tests {
 
         let mut edge_labels = HashMap::new();
         edge_labels.insert(3, EdgeLabelInfo::new(7.0, 1.0));
-        run(&mut lg, &edge_labels);
+        run(&mut lg, &edge_labels, false);
 
         // A->D should produce a chain with a label dummy
         let labeled_chain = lg
@@ -707,5 +941,56 @@ mod tests {
         assert_eq!(cloned.width, 15.0);
         assert_eq!(cloned.height, 8.0);
         assert_eq!(cloned.label_pos, LabelPos::Right);
+    }
+
+    #[test]
+    fn test_reversed_long_edge_chain_edges_are_in_reversed_edges() {
+        // Graph: A -> B -> C -> D, and D -> A (backward edge spanning 3 ranks).
+        // After acyclic, D -> A is reversed to A -> D (marked in reversed_edges).
+        // After normalization, A -> D becomes chain edges A -> d1 -> d2 -> D.
+        // Those chain edges must also be in reversed_edges.
+        let mut lg = create_test_graph(
+            &["A", "B", "C", "D"],
+            &[("A", "B"), ("B", "C"), ("C", "D"), ("D", "A")],
+        );
+        acyclic::run(&mut lg);
+        rank::run(&mut lg, &LayoutConfig::default());
+        rank::normalize(&mut lg);
+
+        // Verify ranks: A=0, B=1, C=2, D=3
+        let a_idx = lg.node_index[&NodeId::from("A")];
+        let d_idx = lg.node_index[&NodeId::from("D")];
+        assert_eq!(lg.ranks[a_idx], 0);
+        assert_eq!(lg.ranks[d_idx], 3);
+
+        // Before normalize, D->A should be reversed and span 3 ranks
+        assert!(
+            !lg.reversed_edges.is_empty(),
+            "Should have at least one reversed edge"
+        );
+
+        let edge_labels = HashMap::new();
+        run(&mut lg, &edge_labels, true);
+
+        // The reversed long edge should produce a chain with 2 dummies
+        assert_eq!(lg.dummy_chains.len(), 1);
+        assert_eq!(lg.dummy_chains[0].dummy_ids.len(), 2);
+
+        // Chain edges from the reversed original should be in reversed_edges.
+        // After rebuild, the 3 short forward edges (A->B, B->C, C->D) keep their
+        // positions, and the 3 chain edges are appended after them.
+        // All 3 chain edges should be in reversed_edges.
+        let chain_edge_count = lg
+            .edges
+            .iter()
+            .enumerate()
+            .filter(|(pos, _)| lg.reversed_edges.contains(pos))
+            .count();
+        assert_eq!(
+            chain_edge_count, 3,
+            "All 3 chain edges from the reversed long edge should be in reversed_edges, \
+             got {} reversed edges total",
+            chain_edge_count
+        );
     }
 }

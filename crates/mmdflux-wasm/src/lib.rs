@@ -1,7 +1,7 @@
 use mmdflux::ParseDiagnostic;
 use mmdflux::diagram::{
-    AlgorithmId, CornerStyle, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel,
-    InterpolationStyle, OutputFormat, PathSimplification, RenderConfig, RenderError, RoutingStyle,
+    AlgorithmId, Curve, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel, OutputFormat,
+    PathSimplification, RenderConfig, RenderError, RoutingStyle,
 };
 use mmdflux::layered::Ranker;
 use mmdflux::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
@@ -19,11 +19,10 @@ struct WasmRenderConfig {
     cluster_ranksep: Option<f64>,
     padding: Option<usize>,
     svg_scale: Option<f64>,
-    /// Edge style preset (straight, step, smoothstep, or bezier).
+    /// Edge style preset (straight, polyline, step, smooth-step, curved-step, or basis).
     edge_preset: Option<String>,
     routing_style: Option<String>,
-    interpolation_style: Option<String>,
-    corner_style: Option<String>,
+    curve: Option<String>,
     edge_radius: Option<f64>,
     svg_diagram_padding: Option<f64>,
     svg_node_padding_x: Option<f64>,
@@ -211,13 +210,8 @@ impl WasmRenderConfig {
         if let Some(routing_style) = self.routing_style {
             config.routing_style = Some(parse_via_render_error::<RoutingStyle>(&routing_style)?);
         }
-        if let Some(interpolation_style) = self.interpolation_style {
-            config.interpolation_style = Some(parse_via_render_error::<InterpolationStyle>(
-                &interpolation_style,
-            )?);
-        }
-        if let Some(corner_style) = self.corner_style {
-            config.corner_style = Some(parse_via_render_error::<CornerStyle>(&corner_style)?);
+        if let Some(curve) = self.curve {
+            config.curve = Some(parse_via_render_error::<Curve>(&curve)?);
         }
         if let Some(geometry_level) = self.geometry_level {
             config.geometry_level = parse_geometry_level(&geometry_level)?;
@@ -375,6 +369,34 @@ mod tests {
 
         assert_eq!(config.geometry_level, GeometryLevel::Routed);
         assert_eq!(config.path_simplification, PathSimplification::Minimal);
+    }
+
+    #[test]
+    fn parse_render_config_applies_curve_field() {
+        let config = parse_render_config(OutputFormat::Svg, r#"{"curve":"linear-rounded"}"#)
+            .expect("curve config should parse");
+        assert_eq!(
+            config.curve.map(|curve| curve.to_string()),
+            Some("linear-rounded".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_render_config_rejects_legacy_interpolation_style_field() {
+        let err = serde_json::from_str::<WasmRenderConfig>(r#"{"interpolationStyle":"linear"}"#)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("unknown field"));
+        assert!(err.contains("interpolationStyle"));
+    }
+
+    #[test]
+    fn parse_render_config_rejects_legacy_corner_style_field() {
+        let err = serde_json::from_str::<WasmRenderConfig>(r#"{"cornerStyle":"rounded"}"#)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("unknown field"));
+        assert!(err.contains("cornerStyle"));
     }
 
     #[test]

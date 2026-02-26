@@ -86,6 +86,9 @@ pub struct GraphGeometry {
     /// Populated by engines that perform SVG-specific subgraph post-processing.
     /// Used by the SVG renderer to skip shape-clipping on explicitly routed edges.
     pub rerouted_edges: HashSet<usize>,
+    /// Whether enhanced backward edge routing should be applied.
+    /// Set by engines that use layout quality enhancements (e.g., flux-layered).
+    pub enhanced_backward_routing: bool,
 }
 
 /// A positioned node with its bounding rect and shape.
@@ -110,6 +113,8 @@ pub struct LayoutEdge {
     pub waypoints: Vec<FPoint>,
     /// Label position computed by layout engine.
     pub label_position: Option<FPoint>,
+    /// Label side (Above/Below/Center) from side selection.
+    pub label_side: Option<crate::layered::normalize::LabelSide>,
     /// If source is a subgraph-as-node, the subgraph ID.
     pub from_subgraph: Option<String>,
     /// If target is a subgraph-as-node, the subgraph ID.
@@ -248,6 +253,8 @@ pub fn from_layered_layout(result: &layered::LayoutResult, diagram: &Diagram) ->
                 .get(&el.index)
                 .map(|wp| FPoint::new(wp.point.x, wp.point.y));
 
+            let label_side = result.label_sides.get(&el.index).copied();
+
             let (from_subgraph, to_subgraph) = if let Some(edge) = diagram_edge {
                 (edge.from_subgraph.clone(), edge.to_subgraph.clone())
             } else {
@@ -270,6 +277,7 @@ pub fn from_layered_layout(result: &layered::LayoutResult, diagram: &Diagram) ->
                 to: el.to.0.clone(),
                 waypoints,
                 label_position,
+                label_side,
                 from_subgraph,
                 to_subgraph,
                 layout_path_hint: if el.points.is_empty() {
@@ -355,6 +363,7 @@ pub fn from_layered_layout(result: &layered::LayoutResult, diagram: &Diagram) ->
             label_positions: hint_label_positions,
         })),
         rerouted_edges: HashSet::new(),
+        enhanced_backward_routing: false,
     }
 }
 
@@ -391,6 +400,12 @@ pub struct RoutedEdgeGeometry {
     pub path: Vec<FPoint>,
     /// Label center position.
     pub label_position: Option<FPoint>,
+    /// Label side (Above/Below/Center) from side selection.
+    pub label_side: Option<crate::layered::normalize::LabelSide>,
+    /// Label position near the target endpoint (head).
+    pub head_label_position: Option<FPoint>,
+    /// Label position near the source endpoint (tail).
+    pub tail_label_position: Option<FPoint>,
     /// Whether this edge flows backward in the layout direction.
     pub is_backward: bool,
     /// If source is a subgraph-as-node, the subgraph ID.
@@ -463,6 +478,7 @@ mod tests {
             height: 100.0,
             edge_waypoints: HashMap::new(),
             label_positions: HashMap::new(),
+            label_sides: HashMap::new(),
             subgraph_bounds: HashMap::new(),
             self_edges: vec![],
             rank_to_position,
@@ -724,6 +740,7 @@ mod tests {
             reversed_edges: Vec::new(),
             engine_hints: None,
             rerouted_edges: HashSet::new(),
+            enhanced_backward_routing: false,
         };
         assert!(geo.nodes.is_empty());
         assert!(geo.edges.is_empty());
@@ -749,6 +766,7 @@ mod tests {
             to: "B".into(),
             waypoints: vec![FPoint::new(1.0, 2.0)],
             label_position: None,
+            label_side: None,
             from_subgraph: None,
             to_subgraph: None,
             layout_path_hint: None,

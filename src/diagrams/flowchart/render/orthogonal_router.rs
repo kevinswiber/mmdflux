@@ -61,7 +61,10 @@ pub(crate) fn route_edges_orthogonal(
                 &edge.to,
                 geometry.direction,
             );
-            let route_direction = if is_backward && options.backward_fallback_to_hints {
+            let route_direction = if is_backward
+                && options.backward_fallback_to_hints
+                && edge_direction == geometry.direction
+            {
                 geometry.direction
             } else {
                 edge_direction
@@ -106,17 +109,51 @@ pub(crate) fn route_edges_orthogonal(
                 rank_span,
             );
 
+            // Offset backward edge source port from the forward arrival port
+            // so they don't share the same position on the primary flow face.
+            if is_backward && geometry.enhanced_backward_routing {
+                offset_backward_source_from_primary_face(
+                    &mut path,
+                    edge,
+                    geometry,
+                    route_direction,
+                );
+            }
+            // Re-project backward edge endpoints to diamond/hexagon boundaries.
+            // Must run after offset_backward_source_from_primary_face because
+            // the source offset can shift the target endpoint (when source and
+            // target share the same x/y on a 2-point path), invalidating the
+            // shape projection done inside build_orthogonal_path.
+            if is_backward {
+                snap_backward_endpoints_to_shape(&mut path, edge, geometry);
+            }
             if let Some((sx, sy)) = options.grid_snap {
                 path = snap_path_to_grid(&path, sx, sy);
             }
-            let label_position = revalidate_label_anchor(edge.label_position, &path);
+            // Skip revalidation for labels with intentional side offsets
+            // (Above/Below have thickness-based offsets that would exceed the drift threshold)
+            let label_position = if edge
+                .label_side
+                .is_some_and(|s| s != crate::layered::normalize::LabelSide::Center)
+            {
+                edge.label_position
+            } else {
+                revalidate_label_anchor(edge.label_position, &path)
+            };
 
+            let (head_label_position, tail_label_position) =
+                crate::diagrams::flowchart::routing::compute_end_labels_for_edge(
+                    diagram, edge.index, &path,
+                );
             RoutedEdgeGeometry {
                 index: edge.index,
                 from: edge.from.clone(),
                 to: edge.to.clone(),
                 path,
                 label_position,
+                label_side: edge.label_side,
+                head_label_position,
+                tail_label_position,
                 is_backward,
                 from_subgraph: edge.from_subgraph.clone(),
                 to_subgraph: edge.to_subgraph.clone(),
@@ -218,6 +255,45 @@ const MIN_FAN_IN_PRIMARY_SLOT_SPACING: f64 = 16.0;
 // Increase for longer endpoint stems and tighter shared lanes;
 // decrease for wider lane spread.
 const FAN_PRIMARY_SIDE_BAND_DEPTH_MARGIN: f64 = 0.1;
+
+/// Lightweight normalization: dedup + remove collinear, without
+/// `compact_terminal_staircase` which can collapse gathering columns.
+fn light_normalize(points: &[FPoint]) -> Vec<FPoint> {
+    if points.len() <= 1 {
+        return points.to_vec();
+    }
+    let mut result: Vec<FPoint> = Vec::with_capacity(points.len());
+    // Dedup adjacent
+    for &p in points {
+        let dominated = result.last().is_some_and(|prev: &FPoint| {
+            (prev.x - p.x).abs() <= POINT_EPS && (prev.y - p.y).abs() <= POINT_EPS
+        });
+        if !dominated {
+            result.push(p);
+        }
+    }
+    // Remove collinear interior points
+    if result.len() <= 2 {
+        return result;
+    }
+    let mut compacted = Vec::with_capacity(result.len());
+    compacted.push(result[0]);
+    for idx in 1..result.len() - 1 {
+        let prev = *compacted.last().unwrap();
+        let curr = result[idx];
+        let next = result[idx + 1];
+        let dx1 = curr.x - prev.x;
+        let dy1 = curr.y - prev.y;
+        let dx2 = next.x - curr.x;
+        let dy2 = next.y - curr.y;
+        let cross = (dx1 * dy2 - dy1 * dx2).abs();
+        if cross > POINT_EPS {
+            compacted.push(curr);
+        }
+    }
+    compacted.push(*result.last().unwrap());
+    compacted
+}
 
 fn clamp_face_coordinate_with_corner_inset(value: f64, min: f64, max: f64, max_inset: f64) -> f64 {
     let lo = min.min(max);
@@ -389,8 +465,21 @@ fn build_orthogonal_path(
     let mut finalized = base_finalized.clone();
     if !is_backward {
         let stagger_depth = target_primary_channel_depth.or(source_primary_channel_depth);
+        let pre_stagger = finalized.clone();
         stagger_primary_face_shared_axis_segment(&mut finalized, direction, stagger_depth);
-        finalized = normalize_orthogonal_route_contracts(&finalized, direction);
+        // Use lighter normalization after stagger to avoid compact_terminal_staircase
+        // collapsing the gathering column that stagger just created.
+        if finalized != pre_stagger {
+            finalized = light_normalize(&finalized);
+            // Source-side fan-out staggering can create a temporary inward hook
+            // (primary-axis reversal) on multi-bend forward paths in LR/RL.
+            // Fall back to full normalization only for that case.
+            if has_forward_primary_axis_reversal(&finalized, direction) {
+                finalized = normalize_orthogonal_route_contracts(&finalized, direction);
+            }
+        } else {
+            finalized = normalize_orthogonal_route_contracts(&finalized, direction);
+        }
     }
     if !is_backward
         && let Some(policy_face) = overflow_policy_target_face
@@ -413,80 +502,151 @@ fn build_orthogonal_path(
             direction,
             target_primary_channel_depth,
         );
-        prefer_lateral_departure_for_td_bt_angular_sources(
+        prefer_secondary_axis_departure_for_angular_sources(
             &mut finalized,
             edge,
             geometry,
             direction,
         );
     }
+    if !is_backward && collapse_forward_source_primary_turnback_hooks(&mut finalized, direction) {
+        finalized = light_normalize(&finalized);
+    }
     if is_backward {
-        enforce_backward_source_tangent_direction(
+        let mut compact_short_backward = false;
+        // For backward edges with corridor obstructions (intermediate nodes
+        // between source and target), construct a clean channel path from
+        // scratch rather than trying to fix the layout-hint-derived path.
+        // This avoids node-border overlaps that the post-processing pipeline
+        // cannot reliably fix for complex path shapes (e.g. 6-point V-H-V-H-V).
+        let use_channel_path = geometry.enhanced_backward_routing
+            && has_backward_corridor_obstructions(edge, geometry, direction);
+
+        if use_channel_path
+            && let Some(channel_path) =
+                build_backward_orthogonal_channel_path(edge, geometry, direction)
+        {
+            finalized = channel_path;
+        }
+
+        if !use_channel_path {
+            let use_compact_side_lane =
+                matches!(direction, Direction::LeftRight | Direction::RightLeft)
+                    && direction != geometry.direction;
+            if use_compact_side_lane
+                && let Some(compact_path) =
+                    build_short_backward_side_lane_path(edge, geometry, direction)
+            {
+                finalized = compact_path;
+                compact_short_backward = true;
+            } else {
+                enforce_backward_source_tangent_direction(
+                    &mut finalized,
+                    edge,
+                    geometry,
+                    direction,
+                    backward_source_face_override,
+                );
+                ensure_backward_outer_lane_clearance(&mut finalized, direction, 12.0);
+                align_backward_source_stem_to_outer_lane(&mut finalized, edge, geometry, direction);
+                enforce_backward_terminal_tangent_direction(
+                    &mut finalized,
+                    edge,
+                    geometry,
+                    direction,
+                    target_overflowed,
+                    backward_target_face_override,
+                );
+                let parity_override_active = backward_source_face_override.is_some()
+                    || backward_target_face_override.is_some();
+                if parity_override_active {
+                    finalized = normalize_orthogonal_route_contracts(&finalized, direction);
+                }
+                if parity_override_active && has_immediate_axial_turnback(&finalized) {
+                    finalized = base_finalized;
+                    enforce_backward_source_tangent_direction(
+                        &mut finalized,
+                        edge,
+                        geometry,
+                        direction,
+                        None,
+                    );
+                    ensure_backward_outer_lane_clearance(&mut finalized, direction, 12.0);
+                    align_backward_source_stem_to_outer_lane(
+                        &mut finalized,
+                        edge,
+                        geometry,
+                        direction,
+                    );
+                    enforce_backward_terminal_tangent_direction(
+                        &mut finalized,
+                        edge,
+                        geometry,
+                        direction,
+                        target_overflowed,
+                        None,
+                    );
+                }
+                collapse_tiny_backward_terminal_staircase(&mut finalized, direction, 8.0);
+                align_backward_outer_lane_to_hint(
+                    &mut finalized,
+                    edge.layout_path_hint.as_deref(),
+                    direction,
+                    edge,
+                    geometry,
+                );
+                collapse_tiny_backward_terminal_staircase(&mut finalized, direction, 8.0);
+                enforce_backward_minimum_channel_floor(
+                    &mut finalized,
+                    edge,
+                    geometry,
+                    direction,
+                    12.0,
+                );
+                avoid_backward_td_bt_vertical_lane_node_intrusion(
+                    &mut finalized,
+                    edge,
+                    geometry,
+                    direction,
+                );
+                collapse_backward_terminal_node_intrusion(
+                    &mut finalized,
+                    edge,
+                    geometry,
+                    direction,
+                );
+            }
+        }
+        if !compact_short_backward {
+            enforce_backward_terminal_corner_inset(&mut finalized, edge, geometry);
+        }
+        collapse_collinear_interior_points(&mut finalized);
+        fix_backward_diagonal_node_collision(&mut finalized, edge, geometry, direction);
+    }
+    let skip_or_backward_candidate = is_backward || rank_span >= 2;
+    if skip_or_backward_candidate
+        && reroute_skip_backward_lane_for_node_clearance(
             &mut finalized,
             edge,
             geometry,
             direction,
-            backward_source_face_override,
-        );
-        ensure_backward_outer_lane_clearance(&mut finalized, direction, 12.0);
-        align_backward_source_stem_to_outer_lane(&mut finalized, edge, geometry, direction);
-        enforce_backward_terminal_tangent_direction(
+            8.0,
+            8.0,
+            16.0,
+        )
+    {
+        finalized = normalize_orthogonal_route_contracts(&finalized, direction);
+        if reroute_skip_backward_lane_for_node_clearance(
             &mut finalized,
             edge,
             geometry,
             direction,
-            target_overflowed,
-            backward_target_face_override,
-        );
-        let parity_override_active =
-            backward_source_face_override.is_some() || backward_target_face_override.is_some();
-        if parity_override_active {
+            12.0,
+            8.0,
+            16.0,
+        ) {
             finalized = normalize_orthogonal_route_contracts(&finalized, direction);
         }
-        if parity_override_active && has_immediate_axial_turnback(&finalized) {
-            finalized = base_finalized;
-            enforce_backward_source_tangent_direction(
-                &mut finalized,
-                edge,
-                geometry,
-                direction,
-                None,
-            );
-            ensure_backward_outer_lane_clearance(&mut finalized, direction, 12.0);
-            align_backward_source_stem_to_outer_lane(&mut finalized, edge, geometry, direction);
-            enforce_backward_terminal_tangent_direction(
-                &mut finalized,
-                edge,
-                geometry,
-                direction,
-                target_overflowed,
-                None,
-            );
-        }
-        collapse_tiny_backward_terminal_staircase(&mut finalized, direction, 8.0);
-        align_backward_outer_lane_to_hint(
-            &mut finalized,
-            edge.layout_path_hint.as_deref(),
-            direction,
-            edge,
-            geometry,
-        );
-        collapse_tiny_backward_terminal_staircase(&mut finalized, direction, 8.0);
-        enforce_backward_minimum_channel_floor(&mut finalized, edge, geometry, direction, 12.0);
-        avoid_backward_td_bt_vertical_lane_node_intrusion(
-            &mut finalized,
-            edge,
-            geometry,
-            direction,
-        );
-        collapse_backward_terminal_node_intrusion(&mut finalized, edge, geometry, direction);
-        enforce_backward_terminal_corner_inset(&mut finalized, edge, geometry);
-        collapse_collinear_interior_points(&mut finalized);
-        // Backward edge processing (tangent direction, lane clearance, corner inset)
-        // overrides shape-aware endpoints with rect-aligned positions.
-        // Re-project endpoints to actual shape boundaries as a final step.
-        snap_backward_endpoints_to_shape(&mut finalized, edge, geometry);
-        fix_backward_diagonal_node_collision(&mut finalized, edge, geometry, direction);
     }
     finalized
 }
@@ -499,10 +659,12 @@ fn avoid_forward_td_bt_primary_lane_node_intrusion(
     target_primary_channel_depth: Option<f64>,
 ) {
     const EPS: f64 = 0.000_001;
-    const INTRUSION_MARGIN: f64 = 1.0;
+    // Treat near-border segments as intrusions too so rendered strokes do not
+    // visually overlap unrelated node borders after anti-aliasing.
+    const INTRUSION_MARGIN: f64 = -0.5;
     const NODE_CLEARANCE: f64 = 8.0;
     const MIN_SOURCE_STEM: f64 = 8.0;
-    const MIN_TARGET_STEM: f64 = 8.0;
+    const MIN_TARGET_STEM: f64 = 16.0;
 
     if !matches!(direction, Direction::TopDown | Direction::BottomTop) || path.len() != 4 {
         return;
@@ -583,6 +745,156 @@ fn avoid_forward_td_bt_primary_lane_node_intrusion(
     collapse_tiny_forward_td_bt_lateral_jog(path, edge, geometry, direction);
 }
 
+fn reroute_skip_backward_lane_for_node_clearance(
+    path: &mut [FPoint],
+    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    geometry: &GraphGeometry,
+    direction: Direction,
+    node_clearance: f64,
+    min_source_stem: f64,
+    min_target_stem: f64,
+) -> bool {
+    if path.len() != 4 || node_clearance <= 0.0 {
+        return false;
+    }
+
+    let p0 = path[0];
+    let p1 = path[1];
+    let p2 = path[2];
+    let p3 = path[3];
+    let v_h_v = (p0.x - p1.x).abs() <= POINT_EPS
+        && (p0.y - p1.y).abs() > POINT_EPS
+        && (p1.y - p2.y).abs() <= POINT_EPS
+        && (p1.x - p2.x).abs() > POINT_EPS
+        && (p2.x - p3.x).abs() <= POINT_EPS
+        && (p2.y - p3.y).abs() > POINT_EPS;
+    let h_v_h = (p0.y - p1.y).abs() <= POINT_EPS
+        && (p0.x - p1.x).abs() > POINT_EPS
+        && (p1.x - p2.x).abs() <= POINT_EPS
+        && (p1.y - p2.y).abs() > POINT_EPS
+        && (p2.y - p3.y).abs() <= POINT_EPS
+        && (p2.x - p3.x).abs() > POINT_EPS;
+    if !v_h_v && !h_v_h {
+        return false;
+    }
+
+    let primary_vertical = matches!(direction, Direction::TopDown | Direction::BottomTop);
+    if primary_vertical != v_h_v {
+        return false;
+    }
+
+    let flow_sign = if primary_vertical {
+        (p3.y - p0.y).signum()
+    } else {
+        (p3.x - p0.x).signum()
+    };
+    if flow_sign.abs() <= POINT_EPS {
+        return false;
+    }
+
+    let mut lane = if primary_vertical { p1.y } else { p1.x };
+    let mut saw_intrusion = false;
+
+    for (node_id, node) in &geometry.nodes {
+        if node_id == &edge.from || node_id == &edge.to {
+            continue;
+        }
+
+        let rect = node.rect;
+        let center_segment_crosses = axis_aligned_segment_crosses_rect_interior(p1, p2, rect, -0.5);
+        let side_segment_crosses = axis_aligned_segment_crosses_rect_interior(p0, p1, rect, -0.5)
+            || axis_aligned_segment_crosses_rect_interior(p2, p3, rect, -0.5);
+        let overlaps_lane_span = if primary_vertical {
+            ranges_overlap(p1.x.min(p2.x), p1.x.max(p2.x), rect.x, rect.x + rect.width)
+        } else {
+            ranges_overlap(p1.y.min(p2.y), p1.y.max(p2.y), rect.y, rect.y + rect.height)
+        };
+        if !overlaps_lane_span {
+            continue;
+        }
+
+        let (blocked_min, blocked_max) = if primary_vertical {
+            (rect.y, rect.y + rect.height)
+        } else {
+            (rect.x, rect.x + rect.width)
+        };
+        let near_corridor =
+            lane > blocked_min - node_clearance && lane < blocked_max + node_clearance;
+        if !(center_segment_crosses || side_segment_crosses || near_corridor) {
+            continue;
+        }
+
+        saw_intrusion = true;
+        if flow_sign > 0.0 {
+            lane = lane.min(blocked_min - node_clearance);
+        } else {
+            lane = lane.max(blocked_max + node_clearance);
+        }
+    }
+
+    if !saw_intrusion {
+        return false;
+    }
+
+    if primary_vertical {
+        let min_lane = p0.y + flow_sign * min_source_stem;
+        let max_lane = p3.y - flow_sign * min_target_stem;
+        let clamped_lane = if flow_sign > 0.0 {
+            if max_lane < min_lane {
+                return false;
+            }
+            lane.clamp(min_lane, max_lane)
+        } else {
+            if min_lane < max_lane {
+                return false;
+            }
+            lane.clamp(max_lane, min_lane)
+        };
+        if (clamped_lane - p1.y).abs() <= POINT_EPS {
+            return false;
+        }
+        let new_p1 = FPoint::new(p1.x, clamped_lane);
+        let new_p2 = FPoint::new(p2.x, clamped_lane);
+        if (new_p1.y - p0.y).abs() <= POINT_EPS
+            || (new_p2.x - new_p1.x).abs() <= POINT_EPS
+            || (p3.y - new_p2.y).abs() <= POINT_EPS
+        {
+            return false;
+        }
+        path[1] = new_p1;
+        path[2] = new_p2;
+    } else {
+        let min_lane = p0.x + flow_sign * min_source_stem;
+        let max_lane = p3.x - flow_sign * min_target_stem;
+        let clamped_lane = if flow_sign > 0.0 {
+            if max_lane < min_lane {
+                return false;
+            }
+            lane.clamp(min_lane, max_lane)
+        } else {
+            if min_lane < max_lane {
+                return false;
+            }
+            lane.clamp(max_lane, min_lane)
+        };
+        if (clamped_lane - p1.x).abs() <= POINT_EPS {
+            return false;
+        }
+        let new_p1 = FPoint::new(clamped_lane, p1.y);
+        let new_p2 = FPoint::new(clamped_lane, p2.y);
+        if (new_p1.x - p0.x).abs() <= POINT_EPS
+            || (new_p2.y - new_p1.y).abs() <= POINT_EPS
+            || (p3.x - new_p2.x).abs() <= POINT_EPS
+        {
+            return false;
+        }
+        path[1] = new_p1;
+        path[2] = new_p2;
+    }
+
+    true
+}
+
 fn axis_aligned_segment_crosses_rect_interior(
     a: FPoint,
     b: FPoint,
@@ -626,9 +938,11 @@ fn reroute_forward_td_bt_terminal_intrusion_with_safe_vertical_corridor(
     geometry: &GraphGeometry,
     direction: Direction,
 ) -> Option<Vec<FPoint>> {
-    const MIN_TARGET_STEM: f64 = 8.0;
+    const MIN_TARGET_STEM: f64 = 16.0;
     const NODE_CLEARANCE: f64 = 8.0;
-    const INTRUSION_MARGIN: f64 = 1.0;
+    // Include near-border grazing so terminal stems don't visually ride along
+    // unrelated node borders after rasterization/anti-aliasing.
+    const INTRUSION_MARGIN: f64 = -0.5;
     const EPS: f64 = 0.000_001;
 
     if !matches!(direction, Direction::TopDown | Direction::BottomTop) || path.len() != 4 {
@@ -830,6 +1144,208 @@ fn avoid_backward_td_bt_vertical_lane_node_intrusion(
     }
 }
 
+/// Check whether a backward edge has intermediate nodes in its routing corridor.
+///
+/// When nodes exist between source and target (horizontally overlapping the
+/// corridor), the backward edge needs a full channel detour to avoid crossing
+/// them. Otherwise, a simple port-offset suffices.
+fn has_backward_corridor_obstructions(
+    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    geometry: &GraphGeometry,
+    direction: Direction,
+) -> bool {
+    let from_rect = geometry.nodes.get(&edge.from).map(|n| n.rect);
+    let to_rect = geometry.nodes.get(&edge.to).map(|n| n.rect);
+
+    let (Some(sr), Some(tr)) = (from_rect, to_rect) else {
+        return false;
+    };
+
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            let corridor_left = sr.x.min(tr.x);
+            let corridor_right = (sr.x + sr.width).max(tr.x + tr.width);
+            let min_y = sr.y.min(tr.y);
+            let max_y = (sr.y + sr.height).max(tr.y + tr.height);
+            geometry.nodes.values().any(|node| {
+                if node.id == edge.from || node.id == edge.to {
+                    return false;
+                }
+                let cy = node.rect.center_y();
+                let node_right = node.rect.x + node.rect.width;
+                cy > min_y
+                    && cy < max_y
+                    && node.rect.x < corridor_right
+                    && node_right > corridor_left
+            })
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            let corridor_top = sr.y.min(tr.y);
+            let corridor_bottom = (sr.y + sr.height).max(tr.y + tr.height);
+            let min_x = sr.x.min(tr.x);
+            let max_x = (sr.x + sr.width).max(tr.x + tr.width);
+            geometry.nodes.values().any(|node| {
+                if node.id == edge.from || node.id == edge.to {
+                    return false;
+                }
+                let cx = node.rect.center_x();
+                let node_bottom = node.rect.y + node.rect.height;
+                cx > min_x
+                    && cx < max_x
+                    && node.rect.y < corridor_bottom
+                    && node_bottom > corridor_top
+            })
+        }
+    }
+}
+
+/// Build a clean orthogonal channel path for a backward edge with corridor
+/// obstructions.
+///
+/// Instead of trying to fix the layout-hint-derived path (which overlaps
+/// intermediate nodes), this constructs a 4-point right-angle path from scratch
+/// using the canonical backward face:
+///
+/// **TD/BT:** source right face → channel lane → target right face
+/// **LR/RL:** source bottom face → channel lane → target bottom face
+///
+/// This matches the non-orthogonal `build_backward_channel_path` approach and
+/// is already axis-aligned, so it works directly for step/smooth-step/curved-step rendering.
+fn build_backward_orthogonal_channel_path(
+    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    geometry: &GraphGeometry,
+    direction: Direction,
+) -> Option<Vec<FPoint>> {
+    const CHANNEL_CLEARANCE: f64 = 12.0;
+
+    let sr = geometry.nodes.get(&edge.from)?.rect;
+    let tr = geometry.nodes.get(&edge.to)?.rect;
+
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            // Exit source from right face, enter target from right face.
+            let source_right = sr.x + sr.width;
+            let target_right = tr.x + tr.width;
+            let source_cy = sr.center_y();
+            let target_cy = tr.center_y();
+
+            // Channel lane: to the right of all nodes in the corridor.
+            let face_envelope = source_right.max(target_right);
+            let min_y = sr.y.min(tr.y);
+            let max_y = (sr.y + sr.height).max(tr.y + tr.height);
+            let corridor_left = sr.x.min(tr.x);
+            let mut lane_x = face_envelope + CHANNEL_CLEARANCE;
+            for node in geometry.nodes.values() {
+                if node.id == edge.from || node.id == edge.to {
+                    continue;
+                }
+                let cy = node.rect.center_y();
+                let node_right = node.rect.x + node.rect.width;
+                if cy >= min_y && cy <= max_y && node.rect.x < lane_x && node_right > corridor_left
+                {
+                    lane_x = lane_x.max(node_right + CHANNEL_CLEARANCE);
+                }
+            }
+
+            Some(vec![
+                FPoint::new(source_right, source_cy),
+                FPoint::new(lane_x, source_cy),
+                FPoint::new(lane_x, target_cy),
+                FPoint::new(target_right, target_cy),
+            ])
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            // Exit source from bottom face, enter target from bottom face.
+            let source_bottom = sr.y + sr.height;
+            let target_bottom = tr.y + tr.height;
+            let source_cx = sr.center_x();
+            let target_cx = tr.center_x();
+
+            let face_envelope = source_bottom.max(target_bottom);
+            let min_x = sr.x.min(tr.x);
+            let max_x = (sr.x + sr.width).max(tr.x + tr.width);
+            let corridor_top = sr.y.min(tr.y);
+            let mut lane_y = face_envelope + CHANNEL_CLEARANCE;
+            for node in geometry.nodes.values() {
+                if node.id == edge.from || node.id == edge.to {
+                    continue;
+                }
+                let cx = node.rect.center_x();
+                let node_bottom = node.rect.y + node.rect.height;
+                if cx >= min_x && cx <= max_x && node.rect.y < lane_y && node_bottom > corridor_top
+                {
+                    lane_y = lane_y.max(node_bottom + CHANNEL_CLEARANCE);
+                }
+            }
+
+            Some(vec![
+                FPoint::new(source_cx, source_bottom),
+                FPoint::new(source_cx, lane_y),
+                FPoint::new(target_cx, lane_y),
+                FPoint::new(target_cx, target_bottom),
+            ])
+        }
+    }
+}
+
+/// Build a compact short backward path for LR/RL override-direction edges.
+///
+/// For short reciprocal edges inside LR/RL override subgraphs, the canonical
+/// bottom-channel policy can produce visual vertical stems that look like
+/// incorrect attachments in step/smooth-step/curved-step. This compact mode keeps backward
+/// endpoints on side faces (source leading-side, target trailing-side) and
+/// routes along a lower lane, matching direct/polyline intent.
+fn build_short_backward_side_lane_path(
+    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    geometry: &GraphGeometry,
+    direction: Direction,
+) -> Option<Vec<FPoint>> {
+    const FACE_EPS: f64 = 1.0;
+
+    let (source_rect, _) =
+        endpoint_rect_and_shape(geometry, &edge.from, edge.from_subgraph.as_deref())?;
+    let (target_rect, _) =
+        endpoint_rect_and_shape(geometry, &edge.to, edge.to_subgraph.as_deref())?;
+
+    let max_offset = (source_rect.height.min(target_rect.height) / 3.0).min(20.0);
+    let offset = max_offset.max(8.0);
+
+    let source_x = match direction {
+        Direction::LeftRight => source_rect.x,
+        Direction::RightLeft => source_rect.x + source_rect.width,
+        _ => return None,
+    };
+    let target_x = match direction {
+        Direction::LeftRight => target_rect.x + target_rect.width,
+        Direction::RightLeft => target_rect.x,
+        _ => return None,
+    };
+
+    let source_y = (source_rect.center_y() + offset).clamp(
+        source_rect.y + FACE_EPS,
+        source_rect.y + source_rect.height - FACE_EPS,
+    );
+    let target_y = (target_rect.center_y() + offset).clamp(
+        target_rect.y + FACE_EPS,
+        target_rect.y + target_rect.height - FACE_EPS,
+    );
+
+    if (source_y - target_y).abs() <= POINT_EPS {
+        return Some(vec![
+            FPoint::new(source_x, source_y),
+            FPoint::new(target_x, target_y),
+        ]);
+    }
+
+    let lane_y = source_y.max(target_y);
+    Some(vec![
+        FPoint::new(source_x, source_y),
+        FPoint::new(source_x, lane_y),
+        FPoint::new(target_x, lane_y),
+        FPoint::new(target_x, target_y),
+    ])
+}
+
 fn stagger_forward_td_bt_terminal_horizontal_support(
     path: &mut [FPoint],
     target_primary_channel_depth: Option<f64>,
@@ -960,7 +1476,7 @@ fn collapse_tiny_forward_td_bt_lateral_jog(
     collapse_collinear_interior_points(path);
 }
 
-fn prefer_lateral_departure_for_td_bt_angular_sources(
+fn prefer_secondary_axis_departure_for_angular_sources(
     path: &mut Vec<FPoint>,
     edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
     geometry: &GraphGeometry,
@@ -968,11 +1484,11 @@ fn prefer_lateral_departure_for_td_bt_angular_sources(
 ) {
     const EPS: f64 = 0.000_001;
     const OFF_CENTER_MIN: f64 = 2.0;
-    const MIN_HORIZONTAL_DEPARTURE: f64 = 2.0;
-    const MIN_HORIZONTAL_DEPARTURE_DIAMOND: f64 = 0.1;
+    const MIN_SECONDARY_DEPARTURE: f64 = 2.0;
+    const MIN_SECONDARY_DEPARTURE_DIAMOND: f64 = 0.1;
     const INTRUSION_MARGIN: f64 = 1.0;
 
-    if !matches!(direction, Direction::TopDown | Direction::BottomTop) || path.len() != 4 {
+    if path.len() != 4 {
         return;
     }
 
@@ -989,69 +1505,133 @@ fn prefer_lateral_departure_for_td_bt_angular_sources(
     let p1 = path[1];
     let p2 = path[2];
     let p3 = path[3];
-    let first_vertical = (p0.x - p1.x).abs() <= EPS && (p0.y - p1.y).abs() > EPS;
-    let middle_horizontal = (p1.y - p2.y).abs() <= EPS && (p1.x - p2.x).abs() > EPS;
-    let terminal_vertical = (p2.x - p3.x).abs() <= EPS && (p2.y - p3.y).abs() > EPS;
-    if !(first_vertical && middle_horizontal && terminal_vertical) {
+    let primary_vertical = matches!(direction, Direction::TopDown | Direction::BottomTop);
+    let (first_primary, middle_secondary, terminal_primary) = if primary_vertical {
+        (
+            (p0.x - p1.x).abs() <= EPS && (p0.y - p1.y).abs() > EPS,
+            (p1.y - p2.y).abs() <= EPS && (p1.x - p2.x).abs() > EPS,
+            (p2.x - p3.x).abs() <= EPS && (p2.y - p3.y).abs() > EPS,
+        )
+    } else {
+        (
+            (p0.y - p1.y).abs() <= EPS && (p0.x - p1.x).abs() > EPS,
+            (p1.x - p2.x).abs() <= EPS && (p1.y - p2.y).abs() > EPS,
+            (p2.y - p3.y).abs() <= EPS && (p2.x - p3.x).abs() > EPS,
+        )
+    };
+    if !(first_primary && middle_secondary && terminal_primary) {
         return;
     }
 
-    let source_center_x = source_rect.x + source_rect.width / 2.0;
-    let start_offset = p0.x - source_center_x;
-    let target_offset = p3.x - source_center_x;
+    let source_cross_center = if primary_vertical {
+        source_rect.x + source_rect.width / 2.0
+    } else {
+        source_rect.y + source_rect.height / 2.0
+    };
+    let start_offset = if primary_vertical {
+        p0.x - source_cross_center
+    } else {
+        p0.y - source_cross_center
+    };
+    let target_offset = if primary_vertical {
+        p3.x - source_cross_center
+    } else {
+        p3.y - source_cross_center
+    };
     let allow_centered_diamond_departure = matches!(source_shape, Shape::Diamond);
     if (!allow_centered_diamond_departure && start_offset.abs() < OFF_CENTER_MIN)
         || target_offset.abs() < OFF_CENTER_MIN
     {
         return;
     }
-    if (p3.x - p0.x).abs() < MIN_HORIZONTAL_DEPARTURE {
+    let secondary_delta = if primary_vertical {
+        p3.x - p0.x
+    } else {
+        p3.y - p0.y
+    };
+    if secondary_delta.abs() < MIN_SECONDARY_DEPARTURE {
         return;
     }
 
     let flow_sign = match direction {
-        Direction::TopDown => 1.0,
-        Direction::BottomTop => -1.0,
-        _ => 0.0,
+        Direction::TopDown | Direction::LeftRight => 1.0,
+        Direction::BottomTop | Direction::RightLeft => -1.0,
     };
-    if (p3.y - p0.y) * flow_sign <= EPS {
+    let primary_delta = if primary_vertical {
+        p3.y - p0.y
+    } else {
+        p3.x - p0.x
+    };
+    if primary_delta * flow_sign <= EPS {
         return;
     }
 
-    let departure_face = if target_offset < 0.0 {
-        RectFace::Left
+    let departure_face = if primary_vertical {
+        if target_offset < 0.0 {
+            RectFace::Left
+        } else {
+            RectFace::Right
+        }
+    } else if target_offset < 0.0 {
+        RectFace::Top
     } else {
-        RectFace::Right
+        RectFace::Bottom
     };
-    let preferred_lane_y = p1.y;
-    let rect_face_anchor = clip_point_to_rect_face_with_inset(
-        FPoint::new(p0.x, preferred_lane_y),
-        source_rect,
-        departure_face,
-        MIN_PORT_CORNER_INSET_FORWARD,
-    );
-    let provisional_elbow = FPoint::new(p3.x, preferred_lane_y);
+    let preferred_primary_lane = if primary_vertical { p1.y } else { p1.x };
+    let rect_face_anchor = if primary_vertical {
+        clip_point_to_rect_face_with_inset(
+            FPoint::new(p0.x, preferred_primary_lane),
+            source_rect,
+            departure_face,
+            MIN_PORT_CORNER_INSET_FORWARD,
+        )
+    } else {
+        clip_point_to_rect_face_with_inset(
+            FPoint::new(preferred_primary_lane, p0.y),
+            source_rect,
+            departure_face,
+            MIN_PORT_CORNER_INSET_FORWARD,
+        )
+    };
+    let provisional_elbow = if primary_vertical {
+        FPoint::new(p3.x, preferred_primary_lane)
+    } else {
+        FPoint::new(preferred_primary_lane, p3.y)
+    };
     let start = project_endpoint_to_shape(
         rect_face_anchor,
         provisional_elbow,
         source_rect,
         source_shape,
     );
-    let elbow = FPoint::new(p3.x, start.y);
+    let elbow = if primary_vertical {
+        FPoint::new(p3.x, start.y)
+    } else {
+        FPoint::new(start.x, p3.y)
+    };
     if points_match(elbow, start) || points_match(elbow, p3) {
         return;
     }
 
-    let lateral_dx = elbow.x - start.x;
-    let min_horizontal_departure = if matches!(source_shape, Shape::Diamond) {
-        MIN_HORIZONTAL_DEPARTURE_DIAMOND
+    let secondary_departure = if primary_vertical {
+        elbow.x - start.x
     } else {
-        MIN_HORIZONTAL_DEPARTURE
+        elbow.y - start.y
     };
-    if lateral_dx.abs() < min_horizontal_departure {
+    let min_secondary_departure = if matches!(source_shape, Shape::Diamond) {
+        MIN_SECONDARY_DEPARTURE_DIAMOND
+    } else {
+        MIN_SECONDARY_DEPARTURE
+    };
+    if secondary_departure.abs() < min_secondary_departure {
         return;
     }
-    if (p3.y - elbow.y) * flow_sign <= EPS {
+    let remaining_primary = if primary_vertical {
+        p3.y - elbow.y
+    } else {
+        p3.x - elbow.x
+    };
+    if remaining_primary * flow_sign <= EPS {
         return;
     }
 
@@ -1142,6 +1722,28 @@ fn backward_td_bt_face_overrides(
     if target_override.is_none() {
         return (None, None);
     }
+
+    // Layout hint points for backward edges come from the reversed-edge layout,
+    // so the source hint may sit on the forward-direction departure face
+    // (Bottom for TD, Top for BT). Flip the source face when it matches the
+    // forward departure face, since a backward edge must depart toward the
+    // target (upward in TD, downward in BT).
+    let source_override = source_override.map(|face| {
+        let forward_source_face = match direction {
+            Direction::TopDown => Face::Bottom,
+            Direction::BottomTop => Face::Top,
+            _ => return face,
+        };
+        if face == forward_source_face {
+            match face {
+                Face::Top => Face::Bottom,
+                Face::Bottom => Face::Top,
+                other => other,
+            }
+        } else {
+            face
+        }
+    });
 
     // Skip parity when the source node's center is entirely to the right of
     // the target's right edge. In that topology the forward target→source
@@ -1718,55 +2320,68 @@ fn stagger_primary_face_shared_axis_segment(
     let Some(depth) = target_primary_channel_depth else {
         return;
     };
-    if path.len() != 4 {
+    if path.len() < 4 {
         return;
     }
     let depth = depth.clamp(0.0, 1.0);
-    match direction {
-        Direction::TopDown | Direction::BottomTop => {
-            let first_vertical =
-                (path[0].x - path[1].x).abs() <= EPS && (path[0].y - path[1].y).abs() > EPS;
-            let middle_horizontal =
-                (path[1].y - path[2].y).abs() <= EPS && (path[1].x - path[2].x).abs() > EPS;
-            let terminal_vertical =
-                (path[2].x - path[3].x).abs() <= EPS && (path[2].y - path[3].y).abs() > EPS;
-            if !(first_vertical && middle_horizontal && terminal_vertical) {
-                return;
-            }
 
+    // Find the gathering segment: for TD/BT it's a horizontal segment
+    // bounded by vertical segments; for LR/RL it's a vertical segment
+    // bounded by horizontal segments. Search interior segments.
+    let primary_vertical = matches!(direction, Direction::TopDown | Direction::BottomTop);
+
+    for i in 1..path.len().saturating_sub(2) {
+        let seg_is_gathering = if primary_vertical {
+            // TD/BT: gathering = horizontal segment (same y, different x)
+            (path[i].y - path[i + 1].y).abs() <= EPS && (path[i].x - path[i + 1].x).abs() > EPS
+        } else {
+            // LR/RL: gathering = vertical segment (same x, different y)
+            (path[i].x - path[i + 1].x).abs() <= EPS && (path[i].y - path[i + 1].y).abs() > EPS
+        };
+        if !seg_is_gathering {
+            continue;
+        }
+
+        // Verify the adjacent segments are axis-normal (perpendicular to gathering)
+        let prev_is_normal = if primary_vertical {
+            (path[i - 1].x - path[i].x).abs() <= EPS && (path[i - 1].y - path[i].y).abs() > EPS
+        } else {
+            (path[i - 1].y - path[i].y).abs() <= EPS && (path[i - 1].x - path[i].x).abs() > EPS
+        };
+        let next_is_normal = if primary_vertical {
+            (path[i + 1].x - path[i + 2].x).abs() <= EPS
+                && (path[i + 1].y - path[i + 2].y).abs() > EPS
+        } else {
+            (path[i + 1].y - path[i + 2].y).abs() <= EPS
+                && (path[i + 1].x - path[i + 2].x).abs() > EPS
+        };
+        if !prev_is_normal || !next_is_normal {
+            continue;
+        }
+
+        // Stagger the gathering segment's shared-axis coordinate
+        if primary_vertical {
             if let Some(y) = stagger_axis_value(
                 path[0].y,
-                path[3].y,
+                path[path.len() - 1].y,
                 depth,
                 MIN_SOURCE_STEM,
                 MIN_TARGET_STEM,
             ) {
-                path[1].y = y;
-                path[2].y = y;
+                path[i].y = y;
+                path[i + 1].y = y;
             }
+        } else if let Some(x) = stagger_axis_value(
+            path[0].x,
+            path[path.len() - 1].x,
+            depth,
+            MIN_SOURCE_STEM,
+            MIN_TARGET_STEM,
+        ) {
+            path[i].x = x;
+            path[i + 1].x = x;
         }
-        Direction::LeftRight | Direction::RightLeft => {
-            let first_horizontal =
-                (path[0].y - path[1].y).abs() <= EPS && (path[0].x - path[1].x).abs() > EPS;
-            let middle_vertical =
-                (path[1].x - path[2].x).abs() <= EPS && (path[1].y - path[2].y).abs() > EPS;
-            let terminal_horizontal =
-                (path[2].y - path[3].y).abs() <= EPS && (path[2].x - path[3].x).abs() > EPS;
-            if !(first_horizontal && middle_vertical && terminal_horizontal) {
-                return;
-            }
-
-            if let Some(x) = stagger_axis_value(
-                path[0].x,
-                path[3].x,
-                depth,
-                MIN_SOURCE_STEM,
-                MIN_TARGET_STEM,
-            ) {
-                path[1].x = x;
-                path[2].x = x;
-            }
-        }
+        return;
     }
 }
 
@@ -2073,6 +2688,146 @@ fn has_immediate_axial_turnback(path: &[FPoint]) -> bool {
 
         false
     })
+}
+
+fn has_forward_primary_axis_reversal(path: &[FPoint], direction: Direction) -> bool {
+    const EPS: f64 = 0.000_001;
+    path.windows(2).any(|segment| {
+        let a = segment[0];
+        let b = segment[1];
+        match direction {
+            Direction::TopDown => {
+                (a.x - b.x).abs() <= EPS && (b.y - a.y) < -EPS && (a.y - b.y).abs() > EPS
+            }
+            Direction::BottomTop => {
+                (a.x - b.x).abs() <= EPS && (b.y - a.y) > EPS && (a.y - b.y).abs() > EPS
+            }
+            Direction::LeftRight => {
+                (a.y - b.y).abs() <= EPS && (b.x - a.x) < -EPS && (a.x - b.x).abs() > EPS
+            }
+            Direction::RightLeft => {
+                (a.y - b.y).abs() <= EPS && (b.x - a.x) > EPS && (a.x - b.x).abs() > EPS
+            }
+        }
+    })
+}
+
+fn collapse_forward_source_primary_turnback_hooks(
+    path: &mut [FPoint],
+    direction: Direction,
+) -> bool {
+    const EPS: f64 = 0.000_001;
+    if path.len() < 5 {
+        return false;
+    }
+
+    let p0 = path[0];
+    let p1 = path[1];
+    let p2 = path[2];
+    let p3 = path[3];
+    let p4 = path[4];
+
+    let mut changed = false;
+    match direction {
+        Direction::LeftRight => {
+            let first_primary = (p0.y - p1.y).abs() <= EPS && (p1.x - p0.x) > EPS;
+            let first_secondary = (p1.x - p2.x).abs() <= EPS && (p1.y - p2.y).abs() > EPS;
+            let hook_primary = (p2.y - p3.y).abs() <= EPS && (p2.x - p3.x).abs() > EPS;
+            let second_secondary = (p3.x - p4.x).abs() <= EPS && (p3.y - p4.y).abs() > EPS;
+            let has_hook = first_primary
+                && first_secondary
+                && hook_primary
+                && second_secondary
+                && (p3.x - p2.x) < -EPS;
+            if has_hook {
+                if path.len() > 5 {
+                    // Preserve outer lane spacing by pulling the inward hook
+                    // out to the existing lane instead of collapsing lane x.
+                    path[3].x = p2.x;
+                    path[4].x = p2.x;
+                } else {
+                    // If p4 is terminal, avoid moving the endpoint-side segment.
+                    path[1].x = p3.x;
+                    path[2].x = p3.x;
+                }
+                changed = true;
+            }
+        }
+        Direction::RightLeft => {
+            let first_primary = (p0.y - p1.y).abs() <= EPS && (p1.x - p0.x) < -EPS;
+            let first_secondary = (p1.x - p2.x).abs() <= EPS && (p1.y - p2.y).abs() > EPS;
+            let hook_primary = (p2.y - p3.y).abs() <= EPS && (p2.x - p3.x).abs() > EPS;
+            let second_secondary = (p3.x - p4.x).abs() <= EPS && (p3.y - p4.y).abs() > EPS;
+            let has_hook = first_primary
+                && first_secondary
+                && hook_primary
+                && second_secondary
+                && (p3.x - p2.x) > EPS;
+            if has_hook {
+                if path.len() > 5 {
+                    // Preserve outer lane spacing by pulling the inward hook
+                    // out to the existing lane instead of collapsing lane x.
+                    path[3].x = p2.x;
+                    path[4].x = p2.x;
+                } else {
+                    // If p4 is terminal, avoid moving the endpoint-side segment.
+                    path[1].x = p3.x;
+                    path[2].x = p3.x;
+                }
+                changed = true;
+            }
+        }
+        Direction::TopDown => {
+            let first_primary = (p0.x - p1.x).abs() <= EPS && (p1.y - p0.y) > EPS;
+            let first_secondary = (p1.y - p2.y).abs() <= EPS && (p1.x - p2.x).abs() > EPS;
+            let hook_primary = (p2.x - p3.x).abs() <= EPS && (p2.y - p3.y).abs() > EPS;
+            let second_secondary = (p3.y - p4.y).abs() <= EPS && (p3.x - p4.x).abs() > EPS;
+            let has_hook = first_primary
+                && first_secondary
+                && hook_primary
+                && second_secondary
+                && (p3.y - p2.y) < -EPS;
+            if has_hook {
+                if path.len() > 5 {
+                    // Preserve outer lane spacing by pulling the inward hook
+                    // out to the existing lane instead of collapsing lane y.
+                    path[3].y = p2.y;
+                    path[4].y = p2.y;
+                } else {
+                    // If p4 is terminal, avoid moving the endpoint-side segment.
+                    path[1].y = p3.y;
+                    path[2].y = p3.y;
+                }
+                changed = true;
+            }
+        }
+        Direction::BottomTop => {
+            let first_primary = (p0.x - p1.x).abs() <= EPS && (p1.y - p0.y) < -EPS;
+            let first_secondary = (p1.y - p2.y).abs() <= EPS && (p1.x - p2.x).abs() > EPS;
+            let hook_primary = (p2.x - p3.x).abs() <= EPS && (p2.y - p3.y).abs() > EPS;
+            let second_secondary = (p3.y - p4.y).abs() <= EPS && (p3.x - p4.x).abs() > EPS;
+            let has_hook = first_primary
+                && first_secondary
+                && hook_primary
+                && second_secondary
+                && (p3.y - p2.y) > EPS;
+            if has_hook {
+                if path.len() > 5 {
+                    // Preserve outer lane spacing by pulling the inward hook
+                    // out to the existing lane instead of collapsing lane y.
+                    path[3].y = p2.y;
+                    path[4].y = p2.y;
+                } else {
+                    // If p4 is terminal, avoid moving the endpoint-side segment.
+                    path[1].y = p3.y;
+                    path[2].y = p3.y;
+                }
+                changed = true;
+            }
+        }
+    }
+
+    changed
 }
 
 fn ensure_backward_outer_lane_clearance(
@@ -3633,6 +4388,87 @@ fn anchor_path_endpoints_to_endpoint_faces(
     }
 }
 
+/// Offset a backward edge's source port from the primary flow face center
+/// so it doesn't overlap with the forward edge's arrival port.
+///
+/// For TD, if the backward edge departs from the source's top face (where
+/// forward edges arrive), shift the departure x right of center. This creates
+/// distinct ports for forward arrival and backward departure on the same face.
+fn offset_backward_source_from_primary_face(
+    path: &mut [FPoint],
+    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    geometry: &GraphGeometry,
+    direction: Direction,
+) {
+    const FACE_EPS: f64 = 2.0;
+
+    if path.len() < 2 {
+        return;
+    }
+
+    let sr = if let Some(sg_id) = edge.from_subgraph.as_deref() {
+        if let Some(sg) = geometry.subgraphs.get(sg_id) {
+            sg.rect
+        } else {
+            return;
+        }
+    } else if let Some(node) = geometry.nodes.get(&edge.from) {
+        node.rect
+    } else {
+        return;
+    };
+    let start = path[0];
+
+    match direction {
+        Direction::TopDown => {
+            // Backward edge departing from source's top face (forward arrival face).
+            if (start.y - sr.y).abs() <= FACE_EPS {
+                let offset = (sr.width / 4.0).clamp(8.0, 20.0);
+                let new_x = (sr.center_x() + offset).min(sr.x + sr.width - FACE_EPS);
+                path[0].x = new_x;
+                // If the source stem is vertical (points [0] and [1] share x),
+                // also update the next point to preserve the vertical stem.
+                if path.len() >= 2 && (path[1].x - start.x).abs() <= FACE_EPS {
+                    path[1].x = new_x;
+                }
+            }
+        }
+        Direction::BottomTop => {
+            // Backward edge departing from source's bottom face.
+            if (start.y - (sr.y + sr.height)).abs() <= FACE_EPS {
+                let offset = (sr.width / 4.0).clamp(8.0, 20.0);
+                let new_x = (sr.center_x() + offset).min(sr.x + sr.width - FACE_EPS);
+                path[0].x = new_x;
+                if path.len() >= 2 && (path[1].x - start.x).abs() <= FACE_EPS {
+                    path[1].x = new_x;
+                }
+            }
+        }
+        Direction::LeftRight => {
+            // Backward edge departing from source's left face.
+            if (start.x - sr.x).abs() <= FACE_EPS {
+                let offset = (sr.height / 4.0).clamp(8.0, 20.0);
+                let new_y = (sr.center_y() + offset).min(sr.y + sr.height - FACE_EPS);
+                path[0].y = new_y;
+                if path.len() >= 2 && (path[1].y - start.y).abs() <= FACE_EPS {
+                    path[1].y = new_y;
+                }
+            }
+        }
+        Direction::RightLeft => {
+            // Backward edge departing from source's right face.
+            if (start.x - (sr.x + sr.width)).abs() <= FACE_EPS {
+                let offset = (sr.height / 4.0).clamp(8.0, 20.0);
+                let new_y = (sr.center_y() + offset).min(sr.y + sr.height - FACE_EPS);
+                path[0].y = new_y;
+                if path.len() >= 2 && (path[1].y - start.y).abs() <= FACE_EPS {
+                    path[1].y = new_y;
+                }
+            }
+        }
+    }
+}
+
 /// Re-project backward edge endpoints to actual shape boundaries.
 ///
 /// Backward edge processing (tangent direction, lane clearance, corner inset)
@@ -3664,7 +4500,21 @@ fn snap_backward_endpoints_to_shape(
         && matches!(to_shape, Shape::Diamond | Shape::Hexagon)
     {
         let approach = path[last - 1];
-        path[last] = intersect_shape_boundary_float(to_rect, to_shape, approach);
+        let boundary = intersect_shape_boundary_float(to_rect, to_shape, approach);
+        // Add marker clearance: the SVG arrowhead marker has physical width
+        // (8px base), and on angled diamond/hexagon edges the marker body
+        // protrudes past the shape boundary. Push the endpoint outward along
+        // the approach direction so the marker body clears the angled edge.
+        let dx = approach.x - boundary.x;
+        let dy = approach.y - boundary.y;
+        let dist = (dx * dx + dy * dy).sqrt();
+        path[last] = if dist > f64::EPSILON {
+            let margin = 4.0;
+            let scale = margin / dist;
+            FPoint::new(boundary.x + dx * scale, boundary.y + dy * scale)
+        } else {
+            boundary
+        };
     }
 }
 
@@ -3894,7 +4744,12 @@ fn clip_point_to_axis_face(
         );
     }
 
-    if !preserve_existing_face && target_overflowed {
+    // For backward edges whose target has fan-in overflow, if the endpoint
+    // landed on the canonical backward face (e.g. right for TD), flip to the
+    // opposite side so the backward channel doesn't collide with forward
+    // fan-in ports. Only apply to backward edges — forward overflow targets
+    // use the overflow policy face system instead.
+    if preserve_existing_face && is_target_endpoint && target_overflowed {
         let canonical = map_face_to_rect_face(canonical_backward_channel_face(direction));
         if let Some(actual_face) = boundary_face_excluding_corners(endpoint, rect, 0.5)
             && actual_face == canonical
@@ -3908,65 +4763,45 @@ fn clip_point_to_axis_face(
         }
     }
 
-    // Backward hints often already carry intended side-face attachment.
-    // Preserve that face when the endpoint is unambiguously on a non-corner
-    // boundary position instead of forcing axis-derived top/bottom clipping.
-    // For backward TD/BT edges, preserve side-entry/exit intent carried by
-    // hint endpoints. This prevents collapsing to bottom corners while keeping
-    // LR/RL backward behavior unchanged.
+    // Backward TD/BT source endpoints: preserve side-face attachment only for
+    // the canonical backward channel face (right for TD/BT). Left-face routing
+    // is not supported for backward edges — it produces inverted tangent
+    // directions and endpoint pull-back failures (see issue 0013).
     if preserve_existing_face && matches!(direction, Direction::TopDown | Direction::BottomTop) {
+        let canonical_side = map_face_to_rect_face(canonical_backward_channel_face(direction));
         if let Some(face) = boundary_face_excluding_corners(endpoint, rect, 0.5)
-            && matches!(face, RectFace::Left | RectFace::Right)
+            && face == canonical_side
         {
-            return match face {
-                RectFace::Left => clip_point_to_rect_face_with_inset(
-                    endpoint,
-                    rect,
-                    RectFace::Left,
-                    max_corner_inset,
-                ),
-                RectFace::Right => clip_point_to_rect_face_with_inset(
-                    endpoint,
-                    rect,
-                    RectFace::Right,
-                    max_corner_inset,
-                ),
-                RectFace::Top | RectFace::Bottom => unreachable!("matched above"),
-            };
+            return clip_point_to_rect_face_with_inset(
+                endpoint,
+                rect,
+                canonical_side,
+                max_corner_inset,
+            );
         }
 
-        let dist_left = (endpoint.x - left).abs();
-        let dist_right = (endpoint.x - right).abs();
+        let dist_to_canonical = match canonical_side {
+            RectFace::Right => (endpoint.x - right).abs(),
+            RectFace::Left => (endpoint.x - left).abs(),
+            _ => f64::INFINITY,
+        };
         let side_bias_threshold = (rect.width * 0.2).clamp(1.0, 6.0);
-        if dist_left.min(dist_right) <= side_bias_threshold {
-            let x = if adjacent.x < endpoint.x {
-                left
-            } else if adjacent.x > endpoint.x {
-                right
-            } else if dist_left <= dist_right {
-                left
-            } else {
-                right
-            };
+        if dist_to_canonical <= side_bias_threshold {
             let mut y = endpoint.y.clamp(y_min, y_max);
             if (y - top).abs() <= EPS || (y - bottom).abs() <= EPS {
                 y = (top + bottom) / 2.0;
             }
-            return if x <= left + EPS {
-                clip_point_to_rect_face_with_inset(
-                    FPoint::new(x, y),
-                    rect,
-                    RectFace::Left,
-                    max_corner_inset,
-                )
-            } else {
-                clip_point_to_rect_face_with_inset(
-                    FPoint::new(x, y),
-                    rect,
-                    RectFace::Right,
-                    max_corner_inset,
-                )
+            let x = match canonical_side {
+                RectFace::Right => right,
+                RectFace::Left => left,
+                _ => endpoint.x,
             };
+            return clip_point_to_rect_face_with_inset(
+                FPoint::new(x, y),
+                rect,
+                canonical_side,
+                max_corner_inset,
+            );
         }
     }
 

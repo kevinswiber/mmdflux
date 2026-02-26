@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 203.82 362.88" style="max-width: 203.82px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 203.82 387.88" style="max-width: 203.82px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -20,24 +20,24 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M101.91,62.00 L101.91,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M69.93,194.90 L42.45,194.90 L42.45,296.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M133.89,194.90 L161.36,194.90 L161.36,296.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-    </g>
-    <g class="edgeLabels">
-      <text x="42.45" y="263.88" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
-      <text x="161.36" y="263.88" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
-    </g>
     <g class="nodes">
       <rect x="54.28" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="101.91" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
       <polygon points="101.91,112.00 159.35,169.44 101.91,226.88 44.47,169.44" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="101.91" y="169.44" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
-      <rect x="8.00" y="300.88" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="42.45" y="327.88" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
-      <rect x="126.91" y="300.88" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="161.36" y="327.88" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
+      <rect x="8.00" y="325.88" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="42.45" y="352.88" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      <rect x="126.91" y="325.88" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="161.36" y="352.88" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M101.91,62.00 L101.91,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M70.66,195.63 L42.45,195.63 L42.45,321.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M133.16,195.63 L161.36,195.63 L161.36,321.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+      <text x="42.45" y="249.38" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <text x="161.36" y="278.38" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
     </g>
   </g>
 </svg>

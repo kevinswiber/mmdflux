@@ -3,19 +3,20 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
-use super::super::geometry::{self, GraphGeometry};
+use super::super::geometry::{self, EngineHints, FPoint, GraphGeometry};
+use super::layout_building::{build_layered_layout_with_config, layered_config_for_layout};
 use super::orthogonal_router::{OrthogonalRoutingOptions, route_edges_orthogonal};
 use super::route_policy::effective_edge_direction;
 use super::svg_metrics::SvgTextMetrics;
 use super::svg_router;
 use super::text_layout::{
-    build_layered_layout, center_override_subgraphs, compute_sublayouts, expand_parent_bounds,
-    layered_config_for_layout, reconcile_sublayouts, resolve_sublayout_overlaps,
+    center_override_subgraphs, compute_sublayouts, expand_parent_bounds, reconcile_sublayouts,
+    resolve_sublayout_overlaps,
 };
 use super::text_routing_core::{
     build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
 };
-use crate::diagram::{CornerStyle, EdgeRouting, InterpolationStyle, PathSimplification};
+use crate::diagram::{CornerStyle, Curve, EdgeRouting, PathSimplification};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke};
 use crate::layered::{LayoutResult, Point, Rect};
 use crate::render::{RenderOptions, layout_config_for_diagram};
@@ -24,6 +25,7 @@ const STROKE_COLOR: &str = "#333";
 const SUBGRAPH_STROKE: &str = "#888";
 const NODE_FILL: &str = "white";
 const TEXT_COLOR: &str = "#333";
+const MIN_BASIS_VISIBLE_STEM_PX: f64 = 8.0;
 
 pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
     let svg_options = &options.svg;
@@ -41,8 +43,26 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
         config.cluster_rank_sep = 0.0;
     }
 
+    // Legacy render_svg path uses flux-layered behavior with all enhancements.
+    let flux_flags = crate::layered::LayoutConfig {
+        greedy_switch: true,
+        model_order_tiebreak: true,
+        variable_rank_spacing: true,
+        track_reversed_chains: true,
+        per_edge_label_spacing: true,
+        label_side_selection: true,
+        label_dummy_strategy: crate::layered::LabelDummyStrategy::WidestLayer,
+        ..Default::default()
+    };
     let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
-    let geom = build_svg_layout(diagram, &config, &metrics, edge_routing, false);
+    let geom = build_svg_layout_with_flags(
+        diagram,
+        &config,
+        &metrics,
+        edge_routing,
+        false,
+        Some(&flux_flags),
+    );
     let rerouted_edges = geom.rerouted_edges.clone();
     let override_nodes = svg_router::build_override_node_map(diagram);
     render_svg_with_geometry_context(
@@ -73,10 +93,43 @@ pub(crate) fn build_svg_layout(
     edge_routing: EdgeRouting,
     skip_non_isolated_overrides: bool,
 ) -> GraphGeometry {
-    let direction = diagram.direction;
-    let mut layout = build_layered_layout(
+    build_svg_layout_with_flags(
         diagram,
         config,
+        metrics,
+        edge_routing,
+        skip_non_isolated_overrides,
+        None,
+    )
+}
+
+/// Build SVG layout with optional engine layout config for enhancement flags.
+///
+/// When `engine_flags` is provided, the three layout enhancement flags
+/// (greedy_switch, model_order_tiebreak, variable_rank_spacing) are overlaid
+/// onto the internal LayoutConfig. Without it, flags default to false.
+pub(crate) fn build_svg_layout_with_flags(
+    diagram: &Diagram,
+    config: &super::text_layout::TextLayoutConfig,
+    metrics: &SvgTextMetrics,
+    edge_routing: EdgeRouting,
+    skip_non_isolated_overrides: bool,
+    engine_flags: Option<&crate::layered::LayoutConfig>,
+) -> GraphGeometry {
+    let direction = diagram.direction;
+    let mut layered_config = layered_config_for_layout(diagram, config);
+    if let Some(flags) = engine_flags {
+        layered_config.greedy_switch = flags.greedy_switch;
+        layered_config.model_order_tiebreak = flags.model_order_tiebreak;
+        layered_config.variable_rank_spacing = flags.variable_rank_spacing;
+        layered_config.track_reversed_chains = flags.track_reversed_chains;
+        layered_config.per_edge_label_spacing = flags.per_edge_label_spacing;
+        layered_config.label_side_selection = flags.label_side_selection;
+        layered_config.label_dummy_strategy = flags.label_dummy_strategy;
+    }
+    let mut layout = build_layered_layout_with_config(
+        diagram,
+        &layered_config,
         |node| svg_node_dimensions(metrics, node, direction),
         |edge| {
             edge.label
@@ -84,8 +137,6 @@ pub(crate) fn build_svg_layout(
                 .map(|label| metrics.edge_label_dimensions(label))
         },
     );
-
-    let layered_config = layered_config_for_layout(diagram, config);
     let sublayouts = compute_sublayouts(
         diagram,
         &layered_config,
@@ -166,11 +217,17 @@ pub(crate) fn build_svg_layout(
     rerouted_edges.extend(sg_node_rerouted);
 
     // Convert post-processed LayoutResult to engine-agnostic GraphGeometry.
+    let has_enhancements = engine_flags
+        .map(|f| f.greedy_switch || f.model_order_tiebreak || f.variable_rank_spacing)
+        .unwrap_or(false);
     let mut geom = geometry::from_layered_layout(&layout, diagram);
+    geom.enhanced_backward_routing = has_enhancements;
     if matches!(edge_routing, EdgeRouting::DirectRoute) {
-        geom = inject_direct_route_paths(diagram, &geom);
+        geom = inject_routed_paths(diagram, &geom, EdgeRouting::DirectRoute);
         // Direct mode should use standard endpoint adjustment behavior.
         rerouted_edges.clear();
+    } else if matches!(edge_routing, EdgeRouting::PolylineRoute) {
+        geom = inject_routed_paths(diagram, &geom, EdgeRouting::PolylineRoute);
     } else if matches!(edge_routing, EdgeRouting::OrthogonalRoute) {
         geom = inject_orthogonal_route_paths(diagram, &geom);
         rerouted_edges.extend(geom.edges.iter().map(|e| e.index));
@@ -222,12 +279,13 @@ fn rerouted_edge_indexes_for_mode(
     }
 }
 
-fn inject_direct_route_paths(diagram: &Diagram, geom: &GraphGeometry) -> GraphGeometry {
-    let routed = crate::diagrams::flowchart::routing::route_graph_geometry(
-        diagram,
-        geom,
-        EdgeRouting::DirectRoute,
-    );
+fn inject_routed_paths(
+    diagram: &Diagram,
+    geom: &GraphGeometry,
+    edge_routing: EdgeRouting,
+) -> GraphGeometry {
+    let routed =
+        crate::diagrams::flowchart::routing::route_graph_geometry(diagram, geom, edge_routing);
     let mut updated = geom.clone();
     for edge in routed.edges {
         if let Some(layout_edge) = updated.edges.iter_mut().find(|e| e.index == edge.index) {
@@ -267,7 +325,24 @@ fn render_svg_with_geometry_context(
     );
 
     let self_edge_paths = compute_self_edge_paths(diagram, geom, &metrics);
-    let bounds = compute_svg_bounds(diagram, geom, &metrics, &self_edge_paths);
+    let prepared_edges = prepare_rendered_edge_paths(
+        diagram,
+        geom,
+        override_nodes,
+        &self_edge_paths,
+        rerouted_edges,
+        edge_routing,
+        svg_options.curve,
+        svg_options.edge_radius,
+        options.path_simplification,
+    );
+    let bounds = compute_svg_bounds(
+        diagram,
+        geom,
+        &metrics,
+        &self_edge_paths,
+        &prepared_edges.paths,
+    );
     let padding = svg_options.diagram_padding;
     let (min_x, min_y, max_x, max_y) = bounds.finalize(geom.bounds.width, geom.bounds.height);
     let width = (max_x - min_x + padding * 2.0) * scale;
@@ -286,31 +361,27 @@ fn render_svg_with_geometry_context(
     render_defs(&mut writer, scale);
     writer.start_group_transform(offset_x, offset_y);
     render_subgraphs(&mut writer, diagram, geom, &metrics, scale);
-    let rendered_edge_paths = render_edges(
+    // Render nodes before edges so arrowhead markers draw on top of node fills,
+    // preventing the white node background from hiding arrowheads.
+    render_nodes(&mut writer, diagram, geom, &metrics, scale);
+    render_edges(
         &mut writer,
         diagram,
-        geom,
-        override_nodes,
-        &self_edge_paths,
-        rerouted_edges,
-        edge_routing,
-        svg_options.interpolation_style,
-        svg_options.corner_style,
+        &prepared_edges,
+        svg_options.curve,
         svg_options.edge_radius,
         scale,
-        options.path_simplification,
     );
     render_edge_labels(
         &mut writer,
         diagram,
         geom,
         &self_edge_paths,
-        &rendered_edge_paths,
+        &prepared_edges.paths,
         override_nodes,
         &metrics,
         scale,
     );
-    render_nodes(&mut writer, diagram, geom, &metrics, scale);
     writer.end_group();
 
     writer.end_svg();
@@ -836,20 +907,33 @@ fn render_subgraphs(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn render_edges(
-    writer: &mut SvgWriter,
+struct PreparedRenderedEdges {
+    paths: HashMap<usize, Vec<Point>>,
+    basis_stem_edge_indexes: HashSet<usize>,
+    compact_basis_stem_edge_indexes: HashSet<usize>,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn prepare_rendered_edge_paths(
     diagram: &Diagram,
     geom: &GraphGeometry,
     override_nodes: &HashMap<String, String>,
     self_edge_paths: &HashMap<usize, Vec<Point>>,
     rerouted_edges: &std::collections::HashSet<usize>,
     edge_routing: EdgeRouting,
-    interp_style: InterpolationStyle,
-    corner_style: CornerStyle,
+    curve: Curve,
     edge_radius: f64,
-    scale: f64,
     path_simplification: PathSimplification,
-) -> HashMap<usize, Vec<Point>> {
+) -> PreparedRenderedEdges {
+    let mut reciprocal_edge_indexes: HashSet<usize> = HashSet::new();
+    for edge in &geom.edges {
+        if geom.edges.iter().any(|other| {
+            other.index != edge.index && other.from == edge.to && other.to == edge.from
+        }) {
+            reciprocal_edge_indexes.insert(edge.index);
+        }
+    }
+
     let mut edge_paths: Vec<(usize, Vec<Point>)> = geom
         .edges
         .iter()
@@ -872,7 +956,15 @@ fn render_edges(
     edge_paths.sort_by_key(|(index, _)| *index);
 
     let mut rendered_paths: HashMap<usize, Vec<Point>> = HashMap::new();
-    writer.start_group("edgePaths");
+    let mut basis_stem_edge_indexes: HashSet<usize> = HashSet::new();
+    let mut compact_basis_stem_edge_indexes: HashSet<usize> = HashSet::new();
+    let mut incoming_edge_counts: HashMap<String, usize> = HashMap::new();
+    for edge in &diagram.edges {
+        if edge.stroke == Stroke::Invisible {
+            continue;
+        }
+        *incoming_edge_counts.entry(edge.to.clone()).or_default() += 1;
+    }
     for (index, points) in edge_paths {
         let Some(edge) = diagram.edges.get(index) else {
             continue;
@@ -881,18 +973,14 @@ fn render_edges(
             continue;
         }
         let mut points = points;
-        let edge_direction = if matches!(edge_routing, EdgeRouting::OrthogonalRoute) {
-            orthogonal_route_edge_direction(
-                diagram,
-                &geom.node_directions,
-                override_nodes,
-                &edge.from,
-                &edge.to,
-                diagram.direction,
-            )
-        } else {
-            diagram.direction
-        };
+        let edge_direction = orthogonal_route_edge_direction(
+            diagram,
+            &geom.node_directions,
+            override_nodes,
+            &edge.from,
+            &edge.to,
+            diagram.direction,
+        );
         let is_backward = geom.reversed_edges.contains(&index);
         // Engine-owned routing topology determines endpoint contract; style does not.
         // Backward OrthogonalRoute edges use orthogonal approach to preserve path integrity.
@@ -943,10 +1031,91 @@ fn render_edges(
             points
         };
         // Derived boolean flags from style model.
-        let is_bezier = matches!(interp_style, InterpolationStyle::Bezier);
-        let is_rounded_corner = matches!(corner_style, CornerStyle::Rounded);
-        let is_sharp = matches!(interp_style, InterpolationStyle::Linear)
-            && matches!(corner_style, CornerStyle::Sharp);
+        let is_basis = matches!(curve, Curve::Basis);
+        let is_rounded_corner = matches!(curve, Curve::Linear(CornerStyle::Rounded));
+        let is_sharp = matches!(curve, Curve::Linear(CornerStyle::Sharp));
+        let target_incoming_count = incoming_edge_counts.get(&edge.to).copied().unwrap_or(0);
+        let has_reciprocal = reciprocal_edge_indexes.contains(&index);
+        let simple_reciprocal_pair =
+            has_reciprocal && is_simple_two_node_reciprocal_pair(diagram, edge);
+        let supports_reciprocal_lane_alignment = simple_reciprocal_pair
+            && matches!(
+                edge_routing,
+                EdgeRouting::PolylineRoute
+                    | EdgeRouting::DirectRoute
+                    | EdgeRouting::OrthogonalRoute
+            );
+        if is_basis
+            && matches!(
+                path_simplification,
+                PathSimplification::None | PathSimplification::Lossless
+            )
+        {
+            points = adapt_basis_anchor_points(&points, edge, geom, edge_direction, is_backward);
+        }
+
+        // Basis interpolation needs 3+ points to produce curves. For short
+        // linear paths, synthesize two control points:
+        // - 2-point paths (generic)
+        // - reciprocal 3-point collinear paths (Mermaid-layered backward edges)
+        //   so lossless simplification cannot collapse them back to a line.
+        if is_basis {
+            let use_reciprocal_synthesis =
+                matches!(edge_routing, EdgeRouting::PolylineRoute) && simple_reciprocal_pair;
+            let should_synthesize = points.len() == 2
+                || (use_reciprocal_synthesis && points.len() == 3 && points_are_collinear(&points));
+            if should_synthesize {
+                let mut start = points[0];
+                let mut end = points[points.len() - 1];
+                let (cp1, cp2) = if use_reciprocal_synthesis {
+                    let curve_sign = if is_backward { 1.0 } else { -1.0 };
+                    if let Some(((from_rect, from_shape), (to_rect, to_shape))) =
+                        edge_endpoint_shape_rects(diagram, geom, edge)
+                    {
+                        (start, end) = apply_reciprocal_lane_offsets(
+                            start,
+                            end,
+                            edge_direction,
+                            curve_sign,
+                            from_rect,
+                            to_rect,
+                        );
+                        let projected_start = intersect_svg_node(&from_rect, start, from_shape);
+                        let projected_end = intersect_svg_node(&to_rect, end, to_shape);
+                        start = projected_start;
+                        end = projected_end;
+                    }
+                    synthesize_reciprocal_bezier_control_points(
+                        start,
+                        end,
+                        edge_direction,
+                        curve_sign,
+                    )
+                } else {
+                    synthesize_bezier_control_points(start, end, edge_direction)
+                };
+                points = vec![start, cp1, cp2, end];
+            }
+        }
+        if !is_basis
+            && supports_reciprocal_lane_alignment
+            && (points.len() == 2 || (points.len() == 3 && points_are_collinear(&points)))
+            && let Some(((from_rect, from_shape), (to_rect, to_shape))) =
+                edge_endpoint_shape_rects(diagram, geom, edge)
+        {
+            let curve_sign = if is_backward { 1.0 } else { -1.0 };
+            let (lane_start, lane_end) = apply_reciprocal_lane_offsets(
+                points[0],
+                points[points.len() - 1],
+                edge_direction,
+                curve_sign,
+                from_rect,
+                to_rect,
+            );
+            let projected_start = intersect_svg_node(&from_rect, lane_start, from_shape);
+            let projected_end = intersect_svg_node(&to_rect, lane_end, to_shape);
+            points = vec![projected_start, projected_end];
+        }
 
         // Only densify corners for direct/orthogonal sharp paths. For engine-provided
         // polyline geometry, this synthetic densification introduces tiny visible jogs
@@ -961,7 +1130,7 @@ fn render_edges(
             points = fix_corner_points(&points);
         }
         if matches!(edge_routing, EdgeRouting::OrthogonalRoute)
-            && is_bezier
+            && is_basis
             && !is_backward
             && edge.from != edge.to
         {
@@ -979,6 +1148,8 @@ fn render_edges(
                 && !is_rounded_corner
                 && !is_backward
                 && edge.from != edge.to;
+        let target_is_angular_shape = edge_endpoint_shape_rects(diagram, geom, edge)
+            .is_some_and(|(_, (_, to_shape))| matches!(to_shape, Shape::Diamond | Shape::Hexagon));
         points = apply_marker_offsets(
             &points,
             edge,
@@ -988,42 +1159,122 @@ fn render_edges(
                 allow_interior_nudges,
                 enforce_primary_axis_no_backtrack,
                 preserve_orthogonal: preserve_orthogonal_endpoint_contract,
-                collapse_terminal_elbows: !is_bezier,
-                is_curved_style: is_bezier,
+                collapse_terminal_elbows: !is_basis,
+                is_curved_style: is_basis,
+                is_rounded_style: is_rounded_corner && target_incoming_count >= 3,
+                skip_end_pullback: preserve_orthogonal_endpoint_contract && target_is_angular_shape,
+                preserve_terminal_axis: matches!(edge_routing, EdgeRouting::OrthogonalRoute)
+                    && !is_rounded_corner,
             },
         );
+        if matches!(edge_routing, EdgeRouting::OrthogonalRoute)
+            && !is_backward
+            && edge.from != edge.to
+            && let Some(min_terminal_support) =
+                curve_adaptive_orthogonal_terminal_support(curve, edge_radius)
+        {
+            enforce_primary_axis_tail_contracts_if_primary_terminal(
+                &mut points,
+                edge_direction,
+                min_terminal_support,
+            );
+        }
         // Collapse tiny near-collinear jogs introduced by SVG marker offset
         // smoothing on orthogonal routing paths.
-        if matches!(edge_routing, EdgeRouting::OrthogonalRoute)
-            && !is_rounded_corner
-            && !is_bezier
+        if !is_rounded_corner
+            && !is_basis
             && !preserve_orthogonal_endpoint_contract
+            && !matches!(edge_routing, EdgeRouting::EngineProvided)
             && edge.from != edge.to
         {
-            points = collapse_tiny_straight_smoothing_jogs(&points, 30.0);
+            let jog_tol = if matches!(edge_routing, EdgeRouting::OrthogonalRoute) {
+                30.0
+            } else {
+                12.0
+            };
+            points = collapse_tiny_straight_smoothing_jogs(&points, jog_tol);
         }
         // For backward edges with orthogonal contract, use rounded-corner routing
         // for path topology (preserves endpoint contract), but keep the user's
-        // chosen interpolation/corner style for actual path drawing.
-        let (path_interp, path_corner) = if preserve_orthogonal_endpoint_contract {
-            (InterpolationStyle::Linear, CornerStyle::Rounded)
+        // chosen curve style for actual path drawing.
+        let path_curve = if preserve_orthogonal_endpoint_contract {
+            Curve::Linear(CornerStyle::Rounded)
         } else {
-            (interp_style, corner_style)
+            curve
         };
         let rendered_points = points_for_svg_path(
             &points,
             diagram.direction,
             edge_routing,
-            path_interp,
-            path_corner,
+            path_curve,
             path_simplification,
         );
+        let rank_span =
+            edge_rank_span_for_svg(geom, edge).unwrap_or_else(|| edge.minlen.max(1) as usize);
+        let should_enforce_basis_stems =
+            is_basis && (is_backward || rank_span >= 2 || edge.minlen > 1);
+        if should_enforce_basis_stems {
+            basis_stem_edge_indexes.insert(index);
+            if matches!(edge_routing, EdgeRouting::PolylineRoute) {
+                compact_basis_stem_edge_indexes.insert(index);
+            }
+        }
+        let rendered_points = if is_basis {
+            clamp_basis_edge_endpoints_to_boundaries(diagram, geom, edge, &rendered_points)
+        } else {
+            rendered_points
+        };
+        if rendered_points.is_empty() {
+            continue;
+        }
+        rendered_paths.insert(index, rendered_points);
+    }
+    PreparedRenderedEdges {
+        paths: rendered_paths,
+        basis_stem_edge_indexes,
+        compact_basis_stem_edge_indexes,
+    }
+}
+
+fn render_edges(
+    writer: &mut SvgWriter,
+    diagram: &Diagram,
+    prepared_edges: &PreparedRenderedEdges,
+    curve: Curve,
+    edge_radius: f64,
+    scale: f64,
+) {
+    writer.start_group("edgePaths");
+
+    let mut visible_edge_indexes: Vec<usize> = diagram
+        .edges
+        .iter()
+        .filter(|edge| edge.stroke != Stroke::Invisible)
+        .map(|edge| edge.index)
+        .collect();
+    visible_edge_indexes.sort_unstable();
+
+    for index in visible_edge_indexes {
+        let Some(edge) = diagram.edges.get(index) else {
+            continue;
+        };
+        let Some(points) = prepared_edges.paths.get(&index) else {
+            continue;
+        };
+        let enforce_basis_visible_stems = matches!(curve, Curve::Basis)
+            && prepared_edges.basis_stem_edge_indexes.contains(&index);
+        let compact_basis_visible_stems = enforce_basis_visible_stems
+            && prepared_edges
+                .compact_basis_stem_edge_indexes
+                .contains(&index);
         let d = path_from_prepared_points(
-            &rendered_points,
+            points,
+            edge,
             scale,
-            interp_style,
-            corner_style,
+            curve,
             edge_radius,
+            enforce_basis_visible_stems,
+            compact_basis_visible_stems,
         );
         if d.is_empty() {
             continue;
@@ -1032,10 +1283,9 @@ fn render_edges(
         attrs.push_str(&edge_marker_attrs(edge));
         let line = format!("<path d=\"{d}\"{attrs} />", d = d, attrs = attrs);
         writer.push_line(&line);
-        rendered_paths.insert(index, rendered_points);
     }
+
     writer.end_group();
-    rendered_paths
 }
 
 fn point_inside_rect(rect: &Rect, point: Point) -> bool {
@@ -1063,6 +1313,586 @@ fn segment_axis(start: Point, end: Point) -> Option<SegmentAxis> {
     } else {
         None
     }
+}
+
+fn points_are_collinear(points: &[Point]) -> bool {
+    const EPS: f64 = 1e-6;
+    if points.len() <= 2 {
+        return true;
+    }
+    let start = points[0];
+    let end = points[points.len() - 1];
+    let dx = end.x - start.x;
+    let dy = end.y - start.y;
+    if dx.abs() <= EPS && dy.abs() <= EPS {
+        return points
+            .iter()
+            .all(|p| (p.x - start.x).abs() <= EPS && (p.y - start.y).abs() <= EPS);
+    }
+    let norm = (dx.abs() + dy.abs()).max(1.0);
+    points[1..points.len() - 1].iter().all(|p| {
+        let cross = (p.x - start.x) * dy - (p.y - start.y) * dx;
+        cross.abs() <= EPS * norm
+    })
+}
+
+fn points_approx_equal(a: Point, b: Point) -> bool {
+    const EPS: f64 = 0.000_001;
+    (a.x - b.x).abs() <= EPS && (a.y - b.y).abs() <= EPS
+}
+
+fn dedup_consecutive_svg_points(points: &[Point]) -> Vec<Point> {
+    let mut deduped: Vec<Point> = Vec::with_capacity(points.len());
+    for point in points.iter().copied() {
+        if deduped
+            .last()
+            .is_some_and(|last| points_approx_equal(*last, point))
+        {
+            continue;
+        }
+        deduped.push(point);
+    }
+    deduped
+}
+
+fn vectors_share_ray(base: Point, candidate: Point) -> bool {
+    const EPS: f64 = 1e-6;
+    let cross = base.x * candidate.y - base.y * candidate.x;
+    let dot = base.x * candidate.x + base.y * candidate.y;
+    let base_len = (base.x * base.x + base.y * base.y).sqrt();
+    let candidate_len = (candidate.x * candidate.x + candidate.y * candidate.y).sqrt();
+    if base_len <= EPS || candidate_len <= EPS {
+        return false;
+    }
+    cross.abs() <= EPS * base_len * candidate_len && dot > EPS
+}
+
+fn insert_basis_start_cap_if_needed(points: &mut Vec<Point>, min_stem: f64) {
+    const EPS: f64 = 1e-6;
+    if points.len() < 2 || min_stem <= 0.0 {
+        return;
+    }
+
+    let base_vec = Point {
+        x: points[1].x - points[0].x,
+        y: points[1].y - points[0].y,
+    };
+    let first_segment_len = (base_vec.x * base_vec.x + base_vec.y * base_vec.y).sqrt();
+    if first_segment_len <= EPS || first_segment_len + EPS >= min_stem {
+        return;
+    }
+
+    let mut traversed = 0.0;
+    for seg_idx in 0..(points.len() - 1) {
+        let seg_vec = Point {
+            x: points[seg_idx + 1].x - points[seg_idx].x,
+            y: points[seg_idx + 1].y - points[seg_idx].y,
+        };
+        let seg_len = (seg_vec.x * seg_vec.x + seg_vec.y * seg_vec.y).sqrt();
+        if seg_len <= EPS {
+            continue;
+        }
+        if !vectors_share_ray(base_vec, seg_vec) {
+            break;
+        }
+        if traversed + seg_len + EPS >= min_stem {
+            let t = ((min_stem - traversed) / seg_len).clamp(0.0, 1.0);
+            if t >= 1.0 - EPS {
+                return;
+            }
+            let cap = Point {
+                x: points[seg_idx].x + seg_vec.x * t,
+                y: points[seg_idx].y + seg_vec.y * t,
+            };
+            if !points_approx_equal(cap, points[seg_idx])
+                && !points_approx_equal(cap, points[seg_idx + 1])
+            {
+                points.insert(seg_idx + 1, cap);
+            }
+            return;
+        }
+        traversed += seg_len;
+    }
+}
+
+fn insert_basis_end_cap_if_needed(points: &mut Vec<Point>, min_stem: f64) {
+    const EPS: f64 = 1e-6;
+    if points.len() < 2 || min_stem <= 0.0 {
+        return;
+    }
+
+    let n = points.len();
+    let base_vec = Point {
+        x: points[n - 2].x - points[n - 1].x,
+        y: points[n - 2].y - points[n - 1].y,
+    };
+    let last_segment_len = (base_vec.x * base_vec.x + base_vec.y * base_vec.y).sqrt();
+    if last_segment_len <= EPS || last_segment_len + EPS >= min_stem {
+        return;
+    }
+
+    let mut traversed = 0.0;
+    for seg_idx in (0..(points.len() - 1)).rev() {
+        let seg_vec = Point {
+            x: points[seg_idx].x - points[seg_idx + 1].x,
+            y: points[seg_idx].y - points[seg_idx + 1].y,
+        };
+        let seg_len = (seg_vec.x * seg_vec.x + seg_vec.y * seg_vec.y).sqrt();
+        if seg_len <= EPS {
+            continue;
+        }
+        if !vectors_share_ray(base_vec, seg_vec) {
+            break;
+        }
+        if traversed + seg_len + EPS >= min_stem {
+            let t = ((min_stem - traversed) / seg_len).clamp(0.0, 1.0);
+            if t >= 1.0 - EPS {
+                return;
+            }
+            let cap = Point {
+                x: points[seg_idx + 1].x + seg_vec.x * t,
+                y: points[seg_idx + 1].y + seg_vec.y * t,
+            };
+            if !points_approx_equal(cap, points[seg_idx + 1])
+                && !points_approx_equal(cap, points[seg_idx])
+            {
+                points.insert(seg_idx + 1, cap);
+            }
+            return;
+        }
+        traversed += seg_len;
+    }
+}
+
+fn start_cap_point_on_existing_run(points: &[Point], min_stem: f64) -> Option<(usize, Point)> {
+    const EPS: f64 = 1e-6;
+    if points.len() < 2 || min_stem <= 0.0 {
+        return None;
+    }
+
+    let base_vec = Point {
+        x: points[1].x - points[0].x,
+        y: points[1].y - points[0].y,
+    };
+    let first_segment_len = (base_vec.x * base_vec.x + base_vec.y * base_vec.y).sqrt();
+    if first_segment_len <= EPS {
+        return None;
+    }
+
+    let mut traversed = 0.0;
+    let mut last_seg_idx_on_ray = 0usize;
+    for seg_idx in 0..(points.len() - 1) {
+        let seg_vec = Point {
+            x: points[seg_idx + 1].x - points[seg_idx].x,
+            y: points[seg_idx + 1].y - points[seg_idx].y,
+        };
+        let seg_len = (seg_vec.x * seg_vec.x + seg_vec.y * seg_vec.y).sqrt();
+        if seg_len <= EPS {
+            continue;
+        }
+        if !vectors_share_ray(base_vec, seg_vec) {
+            break;
+        }
+        last_seg_idx_on_ray = seg_idx;
+        if traversed + seg_len + EPS >= min_stem {
+            let t = ((min_stem - traversed) / seg_len).clamp(0.0, 1.0);
+            let cap = Point {
+                x: points[seg_idx].x + seg_vec.x * t,
+                y: points[seg_idx].y + seg_vec.y * t,
+            };
+            return Some((seg_idx, cap));
+        }
+        traversed += seg_len;
+    }
+
+    Some((last_seg_idx_on_ray, points[last_seg_idx_on_ray + 1]))
+}
+
+fn rebuild_with_start_cap(points: &[Point], seg_idx: usize, cap: Point) -> Vec<Point> {
+    if points.len() < 2 || seg_idx >= points.len() - 1 {
+        return points.to_vec();
+    }
+
+    let mut rebuilt = Vec::with_capacity(points.len() + 1);
+    rebuilt.push(points[0]);
+    rebuilt.push(cap);
+    rebuilt.extend_from_slice(&points[(seg_idx + 1)..]);
+    dedup_consecutive_svg_points(&rebuilt)
+}
+
+fn end_cap_point_on_existing_run(points: &[Point], min_stem: f64) -> Option<(usize, Point)> {
+    const EPS: f64 = 1e-6;
+    if points.len() < 2 || min_stem <= 0.0 {
+        return None;
+    }
+
+    let n = points.len();
+    let base_vec = Point {
+        x: points[n - 2].x - points[n - 1].x,
+        y: points[n - 2].y - points[n - 1].y,
+    };
+    let last_segment_len = (base_vec.x * base_vec.x + base_vec.y * base_vec.y).sqrt();
+    if last_segment_len <= EPS {
+        return None;
+    }
+
+    let mut traversed = 0.0;
+    let mut first_seg_idx_on_ray = n - 2;
+    for seg_idx in (0..(points.len() - 1)).rev() {
+        let seg_vec = Point {
+            x: points[seg_idx].x - points[seg_idx + 1].x,
+            y: points[seg_idx].y - points[seg_idx + 1].y,
+        };
+        let seg_len = (seg_vec.x * seg_vec.x + seg_vec.y * seg_vec.y).sqrt();
+        if seg_len <= EPS {
+            continue;
+        }
+        if !vectors_share_ray(base_vec, seg_vec) {
+            break;
+        }
+        first_seg_idx_on_ray = seg_idx;
+        if traversed + seg_len + EPS >= min_stem {
+            let t = ((min_stem - traversed) / seg_len).clamp(0.0, 1.0);
+            let cap = Point {
+                x: points[seg_idx + 1].x + seg_vec.x * t,
+                y: points[seg_idx + 1].y + seg_vec.y * t,
+            };
+            return Some((seg_idx, cap));
+        }
+        traversed += seg_len;
+    }
+
+    Some((first_seg_idx_on_ray, points[first_seg_idx_on_ray]))
+}
+
+fn rebuild_with_end_cap(points: &[Point], seg_idx: usize, cap: Point) -> Vec<Point> {
+    if points.len() < 2 || seg_idx >= points.len() - 1 {
+        return points.to_vec();
+    }
+
+    let mut rebuilt = Vec::with_capacity(points.len() + 1);
+    rebuilt.extend_from_slice(&points[..=seg_idx]);
+    rebuilt.push(cap);
+    rebuilt.push(points[points.len() - 1]);
+    dedup_consecutive_svg_points(&rebuilt)
+}
+
+fn enforce_basis_visible_terminal_stems(
+    points: &[Point],
+    min_stem: f64,
+    compact_caps: bool,
+) -> Vec<Point> {
+    let mut adjusted = dedup_consecutive_svg_points(points);
+    if adjusted.len() < 2 || min_stem <= 0.0 {
+        return adjusted;
+    }
+
+    if compact_caps {
+        if let Some((seg_idx, cap)) = start_cap_point_on_existing_run(&adjusted, min_stem) {
+            adjusted = rebuild_with_start_cap(&adjusted, seg_idx, cap);
+        }
+        if let Some((seg_idx, cap)) = end_cap_point_on_existing_run(&adjusted, min_stem) {
+            adjusted = rebuild_with_end_cap(&adjusted, seg_idx, cap);
+        }
+    } else {
+        insert_basis_start_cap_if_needed(&mut adjusted, min_stem);
+        insert_basis_end_cap_if_needed(&mut adjusted, min_stem);
+    }
+    dedup_consecutive_svg_points(&adjusted)
+}
+
+fn clamp_basis_edge_endpoints_to_boundaries(
+    diagram: &Diagram,
+    geom: &GraphGeometry,
+    edge: &Edge,
+    points: &[Point],
+) -> Vec<Point> {
+    if points.len() < 2 {
+        return points.to_vec();
+    }
+
+    let mut clamped = points.to_vec();
+    if let Some(sg_id) = edge.from_subgraph.as_ref()
+        && let Some(sg_geom) = geom.subgraphs.get(sg_id)
+    {
+        clamped = clip_points_to_rect_start(&clamped, &sg_geom.rect.into());
+    } else if let (Some(node), Some(node_geom)) =
+        (diagram.nodes.get(&edge.from), geom.nodes.get(&edge.from))
+    {
+        let from_rect: Rect = node_geom.rect.into();
+        if !matches!(node.shape, Shape::Diamond | Shape::Hexagon)
+            && point_inside_rect(&from_rect, clamped[0])
+        {
+            clamped[0] = intersect_svg_node(&from_rect, clamped[1], node.shape);
+        }
+    }
+
+    if clamped.len() < 2 {
+        return clamped;
+    }
+
+    if let Some(sg_id) = edge.to_subgraph.as_ref()
+        && let Some(sg_geom) = geom.subgraphs.get(sg_id)
+    {
+        clamped = clip_points_to_rect_end(&clamped, &sg_geom.rect.into());
+    } else if let (Some(node), Some(node_geom)) =
+        (diagram.nodes.get(&edge.to), geom.nodes.get(&edge.to))
+    {
+        let to_rect: Rect = node_geom.rect.into();
+        let last = clamped.len() - 1;
+        if !matches!(node.shape, Shape::Diamond | Shape::Hexagon)
+            && point_inside_rect(&to_rect, clamped[last])
+        {
+            clamped[last] = intersect_svg_node(&to_rect, clamped[last - 1], node.shape);
+        }
+    }
+
+    dedup_consecutive_svg_points(&clamped)
+}
+
+fn primary_axis_for_direction(direction: Direction) -> SegmentAxis {
+    match direction {
+        Direction::TopDown | Direction::BottomTop => SegmentAxis::Vertical,
+        Direction::LeftRight | Direction::RightLeft => SegmentAxis::Horizontal,
+    }
+}
+
+fn is_primary_secondary_primary_return(points: &[Point], direction: Direction) -> bool {
+    if points.len() != 4 {
+        return false;
+    }
+    let primary = primary_axis_for_direction(direction);
+    let secondary = match primary {
+        SegmentAxis::Horizontal => SegmentAxis::Vertical,
+        SegmentAxis::Vertical => SegmentAxis::Horizontal,
+    };
+    matches!(
+        (
+            segment_axis(points[0], points[1]),
+            segment_axis(points[1], points[2]),
+            segment_axis(points[2], points[3]),
+        ),
+        (Some(a), Some(b), Some(c)) if a == primary && b == secondary && c == primary
+    )
+}
+
+fn edge_rank_span_for_svg(geom: &GraphGeometry, edge: &Edge) -> Option<usize> {
+    let EngineHints::Layered(hints) = geom.engine_hints.as_ref()?;
+    let src_rank = *hints.node_ranks.get(&edge.from)?;
+    let dst_rank = *hints.node_ranks.get(&edge.to)?;
+    Some(src_rank.abs_diff(dst_rank) as usize)
+}
+
+fn adapt_basis_anchor_points(
+    points: &[Point],
+    edge: &Edge,
+    geom: &GraphGeometry,
+    direction: Direction,
+    is_backward: bool,
+) -> Vec<Point> {
+    if points.len() <= 2 {
+        return points.to_vec();
+    }
+    if !points_are_axis_aligned(points) {
+        return dedup_consecutive_svg_points(points);
+    }
+
+    let rank_span =
+        edge_rank_span_for_svg(geom, edge).unwrap_or_else(|| edge.minlen.max(1) as usize);
+    let starts_on_secondary_axis = first_segment_is_secondary_axis(points, direction);
+    let compact_backward_return = is_backward
+        && rank_span <= 1
+        && edge.minlen <= 1
+        && is_primary_secondary_primary_return(points, direction);
+    if compact_backward_return {
+        return dedup_consecutive_svg_points(&[points[0], points[2], points[3]]);
+    }
+    let preserve_extended_route = is_backward || rank_span >= 2 || edge.minlen > 1;
+
+    let adapted = if preserve_extended_route {
+        if points.len() <= 4 {
+            points.to_vec()
+        } else {
+            vec![
+                points[0],
+                points[1],
+                points[points.len() - 2],
+                points[points.len() - 1],
+            ]
+        }
+    } else if starts_on_secondary_axis && ends_on_secondary_axis(points, direction) {
+        // For short orthogonal fan-in/out chains that begin and end on the
+        // secondary axis (V-H-V in LR/RL, H-V-H in TD/BT), keep the
+        // final elbow anchor so marker tangent is stable, but collapse the
+        // initial stem to avoid inward-first basis bends.
+        vec![
+            points[0],
+            points[points.len() - 2],
+            points[points.len() - 1],
+        ]
+    } else if starts_on_secondary_axis {
+        vec![points[0], points[1], points[points.len() - 1]]
+    } else {
+        vec![points[0], points[points.len() - 1]]
+    };
+
+    dedup_consecutive_svg_points(&adapted)
+}
+
+fn first_segment_is_secondary_axis(points: &[Point], direction: Direction) -> bool {
+    if points.len() < 2 {
+        return false;
+    }
+    match segment_axis(points[0], points[1]) {
+        Some(SegmentAxis::Horizontal) => {
+            matches!(direction, Direction::TopDown | Direction::BottomTop)
+        }
+        Some(SegmentAxis::Vertical) => {
+            matches!(direction, Direction::LeftRight | Direction::RightLeft)
+        }
+        None => false,
+    }
+}
+
+fn ends_on_secondary_axis(points: &[Point], direction: Direction) -> bool {
+    if points.len() < 2 {
+        return false;
+    }
+    let last = points.len() - 1;
+    match segment_axis(points[last - 1], points[last]) {
+        Some(SegmentAxis::Horizontal) => {
+            matches!(direction, Direction::TopDown | Direction::BottomTop)
+        }
+        Some(SegmentAxis::Vertical) => {
+            matches!(direction, Direction::LeftRight | Direction::RightLeft)
+        }
+        None => false,
+    }
+}
+
+fn is_simple_two_node_reciprocal_pair(diagram: &Diagram, edge: &Edge) -> bool {
+    if edge.from == edge.to || edge.from_subgraph.is_some() || edge.to_subgraph.is_some() {
+        return false;
+    }
+
+    let mut pair_edges = 0usize;
+    let mut has_forward = false;
+    let mut has_backward = false;
+
+    for other in &diagram.edges {
+        if other.stroke == Stroke::Invisible {
+            continue;
+        }
+
+        let touches_endpoints = other.from == edge.from
+            || other.to == edge.from
+            || other.from == edge.to
+            || other.to == edge.to;
+        if !touches_endpoints {
+            continue;
+        }
+
+        if other.from_subgraph.is_some() || other.to_subgraph.is_some() {
+            return false;
+        }
+
+        let is_forward = other.from == edge.from && other.to == edge.to;
+        let is_backward = other.from == edge.to && other.to == edge.from;
+        if !is_forward && !is_backward {
+            return false;
+        }
+
+        pair_edges += 1;
+        has_forward |= is_forward;
+        has_backward |= is_backward;
+    }
+
+    has_forward && has_backward && pair_edges == 2
+}
+
+fn apply_reciprocal_lane_offsets(
+    start: Point,
+    end: Point,
+    direction: Direction,
+    curve_sign: f64,
+    source_rect: Rect,
+    target_rect: Rect,
+) -> (Point, Point) {
+    let mut adjusted_start = start;
+    let mut adjusted_end = end;
+    // Upper lane is typically closer to center in Mermaid; lower lane sits
+    // slightly deeper toward the bottom face.
+    let source_upper = (source_rect.height * 0.18).clamp(8.0, 14.0);
+    let target_upper = (target_rect.height * 0.18).clamp(8.0, 14.0);
+    let source_lower = (source_rect.height * 0.26).clamp(10.0, 18.0);
+    let target_lower = (target_rect.height * 0.26).clamp(10.0, 18.0);
+    let source_lane = if curve_sign < 0.0 {
+        source_upper
+    } else {
+        source_lower
+    };
+    let target_lane = if curve_sign < 0.0 {
+        target_upper
+    } else {
+        target_lower
+    };
+
+    match direction {
+        Direction::LeftRight | Direction::RightLeft => {
+            let source_center = source_rect.y + source_rect.height / 2.0;
+            let target_center = target_rect.y + target_rect.height / 2.0;
+            adjusted_start.y = if curve_sign < 0.0 {
+                source_center - source_lane
+            } else {
+                source_center + source_lane
+            }
+            .clamp(
+                source_rect.y + 1.0,
+                source_rect.y + source_rect.height - 1.0,
+            );
+            adjusted_end.y = if curve_sign < 0.0 {
+                target_center - target_lane
+            } else {
+                target_center + target_lane
+            }
+            .clamp(
+                target_rect.y + 1.0,
+                target_rect.y + target_rect.height - 1.0,
+            );
+        }
+        Direction::TopDown | Direction::BottomTop => {
+            let source_upper = (source_rect.width * 0.18).clamp(8.0, 14.0);
+            let target_upper = (target_rect.width * 0.18).clamp(8.0, 14.0);
+            let source_lower = (source_rect.width * 0.26).clamp(10.0, 18.0);
+            let target_lower = (target_rect.width * 0.26).clamp(10.0, 18.0);
+            let source_lane = if curve_sign < 0.0 {
+                source_upper
+            } else {
+                source_lower
+            };
+            let target_lane = if curve_sign < 0.0 {
+                target_upper
+            } else {
+                target_lower
+            };
+            let source_center = source_rect.x + source_rect.width / 2.0;
+            let target_center = target_rect.x + target_rect.width / 2.0;
+            adjusted_start.x = if curve_sign < 0.0 {
+                source_center - source_lane
+            } else {
+                source_center + source_lane
+            }
+            .clamp(source_rect.x + 1.0, source_rect.x + source_rect.width - 1.0);
+            adjusted_end.x = if curve_sign < 0.0 {
+                target_center - target_lane
+            } else {
+                target_center + target_lane
+            }
+            .clamp(target_rect.x + 1.0, target_rect.x + target_rect.width - 1.0);
+        }
+    }
+
+    (adjusted_start, adjusted_end)
 }
 
 fn segment_manhattan_len(start: Point, end: Point) -> f64 {
@@ -1485,7 +2315,7 @@ fn render_edge_labels(
         } else {
             None
         }
-        .or_else(|| fallback_label_position(geom, edge_idx, self_edge_paths))
+        .or_else(|| fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths))
         .map(|candidate| {
             revalidate_svg_label_anchor(
                 candidate,
@@ -1505,6 +2335,31 @@ fn render_edge_labels(
             metrics,
             scale,
         );
+    }
+
+    // Render head/tail end labels from routed edge paths.
+    for edge in diagram.edges.iter() {
+        if edge.head_label.is_none() && edge.tail_label.is_none() {
+            continue;
+        }
+        // Get the routed path for this edge from geometry.
+        let path: Vec<FPoint> = geom
+            .edges
+            .iter()
+            .find(|e| e.index == edge.index)
+            .and_then(|e| e.layout_path_hint.clone())
+            .unwrap_or_default();
+        if path.len() < 2 {
+            continue;
+        }
+        let (head_pos, tail_pos) =
+            crate::diagrams::flowchart::routing::compute_end_label_positions(&path);
+        if let (Some(label), Some(pos)) = (&edge.head_label, head_pos) {
+            render_text_centered(writer, pos.x * scale, pos.y * scale, label, metrics, scale);
+        }
+        if let (Some(label), Some(pos)) = (&edge.tail_label, tail_pos) {
+            render_text_centered(writer, pos.x * scale, pos.y * scale, label, metrics, scale);
+        }
     }
 
     writer.end_group();
@@ -2242,6 +3097,7 @@ fn compute_svg_bounds(
     geom: &GraphGeometry,
     metrics: &SvgTextMetrics,
     self_edge_paths: &HashMap<usize, Vec<Point>>,
+    rendered_edge_paths: &HashMap<usize, Vec<Point>>,
 ) -> SvgBounds {
     let mut bounds = SvgBounds::new();
 
@@ -2260,11 +3116,19 @@ fn compute_svg_bounds(
             .is_some_and(|e| e.stroke == Stroke::Invisible)
     };
 
-    for layout_edge in &geom.edges {
-        if layout_edge.index >= diagram.edges.len() || is_invisible(layout_edge.index) {
+    for edge in &diagram.edges {
+        if edge.stroke == Stroke::Invisible {
             continue;
         }
-        if let Some(path) = &layout_edge.layout_path_hint {
+        if let Some(path) = rendered_edge_paths.get(&edge.index) {
+            for point in path {
+                bounds.update_point(point.x, point.y);
+            }
+            continue;
+        }
+        if let Some(layout_edge) = geom.edges.iter().find(|e| e.index == edge.index)
+            && let Some(path) = &layout_edge.layout_path_hint
+        {
             for point in path {
                 bounds.update_point(point.x, point.y);
             }
@@ -2307,7 +3171,7 @@ fn compute_svg_bounds(
         } else {
             None
         }
-        .or_else(|| fallback_label_position(geom, edge_idx, self_edge_paths));
+        .or_else(|| fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths));
         let Some(point) = position else {
             continue;
         };
@@ -2369,8 +3233,7 @@ fn points_for_svg_path(
     points: &[Point],
     direction: Direction,
     edge_routing: EdgeRouting,
-    interp_style: InterpolationStyle,
-    _corner_style: CornerStyle,
+    curve: Curve,
     path_simplification: PathSimplification,
 ) -> Vec<Point> {
     if points.is_empty() {
@@ -2378,13 +3241,13 @@ fn points_for_svg_path(
     }
     // Orthogonalize when both conditions hold:
     // 1. Routing is orthogonal (OrthogonalRoute) — right-angle paths are required.
-    // 2. Interpolation is linear — bezier curves handle smoothness from sparse waypoints
+    // 2. Curve is linear — basis curves handle smoothness from sparse waypoints
     //    and do not need axis-aligned segments.
     // Corner style (sharp vs rounded) does not affect whether orthogonalization is needed;
     // both require axis-aligned points to produce correct 90° paths.
     // Direct/polyline routing intentionally allows diagonal segments — skip.
-    let needs_orthogonalization = matches!(edge_routing, EdgeRouting::OrthogonalRoute)
-        && matches!(interp_style, InterpolationStyle::Linear);
+    let needs_orthogonalization =
+        matches!(edge_routing, EdgeRouting::OrthogonalRoute) && matches!(curve, Curve::Linear(_));
     let points: Vec<Point> = if needs_orthogonalization && !points_are_axis_aligned(points) {
         let start: geometry::FPoint = points[0].into();
         let end: geometry::FPoint = points.last().copied().unwrap_or(points[0]).into();
@@ -2423,24 +3286,51 @@ fn points_for_svg_path(
 
 fn path_from_prepared_points(
     points: &[Point],
+    _edge: &Edge,
     scale: f64,
-    interp_style: InterpolationStyle,
-    corner_style: CornerStyle,
+    curve: Curve,
     curve_radius: f64,
+    enforce_basis_visible_stems: bool,
+    compact_basis_visible_stems: bool,
 ) -> String {
     if points.is_empty() {
         return String::new();
     }
-    let scaled: Vec<(f64, f64)> = points
-        .iter()
-        .map(|point| (point.x * scale, point.y * scale))
-        .collect();
-    match (interp_style, corner_style) {
-        (InterpolationStyle::Bezier, _) => path_from_points_curved(&scaled),
-        (InterpolationStyle::Linear, CornerStyle::Rounded) => {
+    match curve {
+        Curve::Basis => {
+            let basis_points = if enforce_basis_visible_stems {
+                enforce_basis_visible_terminal_stems(
+                    points,
+                    MIN_BASIS_VISIBLE_STEM_PX,
+                    compact_basis_visible_stems,
+                )
+            } else {
+                dedup_consecutive_svg_points(points)
+            };
+            let scaled: Vec<(f64, f64)> = basis_points
+                .iter()
+                .map(|point| (point.x * scale, point.y * scale))
+                .collect();
+            if enforce_basis_visible_stems {
+                path_from_points_curved_with_explicit_caps(&scaled)
+            } else {
+                path_from_points_curved(&scaled)
+            }
+        }
+        Curve::Linear(CornerStyle::Rounded) => {
+            let scaled: Vec<(f64, f64)> = points
+                .iter()
+                .map(|point| (point.x * scale, point.y * scale))
+                .collect();
             path_from_points_rounded(&scaled, curve_radius * scale)
         }
-        (InterpolationStyle::Linear, CornerStyle::Sharp) => path_from_points_straight(&scaled),
+        Curve::Linear(CornerStyle::Sharp) => {
+            let scaled: Vec<(f64, f64)> = points
+                .iter()
+                .map(|point| (point.x * scale, point.y * scale))
+                .collect();
+            path_from_points_straight(&scaled)
+        }
     }
 }
 
@@ -2769,18 +3659,17 @@ fn adjust_edge_points_for_shapes(
 
     let mut adjusted = points.to_vec();
     let is_self_loop = edge.from == edge.to;
-    // In orthogonal routing mode the router already places forward non-rect shape
-    // endpoints on the actual shape boundary — these are authoritative and must
-    // not be re-projected (different approach angles would shift them).
+    // In orthogonal routing mode the router already places non-rect shape
+    // endpoints on the actual shape boundary (with marker clearance for
+    // backward edges) — these are authoritative and must not be re-projected
+    // (different approach angles would shift them).
     // In polyline routing mode the layout only clips to the bounding rect, so non-rect
     // shapes always need re-projection to the actual shape boundary.
     let router_placed_source = matches!(edge_routing, EdgeRouting::OrthogonalRoute)
         && !is_self_loop
-        && !is_backward
         && matches!(from_shape, Shape::Diamond | Shape::Hexagon);
     let router_placed_target = matches!(edge_routing, EdgeRouting::OrthogonalRoute)
         && !is_self_loop
-        && !is_backward
         && matches!(to_shape, Shape::Diamond | Shape::Hexagon);
     let source_needs_adjustment = !router_placed_source
         && (matches!(from_shape, Shape::Diamond | Shape::Hexagon)
@@ -3037,6 +3926,9 @@ struct MarkerOffsetOptions {
     preserve_orthogonal: bool,
     collapse_terminal_elbows: bool,
     is_curved_style: bool,
+    is_rounded_style: bool,
+    skip_end_pullback: bool,
+    preserve_terminal_axis: bool,
 }
 
 fn apply_marker_offsets(
@@ -3056,7 +3948,19 @@ fn apply_marker_offsets(
         preserve_orthogonal,
         collapse_terminal_elbows,
         is_curved_style,
+        is_rounded_style,
+        skip_end_pullback,
+        preserve_terminal_axis,
     } = options;
+    let expected_end_axis = preserve_terminal_axis
+        .then(|| {
+            if points.len() >= 2 {
+                segment_axis(points[points.len() - 2], points[points.len() - 1])
+            } else {
+                None
+            }
+        })
+        .flatten();
 
     let mut start_offset: f64 = match edge.arrow_start {
         Arrow::Normal | Arrow::OpenTriangle => 4.0,
@@ -3070,6 +3974,9 @@ fn apply_marker_offsets(
         Arrow::Diamond | Arrow::OpenDiamond => 5.0,
         Arrow::Cross | Arrow::Circle | Arrow::None => 0.0,
     };
+    if skip_end_pullback {
+        end_offset = 0.0;
+    }
 
     let mut points = points.to_vec();
     if preserve_orthogonal {
@@ -3084,11 +3991,13 @@ fn apply_marker_offsets(
             end_offset = 0.0;
         }
     }
-    if !preserve_orthogonal && collapse_terminal_elbows {
+    if !preserve_orthogonal && collapse_terminal_elbows && !is_backward {
         // Non-orth styles (straight/rounded/curved) can look visually cramped when
         // an orthogonal route ends with a short final elbow immediately before
         // the marker. Collapse that elbow into a direct terminal approach.
-        points = collapse_narrow_terminal_elbows_for_non_orth(&points, 14.0);
+        // Skip for backward edges: their initial face-to-lane segment is an
+        // essential part of the channel routing topology, not a cosmetic elbow.
+        points = collapse_narrow_terminal_elbows_for_non_orth(&points, 14.0, is_rounded_style);
     }
     if !preserve_orthogonal && is_backward {
         // Backward edges in non-orth styles can still end up visually cramped
@@ -3232,13 +4141,159 @@ fn apply_marker_offsets(
     if enforce_primary_axis_no_backtrack && !preserve_orthogonal {
         enforce_primary_axis_tail_contracts(&mut out, direction, 8.0);
     }
+    if let Some(axis) = expected_end_axis {
+        preserve_path_terminal_axis(&mut out, axis);
+    }
 
     out
+}
+
+fn preserve_path_terminal_axis(points: &mut [Point], axis: SegmentAxis) {
+    if points.len() < 3 {
+        return;
+    }
+    let last = points.len() - 1;
+    if segment_axis(points[last - 1], points[last]) == Some(axis) {
+        return;
+    }
+
+    let prev = points[last - 2];
+    let end = points[last];
+    let candidate = match axis {
+        SegmentAxis::Vertical => Point {
+            x: end.x,
+            y: prev.y,
+        },
+        SegmentAxis::Horizontal => Point {
+            x: prev.x,
+            y: end.y,
+        },
+    };
+
+    if segment_axis(prev, candidate).is_some()
+        && segment_axis(candidate, end) == Some(axis)
+        && !points_approx_equal(candidate, end)
+    {
+        points[last - 1] = candidate;
+    }
+}
+
+fn curve_adaptive_orthogonal_terminal_support(curve: Curve, edge_radius: f64) -> Option<f64> {
+    match curve {
+        // Rounded corners trim the visible straight stem by approximately the
+        // corner radius, so scale required support with radius.
+        Curve::Linear(CornerStyle::Rounded) => Some((10.0 + edge_radius).max(12.0)),
+        // Basis smoothing softens terminal approach segments; keep a longer
+        // pre-target support to preserve readable entry direction.
+        Curve::Basis => Some(16.0),
+        Curve::Linear(CornerStyle::Sharp) => None,
+    }
+}
+
+fn enforce_primary_axis_tail_contracts_if_primary_terminal(
+    points: &mut [Point],
+    direction: Direction,
+    min_terminal_support: f64,
+) {
+    if points.len() < 3 || min_terminal_support <= 0.0 {
+        return;
+    }
+    let n = points.len();
+    let expected_axis = match direction {
+        Direction::TopDown | Direction::BottomTop => SegmentAxis::Vertical,
+        Direction::LeftRight | Direction::RightLeft => SegmentAxis::Horizontal,
+    };
+    if segment_axis(points[n - 2], points[n - 1]) != Some(expected_axis) {
+        return;
+    }
+    enforce_primary_axis_tail_contracts(points, direction, min_terminal_support);
+}
+
+/// Synthesize two control points for a 2-point bezier path so the B-spline
+/// produces an outward-bowing S-curve.
+///
+/// The first control point keeps the source's cross-axis position (vertical
+/// departure), the second keeps the target's (vertical arrival). Together
+/// they create an S-curve that bows outward for both fan-in and fan-out.
+fn synthesize_bezier_control_points(
+    start: Point,
+    end: Point,
+    direction: Direction,
+) -> (Point, Point) {
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            let dy = end.y - start.y;
+            (
+                Point {
+                    x: start.x,
+                    y: start.y + dy / 3.0,
+                },
+                Point {
+                    x: end.x,
+                    y: start.y + 2.0 * dy / 3.0,
+                },
+            )
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            let dx = end.x - start.x;
+            (
+                Point {
+                    x: start.x + dx / 3.0,
+                    y: start.y,
+                },
+                Point {
+                    x: start.x + 2.0 * dx / 3.0,
+                    y: end.y,
+                },
+            )
+        }
+    }
+}
+
+/// Synthesize control points for reciprocal two-point edges (A->B and B->A)
+/// so Mermaid-layered bezier renders as separated upper/lower arcs.
+fn synthesize_reciprocal_bezier_control_points(
+    start: Point,
+    end: Point,
+    direction: Direction,
+    curve_sign: f64,
+) -> (Point, Point) {
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            let dy = end.y - start.y;
+            let bow = (dy.abs() * 0.25).clamp(12.0, 28.0) * curve_sign;
+            (
+                Point {
+                    x: start.x + bow,
+                    y: start.y + dy / 3.0,
+                },
+                Point {
+                    x: end.x + bow,
+                    y: start.y + 2.0 * dy / 3.0,
+                },
+            )
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            let dx = end.x - start.x;
+            let bow = (dx.abs() * 0.25).clamp(12.0, 28.0) * curve_sign;
+            (
+                Point {
+                    x: start.x + dx / 3.0,
+                    y: start.y + bow,
+                },
+                Point {
+                    x: start.x + 2.0 * dx / 3.0,
+                    y: end.y + bow,
+                },
+            )
+        }
+    }
 }
 
 fn collapse_narrow_terminal_elbows_for_non_orth(
     points: &[Point],
     min_terminal_leg: f64,
+    preserve_axis: bool,
 ) -> Vec<Point> {
     if points.len() < 4 || min_terminal_leg <= 0.0 {
         return points.to_vec();
@@ -3248,6 +4303,7 @@ fn collapse_narrow_terminal_elbows_for_non_orth(
 
     if collapsed.len() >= 4 {
         let n = collapsed.len();
+        let before_pre = (n >= 5).then(|| collapsed[n - 4]);
         let pre = collapsed[n - 3];
         let elbow = collapsed[n - 2];
         let end = collapsed[n - 1];
@@ -3263,12 +4319,22 @@ fn collapse_narrow_terminal_elbows_for_non_orth(
                 SegmentAxis::Horizontal => replacement_pre.y = end.y,
                 SegmentAxis::Vertical => replacement_pre.x = end.x,
             }
-            if segment_axis(replacement_pre, end).is_some()
-                && segment_manhattan_len(replacement_pre, end) > 0.001
-            {
-                collapsed[n - 3] = replacement_pre;
+            if preserve_axis {
+                if segment_axis(replacement_pre, end).is_some()
+                    && before_pre.is_none_or(|pp| segment_axis(pp, replacement_pre).is_some())
+                    && segment_manhattan_len(replacement_pre, end) > 0.001
+                {
+                    collapsed[n - 3] = replacement_pre;
+                    collapsed.remove(n - 2);
+                }
+            } else {
+                if segment_axis(replacement_pre, end).is_some()
+                    && segment_manhattan_len(replacement_pre, end) > 0.001
+                {
+                    collapsed[n - 3] = replacement_pre;
+                }
+                collapsed.remove(n - 2);
             }
-            collapsed.remove(n - 2);
         }
     }
 
@@ -3671,16 +4737,18 @@ fn path_from_points_straight(points: &[(f64, f64)]) -> String {
     d
 }
 
-fn path_from_points_curved(points: &[(f64, f64)]) -> String {
+fn append_curved_path_commands(d: &mut String, points: &[(f64, f64)], emit_move: bool) {
     if points.is_empty() {
-        return String::new();
+        return;
     }
     if points.len() == 1 {
-        let (x, y) = points[0];
-        return format!("M{},{}", fmt_f64(x), fmt_f64(y));
+        if emit_move {
+            let (x, y) = points[0];
+            let _ = write!(d, "M{},{}", fmt_f64(x), fmt_f64(y));
+        }
+        return;
     }
 
-    let mut d = String::new();
     let mut x0 = f64::NAN;
     let mut x1 = f64::NAN;
     let mut y0 = f64::NAN;
@@ -3691,7 +4759,9 @@ fn path_from_points_curved(points: &[(f64, f64)]) -> String {
         match point {
             0 => {
                 point = 1;
-                let _ = write!(d, "M{},{}", fmt_f64(x), fmt_f64(y));
+                if emit_move {
+                    let _ = write!(d, "M{},{}", fmt_f64(x), fmt_f64(y));
+                }
             }
             1 => {
                 point = 2;
@@ -3701,10 +4771,10 @@ fn path_from_points_curved(points: &[(f64, f64)]) -> String {
                 let px = (5.0 * x0 + x1) / 6.0;
                 let py = (5.0 * y0 + y1) / 6.0;
                 let _ = write!(d, " L{},{}", fmt_f64(px), fmt_f64(py));
-                curved_bezier(&mut d, x0, y0, x1, y1, x, y);
+                curved_bezier(d, x0, y0, x1, y1, x, y);
             }
             _ => {
-                curved_bezier(&mut d, x0, y0, x1, y1, x, y);
+                curved_bezier(d, x0, y0, x1, y1, x, y);
             }
         }
         x0 = x1;
@@ -3715,13 +4785,95 @@ fn path_from_points_curved(points: &[(f64, f64)]) -> String {
 
     match point {
         3 => {
-            curved_bezier(&mut d, x0, y0, x1, y1, x1, y1);
+            curved_bezier(d, x0, y0, x1, y1, x1, y1);
             let _ = write!(d, " L{},{}", fmt_f64(x1), fmt_f64(y1));
         }
         2 => {
             let _ = write!(d, " L{},{}", fmt_f64(x1), fmt_f64(y1));
         }
         _ => {}
+    }
+}
+
+fn path_from_points_curved(points: &[(f64, f64)]) -> String {
+    let mut d = String::new();
+    append_curved_path_commands(&mut d, points, true);
+    d
+}
+
+fn points_approx_equal_xy(a: (f64, f64), b: (f64, f64)) -> bool {
+    (a.0 - b.0).abs() <= 0.001 && (a.1 - b.1).abs() <= 0.001
+}
+
+fn path_from_points_curved_with_explicit_caps(points: &[(f64, f64)]) -> String {
+    if points.len() < 2 {
+        return path_from_points_curved(points);
+    }
+
+    let start_cap_enabled = points.len() >= 3;
+    let end_cap_enabled = points.len() >= 3;
+    if !start_cap_enabled && !end_cap_enabled {
+        return path_from_points_curved(points);
+    }
+
+    let last = points.len() - 1;
+    let core_start = if start_cap_enabled { 1 } else { 0 };
+    let core_end_exclusive = if end_cap_enabled { last } else { last + 1 };
+    if core_end_exclusive <= core_start {
+        return path_from_points_curved(points);
+    }
+    let mut core: Vec<(f64, f64)> = points[core_start..core_end_exclusive].to_vec();
+    if core.len() < 2 {
+        return path_from_points_curved(points);
+    }
+    if core.len() == 2 {
+        let a = core[0];
+        let b = core[1];
+        let mut elbow = if (a.1 - b.1).abs() >= (a.0 - b.0).abs() {
+            (a.0, b.1)
+        } else {
+            (b.0, a.1)
+        };
+        if points_approx_equal_xy(elbow, a) || points_approx_equal_xy(elbow, b) {
+            elbow = ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0);
+        }
+        core.insert(1, elbow);
+    }
+
+    let mut d = String::new();
+    let start = points[0];
+    let _ = write!(d, "M{},{}", fmt_f64(start.0), fmt_f64(start.1));
+    let mut current = start;
+
+    if start_cap_enabled {
+        let start_cap = points[1];
+        if !points_approx_equal_xy(current, start_cap) {
+            let _ = write!(d, " L{},{}", fmt_f64(start_cap.0), fmt_f64(start_cap.1));
+        }
+        current = start_cap;
+    }
+
+    if !core.is_empty() {
+        let core_start_point = core[0];
+        if !points_approx_equal_xy(current, core_start_point) {
+            let _ = write!(
+                d,
+                " L{},{}",
+                fmt_f64(core_start_point.0),
+                fmt_f64(core_start_point.1)
+            );
+        }
+        append_curved_path_commands(&mut d, &core, false);
+        if let Some(last_core) = core.last().copied() {
+            current = last_core;
+        }
+    }
+
+    if end_cap_enabled {
+        let end = points[last];
+        if !points_approx_equal_xy(current, end) {
+            let _ = write!(d, " L{},{}", fmt_f64(end.0), fmt_f64(end.1));
+        }
     }
 
     d
@@ -3985,9 +5137,10 @@ fn fallback_label_position(
     geom: &GraphGeometry,
     edge_index: usize,
     self_edge_paths: &HashMap<usize, Vec<Point>>,
+    rendered_edge_paths: &HashMap<usize, Vec<Point>>,
 ) -> Option<Point> {
     if let Some(points) = self_edge_paths.get(&edge_index) {
-        return points.get(points.len() / 2).copied();
+        return svg_path_midpoint(points).or_else(|| points.get(points.len() / 2).copied());
     }
 
     // Try regular edges via layout_path_hint
@@ -4000,6 +5153,10 @@ fn fallback_label_position(
     // Try self-edges
     if let Some(se) = geom.self_edges.iter().find(|e| e.edge_index == edge_index) {
         return se.points.get(se.points.len() / 2).map(|p| (*p).into());
+    }
+
+    if let Some(points) = rendered_edge_paths.get(&edge_index) {
+        return svg_path_midpoint(points).or_else(|| points.get(points.len() / 2).copied());
     }
 
     None

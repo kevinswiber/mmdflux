@@ -9,7 +9,7 @@
 #
 # Environment overrides (comma-separated):
 #   ENGINES="flux-layered,mermaid-layered"
-#   PRESETS="bezier,straight,polyline,step,smoothstep"
+#   PRESETS="basis,straight,polyline,step,smooth-step,curved-step"
 #   FAMILIES="flowchart,class"
 #   FIXTURES="simple,chain"   # stem substring match
 
@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-mkdir -p "$OUT_DIR"
+mkdir -p "$OUT_DIR" "$OUT_DIR/sources"
 
 # --- Config (env overrideable) ---
 
@@ -48,7 +48,7 @@ ENGINES=()
 while IFS= read -r e; do ENGINES+=("$e"); done < <(read_csv_array "${ENGINES:-flux-layered,mermaid-layered}")
 
 PRESETS=()
-while IFS= read -r p; do PRESETS+=("$p"); done < <(read_csv_array "${PRESETS:-bezier,straight,polyline,step,smoothstep}")
+while IFS= read -r p; do PRESETS+=("$p"); done < <(read_csv_array "${PRESETS:-basis,straight,polyline,step,smooth-step,curved-step}")
 
 FAMILIES=()
 while IFS= read -r f; do FAMILIES+=("$f"); done < <(read_csv_array "${FAMILIES:-flowchart,class}")
@@ -96,6 +96,9 @@ for family in "${FAMILIES[@]}"; do
             "$fixture_path" >"$out_svg" 2>/dev/null
         then
           MANIFEST+=("${family}|${stem}|${engine}|${preset}|${slug}.svg")
+          # Copy fixture source for download (dedup by destination)
+          src_dest="$OUT_DIR/sources/${family}_${stem}.mmd"
+          [[ -f "$src_dest" ]] || cp "$fixture_path" "$src_dest"
           n_rendered=$((n_rendered + 1))
           printf '  OK  %s\n' "$slug"
         else
@@ -169,14 +172,28 @@ cat <<'HTML_HEAD'
     .eng-flux     { color: #d9f99d; background: #36531444; border-color: #4d7c0f; }
     .eng-mermaid  { color: #e9d5ff; background: #4c1d9544; border-color: #7c3aed; }
     /* preset */
-    .pre-bezier     { color: #bfdbfe; background: #1e3a8a44; border-color: #3b82f6; }
+    .pre-basis     { color: #bfdbfe; background: #1e3a8a44; border-color: #3b82f6; }
     .pre-straight   { color: #fde68a; background: #78350f44; border-color: #d97706; }
     .pre-polyline   { color: #ddd6fe; background: #312e8144; border-color: #6366f1; }
     .pre-step       { color: #fca5a5; background: #7f1d1d44; border-color: #ef4444; }
-    .pre-smoothstep { color: #a7f3d0; background: #064e3b44; border-color: #10b981; }
+    .pre-smooth-step  { color: #a7f3d0; background: #064e3b44; border-color: #10b981; }
+    .pre-curved-step  { color: #67e8f9; background: #164e6344; border-color: #06b6d4; }
     .card-body { background: #fff; line-height: 0; }
     .card-body img { width: 100%; height: 260px; object-fit: contain;
                      background: #fff; display: block; }
+    .card-actions { padding: 6px 10px; display: flex; gap: 10px; align-items: center;
+                    border-top: 1px solid var(--border); }
+    .source-toggle { background: transparent; color: var(--muted); border: 1px solid var(--border);
+                     border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+                     transition: color .15s, border-color .15s; }
+    .source-toggle:hover { color: var(--fg); border-color: var(--fg); }
+    .download-link { color: var(--muted); font-size: 12px; text-decoration: none;
+                     transition: color .15s; }
+    .download-link:hover { color: var(--fg); }
+    .card-source { border-top: 1px solid var(--border); max-height: 300px; overflow: auto; }
+    .card-source pre { margin: 0; padding: 10px; font-size: 12px; line-height: 1.5;
+                       font-family: ui-monospace, monospace; color: #c9d1d9;
+                       background: #0d1117; white-space: pre-wrap; word-break: break-word; }
     .hidden { display: none !important; }
     .no-results { color: var(--muted); padding: 40px; text-align: center; font-size: 15px; }
   </style>
@@ -227,8 +244,12 @@ for entry in "${MANIFEST[@]}"; do
   eng_class="eng-${eng_key}"
   pre_class="pre-${preset}"
 
+  # Base64-encode fixture source for inline viewing
+  b64_source="$(base64 < "$REPO_ROOT/tests/fixtures/$family/$stem.mmd" | tr -d '\n')"
+  source_file="sources/${family}_${stem}.mmd"
+
   cat <<CARD
-<div class="card" data-family="${family}" data-engine="${engine}" data-preset="${preset}" data-fixture="${stem}">
+<div class="card" data-family="${family}" data-engine="${engine}" data-preset="${preset}" data-fixture="${stem}" data-source="${b64_source}">
   <div class="card-header">
     <span class="name" title="${stem}">${stem}</span>
     <span class="badge ${fam_class}">${family}</span>
@@ -237,6 +258,13 @@ for entry in "${MANIFEST[@]}"; do
   </div>
   <div class="card-body">
     <img src="${svg_file}" loading="lazy" alt="${stem} ${engine} ${preset}" />
+  </div>
+  <div class="card-actions">
+    <button class="source-toggle" onclick="toggleSource(this)">View Source</button>
+    <a class="download-link" href="${source_file}" download="${stem}.mmd">Download .mmd</a>
+  </div>
+  <div class="card-source hidden">
+    <pre><code></code></pre>
   </div>
 </div>
 CARD
@@ -253,6 +281,23 @@ cat >> "$GALLERY_HTML" <<HTML_FOOT
 </main>
 <script>
   const total = ${n_rendered};
+
+  function toggleSource(btn) {
+    const card = btn.closest('.card');
+    const sourceEl = card.querySelector('.card-source');
+    if (sourceEl.classList.contains('hidden')) {
+      if (!sourceEl.dataset.loaded) {
+        const source = atob(card.dataset.source);
+        sourceEl.querySelector('code').textContent = source;
+        sourceEl.dataset.loaded = '1';
+      }
+      sourceEl.classList.remove('hidden');
+      btn.textContent = 'Hide Source';
+    } else {
+      sourceEl.classList.add('hidden');
+      btn.textContent = 'View Source';
+    }
+  }
 
   function applyFilters() {
     const search = document.getElementById('search').value.trim().toLowerCase();

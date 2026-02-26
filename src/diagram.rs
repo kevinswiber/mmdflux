@@ -90,62 +90,9 @@ impl FromStr for RoutingStyle {
     }
 }
 
-/// Path interpolation treatment for SVG edge rendering.
-///
-/// Controls how segments between waypoints are drawn.
-/// `CatmullRom` is recognized but not yet implemented.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum InterpolationStyle {
-    /// Linear segments between waypoints (polyline).
-    Linear,
-    /// Cubic Bézier curve interpolation between waypoints.
-    Bezier,
-}
-
-impl std::fmt::Display for InterpolationStyle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InterpolationStyle::Linear => write!(f, "linear"),
-            InterpolationStyle::Bezier => write!(f, "bezier"),
-        }
-    }
-}
-
-impl InterpolationStyle {
-    /// Parse interpolation style from user-provided text.
-    ///
-    /// Accepts: `linear`, `bezier`.
-    /// `catmull-rom` is recognized but returns a "not yet implemented" error.
-    pub fn parse(s: &str) -> Result<Self, RenderError> {
-        match normalize_enum_token(s).as_str() {
-            "linear" => Ok(InterpolationStyle::Linear),
-            "bezier" => Ok(InterpolationStyle::Bezier),
-            "catmull-rom" | "catmullrom" => Err(RenderError {
-                message: "\"catmull-rom\" interpolation is recognized but not yet implemented. \
-                          Use \"linear\" or \"bezier\"."
-                    .into(),
-            }),
-            _ => Err(RenderError {
-                message: format!(
-                    "unknown interpolation style: {s:?} (expected one of: linear, bezier)"
-                ),
-            }),
-        }
-    }
-}
-
-impl FromStr for InterpolationStyle {
-    type Err = RenderError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        InterpolationStyle::parse(s)
-    }
-}
-
 /// Corner arc treatment for SVG edge rendering.
 ///
-/// Only meaningful for `InterpolationStyle::Linear`.
-/// Ignored when `InterpolationStyle::Bezier` is in effect.
+/// Used as the corner subtype for `Curve::Linear`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CornerStyle {
     /// Hard corners at waypoints (no arc rounding).
@@ -186,14 +133,69 @@ impl FromStr for CornerStyle {
     }
 }
 
+/// Path curve treatment for SVG edge rendering.
+///
+/// Controls how segments between waypoints are drawn.
+/// `catmull-rom` is recognized but not yet implemented.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Curve {
+    /// Linear segments between waypoints, with corner treatment.
+    Linear(CornerStyle),
+    /// Cubic basis spline interpolation between waypoints.
+    Basis,
+}
+
+impl std::fmt::Display for Curve {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Curve::Linear(CornerStyle::Sharp) => write!(f, "linear"),
+            Curve::Linear(CornerStyle::Rounded) => write!(f, "linear-rounded"),
+            Curve::Basis => write!(f, "basis"),
+        }
+    }
+}
+
+impl Curve {
+    /// Parse curve style from user-provided text.
+    ///
+    /// Accepts: `basis`, `linear`, `linear-sharp`, `linear-rounded`.
+    /// `catmull-rom` is recognized but returns a "not yet implemented" error.
+    pub fn parse(s: &str) -> Result<Self, RenderError> {
+        match normalize_enum_token(s).as_str() {
+            "basis" => Ok(Curve::Basis),
+            "linear" | "linear-sharp" => Ok(Curve::Linear(CornerStyle::Sharp)),
+            "linear-rounded" => Ok(Curve::Linear(CornerStyle::Rounded)),
+            "catmull-rom" | "catmullrom" => Err(RenderError {
+                message: "\"catmull-rom\" curve is recognized but not yet implemented. \
+                          Use \"basis\", \"linear\", \"linear-sharp\", or \"linear-rounded\"."
+                    .into(),
+            }),
+            _ => Err(RenderError {
+                message: format!(
+                    "unknown curve: {s:?} (expected one of: basis, linear, linear-sharp, linear-rounded)"
+                ),
+            }),
+        }
+    }
+}
+
+impl FromStr for Curve {
+    type Err = RenderError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Curve::parse(s)
+    }
+}
+
 /// User-facing edge style preset.
 ///
-/// Expands deterministically to `(RoutingStyle, InterpolationStyle, CornerStyle)`:
-/// - `Straight` → `Direct + Linear + Sharp`
-/// - `Polyline` → `Polyline + Linear + Sharp`
-/// - `Step` → `Orthogonal + Linear + Sharp`
-/// - `SmoothStep` → `Orthogonal + Linear + Rounded`
-/// - `Bezier` → `Polyline + Bezier` (corner treatment ignored)
+/// Expands deterministically to `(RoutingStyle, Curve)`:
+/// - `Straight` → `Direct + Linear(Sharp)`
+/// - `Polyline` → `Polyline + Linear(Sharp)`
+/// - `Step` → `Orthogonal + Linear(Sharp)`
+/// - `SmoothStep` → `Orthogonal + Linear(Rounded)`
+/// - `CurvedStep` → `Orthogonal + Basis`
+/// - `Basis` → `Polyline + Basis`
 ///
 /// Precedence: explicit low-level fields > preset defaults > engine defaults.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -206,52 +208,41 @@ pub enum EdgePreset {
     Step,
     /// Orthogonal path with rounded arc corners.
     SmoothStep,
-    /// Polyline with cubic Bézier interpolation.
-    Bezier,
+    /// Orthogonal path rendered with basis interpolation.
+    CurvedStep,
+    /// Polyline with basis curve rendering.
+    Basis,
 }
 
 impl EdgePreset {
-    /// Expand this preset into `(RoutingStyle, InterpolationStyle, CornerStyle)`.
-    pub fn expand(self) -> (RoutingStyle, InterpolationStyle, CornerStyle) {
+    /// Expand this preset into `(RoutingStyle, Curve)`.
+    pub fn expand(self) -> (RoutingStyle, Curve) {
         match self {
-            EdgePreset::Straight => (
-                RoutingStyle::Direct,
-                InterpolationStyle::Linear,
-                CornerStyle::Sharp,
-            ),
-            EdgePreset::Polyline => (
-                RoutingStyle::Polyline,
-                InterpolationStyle::Linear,
-                CornerStyle::Sharp,
-            ),
-            EdgePreset::Step => (
-                RoutingStyle::Orthogonal,
-                InterpolationStyle::Linear,
-                CornerStyle::Sharp,
-            ),
+            EdgePreset::Straight => (RoutingStyle::Direct, Curve::Linear(CornerStyle::Sharp)),
+            EdgePreset::Polyline => (RoutingStyle::Polyline, Curve::Linear(CornerStyle::Sharp)),
+            EdgePreset::Step => (RoutingStyle::Orthogonal, Curve::Linear(CornerStyle::Sharp)),
             EdgePreset::SmoothStep => (
                 RoutingStyle::Orthogonal,
-                InterpolationStyle::Linear,
-                CornerStyle::Rounded,
+                Curve::Linear(CornerStyle::Rounded),
             ),
-            EdgePreset::Bezier => (
-                RoutingStyle::Polyline,
-                InterpolationStyle::Bezier,
-                CornerStyle::Sharp,
-            ),
+            EdgePreset::CurvedStep => (RoutingStyle::Orthogonal, Curve::Basis),
+            EdgePreset::Basis => (RoutingStyle::Polyline, Curve::Basis),
         }
     }
 
     /// Parse edge preset from user-provided text.
     ///
-    /// Accepts: `straight`, `polyline`, `step`, `smoothstep`, `bezier`.
+    /// Accepts: `straight`, `polyline`, `step`, `smooth-step`, `curved-step`, `basis`.
+    ///
+    /// Legacy aliases accepted for compatibility: `smoothstep` (for `smooth-step`).
     pub fn parse(s: &str) -> Result<Self, RenderError> {
         match normalize_enum_token(s).as_str() {
             "straight" => Ok(EdgePreset::Straight),
             "polyline" => Ok(EdgePreset::Polyline),
             "step" => Ok(EdgePreset::Step),
-            "smoothstep" | "smooth-step" => Ok(EdgePreset::SmoothStep),
-            "bezier" => Ok(EdgePreset::Bezier),
+            "smooth-step" | "smoothstep" => Ok(EdgePreset::SmoothStep),
+            "curved-step" | "curvedstep" => Ok(EdgePreset::CurvedStep),
+            "basis" => Ok(EdgePreset::Basis),
             "direct" => Err(RenderError {
                 message: "\"direct\" is a routing style, not an edge preset. \
                           Use --routing-style direct or --edge-preset straight."
@@ -259,7 +250,7 @@ impl EdgePreset {
             }),
             _ => Err(RenderError {
                 message: format!(
-                    "unknown edge preset: {s:?} (expected one of: straight, polyline, step, smoothstep, bezier)"
+                    "unknown edge preset: {s:?} (expected one of: straight, polyline, step, smooth-step, curved-step, basis)"
                 ),
             }),
         }
@@ -272,8 +263,9 @@ impl std::fmt::Display for EdgePreset {
             EdgePreset::Straight => write!(f, "straight"),
             EdgePreset::Polyline => write!(f, "polyline"),
             EdgePreset::Step => write!(f, "step"),
-            EdgePreset::SmoothStep => write!(f, "smoothstep"),
-            EdgePreset::Bezier => write!(f, "bezier"),
+            EdgePreset::SmoothStep => write!(f, "smooth-step"),
+            EdgePreset::CurvedStep => write!(f, "curved-step"),
+            EdgePreset::Basis => write!(f, "basis"),
         }
     }
 }
@@ -665,16 +657,16 @@ pub enum EdgeRouting {
 /// - `RoutingStyle` (`Direct`, `Polyline`, `Orthogonal`) — path topology requested by caller.
 ///
 /// Render-level (applied after routing, does not affect path topology):
-/// - `InterpolationStyle` (`Linear`, `Bezier`) — segment drawing treatment.
-///   `CatmullRom` interpolation is deferred and not yet supported.
-/// - `CornerStyle` (`Sharp`, `Rounded`) — corner arc treatment (only meaningful for `Linear`).
+/// - `Curve` (`Basis`, `Linear(Sharp|Rounded)`) — segment drawing treatment.
+///   `catmull-rom` parsing is recognized but deferred.
 ///
 /// User-facing presets (expand to routing + render defaults):
-/// - `Straight` → `Direct + Linear + Sharp`
-/// - `Polyline` → `Polyline + Linear + Sharp`
-/// - `Step` → `Orthogonal + Linear + Sharp`
-/// - `SmoothStep` → `Orthogonal + Linear + Rounded`
-/// - `Bezier` → `Polyline + Bezier` (corner treatment ignored)
+/// - `Straight` → `Direct + Linear(Sharp)`
+/// - `Polyline` → `Polyline + Linear(Sharp)`
+/// - `Step` → `Orthogonal + Linear(Sharp)`
+/// - `SmoothStep` → `Orthogonal + Linear(Rounded)`
+/// - `CurvedStep` → `Orthogonal + Basis`
+/// - `Basis` → `Polyline + Basis`
 ///
 /// Precedence: explicit low-level fields > preset defaults > engine defaults.
 #[derive(Debug, Clone)]
@@ -952,7 +944,7 @@ pub struct RenderConfig {
     pub padding: Option<usize>,
     /// SVG-specific: scale factor.
     pub svg_scale: Option<f64>,
-    /// SVG edge style preset. Expands to routing + interpolation + corner defaults.
+    /// SVG edge style preset. Expands to routing + curve defaults.
     ///
     /// Precedence: explicit low-level fields > preset defaults > engine defaults.
     pub edge_preset: Option<EdgePreset>,
@@ -960,15 +952,11 @@ pub struct RenderConfig {
     ///
     /// When set, takes precedence over the preset's routing component.
     pub routing_style: Option<RoutingStyle>,
-    /// SVG interpolation style override (linear or bezier).
+    /// SVG curve override (basis, linear, linear-rounded).
     ///
-    /// When set, takes precedence over the preset's interpolation component.
-    pub interpolation_style: Option<InterpolationStyle>,
-    /// SVG corner style override (sharp or rounded).
-    ///
-    /// When set, takes precedence over the preset's corner component.
-    pub corner_style: Option<CornerStyle>,
-    /// SVG-specific: corner arc radius (px) for `CornerStyle::Rounded`.
+    /// When set, takes precedence over the preset's curve component.
+    pub curve: Option<Curve>,
+    /// SVG-specific: corner arc radius (px) for `Curve::Linear(CornerStyle::Rounded)`.
     pub edge_radius: Option<f64>,
     /// SVG-specific: diagram padding (px).
     pub svg_diagram_padding: Option<f64>,

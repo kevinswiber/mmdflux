@@ -296,7 +296,7 @@ mod tests {
         crate::layered::nesting::insert_title_nodes(&mut lg);
         rank::normalize(&mut lg);
         crate::layered::nesting::assign_rank_minmax(&mut lg);
-        normalize::run(&mut lg, &HashMap::new());
+        normalize::run(&mut lg, &HashMap::new(), false);
         run(&mut lg);
 
         lg
@@ -428,7 +428,7 @@ mod tests {
         crate::layered::nesting::insert_title_nodes(&mut lg);
         rank::normalize(&mut lg);
         crate::layered::nesting::assign_rank_minmax(&mut lg);
-        normalize::run(&mut lg, &HashMap::new());
+        normalize::run(&mut lg, &HashMap::new(), false);
         run(&mut lg);
 
         lg

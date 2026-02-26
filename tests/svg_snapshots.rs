@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use mmdflux::diagram::{
-    CornerStyle, EngineAlgorithmId, InterpolationStyle, OutputFormat, PathSimplification,
-    RenderConfig, RoutingStyle,
+    CornerStyle, Curve, EngineAlgorithmId, OutputFormat, PathSimplification, RenderConfig,
+    RoutingStyle,
 };
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::diagrams::mmds::from_mmds_str;
@@ -49,19 +49,13 @@ fn render_svg_fixture(name: &str) -> String {
     render_svg(&diagram, &options)
 }
 
-fn render_svg_fixture_with_curve(
-    name: &str,
-    routing: RoutingStyle,
-    interp: InterpolationStyle,
-    corner: CornerStyle,
-) -> String {
+fn render_svg_fixture_with_curve(name: &str, routing: RoutingStyle, curve: Curve) -> String {
     let input = load_fixture(name);
     let flowchart = parse_flowchart(&input).expect("Failed to parse fixture");
     let diagram = build_diagram(&flowchart);
     let mut options = RenderOptions::default_svg();
     options.svg.routing_style = routing;
-    options.svg.interpolation_style = interp;
-    options.svg.corner_style = corner;
+    options.svg.curve = curve;
     options.path_simplification = PathSimplification::None;
     render_svg(&diagram, &options)
 }
@@ -165,15 +159,9 @@ fn assert_snapshot(fixture: &str) {
     assert_eq!(output, expected, "Snapshot mismatch for {fixture}");
 }
 
-fn assert_preset_snapshot(
-    preset: &str,
-    fixture: &str,
-    routing: RoutingStyle,
-    interp: InterpolationStyle,
-    corner: CornerStyle,
-) {
+fn assert_preset_snapshot(preset: &str, fixture: &str, routing: RoutingStyle, curve: Curve) {
     let stem = fixture.trim_end_matches(".mmd");
-    let output = render_svg_fixture_with_curve(fixture, routing, interp, corner);
+    let output = render_svg_fixture_with_curve(fixture, routing, curve);
     let path = preset_snapshot_path(preset, stem);
 
     if std::env::var("GENERATE_SVG_SNAPSHOTS").is_ok() {
@@ -273,8 +261,7 @@ fn svg_snapshot_all_fixtures_straight() {
             "straight",
             &fixture,
             RoutingStyle::Direct,
-            InterpolationStyle::Linear,
-            CornerStyle::Sharp,
+            Curve::Linear(CornerStyle::Sharp),
         );
     }
 }
@@ -286,8 +273,7 @@ fn svg_snapshot_all_fixtures_polyline() {
             "polyline",
             &fixture,
             RoutingStyle::Polyline,
-            InterpolationStyle::Linear,
-            CornerStyle::Sharp,
+            Curve::Linear(CornerStyle::Sharp),
         );
     }
 }
@@ -299,36 +285,60 @@ fn svg_snapshot_all_fixtures_step() {
             "step",
             &fixture,
             RoutingStyle::Orthogonal,
-            InterpolationStyle::Linear,
-            CornerStyle::Sharp,
+            Curve::Linear(CornerStyle::Sharp),
         );
     }
 }
 
 #[test]
-fn svg_snapshot_all_fixtures_smoothstep() {
+fn svg_snapshot_all_fixtures_curved_step() {
     for fixture in list_fixtures() {
         assert_preset_snapshot(
-            "smoothstep",
+            "curved-step",
             &fixture,
             RoutingStyle::Orthogonal,
-            InterpolationStyle::Linear,
-            CornerStyle::Rounded,
+            Curve::Basis,
         );
     }
 }
 
 #[test]
-fn svg_snapshot_all_fixtures_bezier() {
+fn svg_snapshot_all_fixtures_smooth_step() {
     for fixture in list_fixtures() {
         assert_preset_snapshot(
-            "bezier",
+            "smooth-step",
             &fixture,
-            RoutingStyle::Polyline,
-            InterpolationStyle::Bezier,
-            CornerStyle::Sharp,
+            RoutingStyle::Orthogonal,
+            Curve::Linear(CornerStyle::Rounded),
         );
     }
+}
+
+#[test]
+fn svg_snapshot_all_fixtures_basis() {
+    for fixture in list_fixtures() {
+        assert_preset_snapshot("basis", &fixture, RoutingStyle::Polyline, Curve::Basis);
+    }
+}
+
+#[test]
+fn svg_snapshot_curve_bucket_basis_regression() {
+    assert_preset_snapshot(
+        "basis",
+        "simple_cycle.mmd",
+        RoutingStyle::Polyline,
+        Curve::Basis,
+    );
+}
+
+#[test]
+fn svg_snapshot_curve_bucket_linear_rounded_regression() {
+    assert_preset_snapshot(
+        "smooth-step",
+        "simple_cycle.mmd",
+        RoutingStyle::Orthogonal,
+        Curve::Linear(CornerStyle::Rounded),
+    );
 }
 
 #[test]

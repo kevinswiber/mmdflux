@@ -57,6 +57,10 @@ pub struct Edge {
     pub arrow_start: Arrow,
     /// Arrow head at the end (target-side) of the edge.
     pub arrow_end: Arrow,
+    /// Label near the target endpoint (head).
+    pub head_label: Option<String>,
+    /// Label near the source endpoint (tail).
+    pub tail_label: Option<String>,
     /// Minimum rank separation between source and target. Default 1.
     pub minlen: i32,
     /// Index of this edge in the diagram's edge list.
@@ -76,6 +80,8 @@ impl Edge {
             stroke: Stroke::default(),
             arrow_start: Arrow::None,
             arrow_end: Arrow::default(),
+            head_label: None,
+            tail_label: None,
             minlen: 1,
             index: 0,
         }
@@ -128,6 +134,20 @@ mod tests {
         let edge = Edge::new("A", "B").with_arrows(Arrow::Cross, Arrow::Circle);
         assert_eq!(edge.arrow_start, Arrow::Cross);
         assert_eq!(edge.arrow_end, Arrow::Circle);
+    }
+
+    #[test]
+    fn edge_head_tail_labels_default_none() {
+        let edge = Edge::new("A", "B");
+        assert_eq!(edge.head_label, None);
+        assert_eq!(edge.tail_label, None);
+    }
+
+    #[test]
+    fn edge_with_head_label() {
+        let mut edge = Edge::new("A", "B");
+        edge.head_label = Some("1..*".to_string());
+        assert_eq!(edge.head_label.as_deref(), Some("1..*"));
     }
 
     #[test]

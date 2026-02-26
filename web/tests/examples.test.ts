@@ -115,14 +115,17 @@ describe("playground examples", () => {
     );
     const editorInput =
       root.querySelector<HTMLTextAreaElement>(".editor-input");
-    const editorStatus =
-      root.querySelector<HTMLElement>("[data-editor-status]");
+    const editorStatus = root.querySelector<HTMLElement>(
+      "[data-editor-status]",
+    );
     const exampleSelect = root.querySelector<HTMLSelectElement>(
       "[data-example-select]",
     );
 
     if (!runButton || !editorInput || !editorStatus || !exampleSelect) {
-      throw new Error("expected run button, editor input, editor status, and example select");
+      throw new Error(
+        "expected run button, editor input, editor status, and example select",
+      );
     }
 
     runButton.click();
@@ -424,7 +427,7 @@ describe("playground examples", () => {
     svgTab.click();
     layoutEngineSelect.value = "mermaid-layered";
     layoutEngineSelect.dispatchEvent(new Event("change"));
-    edgePresetSelect.value = "bezier";
+    edgePresetSelect.value = "basis";
     edgePresetSelect.dispatchEvent(new Event("change"));
     pathSimplificationSelect.value = "minimal";
     pathSimplificationSelect.dispatchEvent(new Event("change"));
@@ -438,7 +441,7 @@ describe("playground examples", () => {
     expect(payload?.format).toBe("svg");
     expect(JSON.parse(payload?.configJson ?? "{}")).toEqual({
       layoutEngine: "mermaid-layered",
-      edgePreset: "bezier",
+      edgePreset: "basis",
       pathSimplification: "minimal",
     });
   });

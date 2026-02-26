@@ -165,7 +165,25 @@ fn cli_accepts_edge_preset_step() {
 }
 
 #[test]
-fn cli_accepts_edge_preset_smoothstep() {
+fn cli_accepts_edge_preset_curved_step() {
+    mmdflux()
+        .args(["--format", "svg", "--edge-preset", "curved-step"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .success();
+}
+
+#[test]
+fn cli_accepts_edge_preset_smooth_step() {
+    mmdflux()
+        .args(["--format", "svg", "--edge-preset", "smooth-step"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .success();
+}
+
+#[test]
+fn cli_accepts_edge_preset_legacy_smoothstep_alias() {
     mmdflux()
         .args(["--format", "svg", "--edge-preset", "smoothstep"])
         .write_stdin("graph TD\nA-->B")
@@ -174,12 +192,22 @@ fn cli_accepts_edge_preset_smoothstep() {
 }
 
 #[test]
-fn cli_accepts_edge_preset_bezier() {
+fn cli_accepts_edge_preset_basis() {
+    mmdflux()
+        .args(["--format", "svg", "--edge-preset", "basis"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .success();
+}
+
+#[test]
+fn cli_rejects_legacy_edge_preset_bezier() {
     mmdflux()
         .args(["--format", "svg", "--edge-preset", "bezier"])
         .write_stdin("graph TD\nA-->B")
         .assert()
-        .success();
+        .failure()
+        .stderr(predicate::str::contains("unknown edge preset"));
 }
 
 #[test]
@@ -225,58 +253,91 @@ fn cli_accepts_routing_style_direct() {
         .success();
 }
 
-// --- --interpolation-style flag ---
+// --- --curve flag ---
 
 #[test]
-fn cli_accepts_interpolation_style_linear() {
+fn cli_accepts_curve_basis() {
+    mmdflux()
+        .args(["--format", "svg", "--curve", "basis"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .success();
+}
+
+#[test]
+fn cli_accepts_curve_linear_rounded() {
+    mmdflux()
+        .args(["--format", "svg", "--curve", "linear-rounded"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .success();
+}
+
+#[test]
+fn cli_rejects_curve_legacy_alias() {
+    mmdflux()
+        .args(["--format", "svg", "--curve", "bezier"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .failure();
+}
+
+#[test]
+fn cli_rejects_unknown_curve_token_with_actionable_message() {
+    mmdflux()
+        .args(["--format", "svg", "--curve", "spline"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("unknown curve"))
+        .stderr(predicate::str::contains(
+            "expected one of: basis, linear, linear-sharp, linear-rounded",
+        ));
+}
+
+#[test]
+fn cli_help_mentions_curve_flag() {
+    mmdflux()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--curve"));
+}
+
+#[test]
+fn cli_help_omits_legacy_curve_flags() {
+    mmdflux()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--interpolation-style").not())
+        .stdout(predicate::str::contains("--corner-style").not());
+}
+
+// --- legacy style flags removed ---
+
+#[test]
+fn cli_rejects_legacy_interpolation_style_flag() {
     mmdflux()
         .args(["--format", "svg", "--interpolation-style", "linear"])
         .write_stdin("graph TD\nA-->B")
         .assert()
-        .success();
-}
-
-#[test]
-fn cli_accepts_interpolation_style_bezier() {
-    mmdflux()
-        .args(["--format", "svg", "--interpolation-style", "bezier"])
-        .write_stdin("graph TD\nA-->B")
-        .assert()
-        .success();
-}
-
-#[test]
-fn cli_rejects_interpolation_catmull_rom_as_deferred() {
-    mmdflux()
-        .args(["--format", "svg", "--interpolation-style", "catmull-rom"])
-        .write_stdin("graph TD\nA-->B")
-        .assert()
         .failure()
-        .stderr(
-            predicate::str::contains("not yet implemented")
-                .or(predicate::str::contains("not implemented"))
-                .or(predicate::str::contains("deferred")),
-        );
-}
-
-// --- --corner-style flag ---
-
-#[test]
-fn cli_accepts_corner_style_sharp() {
-    mmdflux()
-        .args(["--format", "svg", "--corner-style", "sharp"])
-        .write_stdin("graph TD\nA-->B")
-        .assert()
-        .success();
+        .stderr(predicate::str::contains(
+            "unexpected argument '--interpolation-style' found",
+        ));
 }
 
 #[test]
-fn cli_accepts_corner_style_rounded() {
+fn cli_rejects_legacy_corner_style_flag() {
     mmdflux()
         .args(["--format", "svg", "--corner-style", "rounded"])
         .write_stdin("graph TD\nA-->B")
         .assert()
-        .success();
+        .failure()
+        .stderr(predicate::str::contains(
+            "unexpected argument '--corner-style' found",
+        ));
 }
 
 // --- precedence: explicit low-level > preset ---

@@ -25,7 +25,7 @@ describe("renderApp", () => {
         "[data-example-select]",
       );
       const activeFormat = root.querySelector<HTMLButtonElement>(
-        '.format-tabs button.is-active',
+        ".format-tabs button.is-active",
       );
 
       expect(root.textContent).toContain("mmdflux playground");

@@ -20,16 +20,16 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M55.63,62.00 L55.63,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-    </g>
-    <g class="edgeLabels">
-    </g>
     <g class="nodes">
       <rect x="8.00" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="55.63" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
       <rect x="12.64" y="112.00" width="85.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="55.63" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M55.63,62.00 L55.63,64.78 C55.63,67.56 55.63,73.11 55.63,78.11 C55.63,83.11 55.63,87.56 55.63,92.44 C55.63,97.33 55.63,102.67 55.63,105.33 L55.63,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>

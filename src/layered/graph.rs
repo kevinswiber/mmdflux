@@ -268,6 +268,11 @@ pub(crate) struct LayoutGraph {
     /// Node rank factor from nesting graph (used by `remove_empty_ranks`).
     /// Set when nesting multiplies edge minlens by this factor.
     pub node_rank_factor: Option<i32>,
+
+    /// Source declaration order for each node.
+    /// `Some(i)` for original nodes (i = insertion index in DiGraph),
+    /// `None` for synthetic nodes (dummy, border, title, nesting root).
+    pub model_order: Vec<Option<usize>>,
 }
 
 impl LayoutGraph {
@@ -374,6 +379,7 @@ impl LayoutGraph {
             edge_minlens,
             self_edges: Vec::new(),
             node_rank_factor: None,
+            model_order: (0..n).map(Some).collect(),
         }
     }
 
@@ -414,6 +420,9 @@ impl LayoutGraph {
     }
 
     /// Add a nesting dummy node with zero dimensions. Returns the node index.
+    ///
+    /// NOTE: When adding new per-node Vec fields to LayoutGraph, this method
+    /// must also push a value for the new node.
     pub fn add_nesting_node(&mut self, id: NodeId) -> usize {
         let idx = self.node_ids.len();
         self.node_index.insert(id.clone(), idx);
@@ -424,6 +433,7 @@ impl LayoutGraph {
         self.dimensions.push((0.0, 0.0));
         self.original_has_predecessor.push(false);
         self.parents.push(None);
+        self.model_order.push(None);
         idx
     }
 
@@ -810,5 +820,139 @@ mod tests {
         // Now index 2 is a dummy
         assert!(lg.is_dummy_index(2));
         assert!(!lg.is_dummy_index(0));
+    }
+
+    #[test]
+    fn test_model_order_initialized() {
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (100.0, 50.0));
+        graph.add_node("B", (100.0, 50.0));
+        graph.add_node("C", (100.0, 50.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("B", "C");
+
+        let lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+
+        // All 3 original nodes should have model_order assigned
+        assert_eq!(lg.model_order.len(), 3);
+        assert_eq!(lg.model_order[0], Some(0)); // A
+        assert_eq!(lg.model_order[1], Some(1)); // B
+        assert_eq!(lg.model_order[2], Some(2)); // C
+    }
+
+    #[test]
+    fn test_model_order_follows_insertion_order() {
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        // Add nodes in a non-alphabetical order
+        graph.add_node("C", (10.0, 10.0));
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+
+        let lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+
+        // Model order follows DiGraph insertion order, not alphabetical
+        let c_idx = lg.node_index[&NodeId::from("C")];
+        let a_idx = lg.node_index[&NodeId::from("A")];
+        let b_idx = lg.node_index[&NodeId::from("B")];
+
+        assert_eq!(lg.model_order[c_idx], Some(0));
+        assert_eq!(lg.model_order[a_idx], Some(1));
+        assert_eq!(lg.model_order[b_idx], Some(2));
+    }
+
+    #[test]
+    fn test_model_order_vec_length_matches_node_count() {
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+
+        let lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+        assert_eq!(lg.model_order.len(), lg.node_ids.len());
+    }
+
+    #[test]
+    fn test_model_order_reflects_edge_declaration_order() {
+        // Nodes inserted in A, B, C, D order; model order should match.
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_node("C", (10.0, 10.0));
+        graph.add_node("D", (10.0, 10.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("A", "C");
+        graph.add_edge("A", "D");
+
+        let lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+
+        let a = lg.node_index[&NodeId::from("A")];
+        let b = lg.node_index[&NodeId::from("B")];
+        let c = lg.node_index[&NodeId::from("C")];
+        let d = lg.node_index[&NodeId::from("D")];
+
+        // Model order should be sequential in insertion order
+        assert!(lg.model_order[a] < lg.model_order[b]);
+        assert!(lg.model_order[b] < lg.model_order[c]);
+        assert!(lg.model_order[c] < lg.model_order[d]);
+    }
+
+    #[test]
+    fn test_model_order_with_compound_nodes() {
+        // Compound (subgraph) nodes are also original nodes in DiGraph
+        // and should get model_order too.
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_node("sg1", (10.0, 10.0));
+        graph.add_edge("A", "B");
+        graph.set_parent("A", "sg1");
+        graph.set_parent("B", "sg1");
+
+        let lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+
+        let a = lg.node_index[&NodeId::from("A")];
+        let b = lg.node_index[&NodeId::from("B")];
+        let sg1 = lg.node_index[&NodeId::from("sg1")];
+
+        // All original nodes should have Some() model_order
+        assert!(lg.model_order[a].is_some());
+        assert!(lg.model_order[b].is_some());
+        assert!(lg.model_order[sg1].is_some());
+    }
+
+    #[test]
+    fn test_nesting_node_gets_none_model_order() {
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+
+        // Original nodes have model order
+        assert_eq!(lg.model_order[0], Some(0));
+        assert_eq!(lg.model_order[1], Some(1));
+
+        // Add a nesting node (synthetic)
+        let nesting_idx = lg.add_nesting_node("_nesting_root".into());
+
+        // Nesting node should have None model_order
+        assert_eq!(lg.model_order.len(), lg.node_ids.len());
+        assert_eq!(lg.model_order[nesting_idx], None);
+    }
+
+    #[test]
+    fn test_multiple_nesting_nodes_all_none() {
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+
+        let idx1 = lg.add_nesting_node("_border_left".into());
+        let idx2 = lg.add_nesting_node("_border_right".into());
+        let idx3 = lg.add_nesting_node("_title".into());
+
+        assert_eq!(lg.model_order[idx1], None);
+        assert_eq!(lg.model_order[idx2], None);
+        assert_eq!(lg.model_order[idx3], None);
+        assert_eq!(lg.model_order.len(), lg.node_ids.len());
     }
 }

@@ -13,8 +13,8 @@ use canvas::{Cell, Connections};
 pub use chars::CharSet;
 
 use crate::diagram::{
-    AlgorithmId, CornerStyle, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId, GraphEngine,
-    InterpolationStyle, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
+    AlgorithmId, Curve, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId, GraphEngine,
+    OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
 };
 pub use crate::diagrams::flowchart::render::svg::{render_svg, render_svg_from_geometry};
 use crate::diagrams::flowchart::render::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
@@ -36,26 +36,16 @@ pub use crate::diagrams::flowchart::render::text_shape::{
 use crate::diagrams::flowchart::render::text_subgraph;
 use crate::graph::{Diagram, Direction};
 
-/// Engine defaults for SVG style (routing + interpolation + corner).
+/// Engine defaults for SVG style (routing + curve).
 ///
 /// When no preset or explicit style is specified, these engine-specific defaults
 /// preserve the pre-Phase-7 rendering behaviour.
-fn engine_style_defaults(
-    engine: Option<EngineId>,
-) -> (RoutingStyle, InterpolationStyle, CornerStyle) {
+fn engine_style_defaults(engine: Option<EngineId>) -> (RoutingStyle, Curve) {
     match engine {
-        // mermaid-layered: polyline routing (PolylineRoute), bezier interpolation (Mermaid default)
-        Some(EngineId::Mermaid) => (
-            RoutingStyle::Polyline,
-            InterpolationStyle::Bezier,
-            CornerStyle::Sharp,
-        ),
-        // flux-layered (default) and ELK: orthogonal routing, bezier interpolation
-        _ => (
-            RoutingStyle::Orthogonal,
-            InterpolationStyle::Bezier,
-            CornerStyle::Sharp,
-        ),
+        // mermaid-layered: polyline routing (PolylineRoute), basis curve (Mermaid default)
+        Some(EngineId::Mermaid) => (RoutingStyle::Polyline, Curve::Basis),
+        // flux-layered (default) and ELK: orthogonal routing, basis curve
+        _ => (RoutingStyle::Orthogonal, Curve::Basis),
     }
 }
 
@@ -78,16 +68,16 @@ impl From<&RenderConfig> for RenderOptions {
             svg.diagram_padding = padding;
         }
 
-        // Resolve style model: explicit low-level > preset defaults > engine defaults.
+        // Resolve style model: explicit curve > preset defaults > engine defaults.
         let engine_id = config.layout_engine.map(|id| id.engine());
-        let (def_routing, def_interp, def_corner) = engine_style_defaults(engine_id);
-        let (preset_routing, preset_interp, preset_corner) = config
+        let (def_routing, def_curve) = engine_style_defaults(engine_id);
+        let (preset_routing, preset_curve) = config
             .edge_preset
             .map(EdgePreset::expand)
-            .unwrap_or((def_routing, def_interp, def_corner));
+            .unwrap_or((def_routing, def_curve));
+        let resolved_curve = config.curve.unwrap_or(preset_curve);
         svg.routing_style = config.routing_style.unwrap_or(preset_routing);
-        svg.interpolation_style = config.interpolation_style.unwrap_or(preset_interp);
-        svg.corner_style = config.corner_style.unwrap_or(preset_corner);
+        svg.curve = resolved_curve;
 
         // Derive edge routing from engine capabilities + resolved routing style.
         // Uses EngineAlgorithmId::edge_routing_for_style() for consistent selection.
@@ -124,10 +114,8 @@ pub struct SvgOptions {
     /// Path routing topology for SVG edge rendering.
     /// Drives orthogonalization post-processing in the SVG path builder.
     pub routing_style: RoutingStyle,
-    /// Path interpolation treatment for SVG edge rendering.
-    pub interpolation_style: InterpolationStyle,
-    /// Corner arc treatment for SVG edge rendering (only for `InterpolationStyle::Linear`).
-    pub corner_style: CornerStyle,
+    /// Path curve treatment for SVG edge rendering.
+    pub curve: Curve,
     /// Corner arc radius in pixels (for `CornerStyle::Rounded`).
     pub edge_radius: f64,
     pub diagram_padding: f64,
@@ -142,11 +130,9 @@ impl Default for SvgOptions {
             font_size,
             node_padding_x: 15.0,
             node_padding_y: 15.0,
-            // Default matches flux-layered engine: orthogonal routing + bezier interpolation
-            // (equivalent to the former EdgeStyle::Smooth default).
+            // Default matches flux-layered engine: orthogonal routing + basis curve.
             routing_style: RoutingStyle::Orthogonal,
-            interpolation_style: InterpolationStyle::Bezier,
-            corner_style: CornerStyle::Sharp,
+            curve: Curve::Basis,
             edge_radius: 5.0,
             diagram_padding: 8.0,
         }
@@ -247,6 +233,7 @@ pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
         margin: config.margin,
         acyclic: true,
         ranker: config.ranker.unwrap_or_default(),
+        ..Default::default()
     });
     let request = crate::diagram::GraphSolveRequest::from_config(
         &RenderConfig::default(),

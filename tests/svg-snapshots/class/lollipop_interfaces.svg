@@ -20,13 +20,6 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M64.82,166.00 L64.82,216.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
-      <path d="M64.82,62.00 L64.82,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#circlehead)" />
-      <path d="M225.80,62.00 L225.80,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
-    </g>
-    <g class="edgeLabels">
-    </g>
     <g class="nodes">
       <rect x="175.20" y="8.00" width="101.20" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="225.80" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Client</text>
@@ -35,6 +28,13 @@
       <text x="64.82" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">InterfaceA</text>
       <text x="64.82" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">InterfaceB</text>
       <text x="225.80" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">InterfaceA</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M64.82,166.00 L64.82,216.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
+      <path d="M64.82,62.00 L64.82,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#circlehead)" />
+      <path d="M225.80,62.00 L225.80,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>

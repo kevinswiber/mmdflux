@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 456.01 358.00" style="max-width: 456.01px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 456.01 408.00" style="max-width: 456.01px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -21,32 +21,32 @@
   </defs>
   <g transform="translate(-25.00,0.00)">
     <g class="clusters">
-      <rect class="subgraph" x="33.00" y="100.00" width="440.01" height="250.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="253.00" y="104.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Cloud</text>
-      <rect class="subgraph" x="283.00" y="131.00" width="175.00" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="370.51" y="135.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US East Region</text>
-      <rect class="subgraph" x="48.00" y="131.00" width="175.00" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="135.50" y="135.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US West Region</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M370.51,216.00 L370.51,262.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M135.50,216.00 L135.50,262.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M327.62,62.00 L327.62,78.40 L370.51,78.40 L370.51,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M178.39,62.00 L178.39,78.40 L135.50,78.40 L135.50,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-    </g>
-    <g class="edgeLabels">
+      <rect class="subgraph" x="33.00" y="150.00" width="440.01" height="250.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="253.00" y="154.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Cloud</text>
+      <rect class="subgraph" x="283.00" y="181.00" width="175.00" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="370.51" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US East Region</text>
+      <rect class="subgraph" x="48.00" y="181.00" width="175.00" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="135.50" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US West Region</text>
     </g>
     <g class="nodes">
-      <rect x="298.00" y="162.00" width="145.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="370.51" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Web Server</text>
-      <rect x="300.05" y="266.00" width="140.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="370.51" y="293.00" text-anchor="middle" dominant-baseline="middle" fill="#333">App Server</text>
-      <rect x="63.00" y="162.00" width="145.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="135.50" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Web Server</text>
-      <rect x="65.04" y="266.00" width="140.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="135.50" y="293.00" text-anchor="middle" dominant-baseline="middle" fill="#333">App Server</text>
+      <rect x="298.00" y="212.00" width="145.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="370.51" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Web Server</text>
+      <rect x="300.05" y="316.00" width="140.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="370.51" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">App Server</text>
+      <rect x="63.00" y="212.00" width="145.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="135.50" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Web Server</text>
+      <rect x="65.04" y="316.00" width="140.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="135.50" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">App Server</text>
       <rect x="170.39" y="8.00" width="165.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="253.00" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Load Balancer</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M370.51,266.00 L370.51,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M135.50,266.00 L135.50,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M327.62,62.00 L327.62,83.40 L370.51,83.40 L370.51,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M178.39,62.00 L178.39,83.40 L135.50,83.40 L135.50,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>

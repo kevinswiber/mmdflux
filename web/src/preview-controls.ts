@@ -216,7 +216,10 @@ function getGraphicsBounds(target: SVGGraphicsElement): DiagramBounds | null {
     if (!bounds) {
       return null;
     }
-    if (bounds.width < MIN_USABLE_BBOX_SIZE || bounds.height < MIN_USABLE_BBOX_SIZE) {
+    if (
+      bounds.width < MIN_USABLE_BBOX_SIZE ||
+      bounds.height < MIN_USABLE_BBOX_SIZE
+    ) {
       return null;
     }
     return bounds;
@@ -235,18 +238,24 @@ function getDiagramBounds(
     const matrix =
       typeof svg.getScreenCTM === "function" ? svg.getScreenCTM() : null;
     const svgRect = svg.getBoundingClientRect();
-    if (!matrix || !Number.isFinite(svgRect.left) || !Number.isFinite(svgRect.top)) {
+    if (
+      !matrix ||
+      !Number.isFinite(svgRect.left) ||
+      !Number.isFinite(svgRect.top)
+    ) {
       return null;
     }
 
     const corners = [
       new DOMPoint(userBounds.minX, userBounds.minY).matrixTransform(matrix),
-      new DOMPoint(userBounds.minX + userBounds.width, userBounds.minY).matrixTransform(
-        matrix,
-      ),
-      new DOMPoint(userBounds.minX, userBounds.minY + userBounds.height).matrixTransform(
-        matrix,
-      ),
+      new DOMPoint(
+        userBounds.minX + userBounds.width,
+        userBounds.minY,
+      ).matrixTransform(matrix),
+      new DOMPoint(
+        userBounds.minX,
+        userBounds.minY + userBounds.height,
+      ).matrixTransform(matrix),
       new DOMPoint(
         userBounds.minX + userBounds.width,
         userBounds.minY + userBounds.height,
@@ -345,10 +354,7 @@ function ensurePanzoomViewport(svg: SVGSVGElement): SVGGraphicsElement | null {
     }
   }
 
-  const viewport = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "g",
-  );
+  const viewport = document.createElementNS("http://www.w3.org/2000/svg", "g");
   viewport.setAttribute("data-panzoom-viewport", "true");
 
   let movedChildren = 0;
@@ -376,7 +382,8 @@ function getViewportDimensions(element: HTMLElement): {
   const style = window.getComputedStyle(element);
   const paddingX =
     readCssPixels(style.paddingLeft) + readCssPixels(style.paddingRight);
-  const paddingY = readCssPixels(style.paddingTop) + readCssPixels(style.paddingBottom);
+  const paddingY =
+    readCssPixels(style.paddingTop) + readCssPixels(style.paddingBottom);
 
   return {
     width: Math.max(0, element.clientWidth - paddingX),
@@ -384,9 +391,7 @@ function getViewportDimensions(element: HTMLElement): {
   };
 }
 
-function captureViewAnchor(
-  panzoom: PanzoomInstance,
-): ViewAnchor | null {
+function captureViewAnchor(panzoom: PanzoomInstance): ViewAnchor | null {
   const scale = panzoom.getScale();
   if (!Number.isFinite(scale) || scale <= 0) {
     return null;
@@ -463,14 +468,22 @@ function resolveSvgPanUnitsPerCssPixel(target: SVGElement): {
     const origin = new DOMPoint(svgBounds.minX, svgBounds.minY).matrixTransform(
       ctm,
     );
-    const xStep = new DOMPoint(svgBounds.minX + 1, svgBounds.minY).matrixTransform(
-      ctm,
+    const xStep = new DOMPoint(
+      svgBounds.minX + 1,
+      svgBounds.minY,
+    ).matrixTransform(ctm);
+    const yStep = new DOMPoint(
+      svgBounds.minX,
+      svgBounds.minY + 1,
+    ).matrixTransform(ctm);
+    const cssPixelsPerSvgUnitX = Math.hypot(
+      xStep.x - origin.x,
+      xStep.y - origin.y,
     );
-    const yStep = new DOMPoint(svgBounds.minX, svgBounds.minY + 1).matrixTransform(
-      ctm,
+    const cssPixelsPerSvgUnitY = Math.hypot(
+      yStep.x - origin.x,
+      yStep.y - origin.y,
     );
-    const cssPixelsPerSvgUnitX = Math.hypot(xStep.x - origin.x, xStep.y - origin.y);
-    const cssPixelsPerSvgUnitY = Math.hypot(yStep.x - origin.x, yStep.y - origin.y);
     if (
       Number.isFinite(cssPixelsPerSvgUnitX) &&
       Number.isFinite(cssPixelsPerSvgUnitY) &&
@@ -512,6 +525,7 @@ function defaultDependencies(): PreviewControlDependencies {
     createPanzoom: (target, initialState) =>
       Panzoom(target, {
         canvas: true,
+        cursor: "",
         maxScale: MAX_SCALE,
         minScale: MIN_SCALE,
         origin: "0 0",
@@ -695,7 +709,10 @@ export function createPreviewControls(
     controlsExpanded = expanded;
     options.controlsRoot.hidden = !controlsVisible;
     options.controlsOverlayRoot.classList.toggle("is-expanded", expanded);
-    options.controlsToggleButton.setAttribute("aria-expanded", String(expanded));
+    options.controlsToggleButton.setAttribute(
+      "aria-expanded",
+      String(expanded),
+    );
     options.controlsToggleButton.setAttribute(
       "aria-label",
       expanded ? "Hide zoom controls" : "Show zoom controls",
@@ -818,8 +835,8 @@ export function createPreviewControls(
     const fallbackFitAnchor = computeFitAnchor();
     const shouldStabilizeFit = fitOnNextSvg || !viewAnchor;
     const nextAnchor = fitOnNextSvg
-      ? fallbackFitAnchor ?? { panX: 0, panY: 0, scale: 1 }
-      : viewAnchor ?? fallbackFitAnchor ?? { panX: 0, panY: 0, scale: 1 };
+      ? (fallbackFitAnchor ?? { panX: 0, panY: 0, scale: 1 })
+      : (viewAnchor ?? fallbackFitAnchor ?? { panX: 0, panY: 0, scale: 1 });
     fitOnNextSvg = false;
     panzoom = dependencies.createPanzoom(panTarget, nextAnchor);
     panTarget.addEventListener(

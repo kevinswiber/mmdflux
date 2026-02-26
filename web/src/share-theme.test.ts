@@ -14,7 +14,7 @@ describe("share state", () => {
       renderSettings: {
         ...DEFAULT_SHARE_RENDER_SETTINGS,
         layoutEngine: "mermaid-layered" as const,
-        edgePreset: "bezier" as const,
+        edgePreset: "basis" as const,
       },
     };
 

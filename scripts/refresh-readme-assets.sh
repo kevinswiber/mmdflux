@@ -16,7 +16,7 @@ NAME="at-a-glance"
 MMDFLUX_BIN="${MMDFLUX_BIN:-}"
 
 LAYOUT_ENGINE="flux-layered"
-EDGE_PRESET="smoothstep"
+EDGE_PRESET="curved-step"
 GEOMETRY_LEVEL="routed"
 PATH_DETAIL="compact"
 

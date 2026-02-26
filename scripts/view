@@ -7,7 +7,7 @@
 #
 # Examples:
 #   scripts/view tests/fixtures/flowchart/simple.mmd
-#   scripts/view tests/fixtures/flowchart/simple.mmd -- --edge-preset bezier
+#   scripts/view tests/fixtures/flowchart/simple.mmd -- --edge-preset basis
 #   cat file.mmd | scripts/view
 
 set -euo pipefail

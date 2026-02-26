@@ -20,12 +20,6 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M77.63,216.00 L77.63,170.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M77.63,112.00 L77.63,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-    </g>
-    <g class="edgeLabels">
-    </g>
     <g class="nodes">
       <rect x="8.00" y="216.00" width="139.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="77.63" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Foundation</text>
@@ -33,6 +27,12 @@
       <text x="77.63" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Roof</text>
       <rect x="14.22" y="112.00" width="126.82" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="77.63" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Structure</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M77.63,216.00 L77.63,170.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M77.63,112.00 L77.63,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>

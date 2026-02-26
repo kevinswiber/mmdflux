@@ -20,14 +20,6 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M53.08,68.75 L53.08,114.75" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M53.08,196.25 L53.08,242.25" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M53.08,332.50 L53.08,378.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M53.08,436.50 L53.08,482.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-    </g>
-    <g class="edgeLabels">
-    </g>
     <g class="nodes">
       <path d="M28.12,382.50 L90.04,382.50 L90.04,436.50 L16.12,436.50 L16.12,394.50 Z" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="53.08" y="409.50" text-anchor="middle" dominant-baseline="middle" fill="#333">Card</text>
@@ -43,6 +35,14 @@
       <path d="M8.00,315.25 L8.00,315.25 L9.80,316.98 L11.61,318.69 L13.41,320.37 L15.21,322.00 L17.02,323.56 L18.82,325.04 L20.62,326.41 L22.43,327.68 L24.23,328.81 L26.03,329.81 L27.84,330.67 L29.64,331.37 L31.44,331.90 L33.25,332.27 L35.05,332.47 L36.85,332.49 L38.66,332.34 L40.46,332.01 L42.26,331.52 L44.07,330.86 L45.87,330.04 L47.67,329.08 L49.48,327.97 L51.28,326.74 L53.08,325.39 L54.89,323.94 L56.69,322.40 L58.49,320.79 L60.30,319.12 L62.10,317.41 L63.90,315.68 L65.71,313.95 L67.51,312.23 L69.31,310.54 L71.12,308.90 L72.92,307.32 L74.72,305.82 L76.53,304.42 L78.33,303.13 L80.13,301.96 L81.94,300.92 L83.74,300.03 L85.54,299.29 L87.35,298.72 L89.15,298.31 L90.95,298.07 L92.75,298.00 L94.56,298.11 L96.36,298.39 L98.16,298.84 L98.16,246.25 L8.00,246.25 Z" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <path d="M80.13,301.96 L80.13,301.96 L81.94,300.92 L83.74,300.03 L85.54,299.29 L87.35,298.72 L89.15,298.31 L90.95,298.07 L92.75,298.00 L94.56,298.11 L96.36,298.39 L98.16,298.84 L98.16,284.71 Z" fill="white" stroke="#333" stroke-width="1.00" />
       <text x="53.08" y="280.75" text-anchor="middle" dominant-baseline="middle" fill="#333">TagDoc</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M53.08,68.75 L53.08,114.75" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M53.08,196.25 L53.08,242.25" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M53.08,332.50 L53.08,378.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M53.08,436.50 L53.08,482.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>

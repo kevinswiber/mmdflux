@@ -46,10 +46,9 @@ Supported top-level keys:
 - `clusterRanksep`
 - `padding`
 - `svgScale`
-- `edgePreset` (`straight`, `polyline`, `step`, `smoothstep`, `bezier`)
+- `edgePreset` (`straight`, `polyline`, `step`, `smooth-step`, `curved-step`, `basis`)
 - `routingStyle` (`direct`, `polyline`, `orthogonal`)
-- `interpolationStyle` (`linear`, `bezier`)
-- `cornerStyle` (`sharp`, `rounded`)
+- `curve` (`basis`, `linear`, `linear-sharp`, `linear-rounded`)
 - `edgeRadius`
 - `svgDiagramPadding`
 - `svgNodePaddingX`
@@ -71,7 +70,7 @@ Example:
 ```json
 {
   "layoutEngine": "flux-layered",
-  "edgePreset": "smoothstep",
+  "edgePreset": "curved-step",
   "edgeRadius": 6,
   "geometryLevel": "routed",
   "pathSimplification": "lossless",

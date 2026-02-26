@@ -104,10 +104,13 @@ where
                 edge_index_map.push(edge_idx);
                 sub_graph.add_edge(edge.from.as_str(), edge.to.as_str());
                 if let Some((label_width, label_height)) = edge_label_dims(edge) {
-                    edge_labels.insert(
-                        sub_edge_idx,
-                        layered::normalize::EdgeLabelInfo::new(label_width, label_height),
-                    );
+                    let mut info =
+                        layered::normalize::EdgeLabelInfo::new(label_width, label_height);
+                    info.thickness = match edge.stroke {
+                        Stroke::Thick => 3.0,
+                        _ => 1.0,
+                    };
+                    edge_labels.insert(sub_edge_idx, info);
                 }
             }
         }
@@ -211,10 +214,11 @@ pub(crate) fn layered_config_for_layout(
         margin: config.margin,
         acyclic: true,
         ranker: config.ranker.unwrap_or_default(),
+        ..Default::default()
     }
 }
 
-fn build_layered_layout_with_config<FN, FE>(
+pub(crate) fn build_layered_layout_with_config<FN, FE>(
     diagram: &Diagram,
     layered_config: &LayeredConfig,
     node_dims: FN,
@@ -341,10 +345,12 @@ where
             dgraph.add_edge_full(edge.from.as_str(), edge.to.as_str(), weight, edge.minlen);
         }
         if let Some((label_width, label_height)) = edge_label_dims(edge) {
-            edge_labels.insert(
-                edge_idx,
-                layered::normalize::EdgeLabelInfo::new(label_width, label_height),
-            );
+            let mut info = layered::normalize::EdgeLabelInfo::new(label_width, label_height);
+            info.thickness = match edge.stroke {
+                Stroke::Thick => 3.0,
+                _ => 1.0,
+            };
+            edge_labels.insert(edge_idx, info);
         }
     }
 
@@ -363,6 +369,7 @@ where
     result
 }
 
+#[cfg(test)]
 pub(crate) fn build_layered_layout<FN, FE>(
     diagram: &Diagram,
     config: &TextLayoutConfig,

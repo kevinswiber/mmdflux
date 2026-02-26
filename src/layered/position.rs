@@ -3,7 +3,9 @@
 //! Implements coordinate assignment using the Brandes-Köpf algorithm for
 //! optimal horizontal positioning, with y-coordinates based on layer rank.
 
-use super::bk::{BKConfig, position_x};
+use std::collections::HashMap;
+
+use super::bk::{BKConfig, get_width, position_x};
 use super::graph::LayoutGraph;
 use super::rank;
 use super::types::{Direction, LayoutConfig, Point};
@@ -49,7 +51,14 @@ fn assign_vertical(graph: &mut LayoutGraph, layers: &[Vec<usize>], config: &Layo
         edge_sep: config.edge_sep,
         direction: config.direction,
     };
-    let x_coords = position_x(graph, &bk_config);
+    let mut x_coords = position_x(graph, &bk_config);
+
+    // Post-BK enforcement: ensure adjacent nodes in each layer respect
+    // minimum separation (node_sep for real nodes, edge_sep for dummies).
+    // The BK algorithm optimizes for alignment with neighbors in adjacent
+    // layers, which can sometimes produce node overlaps when the graph
+    // structure has fewer dummy nodes (e.g., per-edge label spacing).
+    enforce_minimum_separation(graph, layers, &bk_config, &mut x_coords);
 
     // Find minimum x to shift everything to start at 0.
     // Dagre applies margin later in translateGraph; we do the same.
@@ -76,13 +85,16 @@ fn assign_vertical(graph: &mut LayoutGraph, layers: &[Vec<usize>], config: &Layo
             graph.positions[node] = Point { x, y };
         }
 
-        // Y advances by max height in this layer
+        // Y advances by max height in this layer + gap to next layer.
+        // Use per-gap override if available, otherwise base rank_sep.
         let max_height = layer
             .iter()
             .map(|&n| graph.dimensions[n].1)
             .reduce(f64::max)
             .unwrap_or(0.0);
-        y += max_height + config.rank_sep;
+        let current_rank = layer.first().map(|&n| graph.ranks[n]).unwrap_or(0);
+        let gap_spacing = config.rank_sep_for_gap(current_rank);
+        y += max_height + gap_spacing;
     }
 }
 
@@ -98,7 +110,9 @@ fn assign_horizontal(graph: &mut LayoutGraph, layers: &[Vec<usize>], config: &La
         edge_sep: config.edge_sep,
         direction: config.direction,
     };
-    let y_coords = position_x(graph, &bk_config);
+    let mut y_coords = position_x(graph, &bk_config);
+
+    enforce_minimum_separation(graph, layers, &bk_config, &mut y_coords);
 
     // Find minimum y to shift everything to start at 0.
     // Dagre applies margin later in translateGraph; we do the same.
@@ -125,13 +139,16 @@ fn assign_horizontal(graph: &mut LayoutGraph, layers: &[Vec<usize>], config: &La
             graph.positions[node] = Point { x, y };
         }
 
-        // X advances by max width in this layer
+        // X advances by max width in this layer + gap to next layer.
+        // Use per-gap override if available, otherwise base rank_sep.
         let max_width = layer
             .iter()
             .map(|&n| graph.dimensions[n].0)
             .reduce(f64::max)
             .unwrap_or(0.0);
-        x += max_width + config.rank_sep;
+        let current_rank = layer.first().map(|&n| graph.ranks[n]).unwrap_or(0);
+        let gap_spacing = config.rank_sep_for_gap(current_rank);
+        x += max_width + gap_spacing;
     }
 }
 
@@ -165,6 +182,47 @@ fn reverse_positions(graph: &mut LayoutGraph, config: &LayoutConfig) {
     }
 }
 
+/// Enforce minimum separation between real nodes in each layer.
+///
+/// The BK algorithm optimizes horizontal positions by aligning nodes with
+/// neighbors in adjacent layers. With fewer dummy nodes (e.g., per-edge
+/// label spacing), this can place real nodes too close together. This pass
+/// checks each pair of adjacent real nodes (skipping dummies) and enforces
+/// `node_sep` between them. Dummy nodes are skipped because they represent
+/// edge routing points, not visible boxes.
+fn enforce_minimum_separation(
+    graph: &LayoutGraph,
+    layers: &[Vec<usize>],
+    config: &BKConfig,
+    coords: &mut HashMap<usize, f64>,
+) {
+    use super::bk::is_dummy_like;
+
+    for layer in layers {
+        // Only check adjacent pairs of real (non-dummy) nodes.
+        let real_nodes: Vec<usize> = layer
+            .iter()
+            .copied()
+            .filter(|&n| !is_dummy_like(graph, n))
+            .collect();
+        if real_nodes.len() < 2 {
+            continue;
+        }
+        for i in 1..real_nodes.len() {
+            let left = real_nodes[i - 1];
+            let right = real_nodes[i];
+            let left_cx = coords.get(&left).copied().unwrap_or(0.0);
+            let right_cx = coords.get(&right).copied().unwrap_or(0.0);
+            let left_half = get_width(graph, left, config.direction) / 2.0;
+            let right_half = get_width(graph, right, config.direction) / 2.0;
+            let min_center_dist = left_half + config.node_sep + right_half;
+            if right_cx - left_cx < min_center_dist {
+                coords.insert(right, left_cx + min_center_dist);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,7 +246,7 @@ mod tests {
         acyclic::run(&mut lg);
         rank::run(&mut lg, &LayoutConfig::default());
         rank::normalize(&mut lg);
-        order::run(&mut lg);
+        order::run(&mut lg, false);
         run(&mut lg, config);
         lg
     }
@@ -342,5 +400,104 @@ mod tests {
 
         assert_eq!(lg.positions[sg_idx], Point::default());
         assert_ne!(lg.positions[a_idx], Point::default());
+    }
+
+    #[test]
+    fn test_position_vertical_per_gap_spacing() {
+        // A -> B -> C with rank_sep_overrides making the A->B gap wider
+        let mut config = LayoutConfig {
+            direction: Direction::TopBottom,
+            node_sep: 10.0,
+            rank_sep: 20.0,
+            margin: 5.0,
+            ..Default::default()
+        };
+        // Override gap at rank 0 to be 50.0 instead of 20.0.
+        config.rank_sep_overrides.insert(0, 50.0);
+
+        let lg = run_full_layout(
+            &[("A", 50.0, 30.0), ("B", 50.0, 30.0), ("C", 50.0, 30.0)],
+            &[("A", "B"), ("B", "C")],
+            &config,
+        );
+
+        let a_y = lg.positions[lg.node_index[&"A".into()]].y;
+        let b_y = lg.positions[lg.node_index[&"B".into()]].y;
+        let c_y = lg.positions[lg.node_index[&"C".into()]].y;
+
+        // A->B gap should be wider than B->C gap
+        let gap_ab = b_y - a_y;
+        let gap_bc = c_y - b_y;
+
+        assert!(
+            gap_ab > gap_bc,
+            "A->B gap ({}) should be wider than B->C gap ({}) due to override",
+            gap_ab,
+            gap_bc,
+        );
+    }
+
+    #[test]
+    fn test_position_horizontal_per_gap_spacing() {
+        let mut config = LayoutConfig {
+            direction: Direction::LeftRight,
+            node_sep: 10.0,
+            rank_sep: 20.0,
+            margin: 5.0,
+            ..Default::default()
+        };
+        config.rank_sep_overrides.insert(0, 50.0);
+
+        let lg = run_full_layout(
+            &[("A", 50.0, 30.0), ("B", 50.0, 30.0), ("C", 50.0, 30.0)],
+            &[("A", "B"), ("B", "C")],
+            &config,
+        );
+
+        let a_x = lg.positions[lg.node_index[&"A".into()]].x;
+        let b_x = lg.positions[lg.node_index[&"B".into()]].x;
+        let c_x = lg.positions[lg.node_index[&"C".into()]].x;
+
+        let gap_ab = b_x - a_x;
+        let gap_bc = c_x - b_x;
+
+        assert!(
+            gap_ab > gap_bc,
+            "A->B gap ({}) should be wider than B->C gap ({}) due to override",
+            gap_ab,
+            gap_bc,
+        );
+    }
+
+    #[test]
+    fn test_position_no_overrides_unchanged() {
+        // Without overrides, all gaps should be equal (same as current behavior)
+        let config = LayoutConfig {
+            direction: Direction::TopBottom,
+            node_sep: 10.0,
+            rank_sep: 20.0,
+            margin: 5.0,
+            ..Default::default()
+        };
+
+        let lg = run_full_layout(
+            &[("A", 50.0, 30.0), ("B", 50.0, 30.0), ("C", 50.0, 30.0)],
+            &[("A", "B"), ("B", "C")],
+            &config,
+        );
+
+        let a_y = lg.positions[lg.node_index[&"A".into()]].y;
+        let b_y = lg.positions[lg.node_index[&"B".into()]].y;
+        let c_y = lg.positions[lg.node_index[&"C".into()]].y;
+
+        let gap_ab = b_y - a_y;
+        let gap_bc = c_y - b_y;
+
+        assert!(
+            (gap_ab - gap_bc).abs() < 0.001,
+            "Without overrides, gaps should be equal: ab={}, bc={}",
+            gap_ab,
+            gap_bc,
+        );
     }
 }

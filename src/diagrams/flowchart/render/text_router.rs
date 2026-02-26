@@ -319,6 +319,83 @@ pub fn generate_backward_waypoints(
     }
 }
 
+/// Generate backward channel waypoints that clear all intermediate nodes.
+///
+/// Unlike `generate_backward_waypoints` which only considers source and target,
+/// this checks ALL nodes in the corridor between source and target to ensure
+/// the channel lane clears them all. Used when the orthogonal router identified
+/// a corridor-obstructed backward edge (signalled by a routed draw path).
+fn generate_corridor_backward_waypoints(
+    edge: &Edge,
+    layout: &Layout,
+    src_bounds: &NodeBounds,
+    tgt_bounds: &NodeBounds,
+    direction: Direction,
+) -> Vec<(usize, usize)> {
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            let y_min = src_bounds.y.min(tgt_bounds.y);
+            let y_max = (src_bounds.y + src_bounds.height).max(tgt_bounds.y + tgt_bounds.height);
+
+            // Find the rightmost edge of any node in the vertical corridor
+            let mut right_edge =
+                (src_bounds.x + src_bounds.width).max(tgt_bounds.x + tgt_bounds.width);
+            for (node_id, bounds) in &layout.node_bounds {
+                if node_id == &edge.from || node_id == &edge.to {
+                    continue;
+                }
+                let node_bottom = bounds.y + bounds.height;
+                if bounds.y < y_max && node_bottom > y_min {
+                    right_edge = right_edge.max(bounds.x + bounds.width);
+                }
+            }
+
+            let route_x = right_edge + BACKWARD_ROUTE_GAP;
+            vec![
+                (route_x, src_bounds.center_y()),
+                (route_x, tgt_bounds.center_y()),
+            ]
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            let x_min = src_bounds.x.min(tgt_bounds.x);
+            let x_max = (src_bounds.x + src_bounds.width).max(tgt_bounds.x + tgt_bounds.width);
+
+            // Find the bottommost edge of any node in the horizontal corridor
+            let mut bottom_edge =
+                (src_bounds.y + src_bounds.height).max(tgt_bounds.y + tgt_bounds.height);
+            for (node_id, bounds) in &layout.node_bounds {
+                if node_id == &edge.from || node_id == &edge.to {
+                    continue;
+                }
+                let node_right = bounds.x + bounds.width;
+                if bounds.x < x_max && node_right > x_min {
+                    bottom_edge = bottom_edge.max(bounds.y + bounds.height);
+                }
+            }
+
+            let route_y = bottom_edge + BACKWARD_ROUTE_GAP;
+            match direction {
+                Direction::LeftRight => {
+                    let right_edge =
+                        (src_bounds.x + src_bounds.width).max(tgt_bounds.x + tgt_bounds.width);
+                    vec![
+                        (src_bounds.x.saturating_sub(1), route_y),
+                        (right_edge + BACKWARD_ROUTE_GAP, route_y),
+                    ]
+                }
+                Direction::RightLeft => {
+                    let left_edge = src_bounds.x.min(tgt_bounds.x);
+                    vec![
+                        (src_bounds.x + src_bounds.width, route_y),
+                        (left_edge.saturating_sub(BACKWARD_ROUTE_GAP), route_y),
+                    ]
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+}
+
 /// Route an edge between two nodes.
 pub fn route_edge(
     edge: &Edge,
@@ -363,29 +440,48 @@ pub fn route_edge(
             && edge.to_subgraph.is_none()
             && !node_inside_any_subgraph(layout, &edge.from)
             && !node_inside_any_subgraph(layout, &edge.to)
-            && from_bounds.center_x() <= to_bounds.x + to_bounds.width
-            && layout
-                .edge_waypoints
-                .get(&edge.index)
-                .is_some_and(|wps| wps.len() >= 4)
-            && is_backward_edge(&from_bounds, &to_bounds, diagram_direction);
+            && is_backward_edge(&from_bounds, &to_bounds, diagram_direction)
+            && layout.routed_edge_paths.contains_key(&edge.index);
 
-    if use_routed_draw_path
-        && let Some(draw_path) = layout.routed_edge_paths.get(&edge.index)
-        && let Some(routed) = route_edge_from_draw_path(
+    if use_routed_draw_path {
+        if let Some(draw_path) = layout.routed_edge_paths.get(&edge.index)
+            && let Some(routed) = route_edge_from_draw_path(
+                edge,
+                layout,
+                &endpoints,
+                draw_path,
+                diagram_direction,
+                RoutingOverrides {
+                    src_attach: src_attach_override,
+                    tgt_attach: tgt_attach_override,
+                    src_first_vertical,
+                },
+            )
+        {
+            return Some(routed);
+        }
+        // Float→integer draw path collided with intermediate nodes.
+        // Build a clean channel path directly in integer coordinates.
+        let channel_wps = generate_corridor_backward_waypoints(
             edge,
             layout,
-            &endpoints,
-            draw_path,
+            &from_bounds,
+            &to_bounds,
             diagram_direction,
-            RoutingOverrides {
-                src_attach: src_attach_override,
-                tgt_attach: tgt_attach_override,
+        );
+        if !channel_wps.is_empty() {
+            // Don't pass plan overrides — they target the old face assignment.
+            // The waypoint approach angles determine the correct attachment.
+            return route_backward_with_synthetic_waypoints(
+                edge,
+                &endpoints,
+                &channel_wps,
+                diagram_direction,
+                None,
+                None,
                 src_first_vertical,
-            },
-        )
-    {
-        return Some(routed);
+            );
+        }
     }
 
     // Check for waypoints from normalization — works for both forward and backward long edges
@@ -583,11 +679,13 @@ fn waypoint_is_outside_face(waypoint: (usize, usize), bounds: &NodeBounds, face:
     let right = bounds.x + bounds.width.saturating_sub(1);
     let top = bounds.y;
     let bottom = bounds.y + bounds.height.saturating_sub(1);
+    // Allow waypoints on the face boundary (>=, <=) — float-to-integer
+    // rounding can place channel-lane waypoints exactly on the face edge.
     match face {
-        NodeFace::Top => waypoint.1 < top,
-        NodeFace::Bottom => waypoint.1 > bottom,
-        NodeFace::Left => waypoint.0 < left,
-        NodeFace::Right => waypoint.0 > right,
+        NodeFace::Top => waypoint.1 <= top,
+        NodeFace::Bottom => waypoint.1 >= bottom,
+        NodeFace::Left => waypoint.0 <= left,
+        NodeFace::Right => waypoint.0 >= right,
     }
 }
 

@@ -44,14 +44,14 @@ mod position;
 mod rank;
 pub mod types;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 
 pub use graph::DiGraph;
 use graph::LayoutGraph;
 pub use types::{
-    Direction, EdgeLayout, LayoutConfig, LayoutResult, NodeId, Point, Ranker, Rect, SelfEdge,
-    SelfEdgeLayout,
+    Direction, EdgeLayout, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Ranker,
+    Rect, SelfEdge, SelfEdgeLayout,
 };
 
 /// Double all edge minlens to create a uniform rank grid.
@@ -63,6 +63,151 @@ pub use types::{
 pub(crate) fn make_space_for_edge_labels(lg: &mut LayoutGraph) {
     for minlen in &mut lg.edge_minlens {
         *minlen *= 2;
+    }
+}
+
+/// Bump minlen only for edges that carry labels.
+///
+/// Unlike `make_space_for_edge_labels` (which doubles ALL minlens), this only
+/// ensures labeled edges have minlen >= 2 so a label dummy can be inserted.
+/// Unlabeled edges keep their original minlen. This produces more compact layouts
+/// when only a few edges have labels.
+pub(crate) fn make_space_for_labeled_edges(
+    lg: &mut LayoutGraph,
+    edge_labels: &HashMap<usize, normalize::EdgeLabelInfo>,
+) {
+    for (edge_idx, minlen) in lg.edge_minlens.iter_mut().enumerate() {
+        if edge_labels.contains_key(&edge_idx) {
+            *minlen = (*minlen).max(2);
+        }
+    }
+}
+
+/// Move label dummies to the widest layer in their chain to minimize width increase.
+///
+/// For each labeled edge's dummy chain, computes the total node width per layer
+/// and swaps the label dummy to the layer with the most existing width. This
+/// avoids adding label width to a narrow layer that would widen the layout.
+///
+/// Runs after normalization, before crossing reduction.
+pub(crate) fn switch_label_dummies(lg: &mut LayoutGraph, strategy: LabelDummyStrategy) {
+    if strategy == LabelDummyStrategy::Midpoint {
+        return;
+    }
+
+    // Pre-compute total width per rank
+    let mut rank_widths: HashMap<i32, f64> = HashMap::new();
+    for (idx, &rank) in lg.ranks.iter().enumerate() {
+        *rank_widths.entry(rank).or_default() += lg.dimensions[idx].0;
+    }
+
+    for chain in &mut lg.dummy_chains {
+        let Some(label_idx) = chain.label_dummy_index else {
+            continue;
+        };
+
+        // Find the widest layer among all dummies in this chain
+        let best_idx = chain
+            .dummy_ids
+            .iter()
+            .enumerate()
+            .max_by(|(_, a_id), (_, b_id)| {
+                let a_rank = lg.node_index.get(a_id).map(|&i| lg.ranks[i]).unwrap_or(0);
+                let b_rank = lg.node_index.get(b_id).map(|&i| lg.ranks[i]).unwrap_or(0);
+                let a_w = rank_widths.get(&a_rank).copied().unwrap_or(0.0);
+                let b_w = rank_widths.get(&b_rank).copied().unwrap_or(0.0);
+                a_w.partial_cmp(&b_w).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i)
+            .unwrap_or(label_idx);
+
+        if best_idx != label_idx {
+            // Swap: label dummy becomes Edge dummy, target becomes EdgeLabel dummy
+            let label_id = chain.dummy_ids[label_idx].clone();
+            let target_id = chain.dummy_ids[best_idx].clone();
+
+            if let (Some(label_dummy), Some(_target_dummy)) = (
+                lg.dummy_nodes.get(&label_id).cloned(),
+                lg.dummy_nodes.get(&target_id).cloned(),
+            ) {
+                // Swap types and dimensions in dummy_nodes
+                let label_w = label_dummy.width;
+                let label_h = label_dummy.height;
+                let label_pos = label_dummy.label_pos;
+
+                if let Some(d) = lg.dummy_nodes.get_mut(&label_id) {
+                    d.dummy_type = normalize::DummyType::Edge;
+                    d.width = 0.0;
+                    d.height = 0.0;
+                }
+                if let Some(d) = lg.dummy_nodes.get_mut(&target_id) {
+                    d.dummy_type = normalize::DummyType::EdgeLabel;
+                    d.width = label_w;
+                    d.height = label_h;
+                    d.label_pos = label_pos;
+                }
+
+                // Swap dimensions in the graph arrays
+                let label_graph_idx = lg.node_index[&label_id];
+                let target_graph_idx = lg.node_index[&target_id];
+                lg.dimensions[label_graph_idx] = (0.0, 0.0);
+                lg.dimensions[target_graph_idx] = (label_w, label_h);
+
+                chain.label_dummy_index = Some(best_idx);
+            }
+        }
+    }
+}
+
+/// Assign Above/Below sides to label dummies to reduce label-label overlaps.
+///
+/// After crossing reduction, label dummies sharing a layer are differentiated:
+/// - Single label in layer → Center (unchanged)
+/// - Two labels → first gets Above, last gets Below
+/// - Three+ labels → first Above, last Below, rest Center
+///
+/// Runs after `order::run()` which establishes the definitive node ordering.
+pub(crate) fn select_label_sides(lg: &mut LayoutGraph) {
+    use normalize::{DummyType, LabelSide};
+
+    // Build layers from current ranks and ordering
+    let layers = rank::by_rank_filtered(lg, |node| lg.ranks[node] >= 0);
+    // Sort each layer by order
+    let mut sorted_layers = layers;
+    for layer in &mut sorted_layers {
+        layer.sort_by_key(|&node| lg.order[node]);
+    }
+
+    for layer in &sorted_layers {
+        // Collect label dummy node indices in layer order
+        let label_dummies: Vec<usize> = layer
+            .iter()
+            .filter(|&&node_idx| {
+                let node_id = &lg.node_ids[node_idx];
+                lg.dummy_nodes
+                    .get(node_id)
+                    .map(|d| d.dummy_type == DummyType::EdgeLabel)
+                    .unwrap_or(false)
+            })
+            .copied()
+            .collect();
+
+        let count = label_dummies.len();
+        if count <= 1 {
+            continue; // Single or no label: keep Center
+        }
+        for (i, &node_idx) in label_dummies.iter().enumerate() {
+            let node_id = &lg.node_ids[node_idx];
+            if let Some(dummy) = lg.dummy_nodes.get_mut(node_id) {
+                dummy.label_side = if i == 0 {
+                    LabelSide::Above
+                } else if i == count - 1 {
+                    LabelSide::Below
+                } else {
+                    LabelSide::Center
+                };
+            }
+        }
     }
 }
 
@@ -322,6 +467,7 @@ fn insert_self_edge_dummies(lg: &mut LayoutGraph) {
         lg.dimensions.push((1.0, 1.0));
         lg.original_has_predecessor.push(false);
         lg.parents.push(lg.parents[se.node_index]);
+        lg.model_order.push(None);
 
         // Insert into ordering: place dummy right after the node
         // Shift all nodes at this rank with order > node_order
@@ -708,13 +854,21 @@ where
         acyclic::run(&mut lg);
     }
 
-    // Phase 1.5: Double minlen and halve ranksep to create a uniform rank grid.
-    // Matches dagre.js makeSpaceForEdgeLabels(): with doubled minlen every edge
-    // spans at least 2 ranks, so halved ranksep preserves the user-facing spacing
-    // while intermediate (0-height) ranks add only half the gap.
+    // Phase 1.5: Create space for edge label dummies.
+    // Two strategies (both halve rank_sep to compensate for the doubled minlen model):
+    // - per_edge_label_spacing: only bump labeled edges to minlen >= 2.
+    //   Unlabeled edges keep minlen=1, so they span only 1 rank gap (rank_sep/2),
+    //   making layouts more compact when few edges have labels.
+    // - global (dagre-compatible): double ALL minlens. Every edge spans 2+ ranks,
+    //   so the halved rank_sep cancels out uniformly. Matches dagre.js behavior.
     // Must be before nesting::run so nesting minlen multiplication applies to these too.
-    make_space_for_edge_labels(&mut lg);
     let mut config = config.clone();
+    let original_rank_sep = config.rank_sep;
+    if config.per_edge_label_spacing {
+        make_space_for_labeled_edges(&mut lg, edge_labels);
+    } else {
+        make_space_for_edge_labels(&mut lg);
+    }
     config.rank_sep /= 2.0;
 
     // Compound: add nesting structure (border top/bottom, nesting edges).
@@ -767,8 +921,13 @@ where
         .collect();
 
     // Phase 2.5: Normalize long edges (insert dummy nodes)
-    normalize::run(&mut lg, edge_labels);
+    normalize::run(&mut lg, edge_labels, config.track_reversed_chains);
     debug_dump_pipeline(&lg, "after_normalize");
+
+    // Phase 2.6: Optionally move label dummies to widest layer
+    if config.label_dummy_strategy != LabelDummyStrategy::Midpoint {
+        switch_label_dummies(&mut lg, config.label_dummy_strategy);
+    }
 
     // Compound: assign dummy chain parents to match compound hierarchy.
     if has_compound {
@@ -782,14 +941,53 @@ where
         debug_dump_pipeline(&lg, "after_border_segments");
     }
 
+    // Clear model_order when tie-breaking is disabled so that it has no effect
+    // on barycenter sorting (None.cmp(&None) == Equal).
+    if !config.model_order_tiebreak {
+        lg.model_order.fill(None);
+    }
+
     // Phase 3: Reduce crossings (now includes dummy nodes and border segments)
-    order::run(&mut lg);
+    order::run(&mut lg, config.greedy_switch);
     debug_dump_pipeline(&lg, "after_order");
+
+    // Phase 3.6: Assign Above/Below sides to label dummies to reduce overlaps
+    if config.label_side_selection {
+        select_label_sides(&mut lg);
+    }
 
     // Phase 3.5: Insert self-edge dummies (after ordering, before positioning)
     insert_self_edge_dummies(&mut lg);
 
-    // Phase 4: Assign coordinates
+    // Compute per-gap variable spacing overrides from edge density.
+    // Dense gaps (3+ forward edges) get extra space proportional to edge count
+    // above the threshold. Sparse gaps use base rank_sep (no override).
+    // Based on research 0056 Q5 (routing-driven spacing, option B2).
+    if config.variable_rank_spacing {
+        config.rank_sep_overrides = compute_rank_sep_overrides(&lg, &config);
+    }
+
+    // Per-edge label spacing: restore full rank_sep for gaps that don't contain
+    // label dummies. The halved rank_sep was needed for ranking (so labeled edges
+    // with minlen=2 span ~original_rank_sep total), but unlabeled edges with
+    // minlen=1 would only get half the normal spacing. Override those gaps back
+    // to the original rank_sep so unlabeled edges maintain normal spacing.
+    if config.per_edge_label_spacing {
+        let label_gap_ranks = label_dummy_gap_ranks(&lg);
+        let min_rank = lg.ranks.iter().copied().min().unwrap_or(0);
+        let max_rank = lg.ranks.iter().copied().max().unwrap_or(0);
+        for rank in min_rank..max_rank {
+            if !label_gap_ranks.contains(&rank) {
+                config
+                    .rank_sep_overrides
+                    .entry(rank)
+                    .and_modify(|v| *v = (*v).max(original_rank_sep))
+                    .or_insert(original_rank_sep);
+            }
+        }
+    }
+
+    // Phase 4: Assign coordinates (now uses per-gap overrides via rank_sep_for_gap)
     position::run(&mut lg, &config);
 
     // Phase 4.5: Compute self-edge loop paths
@@ -805,11 +1003,25 @@ where
     // Extract waypoints from dummy positions
     let edge_waypoints = normalize::denormalize(&lg);
 
-    // Extract label positions
+    // Extract label positions and sides
     let mut label_positions = HashMap::new();
+    let mut label_sides = HashMap::new();
     for chain in &lg.dummy_chains {
-        if let Some(pos) = normalize::get_label_position(&lg, chain.edge_index) {
+        let edge_info = edge_labels.get(&chain.edge_index);
+        let thickness = edge_info.map(|i| i.thickness).unwrap_or(1.0);
+        if let Some(pos) = normalize::get_label_position_with_thickness(
+            &lg,
+            chain.edge_index,
+            thickness,
+            config.edge_label_spacing,
+        ) {
             label_positions.insert(chain.edge_index, pos);
+        }
+        if let Some(label_idx) = chain.label_dummy_index {
+            let dummy_id = &chain.dummy_ids[label_idx];
+            if let Some(dummy) = lg.dummy_nodes.get(dummy_id) {
+                label_sides.insert(chain.edge_index, dummy.label_side);
+            }
         }
     }
 
@@ -999,6 +1211,7 @@ where
         height: 0.0,
         edge_waypoints,
         label_positions,
+        label_sides,
         subgraph_bounds,
         self_edges: self_edge_layouts,
         rank_to_position,
@@ -1016,9 +1229,429 @@ where
     result
 }
 
+/// Count forward edges crossing each rank gap.
+///
+/// Returns a map from rank to the number of forward edges crossing the gap
+/// between that rank and the next occupied rank. An edge from rank `r_src`
+/// to rank `r_tgt` (where `r_src < r_tgt`) contributes to every gap in
+/// [r_src, r_tgt - 1].
+///
+/// Only counts non-reversed edges (forward edges). Reversed edges use outer
+/// lanes and don't consume inter-layer routing slots. Edges involving border
+/// nodes are also excluded since those are structural compound-graph edges
+/// that don't need routing space.
+pub(crate) fn count_forward_edges_per_gap(lg: &LayoutGraph) -> HashMap<i32, usize> {
+    let mut counts: HashMap<i32, usize> = HashMap::new();
+
+    for (edge_pos, &(from, to, _orig_idx)) in lg.edges.iter().enumerate() {
+        // Skip reversed (backward) edges
+        if lg.reversed_edges.contains(&edge_pos) {
+            continue;
+        }
+
+        // Skip excluded edges (nesting edges)
+        if lg.excluded_edges.contains(&edge_pos) {
+            continue;
+        }
+
+        // Skip edges involving border nodes (structural compound graph edges)
+        if lg.border_type.contains_key(&from) || lg.border_type.contains_key(&to) {
+            continue;
+        }
+
+        let r_from = lg.ranks[from];
+        let r_to = lg.ranks[to];
+
+        // Forward edge: source rank < target rank
+        let (r_lo, r_hi) = if r_from < r_to {
+            (r_from, r_to)
+        } else if r_to < r_from {
+            (r_to, r_from)
+        } else {
+            continue; // same-rank edge, no gap crossing
+        };
+
+        // This edge crosses every gap from r_lo to r_hi - 1
+        for rank in r_lo..r_hi {
+            *counts.entry(rank).or_insert(0) += 1;
+        }
+    }
+
+    counts
+}
+
+/// Compute per-rank-gap spacing overrides based on edge density.
+///
+/// For each rank gap, counts the number of forward edges crossing it.
+/// Gaps with more than `threshold` edges get inflated spacing to give
+/// the orthogonal router more room for edge separation.
+///
+/// Returns a map from rank to the override rank_sep for the gap after
+/// that rank. Only contains entries for gaps that exceed the threshold;
+/// gaps at or below the threshold use the base `config.rank_sep`.
+///
+/// Based on research 0056 Q5 (routing-driven spacing, option B2).
+pub(crate) fn compute_rank_sep_overrides(
+    lg: &LayoutGraph,
+    config: &LayoutConfig,
+) -> HashMap<i32, f64> {
+    let edge_counts = count_forward_edges_per_gap(lg);
+    let threshold: usize = 3;
+    let mut overrides = HashMap::new();
+
+    // Use half of edge_sep as the per-edge inflation multiplier.
+    // Full edge_sep (20.0) produces excessive inflation because each edge
+    // contributes to every intermediate gap (doubled minlen means 2 gaps
+    // per direct edge). Half the multiplier keeps the total inflation
+    // proportional to a single routing channel width per extra edge.
+    let edge_inflation = config.edge_sep / 2.0;
+
+    for (&rank, &count) in &edge_counts {
+        if count > threshold {
+            let inflation = (count - threshold) as f64 * edge_inflation;
+            overrides.insert(rank, config.rank_sep + inflation);
+        }
+    }
+
+    overrides
+}
+
+/// Identify rank gaps that contain label dummy nodes.
+///
+/// A label dummy sits between two ranks; the "gap" is identified by the
+/// lower rank number. For example, a label dummy at rank 1 sits in the
+/// gap between rank 0 and rank 1, so rank 0 is in the returned set.
+fn label_dummy_gap_ranks(lg: &LayoutGraph) -> HashSet<i32> {
+    let mut gaps = HashSet::new();
+    for (id, dummy) in &lg.dummy_nodes {
+        if dummy.dummy_type == normalize::DummyType::EdgeLabel
+            && let Some(&idx) = lg.node_index.get(id)
+        {
+            let rank = lg.ranks[idx];
+            // Label dummy at rank R sits in the gap R-1..R.
+            // Only that gap needs the halved rank_sep; the gap R..R+1
+            // may contain unlabeled edges that need full rank_sep.
+            gaps.insert(rank - 1);
+        }
+    }
+    gaps
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Test helper: run the layout pipeline up to rank assignment and count forward edges per gap.
+    fn count_edges_per_gap_for_test(
+        graph: &DiGraph<(f64, f64)>,
+        config: &LayoutConfig,
+    ) -> HashMap<i32, usize> {
+        let mut lg = LayoutGraph::from_digraph(graph, |_, dims| *dims);
+        extract_self_edges(&mut lg);
+        if config.acyclic {
+            acyclic::run(&mut lg);
+        }
+        make_space_for_edge_labels(&mut lg);
+        let mut config = config.clone();
+        config.rank_sep /= 2.0;
+        rank::run(&mut lg, &config);
+        rank::normalize(&mut lg);
+        count_forward_edges_per_gap(&lg)
+    }
+
+    #[test]
+    fn count_edges_per_gap_linear_chain() {
+        // A -> B -> C: 1 edge in each gap
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_node("C", (10.0, 10.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("B", "C");
+
+        let config = LayoutConfig::default();
+        let counts = count_edges_per_gap_for_test(&graph, &config);
+        // Each gap should have exactly 1 edge
+        assert!(
+            counts.values().all(|&c| c <= 1),
+            "Linear chain should have at most 1 edge per gap, got {:?}",
+            counts
+        );
+    }
+
+    #[test]
+    fn count_edges_per_gap_fan_out() {
+        // A -> B, A -> C, A -> D: 3 edges in gap between A's rank and B/C/D's rank
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_node("C", (10.0, 10.0));
+        graph.add_node("D", (10.0, 10.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("A", "C");
+        graph.add_edge("A", "D");
+
+        let config = LayoutConfig::default();
+        let counts = count_edges_per_gap_for_test(&graph, &config);
+        let max_count = *counts.values().max().unwrap_or(&0);
+        assert!(
+            max_count >= 3,
+            "fan-out should have 3+ edges in densest gap, got {}",
+            max_count
+        );
+    }
+
+    #[test]
+    fn count_edges_per_gap_five_fan_in() {
+        // A,B,C,D,E -> F: 5 edges in the gap before F
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        for id in ["A", "B", "C", "D", "E", "F"] {
+            graph.add_node(id, (10.0, 10.0));
+        }
+        for src in ["A", "B", "C", "D", "E"] {
+            graph.add_edge(src, "F");
+        }
+
+        let config = LayoutConfig::default();
+        let counts = count_edges_per_gap_for_test(&graph, &config);
+        let max_count = *counts.values().max().unwrap_or(&0);
+        assert!(
+            max_count >= 5,
+            "5-fan-in should have 5 edges in densest gap, got {}",
+            max_count
+        );
+    }
+
+    #[test]
+    fn count_edges_per_gap_excludes_backward() {
+        // A -> B, B -> A (cycle): only A -> B is forward, B -> A is reversed
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("B", "A");
+
+        let config = LayoutConfig::default();
+        let counts = count_edges_per_gap_for_test(&graph, &config);
+        let max_count = *counts.values().max().unwrap_or(&0);
+        // Only the forward edge (A->B) should be counted; B->A is reversed
+        assert!(
+            max_count <= 1,
+            "backward edge should not be counted, got max {}",
+            max_count
+        );
+    }
+
+    #[test]
+    fn count_edges_per_gap_excludes_long_backward_chain() {
+        // A -> B -> C -> D, D -> A (reversed long edge spanning 3 ranks).
+        // After normalization, D -> A becomes 3 chain edges. These chain edges
+        // must NOT be counted as forward edges — they represent a backward edge.
+        // Only A->B, B->C, C->D (1 edge per gap) should be counted.
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        for id in ["A", "B", "C", "D"] {
+            graph.add_node(id, (10.0, 10.0));
+        }
+        graph.add_edge("A", "B");
+        graph.add_edge("B", "C");
+        graph.add_edge("C", "D");
+        graph.add_edge("D", "A"); // backward edge
+
+        let config = LayoutConfig::default();
+        let counts = count_edges_per_gap_for_test(&graph, &config);
+        let max_count = *counts.values().max().unwrap_or(&0);
+        // Each gap should have exactly 1 forward edge (A->B, B->C, C->D).
+        // The reversed D->A chain edges should NOT be counted.
+        assert!(
+            max_count <= 1,
+            "reversed long edge chain should not inflate gap counts, got max {}; counts: {:?}",
+            max_count,
+            counts
+        );
+    }
+
+    // Phase 1 (global inflation B1) was prototyped and discarded in favor of
+    // per-gap variable spacing (B2). The global approach inflated ALL gaps
+    // uniformly, which wasted space in sparse gaps of mixed-density diagrams
+    // and caused compound-graph test failures. Per-gap tests are below.
+
+    /// Test helper: run the pipeline up to rank assignment and compute rank_sep overrides.
+    fn compute_overrides_for_test(
+        graph: &DiGraph<(f64, f64)>,
+        config: &LayoutConfig,
+    ) -> HashMap<i32, f64> {
+        let mut lg = LayoutGraph::from_digraph(graph, |_, dims| *dims);
+        extract_self_edges(&mut lg);
+        if config.acyclic {
+            acyclic::run(&mut lg);
+        }
+        make_space_for_edge_labels(&mut lg);
+        let mut config = config.clone();
+        config.rank_sep /= 2.0;
+        rank::run(&mut lg, &config);
+        rank::normalize(&mut lg);
+        compute_rank_sep_overrides(&lg, &config)
+    }
+
+    #[test]
+    fn compute_overrides_five_fan_in_inflates_dense_gap() {
+        // A,B,C,D,E -> F: 5 edges in one gap, all other gaps have 0-1
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        for id in ["A", "B", "C", "D", "E", "F"] {
+            graph.add_node(id, (10.0, 10.0));
+        }
+        for src in ["A", "B", "C", "D", "E"] {
+            graph.add_edge(src, "F");
+        }
+
+        let config = LayoutConfig::default();
+        let overrides = compute_overrides_for_test(&graph, &config);
+
+        // There should be at least one override with a value > base rank_sep
+        let base = config.rank_sep / 2.0; // after halving in layout_with_labels
+        let has_inflation = overrides.values().any(|&v| v > base);
+        assert!(
+            has_inflation,
+            "Should have at least one inflated gap, overrides: {:?}",
+            overrides
+        );
+    }
+
+    #[test]
+    fn compute_overrides_linear_chain_no_overrides() {
+        // A -> B -> C: max 1 edge per gap, no inflation needed
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_node("C", (10.0, 10.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("B", "C");
+
+        let config = LayoutConfig::default();
+        let overrides = compute_overrides_for_test(&graph, &config);
+
+        // No gap has more than threshold edges, so no overrides needed
+        assert!(
+            overrides.is_empty(),
+            "Linear chain should have no overrides, got: {:?}",
+            overrides
+        );
+    }
+
+    #[test]
+    fn compute_overrides_mixed_density() {
+        // A -> B, A -> C (fan-out, 2 edges in gap)
+        // B -> D, C -> D (fan-in, 2 edges in gap)
+        // Plus E -> D, F -> D (adds to fan-in gap, exceeding threshold)
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        for id in ["A", "B", "C", "D", "E", "F"] {
+            graph.add_node(id, (10.0, 10.0));
+        }
+        graph.add_edge("A", "B");
+        graph.add_edge("A", "C");
+        graph.add_edge("B", "D");
+        graph.add_edge("C", "D");
+        graph.add_edge("E", "D");
+        graph.add_edge("F", "D");
+
+        let config = LayoutConfig::default();
+        let overrides = compute_overrides_for_test(&graph, &config);
+
+        // The fan-in gap before D should have an override (4+ edges),
+        // but the fan-out gap after A has only 2 edges (at threshold)
+        let has_some_override = !overrides.is_empty();
+        assert!(
+            has_some_override,
+            "Mixed graph should have at least one override"
+        );
+    }
+
+    #[test]
+    fn layout_five_fan_in_denser_gap_than_sparse() {
+        // Two-layer graph: A,B,C,D,E -> F (5 edges in one gap).
+        // With per-gap spacing, the gap between source and target ranks should
+        // be wider than in a simple 1-edge graph.
+        let mut graph_dense: DiGraph<(f64, f64)> = DiGraph::new();
+        for id in ["A", "B", "C", "D", "E", "F"] {
+            graph_dense.add_node(id, (10.0, 10.0));
+        }
+        for src in ["A", "B", "C", "D", "E"] {
+            graph_dense.add_edge(src, "F");
+        }
+
+        let mut graph_sparse: DiGraph<(f64, f64)> = DiGraph::new();
+        graph_sparse.add_node("X", (10.0, 10.0));
+        graph_sparse.add_node("Y", (10.0, 10.0));
+        graph_sparse.add_edge("X", "Y");
+
+        let config = LayoutConfig {
+            variable_rank_spacing: true,
+            ..LayoutConfig::default()
+        };
+        let dense_result = layout(&graph_dense, &config, |_, dims| *dims);
+        let sparse_result = layout(&graph_sparse, &config, |_, dims| *dims);
+
+        // Dense layout should be taller because its gap is inflated
+        assert!(
+            dense_result.height > sparse_result.height,
+            "Dense 5-fan-in (h={}) should be taller than sparse (h={})",
+            dense_result.height,
+            sparse_result.height,
+        );
+    }
+
+    #[test]
+    fn layout_mixed_density_selective_inflation() {
+        // A -> B -> C, A -> C (long edge), D -> C, E -> C
+        // The gap before C should be denser than the gap after A
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        for id in ["A", "B", "C", "D", "E"] {
+            graph.add_node(id, (10.0, 10.0));
+        }
+        graph.add_edge("A", "B");
+        graph.add_edge("B", "C");
+        graph.add_edge("A", "C"); // long edge, crosses both gaps
+        graph.add_edge("D", "C");
+        graph.add_edge("E", "C");
+
+        let config = LayoutConfig {
+            variable_rank_spacing: true,
+            ..LayoutConfig::default()
+        };
+        let result = layout(&graph, &config, |_, dims| *dims);
+
+        // Should produce a valid layout without panicking
+        assert!(result.height > 0.0);
+        assert_eq!(result.nodes.len(), 5);
+    }
+
+    #[test]
+    fn layout_sparse_graph_unchanged_by_variable_spacing() {
+        // A -> B -> C: no dense gaps, layout should be identical to fixed rank_sep
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_node("C", (10.0, 10.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("B", "C");
+
+        let config = LayoutConfig::default();
+        let result = layout(&graph, &config, |_, dims| *dims);
+
+        let a_y = result.nodes.get(&"A".into()).unwrap().y;
+        let b_y = result.nodes.get(&"B".into()).unwrap().y;
+        let c_y = result.nodes.get(&"C".into()).unwrap().y;
+
+        // Gaps should be equal (no overrides applied)
+        let gap_ab = b_y - a_y;
+        let gap_bc = c_y - b_y;
+        assert!(
+            (gap_ab - gap_bc).abs() < 1.0,
+            "Sparse chain gaps should be equal: ab={}, bc={}",
+            gap_ab,
+            gap_bc,
+        );
+    }
 
     #[test]
     fn test_simple_layout() {
@@ -1188,6 +1821,343 @@ mod tests {
     }
 
     #[test]
+    fn make_space_for_labeled_edges_only_bumps_labeled() {
+        // 3 edges: edge 0 labeled (minlen=1), edge 1 unlabeled (minlen=1),
+        // edge 2 labeled (minlen=2, already sufficient)
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (5.0, 3.0));
+        graph.add_node("B", (5.0, 3.0));
+        graph.add_node("C", (5.0, 3.0));
+        graph.add_node("D", (5.0, 3.0));
+        graph.add_edge("A", "B"); // edge 0: labeled
+        graph.add_edge("B", "C"); // edge 1: unlabeled
+        graph.add_edge("C", "D"); // edge 2: labeled
+
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+        // Set edge 2 minlen to 2 (already sufficient for a label)
+        lg.edge_minlens[2] = 2;
+
+        let mut edge_labels = HashMap::new();
+        edge_labels.insert(0, normalize::EdgeLabelInfo::new(50.0, 5.0));
+        edge_labels.insert(2, normalize::EdgeLabelInfo::new(50.0, 5.0));
+
+        make_space_for_labeled_edges(&mut lg, &edge_labels);
+
+        assert_eq!(lg.edge_minlens[0], 2); // bumped: was 1, needs at least 2
+        assert_eq!(lg.edge_minlens[1], 1); // unchanged: no label
+        assert_eq!(lg.edge_minlens[2], 2); // unchanged: already >= 2
+    }
+
+    // switch_label_dummies tests
+
+    /// Build a LayoutGraph with a long labeled edge spanning `span` ranks.
+    /// Returns graph with A at rank 0, B at rank `span`, and `span-1` dummies between.
+    /// The label dummy is at the midpoint rank.
+    fn build_graph_with_long_labeled_edge(span: usize) -> LayoutGraph {
+        use normalize::{DummyChain, DummyNode};
+
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (40.0, 20.0));
+        graph.add_node("B", (40.0, 20.0));
+        graph.add_edge("A", "B");
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+
+        let a_idx = lg.node_index[&NodeId::from("A")];
+        let b_idx = lg.node_index[&NodeId::from("B")];
+        lg.ranks[a_idx] = 0;
+        lg.ranks[b_idx] = span as i32;
+
+        let midpoint_rank = (span / 2) as i32;
+
+        let mut chain = DummyChain::new(0);
+        for r in 1..span {
+            let rank = r as i32;
+            let dummy_id = NodeId::from(format!("_d{}", r));
+            let dummy_idx = lg.node_ids.len();
+
+            let is_label = rank == midpoint_rank;
+            let (w, h) = if is_label { (30.0, 14.0) } else { (0.0, 0.0) };
+
+            let dummy_node = if is_label {
+                DummyNode::edge_label(0, rank, w, h, normalize::LabelPos::Center)
+            } else {
+                DummyNode::edge(0, rank)
+            };
+
+            lg.node_ids.push(dummy_id.clone());
+            lg.node_index.insert(dummy_id.clone(), dummy_idx);
+            lg.ranks.push(rank);
+            lg.order.push(dummy_idx);
+            lg.positions.push(Point::default());
+            lg.dimensions.push((w, h));
+            lg.original_has_predecessor.push(false);
+            lg.parents.push(None);
+            lg.model_order.push(None);
+            lg.dummy_nodes.insert(dummy_id.clone(), dummy_node);
+
+            if is_label {
+                chain.label_dummy_index = Some(chain.dummy_ids.len());
+            }
+            chain.dummy_ids.push(dummy_id);
+        }
+        lg.dummy_chains.push(chain);
+        lg
+    }
+
+    #[test]
+    fn switch_midpoint_strategy_is_noop() {
+        let mut lg = build_graph_with_long_labeled_edge(6);
+        let original_idx = lg.dummy_chains[0].label_dummy_index;
+        switch_label_dummies(&mut lg, LabelDummyStrategy::Midpoint);
+        assert_eq!(lg.dummy_chains[0].label_dummy_index, original_idx);
+    }
+
+    #[test]
+    fn switch_to_widest_layer_stays_if_midpoint_is_widest() {
+        let mut lg = build_graph_with_long_labeled_edge(6);
+        // Label is at midpoint rank 3 (chain index 2). Make rank 3 the widest
+        // by adding a wide "real" node at that rank.
+        let wide_id = NodeId::from("Wide");
+        let wide_idx = lg.node_ids.len();
+        lg.node_ids.push(wide_id.clone());
+        lg.node_index.insert(wide_id, wide_idx);
+        lg.ranks.push(3);
+        lg.order.push(wide_idx);
+        lg.positions.push(Point::default());
+        lg.dimensions.push((200.0, 20.0));
+        lg.original_has_predecessor.push(false);
+        lg.parents.push(None);
+        lg.model_order.push(None);
+
+        switch_label_dummies(&mut lg, LabelDummyStrategy::WidestLayer);
+        // Should stay at the same position since rank 3 is widest
+        assert_eq!(lg.dummy_chains[0].label_dummy_index, Some(2));
+    }
+
+    #[test]
+    fn switch_moves_label_to_wider_layer() {
+        let mut lg = build_graph_with_long_labeled_edge(6);
+        // Label is at midpoint rank 3 (chain index 2). Make rank 4 wider.
+        let wide_id = NodeId::from("Wide");
+        let wide_idx = lg.node_ids.len();
+        lg.node_ids.push(wide_id.clone());
+        lg.node_index.insert(wide_id, wide_idx);
+        lg.ranks.push(4);
+        lg.order.push(wide_idx);
+        lg.positions.push(Point::default());
+        lg.dimensions.push((200.0, 20.0));
+        lg.original_has_predecessor.push(false);
+        lg.parents.push(None);
+        lg.model_order.push(None);
+
+        switch_label_dummies(&mut lg, LabelDummyStrategy::WidestLayer);
+        // Label should move to chain index 3 (rank 4)
+        assert_eq!(lg.dummy_chains[0].label_dummy_index, Some(3));
+
+        // Verify the old label dummy is now Edge type with 0x0 dimensions
+        let old_label_id = &lg.dummy_chains[0].dummy_ids[2];
+        let old_dummy = lg.dummy_nodes.get(old_label_id).unwrap();
+        assert_eq!(old_dummy.dummy_type, normalize::DummyType::Edge);
+        assert_eq!(lg.dimensions[lg.node_index[old_label_id]], (0.0, 0.0));
+
+        // Verify the new label dummy is EdgeLabel type with label dimensions
+        let new_label_id = &lg.dummy_chains[0].dummy_ids[3];
+        let new_dummy = lg.dummy_nodes.get(new_label_id).unwrap();
+        assert_eq!(new_dummy.dummy_type, normalize::DummyType::EdgeLabel);
+        assert_eq!(lg.dimensions[lg.node_index[new_label_id]], (30.0, 14.0));
+    }
+
+    #[test]
+    fn get_label_position_uses_updated_chain_index() {
+        let mut lg = build_graph_with_long_labeled_edge(6);
+        // Make rank 4 wider to trigger a switch from midpoint (rank 3) to rank 4
+        let wide_id = NodeId::from("Wide");
+        let wide_idx = lg.node_ids.len();
+        lg.node_ids.push(wide_id.clone());
+        lg.node_index.insert(wide_id, wide_idx);
+        lg.ranks.push(4);
+        lg.order.push(wide_idx);
+        lg.positions.push(Point::default());
+        lg.dimensions.push((200.0, 20.0));
+        lg.original_has_predecessor.push(false);
+        lg.parents.push(None);
+        lg.model_order.push(None);
+
+        switch_label_dummies(&mut lg, LabelDummyStrategy::WidestLayer);
+
+        // Set positions for all dummies so get_label_position returns meaningful values
+        for (i, id) in lg.dummy_chains[0].dummy_ids.iter().enumerate() {
+            let idx = lg.node_index[id];
+            lg.positions[idx] = Point {
+                x: 10.0,
+                y: (i as f64) * 50.0,
+            };
+        }
+
+        let pos = normalize::get_label_position(&lg, 0).unwrap();
+        // After switch, label is at chain index 3 (rank 4), positioned at y=150.0
+        // With label dimensions 30x14, center would be at y=150.0+7.0=157.0
+        // (actually get_label_position uses LabelSide which defaults to Center)
+        let new_label_idx = lg.node_index[&lg.dummy_chains[0].dummy_ids[3]];
+        let expected_y = lg.positions[new_label_idx].y + lg.dimensions[new_label_idx].1 / 2.0;
+        assert!(
+            (pos.point.y - expected_y).abs() < 0.01,
+            "Label position y={} should match switched dummy center y={}",
+            pos.point.y,
+            expected_y
+        );
+    }
+
+    // select_label_sides tests
+
+    #[test]
+    fn select_label_sides_single_label_stays_center() {
+        // A -> B -> C with only A->B labeled.
+        // After normalization, there's one label dummy at the intermediate rank.
+        // Single label in a layer should stay Center.
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_node("C", (10.0, 10.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("A", "C");
+
+        let mut edge_labels = HashMap::new();
+        edge_labels.insert(0, normalize::EdgeLabelInfo::new(30.0, 10.0));
+
+        let config = LayoutConfig {
+            per_edge_label_spacing: true,
+            ..Default::default()
+        };
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+        extract_self_edges(&mut lg);
+        if config.acyclic {
+            acyclic::run(&mut lg);
+        }
+        make_space_for_labeled_edges(&mut lg, &edge_labels);
+        let mut config = config.clone();
+        config.rank_sep /= 2.0;
+        rank::run(&mut lg, &config);
+        rank::normalize(&mut lg);
+        normalize::run(&mut lg, &edge_labels, false);
+        order::run(&mut lg, false);
+        select_label_sides(&mut lg);
+
+        // Find the label dummy and check its side
+        for dummy in lg.dummy_nodes.values() {
+            if dummy.is_label() {
+                assert_eq!(
+                    dummy.label_side,
+                    normalize::LabelSide::Center,
+                    "single label dummy should stay Center"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn select_label_sides_two_parallel_labels_get_above_below() {
+        // A -> C and B -> C, both labeled. The label dummies for both edges
+        // should be in the same layer. One gets Above, the other Below.
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_node("C", (10.0, 10.0));
+        graph.add_edge("A", "C");
+        graph.add_edge("B", "C");
+
+        let mut edge_labels = HashMap::new();
+        edge_labels.insert(0, normalize::EdgeLabelInfo::new(30.0, 10.0));
+        edge_labels.insert(1, normalize::EdgeLabelInfo::new(30.0, 10.0));
+
+        let config = LayoutConfig {
+            per_edge_label_spacing: true,
+            ..Default::default()
+        };
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+        extract_self_edges(&mut lg);
+        if config.acyclic {
+            acyclic::run(&mut lg);
+        }
+        make_space_for_labeled_edges(&mut lg, &edge_labels);
+        let mut config = config.clone();
+        config.rank_sep /= 2.0;
+        rank::run(&mut lg, &config);
+        rank::normalize(&mut lg);
+        normalize::run(&mut lg, &edge_labels, false);
+        order::run(&mut lg, false);
+        select_label_sides(&mut lg);
+
+        // Collect label dummy sides
+        let mut sides: Vec<normalize::LabelSide> = lg
+            .dummy_nodes
+            .values()
+            .filter(|d| d.is_label())
+            .map(|d| d.label_side)
+            .collect();
+        sides.sort_by_key(|s| match s {
+            normalize::LabelSide::Above => 0,
+            normalize::LabelSide::Center => 1,
+            normalize::LabelSide::Below => 2,
+        });
+
+        assert_eq!(
+            sides,
+            vec![normalize::LabelSide::Above, normalize::LabelSide::Below],
+            "two label dummies in same layer should get Above and Below"
+        );
+    }
+
+    #[test]
+    fn per_edge_spacing_unlabeled_edge_has_no_dummy() {
+        // Graph: A -> B -> C, only A->B has a label.
+        // With per_edge_label_spacing=true: B->C keeps minlen=1, so no dummy node
+        // (edge_waypoints empty for edge 1). rank_sep is halved for both modes.
+        // With per_edge_label_spacing=false: B->C is doubled to minlen=2, creating
+        // a dummy node (edge_waypoints populated for edge 1).
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (10.0, 10.0));
+        graph.add_node("B", (10.0, 10.0));
+        graph.add_node("C", (10.0, 10.0));
+        graph.add_edge("A", "B"); // edge 0: labeled
+        graph.add_edge("B", "C"); // edge 1: unlabeled
+
+        let mut edge_labels = HashMap::new();
+        edge_labels.insert(0, normalize::EdgeLabelInfo::new(50.0, 5.0));
+
+        // Per-edge mode: unlabeled edge should NOT get a dummy node
+        let config_per_edge = LayoutConfig {
+            per_edge_label_spacing: true,
+            ..Default::default()
+        };
+        let result_per_edge =
+            layout_with_labels(&graph, &config_per_edge, |_, dims| *dims, &edge_labels);
+
+        // Edge 1 (B->C, unlabeled) should be a short edge — no waypoints
+        assert!(
+            !result_per_edge.edge_waypoints.contains_key(&1),
+            "per-edge: unlabeled B->C should have no waypoints (short edge)"
+        );
+        // Edge 0 (A->B, labeled) should have waypoints from label dummy
+        assert!(
+            result_per_edge.edge_waypoints.contains_key(&0)
+                || result_per_edge.label_positions.contains_key(&0),
+            "per-edge: labeled A->B should have label position"
+        );
+
+        // Global mode: unlabeled edge DOES get a dummy node
+        let config_global = LayoutConfig::default();
+        let result_global =
+            layout_with_labels(&graph, &config_global, |_, dims| *dims, &edge_labels);
+
+        // Edge 1 (B->C, unlabeled) gets doubled to minlen=2, creating a dummy
+        assert!(
+            result_global.edge_waypoints.contains_key(&1),
+            "global: unlabeled B->C should have waypoints (minlen doubled)"
+        );
+    }
+
+    #[test]
     fn test_ranksep_compensates_for_doubled_minlen() {
         // dagre.js halves ranksep when it doubles minlen (makeSpaceForEdgeLabels).
         // With doubled minlen, A→B spans 2 internal ranks with a gap rank between.
@@ -1330,6 +2300,66 @@ mod tests {
         assert!(
             label_pos.point.y > a_y && label_pos.point.y < c_y,
             "Label should be between A and C"
+        );
+    }
+
+    #[test]
+    fn parallel_labeled_edges_get_distinct_sides() {
+        // Two edges landing on the same target, both labeled.
+        // A -->|left| C
+        // B -->|right| C
+        // With side selection enabled, labels should have different y offsets.
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (40.0, 20.0));
+        graph.add_node("B", (40.0, 20.0));
+        graph.add_node("C", (40.0, 20.0));
+        graph.add_edge("A", "C"); // Edge 0 - labeled "left"
+        graph.add_edge("B", "C"); // Edge 1 - labeled "right"
+
+        let mut edge_labels = HashMap::new();
+        edge_labels.insert(0, normalize::EdgeLabelInfo::new(30.0, 14.0));
+        edge_labels.insert(1, normalize::EdgeLabelInfo::new(30.0, 14.0));
+
+        let config = LayoutConfig {
+            per_edge_label_spacing: true,
+            label_side_selection: true,
+            ..Default::default()
+        };
+        let result = layout_with_labels(&graph, &config, |_, dims| *dims, &edge_labels);
+
+        let left_pos = result
+            .label_positions
+            .get(&0)
+            .expect("edge 0 should have label position");
+        let right_pos = result
+            .label_positions
+            .get(&1)
+            .expect("edge 1 should have label position");
+
+        // Labels should have different y-coordinates (one above, one below)
+        assert!(
+            (left_pos.point.y - right_pos.point.y).abs() > 1.0,
+            "labels should be offset from each other: left y={}, right y={}",
+            left_pos.point.y,
+            right_pos.point.y,
+        );
+
+        // Without label_side_selection, labels should be at the same y (both Center)
+        let config_no_side = LayoutConfig {
+            per_edge_label_spacing: true,
+            label_side_selection: false,
+            ..Default::default()
+        };
+        let result_no_side =
+            layout_with_labels(&graph, &config_no_side, |_, dims| *dims, &edge_labels);
+        let left_no = result_no_side.label_positions.get(&0).unwrap();
+        let right_no = result_no_side.label_positions.get(&1).unwrap();
+        // Both Center: same rank → same y (within tolerance for different x positions)
+        assert!(
+            (left_no.point.y - right_no.point.y).abs() < 1.0,
+            "without side selection, labels should be near same y: left={}, right={}",
+            left_no.point.y,
+            right_no.point.y,
         );
     }
 
@@ -1491,8 +2521,8 @@ mod tests {
         // Simulate ranking and ordering
         rank::run(&mut lg, &LayoutConfig::default());
         rank::normalize(&mut lg);
-        normalize::run(&mut lg, &HashMap::new());
-        order::run(&mut lg);
+        normalize::run(&mut lg, &HashMap::new(), false);
+        order::run(&mut lg, false);
 
         let node_count_before = lg.node_ids.len();
         assert_eq!(lg.self_edges.len(), 1);
@@ -1510,8 +2540,8 @@ mod tests {
         extract_self_edges(&mut lg);
         rank::run(&mut lg, &LayoutConfig::default());
         rank::normalize(&mut lg);
-        normalize::run(&mut lg, &HashMap::new());
-        order::run(&mut lg);
+        normalize::run(&mut lg, &HashMap::new(), false);
+        order::run(&mut lg, false);
 
         let node_rank = lg.ranks[a_idx];
         insert_self_edge_dummies(&mut lg);
@@ -1527,8 +2557,8 @@ mod tests {
         extract_self_edges(&mut lg);
         rank::run(&mut lg, &LayoutConfig::default());
         rank::normalize(&mut lg);
-        normalize::run(&mut lg, &HashMap::new());
-        order::run(&mut lg);
+        normalize::run(&mut lg, &HashMap::new(), false);
+        order::run(&mut lg, false);
 
         let node_order = lg.order[a_idx];
         insert_self_edge_dummies(&mut lg);
@@ -1565,8 +2595,8 @@ mod tests {
         extract_self_edges(&mut lg);
         rank::run(&mut lg, &LayoutConfig::default());
         rank::normalize(&mut lg);
-        normalize::run(&mut lg, &HashMap::new());
-        order::run(&mut lg);
+        normalize::run(&mut lg, &HashMap::new(), false);
+        order::run(&mut lg, false);
         insert_self_edge_dummies(&mut lg);
         let config = LayoutConfig::default(); // TopBottom
         position::run(&mut lg, &config);
@@ -1701,6 +2731,7 @@ mod tests {
             height: 0.0,
             edge_waypoints: HashMap::new(),
             label_positions: HashMap::new(),
+            label_sides: HashMap::new(),
             subgraph_bounds: HashMap::new(),
             self_edges: vec![],
             rank_to_position: HashMap::new(),
@@ -1772,6 +2803,7 @@ mod tests {
                     rank: 1,
                 },
             )]),
+            label_sides: HashMap::new(),
             subgraph_bounds: HashMap::from([(
                 "sg1".to_string(),
                 Rect {
@@ -1915,6 +2947,7 @@ mod tests {
             height: 0.0,
             edge_waypoints: HashMap::new(),
             label_positions: HashMap::new(),
+            label_sides: HashMap::new(),
             subgraph_bounds: HashMap::new(),
             self_edges: vec![],
             rank_to_position: HashMap::new(),

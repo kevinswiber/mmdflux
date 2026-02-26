@@ -11,8 +11,9 @@ use super::geometry::*;
 use super::render::orthogonal_router::{
     OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal, snap_path_to_grid,
 };
+use super::render::route_policy::effective_edge_direction;
 use crate::diagram::EdgeRouting;
-use crate::graph::Diagram;
+use crate::graph::{Diagram, Direction};
 
 /// Route graph geometry to produce fully-routed edge paths.
 ///
@@ -28,13 +29,40 @@ pub fn route_graph_geometry(
             route_edges_orthogonal(diagram, geometry, OrthogonalRoutingOptions::preview())
         }
         EdgeRouting::DirectRoute | EdgeRouting::EngineProvided | EdgeRouting::PolylineRoute => {
+            // Pre-compute per-edge backward lane indices for staggering.
+            let backward_lane_indices: Vec<usize> = {
+                let mut counter = 0usize;
+                geometry
+                    .edges
+                    .iter()
+                    .map(|edge| {
+                        if geometry.reversed_edges.contains(&edge.index)
+                            && geometry.enhanced_backward_routing
+                        {
+                            let idx = counter;
+                            counter += 1;
+                            idx
+                        } else {
+                            0
+                        }
+                    })
+                    .collect()
+            };
+
             geometry
                 .edges
                 .iter()
-                .map(|edge| {
+                .enumerate()
+                .map(|(i, edge)| {
+                    let edge_direction = effective_edge_direction(
+                        &geometry.node_directions,
+                        &edge.from,
+                        &edge.to,
+                        diagram.direction,
+                    );
                     let path = match edge_routing {
                         EdgeRouting::DirectRoute => {
-                            build_direct_path(edge, geometry, diagram.direction)
+                            build_direct_path(edge, geometry, edge_direction)
                         }
                         EdgeRouting::EngineProvided => edge
                             .layout_path_hint
@@ -44,12 +72,56 @@ pub fn route_graph_geometry(
                         EdgeRouting::OrthogonalRoute => unreachable!(),
                     };
                     let is_backward = geometry.reversed_edges.contains(&edge.index);
+                    // Snap forward-edge endpoints to primary departure/arrival faces
+                    // so intersect_svg_rect sees a strong primary-axis approach angle.
+                    // Use the effective edge direction (accounting for subgraph overrides).
+                    let path = if !is_backward && path.len() >= 2 {
+                        snap_path_endpoints_to_faces(&path, edge, geometry, edge_direction)
+                    } else {
+                        path
+                    };
+                    // Only use face-based channel routing for backward edges that
+                    // have intermediate nodes obstructing the corridor. Short backward
+                    // edges (adjacent nodes, no obstructions) get a small port offset
+                    // to differentiate from the forward edge without detouring.
+                    let needs_channel = is_backward
+                        && geometry.enhanced_backward_routing
+                        && has_corridor_obstructions(edge, geometry, edge_direction);
+                    let needs_short_offset = is_backward
+                        && (geometry.enhanced_backward_routing
+                            || edge_direction != diagram.direction);
+                    let path = if needs_channel {
+                        build_backward_channel_path(
+                            path,
+                            edge,
+                            geometry,
+                            edge_direction,
+                            backward_lane_indices[i],
+                        )
+                    } else if needs_short_offset {
+                        apply_short_backward_port_offset(path, edge, geometry, edge_direction)
+                    } else {
+                        path
+                    };
+                    // Recompute label position for channel-routed backward edges
+                    // so labels track the routed path, not the stale
+                    // layout_path_hint midpoint.
+                    let label_position = if needs_channel && path.len() >= 2 {
+                        arc_length_midpoint(&path)
+                    } else {
+                        edge.label_position
+                    };
+                    let (head_label_position, tail_label_position) =
+                        compute_end_labels_for_edge(diagram, edge.index, &path);
                     RoutedEdgeGeometry {
                         index: edge.index,
                         from: edge.from.clone(),
                         to: edge.to.clone(),
                         path,
-                        label_position: edge.label_position,
+                        label_position,
+                        label_side: edge.label_side,
+                        head_label_position,
+                        tail_label_position,
                         is_backward,
                         from_subgraph: edge.from_subgraph.clone(),
                         to_subgraph: edge.to_subgraph.clone(),
@@ -109,11 +181,259 @@ fn build_direct_path(
         end = nudge_for_direction(start, direction);
     }
 
+    // Snap to primary faces before collision detection so the line-of-sight
+    // check uses face-to-face geometry (not center-to-center).
+    let start = snap_to_primary_face(start, &from_node.rect, direction, true);
+    let end = snap_to_primary_face(end, &to_node.rect, direction, false);
+
     if direct_segment_crosses_non_endpoint_nodes(start, end, edge, geometry) {
         return build_path_from_hints(edge, geometry);
     }
 
     vec![start, end]
+}
+
+/// Apply a small port offset to short backward edges so they don't overlap
+/// the forward edge. Instead of routing through a face-based channel,
+/// this shifts the endpoints slightly to one side of center, creating
+/// a visually distinct path while keeping the edge compact.
+///
+/// **TD/BT:** Shifts endpoints right of center.
+/// **LR/RL:** Shifts endpoints to lower side-face lanes to avoid centerline overlap.
+fn apply_short_backward_port_offset(
+    path: Vec<FPoint>,
+    edge: &LayoutEdge,
+    geometry: &GraphGeometry,
+    direction: Direction,
+) -> Vec<FPoint> {
+    let from_rect = geometry.nodes.get(&edge.from).map(|n| n.rect);
+    let to_rect = geometry.nodes.get(&edge.to).map(|n| n.rect);
+
+    let (Some(sr), Some(tr)) = (from_rect, to_rect) else {
+        return path;
+    };
+
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            // Offset to the right of center, capped at 1/3 of the narrower node.
+            let max_offset = (sr.width.min(tr.width) / 3.0).min(20.0);
+            let offset = max_offset.max(8.0);
+            let src_x = sr.center_x() + offset;
+            let tgt_x = tr.center_x() + offset;
+            let src_y = sr.center_y();
+            let tgt_y = tr.center_y();
+            // Build a 3-point zigzag: source → midpoint → target.
+            // The midpoint sits between the two ranks at the average x,
+            // creating a subtle diagonal that signals backward direction.
+            let mid_y = (src_y + tgt_y) / 2.0;
+            vec![
+                FPoint::new(src_x, src_y),
+                FPoint::new(src_x.max(tgt_x), mid_y),
+                FPoint::new(tgt_x, tgt_y),
+            ]
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            let max_offset = (sr.height.min(tr.height) / 3.0).min(20.0);
+            let offset = max_offset.max(8.0);
+            let src_x = match direction {
+                Direction::LeftRight => sr.x,
+                Direction::RightLeft => sr.x + sr.width,
+                _ => sr.center_x(),
+            };
+            let tgt_x = match direction {
+                Direction::LeftRight => tr.x + tr.width,
+                Direction::RightLeft => tr.x,
+                _ => tr.center_x(),
+            };
+            let src_y = (sr.center_y() + offset).clamp(sr.y + 1.0, sr.y + sr.height - 1.0);
+            let tgt_y = (tr.center_y() + offset).clamp(tr.y + 1.0, tr.y + tr.height - 1.0);
+            let mid_x = (src_x + tgt_x) / 2.0;
+            vec![
+                FPoint::new(src_x, src_y),
+                FPoint::new(mid_x, src_y.max(tgt_y)),
+                FPoint::new(tgt_x, tgt_y),
+            ]
+        }
+    }
+}
+
+/// Check if a backward edge has intermediate nodes in its routing corridor
+/// that would obstruct a direct path between source and target.
+///
+/// A "short" backward edge (no obstructions) can use the layout hint path
+/// which provides natural port offset. A "long" backward edge (with
+/// obstructing intermediate nodes) needs face-based channel routing.
+fn has_corridor_obstructions(
+    edge: &LayoutEdge,
+    geometry: &GraphGeometry,
+    direction: Direction,
+) -> bool {
+    let from_rect = geometry.nodes.get(&edge.from).map(|n| n.rect);
+    let to_rect = geometry.nodes.get(&edge.to).map(|n| n.rect);
+
+    let (Some(sr), Some(tr)) = (from_rect, to_rect) else {
+        return false;
+    };
+
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            let corridor_left = sr.x.min(tr.x);
+            let corridor_right = (sr.x + sr.width).max(tr.x + tr.width);
+            let (min_y, max_y) = source_target_rank_range_y(from_rect, to_rect);
+            geometry.nodes.values().any(|node| {
+                if node.id == edge.from || node.id == edge.to {
+                    return false;
+                }
+                let cy = node.rect.center_y();
+                let node_right = node.rect.x + node.rect.width;
+                // Node is vertically between source and target AND
+                // horizontally overlaps the routing corridor.
+                cy > min_y
+                    && cy < max_y
+                    && node.rect.x < corridor_right
+                    && node_right > corridor_left
+            })
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            let corridor_top = sr.y.min(tr.y);
+            let corridor_bottom = (sr.y + sr.height).max(tr.y + tr.height);
+            let (min_x, max_x) = source_target_rank_range_x(from_rect, to_rect);
+            geometry.nodes.values().any(|node| {
+                if node.id == edge.from || node.id == edge.to {
+                    return false;
+                }
+                let cx = node.rect.center_x();
+                let node_bottom = node.rect.y + node.rect.height;
+                cx > min_x
+                    && cx < max_x
+                    && node.rect.y < corridor_bottom
+                    && node_bottom > corridor_top
+            })
+        }
+    }
+}
+
+/// Build a backward edge path using face-based attachment points.
+///
+/// Instead of modifying the layout engine's hint path (which typically
+/// overlaps the forward edge), this builds a 4-point channel path from
+/// scratch with endpoints on the canonical backward face:
+///
+/// **TD/BT:** Right face → channel lane → right face
+/// **LR/RL:** Bottom face → channel lane → bottom face
+///
+/// This mirrors the orthogonal router's backward routing approach,
+/// keeping backward edges compact and consistent across all edge styles.
+fn build_backward_channel_path(
+    _path: Vec<FPoint>,
+    edge: &LayoutEdge,
+    geometry: &GraphGeometry,
+    direction: Direction,
+    backward_lane_index: usize,
+) -> Vec<FPoint> {
+    /// Clearance between node face and backward channel lane.
+    const CHANNEL_CLEARANCE: f64 = 8.0;
+    /// Spacing between staggered backward edge lanes.
+    const LANE_SPACING: f64 = 8.0;
+
+    let from_rect = geometry.nodes.get(&edge.from).map(|n| n.rect);
+    let to_rect = geometry.nodes.get(&edge.to).map(|n| n.rect);
+
+    let (Some(sr), Some(tr)) = (from_rect, to_rect) else {
+        return _path;
+    };
+
+    let lane_offset = CHANNEL_CLEARANCE + (backward_lane_index as f64) * LANE_SPACING;
+
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            // Exit source from right face, enter target from right face.
+            let source_face_x = sr.x + sr.width;
+            let target_face_x = tr.x + tr.width;
+            let source_cy = sr.center_y();
+            let target_cy = tr.center_y();
+
+            // Channel lane clears source and target right faces plus any
+            // intermediate nodes whose horizontal extent overlaps the
+            // routing corridor (source_left..face_envelope).
+            let face_envelope = source_face_x.max(target_face_x);
+            let corridor_left = sr.x.min(tr.x);
+            let (min_y, max_y) = source_target_rank_range_y(from_rect, to_rect);
+            let mut lane_x = face_envelope + lane_offset;
+            for node in geometry.nodes.values() {
+                if node.id == edge.from || node.id == edge.to {
+                    continue;
+                }
+                let cy = node.rect.center_y();
+                let node_right = node.rect.x + node.rect.width;
+                // Only consider nodes that are vertically between source
+                // and target AND horizontally overlap the routing corridor.
+                if cy >= min_y && cy <= max_y && node.rect.x < lane_x && node_right > corridor_left
+                {
+                    lane_x = lane_x.max(node_right + lane_offset);
+                }
+            }
+
+            vec![
+                FPoint::new(source_face_x, source_cy),
+                FPoint::new(lane_x, source_cy),
+                FPoint::new(lane_x, target_cy),
+                FPoint::new(target_face_x, target_cy),
+            ]
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            // Exit source from bottom face, enter target from bottom face.
+            let source_face_y = sr.y + sr.height;
+            let target_face_y = tr.y + tr.height;
+            let source_cx = sr.center_x();
+            let target_cx = tr.center_x();
+
+            let face_envelope = source_face_y.max(target_face_y);
+            let corridor_top = sr.y.min(tr.y);
+            let (min_x, max_x) = source_target_rank_range_x(from_rect, to_rect);
+            let mut lane_y = face_envelope + lane_offset;
+            for node in geometry.nodes.values() {
+                if node.id == edge.from || node.id == edge.to {
+                    continue;
+                }
+                let cx = node.rect.center_x();
+                let node_bottom = node.rect.y + node.rect.height;
+                if cx >= min_x && cx <= max_x && node.rect.y < lane_y && node_bottom > corridor_top
+                {
+                    lane_y = lane_y.max(node_bottom + lane_offset);
+                }
+            }
+
+            vec![
+                FPoint::new(source_cx, source_face_y),
+                FPoint::new(source_cx, lane_y),
+                FPoint::new(target_cx, lane_y),
+                FPoint::new(target_cx, target_face_y),
+            ]
+        }
+    }
+}
+
+/// Get the y-range spanned by the source and target nodes (for TD/BT).
+fn source_target_rank_range_y(from_rect: Option<FRect>, to_rect: Option<FRect>) -> (f64, f64) {
+    let mut min_y = f64::INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+    for rect in [from_rect, to_rect].iter().flatten() {
+        min_y = min_y.min(rect.y);
+        max_y = max_y.max(rect.y + rect.height);
+    }
+    (min_y, max_y)
+}
+
+/// Get the x-range spanned by the source and target nodes (for LR/RL).
+fn source_target_rank_range_x(from_rect: Option<FRect>, to_rect: Option<FRect>) -> (f64, f64) {
+    let mut min_x = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    for rect in [from_rect, to_rect].iter().flatten() {
+        min_x = min_x.min(rect.x);
+        max_x = max_x.max(rect.x + rect.width);
+    }
+    (min_x, max_x)
 }
 
 fn direct_segment_crosses_non_endpoint_nodes(
@@ -122,22 +442,25 @@ fn direct_segment_crosses_non_endpoint_nodes(
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
 ) -> bool {
+    // Treat near-border grazing as a collision so "straight" lines do not
+    // visually ride along unrelated node borders after rasterization.
+    const BORDER_CLEARANCE_MARGIN: f64 = -0.5;
     // TODO: This is currently O(V) per direct-routed edge (overall O(E*V)).
     // If large graphs make this hot, replace with a spatial index over node rects.
     geometry.nodes.iter().any(|(id, node)| {
         if id == &edge.from || id == &edge.to {
             return false;
         }
-        segment_crosses_rect_interior(start, end, node.rect)
+        segment_crosses_rect_interior(start, end, node.rect, BORDER_CLEARANCE_MARGIN)
     })
 }
 
-fn segment_crosses_rect_interior(start: FPoint, end: FPoint, rect: FRect) -> bool {
+fn segment_crosses_rect_interior(start: FPoint, end: FPoint, rect: FRect, margin: f64) -> bool {
     const EPS: f64 = 1e-6;
-    let left = rect.x + EPS;
-    let right = rect.x + rect.width - EPS;
-    let top = rect.y + EPS;
-    let bottom = rect.y + rect.height - EPS;
+    let left = rect.x + margin + EPS;
+    let right = rect.x + rect.width - margin - EPS;
+    let top = rect.y + margin + EPS;
+    let bottom = rect.y + rect.height - margin - EPS;
     if left >= right || top >= bottom {
         return false;
     }
@@ -188,6 +511,139 @@ fn clip_test(p: f64, q: f64, t0: &mut f64, t1: &mut f64) -> bool {
     true
 }
 
+/// Compute the arc-length midpoint of a polyline path.
+///
+/// Walks the path segments, accumulates distances, and interpolates to
+/// the point at 50% of the total arc length. This produces a visually
+/// centered position along the path regardless of point distribution.
+fn arc_length_midpoint(path: &[FPoint]) -> Option<FPoint> {
+    if path.is_empty() {
+        return None;
+    }
+    if path.len() == 1 {
+        return Some(path[0]);
+    }
+    let total_len: f64 = path
+        .windows(2)
+        .map(|seg| point_distance(seg[0], seg[1]))
+        .sum();
+    if total_len <= 1e-6 {
+        return path.get(path.len() / 2).copied();
+    }
+    let target = total_len / 2.0;
+    let mut traversed = 0.0;
+    for seg in path.windows(2) {
+        let a = seg[0];
+        let b = seg[1];
+        let seg_len = point_distance(a, b);
+        if seg_len <= 1e-6 {
+            continue;
+        }
+        if traversed + seg_len >= target {
+            let t = (target - traversed) / seg_len;
+            return Some(FPoint::new(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t));
+        }
+        traversed += seg_len;
+    }
+    path.last().copied()
+}
+
+fn point_distance(a: FPoint, b: FPoint) -> f64 {
+    ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt()
+}
+
+/// Interpolate a point along a polyline path at a given arc-length distance.
+fn interpolate_at_distance(path: &[FPoint], distance: f64) -> Option<FPoint> {
+    if path.len() < 2 {
+        return path.first().copied();
+    }
+    let mut traversed = 0.0;
+    for seg in path.windows(2) {
+        let seg_len = point_distance(seg[0], seg[1]);
+        if seg_len <= 1e-6 {
+            continue;
+        }
+        if traversed + seg_len >= distance {
+            let t = (distance - traversed) / seg_len;
+            return Some(FPoint::new(
+                seg[0].x + (seg[1].x - seg[0].x) * t,
+                seg[0].y + (seg[1].y - seg[0].y) * t,
+            ));
+        }
+        traversed += seg_len;
+    }
+    path.last().copied()
+}
+
+/// Compute head and tail label positions from a routed edge path.
+///
+/// Head labels are positioned near the path end (target), tail labels near
+/// the start (source), both offset perpendicular to the edge direction.
+pub(crate) fn compute_end_label_positions(path: &[FPoint]) -> (Option<FPoint>, Option<FPoint>) {
+    if path.len() < 2 {
+        return (None, None);
+    }
+
+    let perpendicular_offset = 12.0; // px offset from path
+    let along_fraction = 0.12; // 12% from endpoint
+
+    let total_len: f64 = path
+        .windows(2)
+        .map(|seg| point_distance(seg[0], seg[1]))
+        .sum();
+    if total_len <= 1e-6 {
+        return (None, None);
+    }
+
+    // Tail: near path start
+    let tail = interpolate_at_distance(path, total_len * along_fraction).map(|p| {
+        // Get direction at start
+        let (dx, dy) = (path[1].x - path[0].x, path[1].y - path[0].y);
+        let len = (dx * dx + dy * dy).sqrt().max(1e-6);
+        // Perpendicular: rotate direction 90° (right side)
+        FPoint::new(
+            p.x + dy / len * perpendicular_offset,
+            p.y - dx / len * perpendicular_offset,
+        )
+    });
+
+    // Head: near path end
+    let n = path.len();
+    let head = interpolate_at_distance(path, total_len * (1.0 - along_fraction)).map(|p| {
+        let (dx, dy) = (path[n - 1].x - path[n - 2].x, path[n - 1].y - path[n - 2].y);
+        let len = (dx * dx + dy * dy).sqrt().max(1e-6);
+        FPoint::new(
+            p.x + dy / len * perpendicular_offset,
+            p.y - dx / len * perpendicular_offset,
+        )
+    });
+
+    (head, tail)
+}
+
+/// Look up the diagram edge and compute end label positions if head/tail labels are present.
+pub(crate) fn compute_end_labels_for_edge(
+    diagram: &Diagram,
+    edge_index: usize,
+    path: &[FPoint],
+) -> (Option<FPoint>, Option<FPoint>) {
+    let diagram_edge = diagram.edges.get(edge_index);
+    let has_head = diagram_edge
+        .map(|e| e.head_label.is_some())
+        .unwrap_or(false);
+    let has_tail = diagram_edge
+        .map(|e| e.tail_label.is_some())
+        .unwrap_or(false);
+    if !has_head && !has_tail {
+        return (None, None);
+    }
+    let (head_pos, tail_pos) = compute_end_label_positions(path);
+    (
+        if has_head { head_pos } else { None },
+        if has_tail { tail_pos } else { None },
+    )
+}
+
 fn points_are_same(a: FPoint, b: FPoint) -> bool {
     const EPS: f64 = 1e-6;
     (a.x - b.x).abs() <= EPS && (a.y - b.y).abs() <= EPS
@@ -208,6 +664,96 @@ fn nudge_for_direction(point: FPoint, direction: crate::graph::Direction) -> FPo
             FPoint::new(point.x + DIRECT_STUB, point.y)
         }
     }
+}
+
+/// Snap a point's primary-axis coordinate to the departure/arrival face of a node rect.
+///
+/// For sources, the primary face is the downstream face (TD→bottom, LR→right).
+/// For targets, the primary face is the upstream face (TD→top, LR→left).
+///
+/// Only the primary axis is modified. The cross-axis coordinate is preserved
+/// so the SVG renderer's `intersect_svg_rect` can compute proper port
+/// distribution along the face. When the cross-axis falls outside the rect
+/// bounds, `endpoint_attachment_is_invalid` triggers reclipping, which
+/// naturally distributes fan-in/fan-out arrival points.
+fn snap_to_primary_face(
+    point: FPoint,
+    rect: &FRect,
+    direction: Direction,
+    is_source: bool,
+) -> FPoint {
+    match direction {
+        Direction::TopDown => {
+            let y = if is_source {
+                rect.y + rect.height
+            } else {
+                rect.y
+            };
+            FPoint::new(point.x, y)
+        }
+        Direction::BottomTop => {
+            let y = if is_source {
+                rect.y
+            } else {
+                rect.y + rect.height
+            };
+            FPoint::new(point.x, y)
+        }
+        Direction::LeftRight => {
+            let x = if is_source {
+                rect.x + rect.width
+            } else {
+                rect.x
+            };
+            FPoint::new(x, point.y)
+        }
+        Direction::RightLeft => {
+            let x = if is_source {
+                rect.x
+            } else {
+                rect.x + rect.width
+            };
+            FPoint::new(x, point.y)
+        }
+    }
+}
+
+/// Snap edge path endpoints to primary departure/arrival faces.
+///
+/// Ensures that the first point sits on the source node's departure face
+/// and the last point sits on the target node's arrival face. This gives
+/// `intersect_svg_rect` a strong primary-axis approach angle so it reliably
+/// finds the correct face (instead of clipping to a side face on fan-in edges).
+fn snap_path_endpoints_to_faces(
+    path: &[FPoint],
+    edge: &LayoutEdge,
+    geometry: &GraphGeometry,
+    direction: Direction,
+) -> Vec<FPoint> {
+    let mut result = path.to_vec();
+
+    // Snap source endpoint
+    let source_rect = if let Some(sg_id) = &edge.from_subgraph {
+        geometry.subgraphs.get(sg_id).map(|sg| sg.rect)
+    } else {
+        geometry.nodes.get(&edge.from).map(|n| n.rect)
+    };
+    if let Some(rect) = source_rect {
+        result[0] = snap_to_primary_face(result[0], &rect, direction, true);
+    }
+
+    // Snap target endpoint
+    let target_rect = if let Some(sg_id) = &edge.to_subgraph {
+        geometry.subgraphs.get(sg_id).map(|sg| sg.rect)
+    } else {
+        geometry.nodes.get(&edge.to).map(|n| n.rect)
+    };
+    if let Some(rect) = target_rect {
+        let last = result.len() - 1;
+        result[last] = snap_to_primary_face(result[last], &rect, direction, false);
+    }
+
+    result
 }
 
 /// Preview helper: snap a float path to a deterministic grid.
@@ -259,6 +805,7 @@ mod tests {
             to: "B".into(),
             waypoints: vec![],
             label_position: None,
+            label_side: None,
             from_subgraph: None,
             to_subgraph: None,
             layout_path_hint: Some(vec![FPoint::new(50.0, 35.0), FPoint::new(50.0, 65.0)]),
@@ -275,6 +822,7 @@ mod tests {
             reversed_edges: vec![],
             engine_hints: None,
             rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: false,
         };
 
         (diagram, geom)
@@ -298,10 +846,11 @@ mod tests {
 
         let edge = &routed.edges[0];
         assert_eq!(edge.path.len(), 2);
+        // Face-snapped: x stays at 50 (clamped within rect), y snapped to faces
         assert_eq!(edge.path[0].x, 50.0);
-        assert_eq!(edge.path[0].y, 35.0);
+        assert_eq!(edge.path[0].y, 45.0); // A bottom face
         assert_eq!(edge.path[1].x, 50.0);
-        assert_eq!(edge.path[1].y, 65.0);
+        assert_eq!(edge.path[1].y, 75.0); // B top face
     }
 
     #[test]
@@ -342,14 +891,14 @@ mod tests {
 
         let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
         let path = &routed.edges[0].path;
-        // Should be: A center → waypoint → B center
+        // Should be: A bottom face → waypoint → B top face (face-snapped)
         assert_eq!(path.len(), 3);
-        assert_eq!(path[0].x, 70.0); // A center_x
-        assert_eq!(path[0].y, 35.0); // A center_y
+        assert_eq!(path[0].x, 70.0); // A center_x (within rect bounds)
+        assert_eq!(path[0].y, 45.0); // A bottom face
         assert_eq!(path[1].x, 50.0);
-        assert_eq!(path[1].y, 50.0); // waypoint
-        assert_eq!(path[2].x, 70.0); // B center_x
-        assert_eq!(path[2].y, 85.0); // B center_y
+        assert_eq!(path[1].y, 50.0); // waypoint (unchanged)
+        assert_eq!(path[2].x, 70.0); // B center_x (within rect bounds)
+        assert_eq!(path[2].y, 75.0); // B top face
     }
 
     #[test]
@@ -389,8 +938,215 @@ mod tests {
         let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
         let path = &routed.edges[0].path;
         assert_eq!(path.len(), 2);
-        assert_eq!(path[0], FPoint::new(70.0, 35.0));
-        assert_eq!(path[1], FPoint::new(70.0, 85.0));
+        // Face-snapped: A bottom face y=45, B top face y=75
+        assert_eq!(path[0], FPoint::new(70.0, 45.0));
+        assert_eq!(path[1], FPoint::new(70.0, 75.0));
+    }
+
+    #[test]
+    fn direct_route_uses_effective_direction_for_override_nodes() {
+        let mut diagram = Diagram::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_node(crate::graph::Node::new("B"));
+        diagram.add_edge(crate::graph::Edge::new("A", "B"));
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(0.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(100.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: None,
+            },
+        );
+
+        let mut node_directions = HashMap::new();
+        node_directions.insert("A".into(), crate::graph::Direction::LeftRight);
+        node_directions.insert("B".into(), crate::graph::Direction::LeftRight);
+
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![LayoutEdge {
+                index: 0,
+                from: "A".into(),
+                to: "B".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+            }],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions,
+            bounds: FRect::new(0.0, 0.0, 140.0, 20.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: false,
+        };
+
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        assert_eq!(
+            routed.edges[0].path,
+            vec![FPoint::new(40.0, 10.0), FPoint::new(100.0, 10.0)]
+        );
+    }
+
+    #[test]
+    fn backward_short_offset_uses_effective_direction_for_override_nodes() {
+        let mut diagram = Diagram::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_node(crate::graph::Node::new("B"));
+        diagram.add_edge(crate::graph::Edge::new("B", "A"));
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(0.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(100.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: None,
+            },
+        );
+
+        let mut node_directions = HashMap::new();
+        node_directions.insert("A".into(), crate::graph::Direction::LeftRight);
+        node_directions.insert("B".into(), crate::graph::Direction::LeftRight);
+
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![LayoutEdge {
+                index: 0,
+                from: "B".into(),
+                to: "A".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+            }],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions,
+            bounds: FRect::new(0.0, 0.0, 140.0, 20.0),
+            reversed_edges: vec![0],
+            engine_hints: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: true,
+        };
+
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        assert_eq!(
+            routed.edges[0].path,
+            vec![
+                FPoint::new(100.0, 18.0),
+                FPoint::new(70.0, 18.0),
+                FPoint::new(40.0, 18.0),
+            ]
+        );
+    }
+
+    #[test]
+    fn orthogonal_backward_override_uses_side_faces() {
+        let mut diagram = Diagram::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_node(crate::graph::Node::new("B"));
+        diagram.add_edge(crate::graph::Edge::new("B", "A"));
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(0.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(100.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: None,
+            },
+        );
+
+        let mut node_directions = HashMap::new();
+        node_directions.insert("A".into(), crate::graph::Direction::LeftRight);
+        node_directions.insert("B".into(), crate::graph::Direction::LeftRight);
+
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![LayoutEdge {
+                index: 0,
+                from: "B".into(),
+                to: "A".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+            }],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions,
+            bounds: FRect::new(0.0, 0.0, 140.0, 20.0),
+            reversed_edges: vec![0],
+            engine_hints: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: false,
+        };
+
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let path = &routed.edges[0].path;
+        assert!(path.len() >= 2);
+        assert!(
+            (path[0].x - 100.0).abs() <= 0.001,
+            "source should leave left face"
+        );
+        assert!(
+            (path[path.len() - 1].x - 40.0).abs() <= 0.001,
+            "target should enter right face"
+        );
+        assert!(
+            path[0].y < 20.0 && path[path.len() - 1].y < 20.0,
+            "compact short path should stay below center but on side faces"
+        );
     }
 
     #[test]
@@ -409,9 +1165,10 @@ mod tests {
         geom.edges[0].layout_path_hint =
             Some(vec![FPoint::new(60.0, 35.0), FPoint::new(80.0, 35.0)]);
         let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        // Hint path is used but face-snapped: A bottom=45, B top=25
         assert_eq!(
             routed.edges[0].path,
-            vec![FPoint::new(60.0, 35.0), FPoint::new(80.0, 35.0)]
+            vec![FPoint::new(60.0, 45.0), FPoint::new(80.0, 25.0)]
         );
     }
 
@@ -490,6 +1247,7 @@ mod tests {
                 to: "C".into(),
                 waypoints: vec![],
                 label_position: None,
+                label_side: None,
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: Some(direct_hint.clone()),
@@ -502,10 +1260,86 @@ mod tests {
             reversed_edges: vec![],
             engine_hints: None,
             rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: false,
         };
 
         let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
         assert_eq!(routed.edges[0].path, direct_hint);
+    }
+
+    #[test]
+    fn direct_route_falls_back_when_straight_segment_grazes_node_border() {
+        let mut diagram = Diagram::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_node(crate::graph::Node::new("B"));
+        diagram.add_node(crate::graph::Node::new("C"));
+        diagram.add_edge(crate::graph::Edge::new("A", "C"));
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(0.0, 0.0, 20.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        // Left border sits exactly on the direct A->C centerline at x=10.
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(10.0, 60.0, 40.0, 40.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "C".into(),
+            PositionedNode {
+                id: "C".into(),
+                rect: FRect::new(0.0, 120.0, 20.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "C".into(),
+                parent: None,
+            },
+        );
+
+        let fallback_hint = vec![
+            FPoint::new(0.0, 20.0),
+            FPoint::new(0.0, 70.0),
+            FPoint::new(0.0, 120.0),
+        ];
+
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![LayoutEdge {
+                index: 0,
+                from: "A".into(),
+                to: "C".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: Some(fallback_hint.clone()),
+            }],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(0.0, 0.0, 200.0, 200.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: false,
+        };
+
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        assert_eq!(routed.edges[0].path, fallback_hint);
     }
 
     #[test]
@@ -536,5 +1370,82 @@ mod tests {
         assert_eq!(snapped.first(), Some(&FPoint::new(5.0, 9.0)));
         assert_eq!(snapped.last(), Some(&FPoint::new(15.0, 12.0)));
         assert_eq!(snapped, snap_path_to_grid(&input, 1.0, 1.0));
+    }
+
+    #[test]
+    fn head_label_near_path_end() {
+        // Vertical path from (50, 0) to (50, 100)
+        let path = vec![FPoint::new(50.0, 0.0), FPoint::new(50.0, 100.0)];
+        let (head, _tail) = compute_end_label_positions(&path);
+
+        let head = head.unwrap();
+        assert!(head.y > 80.0, "head near end, got y={}", head.y);
+        // Perpendicular offset: for vertical path, offset is in x direction
+        assert!(
+            (head.x - 50.0).abs() > 5.0,
+            "head offset from path, got x={}",
+            head.x
+        );
+    }
+
+    #[test]
+    fn tail_label_near_path_start() {
+        let path = vec![FPoint::new(50.0, 0.0), FPoint::new(50.0, 100.0)];
+        let (_head, tail) = compute_end_label_positions(&path);
+
+        let tail = tail.unwrap();
+        assert!(tail.y < 20.0, "tail near start, got y={}", tail.y);
+    }
+
+    #[test]
+    fn empty_path_returns_none() {
+        let (head, tail) = compute_end_label_positions(&[]);
+        assert!(head.is_none());
+        assert!(tail.is_none());
+    }
+
+    #[test]
+    fn single_point_path_returns_none() {
+        let (head, tail) = compute_end_label_positions(&[FPoint::new(50.0, 50.0)]);
+        assert!(head.is_none());
+        assert!(tail.is_none());
+    }
+
+    #[test]
+    fn routing_populates_head_label_position() {
+        let (mut diagram, geom) = simple_geometry();
+        diagram.edges[0].head_label = Some("1..*".to_string());
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        assert!(
+            routed.edges[0].head_label_position.is_some(),
+            "head_label_position should be populated when edge has head_label"
+        );
+        assert!(
+            routed.edges[0].tail_label_position.is_none(),
+            "tail_label_position should be None when edge has no tail_label"
+        );
+    }
+
+    #[test]
+    fn routing_populates_tail_label_position() {
+        let (mut diagram, geom) = simple_geometry();
+        diagram.edges[0].tail_label = Some("source".to_string());
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        assert!(
+            routed.edges[0].tail_label_position.is_some(),
+            "tail_label_position should be populated when edge has tail_label"
+        );
+        assert!(
+            routed.edges[0].head_label_position.is_none(),
+            "head_label_position should be None when edge has no head_label"
+        );
+    }
+
+    #[test]
+    fn routing_no_end_labels_by_default() {
+        let (diagram, geom) = simple_geometry();
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        assert!(routed.edges[0].head_label_position.is_none());
+        assert!(routed.edges[0].tail_label_position.is_none());
     }
 }

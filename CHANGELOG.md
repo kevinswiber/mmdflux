@@ -2,6 +2,52 @@
 
 ## Unreleased
 
+### Breaking
+
+- Removed edge preset token `bezier`; use `basis` (`--edge-preset basis`).
+- SVG curve control is now a clean-break contract via
+  `--curve basis|linear|linear-sharp|linear-rounded`.
+- Removed legacy CLI flags `--interpolation-style` and `--corner-style`.
+- Removed legacy WASM/web config fields `interpolationStyle` and `cornerStyle`;
+  use `curve`.
+
+### Added
+
+- Implemented plan-0088 model-order tie-breaking across layered ordering paths
+  to preserve source insertion order deterministically.
+- Implemented plan-0089 greedy-switch two-sided post-pass crossing reduction,
+  plus crossing baselines and quality regression checks.
+- Implemented plan-0090 per-gap rank-separation overrides for `flux-layered`
+  based on gap edge density and crossing pressure.
+- Implemented plan-0091 per-edge label spacing features, including label dummy
+  insertion, label side selection, label-layer switching, thickness offset, and
+  HEAD/TAIL label support.
+- Expanded layout and routing non-regression coverage (ordering, spacing,
+  routing topology, and engine behavior).
+
+### Fixed
+
+- Fixed multiple backward-edge routing regressions in text and SVG, including
+  corridor-aware channeling, face attachment consistency, and subgraph override
+  cases.
+- Fixed SVG edge rendering regressions around arrowhead visibility, reciprocal
+  two-point curve separation, and shape-border lane attachment.
+- Fixed label/spacing regressions in layered layout, including restored
+  unlabeled-edge rank separation and corrected label-gap accounting.
+- Fixed reversed long-edge chain accounting leakage into forward-edge density
+  metrics.
+
+### Changed
+
+- Implemented plan-0092 curve taxonomy clean break and removed transitional
+  interpolation bridge behavior in favor of `Curve`.
+- Renamed SVG snapshot bucket `flowchart-bezier` to `flowchart-basis`.
+- Updated web playground preset vocabulary from `bezier` to `basis`.
+- Updated `scripts/svg-gallery` and `scripts/view` defaults/examples to use
+  `basis`; `svg-gallery` now also exports fixture source copies.
+- Removed web CSS `!important` cursor overrides and rely on panzoom cursor
+  config and normal cascade precedence.
+
 ## v1.2.0
 
 ### Added

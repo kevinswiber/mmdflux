@@ -5,9 +5,11 @@
 
 use std::collections::{HashMap, HashSet};
 
+#[cfg(test)]
+pub(crate) use super::layout_building::build_layered_layout;
 // Re-export shared layout building functions from their canonical location.
 pub(crate) use super::layout_building::{
-    SubLayoutResult, build_layered_layout, compute_sublayouts, layered_config_for_layout,
+    SubLayoutResult, compute_sublayouts, layered_config_for_layout,
 };
 use super::text_shape::{NodeBounds, node_dimensions};
 pub(crate) use super::text_types::{CoordTransform, RawCenter, TransformContext};
@@ -1444,6 +1446,54 @@ pub(crate) fn expand_parent_subgraph_bounds(
         parent_bounds.y = new_top;
         parent_bounds.width = new_right.saturating_sub(new_left);
         parent_bounds.height = new_bottom.saturating_sub(new_top);
+    }
+}
+
+/// Ensure each subgraph's draw-coordinate bounds contain all member nodes.
+///
+/// After coordinate transformation (float→integer) and shrink passes, rounding
+/// can cause subgraph bounds to be 1-2 characters too small. This post-pass
+/// expands any deficient bounds to guarantee containment.
+pub(crate) fn ensure_subgraph_contains_members(
+    diagram: &crate::graph::Diagram,
+    node_bounds: &HashMap<String, NodeBounds>,
+    subgraph_bounds: &mut HashMap<String, SubgraphBounds>,
+) {
+    for (sg_id, sg) in &diagram.subgraphs {
+        let Some(sb) = subgraph_bounds.get_mut(sg_id) else {
+            continue;
+        };
+        let mut sg_right = sb.x + sb.width;
+        let mut sg_bottom = sb.y + sb.height;
+
+        for member_id in &sg.nodes {
+            let Some(nb) = node_bounds.get(member_id.as_str()) else {
+                continue;
+            };
+            let nb_right = nb.x + nb.width;
+            let nb_bottom = nb.y + nb.height;
+
+            if nb.x < sb.x {
+                let expand = sb.x - nb.x;
+                sb.x = nb.x;
+                sb.width += expand;
+                sg_right = sb.x + sb.width;
+            }
+            if nb.y < sb.y {
+                let expand = sb.y - nb.y;
+                sb.y = nb.y;
+                sb.height += expand;
+                sg_bottom = sb.y + sb.height;
+            }
+            if nb_right > sg_right {
+                sb.width += nb_right - sg_right;
+                sg_right = sb.x + sb.width;
+            }
+            if nb_bottom > sg_bottom {
+                sb.height += nb_bottom - sg_bottom;
+                sg_bottom = sb.y + sb.height;
+            }
+        }
     }
 }
 

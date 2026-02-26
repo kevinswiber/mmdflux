@@ -569,7 +569,7 @@ fn is_border_node(graph: &LayoutGraph, node: NodeIndex) -> bool {
         || graph.border_bottom.values().any(|&idx| idx == node)
 }
 
-fn is_dummy_like(graph: &LayoutGraph, node: NodeIndex) -> bool {
+pub(crate) fn is_dummy_like(graph: &LayoutGraph, node: NodeIndex) -> bool {
     graph.is_dummy_index(node) || is_border_node(graph, node)
 }
 
@@ -1331,7 +1331,7 @@ fn debug_dump_border_blocks(graph: &LayoutGraph, conflicts: &ConflictSet) {
 mod tests {
     use super::*;
     use crate::layered::graph::{BorderType, DiGraph};
-    use crate::layered::normalize::{DummyNode, DummyType, LabelPos};
+    use crate::layered::normalize::{DummyNode, DummyType, LabelPos, LabelSide};
     use crate::layered::{LayoutConfig, order, rank};
 
     /// Test helper: check if two nodes are in the same block
@@ -2214,6 +2214,7 @@ mod tests {
                         width: dims[i].0,
                         height: dims[i].1,
                         label_pos: LabelPos::Center,
+                        label_side: LabelSide::Center,
                     },
                 );
             }
@@ -2448,7 +2449,7 @@ mod tests {
         let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
         rank::run(&mut lg, &LayoutConfig::default());
         rank::normalize(&mut lg);
-        order::run(&mut lg);
+        order::run(&mut lg, false);
 
         let config = BKConfig::default();
         let conflicts = find_all_conflicts(&lg);

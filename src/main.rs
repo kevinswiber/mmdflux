@@ -4,11 +4,15 @@ use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
 use mmdflux::diagram::{
-    CornerStyle, EdgePreset, EngineAlgorithmId, GeometryLevel, InterpolationStyle, LayoutConfig,
-    OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
+    Curve, EdgePreset, EngineAlgorithmId, GeometryLevel, LayoutConfig, OutputFormat,
+    PathSimplification, RenderConfig, RoutingStyle,
 };
 use mmdflux::layered::Ranker;
 use mmdflux::registry::default_registry;
+
+const CURVE_CANONICAL_VALUES: &str = "basis, linear, linear-sharp, linear-rounded";
+const CURVE_ARG_HELP: &str = "SVG curve style (basis, linear, linear-sharp, or linear-rounded). \
+     Overrides the curve component of --edge-preset when both are set.";
 
 #[derive(Parser)]
 #[command(name = "mmdflux")]
@@ -77,12 +81,11 @@ struct Cli {
     #[arg(long)]
     svg_node_padding_y: Option<f64>,
 
-    /// Edge style preset (straight, polyline, step, smoothstep, or bezier).
-    /// Expands to routing + interpolation + corner defaults.
+    /// Edge style preset (straight, polyline, step, smooth-step, curved-step, or basis).
+    /// Expands to routing + curve defaults.
     /// `straight` uses direct routing (prefers one segment, but falls back to
     /// node-avoidance geometry when a direct segment would cross node interiors).
-    /// Use `polyline` for the previous straight preset behavior.
-    /// Explicit --routing-style / --interpolation-style / --corner-style take precedence.
+    /// Explicit --routing-style / --curve take precedence.
     #[arg(long)]
     edge_preset: Option<String>,
 
@@ -92,15 +95,8 @@ struct Cli {
     #[arg(long)]
     routing_style: Option<String>,
 
-    /// SVG interpolation style (linear or bezier).
-    /// Overrides the interpolation component of --edge-preset when both are set.
-    #[arg(long)]
-    interpolation_style: Option<String>,
-
-    /// SVG corner style (sharp or rounded).
-    /// Overrides the corner component of --edge-preset when both are set.
-    #[arg(long)]
-    corner_style: Option<String>,
+    #[arg(long, help = CURVE_ARG_HELP)]
+    curve: Option<String>,
 
     /// SVG corner arc radius (px) for rounded corners.
     /// Clamped to half the shortest adjacent segment length.
@@ -207,6 +203,16 @@ impl From<PathSimplificationArg> for PathSimplification {
     }
 }
 
+fn resolve_curve_from_cli(raw: Option<&str>) -> Result<Option<Curve>, String> {
+    raw.map(Curve::parse).transpose().map_err(|err| {
+        if err.message.contains("expected one of") {
+            err.message
+        } else {
+            format!("{err} (expected one of: {CURVE_CANONICAL_VALUES})")
+        }
+    })
+}
+
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
@@ -262,26 +268,12 @@ fn main() -> io::Result<()> {
         None => None,
     };
 
-    let interpolation_style: Option<InterpolationStyle> = match cli.interpolation_style.as_deref() {
-        Some(s) => match InterpolationStyle::parse(s) {
-            Ok(is) => Some(is),
-            Err(err) => {
-                eprintln!("Error: {}", err);
-                std::process::exit(1);
-            }
-        },
-        None => None,
-    };
-
-    let corner_style: Option<CornerStyle> = match cli.corner_style.as_deref() {
-        Some(s) => match CornerStyle::parse(s) {
-            Ok(cs) => Some(cs),
-            Err(err) => {
-                eprintln!("Error: {}", err);
-                std::process::exit(1);
-            }
-        },
-        None => None,
+    let curve = match resolve_curve_from_cli(cli.curve.as_deref()) {
+        Ok(curve) => curve,
+        Err(err) => {
+            eprintln!("Error: {}", err);
+            std::process::exit(1);
+        }
     };
 
     // Build render config from CLI options
@@ -323,8 +315,7 @@ fn main() -> io::Result<()> {
         svg_node_padding_y: cli.svg_node_padding_y,
         edge_preset,
         routing_style,
-        interpolation_style,
-        corner_style,
+        curve,
         edge_radius: cli.edge_radius,
         svg_diagram_padding: cli.svg_diagram_padding,
         show_ids: cli.show_ids,

@@ -61,6 +61,16 @@ impl Direction {
     }
 }
 
+/// Strategy for placing a label dummy within a long edge's dummy chain.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelDummyStrategy {
+    /// Place the label at the midpoint rank of the edge (current dagre behavior).
+    #[default]
+    Midpoint,
+    /// Move the label to the widest layer in the chain to minimize width increase.
+    WidestLayer,
+}
+
 /// A 2D point with floating-point coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Point {
@@ -101,6 +111,11 @@ pub struct LayoutConfig {
     /// Vertical spacing between ranks (or horizontal for LR/RL).
     pub rank_sep: f64,
 
+    /// Per-rank-gap spacing overrides. Key is the rank number; the gap after
+    /// this rank uses the override value instead of `rank_sep`.
+    /// Empty map means all gaps use `rank_sep` (backward compatible).
+    pub rank_sep_overrides: HashMap<i32, f64>,
+
     /// Padding around the entire diagram.
     pub margin: f64,
 
@@ -109,6 +124,48 @@ pub struct LayoutConfig {
 
     /// Ranking algorithm to use.
     pub ranker: Ranker,
+
+    /// Enable greedy switch crossing reduction post-pass (flux-layered only).
+    pub greedy_switch: bool,
+
+    /// Enable model order tie-breaking in barycenter sort (flux-layered only).
+    pub model_order_tiebreak: bool,
+
+    /// Enable variable per-gap rank spacing from edge density (flux-layered only).
+    pub variable_rank_spacing: bool,
+
+    /// Track reversed chain edges in `reversed_edges` after normalization.
+    /// When true, chain edges created from reversed long edges are marked as
+    /// reversed, affecting effective edge direction in ordering and positioning.
+    /// Dagre v0.8.5 does not track these, so mermaid-layered should leave this false.
+    pub track_reversed_chains: bool,
+
+    /// When true, only labeled edges get extra rank span for label dummies.
+    /// When false (default), all edges get doubled minlen (dagre-compatible).
+    pub per_edge_label_spacing: bool,
+
+    /// When true, assign Above/Below sides to label dummies sharing a layer
+    /// to reduce label-label overlaps.
+    pub label_side_selection: bool,
+
+    /// Strategy for placing label dummies within long edge chains.
+    pub label_dummy_strategy: LabelDummyStrategy,
+
+    /// Gap between edge stroke and label text (in layout units).
+    pub edge_label_spacing: f64,
+}
+
+impl LayoutConfig {
+    /// Get the rank separation for the gap after the given rank.
+    ///
+    /// Returns the override value if one exists for this rank,
+    /// otherwise returns the base `rank_sep`.
+    pub fn rank_sep_for_gap(&self, rank: i32) -> f64 {
+        self.rank_sep_overrides
+            .get(&rank)
+            .copied()
+            .unwrap_or(self.rank_sep)
+    }
 }
 
 impl Default for LayoutConfig {
@@ -118,9 +175,18 @@ impl Default for LayoutConfig {
             node_sep: 50.0,
             edge_sep: 20.0,
             rank_sep: 50.0,
+            rank_sep_overrides: HashMap::new(),
             margin: 8.0,
             acyclic: true,
             ranker: Ranker::default(),
+            greedy_switch: false,
+            model_order_tiebreak: false,
+            variable_rank_spacing: false,
+            track_reversed_chains: false,
+            per_edge_label_spacing: false,
+            label_side_selection: false,
+            label_dummy_strategy: LabelDummyStrategy::default(),
+            edge_label_spacing: 2.0,
         }
     }
 }
@@ -154,6 +220,10 @@ pub struct LayoutResult {
     /// Only populated for edges that have labels.
     /// The rank information is needed to snap the primary axis to `layer_starts`.
     pub label_positions: HashMap<usize, WaypointWithRank>,
+
+    /// Label side assignments for edges with labels.
+    /// Key: original edge index, Value: Above/Below/Center.
+    pub label_sides: HashMap<usize, super::normalize::LabelSide>,
 
     /// Bounding boxes for subgraphs (compound nodes).
     /// Key: subgraph node ID string, Value: bounding rectangle.
@@ -222,6 +292,50 @@ mod tests {
     }
 
     #[test]
+    fn layout_config_default_has_empty_overrides() {
+        let config = LayoutConfig::default();
+        assert!(config.rank_sep_overrides.is_empty());
+    }
+
+    #[test]
+    fn layout_config_rank_sep_for_gap_uses_override() {
+        let mut config = LayoutConfig::default();
+        config.rank_sep_overrides.insert(2, 100.0);
+        assert_eq!(config.rank_sep_for_gap(2), 100.0);
+        assert_eq!(config.rank_sep_for_gap(0), config.rank_sep); // no override, uses base
+    }
+
+    #[test]
+    fn layout_config_rank_sep_for_gap_falls_back_to_base() {
+        let config = LayoutConfig::default();
+        assert_eq!(config.rank_sep_for_gap(42), config.rank_sep);
+    }
+
+    #[test]
+    fn per_edge_label_spacing_defaults_to_false() {
+        let config = LayoutConfig::default();
+        assert!(!config.per_edge_label_spacing);
+    }
+
+    #[test]
+    fn label_dummy_strategy_defaults_to_midpoint() {
+        let config = LayoutConfig::default();
+        assert_eq!(config.label_dummy_strategy, LabelDummyStrategy::Midpoint);
+    }
+
+    #[test]
+    fn edge_label_spacing_defaults_to_2() {
+        let config = LayoutConfig::default();
+        assert!((config.edge_label_spacing - 2.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn label_dummy_strategy_variants() {
+        let _ = LabelDummyStrategy::Midpoint;
+        let _ = LabelDummyStrategy::WidestLayer;
+    }
+
+    #[test]
     fn test_self_edge_struct() {
         let se = SelfEdge {
             node_index: 0,
@@ -254,6 +368,7 @@ mod tests {
             height: 0.0,
             edge_waypoints: HashMap::new(),
             label_positions: HashMap::new(),
+            label_sides: HashMap::new(),
             subgraph_bounds: HashMap::new(),
             self_edges: vec![],
             rank_to_position: HashMap::new(),

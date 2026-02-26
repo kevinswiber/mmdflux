@@ -22,7 +22,7 @@ graph TD
     C --> End
 ```
 
-**SVG output** (`mmdflux --format svg --layout-engine flux-layered --edge-preset smoothstep ...`)
+**SVG output** (`mmdflux --format svg --layout-engine flux-layered --curve linear-rounded ...`)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/at-a-glance-dark.svg">
@@ -91,15 +91,17 @@ policy-driven geometry decisions that are hard to get from layout-only engines.
 | -------------------- | ------------------------------------------ | ------------------------------------ |
 | Route ownership      | Native                                     | Hint-driven                          |
 | Routing styles       | `direct`, `orthogonal`, `polyline`         | `polyline`                           |
-| Default SVG behavior | Orthogonal topology + smooth interpolation | Mermaid-compatible polyline defaults |
+| Default SVG behavior | Orthogonal topology + basis curve | Mermaid-compatible polyline defaults |
 | Subgraph support     | Yes                                        | Yes                                  |
 | Best fit             | Deterministic routed SVG/MMDS output       | Mermaid-style compatibility output   |
 
 Routing semantics note:
-`--edge-preset straight` now maps to direct routing (`Direct + Linear + Sharp`).
+`--edge-preset straight` now maps to direct routing (`Direct + linear-sharp`).
 Direct routing prefers a single segment when unobstructed, and falls back to
 node-avoidance geometry when a direct segment would cross node interiors.
 Use `--edge-preset polyline` for the old straight/passthrough behavior.
+Curve treatment is controlled independently via
+`--curve basis|linear|linear-sharp|linear-rounded`.
 
 ## Install
 
@@ -135,8 +137,14 @@ mmdflux --format text diagram.mmd
 # SVG output (flowchart/class)
 mmdflux --format svg diagram.mmd -o diagram.svg
 
-# Native flux layered (default) SVG with explicit style preset
-mmdflux --format svg --layout-engine flux-layered --edge-preset smoothstep diagram.mmd -o diagram.svg
+# Native flux layered (default) SVG with smooth orthogonal corners
+mmdflux --format svg --layout-engine flux-layered --edge-preset smooth-step diagram.mmd -o diagram.svg
+
+# Native flux layered SVG with curved orthogonal basis paths
+mmdflux --format svg --layout-engine flux-layered --edge-preset curved-step diagram.mmd -o diagram.svg
+
+# SVG with explicit curve contract
+mmdflux --format svg --layout-engine flux-layered --curve linear-rounded diagram.mmd -o diagram.svg
 
 # MMDS JSON output with routed geometry detail
 mmdflux --format mmds --layout-engine flux-layered --geometry-level routed --path-detail compact diagram.mmd

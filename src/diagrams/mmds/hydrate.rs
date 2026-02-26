@@ -386,6 +386,7 @@ fn build_graph_geometry(
         reversed_edges,
         engine_hints: None,
         rerouted_edges: std::collections::HashSet::new(),
+        enhanced_backward_routing: false,
     })
 }
 
@@ -461,6 +462,7 @@ fn build_layout_edges(output: &MmdsOutput) -> (Vec<LayoutEdge>, Vec<SelfEdgeGeom
             to: edge.target.clone(),
             waypoints: Vec::new(),
             label_position,
+            label_side: None,
             from_subgraph: edge.from_subgraph.clone(),
             to_subgraph: edge.to_subgraph.clone(),
             layout_path_hint: path,

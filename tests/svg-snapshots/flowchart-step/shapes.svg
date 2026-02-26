@@ -20,12 +20,6 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
-    <g class="edgePaths">
-      <path d="M94.89,62.00 L94.89,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M94.89,166.00 L94.89,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-    </g>
-    <g class="edgeLabels">
-    </g>
     <g class="nodes">
       <polygon points="94.89,216.00 173.76,294.88 94.89,373.75 16.01,294.88" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="94.89" y="294.88" text-anchor="middle" dominant-baseline="middle" fill="#333">Diamond Node</text>
@@ -33,6 +27,12 @@
       <text x="94.89" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rectangle Node</text>
       <rect x="28.29" y="112.00" width="133.19" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="94.89" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rounded Node</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M94.89,62.00 L94.89,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M94.89,166.00 L94.89,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>

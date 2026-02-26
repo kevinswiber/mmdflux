@@ -19,22 +19,22 @@
       <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
     </marker>
   </defs>
-  <g transform="translate(-20.00,6.00)">
+  <g transform="translate(-20.00,-19.00)">
     <g class="clusters">
-      <rect class="subgraph" x="28.00" y="2.00" width="133.06" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="94.53" y="6.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Group</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M77.26,87.00 L77.26,133.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M111.80,137.00 L111.80,103.00 L129.79,103.00 L129.79,91.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-    </g>
-    <g class="edgeLabels">
+      <rect class="subgraph" x="28.00" y="27.00" width="133.06" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="94.53" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Group</text>
     </g>
     <g class="nodes">
-      <rect x="47.27" y="33.00" width="94.52" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="94.53" y="60.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node</text>
-      <rect x="43.00" y="137.00" width="103.06" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="94.53" y="164.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node2</text>
+      <rect x="47.27" y="58.00" width="94.52" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="94.53" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node</text>
+      <rect x="43.00" y="162.00" width="103.06" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="94.53" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node2</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M80.53,112.00 L80.53,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M114.53,162.00 L114.53,137.00 L129.79,137.00 L129.79,116.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
     </g>
   </g>
 </svg>
