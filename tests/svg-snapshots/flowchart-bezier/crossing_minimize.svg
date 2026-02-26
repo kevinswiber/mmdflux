@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 574.16 757.28" style="max-width: 574.16px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+    <marker id="crosshead" viewBox="0 0 11.00 11.00" refX="12.00" refY="5.20" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 1,1 l 9,9 M 10,1 l -9,9" stroke="#333" stroke-width="2" />
+    </marker>
+    <marker id="circlehead" viewBox="0 0 10.00 10.00" refX="11.00" refY="5.00" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="5" stroke="#333" stroke-width="1" fill="#333" />
+    </marker>
+    <marker id="open-arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,0 10.00,5.00 0,10.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+    <marker id="diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="#333" />
+    </marker>
+    <marker id="open-diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M277.79,62.00 L277.79,64.33 C277.79,66.67 277.79,71.33 274.03,76.83 C270.27,82.33 262.76,88.67 259.00,94.00 C255.25,99.33 255.25,103.67 255.25,105.83 L255.25,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M300.53,178.99 L325.41,178.99 C350.28,178.99 400.03,178.99 424.90,198.21 C449.77,217.42 449.77,255.85 449.77,275.06 L449.77,294.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M218.80,187.84 L210.50,187.84 C202.20,187.84 185.60,187.84 177.30,205.58 C169.00,223.32 169.00,258.80 169.00,276.54 L169.00,294.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M449.77,352.28 L449.77,356.45 C449.77,360.61 449.77,368.95 454.49,373.11 C459.21,377.28 468.64,377.28 473.36,383.88 C478.08,390.47 478.08,403.67 478.08,410.26 L478.08,416.86" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M530.89,436.51 L530.89,434.34 C530.89,432.17 530.89,427.82 533.00,425.65 C535.11,423.48 539.32,423.48 541.43,360.54 C543.54,297.59 543.54,171.71 512.34,108.76 C481.15,45.82 418.75,45.82 387.56,45.82 L356.36,45.82" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M113.28,352.28 L113.28,354.61 C113.28,356.95 113.28,361.61 106.55,367.11 C99.82,372.61 86.36,378.95 79.62,384.28 C72.89,389.61 72.89,393.95 72.89,396.11 L72.89,398.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
+      <path d="M224.72,352.28 L224.72,354.61 C224.72,356.95 224.72,361.61 231.45,367.11 C238.19,372.61 251.65,378.95 258.38,384.28 C265.11,389.61 265.11,393.95 265.11,396.11 L265.11,398.28" stroke="#333" stroke-width="2.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M72.89,456.28 L72.89,459.28 C72.89,462.28 72.89,468.28 80.56,487.11 C88.22,505.95 103.55,537.61 111.22,556.45 C118.88,575.28 118.88,581.28 118.88,584.28 L118.88,587.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M265.11,456.28 L265.11,459.28 C265.11,462.28 265.11,468.28 257.45,487.11 C249.78,505.95 234.45,537.61 226.79,556.45 C219.12,575.28 219.12,581.28 219.12,584.28 L219.12,587.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M169.00,645.28 L169.00,647.62 C169.00,649.95 169.00,654.62 183.66,660.12 C198.31,665.62 227.62,671.95 242.28,677.28 C256.93,682.62 256.93,686.95 256.93,689.12 L256.93,691.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M453.53,498.15 L435.83,498.15 C418.13,498.15 382.73,498.15 365.03,530.34 C347.33,562.53 347.33,626.91 347.33,659.09 L347.33,691.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+      <text x="449.77" y="261.28" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <text x="169.00" y="261.28" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <text x="543.54" y="261.28" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="347.33" y="543.62" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+    </g>
+    <g class="nodes">
+      <rect x="251.90" y="8.00" width="100.46" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="302.13" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Input</text>
+      <polygon points="255.25,112.00 311.39,168.14 255.25,224.28 199.11,168.14" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="255.25" y="168.14" text-anchor="middle" dominant-baseline="middle" fill="#333">Validate</text>
+      <rect x="391.00" y="298.28" width="117.54" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="449.77" y="325.28" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
+      <rect x="105.28" y="298.28" width="127.44" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="169.00" y="325.28" text-anchor="middle" dominant-baseline="middle" fill="#333">Error Handler</text>
+      <polygon points="496.66,402.28 566.16,471.78 496.66,541.28 427.15,471.78" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="496.66" y="471.78" text-anchor="middle" dominant-baseline="middle" fill="#333">More Data?</text>
+      <rect x="248.93" y="695.28" width="106.40" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="302.13" y="722.28" text-anchor="middle" dominant-baseline="middle" fill="#333">Output</text>
+      <rect x="8.00" y="402.28" width="129.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="72.89" y="429.28" text-anchor="middle" dominant-baseline="middle" fill="#333">Log Error</text>
+      <rect x="187.79" y="402.28" width="154.66" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="265.11" y="429.28" text-anchor="middle" dominant-baseline="middle" fill="#333">Notify Admin</text>
+      <rect x="110.88" y="591.28" width="116.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="169.00" y="618.28" text-anchor="middle" dominant-baseline="middle" fill="#333">Cleanup</text>
+    </g>
+  </g>
+</svg>

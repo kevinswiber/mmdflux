@@ -19,20 +19,20 @@
       <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
     </marker>
   </defs>
-  <g transform="translate(0.00,0.00)">
+  <g transform="translate(0.27,0.00)">
     <g class="edgePaths">
-      <path d="M50.73,62.00 L50.73,69.26 Q50.73,73.40 46.59,73.40 L46.59,73.40 Q42.45,73.40 42.45,77.54 L42.45,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M103.64,62.00 L103.64,82.86 Q103.64,87.00 107.77,87.00 L107.77,87.00 Q111.91,87.00 111.91,91.14 L111.91,186.00 Q111.91,191.00 106.91,191.00 L82.18,191.00 Q77.18,191.00 77.18,196.00 L77.18,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M68.91,62.00 L68.91,69.26 Q68.91,73.40 73.05,73.40 L73.05,73.40 Q77.18,73.40 77.18,77.54 L77.18,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M16.00,62.00 L16.00,82.86 Q16.00,87.00 11.86,87.00 L11.86,87.00 Q7.73,87.00 7.73,91.14 L7.73,186.00 Q7.73,191.00 12.73,191.00 L37.45,191.00 Q42.45,191.00 42.45,196.00 L42.45,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>
     <g class="nodes">
-      <rect x="42.73" y="8.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.18" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
-      <rect x="8.00" y="112.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="42.45" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
-      <rect x="42.73" y="216.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.18" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      <rect x="8.00" y="8.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="42.45" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      <rect x="42.73" y="112.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="77.18" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+      <rect x="8.00" y="216.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="42.45" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
     </g>
   </g>
 </svg>

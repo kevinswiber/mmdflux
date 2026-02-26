@@ -1,0 +1,12 @@
+flowchart TB
+    A["Input"] --> B{"Validate"}
+    B -- valid --> C["Process"]
+    B -- invalid --> D("Error Handler")
+    C --> E{"More Data?"}
+    E -- yes --> A
+    D -.-> G["Log Error"]
+    D ==> H["Notify Admin"]
+    G --> I["Cleanup"]
+    H --> I
+    I --> F["Output"]
+    E -- no --> F

@@ -731,23 +731,17 @@ pub fn run(graph: &mut LayoutGraph) {
     let mut i: usize = 0;
     let mut last_best: usize = 0;
 
-    let is_compound = !graph.compound_nodes.is_empty();
-
     while last_best < 4 {
         let bias_right = (i % 4) >= 2;
 
-        if is_compound {
-            // Compound path: hierarchical ordering via sort_subgraph
-            let downward = !i.is_multiple_of(2); // odd = down, even = up
-            sweep_compound(graph, &layers, &edges, bias_right, downward);
-        } else {
-            // Flat path: existing fast ordering
-            if i.is_multiple_of(2) {
-                sweep_up(graph, &layers, &edges, bias_right);
-            } else {
-                sweep_down(graph, &layers, &edges, bias_right);
-            }
-        }
+        // Always use the compound ordering path (sort_subgraph + constraint
+        // graph) even for flat graphs.  Dagre v0.8.5 always runs this pipeline
+        // because Mermaid creates graphs with `compound: true`, and the
+        // constraint graph propagates ordering decisions across layers within a
+        // sweep, finding lower-crossing solutions that the simpler flat
+        // reorder_layer path misses.
+        let downward = !i.is_multiple_of(2); // odd = down, even = up
+        sweep_compound(graph, &layers, &edges, bias_right, downward);
 
         let cc = count_all_crossings(graph, &layers, &edges);
 
@@ -859,37 +853,12 @@ fn sweep_compound(
     }
 }
 
-fn sweep_down(
-    graph: &mut LayoutGraph,
-    layers: &[Vec<usize>],
-    edges: &[(usize, usize, f64)],
-    bias_right: bool,
-) {
-    for i in 1..layers.len() {
-        let fixed = &layers[i - 1];
-        let free = &layers[i];
-        reorder_layer(graph, fixed, free, edges, true, bias_right);
-    }
-}
-
-fn sweep_up(
-    graph: &mut LayoutGraph,
-    layers: &[Vec<usize>],
-    edges: &[(usize, usize, f64)],
-    bias_right: bool,
-) {
-    for i in (0..layers.len() - 1).rev() {
-        let fixed = &layers[i + 1];
-        let free = &layers[i];
-        reorder_layer(graph, fixed, free, edges, false, bias_right);
-    }
-}
-
 /// Reorder nodes in `free` layer based on barycenter of connections to `fixed` layer.
 ///
 /// Uses dagre v0.8.5's partition-and-interleave algorithm: nodes with neighbors
 /// in the fixed layer are "sortable" (sorted by barycenter), while nodes without
 /// neighbors are "unsortable" (interleaved at their original positions).
+#[cfg(test)]
 fn reorder_layer(
     graph: &mut LayoutGraph,
     fixed: &[usize],
@@ -1100,6 +1069,47 @@ mod tests {
         let edges = effective_edges_weighted_filtered(&lg);
         let crossings = count_all_crossings(&lg, &layers, &edges);
         assert_eq!(crossings, 0);
+    }
+
+    #[test]
+    fn test_crossing_minimize_fan_out_with_back_edge() {
+        // Regression test: the constraint graph in sweep_compound propagates
+        // ordering decisions across layers, finding a 0-crossing solution.
+        // Without the compound path, the flat reorder_layer settles on 1 crossing.
+        //
+        // Graph (matches dagre's ordering: D left of C at the fan-out rank):
+        //   A → B → C → E → A (back-edge)
+        //            ↘ D → G → I → F
+        //              D → H → I
+        //   E → F
+        let mut graph: DiGraph<()> = DiGraph::new();
+        for id in ["A", "B", "C", "D", "E", "F", "G", "H", "I"] {
+            graph.add_node(id, ());
+        }
+        graph.add_edge("A", "B");
+        graph.add_edge("B", "C");
+        graph.add_edge("B", "D");
+        graph.add_edge("C", "E");
+        graph.add_edge("E", "A"); // back-edge
+        graph.add_edge("D", "G");
+        graph.add_edge("D", "H");
+        graph.add_edge("G", "I");
+        graph.add_edge("H", "I");
+        graph.add_edge("I", "F");
+        graph.add_edge("E", "F");
+
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, _| (10.0, 10.0));
+        crate::layered::acyclic::run(&mut lg);
+        rank::run(&mut lg, &LayoutConfig::default());
+        rank::normalize(&mut lg);
+        crate::layered::normalize::run(&mut lg, &std::collections::HashMap::new());
+
+        run(&mut lg);
+
+        let layers = rank::by_rank(&lg);
+        let edges = effective_edges_weighted_filtered(&lg);
+        let crossings = count_all_crossings(&lg, &layers, &edges);
+        assert_eq!(crossings, 0, "Expected 0 crossings after ordering");
     }
 
     #[test]
