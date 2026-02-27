@@ -239,6 +239,183 @@ fn flux_layout_profile(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct CrowdingScore {
+    node_intrusions: usize,
+    edge_crossings: usize,
+}
+
+impl CrowdingScore {
+    fn is_clean(self) -> bool {
+        self.node_intrusions == 0 && self.edge_crossings == 0
+    }
+}
+
+fn strict_segment_interior_intersection(
+    a1: (f64, f64),
+    a2: (f64, f64),
+    b1: (f64, f64),
+    b2: (f64, f64),
+) -> bool {
+    const EPS: f64 = 1e-6;
+
+    fn cross(a: (f64, f64), b: (f64, f64)) -> f64 {
+        a.0 * b.1 - a.1 * b.0
+    }
+
+    let r = (a2.0 - a1.0, a2.1 - a1.1);
+    let s = (b2.0 - b1.0, b2.1 - b1.1);
+    let denom = cross(r, s);
+    if denom.abs() <= EPS {
+        return false;
+    }
+
+    let q_minus_p = (b1.0 - a1.0, b1.1 - a1.1);
+    let t = cross(q_minus_p, s) / denom;
+    let u = cross(q_minus_p, r) / denom;
+    t > EPS && t < 1.0 - EPS && u > EPS && u < 1.0 - EPS
+}
+
+fn segment_crosses_rect_interior(
+    a: (f64, f64),
+    b: (f64, f64),
+    rect: (f64, f64, f64, f64),
+    margin: f64,
+) -> bool {
+    const EPS: f64 = 1e-6;
+
+    fn axis_interval(a: f64, d: f64, min_v: f64, max_v: f64) -> Option<(f64, f64)> {
+        const EPS: f64 = 1e-6;
+        if d.abs() <= EPS {
+            if a > min_v + EPS && a < max_v - EPS {
+                Some((0.0, 1.0))
+            } else {
+                None
+            }
+        } else {
+            let t1 = (min_v - a) / d;
+            let t2 = (max_v - a) / d;
+            let lo = t1.min(t2).max(0.0);
+            let hi = t1.max(t2).min(1.0);
+            if hi > lo + EPS { Some((lo, hi)) } else { None }
+        }
+    }
+
+    let (x, y, width, height) = rect;
+    let min_x = x + margin;
+    let max_x = x + width - margin;
+    let min_y = y + margin;
+    let max_y = y + height - margin;
+    if !(max_x > min_x && max_y > min_y) {
+        return false;
+    }
+
+    let dx = b.0 - a.0;
+    let dy = b.1 - a.1;
+    let Some((tx_lo, tx_hi)) = axis_interval(a.0, dx, min_x, max_x) else {
+        return false;
+    };
+    let Some((ty_lo, ty_hi)) = axis_interval(a.1, dy, min_y, max_y) else {
+        return false;
+    };
+
+    let lo = tx_lo.max(ty_lo);
+    let hi = tx_hi.min(ty_hi);
+    hi > lo + EPS
+}
+
+fn edge_crowding_score(
+    diagram: &Diagram,
+    geometry: &GraphGeometry,
+    edge_routing: crate::diagram::EdgeRouting,
+) -> CrowdingScore {
+    let routed = super::routing::route_graph_geometry(diagram, geometry, edge_routing);
+
+    let mut node_intrusions = 0usize;
+    for edge in &routed.edges {
+        for (node_id, node) in &geometry.nodes {
+            if node_id == &edge.from || node_id == &edge.to {
+                continue;
+            }
+            let hit = edge.path.windows(2).any(|segment| {
+                segment_crosses_rect_interior(
+                    (segment[0].x, segment[0].y),
+                    (segment[1].x, segment[1].y),
+                    (node.rect.x, node.rect.y, node.rect.width, node.rect.height),
+                    1.0,
+                )
+            });
+            if hit {
+                node_intrusions += 1;
+            }
+        }
+    }
+
+    let mut edge_crossings = 0usize;
+    for i in 0..routed.edges.len() {
+        for j in (i + 1)..routed.edges.len() {
+            let crossed = routed.edges[i].path.windows(2).any(|a_seg| {
+                routed.edges[j].path.windows(2).any(|b_seg| {
+                    strict_segment_interior_intersection(
+                        (a_seg[0].x, a_seg[0].y),
+                        (a_seg[1].x, a_seg[1].y),
+                        (b_seg[0].x, b_seg[0].y),
+                        (b_seg[1].x, b_seg[1].y),
+                    )
+                })
+            });
+            if crossed {
+                edge_crossings += 1;
+            }
+        }
+    }
+
+    CrowdingScore {
+        node_intrusions,
+        edge_crossings,
+    }
+}
+
+fn adapt_flux_profile_for_reversed_chain_crowding(
+    mode: &MeasurementMode,
+    diagram: &Diagram,
+    edge_routing: crate::diagram::EdgeRouting,
+    profile: &crate::layered::LayoutConfig,
+) -> Result<crate::layered::LayoutConfig, RenderError> {
+    if !profile.track_reversed_chains {
+        return Ok(profile.clone());
+    }
+
+    let baseline_cfg = EngineConfig::Layered(profile.clone());
+    let baseline_geometry = run_layered_layout(mode, diagram, &baseline_cfg)?;
+    if baseline_geometry.reversed_edges.is_empty() {
+        return Ok(profile.clone());
+    }
+
+    let baseline_score = edge_crowding_score(diagram, &baseline_geometry, edge_routing);
+    if baseline_score.is_clean() {
+        return Ok(profile.clone());
+    }
+    // Keep this as a targeted fallback for severe crowding cases (like
+    // inline_label_flowchart) so small/clean diagrams are not re-profiled.
+    let severe_crowding = baseline_score.node_intrusions >= 2 || baseline_score.edge_crossings >= 4;
+    if !severe_crowding {
+        return Ok(profile.clone());
+    }
+
+    let mut relaxed = profile.clone();
+    relaxed.track_reversed_chains = false;
+    let relaxed_cfg = EngineConfig::Layered(relaxed.clone());
+    let relaxed_geometry = run_layered_layout(mode, diagram, &relaxed_cfg)?;
+    let relaxed_score = edge_crowding_score(diagram, &relaxed_geometry, edge_routing);
+
+    if relaxed_score < baseline_score {
+        Ok(relaxed)
+    } else {
+        Ok(profile.clone())
+    }
+}
+
 impl FluxLayeredEngine {
     /// Create with text-grid measurement mode.
     pub fn text() -> Self {
@@ -278,14 +455,6 @@ impl GraphEngine for FluxLayeredEngine {
     ) -> Result<GraphSolveResult, RenderError> {
         use crate::render::SvgOptions;
 
-        // Flux-layered uses a unified enhanced layout profile across routing styles.
-        // Curve choice is render-only and must not change node ordering.
-        let EngineConfig::Layered(ref input_cfg) = *config;
-        let edge_routing = self.id().edge_routing_for_style(request.routing_style);
-        let enhanced_layout_cfg = flux_layout_profile(input_cfg, edge_routing);
-        let enhanced_config = EngineConfig::Layered(enhanced_layout_cfg);
-        let config = &enhanced_config;
-
         // For SVG/MMDS output, pixel-accurate SVG measurement mode is required.
         // Use self.mode if already SVG (explicit override), else derive from format.
         let mode = match request.output_format {
@@ -303,6 +472,28 @@ impl GraphEngine for FluxLayeredEngine {
             },
             _ => self.mode.clone(),
         };
+
+        // Flux-layered uses a unified enhanced layout profile across routing styles.
+        // Curve choice is render-only and must not change node ordering.
+        let EngineConfig::Layered(ref input_cfg) = *config;
+        let edge_routing = self.id().edge_routing_for_style(request.routing_style);
+        let enhanced_layout_cfg = flux_layout_profile(input_cfg, edge_routing);
+        let should_adapt_reversed_chain_crowding = matches!(
+            request.output_format,
+            OutputFormat::Svg | OutputFormat::Mmds
+        ) && diagram.nodes.len() >= 10;
+        let enhanced_layout_cfg = if should_adapt_reversed_chain_crowding {
+            adapt_flux_profile_for_reversed_chain_crowding(
+                &mode,
+                diagram,
+                edge_routing,
+                &enhanced_layout_cfg,
+            )?
+        } else {
+            enhanced_layout_cfg
+        };
+        let enhanced_config = EngineConfig::Layered(enhanced_layout_cfg);
+        let config = &enhanced_config;
 
         // SVG output: use the full SVG layout pipeline (subgraph post-processing,
         // direction overrides, padding, edge rerouting). This is what makes
@@ -701,7 +892,7 @@ mod tests {
         );
         assert!(
             profile.track_reversed_chains,
-            "polyline profile should enable track_reversed_chains"
+            "polyline profile should enable track_reversed_chains by default"
         );
         assert!(
             profile.per_edge_label_spacing,
@@ -774,6 +965,69 @@ mod tests {
             assert!(
                 profile.always_compound_ordering,
                 "{routing:?} profile should always use compound ordering sweeps"
+            );
+        }
+    }
+
+    #[test]
+    fn adaptive_reversed_chain_policy_relaxes_for_inline_label_crowding() {
+        let input = include_str!("../../../tests/fixtures/flowchart/inline_label_flowchart.mmd");
+        let flowchart = crate::parser::parse_flowchart(input).expect("fixture should parse");
+        let diagram = crate::graph::build_diagram(&flowchart);
+        let mode = MeasurementMode::Svg(SvgTextMetrics::new(16.0, 15.0, 15.0));
+
+        let input_cfg = crate::layered::types::LayoutConfig {
+            model_order_tiebreak: true,
+            ..Default::default()
+        };
+
+        for routing in [
+            EdgeRouting::DirectRoute,
+            EdgeRouting::PolylineRoute,
+            EdgeRouting::OrthogonalRoute,
+        ] {
+            let profile = flux_layout_profile(&input_cfg, routing);
+            assert!(
+                profile.track_reversed_chains,
+                "{routing:?} profile should start with reversed-chain tracking enabled"
+            );
+
+            let adapted =
+                adapt_flux_profile_for_reversed_chain_crowding(&mode, &diagram, routing, &profile)
+                    .expect("adaptive profile should succeed");
+
+            assert!(
+                !adapted.track_reversed_chains,
+                "{routing:?} should relax reversed-chain tracking for inline_label_flowchart crowding"
+            );
+        }
+    }
+
+    #[test]
+    fn adaptive_reversed_chain_policy_preserves_crossing_minimize_ordering() {
+        let input = include_str!("../../../tests/fixtures/flowchart/crossing_minimize.mmd");
+        let flowchart = crate::parser::parse_flowchart(input).expect("fixture should parse");
+        let diagram = crate::graph::build_diagram(&flowchart);
+        let mode = MeasurementMode::Svg(SvgTextMetrics::new(16.0, 15.0, 15.0));
+
+        let input_cfg = crate::layered::types::LayoutConfig {
+            model_order_tiebreak: true,
+            ..Default::default()
+        };
+
+        for routing in [
+            EdgeRouting::DirectRoute,
+            EdgeRouting::PolylineRoute,
+            EdgeRouting::OrthogonalRoute,
+        ] {
+            let profile = flux_layout_profile(&input_cfg, routing);
+            let adapted =
+                adapt_flux_profile_for_reversed_chain_crowding(&mode, &diagram, routing, &profile)
+                    .expect("adaptive profile should succeed");
+
+            assert!(
+                adapted.track_reversed_chains,
+                "{routing:?} should keep reversed-chain tracking on crossing_minimize"
             );
         }
     }

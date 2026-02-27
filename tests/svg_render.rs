@@ -970,6 +970,61 @@ fn path_crosses_rect_interior(
     })
 }
 
+fn segment_crosses_rect_interior_any(
+    a: (f64, f64),
+    b: (f64, f64),
+    rect: (f64, f64, f64, f64),
+    margin: f64,
+) -> bool {
+    fn axis_interval(a: f64, d: f64, min_v: f64, max_v: f64) -> Option<(f64, f64)> {
+        const EPS: f64 = 1e-6;
+        if d.abs() <= EPS {
+            if a > min_v + EPS && a < max_v - EPS {
+                Some((0.0, 1.0))
+            } else {
+                None
+            }
+        } else {
+            let t1 = (min_v - a) / d;
+            let t2 = (max_v - a) / d;
+            let lo = t1.min(t2).max(0.0);
+            let hi = t1.max(t2).min(1.0);
+            if hi > lo + EPS { Some((lo, hi)) } else { None }
+        }
+    }
+
+    let (x, y, w, h) = rect;
+    let min_x = x + margin;
+    let max_x = x + w - margin;
+    let min_y = y + margin;
+    let max_y = y + h - margin;
+    if !(max_x > min_x && max_y > min_y) {
+        return false;
+    }
+
+    let dx = b.0 - a.0;
+    let dy = b.1 - a.1;
+    let Some((tx_lo, tx_hi)) = axis_interval(a.0, dx, min_x, max_x) else {
+        return false;
+    };
+    let Some((ty_lo, ty_hi)) = axis_interval(a.1, dy, min_y, max_y) else {
+        return false;
+    };
+
+    let lo = tx_lo.max(ty_lo);
+    let hi = tx_hi.min(ty_hi);
+    hi > lo + 1e-6
+}
+
+fn path_crosses_rect_interior_any(
+    path: &[(f64, f64)],
+    rect: (f64, f64, f64, f64),
+    margin: f64,
+) -> bool {
+    path.windows(2)
+        .any(|segment| segment_crosses_rect_interior_any(segment[0], segment[1], rect, margin))
+}
+
 fn vertical_lane_x_at_y(path: &[(f64, f64)], probe_y: f64) -> Option<f64> {
     let eps = 0.5;
     path.windows(2).find_map(|segment| {
@@ -1064,6 +1119,38 @@ fn render_flux_svg_with_style(
     options.svg.curve = curve;
     options.path_simplification = PathSimplification::None;
     render_svg(diagram, &options)
+}
+
+fn render_flux_engine_svg_for_fixture_with_style(
+    fixture_name: &str,
+    routing_style: RoutingStyle,
+    curve: Curve,
+) -> String {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("flowchart")
+        .join(fixture_name);
+    let input = fs::read_to_string(fixture).expect("fixture should load");
+    let mut instance = mmdflux::registry::default_registry()
+        .create("flowchart")
+        .expect("flowchart instance should be available");
+    instance.parse(&input).expect("fixture should parse");
+    instance
+        .render(
+            OutputFormat::Svg,
+            &RenderConfig {
+                layout_engine: Some(
+                    mmdflux::diagram::EngineAlgorithmId::parse("flux-layered")
+                        .expect("flux-layered id should parse"),
+                ),
+                routing_style: Some(routing_style),
+                curve: Some(curve),
+                path_simplification: PathSimplification::None,
+                ..RenderConfig::default()
+            },
+        )
+        .expect("flux-layered SVG render should succeed")
 }
 
 fn svg_node_centers_by_id(diagram: &mmdflux::Diagram, svg: &str) -> HashMap<String, (f64, f64)> {
@@ -1897,6 +1984,69 @@ fn svg_orthogonal_orthogonal_route_inline_label_flowchart_avoids_known_node_intr
     assert!(
         (retry_lane_x - fastpath_lane_x).abs() >= 1.0,
         "Retry -> Enqueue Job should not share the same vertical lane as Serve Cached -> Emit Metrics around y={probe_y}; retry_x={retry_lane_x}, fastpath_x={fastpath_lane_x}, retry_path={retry_to_queue_points:?}, fast_path={fastpath_to_metrics_points:?}"
+    );
+}
+
+fn svg_flux_inline_label_flowchart_avoids_known_node_intrusions_for_routing_style(
+    routing_style: RoutingStyle,
+) {
+    let diagram = load_flowchart_fixture_diagram("inline_label_flowchart.mmd");
+    let svg = render_flux_engine_svg_for_fixture_with_style(
+        "inline_label_flowchart.mmd",
+        routing_style,
+        Curve::Linear(CornerStyle::Sharp),
+    );
+
+    let cache_to_validate = edge_index(&diagram, "cache", "validate");
+    let reject_to_metrics = edge_index(&diagram, "reject", "metrics");
+    let retry_to_queue = edge_index(&diagram, "retry", "queue");
+    let cache_to_validate_points = edge_path_for_svg_order(&diagram, &svg, cache_to_validate);
+    let reject_to_metrics_points = edge_path_for_svg_order(&diagram, &svg, reject_to_metrics);
+    let retry_to_queue_points = edge_path_for_svg_order(&diagram, &svg, retry_to_queue);
+
+    let serve_cached_rect =
+        node_rect_for_label(&svg, "Serve Cached").expect("missing Serve Cached rect");
+    let notify_user_rect =
+        node_rect_for_label(&svg, "Notify User").expect("missing Notify User rect");
+    let page_on_call_rect =
+        node_rect_for_label(&svg, "Page On-call").expect("missing Page On-call rect");
+
+    assert!(
+        !path_crosses_rect_interior_any(&cache_to_validate_points, serve_cached_rect, 1.0),
+        "Lookup Cache -> Valid? should avoid Serve Cached interior in flux polyline mode; path={cache_to_validate_points:?}, serve_cached_rect={serve_cached_rect:?}"
+    );
+    assert!(
+        !path_crosses_rect_interior_any(&reject_to_metrics_points, notify_user_rect, 1.0),
+        "Reject -> Emit Metrics should avoid Notify User interior in flux polyline mode; path={reject_to_metrics_points:?}, notify_user_rect={notify_user_rect:?}"
+    );
+    assert!(
+        !path_crosses_rect_interior_any(&reject_to_metrics_points, page_on_call_rect, 1.0),
+        "Reject -> Emit Metrics should avoid Page On-call interior in flux polyline mode; path={reject_to_metrics_points:?}, page_on_call_rect={page_on_call_rect:?}"
+    );
+    assert!(
+        !path_crosses_rect_interior_any(&retry_to_queue_points, page_on_call_rect, 1.0),
+        "Retry -> Enqueue Job should avoid Page On-call interior in flux polyline mode; path={retry_to_queue_points:?}, page_on_call_rect={page_on_call_rect:?}"
+    );
+}
+
+#[test]
+fn svg_flux_direct_inline_label_flowchart_avoids_known_node_intrusions() {
+    svg_flux_inline_label_flowchart_avoids_known_node_intrusions_for_routing_style(
+        RoutingStyle::Direct,
+    );
+}
+
+#[test]
+fn svg_flux_polyline_inline_label_flowchart_avoids_known_node_intrusions() {
+    svg_flux_inline_label_flowchart_avoids_known_node_intrusions_for_routing_style(
+        RoutingStyle::Polyline,
+    );
+}
+
+#[test]
+fn svg_flux_orthogonal_inline_label_flowchart_avoids_known_node_intrusions() {
+    svg_flux_inline_label_flowchart_avoids_known_node_intrusions_for_routing_style(
+        RoutingStyle::Orthogonal,
     );
 }
 
