@@ -217,6 +217,41 @@ pub struct FluxLayeredEngine {
     mode: MeasurementMode,
 }
 
+/// Select the internal flux-layered layout profile from routing topology only.
+///
+/// Curve style is intentionally excluded from this decision so presets that only
+/// differ by curve (for example basis vs polyline) share the same node layout.
+fn flux_layout_profile(
+    input_cfg: &crate::layered::LayoutConfig,
+    edge_routing: crate::diagram::EdgeRouting,
+) -> crate::layered::LayoutConfig {
+    if matches!(edge_routing, crate::diagram::EdgeRouting::PolylineRoute) {
+        crate::layered::LayoutConfig {
+            greedy_switch: input_cfg.greedy_switch,
+            model_order_tiebreak: input_cfg.model_order_tiebreak,
+            variable_rank_spacing: input_cfg.variable_rank_spacing,
+            always_compound_ordering: true,
+            track_reversed_chains: input_cfg.track_reversed_chains,
+            per_edge_label_spacing: input_cfg.per_edge_label_spacing,
+            label_side_selection: input_cfg.label_side_selection,
+            label_dummy_strategy: input_cfg.label_dummy_strategy,
+            ..input_cfg.clone()
+        }
+    } else {
+        crate::layered::LayoutConfig {
+            greedy_switch: true,
+            model_order_tiebreak: input_cfg.model_order_tiebreak,
+            variable_rank_spacing: true,
+            always_compound_ordering: true,
+            track_reversed_chains: true,
+            per_edge_label_spacing: true,
+            label_side_selection: true,
+            label_dummy_strategy: crate::layered::LabelDummyStrategy::WidestLayer,
+            ..input_cfg.clone()
+        }
+    }
+}
+
 impl FluxLayeredEngine {
     /// Create with text-grid measurement mode.
     pub fn text() -> Self {
@@ -256,41 +291,11 @@ impl GraphEngine for FluxLayeredEngine {
     ) -> Result<GraphSolveResult, RenderError> {
         use crate::render::SvgOptions;
 
-        // Flux-layered enhancement policy.
-        //
-        // Polyline routing is used for Mermaid-compatible edge rendering
-        // (e.g., basis/polyline presets). Keep ordering in the dagre-like
-        // compound sweep path there, and avoid forcing extra flux enhancements.
-        //
-        // Orthogonal/direct routing keeps the stronger flux defaults.
+        // Flux-layered layout profile is selected by routing topology only.
+        // Curve choice is render-only and must not change node ordering.
         let EngineConfig::Layered(ref input_cfg) = *config;
         let edge_routing = self.id().edge_routing_for_style(request.routing_style);
-        let enhanced_layout_cfg =
-            if matches!(edge_routing, crate::diagram::EdgeRouting::PolylineRoute) {
-                crate::layered::LayoutConfig {
-                    greedy_switch: input_cfg.greedy_switch,
-                    model_order_tiebreak: input_cfg.model_order_tiebreak,
-                    variable_rank_spacing: input_cfg.variable_rank_spacing,
-                    always_compound_ordering: true,
-                    track_reversed_chains: input_cfg.track_reversed_chains,
-                    per_edge_label_spacing: input_cfg.per_edge_label_spacing,
-                    label_side_selection: input_cfg.label_side_selection,
-                    label_dummy_strategy: input_cfg.label_dummy_strategy,
-                    ..input_cfg.clone()
-                }
-            } else {
-                crate::layered::LayoutConfig {
-                    greedy_switch: true,
-                    model_order_tiebreak: input_cfg.model_order_tiebreak,
-                    variable_rank_spacing: true,
-                    always_compound_ordering: true,
-                    track_reversed_chains: true,
-                    per_edge_label_spacing: true,
-                    label_side_selection: true,
-                    label_dummy_strategy: crate::layered::LabelDummyStrategy::WidestLayer,
-                    ..input_cfg.clone()
-                }
-            };
+        let enhanced_layout_cfg = flux_layout_profile(input_cfg, edge_routing);
         let enhanced_config = EngineConfig::Layered(enhanced_layout_cfg);
         let config = &enhanced_config;
 
@@ -567,7 +572,7 @@ fn layout_config_from_layered(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagram::EngineAlgorithmId;
+    use crate::diagram::{EdgeRouting, EngineAlgorithmId};
 
     #[test]
     fn run_layered_layout_simple_graph() {
@@ -678,6 +683,107 @@ mod tests {
             "error should mention unknown: {}",
             err.message
         );
+    }
+
+    #[test]
+    fn flux_layout_profile_polyline_preserves_input_flags_and_forces_compound_ordering() {
+        let input_cfg = crate::layered::types::LayoutConfig {
+            greedy_switch: false,
+            model_order_tiebreak: true,
+            variable_rank_spacing: false,
+            always_compound_ordering: false,
+            track_reversed_chains: false,
+            per_edge_label_spacing: false,
+            label_side_selection: false,
+            label_dummy_strategy: crate::layered::LabelDummyStrategy::Midpoint,
+            ..Default::default()
+        };
+        let profile = flux_layout_profile(&input_cfg, EdgeRouting::PolylineRoute);
+
+        assert_eq!(
+            profile.greedy_switch, input_cfg.greedy_switch,
+            "polyline profile should preserve greedy_switch from input config"
+        );
+        assert_eq!(
+            profile.model_order_tiebreak, input_cfg.model_order_tiebreak,
+            "polyline profile should preserve model_order_tiebreak from input config"
+        );
+        assert_eq!(
+            profile.variable_rank_spacing, input_cfg.variable_rank_spacing,
+            "polyline profile should preserve variable_rank_spacing from input config"
+        );
+        assert_eq!(
+            profile.track_reversed_chains, input_cfg.track_reversed_chains,
+            "polyline profile should preserve track_reversed_chains from input config"
+        );
+        assert_eq!(
+            profile.per_edge_label_spacing, input_cfg.per_edge_label_spacing,
+            "polyline profile should preserve per_edge_label_spacing from input config"
+        );
+        assert_eq!(
+            profile.label_side_selection, input_cfg.label_side_selection,
+            "polyline profile should preserve label_side_selection from input config"
+        );
+        assert_eq!(
+            profile.label_dummy_strategy, input_cfg.label_dummy_strategy,
+            "polyline profile should preserve label_dummy_strategy from input config"
+        );
+        assert!(
+            profile.always_compound_ordering,
+            "polyline profile should always use compound ordering sweeps"
+        );
+    }
+
+    #[test]
+    fn flux_layout_profile_direct_and_orthogonal_use_enhanced_profile() {
+        let input_cfg = crate::layered::types::LayoutConfig {
+            greedy_switch: false,
+            model_order_tiebreak: true,
+            variable_rank_spacing: false,
+            always_compound_ordering: false,
+            track_reversed_chains: false,
+            per_edge_label_spacing: false,
+            label_side_selection: false,
+            label_dummy_strategy: crate::layered::LabelDummyStrategy::Midpoint,
+            ..Default::default()
+        };
+
+        for routing in [EdgeRouting::DirectRoute, EdgeRouting::OrthogonalRoute] {
+            let profile = flux_layout_profile(&input_cfg, routing);
+            assert!(
+                profile.greedy_switch,
+                "{routing:?} profile should enable greedy_switch"
+            );
+            assert_eq!(
+                profile.model_order_tiebreak, input_cfg.model_order_tiebreak,
+                "{routing:?} profile should preserve model_order_tiebreak from input config"
+            );
+            assert!(
+                profile.variable_rank_spacing,
+                "{routing:?} profile should enable variable_rank_spacing"
+            );
+            assert!(
+                profile.track_reversed_chains,
+                "{routing:?} profile should enable track_reversed_chains"
+            );
+            assert!(
+                profile.per_edge_label_spacing,
+                "{routing:?} profile should enable per_edge_label_spacing"
+            );
+            assert!(
+                profile.label_side_selection,
+                "{routing:?} profile should enable label_side_selection"
+            );
+            assert_eq!(
+                profile.label_dummy_strategy,
+                crate::layered::LabelDummyStrategy::WidestLayer,
+                "{routing:?} profile should use widest-layer label dummy placement"
+            );
+            assert!(
+                profile.always_compound_ordering,
+                "{routing:?} profile should always use compound ordering sweeps"
+            );
+        }
     }
 
     // =========================================================================

@@ -1229,11 +1229,11 @@ fn build_backward_orthogonal_channel_path(
             let source_cy = sr.center_y();
             let target_cy = tr.center_y();
 
-            // Channel lane: to the right of all nodes in the corridor.
+            // Channel lane: to the right of all nodes between the source/target
+            // rank span so backward returns stay outside forward-flow diagonals.
             let face_envelope = source_right.max(target_right);
             let min_y = sr.y.min(tr.y);
             let max_y = (sr.y + sr.height).max(tr.y + tr.height);
-            let corridor_left = sr.x.min(tr.x);
             let mut lane_x = face_envelope + CHANNEL_CLEARANCE;
             for node in geometry.nodes.values() {
                 if node.id == edge.from || node.id == edge.to {
@@ -1241,8 +1241,7 @@ fn build_backward_orthogonal_channel_path(
                 }
                 let cy = node.rect.center_y();
                 let node_right = node.rect.x + node.rect.width;
-                if cy >= min_y && cy <= max_y && node.rect.x < lane_x && node_right > corridor_left
-                {
+                if cy >= min_y && cy <= max_y {
                     lane_x = lane_x.max(node_right + CHANNEL_CLEARANCE);
                 }
             }

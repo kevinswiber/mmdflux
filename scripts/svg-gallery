@@ -21,6 +21,7 @@ MMDFLUX_BIN="$REPO_ROOT/target/debug/mmdflux"
 
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/scripts/out/svg-gallery-$(date +%Y%m%d-%H%M%S)}"
 AUTO_OPEN=1
+BUILD_STAMP="$(date +%Y%m%d-%H%M%S)"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -44,14 +45,30 @@ read_csv_array() {
   printf '%s\n' "${result[@]}"
 }
 
+preset_resolved_style() {
+  case "$1" in
+    straight)     echo "direct|linear-sharp" ;;
+    polyline)     echo "polyline|linear-sharp" ;;
+    step)         echo "orthogonal|linear-sharp" ;;
+    smooth-step)  echo "orthogonal|linear-rounded" ;;
+    curved-step)  echo "orthogonal|basis" ;;
+    basis)        echo "polyline|basis" ;;
+    *)            echo "unknown|unknown" ;;
+  esac
+}
+
+ENGINES_CSV="${ENGINES:-flux-layered,mermaid-layered}"
+PRESETS_CSV="${PRESETS:-basis,straight,polyline,step,smooth-step,curved-step}"
+FAMILIES_CSV="${FAMILIES:-flowchart,class}"
+
 ENGINES=()
-while IFS= read -r e; do ENGINES+=("$e"); done < <(read_csv_array "${ENGINES:-flux-layered,mermaid-layered}")
+while IFS= read -r e; do ENGINES+=("$e"); done < <(read_csv_array "$ENGINES_CSV")
 
 PRESETS=()
-while IFS= read -r p; do PRESETS+=("$p"); done < <(read_csv_array "${PRESETS:-basis,straight,polyline,step,smooth-step,curved-step}")
+while IFS= read -r p; do PRESETS+=("$p"); done < <(read_csv_array "$PRESETS_CSV")
 
 FAMILIES=()
-while IFS= read -r f; do FAMILIES+=("$f"); done < <(read_csv_array "${FAMILIES:-flowchart,class}")
+while IFS= read -r f; do FAMILIES+=("$f"); done < <(read_csv_array "$FAMILIES_CSV")
 
 # --- Build ---
 
@@ -62,7 +79,7 @@ printf 'Output: %s\n\n' "$OUT_DIR"
 # --- Render loop ---
 # Collect metadata for HTML generation alongside rendering.
 
-MANIFEST=()   # "family|fixture_stem|engine|preset|svg_filename" per successful render
+MANIFEST=()   # "family|fixture_stem|engine|preset|resolved_routing|resolved_curve|svg_filename"
 
 n_rendered=0
 n_skipped=0
@@ -95,7 +112,8 @@ for family in "${FAMILIES[@]}"; do
             --edge-preset "$preset" \
             "$fixture_path" >"$out_svg" 2>/dev/null
         then
-          MANIFEST+=("${family}|${stem}|${engine}|${preset}|${slug}.svg")
+          IFS='|' read -r resolved_routing resolved_curve <<< "$(preset_resolved_style "$preset")"
+          MANIFEST+=("${family}|${stem}|${engine}|${preset}|${resolved_routing}|${resolved_curve}|${slug}.svg")
           # Copy fixture source for download (dedup by destination)
           src_dest="$OUT_DIR/sources/${family}_${stem}.mmd"
           [[ -f "$src_dest" ]] || cp "$fixture_path" "$src_dest"
@@ -178,6 +196,14 @@ cat <<'HTML_HEAD'
     .pre-step       { color: #fca5a5; background: #7f1d1d44; border-color: #ef4444; }
     .pre-smooth-step  { color: #a7f3d0; background: #064e3b44; border-color: #10b981; }
     .pre-curved-step  { color: #67e8f9; background: #164e6344; border-color: #06b6d4; }
+    /* resolved routing */
+    .route-direct      { color: #fef3c7; background: #78350f44; border-color: #f59e0b; }
+    .route-polyline    { color: #c7d2fe; background: #312e8144; border-color: #6366f1; }
+    .route-orthogonal  { color: #ccfbf1; background: #134e4a44; border-color: #14b8a6; }
+    /* resolved curve */
+    .curve-basis          { color: #bfdbfe; background: #1e3a8a44; border-color: #3b82f6; }
+    .curve-linear-sharp   { color: #fde68a; background: #78350f44; border-color: #d97706; }
+    .curve-linear-rounded { color: #a7f3d0; background: #064e3b44; border-color: #10b981; }
     .card-body { background: #fff; line-height: 0; }
     .card-body img { width: 100%; height: 260px; object-fit: contain;
                      background: #fff; display: block; }
@@ -236,28 +262,32 @@ HTML_GRID_START
 
 # Emit one card per manifest entry
 for entry in "${MANIFEST[@]}"; do
-  IFS='|' read -r family stem engine preset svg_file <<< "$entry"
+  IFS='|' read -r family stem engine preset resolved_routing resolved_curve svg_file <<< "$entry"
 
   # Derive badge CSS classes
   fam_class="fam-${family}"
   eng_key="${engine%%-*}"  # flux, mermaid, elk
   eng_class="eng-${eng_key}"
   pre_class="pre-${preset}"
+  route_class="route-${resolved_routing}"
+  curve_class="curve-${resolved_curve}"
 
   # Base64-encode fixture source for inline viewing
   b64_source="$(base64 < "$REPO_ROOT/tests/fixtures/$family/$stem.mmd" | tr -d '\n')"
   source_file="sources/${family}_${stem}.mmd"
 
   cat <<CARD
-<div class="card" data-family="${family}" data-engine="${engine}" data-preset="${preset}" data-fixture="${stem}" data-source="${b64_source}">
+<div class="card" data-family="${family}" data-engine="${engine}" data-preset="${preset}" data-fixture="${stem}" data-routing="${resolved_routing}" data-curve="${resolved_curve}" data-source="${b64_source}">
   <div class="card-header">
     <span class="name" title="${stem}">${stem}</span>
     <span class="badge ${fam_class}">${family}</span>
     <span class="badge ${eng_class}">${engine}</span>
     <span class="badge ${pre_class}">${preset}</span>
+    <span class="badge ${route_class}">${resolved_routing}</span>
+    <span class="badge ${curve_class}">${resolved_curve}</span>
   </div>
   <div class="card-body">
-    <img src="${svg_file}" loading="lazy" alt="${stem} ${engine} ${preset}" />
+    <img src="${svg_file}?v=${BUILD_STAMP}" loading="lazy" alt="${stem} ${engine} ${preset}" />
   </div>
   <div class="card-actions">
     <button class="source-toggle" onclick="toggleSource(this)">View Source</button>

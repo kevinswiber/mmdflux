@@ -354,10 +354,10 @@ fn build_backward_channel_path(
             let target_cy = tr.center_y();
 
             // Channel lane clears source and target right faces plus any
-            // intermediate nodes whose horizontal extent overlaps the
-            // routing corridor (source_left..face_envelope).
+            // intermediate nodes that sit between the source/target ranks.
+            // This keeps long backward loops outside the working column and
+            // avoids avoidable edge crossings with forward diagonals.
             let face_envelope = source_face_x.max(target_face_x);
-            let corridor_left = sr.x.min(tr.x);
             let (min_y, max_y) = source_target_rank_range_y(from_rect, to_rect);
             let mut lane_x = face_envelope + lane_offset;
             for node in geometry.nodes.values() {
@@ -366,10 +366,7 @@ fn build_backward_channel_path(
                 }
                 let cy = node.rect.center_y();
                 let node_right = node.rect.x + node.rect.width;
-                // Only consider nodes that are vertically between source
-                // and target AND horizontally overlap the routing corridor.
-                if cy >= min_y && cy <= max_y && node.rect.x < lane_x && node_right > corridor_left
-                {
+                if cy >= min_y && cy <= max_y {
                     lane_x = lane_x.max(node_right + lane_offset);
                 }
             }

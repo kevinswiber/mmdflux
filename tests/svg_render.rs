@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::Path;
 
@@ -1050,6 +1050,97 @@ fn edge_path_d_for_svg_order(diagram: &mmdflux::Diagram, svg: &str, edge_index: 
         .get(svg_position)
         .expect("edge path should exist at visible edge position")
         .to_string()
+}
+
+fn render_flux_svg_with_style(
+    diagram: &mmdflux::Diagram,
+    edge_routing: EdgeRouting,
+    routing_style: RoutingStyle,
+    curve: Curve,
+) -> String {
+    let mut options = RenderOptions::default_svg();
+    options.edge_routing = Some(edge_routing);
+    options.svg.routing_style = routing_style;
+    options.svg.curve = curve;
+    options.path_simplification = PathSimplification::None;
+    render_svg(diagram, &options)
+}
+
+fn svg_node_centers_by_id(diagram: &mmdflux::Diagram, svg: &str) -> HashMap<String, (f64, f64)> {
+    diagram
+        .nodes
+        .iter()
+        .filter_map(|(id, node)| {
+            let rect = node_rect_for_label(svg, &node.label)?;
+            Some((id.clone(), (rect.0 + rect.2 / 2.0, rect.1 + rect.3 / 2.0)))
+        })
+        .collect()
+}
+
+fn assert_svg_node_centers_equal(
+    left: &HashMap<String, (f64, f64)>,
+    right: &HashMap<String, (f64, f64)>,
+    tolerance: f64,
+    context: &str,
+) {
+    let left_keys: BTreeSet<_> = left.keys().cloned().collect();
+    let right_keys: BTreeSet<_> = right.keys().cloned().collect();
+    assert_eq!(
+        left_keys, right_keys,
+        "{context}: node key sets should match between renders"
+    );
+
+    for node_id in left_keys {
+        let left_center = left
+            .get(&node_id)
+            .unwrap_or_else(|| panic!("{context}: missing node {node_id} in left render"));
+        let right_center = right
+            .get(&node_id)
+            .unwrap_or_else(|| panic!("{context}: missing node {node_id} in right render"));
+        let dx = (left_center.0 - right_center.0).abs();
+        let dy = (left_center.1 - right_center.1).abs();
+        assert!(
+            dx <= tolerance && dy <= tolerance,
+            "{context}: node {node_id} center drift exceeded tolerance {tolerance}: left={left_center:?}, right={right_center:?}, delta=({dx:.3}, {dy:.3})"
+        );
+    }
+}
+
+fn strict_segment_interior_intersection(
+    a0: (f64, f64),
+    a1: (f64, f64),
+    b0: (f64, f64),
+    b1: (f64, f64),
+) -> bool {
+    let eps = 1.0e-6;
+    let r = (a1.0 - a0.0, a1.1 - a0.1);
+    let s = (b1.0 - b0.0, b1.1 - b0.1);
+    let r_len_sq = r.0 * r.0 + r.1 * r.1;
+    let s_len_sq = s.0 * s.0 + s.1 * s.1;
+    if r_len_sq <= eps || s_len_sq <= eps {
+        return false;
+    }
+
+    let cross = |u: (f64, f64), v: (f64, f64)| u.0 * v.1 - u.1 * v.0;
+    let q_minus_p = (b0.0 - a0.0, b0.1 - a0.1);
+    let denom = cross(r, s);
+    if denom.abs() <= eps {
+        // Treat parallel/collinear overlaps as non-crossing for this lock:
+        // the regression target is strict interior X-crossing.
+        return false;
+    }
+
+    let t = cross(q_minus_p, s) / denom;
+    let u = cross(q_minus_p, r) / denom;
+    t > eps && t < 1.0 - eps && u > eps && u < 1.0 - eps
+}
+
+fn paths_have_strict_interior_crossing(path_a: &[(f64, f64)], path_b: &[(f64, f64)]) -> bool {
+    path_a.windows(2).any(|a_seg| {
+        path_b.windows(2).any(|b_seg| {
+            strict_segment_interior_intersection(a_seg[0], a_seg[1], b_seg[0], b_seg[1])
+        })
+    })
 }
 
 fn load_flowchart_fixture_diagram(name: &str) -> mmdflux::Diagram {
@@ -3911,6 +4002,106 @@ fn svg_rounded_style_does_not_force_orthogonal_topology() {
         assert!(
             (r_end.0 - s_end.0).abs() <= 1.0 && (r_end.1 - s_end.1).abs() <= 1.0,
             "edge {i} end should match: rounded={r_end:?} smooth={s_end:?}"
+        );
+    }
+}
+
+#[test]
+fn svg_flux_complex_polyline_presets_keep_node_layout_invariant() {
+    let diagram = load_flowchart_fixture_diagram("complex.mmd");
+
+    let basis_svg = render_flux_svg_with_style(
+        &diagram,
+        EdgeRouting::PolylineRoute,
+        RoutingStyle::Polyline,
+        Curve::Basis,
+    );
+    let polyline_svg = render_flux_svg_with_style(
+        &diagram,
+        EdgeRouting::PolylineRoute,
+        RoutingStyle::Polyline,
+        Curve::Linear(CornerStyle::Sharp),
+    );
+
+    let basis_centers = svg_node_centers_by_id(&diagram, &basis_svg);
+    let polyline_centers = svg_node_centers_by_id(&diagram, &polyline_svg);
+    assert_svg_node_centers_equal(
+        &basis_centers,
+        &polyline_centers,
+        0.25,
+        "complex polyline-routing presets",
+    );
+}
+
+#[test]
+fn svg_flux_complex_orthogonal_presets_keep_node_layout_invariant() {
+    let diagram = load_flowchart_fixture_diagram("complex.mmd");
+
+    let step_svg = render_flux_svg_with_style(
+        &diagram,
+        EdgeRouting::OrthogonalRoute,
+        RoutingStyle::Orthogonal,
+        Curve::Linear(CornerStyle::Sharp),
+    );
+    let smooth_step_svg = render_flux_svg_with_style(
+        &diagram,
+        EdgeRouting::OrthogonalRoute,
+        RoutingStyle::Orthogonal,
+        Curve::Linear(CornerStyle::Rounded),
+    );
+    let curved_step_svg = render_flux_svg_with_style(
+        &diagram,
+        EdgeRouting::OrthogonalRoute,
+        RoutingStyle::Orthogonal,
+        Curve::Basis,
+    );
+
+    let step_centers = svg_node_centers_by_id(&diagram, &step_svg);
+    let smooth_step_centers = svg_node_centers_by_id(&diagram, &smooth_step_svg);
+    let curved_step_centers = svg_node_centers_by_id(&diagram, &curved_step_svg);
+
+    assert_svg_node_centers_equal(
+        &step_centers,
+        &smooth_step_centers,
+        0.25,
+        "complex orthogonal step vs smooth-step",
+    );
+    assert_svg_node_centers_equal(
+        &step_centers,
+        &curved_step_centers,
+        0.25,
+        "complex orthogonal step vs curved-step",
+    );
+}
+
+#[test]
+fn svg_flux_crossing_minimize_direct_and_orthogonal_avoid_known_crossing_pair() {
+    let diagram = load_flowchart_fixture_diagram("crossing_minimize.mmd");
+    let edge_bd = edge_index(&diagram, "B", "D");
+    let edge_ea = edge_index(&diagram, "E", "A");
+
+    let styles = [
+        (
+            "straight",
+            EdgeRouting::DirectRoute,
+            RoutingStyle::Direct,
+            Curve::Linear(CornerStyle::Sharp),
+        ),
+        (
+            "step",
+            EdgeRouting::OrthogonalRoute,
+            RoutingStyle::Orthogonal,
+            Curve::Linear(CornerStyle::Sharp),
+        ),
+    ];
+
+    for (style_name, edge_routing, routing_style, curve) in styles {
+        let svg = render_flux_svg_with_style(&diagram, edge_routing, routing_style, curve);
+        let bd_path = edge_path_for_svg_order(&diagram, &svg, edge_bd);
+        let ea_path = edge_path_for_svg_order(&diagram, &svg, edge_ea);
+        assert!(
+            !paths_have_strict_interior_crossing(&bd_path, &ea_path),
+            "crossing_minimize {style_name} should avoid strict interior crossing between B->D and E->A; B->D={bd_path:?}, E->A={ea_path:?}"
         );
     }
 }
