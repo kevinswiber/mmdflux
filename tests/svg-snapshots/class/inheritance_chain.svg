@@ -31,8 +31,8 @@
       <text x="148.49" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Vehicle</text>
     </g>
     <g class="edgePaths">
-      <path d="M100.32,66.00 L100.32,68.11 C100.32,70.22 100.32,74.44 99.60,79.33 C98.87,84.22 97.41,89.78 96.68,95.33 C95.96,100.89 95.96,106.44 95.96,109.22 L95.96,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
-      <path d="M196.66,66.00 L196.66,68.11 C196.66,70.22 196.66,74.44 197.39,79.33 C198.12,84.22 199.58,89.78 200.31,95.33 C201.03,100.89 201.03,106.44 201.03,109.22 L201.03,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
+      <path d="M98.14,66.00 L98.14,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
+      <path d="M198.85,66.00 L198.85,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
       <path d="M77.53,170.00 L77.53,216.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
     </g>
     <g class="edgeLabels">

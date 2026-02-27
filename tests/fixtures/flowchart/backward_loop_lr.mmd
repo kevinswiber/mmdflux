@@ -1,0 +1,10 @@
+flowchart LR
+    A[Narratives] --> B[Domain Model]
+    B --> C[Server Scaffold]
+    B --> D[IA Schema]
+    D --> E[Frontend Scaffold]
+    C --> F[AI Implementation]
+    E --> F
+    F --> G[Quality Checks]
+    G -->|Fail| F
+    G -->|Pass| H[Production Code]

@@ -3997,11 +3997,37 @@ fn apply_marker_offsets(
         } else {
             MIN_ENDPOINT_SUPPORT
         };
+        // Save original endpoints before support extension so we can detect
+        // when extension shifts the source/target off the node boundary.
+        let original_start = points[0];
+        let original_end = points[points.len() - 1];
         points = enforce_min_orthogonal_endpoint_support(
             &points,
             start_offset + min_endpoint_support,
             end_offset + min_endpoint_support,
         );
+
+        // For backward edges, enforce_min_orthogonal_endpoint_support may shift
+        // the source (or target) off the node face when extending a short terminal
+        // segment — the extension propagates through collinear points to maintain
+        // orthogonality. Re-insert the original endpoint as a connecting stem so
+        // the edge remains visually attached to the node.
+        if is_backward {
+            const DRIFT_EPS: f64 = 0.5;
+            let start_drifted = (points[0].x - original_start.x).abs() > DRIFT_EPS
+                || (points[0].y - original_start.y).abs() > DRIFT_EPS;
+            let end_drifted = {
+                let last = points.len() - 1;
+                (points[last].x - original_end.x).abs() > DRIFT_EPS
+                    || (points[last].y - original_end.y).abs() > DRIFT_EPS
+            };
+            if start_drifted {
+                points.insert(0, original_start);
+            }
+            if end_drifted {
+                points.push(original_end);
+            }
+        }
 
         // Keep a visible endpoint stem in orthogonal mode so marker pullback
         // cannot invert the terminal segment direction.
