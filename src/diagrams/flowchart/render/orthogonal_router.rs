@@ -3387,10 +3387,22 @@ fn align_backward_outer_lane_to_hint(
                 return;
             }
 
+            // If the hint's outer lane x is inside either endpoint node, the
+            // hint is not meaningful for backward lane alignment — skip.
             let hint_outer = hint
                 .iter()
                 .map(|point| point.x)
                 .fold(f64::NEG_INFINITY, f64::max);
+            let mut min_outer = f64::NEG_INFINITY;
+            if let Some((src_rect, _)) =
+                endpoint_rect_and_shape(geometry, &edge.from, edge.from_subgraph.as_deref())
+            {
+                min_outer = min_outer.max(src_rect.x + src_rect.width);
+            }
+            min_outer = min_outer.max(target_rect.x + target_rect.width);
+            if hint_outer < min_outer {
+                return;
+            }
             let route_outer = path
                 .iter()
                 .map(|point| point.x)
@@ -3412,10 +3424,27 @@ fn align_backward_outer_lane_to_hint(
             if !aligned {}
         }
         Direction::LeftRight | Direction::RightLeft => {
+            // The hint waypoints come from the layout engine and may pass through
+            // node centers. If the hint's outer lane y is inside either endpoint
+            // node, the hint is not meaningful for backward lane alignment — skip.
             let hint_outer = hint
                 .iter()
                 .map(|point| point.y)
                 .fold(f64::NEG_INFINITY, f64::max);
+            let mut min_outer = f64::NEG_INFINITY;
+            if let Some((src_rect, _)) =
+                endpoint_rect_and_shape(geometry, &edge.from, edge.from_subgraph.as_deref())
+            {
+                min_outer = min_outer.max(src_rect.y + src_rect.height);
+            }
+            if let Some((tgt_rect, _)) =
+                endpoint_rect_and_shape(geometry, &edge.to, edge.to_subgraph.as_deref())
+            {
+                min_outer = min_outer.max(tgt_rect.y + tgt_rect.height);
+            }
+            if hint_outer < min_outer {
+                return;
+            }
             let route_outer = path
                 .iter()
                 .map(|point| point.y)
