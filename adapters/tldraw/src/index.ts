@@ -80,8 +80,15 @@ function previewHtml(): string {
         showErr("Parse failed: " + JSON.stringify(result.error, null, 2));
       } else {
         const store = result.value;
+        const onMount = (editor) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              editor.zoomToFit({ immediate: true, inset: 180 });
+            });
+          });
+        };
         const root = createRoot(rootEl);
-        root.render(React.createElement(Tldraw, { store }));
+        root.render(React.createElement(Tldraw, { store, onMount }));
       }
     } catch (e) {
       showErr("Error: " + (e?.message || e) + "\\n\\n" + (e?.stack || ""));

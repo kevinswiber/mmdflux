@@ -403,16 +403,14 @@ fn build_positioned_nodes(
                     node_id: node.id.clone(),
                 }
             })?;
+            // MMDS position is node center; FRect uses top-left origin
+            let left = node.position.x - node.size.width / 2.0;
+            let top = node.position.y - node.size.height / 2.0;
             Ok((
                 node.id.clone(),
                 PositionedNode {
                     id: node.id.clone(),
-                    rect: FRect::new(
-                        node.position.x,
-                        node.position.y,
-                        node.size.width,
-                        node.size.height,
-                    ),
+                    rect: FRect::new(left, top, node.size.width, node.size.height),
                     shape: hydrated.shape,
                     label: hydrated.label.clone(),
                     parent: hydrated.parent.clone(),
