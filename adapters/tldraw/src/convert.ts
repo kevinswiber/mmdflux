@@ -18,6 +18,8 @@ import {
 
 export interface ConvertOptions {
   scale?: number;
+  /** Multiplier for spacing between nodes (positions and paths). Does not change node sizes. Default 1.2. */
+  nodeSpacing?: number;
 }
 
 export interface TldrawConvertResult {
@@ -81,12 +83,37 @@ function toPoints(
   return path.map(([x, y]) => ({ x: x * scale, y: y * scale }));
 }
 
-function scaleNodeRect(node: NormalizedMmdsNode, scale: number): Rect {
-  const width = Math.max(8, node.size.width * scale);
-  const height = Math.max(8, node.size.height * scale);
+// Approximate char width for tldraw "draw" font at size "m" (~16px).
+// Ensures single-line labels don't wrap awkwardly when mmdflux sizes differ from tldraw metrics.
+const CHAR_WIDTH_EST = 14;
+const MIN_LABEL_PAD_X = 36;
+const MIN_LABEL_PAD_Y = 28;
+
+function scaleNodeRect(
+  node: NormalizedMmdsNode,
+  sizeScale: number,
+  positionScale: number,
+): Rect {
+  let width = Math.max(8, node.size.width * sizeScale);
+  let height = Math.max(8, node.size.height * sizeScale);
+
+  // Ensure minimum size for label so text doesn't wrap to single chars per line.
+  const minW = node.label.length * CHAR_WIDTH_EST + MIN_LABEL_PAD_X;
+  const minH = MIN_LABEL_PAD_Y;
+  if (width < minW || height < minH) {
+    width = Math.max(width, minW);
+    height = Math.max(height, minH);
+    // Diamonds need square aspect; ellipses often look better square for short labels.
+    if (node.shape === "diamond") {
+      const side = Math.max(width, height);
+      width = side;
+      height = side;
+    }
+  }
+
   return {
-    x: node.position.x * scale - width / 2,
-    y: node.position.y * scale - height / 2,
+    x: node.position.x * positionScale - width / 2,
+    y: node.position.y * positionScale - height / 2,
     w: width,
     h: height,
   };
@@ -242,6 +269,10 @@ function elbowMidPoint(points: Point[]): number {
   return clamp01(firstLeg / total);
 }
 
+// Keep edge labels away from endpoints to avoid overlapping nodes.
+const LABEL_POS_MIN = 0.25;
+const LABEL_POS_MAX = 0.75;
+
 function computeLabelPositionRatio(path: Point[], labelPos?: Point): number {
   if (!labelPos || path.length < 2) return 0.5;
 
@@ -281,18 +312,195 @@ function computeLabelPositionRatio(path: Point[], labelPos?: Point): number {
     traversed += segmentLengths[i - 1];
   }
 
-  return clamp01(bestAlong / total);
+  const raw = clamp01(bestAlong / total);
+  return Math.max(LABEL_POS_MIN, Math.min(LABEL_POS_MAX, raw));
 }
 
-function normalizedAnchor(point: Point, rect: Rect | undefined): Point {
+/** Intersection of ray A->B with rect boundary. Returns the point on the ray (t>=0) that lies on the rect edge, or null. */
+function rayRectIntersection(
+  a: Point,
+  b: Point,
+  rect: Rect,
+  segmentOnly: boolean,
+): Point | null {
+  const { x: rx, y: ry, w: rw, h: rh } = rect;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  let best: Point | null = null;
+  let bestT = segmentOnly ? 2 : Number.POSITIVE_INFINITY;
+
+  const test = (px: number, py: number, qx: number, qy: number) => {
+    const ex = qx - px;
+    const ey = qy - py;
+    const pcx = px - a.x;
+    const pcy = py - a.y;
+    const denom = dx * ey - dy * ex;
+    if (Math.abs(denom) < 1e-10) return;
+    const t = (pcx * ey - pcy * ex) / denom;
+    const u = (pcx * dy - pcy * dx) / denom;
+    const inSegment = segmentOnly ? t >= 0 && t <= 1 : t >= 0;
+    if (inSegment && u >= 0 && u <= 1 && t < bestT) {
+      bestT = t;
+      best = { x: a.x + t * dx, y: a.y + t * dy };
+    }
+  };
+
+  test(rx, ry, rx + rw, ry);
+  test(rx + rw, ry, rx + rw, ry + rh);
+  test(rx + rw, ry + rh, rx, ry + rh);
+  test(rx, ry + rh, rx, ry);
+  return best;
+}
+
+function segmentRectIntersection(
+  a: Point,
+  b: Point,
+  rect: Rect,
+): Point | null {
+  return rayRectIntersection(a, b, rect, true);
+}
+
+/** Project a point inside the rect to the nearest edge based on direction to another point. */
+function projectToEdge(point: Point, directionToward: Point, _rect: Rect): Point {
+  const dx = directionToward.x - point.x;
+  const dy = directionToward.y - point.y;
+
+  let nx: number;
+  let ny: number;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    nx = dx >= 0 ? 1 : 0;
+    ny = 0.5;
+  } else {
+    nx = 0.5;
+    ny = dy >= 0 ? 1 : 0;
+  }
+  return { x: nx, y: ny };
+}
+
+/** Pick edge from rect center toward a point (for when terminal is outside). */
+function edgeTowardPoint(rect: Rect, point: Point): Point {
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const dx = point.x - cx;
+  const dy = point.y - cy;
+  let nx: number;
+  let ny: number;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    nx = dx >= 0 ? 1 : 0;
+    ny = 0.5;
+  } else {
+    nx = 0.5;
+    ny = dy >= 0 ? 1 : 0;
+  }
+  return { x: nx, y: ny };
+}
+
+/** Project normalized point onto diamond boundary. Diamond has vertices at (0.5,0), (1,0.5), (0.5,1), (0,0.5). */
+function projectToDiamondBoundary(nx: number, ny: number): Point {
+  const inDiamond = Math.abs(nx - 0.5) + Math.abs(ny - 0.5) <= 0.5;
+  if (inDiamond) return { x: nx, y: ny };
+  const cx = 0.5;
+  const cy = 0.5;
+  const dx = nx - cx;
+  const dy = ny - cy;
+  if (dx >= 0 && dy >= 0) return { x: 0.75, y: 0.75 };
+  if (dx >= 0 && dy <= 0) return { x: 0.75, y: 0.25 };
+  if (dx <= 0 && dy <= 0) return { x: 0.25, y: 0.25 };
+  return { x: 0.25, y: 0.75 };
+}
+
+/** Project normalized point onto ellipse boundary (approximate: snap to nearest axis-aligned edge midpoint). */
+function projectToEllipseBoundary(nx: number, ny: number): Point {
+  const cx = 0.5;
+  const cy = 0.5;
+  const dx = nx - cx;
+  const dy = ny - cy;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return { x: dx >= 0 ? 1 : 0, y: 0.5 };
+  }
+  return { x: 0.5, y: dy >= 0 ? 1 : 0 };
+}
+
+function projectToShapeBoundary(
+  p: Point,
+  geo: "rectangle" | "ellipse" | "diamond" | "hexagon" | "trapezoid",
+): Point {
+  if (geo === "rectangle" || geo === "hexagon" || geo === "trapezoid") return p;
+  if (geo === "diamond") return projectToDiamondBoundary(p.x, p.y);
+  return projectToEllipseBoundary(p.x, p.y);
+}
+
+/** Anchor on the shape edge where the path enters/exits, so arrows attach at the boundary instead of the center. */
+function edgeAnchor(
+  terminal: Point,
+  pathPoints: Point[],
+  isStart: boolean,
+  rect: Rect | undefined,
+  geo: "rectangle" | "ellipse" | "diamond" | "hexagon" | "trapezoid",
+): Point {
   if (!rect || rect.w <= 0 || rect.h <= 0) {
     return { x: 0.5, y: 0.5 };
   }
 
-  return {
-    x: clamp01((point.x - rect.x) / rect.w),
-    y: clamp01((point.y - rect.y) / rect.h),
-  };
+  const other =
+    pathPoints.length >= 2
+      ? isStart
+        ? pathPoints[1]
+        : pathPoints[pathPoints.length - 2]
+      : null;
+
+  let result: Point;
+
+  if (other) {
+    const segHit = isStart
+      ? segmentRectIntersection(terminal, other, rect)
+      : segmentRectIntersection(other, terminal, rect);
+    const rayHit =
+      !segHit &&
+      rayRectIntersection(other, terminal, rect, false);
+    const hit = segHit ?? rayHit;
+    if (hit) {
+      let nx = clamp01((hit.x - rect.x) / rect.w);
+      let ny = clamp01((hit.y - rect.y) / rect.h);
+      const atCorner =
+        (nx <= 0.01 || nx >= 0.99) && (ny <= 0.01 || ny >= 0.99);
+      if (atCorner && other) {
+        result = edgeTowardPoint(rect, other);
+      } else {
+        result = { x: nx, y: ny };
+      }
+    } else {
+      const inside =
+        terminal.x >= rect.x &&
+        terminal.x <= rect.x + rect.w &&
+        terminal.y >= rect.y &&
+        terminal.y <= rect.y + rect.h;
+      if (inside) {
+        result = projectToEdge(terminal, other, rect);
+      } else {
+        result = edgeTowardPoint(rect, other);
+      }
+    }
+    // Direction-based sanity: when path clearly approaches from one side, ensure we use that face.
+    // This fixes cases where enlarged rects cause segment-rect intersection to pick the wrong edge.
+    // Path segment is (terminal, other) for start or (other, terminal) for end; approach = direction from terminal toward other.
+    const approachDx = other.x - terminal.x;
+    const approachDy = other.y - terminal.y;
+    const tol = 1e-6;
+    if (Math.abs(approachDx) > Math.abs(approachDy) + tol) {
+      const faceRight = approachDx > 0;
+      if (faceRight && result.x < 0.5) result = { x: 1, y: result.y };
+      else if (!faceRight && result.x > 0.5) result = { x: 0, y: result.y };
+    } else if (Math.abs(approachDy) > tol) {
+      const faceBottom = approachDy > 0;
+      if (faceBottom && result.y < 0.5) result = { x: result.x, y: 1 };
+      else if (!faceBottom && result.y > 0.5) result = { x: result.x, y: 0 };
+    }
+  } else {
+    result = edgeTowardPoint(rect, terminal);
+  }
+
+  return projectToShapeBoundary(result, geo);
 }
 
 function subgraphDepth(
@@ -382,10 +590,10 @@ function isMmdsDocument(input: unknown): input is MmdsDocument {
 
 function fallbackFrameRect(
   subgraph: NormalizedMmdsSubgraph,
-  scale: number,
+  positionScale: number,
 ): Rect {
-  const width = Math.max(160, (subgraph.bounds?.width ?? 160) * scale);
-  const height = Math.max(96, (subgraph.bounds?.height ?? 96) * scale);
+  const width = Math.max(160, (subgraph.bounds?.width ?? 160) * positionScale);
+  const height = Math.max(96, (subgraph.bounds?.height ?? 96) * positionScale);
   return { x: 0, y: 0, w: width, h: height };
 }
 
@@ -394,6 +602,8 @@ export function convertToTldraw(
   options: ConvertOptions = {},
 ): TldrawConvertResult {
   const scale = options.scale ?? 1;
+  const nodeSpacing = options.nodeSpacing ?? 1.2;
+  const positionScale = scale * nodeSpacing;
   const normalized = normalizeMmds(mmds);
 
   const store = createTLStore({
@@ -413,7 +623,7 @@ export function convertToTldraw(
 
   const nodeRectById = new Map<string, Rect>();
   for (const node of normalized.nodes) {
-    nodeRectById.set(node.id, scaleNodeRect(node, scale));
+    nodeRectById.set(node.id, scaleNodeRect(node, scale, positionScale));
   }
 
   const frameShapeIdBySubgraphId = new Map<string, string>();
@@ -453,13 +663,13 @@ export function convertToTldraw(
     let frameRect =
       rects.length > 0
         ? expandRectForFrame(unionRects(rects))
-        : fallbackFrameRect(subgraph, scale);
+        : fallbackFrameRect(subgraph, positionScale);
 
     if (subgraph.bounds) {
       frameRect = withMinSizeAroundCenter(
         frameRect,
-        Math.max(96, subgraph.bounds.width * scale),
-        Math.max(64, subgraph.bounds.height * scale),
+        Math.max(96, subgraph.bounds.width * positionScale),
+        Math.max(64, subgraph.bounds.height * positionScale),
       );
     }
 
@@ -487,6 +697,10 @@ export function convertToTldraw(
   const bindingRecords: TLRecord[] = [];
 
   const absoluteBoundsByShapeId = new Map<string, Rect>();
+  const geoByShapeId = new Map<
+    string,
+    "rectangle" | "ellipse" | "diamond" | "hexagon" | "trapezoid"
+  >();
   const nodeShapeIdByNodeId = new Map<string, string>();
 
   for (const node of nodes) {
@@ -526,6 +740,7 @@ export function convertToTldraw(
     } as TLRecord);
 
     absoluteBoundsByShapeId.set(shapeId, absRect);
+    geoByShapeId.set(shapeId, "rectangle");
   }
 
   for (const node of nodes) {
@@ -569,11 +784,13 @@ export function convertToTldraw(
         },
       } as TLRecord);
     } else {
+      const geo = mapGeoShape(node.shape);
+      geoByShapeId.set(shapeId, geo);
       shapeRecords.push({
         ...common,
         type: "geo",
         props: {
-          geo: mapGeoShape(node.shape),
+          geo,
           dash: "solid",
           url: "",
           w: absRect.w,
@@ -603,15 +820,15 @@ export function convertToTldraw(
     const tgt = normalized.node_by_id.get(edge.target);
     if (!src || !tgt) continue;
 
-    const routedPoints = toPoints(edge.path, scale);
+    const routedPoints = toPoints(edge.path, positionScale);
     const start =
       routedPoints.length >= 2
         ? routedPoints[0]
-        : { x: src.position.x * scale, y: src.position.y * scale };
+        : { x: src.position.x * positionScale, y: src.position.y * positionScale };
     const end =
       routedPoints.length >= 2
         ? routedPoints[routedPoints.length - 1]
-        : { x: tgt.position.x * scale, y: tgt.position.y * scale };
+        : { x: tgt.position.x * positionScale, y: tgt.position.y * positionScale };
 
     const pathPoints = routedPoints.length >= 2 ? routedPoints : [start, end];
     const localPath = pathPoints.map((point) => ({
@@ -641,7 +858,7 @@ export function convertToTldraw(
           };
 
     const labelPos = edge.label_position
-      ? { x: edge.label_position.x * scale, y: edge.label_position.y * scale }
+      ? { x: edge.label_position.x * positionScale, y: edge.label_position.y * positionScale }
       : undefined;
 
     shapeRecords.push({
@@ -677,13 +894,15 @@ export function convertToTldraw(
             : 0,
         richText: toRichText(edge.label ?? ""),
         labelPosition: computeLabelPositionRatio(pathPoints, labelPos),
-        scale: 1,
+        scale: edge.label ? 1.5 : 1,
         elbowMidPoint: kind === "elbow" ? elbowMidPoint(localPath) : 0.5,
       },
       meta: {},
     } as TLRecord);
 
     if (fromShapeId) {
+      const fromRect = absoluteBoundsByShapeId.get(fromShapeId);
+      const fromGeo = geoByShapeId.get(fromShapeId) ?? "rectangle";
       bindingRecords.push({
         id: toBindingId("edge_start", edge.id),
         typeName: "binding",
@@ -692,9 +911,12 @@ export function convertToTldraw(
         toId: fromShapeId,
         props: {
           terminal: "start",
-          normalizedAnchor: normalizedAnchor(
+          normalizedAnchor: edgeAnchor(
             start,
-            absoluteBoundsByShapeId.get(fromShapeId),
+            pathPoints,
+            true,
+            fromRect,
+            fromGeo,
           ),
           isExact: false,
           isPrecise: true,
@@ -705,6 +927,8 @@ export function convertToTldraw(
     }
 
     if (toShapeIdResolved) {
+      const toRect = absoluteBoundsByShapeId.get(toShapeIdResolved);
+      const toGeo = geoByShapeId.get(toShapeIdResolved) ?? "rectangle";
       bindingRecords.push({
         id: toBindingId("edge_end", edge.id),
         typeName: "binding",
@@ -713,9 +937,12 @@ export function convertToTldraw(
         toId: toShapeIdResolved,
         props: {
           terminal: "end",
-          normalizedAnchor: normalizedAnchor(
+          normalizedAnchor: edgeAnchor(
             end,
-            absoluteBoundsByShapeId.get(toShapeIdResolved),
+            pathPoints,
+            false,
+            toRect,
+            toGeo,
           ),
           isExact: false,
           isPrecise: true,

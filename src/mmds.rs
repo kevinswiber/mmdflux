@@ -262,8 +262,8 @@ fn mmds_node(pn: &PositionedNode) -> MmdsNode {
         shape: shape_str(pn.shape).to_string(),
         parent: pn.parent.clone(),
         position: MmdsPosition {
-            x: pn.rect.x,
-            y: pn.rect.y,
+            x: pn.rect.x + pn.rect.width / 2.0,
+            y: pn.rect.y + pn.rect.height / 2.0,
         },
         size: MmdsSize {
             width: pn.rect.width,
