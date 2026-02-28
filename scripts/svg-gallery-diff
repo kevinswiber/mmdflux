@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+# Generate a side-by-side before/after gallery of changed SVG snapshots.
+#
+# Usage:
+#   scripts/svg-gallery-diff              # diff against main
+#   scripts/svg-gallery-diff <base-ref>   # diff against any ref
+#   scripts/svg-gallery-diff --no-open    # don't auto-open browser
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+BASE_REF="main"
+AUTO_OPEN=1
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-open) AUTO_OPEN=0; shift ;;
+    --base) BASE_REF="$2"; shift 2 ;;
+    -*) printf 'Unknown flag: %s\n' "$1" >&2; exit 1 ;;
+    *) BASE_REF="$1"; shift ;;
+  esac
+done
+
+OUT_DIR="$REPO_ROOT/scripts/out/svg-diff-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$OUT_DIR/before" "$OUT_DIR/after"
+
+# Collect changed SVG snapshots
+CHANGED=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && CHANGED+=("$line")
+done < <(
+  git -C "$REPO_ROOT" diff "$BASE_REF" --name-only -- tests/svg-snapshots/ \
+    | grep '\.svg$' \
+    | sort
+)
+
+if [[ ${#CHANGED[@]} -eq 0 ]]; then
+  printf 'No changed SVG snapshots vs %s.\n' "$BASE_REF"
+  exit 0
+fi
+
+n_files="${#CHANGED[@]}"
+printf '%d changed SVG snapshots vs %s\n\n' "$n_files" "$BASE_REF"
+
+# Extract before/after versions and build a manifest
+MANIFEST_FILE="$(mktemp)"
+trap 'rm -f "$MANIFEST_FILE"' EXIT
+
+for relpath in "${CHANGED[@]}"; do
+  slug="${relpath#tests/svg-snapshots/}"
+  dir="$(dirname "$slug")"
+  name="$(basename "$slug" .svg)"
+  file_slug="$(echo "$slug" | tr '/' '__')"
+
+  # Derive preset label from directory
+  case "$dir" in
+    flowchart)            preset="default (basis)" ;;
+    flowchart-*)          preset="${dir#flowchart-}" ;;
+    class)                preset="class" ;;
+    *)                    preset="$dir" ;;
+  esac
+
+  # Copy after version
+  if [[ -f "$REPO_ROOT/$relpath" ]]; then
+    cp "$REPO_ROOT/$relpath" "$OUT_DIR/after/$file_slug"
+  fi
+
+  # Extract before version (may not exist for new files)
+  has_before=0
+  if git -C "$REPO_ROOT" show "$BASE_REF:$relpath" >"$OUT_DIR/before/$file_slug" 2>/dev/null; then
+    has_before=1
+  else
+    rm -f "$OUT_DIR/before/$file_slug"
+  fi
+
+  # Append to manifest: fixture_name|preset|file_slug|has_before
+  printf '%s|%s|%s|%d\n' "$name" "$preset" "$file_slug" "$has_before" >> "$MANIFEST_FILE"
+done
+
+# Get sorted unique fixture names
+FIXTURE_NAMES="$(cut -d'|' -f1 "$MANIFEST_FILE" | sort -u)"
+n_fixtures="$(echo "$FIXTURE_NAMES" | wc -l | tr -d ' ')"
+
+# --- Generate HTML ---
+
+GALLERY_HTML="$OUT_DIR/gallery.html"
+
+cat > "$GALLERY_HTML" <<'HTML_HEAD'
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SVG Snapshot Diff</title>
+  <style>
+    :root { --bg: #0b1020; --fg: #e8ebf3; --muted: #98a1b3;
+            --card: #141a2b; --border: #2a334c; --new: #065f4622; --new-b: #10b981; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg);
+           font: 14px/1.5 ui-sans-serif, -apple-system, Segoe UI, sans-serif; }
+    header { padding: 16px 20px 12px; max-width: 1600px; margin: 0 auto; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .subtitle { color: var(--muted); margin: 0; font-size: 13px; }
+    .controls { display: flex; gap: 10px; align-items: center;
+                padding: 10px 20px; max-width: 1600px; margin: 0 auto;
+                border-bottom: 1px solid var(--border); }
+    .controls input[type=text] {
+      background: #111827; color: var(--fg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 10px; min-width: 240px; }
+    .controls label { color: var(--muted); display: flex; align-items: center; gap: 4px;
+                      cursor: pointer; user-select: none; font-size: 13px; }
+    .count { color: var(--muted); font-size: 12px; margin-left: auto; }
+    main { max-width: 1600px; margin: 0 auto; padding: 14px 20px; }
+    .fixture { margin-bottom: 28px; }
+    .fixture-name { font-family: ui-monospace, monospace; font-size: 16px;
+                    font-weight: 600; margin: 0 0 10px; }
+    .variants { display: flex; flex-direction: column; gap: 10px; }
+    .variant { background: var(--card); border: 1px solid var(--border);
+               border-radius: 10px; overflow: hidden; }
+    .variant.is-new { border-color: var(--new-b); background: var(--new); }
+    .variant-label { padding: 6px 10px; font-size: 12px; font-family: ui-monospace, monospace;
+                     color: var(--muted); border-bottom: 1px solid var(--border);
+                     display: flex; justify-content: space-between; align-items: center; }
+    .variant-label .tag-new { color: var(--new-b); font-weight: 700; font-size: 10px;
+                              text-transform: uppercase; letter-spacing: .4px; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; }
+    .compare.new-only { grid-template-columns: 1fr; }
+    .side { line-height: 0; }
+    .side-header { line-height: 1.5; padding: 4px 10px; font-size: 11px;
+                   font-weight: 600; text-transform: uppercase; letter-spacing: .5px;
+                   color: var(--muted); background: #0d1117; }
+    .side-header.before { color: #f87171; }
+    .side-header.after  { color: #34d399; }
+    .side img { width: 100%; background: #fff; display: block; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>SVG Snapshot Diff</h1>
+HTML_HEAD
+
+printf '  <p class="subtitle">%d fixtures changed (%d SVG files) vs %s</p>\n' \
+  "$n_fixtures" "$n_files" "$BASE_REF" >> "$GALLERY_HTML"
+
+cat >> "$GALLERY_HTML" <<'HTML_CONTROLS'
+</header>
+<div class="controls">
+  <input id="search" type="text" placeholder="Filter fixture name…" oninput="applyFilters()" />
+  <label><input type="checkbox" id="collapse-presets" onchange="applyFilters()"> Show only default preset</label>
+  <span class="count" id="count"></span>
+</div>
+<main id="main">
+HTML_CONTROLS
+
+# Emit cards grouped by fixture
+echo "$FIXTURE_NAMES" | while IFS= read -r fixture; do
+  printf '<div class="fixture" data-fixture="%s">\n' "$fixture" >> "$GALLERY_HTML"
+  printf '  <h2 class="fixture-name">%s</h2>\n' "$fixture" >> "$GALLERY_HTML"
+  printf '  <div class="variants">\n' >> "$GALLERY_HTML"
+
+  grep "^${fixture}|" "$MANIFEST_FILE" | while IFS='|' read -r _name preset file_slug has_before; do
+    is_new=""
+    compare_class="compare"
+    if [[ "$has_before" -eq 0 ]]; then
+      is_new="is-new"
+      compare_class="compare new-only"
+    fi
+
+    printf '    <div class="variant %s" data-preset="%s">\n' "$is_new" "$preset" >> "$GALLERY_HTML"
+    printf '      <div class="variant-label">\n' >> "$GALLERY_HTML"
+    printf '        <span>%s</span>\n' "$preset" >> "$GALLERY_HTML"
+    if [[ -n "$is_new" ]]; then
+      printf '        <span class="tag-new">new</span>\n' >> "$GALLERY_HTML"
+    fi
+    printf '      </div>\n' >> "$GALLERY_HTML"
+    printf '      <div class="%s">\n' "$compare_class" >> "$GALLERY_HTML"
+
+    if [[ "$has_before" -eq 1 ]]; then
+      printf '        <div class="side">\n' >> "$GALLERY_HTML"
+      printf '          <div class="side-header before">Before (%s)</div>\n' "$BASE_REF" >> "$GALLERY_HTML"
+      printf '          <img src="before/%s" />\n' "$file_slug" >> "$GALLERY_HTML"
+      printf '        </div>\n' >> "$GALLERY_HTML"
+    fi
+
+    printf '        <div class="side">\n' >> "$GALLERY_HTML"
+    printf '          <div class="side-header after">After</div>\n' >> "$GALLERY_HTML"
+    printf '          <img src="after/%s" />\n' "$file_slug" >> "$GALLERY_HTML"
+    printf '        </div>\n' >> "$GALLERY_HTML"
+
+    printf '      </div>\n    </div>\n' >> "$GALLERY_HTML"
+  done
+
+  printf '  </div>\n</div>\n' >> "$GALLERY_HTML"
+done
+
+cat >> "$GALLERY_HTML" <<HTML_FOOT
+</main>
+<script>
+  const totalFixtures = $n_fixtures;
+
+  function applyFilters() {
+    const search = document.getElementById('search').value.trim().toLowerCase();
+    const collapsePresets = document.getElementById('collapse-presets').checked;
+    let visible = 0;
+
+    document.querySelectorAll('.fixture').forEach(fix => {
+      const name = fix.dataset.fixture;
+      const matchesSearch = !search || name.includes(search);
+      fix.classList.toggle('hidden', !matchesSearch);
+      if (matchesSearch) visible++;
+
+      if (collapsePresets) {
+        fix.querySelectorAll('.variant').forEach(v => {
+          const p = v.dataset.preset;
+          const isDefault = p === 'default (basis)' || p === 'class';
+          v.classList.toggle('hidden', !isDefault);
+        });
+      } else {
+        fix.querySelectorAll('.variant').forEach(v => v.classList.remove('hidden'));
+      }
+    });
+
+    document.getElementById('count').textContent = visible + ' / ' + totalFixtures + ' fixtures';
+  }
+
+  applyFilters();
+</script>
+</body>
+</html>
+HTML_FOOT
+
+printf '\nGallery: %s\n' "$GALLERY_HTML"
+
+if [[ $AUTO_OPEN -eq 1 ]]; then
+  if command -v open &>/dev/null; then
+    open "$GALLERY_HTML"
+  elif command -v xdg-open &>/dev/null; then
+    xdg-open "$GALLERY_HTML"
+  fi
+fi

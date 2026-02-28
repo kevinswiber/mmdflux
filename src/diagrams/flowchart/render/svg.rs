@@ -43,18 +43,23 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
         config.cluster_rank_sep = 0.0;
     }
 
-    // Legacy render_svg path uses flux-layered behavior with all enhancements.
-    let flux_flags = crate::layered::LayoutConfig {
-        greedy_switch: true,
-        model_order_tiebreak: true,
-        variable_rank_spacing: true,
-        track_reversed_chains: true,
-        per_edge_label_spacing: true,
-        label_side_selection: true,
-        label_dummy_strategy: crate::layered::LabelDummyStrategy::WidestLayer,
-        ..Default::default()
-    };
+    // Use the canonical flux-layered profile from the engine, ensuring parity
+    // with FluxLayeredEngine::solve() (the CLI path).
     let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
+    let input_cfg = crate::layered::LayoutConfig::default();
+    let mut flux_flags = super::super::engine::flux_layout_profile(&input_cfg, edge_routing);
+    // Apply crowding adaptation for large diagrams (same threshold as engine).
+    if diagram.nodes.len() >= 10 {
+        let mode = super::super::engine::MeasurementMode::Svg(metrics.clone());
+        if let Ok(adapted) = super::super::engine::adapt_flux_profile_for_reversed_chain_crowding(
+            &mode,
+            diagram,
+            edge_routing,
+            &flux_flags,
+        ) {
+            flux_flags = adapted;
+        }
+    }
     let geom = build_svg_layout_with_flags(
         diagram,
         &config,

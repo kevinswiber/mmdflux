@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Fixed
+
+- Fixed backward edges detaching from source nodes in SVG when the backward
+  path's first horizontal segment fell exactly on the source node's bottom
+  boundary.
+- Fixed tiny sub-pixel cross-axis jogs on forward edges caused by
+  `collapse_tiny_cross_axis_jog` misidentifying short orthogonal segments in
+  the SVG orthogonal router.
+- Fixed backward edges in LR layouts entering the target node's east face
+  instead of the south face when `align_backward_outer_lane_to_hint` pulled
+  the outer lane inside node boundaries using layout hint waypoints that pass
+  through node centers.
+- Fixed `render_svg()` (library/test path) producing different layouts than the
+  CLI by replacing hardcoded flux flags with calls to the canonical
+  `flux_layout_profile()` and `adapt_flux_profile_for_reversed_chain_crowding()`
+  from the engine module.
+
+### Added
+
+- Added `scripts/svg-gallery-diff` for side-by-side before/after HTML gallery
+  of changed SVG snapshots versus a base ref.
+
 ## v1.3.1
 
 ### Added

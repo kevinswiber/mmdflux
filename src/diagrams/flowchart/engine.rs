@@ -222,7 +222,7 @@ pub struct FluxLayeredEngine {
 /// Curve style is intentionally excluded from this decision so presets that only
 /// differ by curve (for example basis vs polyline) share the same node layout.
 /// Flux-layered also uses a unified enhanced profile across routing styles.
-fn flux_layout_profile(
+pub(crate) fn flux_layout_profile(
     input_cfg: &crate::layered::LayoutConfig,
     _edge_routing: crate::diagram::EdgeRouting,
 ) -> crate::layered::LayoutConfig {
@@ -376,7 +376,7 @@ fn edge_crowding_score(
     }
 }
 
-fn adapt_flux_profile_for_reversed_chain_crowding(
+pub(crate) fn adapt_flux_profile_for_reversed_chain_crowding(
     mode: &MeasurementMode,
     diagram: &Diagram,
     edge_routing: crate::diagram::EdgeRouting,

@@ -21,22 +21,22 @@
   </defs>
   <g transform="translate(0.00,0.00)">
     <g class="nodes">
-      <rect x="142.63" y="112.00" width="140.74" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="212.99" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Class01</text>
-      <line x1="142.63" y1="163.00" x2="283.36" y2="163.00" stroke="#333" stroke-width="1.00" />
-      <text x="157.63" y="187.00" text-anchor="start" dominant-baseline="middle" fill="#333">int amount</text>
-      <line x1="142.63" y1="211.00" x2="283.36" y2="211.00" stroke="#333" stroke-width="1.00" />
-      <text x="157.63" y="235.00" text-anchor="start" dominant-baseline="middle" fill="#333">draw()</text>
-      <rect x="8.00" y="8.00" width="116.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="66.12" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Class02</text>
-      <text x="212.99" y="339.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
-      <text x="66.12" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
-      <text x="212.99" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">foo</text>
+      <rect x="8.00" y="112.00" width="140.74" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="78.37" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Class01</text>
+      <line x1="8.00" y1="163.00" x2="148.74" y2="163.00" stroke="#333" stroke-width="1.00" />
+      <text x="23.00" y="187.00" text-anchor="start" dominant-baseline="middle" fill="#333">int amount</text>
+      <line x1="8.00" y1="211.00" x2="148.74" y2="211.00" stroke="#333" stroke-width="1.00" />
+      <text x="23.00" y="235.00" text-anchor="start" dominant-baseline="middle" fill="#333">draw()</text>
+      <rect x="167.12" y="8.00" width="116.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="225.24" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Class02</text>
+      <text x="78.37" y="339.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
+      <text x="225.24" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
+      <text x="78.37" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">foo</text>
     </g>
     <g class="edgePaths">
-      <path d="M212.99,262.00 L212.99,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
-      <path d="M66.12,62.00 L66.12,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
-      <path d="M212.99,62.00 L212.99,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#circlehead)" />
+      <path d="M78.37,262.00 L78.37,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
+      <path d="M225.24,62.00 L225.24,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
+      <path d="M78.37,62.00 L78.37,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#circlehead)" />
     </g>
     <g class="edgeLabels">
     </g>
