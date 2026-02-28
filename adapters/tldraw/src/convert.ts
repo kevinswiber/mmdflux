@@ -475,6 +475,21 @@ function edgeAnchor(
         result = edgeTowardPoint(rect, other);
       }
     }
+    // Direction-based sanity: when path clearly approaches from one side, ensure we use that face.
+    // This fixes cases where enlarged rects cause segment-rect intersection to pick the wrong edge.
+    // Path segment is (terminal, other) for start or (other, terminal) for end; approach = direction from terminal toward other.
+    const approachDx = other.x - terminal.x;
+    const approachDy = other.y - terminal.y;
+    const tol = 1e-6;
+    if (Math.abs(approachDx) > Math.abs(approachDy) + tol) {
+      const faceRight = approachDx > 0;
+      if (faceRight && result.x < 0.5) result = { x: 1, y: result.y };
+      else if (!faceRight && result.x > 0.5) result = { x: 0, y: result.y };
+    } else if (Math.abs(approachDy) > tol) {
+      const faceBottom = approachDy > 0;
+      if (faceBottom && result.y < 0.5) result = { x: result.x, y: 1 };
+      else if (!faceBottom && result.y > 0.5) result = { x: result.x, y: 0 };
+    }
   } else {
     result = edgeTowardPoint(rect, terminal);
   }
