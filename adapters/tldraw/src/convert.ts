@@ -81,9 +81,30 @@ function toPoints(
   return path.map(([x, y]) => ({ x: x * scale, y: y * scale }));
 }
 
+// Approximate char width for tldraw "draw" font at size "m" (~16px).
+// Ensures single-line labels don't wrap awkwardly when mmdflux sizes differ from tldraw metrics.
+const CHAR_WIDTH_EST = 10;
+const MIN_LABEL_PAD_X = 24;
+const MIN_LABEL_PAD_Y = 24;
+
 function scaleNodeRect(node: NormalizedMmdsNode, scale: number): Rect {
-  const width = Math.max(8, node.size.width * scale);
-  const height = Math.max(8, node.size.height * scale);
+  let width = Math.max(8, node.size.width * scale);
+  let height = Math.max(8, node.size.height * scale);
+
+  // Ensure minimum size for label so text doesn't wrap to single chars per line.
+  const minW = node.label.length * CHAR_WIDTH_EST + MIN_LABEL_PAD_X;
+  const minH = MIN_LABEL_PAD_Y;
+  if (width < minW || height < minH) {
+    width = Math.max(width, minW);
+    height = Math.max(height, minH);
+    // Diamonds need square aspect; ellipses often look better square for short labels.
+    if (node.shape === "diamond") {
+      const side = Math.max(width, height);
+      width = side;
+      height = side;
+    }
+  }
+
   return {
     x: node.position.x * scale - width / 2,
     y: node.position.y * scale - height / 2,
@@ -242,6 +263,10 @@ function elbowMidPoint(points: Point[]): number {
   return clamp01(firstLeg / total);
 }
 
+// Keep edge labels away from endpoints to avoid overlapping nodes.
+const LABEL_POS_MIN = 0.15;
+const LABEL_POS_MAX = 0.85;
+
 function computeLabelPositionRatio(path: Point[], labelPos?: Point): number {
   if (!labelPos || path.length < 2) return 0.5;
 
@@ -281,7 +306,8 @@ function computeLabelPositionRatio(path: Point[], labelPos?: Point): number {
     traversed += segmentLengths[i - 1];
   }
 
-  return clamp01(bestAlong / total);
+  const raw = clamp01(bestAlong / total);
+  return Math.max(LABEL_POS_MIN, Math.min(LABEL_POS_MAX, raw));
 }
 
 function normalizedAnchor(point: Point, rect: Rect | undefined): Point {

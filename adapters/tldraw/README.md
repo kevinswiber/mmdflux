@@ -22,6 +22,9 @@ mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw >
 
 # Emit raw tldraw store JSON instead of .tldr envelope
 mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw --output json > out.store.json
+
+# Open diagram in browser (starts local server, opens tldraw preview)
+mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw --open
 ```
 
 ### Options
@@ -30,6 +33,7 @@ mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw -
 |------|-------|--------|---------|-------------|
 | `--output` | `-o` | `tldr`, `json` | `tldr` | Output mode |
 | `--scale` | | number | `1` | Scale MMDS coordinate space before conversion |
+| `--open` | | boolean | `false` | Start local server and open diagram in browser |
 
 ## Mapping
 
