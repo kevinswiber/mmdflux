@@ -135,15 +135,23 @@ async function main() {
     options: {
       output: { type: "string", short: "o", default: "tldr" },
       scale: { type: "string", default: "1" },
+      "node-spacing": { type: "string", default: undefined },
       open: { type: "boolean", default: false },
     },
   });
 
   const output = values.output === "json" ? "json" : "tldr";
   const scale = Number(values.scale ?? "1");
+  const nodeSpacing = values["node-spacing"] != null
+    ? Number(values["node-spacing"])
+    : undefined;
   const shouldOpen = values.open ?? false;
   if (!Number.isFinite(scale) || scale <= 0) {
     console.error("--scale must be a positive finite number");
+    process.exit(1);
+  }
+  if (nodeSpacing !== undefined && (!Number.isFinite(nodeSpacing) || nodeSpacing <= 0)) {
+    console.error("--node-spacing must be a positive number");
     process.exit(1);
   }
 
@@ -158,7 +166,10 @@ async function main() {
     process.exit(1);
   }
 
-  const store = convertToTldrawStore(mmds, { scale });
+  const store = convertToTldrawStore(mmds, {
+    scale,
+    ...(nodeSpacing !== undefined && { nodeSpacing }),
+  });
   const file = toTldrawFile(store);
 
   if (shouldOpen) {

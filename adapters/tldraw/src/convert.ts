@@ -18,6 +18,8 @@ import {
 
 export interface ConvertOptions {
   scale?: number;
+  /** Multiplier for spacing between nodes (positions and paths). Does not change node sizes. Default 1.2. */
+  nodeSpacing?: number;
 }
 
 export interface TldrawConvertResult {
@@ -87,9 +89,13 @@ const CHAR_WIDTH_EST = 14;
 const MIN_LABEL_PAD_X = 36;
 const MIN_LABEL_PAD_Y = 28;
 
-function scaleNodeRect(node: NormalizedMmdsNode, scale: number): Rect {
-  let width = Math.max(8, node.size.width * scale);
-  let height = Math.max(8, node.size.height * scale);
+function scaleNodeRect(
+  node: NormalizedMmdsNode,
+  sizeScale: number,
+  positionScale: number,
+): Rect {
+  let width = Math.max(8, node.size.width * sizeScale);
+  let height = Math.max(8, node.size.height * sizeScale);
 
   // Ensure minimum size for label so text doesn't wrap to single chars per line.
   const minW = node.label.length * CHAR_WIDTH_EST + MIN_LABEL_PAD_X;
@@ -106,8 +112,8 @@ function scaleNodeRect(node: NormalizedMmdsNode, scale: number): Rect {
   }
 
   return {
-    x: node.position.x * scale - width / 2,
-    y: node.position.y * scale - height / 2,
+    x: node.position.x * positionScale - width / 2,
+    y: node.position.y * positionScale - height / 2,
     w: width,
     h: height,
   };
@@ -584,10 +590,10 @@ function isMmdsDocument(input: unknown): input is MmdsDocument {
 
 function fallbackFrameRect(
   subgraph: NormalizedMmdsSubgraph,
-  scale: number,
+  positionScale: number,
 ): Rect {
-  const width = Math.max(160, (subgraph.bounds?.width ?? 160) * scale);
-  const height = Math.max(96, (subgraph.bounds?.height ?? 96) * scale);
+  const width = Math.max(160, (subgraph.bounds?.width ?? 160) * positionScale);
+  const height = Math.max(96, (subgraph.bounds?.height ?? 96) * positionScale);
   return { x: 0, y: 0, w: width, h: height };
 }
 
@@ -596,6 +602,8 @@ export function convertToTldraw(
   options: ConvertOptions = {},
 ): TldrawConvertResult {
   const scale = options.scale ?? 1;
+  const nodeSpacing = options.nodeSpacing ?? 1.2;
+  const positionScale = scale * nodeSpacing;
   const normalized = normalizeMmds(mmds);
 
   const store = createTLStore({
@@ -615,7 +623,7 @@ export function convertToTldraw(
 
   const nodeRectById = new Map<string, Rect>();
   for (const node of normalized.nodes) {
-    nodeRectById.set(node.id, scaleNodeRect(node, scale));
+    nodeRectById.set(node.id, scaleNodeRect(node, scale, positionScale));
   }
 
   const frameShapeIdBySubgraphId = new Map<string, string>();
@@ -655,13 +663,13 @@ export function convertToTldraw(
     let frameRect =
       rects.length > 0
         ? expandRectForFrame(unionRects(rects))
-        : fallbackFrameRect(subgraph, scale);
+        : fallbackFrameRect(subgraph, positionScale);
 
     if (subgraph.bounds) {
       frameRect = withMinSizeAroundCenter(
         frameRect,
-        Math.max(96, subgraph.bounds.width * scale),
-        Math.max(64, subgraph.bounds.height * scale),
+        Math.max(96, subgraph.bounds.width * positionScale),
+        Math.max(64, subgraph.bounds.height * positionScale),
       );
     }
 
@@ -812,15 +820,15 @@ export function convertToTldraw(
     const tgt = normalized.node_by_id.get(edge.target);
     if (!src || !tgt) continue;
 
-    const routedPoints = toPoints(edge.path, scale);
+    const routedPoints = toPoints(edge.path, positionScale);
     const start =
       routedPoints.length >= 2
         ? routedPoints[0]
-        : { x: src.position.x * scale, y: src.position.y * scale };
+        : { x: src.position.x * positionScale, y: src.position.y * positionScale };
     const end =
       routedPoints.length >= 2
         ? routedPoints[routedPoints.length - 1]
-        : { x: tgt.position.x * scale, y: tgt.position.y * scale };
+        : { x: tgt.position.x * positionScale, y: tgt.position.y * positionScale };
 
     const pathPoints = routedPoints.length >= 2 ? routedPoints : [start, end];
     const localPath = pathPoints.map((point) => ({
@@ -850,7 +858,7 @@ export function convertToTldraw(
           };
 
     const labelPos = edge.label_position
-      ? { x: edge.label_position.x * scale, y: edge.label_position.y * scale }
+      ? { x: edge.label_position.x * positionScale, y: edge.label_position.y * positionScale }
       : undefined;
 
     shapeRecords.push({
