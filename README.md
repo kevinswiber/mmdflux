@@ -168,6 +168,14 @@ mmdflux --lint diagram.mmd
 - [MMDS specification](docs/mmds.md)
 - [Edge routing design](docs/edge-routing-heuristics.md)
 
+## Adapter Packages
+
+- `@mmds/excalidraw` — MMDS to Excalidraw `.excalidraw` JSON.
+- `@mmds/tldraw` — MMDS to tldraw `.tldr` JSON.
+
+Adapter fidelity note:
+MMDS routed polylines can include many waypoints, while tldraw arrows use native arc/elbow models. The tldraw adapter preserves endpoints and label intent, then applies deterministic best-fit arrow geometry.
+
 ## License
 
 MIT

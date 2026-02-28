@@ -1,40 +1,30 @@
 {
-  "name": "@mmds/excalidraw",
+  "name": "@mmds/core",
   "version": "0.1.0",
   "type": "module",
-  "description": "Convert MMDS JSON to Excalidraw format with polyline edge routing",
+  "description": "Shared MMDS normalization and traversal helpers for adapters",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "bin": {
-    "mmds-to-excalidraw": "dist/index.js"
-  },
   "files": [
     "dist",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js",
+    "build": "tsc",
     "check": "biome check",
     "fmt": "biome check --write",
     "test": "npm run build && node --test test/*.test.mjs",
-    "prepublishOnly": "npm run build",
-    "start": "node dist/index.js"
-  },
-  "dependencies": {
-    "@mmds/core": "file:../mmds-core"
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
-    "mermaid",
-    "excalidraw",
     "mmds",
     "mmdflux",
-    "diagram",
-    "flowchart"
+    "diagram"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mmdflux/mmdflux.git",
-    "directory": "adapters/excalidraw"
+    "directory": "adapters/mmds-core"
   },
   "engines": {
     "node": ">=18"

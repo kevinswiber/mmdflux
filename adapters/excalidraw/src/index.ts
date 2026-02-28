@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 // Entry point: reads MMDS JSON from stdin, writes .excalidraw JSON to stdout.
 //
 // Usage:
@@ -11,8 +12,9 @@ import { execSync } from "node:child_process";
 import { randomBytes, subtle } from "node:crypto";
 import { parseArgs } from "node:util";
 import { deflateSync } from "node:zlib";
+import type { MmdsDocument } from "@mmds/core";
 
-import type { Bounds, MmdsDocument } from "./convert.js";
+import type { Bounds } from "./convert.js";
 import { convert } from "./convert.js";
 
 const { values: cliArgs } = parseArgs({

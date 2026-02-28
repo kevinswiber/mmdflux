@@ -1,3 +1,6 @@
+import type { MmdsDocument, MmdsNode } from "@mmds/core";
+import { normalizeMmds } from "@mmds/core";
+
 // MMDS → Excalidraw element conversion
 //
 // Uses routed-level MMDS when available (polyline edge paths).
@@ -42,47 +45,6 @@ const TEXT_PAD_Y = 24;
 // UML compartment layout (class diagram nodes with --- separator lines)
 const COMPARTMENT_PAD_X = 15;
 const COMPARTMENT_PAD_Y = 8;
-
-// --- MMDS types (subset) ---
-
-interface MmdsNode {
-  id: string;
-  label: string;
-  shape?: string;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-  parent?: string;
-}
-
-interface MmdsEdge {
-  id: string;
-  source: string;
-  target: string;
-  label?: string;
-  stroke?: string;
-  arrow_start?: string;
-  arrow_end?: string;
-  path?: [number, number][];
-}
-
-interface MmdsSubgraph {
-  id: string;
-  title?: string;
-  children: string[];
-}
-
-interface MmdsDefaults {
-  node?: { shape?: string };
-  edge?: { stroke?: string; arrow_start?: string; arrow_end?: string };
-}
-
-export interface MmdsDocument {
-  geometry_level?: string;
-  nodes: MmdsNode[];
-  edges: MmdsEdge[];
-  subgraphs?: MmdsSubgraph[];
-  defaults?: MmdsDefaults;
-}
 
 // --- Excalidraw element type ---
 
@@ -178,7 +140,8 @@ function excalidrawShape(
     case "diamond":
       return "diamond";
     case "circle":
-    case "double-circle":
+    case "double_circle":
+    case "double-circle": // legacy compatibility
       return "ellipse";
     default:
       return "rectangle";
@@ -326,24 +289,22 @@ function layoutCompartments(compartments: Compartment[]): CompartmentLayout {
 // --- Conversion ---
 
 export function convert(mmds: MmdsDocument): ConvertResult {
+  const normalized = normalizeMmds(mmds);
   const elements: ExcalidrawElement[] = [];
-  const nodeDefaults = mmds.defaults?.node ?? {};
-  const edgeDefaults = mmds.defaults?.edge ?? {};
 
   const nodeMap = new Map<string, MmdsNode>();
-  for (const n of mmds.nodes) nodeMap.set(n.id, n);
+  for (const n of normalized.nodes) nodeMap.set(n.id, n);
 
   // Track boundElements per node (text label + arrow refs)
   const nodeBound = new Map<string, { id: string; type: string }[]>();
-  for (const n of mmds.nodes) nodeBound.set(n.id, []);
+  for (const n of normalized.nodes) nodeBound.set(n.id, []);
 
   // Build subgraph → group ID mapping
   const subgroupIds = new Map<string, string>();
-  if (mmds.subgraphs) {
-    for (const sg of mmds.subgraphs) {
-      subgroupIds.set(sg.id, `group_${sg.id}`);
-    }
+  for (const sg of normalized.subgraphs) {
+    subgroupIds.set(sg.id, `group_${sg.id}`);
   }
+  const subgraphById = normalized.subgraph_by_id;
 
   // Compute group IDs for a node from its parent chain
   function groupIdsFor(node: MmdsNode): string[] {
@@ -352,10 +313,7 @@ export function convert(mmds: MmdsDocument): ConvertResult {
     while (parentId) {
       const gid = subgroupIds.get(parentId);
       if (gid) groups.push(gid);
-      const parentSg = mmds.subgraphs?.find((sg) => sg.id === parentId);
-      parentId = parentSg
-        ? mmds.subgraphs?.find((sg) => sg.children.includes(parentSg.id))?.id
-        : undefined;
+      parentId = subgraphById.get(parentId)?.parent;
     }
     return groups;
   }
@@ -363,14 +321,14 @@ export function convert(mmds: MmdsDocument): ConvertResult {
   // Phase 1: parse compartment layouts and compute text-based sizes (scale-independent)
   const compartmentLayouts = new Map<string, CompartmentLayout>();
   const textSizes = new Map<string, { w: number; h: number }>();
-  for (const n of mmds.nodes) {
+  for (const n of normalized.nodes) {
     const compartments = parseCompartments(n.label);
     if (compartments) {
       const layout = layoutCompartments(compartments);
       compartmentLayouts.set(n.id, layout);
       textSizes.set(n.id, { w: layout.w, h: layout.h });
     } else {
-      const shape = n.shape ?? nodeDefaults.shape ?? "rectangle";
+      const shape = n.shape;
       const textW = n.label.length * NODE_FONT_SIZE * CHAR_WIDTH_FACTOR;
       const textH = NODE_FONT_SIZE * 1.25;
       let w = textW + TEXT_PAD_X;
@@ -390,10 +348,10 @@ export function convert(mmds: MmdsDocument): ConvertResult {
   // that separates every pair on at least one axis.
   const NODE_GAP = 20;
   let scale = SCALE;
-  for (let i = 0; i < mmds.nodes.length; i++) {
-    for (let j = i + 1; j < mmds.nodes.length; j++) {
-      const a = mmds.nodes[i];
-      const b = mmds.nodes[j];
+  for (let i = 0; i < normalized.nodes.length; i++) {
+    for (let j = i + 1; j < normalized.nodes.length; j++) {
+      const a = normalized.nodes[i];
+      const b = normalized.nodes[j];
       const sa = textSizes.get(a.id);
       const sb = textSizes.get(b.id);
       if (!sa || !sb) continue;
@@ -416,12 +374,12 @@ export function convert(mmds: MmdsDocument): ConvertResult {
 
   // Phase 3: compute final pixel sizes per node using effective scale
   const nodeSizes = new Map<string, { w: number; h: number }>();
-  for (const n of mmds.nodes) {
+  for (const n of normalized.nodes) {
     const layout = compartmentLayouts.get(n.id);
     if (layout) {
       nodeSizes.set(n.id, { w: layout.w, h: layout.h });
     } else {
-      const shape = n.shape ?? nodeDefaults.shape ?? "rectangle";
+      const shape = n.shape;
       const textW = n.label.length * NODE_FONT_SIZE * CHAR_WIDTH_FACTOR;
       const textH = NODE_FONT_SIZE * 1.25;
       let w = Math.max(textW, n.size.width * scale) + TEXT_PAD_X;
@@ -449,8 +407,8 @@ export function convert(mmds: MmdsDocument): ConvertResult {
   }
 
   // --- Nodes ---
-  for (const n of mmds.nodes) {
-    const shape = n.shape ?? nodeDefaults.shape ?? "rectangle";
+  for (const n of normalized.nodes) {
+    const shape = n.shape;
     const size = nodeSizes.get(n.id);
     if (!size) continue;
     const { w, h } = size;
@@ -581,14 +539,15 @@ export function convert(mmds: MmdsDocument): ConvertResult {
   }
 
   // --- Edges ---
-  for (const e of mmds.edges) {
+  for (const e of normalized.edges) {
     const src = nodeMap.get(e.source);
     const tgt = nodeMap.get(e.target);
     if (!src || !tgt) continue;
 
-    const stroke = e.stroke ?? edgeDefaults.stroke ?? "solid";
-    const arrowStart = e.arrow_start ?? edgeDefaults.arrow_start ?? "none";
-    const arrowEnd = e.arrow_end ?? edgeDefaults.arrow_end ?? "normal";
+    const stroke = e.stroke;
+    if (stroke === "invisible") continue;
+    const arrowStart = e.arrow_start;
+    const arrowEnd = e.arrow_end;
     const { strokeStyle, strokeWidth } = mapStrokeStyle(stroke);
     const path = e.path;
 
@@ -601,28 +560,32 @@ export function convert(mmds: MmdsDocument): ConvertResult {
       const pxPath: [number, number][] = path.map(
         (p) => [p[0] * scale, p[1] * scale] as [number, number],
       );
-      // Snap endpoints to node boundaries
+      // Snap endpoints to node boundaries only when endpoint intent is node-bound.
       const srcSize = nodeSizes.get(e.source);
       if (!srcSize) continue;
-      pxPath[0] = adjustEndpoint(
-        pxPath[0],
-        pxPath[1],
-        src.position.x * scale,
-        src.position.y * scale,
-        srcSize.w,
-        srcSize.h,
-      );
+      if (!e.from_subgraph) {
+        pxPath[0] = adjustEndpoint(
+          pxPath[0],
+          pxPath[1],
+          src.position.x * scale,
+          src.position.y * scale,
+          srcSize.w,
+          srcSize.h,
+        );
+      }
       const last = pxPath.length - 1;
       const tgtSize = nodeSizes.get(e.target);
       if (!tgtSize) continue;
-      pxPath[last] = adjustEndpoint(
-        pxPath[last],
-        pxPath[last - 1],
-        tgt.position.x * scale,
-        tgt.position.y * scale,
-        tgtSize.w,
-        tgtSize.h,
-      );
+      if (!e.to_subgraph) {
+        pxPath[last] = adjustEndpoint(
+          pxPath[last],
+          pxPath[last - 1],
+          tgt.position.x * scale,
+          tgt.position.y * scale,
+          tgtSize.w,
+          tgtSize.h,
+        );
+      }
       x = pxPath[0][0];
       y = pxPath[0][1];
       points = pxPath.map(
@@ -684,27 +647,33 @@ export function convert(mmds: MmdsDocument): ConvertResult {
       strokeStyle,
       strokeWidth,
       points,
-      startBinding: {
-        elementId: e.source,
-        fixedPoint: [0.5, 0.5],
-        focus: 0,
-        gap: 1,
-      },
-      endBinding: {
-        elementId: e.target,
-        fixedPoint: [0.5, 0.5],
-        focus: 0,
-        gap: 1,
-      },
       startArrowhead: mapArrowhead(arrowStart),
       endArrowhead: mapArrowhead(arrowEnd),
       roundness: EDGE_STYLE === "curved" ? { type: 2 } : null,
       elbowed: EDGE_STYLE === "elbow",
     };
 
-    if (nodeBound.has(e.source))
+    if (!e.from_subgraph) {
+      arrowEl.startBinding = {
+        elementId: e.source,
+        fixedPoint: [0.5, 0.5],
+        focus: 0,
+        gap: 1,
+      };
+    }
+
+    if (!e.to_subgraph) {
+      arrowEl.endBinding = {
+        elementId: e.target,
+        fixedPoint: [0.5, 0.5],
+        focus: 0,
+        gap: 1,
+      };
+    }
+
+    if (!e.from_subgraph && nodeBound.has(e.source))
       nodeBound.get(e.source)?.push({ id: arrowId, type: "arrow" });
-    if (nodeBound.has(e.target))
+    if (!e.to_subgraph && nodeBound.has(e.target))
       nodeBound.get(e.target)?.push({ id: arrowId, type: "arrow" });
 
     if (e.label) {
