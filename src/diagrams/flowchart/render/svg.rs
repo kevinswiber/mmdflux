@@ -45,7 +45,7 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
 
     // Use the canonical flux-layered profile from the engine, ensuring parity
     // with FluxLayeredEngine::solve() (the CLI path).
-    let edge_routing = options.edge_routing.unwrap_or_else(|| {
+    let edge_routing = options.edge_routing.unwrap_or({
         // Derive from routing_style (same mapping as flux-layered engine).
         match options.svg.routing_style {
             crate::diagram::RoutingStyle::Direct => EdgeRouting::DirectRoute,
