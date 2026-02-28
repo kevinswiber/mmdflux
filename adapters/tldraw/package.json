@@ -1,12 +1,12 @@
 {
-  "name": "@mmds/excalidraw",
+  "name": "@mmds/tldraw",
   "version": "0.1.0",
   "type": "module",
-  "description": "Convert MMDS JSON to Excalidraw format with polyline edge routing",
+  "description": "Convert MMDS JSON to tldraw .tldr format",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "mmds-to-excalidraw": "dist/index.js"
+    "mmds-to-tldraw": "dist/index.js"
   },
   "files": [
     "dist",
@@ -16,33 +16,33 @@
     "build": "tsc && chmod +x dist/index.js",
     "check": "biome check",
     "fmt": "biome check --write",
-    "test": "npm run build && node --test test/*.test.mjs",
+    "test": "npm run build && node --test --test-force-exit test/*.test.mjs",
     "prepublishOnly": "npm run build",
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "@mmds/core": "file:../mmds-core"
-  },
-  "keywords": [
-    "mermaid",
-    "excalidraw",
-    "mmds",
-    "mmdflux",
-    "diagram",
-    "flowchart"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/mmdflux/mmdflux.git",
-    "directory": "adapters/excalidraw"
-  },
-  "engines": {
-    "node": ">=18"
+    "@mmds/core": "file:../mmds-core",
+    "@tldraw/editor": "4.4.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",
     "@types/node": "^25.2.1",
+    "tldraw": "4.4.0",
     "typescript": "^5.7.0"
+  },
+  "keywords": [
+    "mmds",
+    "tldraw",
+    "mmdflux",
+    "diagram"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mmdflux/mmdflux.git",
+    "directory": "adapters/tldraw"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "license": "MIT"
 }

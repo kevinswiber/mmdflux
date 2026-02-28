@@ -10,3 +10,4 @@ AGENTS.local.md
 /worktrees
 /scripts/tests/out
 /scripts/out
+/.cursor/worktrees.json
