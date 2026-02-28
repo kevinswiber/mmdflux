@@ -18,6 +18,9 @@
   CLI by replacing hardcoded flux flags with calls to the canonical
   `flux_layout_profile()` and `adapt_flux_profile_for_reversed_chain_crowding()`
   from the engine module.
+- Fixed `render_svg()` ignoring `routing_style` when deriving `edge_routing`,
+  causing basis and straight preset snapshots to use orthogonal routing paths
+  instead of polyline and direct routing respectively.
 
 ### Added
 
