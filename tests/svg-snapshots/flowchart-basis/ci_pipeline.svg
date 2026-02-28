@@ -37,16 +37,16 @@
       <text x="393.30" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Run Tests</text>
     </g>
     <g class="edgePaths">
-      <path d="M130.55,87.00 L133.32,87.00 C136.10,87.00 141.66,87.00 146.66,87.00 C151.66,87.00 156.10,87.00 160.99,87.00 C165.88,87.00 171.21,87.00 173.88,87.00 L176.55,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M275.81,87.00 L278.59,87.00 C281.37,87.00 286.92,87.00 291.92,87.00 C296.92,87.00 301.37,87.00 306.26,87.00 C311.14,87.00 316.48,87.00 319.14,87.00 L321.81,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M460.79,87.00 L463.57,87.00 C466.35,87.00 471.90,87.00 476.90,87.00 C481.90,87.00 486.35,87.00 491.24,87.00 C496.13,87.00 501.46,87.00 504.13,87.00 L506.79,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M650.42,87.00 L653.19,87.00 C655.97,87.00 661.53,87.00 666.53,87.00 C671.53,87.00 675.97,87.00 680.86,87.00 C685.75,87.00 691.08,87.00 693.75,87.00 L696.42,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M786.50,62.85 L786.50,58.21 C786.50,53.57 786.50,44.28 815.07,39.64 C843.65,35.00 900.79,35.00 929.36,35.00 L957.93,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M786.81,110.84 L786.81,115.54 C786.81,120.23 786.81,129.61 815.33,134.31 C843.85,139.00 900.89,139.00 929.41,139.00 L957.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M130.55,87.00 L133.32,87.00 C136.10,87.00 141.66,87.00 147.21,87.00 C152.77,87.00 158.32,87.00 163.21,87.00 C168.10,87.00 172.32,87.00 174.44,87.00 L176.55,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M275.81,87.00 L278.59,87.00 C281.37,87.00 286.92,87.00 292.48,87.00 C298.03,87.00 303.59,87.00 308.48,87.00 C313.37,87.00 317.59,87.00 319.70,87.00 L321.81,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M460.79,87.00 L463.57,87.00 C466.35,87.00 471.90,87.00 477.46,87.00 C483.02,87.00 488.57,87.00 493.46,87.00 C498.35,87.00 502.57,87.00 504.68,87.00 L506.79,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M650.42,87.00 L653.19,87.00 C655.97,87.00 661.53,87.00 667.08,87.00 C672.64,87.00 678.19,87.00 683.08,87.00 C687.97,87.00 692.19,87.00 694.30,87.00 L696.42,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M792.60,68.95 L799.79,65.44 L810.21,60.37 C820.62,55.29 841.45,45.15 866.48,40.07 C891.50,35.00 920.72,35.00 935.33,35.00 L949.93,35.00 L957.93,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M793.82,103.83 L801.14,107.05 L813.25,112.38 C825.36,117.70 849.58,128.35 874.38,133.68 C899.17,139.00 924.55,139.00 937.24,139.00 L949.93,139.00 L957.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="858.29" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
-      <text x="858.29" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
+      <text x="871.35" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
+      <text x="872.32" y="138.35" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
     </g>
   </g>
 </svg>

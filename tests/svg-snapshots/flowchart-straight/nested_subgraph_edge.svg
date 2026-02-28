@@ -37,8 +37,8 @@
       <text x="285.41" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server2</text>
     </g>
     <g class="edgePaths">
-      <path d="M202.94,62.00 L202.94,146.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M202.94,296.00 L202.94,412.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M202.94,62.00 L123.20,147.08" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M120.47,296.00 L200.67,412.70" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

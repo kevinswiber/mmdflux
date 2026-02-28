@@ -33,10 +33,10 @@
       <text x="220.82" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Y</text>
     </g>
     <g class="edgePaths">
-      <path d="M68.91,62.00 L68.91,100.00 L194.36,100.00 L194.36,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M176.80,62.00 L176.80,73.40 L209.33,73.40 L209.33,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M264.84,62.00 L264.84,73.40 L232.30,73.40 L232.30,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M372.73,62.00 L372.73,100.00 L247.27,100.00 L247.27,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M42.45,62.00 L216.97,110.92" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M161.36,62.00 L217.76,109.43" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M280.27,62.00 L223.88,109.43" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M399.18,62.00 L224.67,110.92" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

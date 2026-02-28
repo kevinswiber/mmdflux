@@ -41,12 +41,12 @@
       <path d="M275.81,87.00 L321.81,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M460.79,87.00 L506.79,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M650.42,87.00 L696.42,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M786.50,62.85 L786.50,35.00 L957.93,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M786.81,110.84 L786.81,139.00 L957.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M799.56,75.91 L958.06,35.98" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M799.56,98.09 L958.06,138.02" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="858.29" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
-      <text x="858.29" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
+      <text x="878.81" y="55.94" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
+      <text x="878.81" y="118.06" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
     </g>
   </g>
 </svg>

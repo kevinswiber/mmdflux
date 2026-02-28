@@ -31,9 +31,9 @@
       <text x="352.01" y="199.88" text-anchor="middle" dominant-baseline="middle" fill="#333">Right</text>
     </g>
     <g class="edgePaths">
-      <path d="M158.91,81.26 L82.36,81.26 L82.36,168.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M167.26,89.61 L55.90,170.53" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M200.52,122.88 L200.52,168.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M242.42,80.98 L321.58,80.98 L321.58,168.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M234.13,89.27 L348.74,170.56" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

@@ -37,9 +37,9 @@
       <text x="127.94" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">User Interface</text>
     </g>
     <g class="edgePaths">
-      <path d="M127.94,112.00 L127.94,114.78 C127.94,117.56 127.94,123.11 127.94,128.11 C127.94,133.11 127.94,137.56 127.94,142.44 C127.94,147.33 127.94,152.67 127.94,155.33 L127.94,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M127.94,420.00 L127.94,422.78 C127.94,425.56 127.94,431.11 127.94,436.11 C127.94,441.11 127.94,445.56 127.94,450.44 C127.94,455.33 127.94,460.67 127.94,463.33 L127.94,466.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M127.94,231.00 L127.94,265.67 L127.94,268.56 C127.94,271.44 127.94,277.22 127.94,283.00 C127.94,288.78 127.94,294.56 127.94,297.44 L127.94,300.33 L127.94,331.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M127.94,112.00 L127.94,114.78 C127.94,117.56 127.94,123.11 127.94,128.67 C127.94,134.22 127.94,139.78 127.94,144.67 C127.94,149.56 127.94,153.78 127.94,155.89 L127.94,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M127.94,420.00 L127.94,422.78 C127.94,425.56 127.94,431.11 127.94,436.67 C127.94,442.22 127.94,447.78 127.94,452.67 C127.94,457.56 127.94,461.78 127.94,463.89 L127.94,466.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M127.94,231.00 L127.94,239.00 L127.94,243.44 C127.94,247.89 127.94,256.78 127.94,267.00 C127.94,277.22 127.94,288.78 127.94,298.33 C127.94,307.89 127.94,315.44 127.94,319.22 L127.94,323.00 L127.94,331.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

@@ -33,10 +33,10 @@
       <text x="220.82" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Y</text>
     </g>
     <g class="edgePaths">
-      <path d="M68.91,62.00 L68.91,64.78 C68.91,67.56 68.91,73.11 89.82,78.11 C110.73,83.11 152.55,87.56 173.45,92.44 C194.36,97.33 194.36,102.67 194.36,105.33 L194.36,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M176.80,62.00 L176.80,64.78 C176.80,67.56 176.80,73.11 182.22,78.11 C187.64,83.11 198.49,87.56 203.91,92.44 C209.33,97.33 209.33,102.67 209.33,105.33 L209.33,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M264.84,62.00 L264.84,64.78 C264.84,67.56 264.84,73.11 259.41,78.11 C253.99,83.11 243.15,87.56 237.72,92.44 C232.30,97.33 232.30,102.67 232.30,105.33 L232.30,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M372.73,62.00 L372.73,64.78 C372.73,67.56 372.73,73.11 351.82,78.11 C330.91,83.11 289.09,87.56 268.18,92.44 C247.27,97.33 247.27,102.67 247.27,105.33 L247.27,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M76.91,62.00 L76.91,64.78 C76.91,67.56 76.91,73.11 95.15,78.67 C113.39,84.22 149.88,89.78 168.12,94.67 C186.36,99.56 186.36,103.78 186.36,105.89 L186.36,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M176.80,62.00 L176.80,64.78 C176.80,67.56 176.80,73.11 181.56,78.67 C186.33,84.22 195.85,89.78 200.62,94.67 C205.38,99.56 205.38,103.78 205.38,105.89 L205.38,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M264.84,62.00 L264.84,64.78 C264.84,67.56 264.84,73.11 260.07,78.67 C255.31,84.22 245.78,89.78 241.02,94.67 C236.25,99.56 236.25,103.78 236.25,105.89 L236.25,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M364.73,62.00 L364.73,64.78 C364.73,67.56 364.73,73.11 346.48,78.67 C328.24,84.22 291.76,89.78 273.51,94.67 C255.27,99.56 255.27,103.78 255.27,105.89 L255.27,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

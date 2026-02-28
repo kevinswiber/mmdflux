@@ -33,7 +33,7 @@
       <text x="97.45" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
     </g>
     <g class="edgePaths">
-      <path d="M97.45,162.00 L97.45,164.78 C97.45,167.56 97.45,173.11 97.45,178.11 C97.45,183.11 97.45,187.56 97.45,192.44 C97.45,197.33 97.45,202.67 97.45,205.33 L97.45,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M97.45,162.00 L97.45,164.78 C97.45,167.56 97.45,173.11 97.45,178.67 C97.45,184.22 97.45,189.78 97.45,194.67 C97.45,199.56 97.45,203.78 97.45,205.89 L97.45,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

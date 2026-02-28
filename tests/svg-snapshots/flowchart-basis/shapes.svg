@@ -29,8 +29,8 @@
       <text x="94.89" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rounded Node</text>
     </g>
     <g class="edgePaths">
-      <path d="M94.89,62.00 L94.89,64.78 C94.89,67.56 94.89,73.11 94.89,78.11 C94.89,83.11 94.89,87.56 94.89,92.44 C94.89,97.33 94.89,102.67 94.89,105.33 L94.89,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M94.89,166.00 L94.89,168.78 C94.89,171.56 94.89,177.11 94.89,182.11 C94.89,187.11 94.89,191.56 94.89,196.44 C94.89,201.33 94.89,206.67 94.89,209.33 L94.89,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M94.89,62.00 L94.89,64.78 C94.89,67.56 94.89,73.11 94.89,78.67 C94.89,84.22 94.89,89.78 94.89,94.67 C94.89,99.56 94.89,103.78 94.89,105.89 L94.89,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M94.89,166.00 L94.89,168.78 C94.89,171.56 94.89,177.11 94.89,182.67 C94.89,188.22 94.89,193.78 94.89,198.67 C94.89,203.56 94.89,207.78 94.89,209.89 L94.89,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

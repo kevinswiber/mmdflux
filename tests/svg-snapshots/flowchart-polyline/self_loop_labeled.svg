@@ -30,8 +30,8 @@
     </g>
     <g class="edgePaths">
       <path d="M58.20,62.00 L58.20,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M89.86,143.66 L89.86,112.00 L143.90,112.00 L143.90,207.40 L141.73,207.40 L141.73,210.23 L139.59,210.23 L93.31,210.23 L93.31,182.77" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M58.20,212.40 L58.20,307.40" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M89.86,143.66 L143.90,112.00 L143.90,212.40 L93.31,182.77" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M58.20,212.40 L58.20,249.40 L58.20,307.40" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <text x="143.90" y="162.20" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>

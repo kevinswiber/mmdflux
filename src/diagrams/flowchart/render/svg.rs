@@ -45,7 +45,14 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
 
     // Use the canonical flux-layered profile from the engine, ensuring parity
     // with FluxLayeredEngine::solve() (the CLI path).
-    let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
+    let edge_routing = options.edge_routing.unwrap_or_else(|| {
+        // Derive from routing_style (same mapping as flux-layered engine).
+        match options.svg.routing_style {
+            crate::diagram::RoutingStyle::Direct => EdgeRouting::DirectRoute,
+            crate::diagram::RoutingStyle::Polyline => EdgeRouting::PolylineRoute,
+            crate::diagram::RoutingStyle::Orthogonal => EdgeRouting::OrthogonalRoute,
+        }
+    });
     let input_cfg = crate::layered::LayoutConfig::default();
     let mut flux_flags = super::super::engine::flux_layout_profile(&input_cfg, edge_routing);
     // Apply crowding adaptation for large diagrams (same threshold as engine).

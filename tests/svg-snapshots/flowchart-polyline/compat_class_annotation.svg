@@ -32,11 +32,11 @@
     </g>
     <g class="edgePaths">
       <path d="M101.91,62.00 L101.91,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M70.66,195.63 L42.45,195.63 L42.45,321.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M133.16,195.63 L161.36,195.63 L161.36,321.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M79.72,204.69 L42.45,263.88 L42.45,321.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M124.10,204.69 L161.36,263.88 L161.36,321.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="42.45" y="249.38" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <text x="45.64" y="258.82" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
       <text x="161.36" y="278.38" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
     </g>
   </g>

@@ -33,8 +33,8 @@
       <text x="61.85" y="412.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Three</text>
     </g>
     <g class="edgePaths">
-      <path d="M61.85,86.00 L61.85,88.78 C61.85,91.56 61.85,97.11 61.85,102.11 C61.85,107.11 61.85,111.56 61.85,116.44 C61.85,121.33 61.85,126.67 61.85,129.33 L61.85,132.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M61.85,214.00 L61.85,255.00 L61.85,258.42 C61.85,261.83 61.85,268.67 61.85,275.50 C61.85,282.33 61.85,289.17 61.85,292.58 L61.85,296.00 L61.85,333.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M61.85,86.00 L61.85,88.78 C61.85,91.56 61.85,97.11 61.85,102.67 C61.85,108.22 61.85,113.78 61.85,118.67 C61.85,123.56 61.85,127.78 61.85,129.89 L61.85,132.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M61.85,214.00 L61.85,222.00 L61.85,228.83 C61.85,235.67 61.85,249.33 61.85,266.50 C61.85,283.67 61.85,304.33 61.85,314.67 L61.85,325.00 L61.85,333.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <text x="61.85" y="251.00" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>

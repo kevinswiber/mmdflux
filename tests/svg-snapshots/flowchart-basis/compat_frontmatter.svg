@@ -29,8 +29,8 @@
       <text x="42.45" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
     </g>
     <g class="edgePaths">
-      <path d="M42.45,62.00 L42.45,64.78 C42.45,67.56 42.45,73.11 42.45,78.11 C42.45,83.11 42.45,87.56 42.45,92.44 C42.45,97.33 42.45,102.67 42.45,105.33 L42.45,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M42.45,166.00 L42.45,168.78 C42.45,171.56 42.45,177.11 42.45,182.11 C42.45,187.11 42.45,191.56 42.45,196.44 C42.45,201.33 42.45,206.67 42.45,209.33 L42.45,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M42.45,62.00 L42.45,64.78 C42.45,67.56 42.45,73.11 42.45,78.67 C42.45,84.22 42.45,89.78 42.45,94.67 C42.45,99.56 42.45,103.78 42.45,105.89 L42.45,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M42.45,166.00 L42.45,168.78 C42.45,171.56 42.45,177.11 42.45,182.67 C42.45,188.22 42.45,193.78 42.45,198.67 C42.45,203.56 42.45,207.78 42.45,209.89 L42.45,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

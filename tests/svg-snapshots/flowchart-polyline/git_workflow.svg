@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1010.94 94.00" style="max-width: 1010.94px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1010.94 90.00" style="max-width: 1010.94px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -31,16 +31,16 @@
       <text x="80.87" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Working Dir</text>
     </g>
     <g class="edgePaths">
-      <path d="M153.75,35.00 L253.01,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M411.11,35.00 L563.41,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M709.63,35.00 L842.43,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M924.69,62.00 L924.69,78.00 L80.87,78.00 L80.87,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M153.75,35.00 L205.38,35.00 L253.01,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M411.11,35.00 L476.76,35.00 L563.41,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M709.63,35.00 L765.53,35.00 L842.43,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M924.69,62.00 L924.69,76.00 L80.87,76.00 L80.87,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <text x="205.38" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
       <text x="476.76" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
       <text x="765.53" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
-      <text x="504.78" y="78.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
+      <text x="504.78" y="76.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
     </g>
   </g>
 </svg>

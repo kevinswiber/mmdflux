@@ -29,12 +29,12 @@
       <text x="161.36" y="188.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
     </g>
     <g class="edgePaths">
-      <path d="M75.45,62.00 L75.45,80.00 L75.45,89.83 C75.45,99.67 75.45,119.33 69.95,129.17 C64.45,139.00 53.45,139.00 47.95,139.00 L42.45,139.00 L42.45,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M128.36,62.00 L128.36,80.00 L128.36,89.83 C128.36,99.67 128.36,119.33 133.86,129.17 C139.36,139.00 150.36,139.00 155.86,139.00 L161.36,139.00 L161.36,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M76.83,62.00 L71.38,67.86 L66.56,73.05 C61.74,78.24 52.10,88.62 47.28,102.14 C42.45,115.67 42.45,132.33 42.45,140.67 L42.45,149.00 L42.45,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M126.99,62.00 L132.44,67.86 L137.26,73.05 C142.08,78.24 151.72,88.62 156.54,102.14 C161.36,115.67 161.36,132.33 161.36,140.67 L161.36,149.00 L161.36,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="58.95" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
-      <text x="144.86" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <text x="42.45" y="102.75" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <text x="161.36" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
     </g>
   </g>
 </svg>

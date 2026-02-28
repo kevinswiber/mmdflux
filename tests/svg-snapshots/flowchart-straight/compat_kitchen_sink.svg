@@ -34,14 +34,14 @@
     </g>
     <g class="edgePaths">
       <path d="M157.77,62.00 L157.77,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M115.01,215.30 L75.31,215.30 L75.31,353.06" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M200.54,215.30 L240.24,215.30 L240.24,353.06" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M96.72,411.06 L96.72,422.46 L118.51,422.46 L118.51,457.06" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M218.83,411.06 L218.83,422.46 L197.04,422.46 L197.04,457.06" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M134.11,234.39 L77.03,353.45" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M181.44,234.39 L238.51,353.45" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M75.31,411.06 L154.35,458.98" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M240.24,411.06 L161.19,458.98" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="75.31" y="280.56" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
-      <text x="240.24" y="309.56" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <text x="105.57" y="293.92" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <text x="209.98" y="293.92" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
     </g>
   </g>
 </svg>

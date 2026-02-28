@@ -31,9 +31,9 @@
       <text x="207.39" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Log</text>
     </g>
     <g class="edgePaths">
-      <path d="M99.92,160.40 L80.18,160.40 L80.18,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M115.32,166.00 L82.48,212.73" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M134.30,62.00 L134.30,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M168.68,160.40 L188.42,160.40 L188.42,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M153.27,166.00 L186.12,212.73" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

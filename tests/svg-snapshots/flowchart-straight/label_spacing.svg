@@ -29,12 +29,12 @@
       <text x="161.36" y="188.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
     </g>
     <g class="edgePaths">
-      <path d="M75.45,62.00 L75.45,78.30 L42.45,78.30 L42.45,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M128.36,62.00 L128.36,78.30 L161.36,78.30 L161.36,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M101.91,62.00 L44.51,157.57" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M101.91,62.00 L159.30,157.57" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="42.45" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
-      <text x="161.36" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <text x="73.21" y="109.79" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <text x="130.61" y="109.79" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
     </g>
   </g>
 </svg>

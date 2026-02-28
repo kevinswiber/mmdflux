@@ -32,12 +32,12 @@
     </g>
     <g class="edgePaths">
       <path d="M101.91,62.00 L101.91,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M70.66,195.63 L42.45,195.63 L42.45,321.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M133.16,195.63 L161.36,195.63 L161.36,321.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M86.09,211.06 L43.88,322.14" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M117.73,211.06 L159.94,322.14" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="42.45" y="249.38" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
-      <text x="161.36" y="278.38" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
+      <text x="64.98" y="266.60" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <text x="138.83" y="266.60" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
     </g>
   </g>
 </svg>

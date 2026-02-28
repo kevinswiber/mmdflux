@@ -27,8 +27,8 @@
       <text x="42.45" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
     </g>
     <g class="edgePaths">
-      <path d="M16.00,62.00 L16.00,64.78 C16.00,67.56 16.00,73.11 20.41,78.11 C24.82,83.11 33.64,87.56 38.05,92.44 C42.45,97.33 42.45,102.67 42.45,105.33 L42.45,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M68.91,62.00 L68.91,64.78 C68.91,67.56 68.91,73.11 68.91,78.11 C68.91,83.11 68.91,87.56 68.91,92.44 C68.91,97.33 68.91,102.67 68.91,105.33 L68.91,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M42.45,62.00 L42.45,64.78 C42.45,67.56 42.45,73.11 42.45,78.67 C42.45,84.22 42.45,89.78 42.45,94.67 C42.45,99.56 42.45,103.78 42.45,105.89 L42.45,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M42.45,62.00 L42.45,64.78 C42.45,67.56 42.45,73.11 42.45,78.67 C42.45,84.22 42.45,89.78 42.45,94.67 C42.45,99.56 42.45,103.78 42.45,105.89 L42.45,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

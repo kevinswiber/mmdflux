@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 364.48 547.80" style="max-width: 364.48px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 360.48 547.80" style="max-width: 360.48px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -33,18 +33,18 @@
       <text x="108.35" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Begin</text>
     </g>
     <g class="edgePaths">
-      <path d="M108.35,62.00 L108.35,95.00 L108.35,97.75 C108.35,100.50 108.35,106.00 108.35,111.50 C108.35,117.00 108.35,122.50 108.35,125.25 L108.35,128.00 L108.35,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M99.53,215.00 L99.53,233.00 L99.53,238.67 C99.53,244.33 99.53,255.67 97.52,261.33 C95.50,267.00 91.47,267.00 89.46,267.00 L87.44,267.00 L87.44,285.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M65.97,364.53 L65.97,404.95 L65.97,408.32 C65.97,411.69 65.97,418.43 65.97,425.17 C65.97,431.90 65.97,438.64 65.97,442.01 L65.97,445.38 L65.97,481.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M124.68,349.57 L142.49,349.57 C160.31,349.57 195.95,349.57 213.77,371.60 C231.58,393.64 231.58,437.72 231.58,459.76 L231.58,481.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M327.04,512.80 L347.04,512.80 L347.04,485.73 C347.04,458.67 347.04,404.53 347.04,350.40 C347.04,296.27 347.04,242.13 347.04,215.07 L347.04,188.00 L162.58,188.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
+      <path d="M108.35,62.00 L108.35,70.00 L108.35,74.83 C108.35,79.67 108.35,89.33 108.35,102.50 C108.35,115.67 108.35,132.33 108.35,140.67 L108.35,149.00 L108.35,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M99.53,215.00 L97.05,222.60 L95.44,227.50 C93.84,232.40 90.64,242.20 89.04,251.27 C87.44,260.33 87.44,268.67 87.44,272.83 L87.44,277.00 L87.44,285.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M77.95,377.32 L76.08,385.09 L74.53,391.55 C72.98,398.00 69.87,410.90 68.32,425.68 C66.77,440.47 66.77,457.13 66.77,465.47 L66.77,473.80 L66.77,481.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M113.61,360.63 L119.65,365.88 L130.77,375.53 C141.88,385.18 164.11,404.49 181.59,422.87 C199.07,441.24 211.79,458.67 218.15,467.39 L224.51,476.11 L229.23,482.57" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M327.04,512.80 L335.04,512.80 L335.37,512.80 C335.70,512.80 336.37,512.80 336.70,458.67 C337.04,404.53 337.04,296.27 309.29,242.13 C281.55,188.00 226.07,188.00 198.33,188.00 L170.58,188.00 L162.58,188.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <text x="108.35" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">initialize</text>
-      <text x="93.49" y="250.00" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
-      <text x="66.77" y="409.30" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <text x="231.58" y="362.23" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <text x="347.04" y="268.17" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <text x="87.44" y="252.00" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
+      <text x="66.77" y="428.90" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="177.44" y="416.07" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <text x="335.04" y="266.17" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>
 </svg>
