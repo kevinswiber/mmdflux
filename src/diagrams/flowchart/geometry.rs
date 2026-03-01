@@ -412,6 +412,10 @@ pub struct RoutedEdgeGeometry {
     pub from_subgraph: Option<String>,
     /// If target is a subgraph-as-node, the subgraph ID.
     pub to_subgraph: Option<String>,
+    /// Port attachment at the source node.
+    pub source_port: Option<EdgePort>,
+    /// Port attachment at the target node.
+    pub target_port: Option<EdgePort>,
 }
 
 /// A routed self-edge loop.
@@ -856,6 +860,33 @@ mod tests {
         assert!((port.fraction - 0.5).abs() < f64::EPSILON);
         assert!((port.position.x - 50.0).abs() < f64::EPSILON);
         assert_eq!(port.group_size, 1);
+    }
+
+    #[test]
+    fn routed_edge_geometry_with_ports() {
+        let port = EdgePort {
+            face: PortFace::Bottom,
+            fraction: 0.5,
+            position: FPoint { x: 50.0, y: 35.0 },
+            group_size: 1,
+        };
+        let edge = RoutedEdgeGeometry {
+            index: 0,
+            from: "A".to_string(),
+            to: "B".to_string(),
+            path: vec![],
+            label_position: None,
+            label_side: None,
+            head_label_position: None,
+            tail_label_position: None,
+            is_backward: false,
+            from_subgraph: None,
+            to_subgraph: None,
+            source_port: Some(port),
+            target_port: None,
+        };
+        assert!(edge.source_port.is_some());
+        assert!(edge.target_port.is_none());
     }
 
     #[test]

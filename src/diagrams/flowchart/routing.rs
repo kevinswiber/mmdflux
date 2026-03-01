@@ -125,6 +125,8 @@ pub fn route_graph_geometry(
                         is_backward,
                         from_subgraph: edge.from_subgraph.clone(),
                         to_subgraph: edge.to_subgraph.clone(),
+                        source_port: None,
+                        target_port: None,
                     }
                 })
                 .collect()
