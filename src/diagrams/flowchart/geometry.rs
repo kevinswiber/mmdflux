@@ -423,6 +423,58 @@ pub struct RoutedSelfEdge {
 }
 
 // ---------------------------------------------------------------------------
+// Port attachment types
+// ---------------------------------------------------------------------------
+
+/// Which face of a node boundary an edge port attaches to.
+///
+/// Separate from `text_routing_core::Face` to avoid coupling the
+/// geometry IR to the text rendering module.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PortFace {
+    Top,
+    Bottom,
+    Left,
+    Right,
+}
+
+impl PortFace {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Top => "top",
+            Self::Bottom => "bottom",
+            Self::Left => "left",
+            Self::Right => "right",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "top" => Some(Self::Top),
+            "bottom" => Some(Self::Bottom),
+            "left" => Some(Self::Left),
+            "right" => Some(Self::Right),
+            _ => None,
+        }
+    }
+}
+
+/// Port attachment information for one end of a routed edge.
+#[derive(Debug, Clone, PartialEq)]
+pub struct EdgePort {
+    /// Face on the node boundary where the edge attaches.
+    pub face: PortFace,
+    /// Fractional position along the face (0.0 = start, 1.0 = end).
+    /// For top/bottom: 0.0 is left, 1.0 is right.
+    /// For left/right: 0.0 is top, 1.0 is bottom.
+    pub fraction: f64,
+    /// Computed position on the node boundary in layout coordinate space.
+    pub position: FPoint,
+    /// Number of edges attached to this face of this node.
+    pub group_size: usize,
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -773,6 +825,37 @@ mod tests {
         };
         assert!(edge.layout_path_hint.is_none());
         assert_eq!(edge.waypoints.len(), 1);
+    }
+
+    #[test]
+    fn port_face_as_str() {
+        assert_eq!(PortFace::Top.as_str(), "top");
+        assert_eq!(PortFace::Bottom.as_str(), "bottom");
+        assert_eq!(PortFace::Left.as_str(), "left");
+        assert_eq!(PortFace::Right.as_str(), "right");
+    }
+
+    #[test]
+    fn port_face_from_str() {
+        assert_eq!(PortFace::from_str("top"), Some(PortFace::Top));
+        assert_eq!(PortFace::from_str("bottom"), Some(PortFace::Bottom));
+        assert_eq!(PortFace::from_str("left"), Some(PortFace::Left));
+        assert_eq!(PortFace::from_str("right"), Some(PortFace::Right));
+        assert_eq!(PortFace::from_str("invalid"), None);
+    }
+
+    #[test]
+    fn edge_port_construction() {
+        let port = EdgePort {
+            face: PortFace::Top,
+            fraction: 0.5,
+            position: FPoint { x: 50.0, y: 10.0 },
+            group_size: 1,
+        };
+        assert_eq!(port.face, PortFace::Top);
+        assert!((port.fraction - 0.5).abs() < f64::EPSILON);
+        assert!((port.position.x - 50.0).abs() < f64::EPSILON);
+        assert_eq!(port.group_size, 1);
     }
 
     #[test]
