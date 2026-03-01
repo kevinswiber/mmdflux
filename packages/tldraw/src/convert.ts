@@ -15,8 +15,8 @@ import {
   type TLStoreSnapshot,
   toRichText,
   type IndexKey,
-  getIndexAbove,
 } from "@tldraw/editor";
+import { generateKeyBetween } from "fractional-indexing";
 
 export interface ConvertOptions {
   scale?: number;
@@ -546,11 +546,10 @@ function shapeZOrder(type: string): number {
 
 function generateSequentialIndices(count: number): IndexKey[] {
   const indices: IndexKey[] = [];
-  let prev = "a1" as IndexKey;
-  indices.push(prev);
-  for (let i = 1; i < count; i++) {
-    prev = getIndexAbove(prev);
-    indices.push(prev);
+  let prev: string | null = null;
+  for (let i = 0; i < count; i++) {
+    prev = generateKeyBetween(prev, null);
+    indices.push(prev as IndexKey);
   }
   return indices;
 }

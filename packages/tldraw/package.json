@@ -23,7 +23,8 @@
   },
   "dependencies": {
     "@mmds/core": "file:../mmds-core",
-    "@tldraw/editor": "4.4.0"
+    "@tldraw/editor": "4.4.0",
+    "fractional-indexing": "^3.2.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",
