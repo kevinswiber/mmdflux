@@ -484,6 +484,101 @@ test("explicit nodeSpacing overrides adaptive ratio", () => {
   );
 });
 
+// Constants matching convert.ts
+const CHAR_WIDTH_EST = 14;
+const MIN_LABEL_PAD_X = 36;
+
+function assertLabelsAllFit(converted, mmds, fixtureName) {
+  const geos = converted.records.filter(
+    (r) => r.typeName === "shape" && r.type === "geo",
+  );
+  const nodeById = new Map();
+  for (const node of mmds.nodes) {
+    nodeById.set(node.id, node);
+  }
+
+  for (const shape of geos) {
+    // shape.id is like "shape:node_A" -> extract "A"
+    const nodeId = String(shape.id).replace("shape:node_", "");
+    const node = nodeById.get(nodeId);
+    if (!node) continue;
+    const label = node.label ?? node.id;
+    const minW = label.length * CHAR_WIDTH_EST + MIN_LABEL_PAD_X;
+    assert.ok(
+      shape.props.w >= minW,
+      `${fixtureName}: node ${nodeId} width (${shape.props.w}) < min for label "${label}" (${minW})`,
+    );
+  }
+}
+
+function assertNoOverlaps(converted, fixtureName) {
+  const geos = converted.records.filter(
+    (r) => r.typeName === "shape" && r.type === "geo",
+  );
+  // Group by parentId to only check siblings
+  const byParent = new Map();
+  for (const s of geos) {
+    const pid = String(s.parentId);
+    if (!byParent.has(pid)) byParent.set(pid, []);
+    byParent.get(pid).push(s);
+  }
+
+  const MIN_GAP = 0; // Just check no actual overlap (gap >= 0)
+  for (const [, siblings] of byParent) {
+    for (let i = 0; i < siblings.length; i++) {
+      for (let j = i + 1; j < siblings.length; j++) {
+        const a = siblings[i];
+        const b = siblings[j];
+        const overlapX =
+          a.x < b.x + b.props.w + MIN_GAP &&
+          b.x < a.x + a.props.w + MIN_GAP;
+        const overlapY =
+          a.y < b.y + b.props.h + MIN_GAP &&
+          b.y < a.y + a.props.h + MIN_GAP;
+        assert.ok(
+          !(overlapX && overlapY),
+          `${fixtureName}: nodes ${a.id} and ${b.id} overlap`,
+        );
+      }
+    }
+  }
+}
+
+test("adaptive spacing fixture: layout-basic - labels fit and no overlaps", () => {
+  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "layout-basic.json");
+  const converted = convertToTldraw(mmds);
+  assertLabelsAllFit(converted, mmds, "layout-basic");
+  assertNoOverlaps(converted, "layout-basic");
+});
+
+test("adaptive spacing fixture: routed-basic - labels fit and no overlaps", () => {
+  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "routed-basic.json");
+  const converted = convertToTldraw(mmds);
+  assertLabelsAllFit(converted, mmds, "routed-basic");
+  assertNoOverlaps(converted, "routed-basic");
+});
+
+test("adaptive spacing fixture: layout-with-subgraphs - labels fit and no overlaps", () => {
+  const mmds = fixture("tests", "fixtures", "mmds", "layout-with-subgraphs.json");
+  const converted = convertToTldraw(mmds);
+  assertLabelsAllFit(converted, mmds, "layout-with-subgraphs");
+  assertNoOverlaps(converted, "layout-with-subgraphs");
+});
+
+test("adaptive spacing fixture: complex-roundtrip - labels fit and no overlaps", () => {
+  const mmds = fixture("tests", "fixtures", "mmds", "generation", "complex-roundtrip.json");
+  const converted = convertToTldraw(mmds);
+  assertLabelsAllFit(converted, mmds, "complex-roundtrip");
+  assertNoOverlaps(converted, "complex-roundtrip");
+});
+
+test("adaptive spacing fixture: shapes-and-strokes - labels fit and no overlaps", () => {
+  const mmds = fixture("tests", "fixtures", "mmds", "generation", "shapes-and-strokes.json");
+  const converted = convertToTldraw(mmds);
+  assertLabelsAllFit(converted, mmds, "shapes-and-strokes");
+  assertNoOverlaps(converted, "shapes-and-strokes");
+});
+
 test("deterministic ordering: same MMDS produces identical tldraw output", () => {
   const mmds = fixture(
     "tests",
