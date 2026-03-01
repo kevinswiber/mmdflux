@@ -9,6 +9,7 @@ function contentId(body: string): string {
 }
 
 export default defineConfig({
+  root: "dev",
   plugins: [
     react(),
     {
