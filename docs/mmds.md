@@ -126,7 +126,7 @@ mmdflux --format mmds diagram.mmd
 Explicit opt-in via `--geometry-level routed`. Includes everything from layout plus:
 
 - **Edge paths**: polyline coordinates as `[x, y]` pairs
-- **Edge metadata**: `label_position`, `is_backward`
+- **Edge metadata**: `label_position`, `is_backward`, `source_port`, `target_port`
 - **Subgraph bounds**: width and height of each subgraph
 
 ```bash
@@ -235,6 +235,19 @@ MMDS keeps core graph semantics compact while allowing renderer- or adapter-spec
 | `path`           | `[[x,y],...]` | routed | Polyline path coordinates                                                                                                                        |
 | `label_position` | `{x, y}`      | routed | Label center                                                                                                                                     |
 | `is_backward`    | boolean       | routed | Flows backward in layout                                                                                                                         |
+| `source_port`    | Port?         | routed | Source endpoint attachment (see Port below)                                                                                                       |
+| `target_port`    | Port?         | routed | Target endpoint attachment (see Port below)                                                                                                       |
+
+### Port
+
+Port metadata describes where an edge attaches to a node boundary.
+
+| Field        | Type     | Description                                                                                              |
+| ------------ | -------- | -------------------------------------------------------------------------------------------------------- |
+| `face`       | string   | Node boundary face: `"top"`, `"bottom"`, `"left"`, or `"right"`                                          |
+| `fraction`   | number   | Position along the face (0.0 = start, 1.0 = end). Top/bottom: left-to-right. Left/right: top-to-bottom.  |
+| `position`   | `{x, y}` | Absolute attachment point in MMDS coordinate space                                                       |
+| `group_size` | integer  | Number of edges sharing this face on this node                                                           |
 
 ### Subgraph
 

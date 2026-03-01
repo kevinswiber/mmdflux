@@ -309,6 +309,14 @@
         "is_backward": {
           "type": "boolean",
           "description": "Whether this edge flows backward in the layout direction. Routed level only."
+        },
+        "source_port": {
+          "$ref": "#/$defs/Port",
+          "description": "Source endpoint attachment metadata. Routed level only."
+        },
+        "target_port": {
+          "$ref": "#/$defs/Port",
+          "description": "Target endpoint attachment metadata. Routed level only."
         }
       }
     },
@@ -351,6 +359,41 @@
         "bounds": {
           "$ref": "#/$defs/Bounds",
           "description": "Subgraph bounding box. Routed level only."
+        }
+      }
+    },
+    "Port": {
+      "type": "object",
+      "required": [
+        "face",
+        "fraction",
+        "position",
+        "group_size"
+      ],
+      "properties": {
+        "face": {
+          "enum": [
+            "top",
+            "bottom",
+            "left",
+            "right"
+          ],
+          "description": "Node boundary face where the edge attaches."
+        },
+        "fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fractional position along the face (0.0 = start, 1.0 = end). For top/bottom faces, 0.0 is left and 1.0 is right. For left/right faces, 0.0 is top and 1.0 is bottom."
+        },
+        "position": {
+          "$ref": "#/$defs/Position",
+          "description": "Computed position on the node boundary in MMDS coordinate space."
+        },
+        "group_size": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of edges attached to this face of this node."
         }
       }
     },

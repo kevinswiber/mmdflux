@@ -721,6 +721,27 @@ fn mmds_schema_exists_and_has_required_fields() {
 }
 
 #[test]
+fn mmds_schema_includes_port_definition() {
+    let schema = std::fs::read_to_string("docs/mmds.schema.json").unwrap();
+    let v: Value = serde_json::from_str(&schema).unwrap();
+    let defs = v["$defs"].as_object().expect("schema should have $defs");
+    let port = defs.get("Port").expect("schema should define Port");
+    let required = port["required"].as_array().unwrap();
+    let required_strs: Vec<&str> = required.iter().map(|v| v.as_str().unwrap()).collect();
+    assert!(required_strs.contains(&"face"));
+    assert!(required_strs.contains(&"fraction"));
+    assert!(required_strs.contains(&"position"));
+    assert!(required_strs.contains(&"group_size"));
+}
+
+#[test]
+fn mmds_routed_output_with_ports_validates_against_schema() {
+    let json = render_json_with_level("graph TD\nA-->B", GeometryLevel::Routed);
+    let payload: Value = serde_json::from_str(&json).unwrap();
+    assert_schema_valid(payload);
+}
+
+#[test]
 fn schema_accepts_profiles_and_namespaced_extensions() {
     let payload = mmds_fixture("profiles/profiles-svg-v1.json");
     assert_schema_valid(payload);
