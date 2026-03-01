@@ -18,7 +18,8 @@
     "fmt": "biome check --write",
     "test": "npm run build && node --test --test-force-exit test/*.test.mjs",
     "prepublishOnly": "npm run build",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "preview": "cd preview && npm run dev"
   },
   "dependencies": {
     "@mmds/core": "file:../mmds-core",

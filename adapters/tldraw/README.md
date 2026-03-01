@@ -23,18 +23,35 @@ mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw >
 # Emit raw tldraw store JSON instead of .tldr envelope
 mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw --output json > out.store.json
 
-# Open diagram in browser (starts local server, opens tldraw preview)
+# Emit preview URL (requires preview server running)
+mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw -o url
+
+# Open diagram in browser (requires preview server running)
+# Terminal 1: npm run preview
+# Terminal 2: mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw --open
 mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw --open
 ```
+
+### Preview server
+
+The `--open` flag sends the diagram to a Vite-based preview server. Start it first:
+
+```bash
+cd adapters/tldraw && npm run preview
+```
+
+Then in another terminal, pipe MMDS to the converter with `--open`. The CLI POSTs the diagram, receives a content-based ID, and opens `http://localhost:5173/?id=<id>`. Same diagram content yields the same ID, so repeated runs don't create duplicates.
+
+You can also POST JSON to `http://localhost:5173/api/diagram` (returns `{ok, id}`), then open `/?id=<id>` or use `?data=<base64>` for inline data. Set `PREVIEW_URL` if the server runs on a different port.
 
 ### Options
 
 | Flag             | Short | Values         | Default | Description                                                                            |
 | ---------------- | ----- | -------------- | ------- | -------------------------------------------------------------------------------------- |
-| `--output`       | `-o`  | `tldr`, `json` | `tldr`  | Output mode                                                                            |
+| `--output`       | `-o`  | `tldr`, `json`, `url` | `tldr`  | Output mode; `url` prints preview URL to stdout                                       |
 | `--scale`        |       | number         | `1`     | Scale MMDS coordinate space before conversion                                          |
 | `--node-spacing` |       | number         | `1.2`   | Multiplier for spacing between nodes (positions and paths); does not change node sizes |
-| `--open`         |       | boolean        | `false` | Start local server and open diagram in browser                                         |
+| `--open`         |       | boolean        | `false` | POST diagram to preview server and open in browser (run `npm run preview` first)       |
 
 ## Mapping
 

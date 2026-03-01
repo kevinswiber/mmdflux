@@ -352,16 +352,16 @@ function rayRectIntersection(
   return best;
 }
 
-function segmentRectIntersection(
-  a: Point,
-  b: Point,
-  rect: Rect,
-): Point | null {
+function segmentRectIntersection(a: Point, b: Point, rect: Rect): Point | null {
   return rayRectIntersection(a, b, rect, true);
 }
 
 /** Project a point inside the rect to the nearest edge based on direction to another point. */
-function projectToEdge(point: Point, directionToward: Point, _rect: Rect): Point {
+function projectToEdge(
+  point: Point,
+  directionToward: Point,
+  _rect: Rect,
+): Point {
   const dx = directionToward.x - point.x;
   const dy = directionToward.y - point.y;
 
@@ -455,15 +455,12 @@ function edgeAnchor(
     const segHit = isStart
       ? segmentRectIntersection(terminal, other, rect)
       : segmentRectIntersection(other, terminal, rect);
-    const rayHit =
-      !segHit &&
-      rayRectIntersection(other, terminal, rect, false);
+    const rayHit = !segHit && rayRectIntersection(other, terminal, rect, false);
     const hit = segHit ?? rayHit;
     if (hit) {
-      let nx = clamp01((hit.x - rect.x) / rect.w);
-      let ny = clamp01((hit.y - rect.y) / rect.h);
-      const atCorner =
-        (nx <= 0.01 || nx >= 0.99) && (ny <= 0.01 || ny >= 0.99);
+      const nx = clamp01((hit.x - rect.x) / rect.w);
+      const ny = clamp01((hit.y - rect.y) / rect.h);
+      const atCorner = (nx <= 0.01 || nx >= 0.99) && (ny <= 0.01 || ny >= 0.99);
       if (atCorner && other) {
         result = edgeTowardPoint(rect, other);
       } else {
@@ -824,11 +821,17 @@ export function convertToTldraw(
     const start =
       routedPoints.length >= 2
         ? routedPoints[0]
-        : { x: src.position.x * positionScale, y: src.position.y * positionScale };
+        : {
+            x: src.position.x * positionScale,
+            y: src.position.y * positionScale,
+          };
     const end =
       routedPoints.length >= 2
         ? routedPoints[routedPoints.length - 1]
-        : { x: tgt.position.x * positionScale, y: tgt.position.y * positionScale };
+        : {
+            x: tgt.position.x * positionScale,
+            y: tgt.position.y * positionScale,
+          };
 
     const pathPoints = routedPoints.length >= 2 ? routedPoints : [start, end];
     const localPath = pathPoints.map((point) => ({
@@ -858,7 +861,10 @@ export function convertToTldraw(
           };
 
     const labelPos = edge.label_position
-      ? { x: edge.label_position.x * positionScale, y: edge.label_position.y * positionScale }
+      ? {
+          x: edge.label_position.x * positionScale,
+          y: edge.label_position.y * positionScale,
+        }
       : undefined;
 
     shapeRecords.push({
@@ -937,13 +943,7 @@ export function convertToTldraw(
         toId: toShapeIdResolved,
         props: {
           terminal: "end",
-          normalizedAnchor: edgeAnchor(
-            end,
-            pathPoints,
-            false,
-            toRect,
-            toGeo,
-          ),
+          normalizedAnchor: edgeAnchor(end, pathPoints, false, toRect, toGeo),
           isExact: false,
           isPrecise: true,
           snap: kind === "elbow" ? "edge" : "none",

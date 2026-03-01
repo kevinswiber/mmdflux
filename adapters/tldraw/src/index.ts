@@ -5,13 +5,16 @@
 // Usage:
 //   mmdflux --format mmds diagram.mmd | node dist/index.js > out.tldr
 //   mmdflux --format mmds --geometry-level routed diagram.mmd | node dist/index.js --open
+//
+// For --open: run `npm run preview` in adapters/tldraw first, then pipe to this.
 
-import { execSync } from "node:child_process";
-import { createServer } from "node:http";
+import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
 import type { MmdsDocument } from "@mmds/core";
 
 import { convertToTldrawStore, toTldrawFile } from "./convert.js";
+
+const PREVIEW_URL = process.env.PREVIEW_URL ?? "http://localhost:5173";
 
 function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -30,104 +33,14 @@ function openUrl(url: string) {
     process.platform === "darwin"
       ? "open"
       : process.platform === "win32"
-        ? "start"
+        ? "cmd"
         : "xdg-open";
-  execSync(`${cmd} ${JSON.stringify(url)}`);
-}
-
-function previewHtml(): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>tldraw preview</title>
-  <link rel="stylesheet" href="https://esm.sh/tldraw@4.4.0/tldraw.css">
-  <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
-        "react-dom": "https://esm.sh/react-dom@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "tldraw": "https://esm.sh/tldraw@4.4.0?external=react,react-dom"
-      }
-    }
-  </script>
-</head>
-<body>
-  <div id="root" style="position:fixed;inset:0;"></div>
-  <div id="error" style="display:none;padding:1rem;font-family:monospace;white-space:pre-wrap;color:#c00;"></div>
-  <script type="module">
-    window.process = window.process || { env: {} };
-    const errEl = document.getElementById("error");
-    const rootEl = document.getElementById("root");
-    function showErr(msg) {
-      rootEl.style.display = "none";
-      errEl.style.display = "block";
-      errEl.textContent = msg;
-    }
-    try {
-      const r = await fetch("/diagram.json");
-      if (!r.ok) throw new Error("Failed to fetch diagram: " + r.status);
-      const file = await r.json();
-      const { createRoot } = await import("react-dom/client");
-      const React = await import("react");
-      const { Tldraw, parseTldrawJsonFile, createTLStore } = await import("tldraw");
-      const schema = createTLStore().schema;
-      const result = parseTldrawJsonFile({ json: JSON.stringify(file), schema });
-      if (!result.ok) {
-        showErr("Parse failed: " + JSON.stringify(result.error, null, 2));
-      } else {
-        const store = result.value;
-        const onMount = (editor) => {
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              editor.zoomToFit({ immediate: true, inset: 180 });
-            });
-          });
-        };
-        const root = createRoot(rootEl);
-        root.render(React.createElement(Tldraw, { store, onMount }));
-      }
-    } catch (e) {
-      showErr("Error: " + (e?.message || e) + "\\n\\n" + (e?.stack || ""));
-    }
-  </script>
-</body>
-</html>`;
-}
-
-async function serveAndOpen(file: object) {
-  const html = previewHtml();
-  const diagramJson = JSON.stringify(file);
-  const server = createServer((req, res) => {
-    if (req.url === "/diagram.json") {
-      res.writeHead(200, {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(diagramJson, "utf8"),
-      });
-      res.end(diagramJson);
-      return;
-    }
-    if (req.url === "/" || req.url === "") {
-      res.writeHead(200, {
-        "Content-Type": "text/html; charset=utf-8",
-        "Content-Length": Buffer.byteLength(html, "utf8"),
-      });
-      res.end(html);
-      return;
-    }
-    res.writeHead(404).end();
+  const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
+  const child = spawn(cmd, args, {
+    detached: true,
+    stdio: "ignore",
   });
-  server.listen(0, "127.0.0.1", () => {
-    const addr = server.address();
-    if (addr && typeof addr === "object") {
-      const url = `http://127.0.0.1:${addr.port}`;
-      openUrl(url);
-      console.error(`Preview at ${url} (Ctrl+C to stop)`);
-    }
-  });
+  child.unref();
 }
 
 async function main() {
@@ -140,17 +53,24 @@ async function main() {
     },
   });
 
-  const output = values.output === "json" ? "json" : "tldr";
+  const output =
+    values.output === "json"
+      ? "json"
+      : values.output === "url"
+        ? "url"
+        : "tldr";
   const scale = Number(values.scale ?? "1");
-  const nodeSpacing = values["node-spacing"] != null
-    ? Number(values["node-spacing"])
-    : undefined;
+  const nodeSpacing =
+    values["node-spacing"] != null ? Number(values["node-spacing"]) : undefined;
   const shouldOpen = values.open ?? false;
   if (!Number.isFinite(scale) || scale <= 0) {
     console.error("--scale must be a positive finite number");
     process.exit(1);
   }
-  if (nodeSpacing !== undefined && (!Number.isFinite(nodeSpacing) || nodeSpacing <= 0)) {
+  if (
+    nodeSpacing !== undefined &&
+    (!Number.isFinite(nodeSpacing) || nodeSpacing <= 0)
+  ) {
     console.error("--node-spacing must be a positive number");
     process.exit(1);
   }
@@ -172,9 +92,28 @@ async function main() {
   });
   const file = toTldrawFile(store);
 
-  if (shouldOpen) {
-    await serveAndOpen(file);
-    return;
+  if (output === "url" || shouldOpen) {
+    const res = await fetch(`${PREVIEW_URL}/api/diagram`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(file),
+    });
+    if (!res.ok) {
+      console.error(
+        `Preview server not reachable (${res.status}). Run \`npm run preview\` in adapters/tldraw first.`,
+      );
+      process.exit(1);
+    }
+    const { id } = (await res.json()) as { ok: boolean; id: string };
+    const url = `${PREVIEW_URL}/?id=${encodeURIComponent(id)}`;
+
+    if (output === "url") {
+      console.log(url);
+      process.exit(0);
+    }
+    openUrl(url);
+    console.error(`Preview at ${url}`);
+    process.exit(0);
   }
 
   if (output === "json") {
