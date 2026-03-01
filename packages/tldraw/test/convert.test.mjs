@@ -8,6 +8,7 @@ import { createTLStore, parseTldrawJsonFile } from "tldraw";
 import {
   convertToTldraw,
   convertToTldrawStore,
+  faceAndFractionToNormalizedAnchor,
   toTldrawFile,
 } from "../dist/convert.js";
 
@@ -577,6 +578,46 @@ test("adaptive spacing fixture: shapes-and-strokes - labels fit and no overlaps"
   const converted = convertToTldraw(mmds);
   assertLabelsAllFit(converted, mmds, "shapes-and-strokes");
   assertNoOverlaps(converted, "shapes-and-strokes");
+});
+
+// --- faceAndFractionToNormalizedAnchor ---
+
+test("faceAndFractionToNormalizedAnchor: rectangle bottom center", () => {
+  const result = faceAndFractionToNormalizedAnchor("bottom", 0.5, "rectangle");
+  assert.deepEqual(result, { x: 0.5, y: 1.0 });
+});
+
+test("faceAndFractionToNormalizedAnchor: rectangle right 30%", () => {
+  const result = faceAndFractionToNormalizedAnchor("right", 0.3, "rectangle");
+  assert.deepEqual(result, { x: 1.0, y: 0.3 });
+});
+
+test("faceAndFractionToNormalizedAnchor: rectangle top left corner", () => {
+  const result = faceAndFractionToNormalizedAnchor("top", 0.0, "rectangle");
+  assert.deepEqual(result, { x: 0.0, y: 0.0 });
+});
+
+test("faceAndFractionToNormalizedAnchor: rectangle left bottom corner", () => {
+  const result = faceAndFractionToNormalizedAnchor("left", 1.0, "rectangle");
+  assert.deepEqual(result, { x: 0.0, y: 1.0 });
+});
+
+test("faceAndFractionToNormalizedAnchor: diamond right center projects to boundary", () => {
+  const result = faceAndFractionToNormalizedAnchor("right", 0.5, "diamond");
+  assert.ok(Math.abs(result.x - 1.0) < 0.1, `x=${result.x} should be near 1.0`);
+  assert.ok(Math.abs(result.y - 0.5) < 0.1, `y=${result.y} should be near 0.5`);
+});
+
+test("faceAndFractionToNormalizedAnchor: hexagon bottom center", () => {
+  const result = faceAndFractionToNormalizedAnchor("bottom", 0.5, "hexagon");
+  assert.deepEqual(result, { x: 0.5, y: 1.0 });
+});
+
+test("faceAndFractionToNormalizedAnchor: clamps out-of-range fraction", () => {
+  const lo = faceAndFractionToNormalizedAnchor("top", -0.5, "rectangle");
+  assert.deepEqual(lo, { x: 0.0, y: 0.0 });
+  const hi = faceAndFractionToNormalizedAnchor("top", 1.5, "rectangle");
+  assert.deepEqual(hi, { x: 1.0, y: 0.0 });
 });
 
 test("deterministic ordering: same MMDS produces identical tldraw output", () => {

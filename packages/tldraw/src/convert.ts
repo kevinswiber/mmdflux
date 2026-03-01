@@ -2,6 +2,7 @@ import {
   collectSubgraphDescendantNodeIds,
   edgeEndpointTargets,
   type MmdsDocument,
+  type MmdsPortFace,
   type MmdsSubgraph,
   type NormalizedMmdsNode,
   type NormalizedMmdsSubgraph,
@@ -529,6 +530,31 @@ function projectToShapeBoundary(
   if (geo === "rectangle" || geo === "hexagon" || geo === "trapezoid") return p;
   if (geo === "diamond") return projectToDiamondBoundary(p.x, p.y);
   return projectToEllipseBoundary(p.x, p.y);
+}
+
+/** Map port face + fraction to tldraw normalizedAnchor (0-1 rect space). */
+export function faceAndFractionToNormalizedAnchor(
+  face: MmdsPortFace,
+  fraction: number,
+  geo: "rectangle" | "ellipse" | "diamond" | "hexagon" | "trapezoid",
+): Point {
+  const f = Math.max(0, Math.min(1, fraction));
+  let anchor: Point;
+  switch (face) {
+    case "top":
+      anchor = { x: f, y: 0 };
+      break;
+    case "bottom":
+      anchor = { x: f, y: 1 };
+      break;
+    case "left":
+      anchor = { x: 0, y: f };
+      break;
+    case "right":
+      anchor = { x: 1, y: f };
+      break;
+  }
+  return projectToShapeBoundary(anchor, geo);
 }
 
 /** Anchor on the shape edge where the path enters/exits, so arrows attach at the boundary instead of the center. */
