@@ -1,0 +1,421 @@
+[
+  {
+    "id": "page:page",
+    "typeName": "page",
+    "name": "Page 1",
+    "index": "a1",
+    "meta": {}
+  },
+  {
+    "id": "shape:edge_e0",
+    "typeName": "shape",
+    "type": "arrow",
+    "parentId": "page:page",
+    "index": "a4",
+    "x": 68.9088,
+    "y": 62,
+    "rotation": 0,
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+      "kind": "elbow",
+      "labelColor": "black",
+      "color": "black",
+      "fill": "none",
+      "dash": "solid",
+      "size": "m",
+      "arrowheadStart": "none",
+      "arrowheadEnd": "arrow",
+      "font": "draw",
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "end": {
+        "x": 65.99999999999999,
+        "y": 50
+      },
+      "bend": 0,
+      "richText": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ]
+      },
+      "labelPosition": 0.49999999999999994,
+      "scale": 1,
+      "elbowMidPoint": 0.09827586206896557
+    },
+    "meta": {}
+  },
+  {
+    "id": "shape:edge_e1",
+    "typeName": "shape",
+    "type": "arrow",
+    "parentId": "page:page",
+    "index": "a5",
+    "x": 161.36319999999998,
+    "y": 62,
+    "rotation": 0,
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+      "kind": "arc",
+      "labelColor": "black",
+      "color": "black",
+      "fill": "none",
+      "dash": "solid",
+      "size": "m",
+      "arrowheadStart": "none",
+      "arrowheadEnd": "arrow",
+      "font": "draw",
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "end": {
+        "x": 0,
+        "y": 50
+      },
+      "bend": 0,
+      "richText": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ]
+      },
+      "labelPosition": 0.5,
+      "scale": 1,
+      "elbowMidPoint": 0.5
+    },
+    "meta": {}
+  },
+  {
+    "id": "shape:edge_e2",
+    "typeName": "shape",
+    "type": "arrow",
+    "parentId": "page:page",
+    "index": "a6",
+    "x": 253.81759999999997,
+    "y": 62,
+    "rotation": 0,
+    "isLocked": false,
+    "opacity": 1,
+    "props": {
+      "kind": "elbow",
+      "labelColor": "black",
+      "color": "black",
+      "fill": "none",
+      "dash": "solid",
+      "size": "m",
+      "arrowheadStart": "none",
+      "arrowheadEnd": "arrow",
+      "font": "draw",
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "end": {
+        "x": -66,
+        "y": 50
+      },
+      "bend": 0,
+      "richText": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ]
+      },
+      "labelPosition": 0.5,
+      "scale": 1,
+      "elbowMidPoint": 0.09827586206896556
+    },
+    "meta": {}
+  },
+  {
+    "id": "shape:node_A",
+    "typeName": "shape",
+    "parentId": "page:page",
+    "index": "a0",
+    "x": 8,
+    "y": 8,
+    "rotation": 0,
+    "isLocked": false,
+    "opacity": 1,
+    "meta": {},
+    "type": "geo",
+    "props": {
+      "geo": "rectangle",
+      "dash": "solid",
+      "url": "",
+      "w": 68.9088,
+      "h": 54,
+      "growY": 0,
+      "scale": 1,
+      "labelColor": "black",
+      "color": "black",
+      "fill": "none",
+      "size": "m",
+      "font": "draw",
+      "align": "middle",
+      "verticalAlign": "middle",
+      "richText": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "shape:node_B",
+    "typeName": "shape",
+    "parentId": "page:page",
+    "index": "a1",
+    "x": 126.90879999999999,
+    "y": 8,
+    "rotation": 0,
+    "isLocked": false,
+    "opacity": 1,
+    "meta": {},
+    "type": "geo",
+    "props": {
+      "geo": "rectangle",
+      "dash": "solid",
+      "url": "",
+      "w": 68.9088,
+      "h": 54,
+      "growY": 0,
+      "scale": 1,
+      "labelColor": "black",
+      "color": "black",
+      "fill": "none",
+      "size": "m",
+      "font": "draw",
+      "align": "middle",
+      "verticalAlign": "middle",
+      "richText": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "B"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "shape:node_C",
+    "typeName": "shape",
+    "parentId": "page:page",
+    "index": "a2",
+    "x": 126.90879999999999,
+    "y": 112,
+    "rotation": 0,
+    "isLocked": false,
+    "opacity": 1,
+    "meta": {},
+    "type": "geo",
+    "props": {
+      "geo": "rectangle",
+      "dash": "solid",
+      "url": "",
+      "w": 68.9088,
+      "h": 54,
+      "growY": 0,
+      "scale": 1,
+      "labelColor": "black",
+      "color": "black",
+      "fill": "none",
+      "size": "m",
+      "font": "draw",
+      "align": "middle",
+      "verticalAlign": "middle",
+      "richText": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "C"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "shape:node_D",
+    "typeName": "shape",
+    "parentId": "page:page",
+    "index": "a3",
+    "x": 245.8176,
+    "y": 8,
+    "rotation": 0,
+    "isLocked": false,
+    "opacity": 1,
+    "meta": {},
+    "type": "geo",
+    "props": {
+      "geo": "rectangle",
+      "dash": "solid",
+      "url": "",
+      "w": 68.9088,
+      "h": 54,
+      "growY": 0,
+      "scale": 1,
+      "labelColor": "black",
+      "color": "black",
+      "fill": "none",
+      "size": "m",
+      "font": "draw",
+      "align": "middle",
+      "verticalAlign": "middle",
+      "richText": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "D"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "id": "binding:edge_end_e0",
+    "typeName": "binding",
+    "type": "arrow",
+    "fromId": "shape:edge_e0",
+    "toId": "shape:node_C",
+    "props": {
+      "terminal": "end",
+      "normalizedAnchor": {
+        "x": 0,
+        "y": 0
+      },
+      "isExact": false,
+      "isPrecise": true,
+      "snap": "edge"
+    },
+    "meta": {}
+  },
+  {
+    "id": "binding:edge_end_e1",
+    "typeName": "binding",
+    "type": "arrow",
+    "fromId": "shape:edge_e1",
+    "toId": "shape:node_C",
+    "props": {
+      "terminal": "end",
+      "normalizedAnchor": {
+        "x": 0.5,
+        "y": 0
+      },
+      "isExact": false,
+      "isPrecise": true,
+      "snap": "none"
+    },
+    "meta": {}
+  },
+  {
+    "id": "binding:edge_end_e2",
+    "typeName": "binding",
+    "type": "arrow",
+    "fromId": "shape:edge_e2",
+    "toId": "shape:node_C",
+    "props": {
+      "terminal": "end",
+      "normalizedAnchor": {
+        "x": 1,
+        "y": 0
+      },
+      "isExact": false,
+      "isPrecise": true,
+      "snap": "edge"
+    },
+    "meta": {}
+  },
+  {
+    "id": "binding:edge_start_e0",
+    "typeName": "binding",
+    "type": "arrow",
+    "fromId": "shape:edge_e0",
+    "toId": "shape:node_A",
+    "props": {
+      "terminal": "start",
+      "normalizedAnchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "isExact": false,
+      "isPrecise": true,
+      "snap": "edge"
+    },
+    "meta": {}
+  },
+  {
+    "id": "binding:edge_start_e1",
+    "typeName": "binding",
+    "type": "arrow",
+    "fromId": "shape:edge_e1",
+    "toId": "shape:node_B",
+    "props": {
+      "terminal": "start",
+      "normalizedAnchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "isExact": false,
+      "isPrecise": true,
+      "snap": "none"
+    },
+    "meta": {}
+  },
+  {
+    "id": "binding:edge_start_e2",
+    "typeName": "binding",
+    "type": "arrow",
+    "fromId": "shape:edge_e2",
+    "toId": "shape:node_D",
+    "props": {
+      "terminal": "start",
+      "normalizedAnchor": {
+        "x": 0.5,
+        "y": 1
+      },
+      "isExact": false,
+      "isPrecise": true,
+      "snap": "edge"
+    },
+    "meta": {}
+  }
+]

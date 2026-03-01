@@ -733,6 +733,41 @@ test("routed fixture with ports: all bindings use port-based anchoring", () => {
   }
 });
 
+// --- Snapshot tests ---
+
+const SNAPSHOT_FIXTURES = [
+  ["positioned", "layout-basic.json"],
+  ["positioned", "routed-basic.json"],
+  ["positioned", "routed-fan-in-ports.json"],
+  ["layout-with-subgraphs.json"],
+  ["generation", "shapes-and-strokes.json"],
+];
+
+const snapshotDir = path.join(import.meta.dirname, "snapshots");
+const regenerateSnapshots = !!process.env.GENERATE_TLDRAW_SNAPSHOTS;
+
+for (const segments of SNAPSHOT_FIXTURES) {
+  const name = segments.at(-1).replace(".json", "");
+  test(`snapshot: ${name}`, () => {
+    const mmds = fixture("tests", "fixtures", "mmds", ...segments);
+    const { records } = convertToTldraw(mmds);
+    const json = JSON.stringify(records, null, 2) + "\n";
+    const snapPath = path.join(snapshotDir, `${name}.snap.json`);
+
+    if (regenerateSnapshots) {
+      fs.mkdirSync(snapshotDir, { recursive: true });
+      fs.writeFileSync(snapPath, json);
+    } else {
+      const expected = fs.readFileSync(snapPath, "utf-8");
+      assert.equal(
+        json,
+        expected,
+        `Snapshot mismatch: ${name}. Run GENERATE_TLDRAW_SNAPSHOTS=1 to update.`,
+      );
+    }
+  });
+}
+
 test("deterministic ordering: same MMDS produces identical tldraw output", () => {
   const mmds = fixture(
     "tests",
