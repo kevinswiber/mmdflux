@@ -1486,6 +1486,56 @@ mod tests {
     }
 
     #[test]
+    fn self_edge_routed_separately_without_ports() {
+        let mut diagram = Diagram::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_edge(crate::graph::Edge::new("A", "A"));
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(50.0, 50.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![],
+            subgraphs: HashMap::new(),
+            self_edges: vec![SelfEdgeGeometry {
+                node_id: "A".into(),
+                edge_index: 0,
+                points: vec![
+                    FPoint::new(70.0, 40.0),
+                    FPoint::new(80.0, 40.0),
+                    FPoint::new(80.0, 60.0),
+                    FPoint::new(70.0, 60.0),
+                ],
+            }],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: {
+                let mut m = HashMap::new();
+                m.insert("A".to_string(), crate::graph::Direction::TopDown);
+                m
+            },
+            bounds: FRect::new(0.0, 0.0, 100.0, 100.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: false,
+        };
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        // Self-edges go to self_edges, not edges
+        assert_eq!(routed.self_edges.len(), 1);
+        assert_eq!(routed.edges.len(), 0);
+        // RoutedSelfEdge has no port fields - confirmed by the type system
+    }
+
+    #[test]
     fn route_graph_geometry_includes_ports_orthogonal() {
         let (diagram, geom) = simple_geometry();
         let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
