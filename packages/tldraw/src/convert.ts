@@ -1069,6 +1069,7 @@ export function convertToTldraw(
     if (fromShapeId) {
       const fromRect = absoluteBoundsByShapeId.get(fromShapeId);
       const fromGeo = geoByShapeId.get(fromShapeId) ?? "rectangle";
+      const startPort = edge.source_port;
       bindingRecords.push({
         id: toBindingId("edge_start", edge.id),
         typeName: "binding",
@@ -1077,13 +1078,9 @@ export function convertToTldraw(
         toId: fromShapeId,
         props: {
           terminal: "start",
-          normalizedAnchor: edgeAnchor(
-            start,
-            pathPoints,
-            true,
-            fromRect,
-            fromGeo,
-          ),
+          normalizedAnchor: startPort
+            ? faceAndFractionToNormalizedAnchor(startPort.face, startPort.fraction, fromGeo)
+            : edgeAnchor(start, pathPoints, true, fromRect, fromGeo),
           isExact: false,
           isPrecise: true,
           snap: kind === "elbow" ? "edge" : "none",
@@ -1095,6 +1092,7 @@ export function convertToTldraw(
     if (toShapeIdResolved) {
       const toRect = absoluteBoundsByShapeId.get(toShapeIdResolved);
       const toGeo = geoByShapeId.get(toShapeIdResolved) ?? "rectangle";
+      const endPort = edge.target_port;
       bindingRecords.push({
         id: toBindingId("edge_end", edge.id),
         typeName: "binding",
@@ -1103,7 +1101,9 @@ export function convertToTldraw(
         toId: toShapeIdResolved,
         props: {
           terminal: "end",
-          normalizedAnchor: edgeAnchor(end, pathPoints, false, toRect, toGeo),
+          normalizedAnchor: endPort
+            ? faceAndFractionToNormalizedAnchor(endPort.face, endPort.fraction, toGeo)
+            : edgeAnchor(end, pathPoints, false, toRect, toGeo),
           isExact: false,
           isPrecise: true,
           snap: kind === "elbow" ? "edge" : "none",

@@ -620,6 +620,65 @@ test("faceAndFractionToNormalizedAnchor: clamps out-of-range fraction", () => {
   assert.deepEqual(hi, { x: 1.0, y: 0.0 });
 });
 
+// --- port-aware binding tests ---
+
+test("binding uses port metadata when available", () => {
+  const mmds = {
+    version: 1,
+    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    geometry_level: "routed",
+    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 100, height: 120 } },
+    nodes: [
+      { id: "A", label: "A", position: { x: 50, y: 30 }, size: { width: 40, height: 20 } },
+      { id: "B", label: "B", position: { x: 50, y: 90 }, size: { width: 40, height: 20 } },
+    ],
+    edges: [{
+      id: "e0", source: "A", target: "B",
+      path: [[50, 40], [50, 80]],
+      is_backward: false,
+      source_port: { face: "bottom", fraction: 0.5, position: { x: 50, y: 40 }, group_size: 1 },
+      target_port: { face: "top", fraction: 0.5, position: { x: 50, y: 80 }, group_size: 1 },
+    }],
+  };
+  const result = convertToTldraw(mmds);
+  const bindings = result.records.filter((r) => r.typeName === "binding");
+  const startBinding = bindings.find((b) => b.props.terminal === "start");
+  const endBinding = bindings.find((b) => b.props.terminal === "end");
+
+  assert.ok(startBinding, "should have start binding");
+  assert.ok(endBinding, "should have end binding");
+  // Port face=bottom, fraction=0.5 → anchor (0.5, 1.0) for rectangle
+  assert.deepEqual(startBinding.props.normalizedAnchor, { x: 0.5, y: 1.0 });
+  // Port face=top, fraction=0.5 → anchor (0.5, 0.0) for rectangle
+  assert.deepEqual(endBinding.props.normalizedAnchor, { x: 0.5, y: 0.0 });
+});
+
+test("binding falls back to edgeAnchor when no ports", () => {
+  const mmds = {
+    version: 1,
+    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    geometry_level: "routed",
+    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 100, height: 120 } },
+    nodes: [
+      { id: "A", label: "A", position: { x: 50, y: 30 }, size: { width: 40, height: 20 } },
+      { id: "B", label: "B", position: { x: 50, y: 90 }, size: { width: 40, height: 20 } },
+    ],
+    edges: [{
+      id: "e0", source: "A", target: "B",
+      path: [[50, 40], [50, 80]],
+      is_backward: false,
+      // No source_port or target_port - should use edgeAnchor fallback
+    }],
+  };
+  const result = convertToTldraw(mmds);
+  const bindings = result.records.filter((r) => r.typeName === "binding");
+  const startBinding = bindings.find((b) => b.props.terminal === "start");
+  assert.ok(startBinding, "should have start binding");
+  // edgeAnchor should produce some valid normalizedAnchor
+  assert.ok(typeof startBinding.props.normalizedAnchor.x === "number");
+  assert.ok(typeof startBinding.props.normalizedAnchor.y === "number");
+});
+
 test("deterministic ordering: same MMDS produces identical tldraw output", () => {
   const mmds = fixture(
     "tests",
