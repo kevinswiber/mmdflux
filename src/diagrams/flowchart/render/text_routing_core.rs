@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use super::backward_policy::prefer_backward_side_channel;
 use super::text_layout::{Layout, SubgraphBounds};
 use super::text_shape::NodeBounds;
-use crate::diagrams::flowchart::geometry::{FPoint, FRect};
+use crate::diagrams::flowchart::geometry::{EdgePort, FPoint, FRect, GraphGeometry, PortFace};
 use crate::graph::{Direction, Edge, Shape, Stroke};
 use crate::render::intersect::{NodeFace, classify_face};
 
@@ -116,6 +116,16 @@ impl Face {
             NodeFace::Bottom => Face::Bottom,
             NodeFace::Left => Face::Left,
             NodeFace::Right => Face::Right,
+        }
+    }
+
+    /// Convert to the geometry IR port face type.
+    pub(crate) fn to_port_face(self) -> PortFace {
+        match self {
+            Face::Top => PortFace::Top,
+            Face::Bottom => PortFace::Bottom,
+            Face::Left => PortFace::Left,
+            Face::Right => PortFace::Right,
         }
     }
 }
@@ -503,6 +513,127 @@ pub(crate) fn point_on_face_float(rect: FRect, face: Face, fraction: f64) -> FPo
         Face::Left => FPoint::new(rect.x, rect.y + rect.height * fraction),
         Face::Right => FPoint::new(rect.x + rect.width, rect.y + rect.height * fraction),
     }
+}
+
+/// Compute port attachments for all edges using float-coordinate `GraphGeometry`.
+///
+/// Called from the routing stage to make port data available in
+/// `RoutedEdgeGeometry` for MMDS serialization.
+pub(crate) fn compute_port_attachments_from_geometry(
+    edges: &[Edge],
+    geometry: &GraphGeometry,
+    fallback_direction: Direction,
+) -> HashMap<usize, (Option<EdgePort>, Option<EdgePort>)> {
+    let mut candidates: Vec<AttachmentCandidate> = Vec::with_capacity(edges.len() * 2);
+
+    for (idx, edge) in edges.iter().enumerate() {
+        if edge.from == edge.to || edge.stroke == Stroke::Invisible {
+            continue;
+        }
+
+        let src_node = match geometry.nodes.get(&edge.from) {
+            Some(n) => n,
+            None => continue,
+        };
+        let tgt_node = match geometry.nodes.get(&edge.to) {
+            Some(n) => n,
+            None => continue,
+        };
+
+        let tgt_center = FPoint::new(tgt_node.rect.center_x(), tgt_node.rect.center_y());
+        let src_center = FPoint::new(src_node.rect.center_x(), src_node.rect.center_y());
+
+        // Find the matching LayoutEdge for waypoint info
+        let layout_edge = geometry.edges.iter().find(|e| e.index == idx);
+        let waypoints = layout_edge.map(|le| &le.waypoints);
+
+        let src_approach = waypoints
+            .and_then(|wps| wps.first().copied())
+            .unwrap_or(tgt_center);
+        let tgt_approach = waypoints
+            .and_then(|wps| wps.last().copied())
+            .unwrap_or(src_center);
+
+        let edge_dir = geometry
+            .node_directions
+            .get(&edge.from)
+            .copied()
+            .unwrap_or(fallback_direction);
+
+        let is_backward = geometry.reversed_edges.contains(&idx);
+
+        let (src_face, tgt_face) = edge_faces(edge_dir, is_backward);
+
+        let src_cross = match src_face {
+            Face::Top | Face::Bottom => src_approach.x,
+            Face::Left | Face::Right => src_approach.y,
+        };
+        let tgt_cross = match tgt_face {
+            Face::Top | Face::Bottom => tgt_approach.x,
+            Face::Left | Face::Right => tgt_approach.y,
+        };
+
+        let src_id = edge.from_subgraph.as_deref().unwrap_or(edge.from.as_str());
+        let tgt_id = edge.to_subgraph.as_deref().unwrap_or(edge.to.as_str());
+
+        candidates.push(AttachmentCandidate {
+            edge_index: idx,
+            node_id: src_id.to_string(),
+            side: AttachmentSide::Source,
+            face: src_face,
+            cross_axis: src_cross,
+        });
+        candidates.push(AttachmentCandidate {
+            edge_index: idx,
+            node_id: tgt_id.to_string(),
+            side: AttachmentSide::Target,
+            face: tgt_face,
+            cross_axis: tgt_cross,
+        });
+    }
+
+    let plan = plan_attachment_candidates(candidates);
+
+    let mut result: HashMap<usize, (Option<EdgePort>, Option<EdgePort>)> = HashMap::new();
+    for (edge_index, attachments) in &plan.edge_attachments {
+        let edge = &edges[*edge_index];
+
+        let source_port = attachments.source.map(|att| {
+            let src_id = edge.from_subgraph.as_deref().unwrap_or(edge.from.as_str());
+            let src_rect = geometry
+                .nodes
+                .get(src_id)
+                .map(|n| n.rect)
+                .unwrap_or(FRect::new(0.0, 0.0, 0.0, 0.0));
+            let group_size = plan.group_size(src_id, att.face);
+            EdgePort {
+                face: att.face.to_port_face(),
+                fraction: att.fraction,
+                position: point_on_face_float(src_rect, att.face, att.fraction),
+                group_size,
+            }
+        });
+
+        let target_port = attachments.target.map(|att| {
+            let tgt_id = edge.to_subgraph.as_deref().unwrap_or(edge.to.as_str());
+            let tgt_rect = geometry
+                .nodes
+                .get(tgt_id)
+                .map(|n| n.rect)
+                .unwrap_or(FRect::new(0.0, 0.0, 0.0, 0.0));
+            let group_size = plan.group_size(tgt_id, att.face);
+            EdgePort {
+                face: att.face.to_port_face(),
+                fraction: att.fraction,
+                position: point_on_face_float(tgt_rect, att.face, att.fraction),
+                group_size,
+            }
+        });
+
+        result.insert(*edge_index, (source_port, target_port));
+    }
+
+    result
 }
 
 /// Build an orthogonal polyline in float space from start to end through optional waypoints.
@@ -1307,5 +1438,153 @@ mod tests {
         // Should hit bottom edge at center
         assert!((result.x - 20.0).abs() < 0.01);
         assert!((result.y - 20.0).abs() < 0.01);
+    }
+}
+
+#[cfg(test)]
+mod port_attachment_tests {
+    use std::collections::HashMap;
+
+    use super::*;
+    use crate::diagrams::flowchart::geometry::*;
+    use crate::graph::{Edge, Stroke};
+
+    fn make_geometry(
+        nodes: Vec<(&str, f64, f64, f64, f64)>,
+        edges: Vec<(usize, &str, &str)>,
+        direction: Direction,
+    ) -> GraphGeometry {
+        let mut node_map = HashMap::new();
+        let mut node_directions = HashMap::new();
+        for (id, x, y, w, h) in &nodes {
+            node_map.insert(
+                id.to_string(),
+                PositionedNode {
+                    id: id.to_string(),
+                    rect: FRect::new(*x, *y, *w, *h),
+                    shape: Shape::Rectangle,
+                    label: id.to_string(),
+                    parent: None,
+                },
+            );
+            node_directions.insert(id.to_string(), direction);
+        }
+        let layout_edges: Vec<LayoutEdge> = edges
+            .iter()
+            .map(|(idx, from, to)| LayoutEdge {
+                index: *idx,
+                from: from.to_string(),
+                to: to.to_string(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+            })
+            .collect();
+        GraphGeometry {
+            nodes: node_map,
+            edges: layout_edges,
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction,
+            node_directions,
+            bounds: FRect::new(0.0, 0.0, 200.0, 200.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: false,
+        }
+    }
+
+    #[test]
+    fn simple_td_two_nodes() {
+        let geometry = make_geometry(
+            vec![("A", 30.0, 15.0, 40.0, 20.0), ("B", 30.0, 65.0, 40.0, 20.0)],
+            vec![(0, "A", "B")],
+            Direction::TopDown,
+        );
+        let edges = vec![Edge::new("A", "B")];
+        let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
+        let (src, tgt) = &result[&0];
+        let src = src.as_ref().unwrap();
+        let tgt = tgt.as_ref().unwrap();
+        assert_eq!(src.face, PortFace::Bottom);
+        assert!((src.fraction - 0.5).abs() < 0.01);
+        assert_eq!(tgt.face, PortFace::Top);
+        assert!((tgt.fraction - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn lr_layout() {
+        let geometry = make_geometry(
+            vec![("A", 5.0, 30.0, 40.0, 20.0), ("B", 80.0, 30.0, 40.0, 20.0)],
+            vec![(0, "A", "B")],
+            Direction::LeftRight,
+        );
+        let edges = vec![Edge::new("A", "B")];
+        let result =
+            compute_port_attachments_from_geometry(&edges, &geometry, Direction::LeftRight);
+        let (src, tgt) = &result[&0];
+        assert_eq!(src.as_ref().unwrap().face, PortFace::Right);
+        assert_eq!(tgt.as_ref().unwrap().face, PortFace::Left);
+    }
+
+    #[test]
+    fn fan_in_three_edges_same_target() {
+        let geometry = make_geometry(
+            vec![
+                ("A", 10.0, 15.0, 40.0, 20.0),
+                ("B", 50.0, 15.0, 40.0, 20.0),
+                ("D", 90.0, 15.0, 40.0, 20.0),
+                ("C", 50.0, 65.0, 40.0, 20.0),
+            ],
+            vec![(0, "A", "C"), (1, "B", "C"), (2, "D", "C")],
+            Direction::TopDown,
+        );
+        let edges = vec![
+            Edge::new("A", "C"),
+            Edge::new("B", "C"),
+            Edge::new("D", "C"),
+        ];
+        let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
+        // C's top face should have 3 attachments with spread fractions
+        let fractions: Vec<f64> = (0..3)
+            .map(|i| result[&i].1.as_ref().unwrap().fraction)
+            .collect();
+        // Should be spread: 0.0, 0.5, 1.0
+        assert!((fractions[0] - 0.0).abs() < 0.01 || (fractions[0] - 1.0).abs() < 0.01);
+        assert!((fractions[1] - 0.5).abs() < 0.01);
+        // All group_size should be 3
+        for i in 0..3 {
+            assert_eq!(result[&i].1.as_ref().unwrap().group_size, 3);
+        }
+    }
+
+    #[test]
+    fn self_edge_produces_none() {
+        let geometry = make_geometry(
+            vec![("A", 30.0, 30.0, 40.0, 20.0)],
+            vec![(0, "A", "A")],
+            Direction::TopDown,
+        );
+        let edges = vec![Edge::new("A", "A")];
+        let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
+        assert!(result.get(&0).is_none() || result[&0] == (None, None));
+    }
+
+    #[test]
+    fn invisible_stroke_produces_none() {
+        let geometry = make_geometry(
+            vec![("A", 30.0, 15.0, 40.0, 20.0), ("B", 30.0, 65.0, 40.0, 20.0)],
+            vec![(0, "A", "B")],
+            Direction::TopDown,
+        );
+        let mut edge = Edge::new("A", "B");
+        edge.stroke = Stroke::Invisible;
+        let edges = vec![edge];
+        let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
+        assert!(result.get(&0).is_none() || result[&0] == (None, None));
     }
 }
