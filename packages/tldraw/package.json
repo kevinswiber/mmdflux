@@ -46,7 +46,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mmdflux/mmdflux.git",
-    "directory": "adapters/tldraw"
+    "directory": "packages/tldraw"
   },
   "engines": {
     "node": ">=18"

@@ -6,7 +6,7 @@
 //   mmdflux --format mmds diagram.mmd | node dist/index.js > out.tldr
 //   mmdflux --format mmds --geometry-level routed diagram.mmd | node dist/index.js --open
 //
-// For --open: run `npm run preview` in adapters/tldraw first, then pipe to this.
+// For --open: run `npm run preview` in packages/tldraw first, then pipe to this.
 
 import { spawn } from "node:child_process";
 import { parseArgs } from "node:util";
@@ -100,7 +100,7 @@ async function main() {
     });
     if (!res.ok) {
       console.error(
-        `Preview server not reachable (${res.status}). Run \`npm run preview\` in adapters/tldraw first.`,
+        `Preview server not reachable (${res.status}). Run \`npm run preview\` in packages/tldraw first.`,
       );
       process.exit(1);
     }
