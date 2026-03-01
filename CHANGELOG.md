@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- Fixed MMDS node positions using top-left origin instead of center-point
+  coordinates. MMDS output now emits node centers per the spec, and hydration
+  correctly converts centers back to the internal top-left rectangle origin.
+
 - Fixed backward edges detaching from source nodes in SVG when the backward
   path's first horizontal segment fell exactly on the source node's bottom
   boundary.
