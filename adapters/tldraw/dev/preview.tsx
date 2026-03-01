@@ -111,7 +111,7 @@ function App() {
       onMount={(editor) => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            editor.zoomToFit({ immediate: true, inset: 180 });
+            editor.zoomToFit({ immediate: true });
           });
         });
       }}
@@ -119,5 +119,7 @@ function App() {
   );
 }
 
-const root = createRoot(document.getElementById("root")!);
+const el = document.getElementById("root");
+if (!el) throw new Error("missing #root");
+const root = createRoot(el);
 root.render(<App />);
