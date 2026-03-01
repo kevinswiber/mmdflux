@@ -311,6 +311,123 @@ test("class layout fixture integration emits parseable .tldr", () => {
   assert.ok(nodeShape);
 });
 
+test("adaptive spacing: short-label LR diagrams are tighter than static 1.5x", () => {
+  const mmds = {
+    version: 1,
+    geometry_level: "layout",
+    defaults: {
+      node: { shape: "rectangle" },
+      edge: {
+        stroke: "solid",
+        arrow_start: "none",
+        arrow_end: "normal",
+        minlen: 1,
+      },
+    },
+    metadata: {
+      diagram_type: "flowchart",
+      direction: "LR",
+      bounds: { width: 400, height: 120 },
+    },
+    nodes: [
+      {
+        id: "A",
+        label: "A",
+        position: { x: 50, y: 60 },
+        size: { width: 80, height: 40 },
+      },
+      {
+        id: "B",
+        label: "B",
+        position: { x: 200, y: 60 },
+        size: { width: 80, height: 40 },
+      },
+      {
+        id: "C",
+        label: "C",
+        position: { x: 350, y: 60 },
+        size: { width: 80, height: 40 },
+      },
+    ],
+    edges: [],
+  };
+
+  // Default (adaptive) vs explicit static 1.5x
+  const defaultResult = convertToTldraw(mmds);
+  const staticResult = convertToTldraw(mmds, { nodeSpacing: 1.5 });
+
+  const geos = (result) =>
+    result.records.filter((r) => r.typeName === "shape" && r.type === "geo");
+  const xExtent = (shapes) => {
+    const min = Math.min(...shapes.map((s) => s.x));
+    const max = Math.max(...shapes.map((s) => s.x + s.props.w));
+    return max - min;
+  };
+
+  const defaultExtent = xExtent(geos(defaultResult));
+  const staticExtent = xExtent(geos(staticResult));
+
+  assert.ok(
+    defaultExtent < staticExtent,
+    `Expected adaptive extent (${defaultExtent}) < static 1.5x extent (${staticExtent})`,
+  );
+});
+
+test("adaptive spacing: long-label TD diagrams space more than static 1.2x", () => {
+  const mmds = {
+    version: 1,
+    geometry_level: "layout",
+    defaults: {
+      node: { shape: "rectangle" },
+      edge: {
+        stroke: "solid",
+        arrow_start: "none",
+        arrow_end: "normal",
+        minlen: 1,
+      },
+    },
+    metadata: {
+      diagram_type: "flowchart",
+      direction: "TD",
+      bounds: { width: 200, height: 300 },
+    },
+    nodes: [
+      {
+        id: "A",
+        label: "Implementation",
+        position: { x: 100, y: 50 },
+        size: { width: 160, height: 40 },
+      },
+      {
+        id: "B",
+        label: "Quality Checks",
+        position: { x: 100, y: 150 },
+        size: { width: 160, height: 40 },
+      },
+    ],
+    edges: [],
+  };
+
+  const defaultResult = convertToTldraw(mmds);
+  const staticResult = convertToTldraw(mmds, { nodeSpacing: 1.2 });
+
+  const geos = (result) =>
+    result.records.filter((r) => r.typeName === "shape" && r.type === "geo");
+  const yExtent = (shapes) => {
+    const min = Math.min(...shapes.map((s) => s.y));
+    const max = Math.max(...shapes.map((s) => s.y + s.props.h));
+    return max - min;
+  };
+
+  const defaultExtent = yExtent(geos(defaultResult));
+  const staticExtent = yExtent(geos(staticResult));
+
+  assert.ok(
+    defaultExtent > staticExtent,
+    `Expected adaptive extent (${defaultExtent}) > static 1.2x extent (${staticExtent})`,
+  );
+});
+
 test("deterministic ordering: same MMDS produces identical tldraw output", () => {
   const mmds = fixture(
     "tests",

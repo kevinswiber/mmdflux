@@ -91,6 +91,33 @@ const CHAR_WIDTH_EST = 14;
 const MIN_LABEL_PAD_X = 36;
 const MIN_LABEL_PAD_Y = 28;
 
+function tldrawEnforcedMinWidth(label: string): number {
+  return label.length * CHAR_WIDTH_EST + MIN_LABEL_PAD_X;
+}
+
+/**
+ * Compute adaptive growth ratio based on how much each node will expand
+ * when tldraw enforces minimum label-based widths.
+ *
+ * Returns the maximum growth ratio across all nodes, clamped to >= 1.0.
+ */
+function computeAdaptiveGrowthRatio(
+  nodes: readonly NormalizedMmdsNode[],
+  sizeScale: number,
+): number {
+  let maxRatio = 1.0;
+  for (const node of nodes) {
+    const label = node.label ?? node.id;
+    const tldrawMinWidth = tldrawEnforcedMinWidth(label);
+    const scaledMmdsWidth = node.size.width * sizeScale;
+    if (scaledMmdsWidth > 0) {
+      const ratio = tldrawMinWidth / scaledMmdsWidth;
+      if (ratio > maxRatio) maxRatio = ratio;
+    }
+  }
+  return maxRatio;
+}
+
 function scaleNodeRect(
   node: NormalizedMmdsNode,
   sizeScale: number,
@@ -100,7 +127,7 @@ function scaleNodeRect(
   let height = Math.max(8, node.size.height * sizeScale);
 
   // Ensure minimum size for label so text doesn't wrap to single chars per line.
-  const minW = node.label.length * CHAR_WIDTH_EST + MIN_LABEL_PAD_X;
+  const minW = tldrawEnforcedMinWidth(node.label);
   const minH = MIN_LABEL_PAD_Y;
   if (width < minW || height < minH) {
     width = Math.max(width, minW);
@@ -142,7 +169,7 @@ function autoPositionScale(
 
   // Pre-compute fixed (scale-independent) node sizes.
   const sizes = nodes.map((n) => {
-    let w = Math.max(n.size.width * sizeScale, n.label.length * CHAR_WIDTH_EST + MIN_LABEL_PAD_X);
+    let w = Math.max(n.size.width * sizeScale, tldrawEnforcedMinWidth(n.label));
     let h = Math.max(n.size.height * sizeScale, MIN_LABEL_PAD_Y);
     if (n.shape === "diamond") {
       const side = Math.max(w, h);
@@ -696,7 +723,8 @@ export function convertToTldraw(
   const horizontal =
     normalized.metadata?.direction === "LR" ||
     normalized.metadata?.direction === "RL";
-  const nodeSpacing = options.nodeSpacing ?? (horizontal ? 1.5 : 1.2);
+  const adaptiveRatio = computeAdaptiveGrowthRatio(normalized.nodes, scale);
+  const nodeSpacing = options.nodeSpacing ?? adaptiveRatio;
   const positionScale = autoPositionScale(
     normalized.nodes,
     normalized.metadata?.direction,
