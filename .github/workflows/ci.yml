@@ -3,12 +3,14 @@ name: CI
 on:
   push:
     paths-ignore:
+      - "packages/**"
       - "**/*.md"
       - "docs/**"
       - "LICENSE"
       - ".gitignore"
   pull_request:
     paths-ignore:
+      - "packages/**"
       - "**/*.md"
       - "docs/**"
       - "LICENSE"
