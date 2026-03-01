@@ -1587,4 +1587,65 @@ mod port_attachment_tests {
         let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
         assert!(result.get(&0).is_none() || result[&0] == (None, None));
     }
+
+    #[test]
+    fn backward_edge_reverses_faces() {
+        let mut geometry = make_geometry(
+            vec![("A", 30.0, 15.0, 40.0, 20.0), ("B", 30.0, 65.0, 40.0, 20.0)],
+            vec![(0, "B", "A")],
+            Direction::TopDown,
+        );
+        geometry.reversed_edges = vec![0];
+        let edges = vec![Edge::new("B", "A")];
+        let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
+        let (src, tgt) = &result[&0];
+        // Backward in TD: source on Top, target on Bottom
+        assert_eq!(src.as_ref().unwrap().face, PortFace::Top);
+        assert_eq!(tgt.as_ref().unwrap().face, PortFace::Bottom);
+    }
+
+    #[test]
+    fn direction_override_uses_effective_direction() {
+        let mut geometry = make_geometry(
+            vec![("A", 5.0, 30.0, 40.0, 20.0), ("B", 80.0, 30.0, 40.0, 20.0)],
+            vec![(0, "A", "B")],
+            Direction::TopDown, // Root direction is TD
+        );
+        // But both nodes are in an LR override subgraph
+        geometry
+            .node_directions
+            .insert("A".to_string(), Direction::LeftRight);
+        geometry
+            .node_directions
+            .insert("B".to_string(), Direction::LeftRight);
+        let edges = vec![Edge::new("A", "B")];
+        let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
+        let (src, tgt) = &result[&0];
+        // Should use LR faces even though root is TD
+        assert_eq!(src.as_ref().unwrap().face, PortFace::Right);
+        assert_eq!(tgt.as_ref().unwrap().face, PortFace::Left);
+    }
+
+    #[test]
+    fn subgraph_edge_groups_by_subgraph_id() {
+        let geometry = make_geometry(
+            vec![
+                ("A", 30.0, 15.0, 40.0, 20.0),
+                ("B", 30.0, 65.0, 40.0, 20.0),
+                ("C", 80.0, 65.0, 40.0, 20.0),
+            ],
+            vec![(0, "A", "B"), (1, "A", "C")],
+            Direction::TopDown,
+        );
+        let mut edge0 = Edge::new("A", "B");
+        edge0.to_subgraph = Some("sg1".to_string());
+        let mut edge1 = Edge::new("A", "C");
+        edge1.to_subgraph = Some("sg1".to_string());
+        let edges = vec![edge0, edge1];
+        let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
+        // Both target ports should be grouped under "sg1" (same subgraph)
+        // So group_size should be 2 for both
+        assert_eq!(result[&0].1.as_ref().unwrap().group_size, 2);
+        assert_eq!(result[&1].1.as_ref().unwrap().group_size, 2);
+    }
 }
