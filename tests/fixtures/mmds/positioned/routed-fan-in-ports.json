@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "defaults": {
+    "node": {
+      "shape": "rectangle"
+    },
+    "edge": {
+      "stroke": "solid",
+      "arrow_start": "none",
+      "arrow_end": "normal",
+      "minlen": 1
+    }
+  },
+  "geometry_level": "routed",
+  "metadata": {
+    "diagram_type": "flowchart",
+    "direction": "TD",
+    "bounds": {
+      "width": 322.72639999999996,
+      "height": 174.0
+    },
+    "engine": "flux-layered"
+  },
+  "nodes": [
+    {
+      "id": "A",
+      "label": "A",
+      "position": {
+        "x": 42.4544,
+        "y": 35.0
+      },
+      "size": {
+        "width": 68.9088,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "B",
+      "label": "B",
+      "position": {
+        "x": 161.36319999999998,
+        "y": 35.0
+      },
+      "size": {
+        "width": 68.9088,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "C",
+      "label": "C",
+      "position": {
+        "x": 161.36319999999998,
+        "y": 139.0
+      },
+      "size": {
+        "width": 68.9088,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "D",
+      "label": "D",
+      "position": {
+        "x": 280.272,
+        "y": 35.0
+      },
+      "size": {
+        "width": 68.9088,
+        "height": 54.0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "A",
+      "target": "C",
+      "path": [
+        [
+          68.9088,
+          62.0
+        ],
+        [
+          68.9088,
+          73.4
+        ],
+        [
+          134.90879999999999,
+          73.4
+        ],
+        [
+          134.90879999999999,
+          112.0
+        ]
+      ],
+      "label_position": {
+        "x": 115.50879999999998,
+        "y": 73.4
+      },
+      "is_backward": false,
+      "source_port": {
+        "face": "bottom",
+        "fraction": 0.5,
+        "position": {
+          "x": 42.4544,
+          "y": 62.0
+        },
+        "group_size": 1
+      },
+      "target_port": {
+        "face": "top",
+        "fraction": 0.0,
+        "position": {
+          "x": 126.90879999999999,
+          "y": 112.0
+        },
+        "group_size": 3
+      }
+    },
+    {
+      "id": "e1",
+      "source": "B",
+      "target": "C",
+      "path": [
+        [
+          161.36319999999998,
+          62.0
+        ],
+        [
+          161.36319999999998,
+          112.0
+        ]
+      ],
+      "label_position": {
+        "x": 161.36319999999998,
+        "y": 87.0
+      },
+      "is_backward": false,
+      "source_port": {
+        "face": "bottom",
+        "fraction": 0.5,
+        "position": {
+          "x": 161.36319999999998,
+          "y": 62.0
+        },
+        "group_size": 1
+      },
+      "target_port": {
+        "face": "top",
+        "fraction": 0.5,
+        "position": {
+          "x": 161.36319999999998,
+          "y": 112.0
+        },
+        "group_size": 3
+      }
+    },
+    {
+      "id": "e2",
+      "source": "D",
+      "target": "C",
+      "path": [
+        [
+          253.81759999999997,
+          62.0
+        ],
+        [
+          253.81759999999997,
+          73.4
+        ],
+        [
+          187.81759999999997,
+          73.4
+        ],
+        [
+          187.81759999999997,
+          112.0
+        ]
+      ],
+      "label_position": {
+        "x": 207.21759999999998,
+        "y": 73.4
+      },
+      "is_backward": false,
+      "source_port": {
+        "face": "bottom",
+        "fraction": 0.5,
+        "position": {
+          "x": 280.272,
+          "y": 62.0
+        },
+        "group_size": 1
+      },
+      "target_port": {
+        "face": "top",
+        "fraction": 1.0,
+        "position": {
+          "x": 195.81759999999997,
+          "y": 112.0
+        },
+        "group_size": 3
+      }
+    }
+  ]
+}

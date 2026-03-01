@@ -5,6 +5,7 @@ import test from "node:test";
 
 import { createTLStore, parseTldrawJsonFile } from "tldraw";
 
+import { normalizeMmds } from "@mmds/core";
 import {
   convertToTldraw,
   convertToTldrawStore,
@@ -677,6 +678,59 @@ test("binding falls back to edgeAnchor when no ports", () => {
   // edgeAnchor should produce some valid normalizedAnchor
   assert.ok(typeof startBinding.props.normalizedAnchor.x === "number");
   assert.ok(typeof startBinding.props.normalizedAnchor.y === "number");
+});
+
+// --- Phase 8: Integration & backward compat ---
+
+test("full pipeline: fan-in edges have distinct normalizedAnchors", () => {
+  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "routed-fan-in-ports.json");
+  const result = convertToTldraw(mmds);
+  const bindings = result.records.filter((r) => r.typeName === "binding");
+  const endBindings = bindings.filter((b) => b.props.terminal === "end");
+  assert.equal(endBindings.length, 3, "should have 3 end bindings (one per edge)");
+
+  const anchorsX = endBindings.map((b) => b.props.normalizedAnchor.x);
+  const unique = new Set(anchorsX.map((x) => x.toFixed(4)));
+  assert.equal(unique.size, 3, `fan-in edges should have 3 distinct anchor x-values, got: ${[...unique]}`);
+
+  // Validate the tldraw file parses correctly
+  const file = toTldrawFile(mmds);
+  assertParses(file);
+});
+
+test("backward compat: layout-level MMDS without ports converts successfully", () => {
+  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "layout-basic.json");
+  const result = convertToTldraw(mmds);
+  assert.ok(result.records.length > 0, "should produce records");
+  const bindings = result.records.filter((r) => r.typeName === "binding");
+  assert.ok(bindings.length > 0, "should have bindings (edgeAnchor fallback)");
+});
+
+test("backward compat: old MMDS fixture without port fields normalizes correctly", () => {
+  const raw = fs.readFileSync(
+    path.join(repoRoot, "tests", "fixtures", "mmds", "positioned", "layout-basic.json"),
+    "utf-8",
+  );
+  const doc = JSON.parse(raw);
+  const normalized = normalizeMmds(doc);
+  for (const edge of normalized.edges) {
+    assert.equal(edge.source_port, undefined, `edge ${edge.id} should have no source_port`);
+    assert.equal(edge.target_port, undefined, `edge ${edge.id} should have no target_port`);
+  }
+  // Convert should succeed
+  const result = convertToTldraw(doc);
+  assert.ok(result.records.length > 0);
+});
+
+test("routed fixture with ports: all bindings use port-based anchoring", () => {
+  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "routed-fan-in-ports.json");
+  const result = convertToTldraw(mmds);
+  const bindings = result.records.filter((r) => r.typeName === "binding");
+  assert.ok(bindings.length > 0, "should have bindings");
+  // All bindings should have isPrecise: true
+  for (const binding of bindings) {
+    assert.equal(binding.props.isPrecise, true, `binding ${binding.id} should be precise`);
+  }
 });
 
 test("deterministic ordering: same MMDS produces identical tldraw output", () => {
