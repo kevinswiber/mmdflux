@@ -11,10 +11,10 @@ import {
   createBindingId,
   createShapeId,
   createTLStore,
+  type IndexKey,
   type TLRecord,
   type TLStoreSnapshot,
   toRichText,
-  type IndexKey,
 } from "@tldraw/editor";
 import { generateKeyBetween } from "fractional-indexing";
 
