@@ -428,6 +428,62 @@ test("adaptive spacing: long-label TD diagrams space more than static 1.2x", () 
   );
 });
 
+test("explicit nodeSpacing overrides adaptive ratio", () => {
+  const mmds = {
+    version: 1,
+    geometry_level: "layout",
+    defaults: {
+      node: { shape: "rectangle" },
+      edge: {
+        stroke: "solid",
+        arrow_start: "none",
+        arrow_end: "normal",
+        minlen: 1,
+      },
+    },
+    metadata: {
+      diagram_type: "flowchart",
+      direction: "LR",
+      bounds: { width: 400, height: 120 },
+    },
+    nodes: [
+      {
+        id: "A",
+        label: "A",
+        position: { x: 50, y: 60 },
+        size: { width: 80, height: 40 },
+      },
+      {
+        id: "B",
+        label: "B",
+        position: { x: 200, y: 60 },
+        size: { width: 80, height: 40 },
+      },
+    ],
+    edges: [],
+  };
+
+  const result_2x = convertToTldraw(mmds, { nodeSpacing: 2.0 });
+  const result_1x = convertToTldraw(mmds, { nodeSpacing: 1.0 });
+
+  const geos = (result) =>
+    result.records.filter((r) => r.typeName === "shape" && r.type === "geo");
+  const xExtent = (shapes) => {
+    const min = Math.min(...shapes.map((s) => s.x));
+    const max = Math.max(...shapes.map((s) => s.x + s.props.w));
+    return max - min;
+  };
+
+  const extent_2x = xExtent(geos(result_2x));
+  const extent_1x = xExtent(geos(result_1x));
+
+  // Explicit 2.0x should produce wider spacing than 1.0x
+  assert.ok(
+    extent_2x > extent_1x,
+    `Expected 2.0x extent (${extent_2x}) > 1.0x extent (${extent_1x})`,
+  );
+});
+
 test("deterministic ordering: same MMDS produces identical tldraw output", () => {
   const mmds = fixture(
     "tests",

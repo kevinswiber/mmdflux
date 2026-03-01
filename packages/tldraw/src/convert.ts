@@ -20,7 +20,12 @@ import { generateKeyBetween } from "fractional-indexing";
 
 export interface ConvertOptions {
   scale?: number;
-  /** Multiplier for spacing between nodes (positions and paths). Does not change node sizes. Default 1.2. */
+  /**
+   * Position scale multiplier for node spacing. When omitted, an adaptive
+   * ratio is computed from label growth (how much each node expands when
+   * tldraw enforces minimum label-based widths). The autoPositionScale()
+   * overlap safety net runs regardless.
+   */
   nodeSpacing?: number;
 }
 
