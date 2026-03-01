@@ -121,6 +121,73 @@ function scaleNodeRect(
   };
 }
 
+/**
+ * Compute the minimum positionScale so that no pair of nodes overlaps after
+ * label-based minimum sizing.  Returns a value >= `basePositionScale`.
+ *
+ * Nodes are centered at `position * positionScale` with fixed pixel sizes
+ * (potentially enlarged for labels).  We find the tightest pair and bump the
+ * scale until they no longer overlap with at least MIN_GAP between them.
+ */
+function autoPositionScale(
+  nodes: readonly NormalizedMmdsNode[],
+  direction: string | undefined,
+  sizeScale: number,
+  basePositionScale: number,
+): number {
+  if (nodes.length < 2) return basePositionScale;
+
+  const horizontal = direction === "LR" || direction === "RL";
+  const MIN_GAP = 24;
+
+  // Pre-compute fixed (scale-independent) node sizes.
+  const sizes = nodes.map((n) => {
+    let w = Math.max(n.size.width * sizeScale, n.label.length * CHAR_WIDTH_EST + MIN_LABEL_PAD_X);
+    let h = Math.max(n.size.height * sizeScale, MIN_LABEL_PAD_Y);
+    if (n.shape === "diamond") {
+      const side = Math.max(w, h);
+      w = side;
+      h = side;
+    }
+    return { w, h };
+  });
+
+  let needed = basePositionScale;
+
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i];
+      const b = nodes[j];
+
+      if (horizontal) {
+        const dx = Math.abs(a.position.x - b.position.x);
+        if (dx < 1) continue;
+        // Required scale so rects don't overlap on X.
+        const halfW = (sizes[i].w + sizes[j].w) / 2 + MIN_GAP;
+        const reqX = halfW / dx;
+        if (reqX <= needed) continue;
+        // Only matters if they actually overlap on Y at that scale.
+        const dy = Math.abs(a.position.y - b.position.y);
+        const halfH = (sizes[i].h + sizes[j].h) / 2;
+        if (dy * reqX >= halfH) continue;
+        needed = reqX;
+      } else {
+        const dy = Math.abs(a.position.y - b.position.y);
+        if (dy < 1) continue;
+        const halfH = (sizes[i].h + sizes[j].h) / 2 + MIN_GAP;
+        const reqY = halfH / dy;
+        if (reqY <= needed) continue;
+        const dx = Math.abs(a.position.x - b.position.x);
+        const halfW = (sizes[i].w + sizes[j].w) / 2;
+        if (dx * reqY >= halfW) continue;
+        needed = reqY;
+      }
+    }
+  }
+
+  return needed;
+}
+
 function unionRects(rects: Rect[]): Rect {
   const minX = Math.min(...rects.map((r) => r.x));
   const minY = Math.min(...rects.map((r) => r.y));
@@ -625,9 +692,17 @@ export function convertToTldraw(
   options: ConvertOptions = {},
 ): TldrawConvertResult {
   const scale = options.scale ?? 1;
-  const nodeSpacing = options.nodeSpacing ?? 1.2;
-  const positionScale = scale * nodeSpacing;
   const normalized = normalizeMmds(mmds);
+  const horizontal =
+    normalized.metadata?.direction === "LR" ||
+    normalized.metadata?.direction === "RL";
+  const nodeSpacing = options.nodeSpacing ?? (horizontal ? 1.5 : 1.2);
+  const positionScale = autoPositionScale(
+    normalized.nodes,
+    normalized.metadata?.direction,
+    scale,
+    scale * nodeSpacing,
+  );
 
   const store = createTLStore({
     defaultName: normalized.metadata?.diagram_type ?? "MMDS",
