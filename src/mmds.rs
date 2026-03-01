@@ -10,7 +10,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::diagram::{EngineAlgorithmId, GeometryLevel, PathSimplification, RenderError};
-use crate::diagrams::flowchart::geometry::{GraphGeometry, PositionedNode, RoutedGraphGeometry};
+use crate::diagrams::flowchart::geometry::{
+    EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry,
+};
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
 
 mod generate;
@@ -141,6 +143,18 @@ fn serialize_mmds_output(output: &MmdsOutput) -> String {
     serde_json::to_string_pretty(output).expect("MMDS serialization should not fail")
 }
 
+fn edge_port_to_mmds(port: &EdgePort) -> MmdsPort {
+    MmdsPort {
+        face: port.face.as_str().to_string(),
+        fraction: port.fraction,
+        position: MmdsPosition {
+            x: port.position.x,
+            y: port.position.y,
+        },
+        group_size: port.group_size,
+    }
+}
+
 fn build_mmds_output(
     diagram_type: &str,
     diagram: &Diagram,
@@ -185,6 +199,8 @@ fn build_mmds_output(
                 path: None,
                 label_position: None,
                 is_backward: None,
+                source_port: None,
+                target_port: None,
             };
 
             // Add routed fields only at routed level
@@ -199,6 +215,8 @@ fn build_mmds_output(
                 mmds_edge.label_position =
                     re.label_position.map(|p| MmdsPosition { x: p.x, y: p.y });
                 mmds_edge.is_backward = Some(re.is_backward);
+                mmds_edge.source_port = re.source_port.as_ref().map(edge_port_to_mmds);
+                mmds_edge.target_port = re.target_port.as_ref().map(edge_port_to_mmds);
             }
 
             mmds_edge
@@ -470,6 +488,19 @@ pub struct MmdsSize {
     pub height: f64,
 }
 
+/// Port attachment metadata for an edge endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MmdsPort {
+    /// Which face of the node the edge attaches to ("top", "bottom", "left", "right").
+    pub face: String,
+    /// Position within the face (0.0 = start, 1.0 = end).
+    pub fraction: f64,
+    /// Absolute position of the attachment point.
+    pub position: MmdsPosition,
+    /// How many edges share this face on this node.
+    pub group_size: usize,
+}
+
 /// An edge in MMDS output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MmdsEdge {
@@ -521,6 +552,14 @@ pub struct MmdsEdge {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub is_backward: Option<bool>,
+    /// Source-side port attachment (routed level only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub source_port: Option<MmdsPort>,
+    /// Target-side port attachment (routed level only).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub target_port: Option<MmdsPort>,
 }
 
 /// A subgraph in MMDS output.
@@ -892,6 +931,109 @@ mod tests {
         )
         .unwrap();
         assert!(routed_json.contains("\"path\""));
+    }
+
+    #[test]
+    fn mmds_port_serializes_correctly() {
+        let port = MmdsPort {
+            face: "bottom".to_string(),
+            fraction: 0.5,
+            position: MmdsPosition { x: 50.0, y: 35.0 },
+            group_size: 1,
+        };
+        let json = serde_json::to_string(&port).unwrap();
+        assert!(json.contains("\"face\":\"bottom\""));
+        assert!(json.contains("\"fraction\":0.5"));
+        assert!(json.contains("\"group_size\":1"));
+    }
+
+    #[test]
+    fn mmds_edge_source_port_none_omitted_from_json() {
+        let edge = MmdsEdge {
+            id: "e0".into(),
+            source: "A".into(),
+            target: "B".into(),
+            from_subgraph: None,
+            to_subgraph: None,
+            label: None,
+            stroke: "solid".into(),
+            arrow_start: "none".into(),
+            arrow_end: "normal".into(),
+            minlen: 1,
+            path: None,
+            label_position: None,
+            is_backward: None,
+            source_port: None,
+            target_port: None,
+        };
+        let json = serde_json::to_string(&edge).unwrap();
+        assert!(!json.contains("source_port"));
+        assert!(!json.contains("target_port"));
+    }
+
+    #[test]
+    fn mmds_edge_source_port_round_trips() {
+        let port = MmdsPort {
+            face: "right".to_string(),
+            fraction: 0.3,
+            position: MmdsPosition { x: 100.0, y: 30.0 },
+            group_size: 2,
+        };
+        let edge = MmdsEdge {
+            id: "e0".into(),
+            source: "A".into(),
+            target: "B".into(),
+            from_subgraph: None,
+            to_subgraph: None,
+            label: None,
+            stroke: "solid".into(),
+            arrow_start: "none".into(),
+            arrow_end: "normal".into(),
+            minlen: 1,
+            path: None,
+            label_position: None,
+            is_backward: None,
+            source_port: Some(port),
+            target_port: None,
+        };
+        let json = serde_json::to_string(&edge).unwrap();
+        let deserialized: MmdsEdge = serde_json::from_str(&json).unwrap();
+        let sp = deserialized.source_port.unwrap();
+        assert_eq!(sp.face, "right");
+        assert!((sp.fraction - 0.3).abs() < 1e-9);
+        assert!((sp.position.x - 100.0).abs() < 1e-9);
+        assert_eq!(sp.group_size, 2);
+        assert!(deserialized.target_port.is_none());
+    }
+
+    #[test]
+    fn mmds_edge_deserializes_without_ports() {
+        let json = r#"{
+            "id": "e0",
+            "source": "A",
+            "target": "B"
+        }"#;
+        let edge: MmdsEdge = serde_json::from_str(json).unwrap();
+        assert!(edge.source_port.is_none());
+        assert!(edge.target_port.is_none());
+    }
+
+    #[test]
+    fn routed_json_includes_port_metadata() {
+        let (diagram, geom) = layout_geometry("graph TD\nA-->B");
+        let routed = routed_geometry(&diagram, &geom);
+        let json = to_mmds_routed(&diagram, &geom, &routed);
+        let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+        let edge = &output.edges[0];
+        // A simple TD A-->B should have port metadata at routed level
+        assert!(edge.source_port.is_some());
+        assert!(edge.target_port.is_some());
+        let sp = edge.source_port.as_ref().unwrap();
+        let tp = edge.target_port.as_ref().unwrap();
+        assert_eq!(sp.face, "bottom");
+        assert_eq!(tp.face, "top");
+        assert_eq!(sp.group_size, 1);
+        assert_eq!(tp.group_size, 1);
     }
 
     #[test]
