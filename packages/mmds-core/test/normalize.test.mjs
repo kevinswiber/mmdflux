@@ -117,6 +117,62 @@ test("subgraph traversal helpers walk parent and descendant chains", () => {
   );
 });
 
+test("normalizeMmds passes through edge port metadata", () => {
+  const doc = {
+    version: 1,
+    nodes: [
+      { id: "A", label: "A", position: { x: 0, y: 0 }, size: { width: 40, height: 20 } },
+      { id: "B", label: "B", position: { x: 0, y: 50 }, size: { width: 40, height: 20 } },
+    ],
+    edges: [
+      {
+        id: "e0",
+        source: "A",
+        target: "B",
+        source_port: {
+          face: "bottom",
+          fraction: 0.5,
+          position: { x: 50, y: 35 },
+          group_size: 1,
+        },
+        target_port: {
+          face: "top",
+          fraction: 0.5,
+          position: { x: 50, y: 40 },
+          group_size: 1,
+        },
+      },
+    ],
+  };
+  const normalized = normalizeMmds(doc);
+  assert.deepEqual(normalized.edges[0].source_port, {
+    face: "bottom",
+    fraction: 0.5,
+    position: { x: 50, y: 35 },
+    group_size: 1,
+  });
+  assert.deepEqual(normalized.edges[0].target_port, {
+    face: "top",
+    fraction: 0.5,
+    position: { x: 50, y: 40 },
+    group_size: 1,
+  });
+});
+
+test("normalizeMmds sets port to undefined when absent", () => {
+  const doc = {
+    version: 1,
+    nodes: [
+      { id: "A", label: "A", position: { x: 0, y: 0 }, size: { width: 40, height: 20 } },
+      { id: "B", label: "B", position: { x: 0, y: 50 }, size: { width: 40, height: 20 } },
+    ],
+    edges: [{ id: "e0", source: "A", target: "B" }],
+  };
+  const normalized = normalizeMmds(doc);
+  assert.equal(normalized.edges[0].source_port, undefined);
+  assert.equal(normalized.edges[0].target_port, undefined);
+});
+
 test("edgeEndpointTargets resolves endpoint intent to node or subgraph targets", () => {
   const plain = edgeEndpointTargets({
     source: "A",

@@ -11,6 +11,15 @@ export type MmdsArrow =
   | "diamond"
   | "open_diamond";
 
+export type MmdsPortFace = "top" | "bottom" | "left" | "right";
+
+export interface MmdsPort {
+  face: MmdsPortFace;
+  fraction: number;
+  position: MmdsPosition;
+  group_size: number;
+}
+
 export interface MmdsPosition {
   x: number;
   y: number;
@@ -56,6 +65,8 @@ export interface MmdsEdge {
   path?: [number, number][];
   label_position?: MmdsPosition;
   is_backward?: boolean;
+  source_port?: MmdsPort;
+  target_port?: MmdsPort;
 }
 
 export interface MmdsSubgraph {
@@ -205,6 +216,21 @@ function normalizeSize(value: unknown): MmdsSize | undefined {
   return { width, height };
 }
 
+const PORT_FACES = new Set<MmdsPortFace>(["top", "bottom", "left", "right"]);
+
+function normalizePort(value: unknown): MmdsPort | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const maybe = value as Record<string, unknown>;
+  const face = typeof maybe.face === "string" && PORT_FACES.has(maybe.face as MmdsPortFace)
+    ? (maybe.face as MmdsPortFace)
+    : undefined;
+  const fraction = asFiniteNumber(maybe.fraction);
+  const position = normalizePosition(maybe.position);
+  const group_size = asFiniteNumber(maybe.group_size);
+  if (!face || fraction === undefined || !position || group_size === undefined) return undefined;
+  return { face, fraction, position, group_size: Math.round(group_size) };
+}
+
 function assertDocumentShape(doc: MmdsDocument): void {
   if (!doc || typeof doc !== "object") {
     throw new Error("MMDS document must be an object");
@@ -286,6 +312,8 @@ export function normalizeMmds(doc: MmdsDocument): NormalizedMmdsDocument {
       label_position: normalizePosition(edge.label_position),
       is_backward:
         typeof edge.is_backward === "boolean" ? edge.is_backward : undefined,
+      source_port: normalizePort(edge.source_port),
+      target_port: normalizePort(edge.target_port),
     };
   });
 
