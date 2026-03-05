@@ -2,10 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-
-import { createTLStore, parseTldrawJsonFile } from "tldraw";
-
 import { normalizeMmds } from "@mmds/core";
+import { createTLStore, parseTldrawJsonFile } from "tldraw";
 import {
   convertToTldraw,
   convertToTldrawStore,
@@ -532,11 +530,9 @@ function assertNoOverlaps(converted, fixtureName) {
         const a = siblings[i];
         const b = siblings[j];
         const overlapX =
-          a.x < b.x + b.props.w + MIN_GAP &&
-          b.x < a.x + a.props.w + MIN_GAP;
+          a.x < b.x + b.props.w + MIN_GAP && b.x < a.x + a.props.w + MIN_GAP;
         const overlapY =
-          a.y < b.y + b.props.h + MIN_GAP &&
-          b.y < a.y + a.props.h + MIN_GAP;
+          a.y < b.y + b.props.h + MIN_GAP && b.y < a.y + a.props.h + MIN_GAP;
         assert.ok(
           !(overlapX && overlapY),
           `${fixtureName}: nodes ${a.id} and ${b.id} overlap`,
@@ -547,35 +543,64 @@ function assertNoOverlaps(converted, fixtureName) {
 }
 
 test("adaptive spacing fixture: layout-basic - labels fit and no overlaps", () => {
-  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "layout-basic.json");
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "positioned",
+    "layout-basic.json",
+  );
   const converted = convertToTldraw(mmds);
   assertLabelsAllFit(converted, mmds, "layout-basic");
   assertNoOverlaps(converted, "layout-basic");
 });
 
 test("adaptive spacing fixture: routed-basic - labels fit and no overlaps", () => {
-  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "routed-basic.json");
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "positioned",
+    "routed-basic.json",
+  );
   const converted = convertToTldraw(mmds);
   assertLabelsAllFit(converted, mmds, "routed-basic");
   assertNoOverlaps(converted, "routed-basic");
 });
 
 test("adaptive spacing fixture: layout-with-subgraphs - labels fit and no overlaps", () => {
-  const mmds = fixture("tests", "fixtures", "mmds", "layout-with-subgraphs.json");
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "layout-with-subgraphs.json",
+  );
   const converted = convertToTldraw(mmds);
   assertLabelsAllFit(converted, mmds, "layout-with-subgraphs");
   assertNoOverlaps(converted, "layout-with-subgraphs");
 });
 
 test("adaptive spacing fixture: complex-roundtrip - labels fit and no overlaps", () => {
-  const mmds = fixture("tests", "fixtures", "mmds", "generation", "complex-roundtrip.json");
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "generation",
+    "complex-roundtrip.json",
+  );
   const converted = convertToTldraw(mmds);
   assertLabelsAllFit(converted, mmds, "complex-roundtrip");
   assertNoOverlaps(converted, "complex-roundtrip");
 });
 
 test("adaptive spacing fixture: shapes-and-strokes - labels fit and no overlaps", () => {
-  const mmds = fixture("tests", "fixtures", "mmds", "generation", "shapes-and-strokes.json");
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "generation",
+    "shapes-and-strokes.json",
+  );
   const converted = convertToTldraw(mmds);
   assertLabelsAllFit(converted, mmds, "shapes-and-strokes");
   assertNoOverlaps(converted, "shapes-and-strokes");
@@ -626,22 +651,63 @@ test("faceAndFractionToNormalizedAnchor: clamps out-of-range fraction", () => {
 test("binding prefers routed path anchors over ports when both are present", () => {
   const mmds = {
     version: 1,
-    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    defaults: {
+      node: { shape: "rectangle" },
+      edge: {
+        stroke: "solid",
+        arrow_start: "none",
+        arrow_end: "normal",
+        minlen: 1,
+      },
+    },
     geometry_level: "routed",
-    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 100, height: 120 } },
+    metadata: {
+      diagram_type: "flowchart",
+      direction: "TD",
+      bounds: { width: 100, height: 120 },
+    },
     nodes: [
-      { id: "A", label: "A", position: { x: 50, y: 30 }, size: { width: 40, height: 20 } },
-      { id: "B", label: "B", position: { x: 50, y: 90 }, size: { width: 40, height: 20 } },
+      {
+        id: "A",
+        label: "A",
+        position: { x: 50, y: 30 },
+        size: { width: 40, height: 20 },
+      },
+      {
+        id: "B",
+        label: "B",
+        position: { x: 50, y: 90 },
+        size: { width: 40, height: 20 },
+      },
     ],
-    edges: [{
-      id: "e0", source: "A", target: "B",
-      // Endpoints are intentionally inset from the corners while ports are at
-      // face extremes; path anchors should win to avoid border collisions.
-      path: [[34, 40], [34, 72], [66, 72], [66, 80]],
-      is_backward: false,
-      source_port: { face: "bottom", fraction: 0.0, position: { x: 30, y: 40 }, group_size: 1 },
-      target_port: { face: "top", fraction: 1.0, position: { x: 70, y: 80 }, group_size: 1 },
-    }],
+    edges: [
+      {
+        id: "e0",
+        source: "A",
+        target: "B",
+        // Endpoints are intentionally inset from the corners while ports are at
+        // face extremes; path anchors should win to avoid border collisions.
+        path: [
+          [34, 40],
+          [34, 72],
+          [66, 72],
+          [66, 80],
+        ],
+        is_backward: false,
+        source_port: {
+          face: "bottom",
+          fraction: 0.0,
+          position: { x: 30, y: 40 },
+          group_size: 1,
+        },
+        target_port: {
+          face: "top",
+          fraction: 1.0,
+          position: { x: 70, y: 80 },
+          group_size: 1,
+        },
+      },
+    ],
   };
   const result = convertToTldraw(mmds);
   const bindings = result.records.filter((r) => r.typeName === "binding");
@@ -660,19 +726,55 @@ test("binding prefers routed path anchors over ports when both are present", () 
 test("binding uses port metadata when routed path is missing", () => {
   const mmds = {
     version: 1,
-    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    defaults: {
+      node: { shape: "rectangle" },
+      edge: {
+        stroke: "solid",
+        arrow_start: "none",
+        arrow_end: "normal",
+        minlen: 1,
+      },
+    },
     geometry_level: "routed",
-    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 100, height: 120 } },
+    metadata: {
+      diagram_type: "flowchart",
+      direction: "TD",
+      bounds: { width: 100, height: 120 },
+    },
     nodes: [
-      { id: "A", label: "A", position: { x: 50, y: 30 }, size: { width: 40, height: 20 } },
-      { id: "B", label: "B", position: { x: 50, y: 90 }, size: { width: 40, height: 20 } },
+      {
+        id: "A",
+        label: "A",
+        position: { x: 50, y: 30 },
+        size: { width: 40, height: 20 },
+      },
+      {
+        id: "B",
+        label: "B",
+        position: { x: 50, y: 90 },
+        size: { width: 40, height: 20 },
+      },
     ],
-    edges: [{
-      id: "e0", source: "A", target: "B",
-      is_backward: false,
-      source_port: { face: "bottom", fraction: 0.5, position: { x: 50, y: 40 }, group_size: 1 },
-      target_port: { face: "top", fraction: 0.5, position: { x: 50, y: 80 }, group_size: 1 },
-    }],
+    edges: [
+      {
+        id: "e0",
+        source: "A",
+        target: "B",
+        is_backward: false,
+        source_port: {
+          face: "bottom",
+          fraction: 0.5,
+          position: { x: 50, y: 40 },
+          group_size: 1,
+        },
+        target_port: {
+          face: "top",
+          fraction: 0.5,
+          position: { x: 50, y: 80 },
+          group_size: 1,
+        },
+      },
+    ],
   };
   const result = convertToTldraw(mmds);
   const bindings = result.records.filter((r) => r.typeName === "binding");
@@ -688,19 +790,48 @@ test("binding uses port metadata when routed path is missing", () => {
 test("binding falls back to edgeAnchor when no ports", () => {
   const mmds = {
     version: 1,
-    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    defaults: {
+      node: { shape: "rectangle" },
+      edge: {
+        stroke: "solid",
+        arrow_start: "none",
+        arrow_end: "normal",
+        minlen: 1,
+      },
+    },
     geometry_level: "routed",
-    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 100, height: 120 } },
+    metadata: {
+      diagram_type: "flowchart",
+      direction: "TD",
+      bounds: { width: 100, height: 120 },
+    },
     nodes: [
-      { id: "A", label: "A", position: { x: 50, y: 30 }, size: { width: 40, height: 20 } },
-      { id: "B", label: "B", position: { x: 50, y: 90 }, size: { width: 40, height: 20 } },
+      {
+        id: "A",
+        label: "A",
+        position: { x: 50, y: 30 },
+        size: { width: 40, height: 20 },
+      },
+      {
+        id: "B",
+        label: "B",
+        position: { x: 50, y: 90 },
+        size: { width: 40, height: 20 },
+      },
     ],
-    edges: [{
-      id: "e0", source: "A", target: "B",
-      path: [[50, 40], [50, 80]],
-      is_backward: false,
-      // No source_port or target_port - should use edgeAnchor fallback
-    }],
+    edges: [
+      {
+        id: "e0",
+        source: "A",
+        target: "B",
+        path: [
+          [50, 40],
+          [50, 80],
+        ],
+        is_backward: false,
+        // No source_port or target_port - should use edgeAnchor fallback
+      },
+    ],
   };
   const result = convertToTldraw(mmds);
   const bindings = result.records.filter((r) => r.typeName === "binding");
@@ -714,21 +845,60 @@ test("binding falls back to edgeAnchor when no ports", () => {
 test("vertical elbows derive elbowMidPoint from the routed horizontal lane", () => {
   const mmds = {
     version: 1,
-    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    defaults: {
+      node: { shape: "rectangle" },
+      edge: {
+        stroke: "solid",
+        arrow_start: "none",
+        arrow_end: "normal",
+        minlen: 1,
+      },
+    },
     geometry_level: "routed",
-    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 240, height: 280 } },
+    metadata: {
+      diagram_type: "flowchart",
+      direction: "TD",
+      bounds: { width: 240, height: 280 },
+    },
     nodes: [
-      { id: "A", label: "A", position: { x: 100, y: 30 }, size: { width: 80, height: 40 } },
-      { id: "C", label: "C", position: { x: 100, y: 240 }, size: { width: 80, height: 40 } },
+      {
+        id: "A",
+        label: "A",
+        position: { x: 100, y: 30 },
+        size: { width: 80, height: 40 },
+      },
+      {
+        id: "C",
+        label: "C",
+        position: { x: 100, y: 240 },
+        size: { width: 80, height: 40 },
+      },
     ],
-    edges: [{
-      id: "e0",
-      source: "A",
-      target: "C",
-      path: [[140, 50], [140, 210], [100, 210], [100, 220]],
-      source_port: { face: "bottom", fraction: 1, position: { x: 140, y: 50 }, group_size: 1 },
-      target_port: { face: "top", fraction: 0.5, position: { x: 100, y: 220 }, group_size: 1 },
-    }],
+    edges: [
+      {
+        id: "e0",
+        source: "A",
+        target: "C",
+        path: [
+          [140, 50],
+          [140, 210],
+          [100, 210],
+          [100, 220],
+        ],
+        source_port: {
+          face: "bottom",
+          fraction: 1,
+          position: { x: 140, y: 50 },
+          group_size: 1,
+        },
+        target_port: {
+          face: "top",
+          fraction: 0.5,
+          position: { x: 100, y: 220 },
+          group_size: 1,
+        },
+      },
+    ],
   };
 
   const result = convertToTldraw(mmds);
@@ -748,23 +918,67 @@ test("vertical elbows derive elbowMidPoint from the routed horizontal lane", () 
 test("vertical elbows nudge away from intermediate node borders", () => {
   const mmds = {
     version: 1,
-    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    defaults: {
+      node: { shape: "rectangle" },
+      edge: {
+        stroke: "solid",
+        arrow_start: "none",
+        arrow_end: "normal",
+        minlen: 1,
+      },
+    },
     geometry_level: "routed",
-    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 260, height: 300 } },
+    metadata: {
+      diagram_type: "flowchart",
+      direction: "TD",
+      bounds: { width: 260, height: 300 },
+    },
     nodes: [
-      { id: "A", label: "A", position: { x: 100, y: 30 }, size: { width: 80, height: 40 } },
-      { id: "B", label: "B", position: { x: 120, y: 140 }, size: { width: 80, height: 40 } },
-      { id: "C", label: "C", position: { x: 100, y: 240 }, size: { width: 80, height: 40 } },
+      {
+        id: "A",
+        label: "A",
+        position: { x: 100, y: 30 },
+        size: { width: 80, height: 40 },
+      },
+      {
+        id: "B",
+        label: "B",
+        position: { x: 120, y: 140 },
+        size: { width: 80, height: 40 },
+      },
+      {
+        id: "C",
+        label: "C",
+        position: { x: 100, y: 240 },
+        size: { width: 80, height: 40 },
+      },
     ],
-    edges: [{
-      id: "e0",
-      source: "A",
-      target: "C",
-      // The horizontal lane sits exactly on B's bottom border (y=160).
-      path: [[140, 50], [140, 160], [100, 160], [100, 220]],
-      source_port: { face: "bottom", fraction: 1, position: { x: 140, y: 50 }, group_size: 1 },
-      target_port: { face: "top", fraction: 0.5, position: { x: 100, y: 220 }, group_size: 1 },
-    }],
+    edges: [
+      {
+        id: "e0",
+        source: "A",
+        target: "C",
+        // The horizontal lane sits exactly on B's bottom border (y=160).
+        path: [
+          [140, 50],
+          [140, 160],
+          [100, 160],
+          [100, 220],
+        ],
+        source_port: {
+          face: "bottom",
+          fraction: 1,
+          position: { x: 140, y: 50 },
+          group_size: 1,
+        },
+        target_port: {
+          face: "top",
+          fraction: 0.5,
+          position: { x: 100, y: 220 },
+          group_size: 1,
+        },
+      },
+    ],
   };
 
   const result = convertToTldraw(mmds);
@@ -784,15 +998,29 @@ test("vertical elbows nudge away from intermediate node borders", () => {
 // --- Phase 8: Integration & backward compat ---
 
 test("full pipeline: fan-in edges have distinct normalizedAnchors", () => {
-  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "routed-fan-in-ports.json");
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "positioned",
+    "routed-fan-in-ports.json",
+  );
   const result = convertToTldraw(mmds);
   const bindings = result.records.filter((r) => r.typeName === "binding");
   const endBindings = bindings.filter((b) => b.props.terminal === "end");
-  assert.equal(endBindings.length, 3, "should have 3 end bindings (one per edge)");
+  assert.equal(
+    endBindings.length,
+    3,
+    "should have 3 end bindings (one per edge)",
+  );
 
   const anchorsX = endBindings.map((b) => b.props.normalizedAnchor.x);
   const unique = new Set(anchorsX.map((x) => x.toFixed(4)));
-  assert.equal(unique.size, 3, `fan-in edges should have 3 distinct anchor x-values, got: ${[...unique]}`);
+  assert.equal(
+    unique.size,
+    3,
+    `fan-in edges should have 3 distinct anchor x-values, got: ${[...unique]}`,
+  );
 
   // Validate the tldraw file parses correctly
   const file = toTldrawFile(mmds);
@@ -800,7 +1028,13 @@ test("full pipeline: fan-in edges have distinct normalizedAnchors", () => {
 });
 
 test("backward compat: layout-level MMDS without ports converts successfully", () => {
-  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "layout-basic.json");
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "positioned",
+    "layout-basic.json",
+  );
   const result = convertToTldraw(mmds);
   assert.ok(result.records.length > 0, "should produce records");
   const bindings = result.records.filter((r) => r.typeName === "binding");
@@ -809,14 +1043,29 @@ test("backward compat: layout-level MMDS without ports converts successfully", (
 
 test("backward compat: old MMDS fixture without port fields normalizes correctly", () => {
   const raw = fs.readFileSync(
-    path.join(repoRoot, "tests", "fixtures", "mmds", "positioned", "layout-basic.json"),
+    path.join(
+      repoRoot,
+      "tests",
+      "fixtures",
+      "mmds",
+      "positioned",
+      "layout-basic.json",
+    ),
     "utf-8",
   );
   const doc = JSON.parse(raw);
   const normalized = normalizeMmds(doc);
   for (const edge of normalized.edges) {
-    assert.equal(edge.source_port, undefined, `edge ${edge.id} should have no source_port`);
-    assert.equal(edge.target_port, undefined, `edge ${edge.id} should have no target_port`);
+    assert.equal(
+      edge.source_port,
+      undefined,
+      `edge ${edge.id} should have no source_port`,
+    );
+    assert.equal(
+      edge.target_port,
+      undefined,
+      `edge ${edge.id} should have no target_port`,
+    );
   }
   // Convert should succeed
   const result = convertToTldraw(doc);
@@ -824,13 +1073,23 @@ test("backward compat: old MMDS fixture without port fields normalizes correctly
 });
 
 test("routed fixture with ports: all bindings remain precise", () => {
-  const mmds = fixture("tests", "fixtures", "mmds", "positioned", "routed-fan-in-ports.json");
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "positioned",
+    "routed-fan-in-ports.json",
+  );
   const result = convertToTldraw(mmds);
   const bindings = result.records.filter((r) => r.typeName === "binding");
   assert.ok(bindings.length > 0, "should have bindings");
   // All bindings should have isPrecise: true
   for (const binding of bindings) {
-    assert.equal(binding.props.isPrecise, true, `binding ${binding.id} should be precise`);
+    assert.equal(
+      binding.props.isPrecise,
+      true,
+      `binding ${binding.id} should be precise`,
+    );
   }
 });
 
@@ -852,7 +1111,7 @@ for (const segments of SNAPSHOT_FIXTURES) {
   test(`snapshot: ${name}`, () => {
     const mmds = fixture("tests", "fixtures", "mmds", ...segments);
     const { records } = convertToTldraw(mmds);
-    const json = JSON.stringify(records, null, 2) + "\n";
+    const json = `${JSON.stringify(records, null, 2)}\n`;
     const snapPath = path.join(snapshotDir, `${name}.snap.json`);
 
     if (regenerateSnapshots) {

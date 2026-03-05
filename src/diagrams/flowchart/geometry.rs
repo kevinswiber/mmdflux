@@ -451,14 +451,18 @@ impl PortFace {
             Self::Right => "right",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for PortFace {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "top" => Some(Self::Top),
-            "bottom" => Some(Self::Bottom),
-            "left" => Some(Self::Left),
-            "right" => Some(Self::Right),
-            _ => None,
+            "top" => Ok(Self::Top),
+            "bottom" => Ok(Self::Bottom),
+            "left" => Ok(Self::Left),
+            "right" => Ok(Self::Right),
+            _ => Err(()),
         }
     }
 }
@@ -841,11 +845,11 @@ mod tests {
 
     #[test]
     fn port_face_from_str() {
-        assert_eq!(PortFace::from_str("top"), Some(PortFace::Top));
-        assert_eq!(PortFace::from_str("bottom"), Some(PortFace::Bottom));
-        assert_eq!(PortFace::from_str("left"), Some(PortFace::Left));
-        assert_eq!(PortFace::from_str("right"), Some(PortFace::Right));
-        assert_eq!(PortFace::from_str("invalid"), None);
+        assert_eq!("top".parse::<PortFace>(), Ok(PortFace::Top));
+        assert_eq!("bottom".parse::<PortFace>(), Ok(PortFace::Bottom));
+        assert_eq!("left".parse::<PortFace>(), Ok(PortFace::Left));
+        assert_eq!("right".parse::<PortFace>(), Ok(PortFace::Right));
+        assert_eq!("invalid".parse::<PortFace>(), Err(()));
     }
 
     #[test]

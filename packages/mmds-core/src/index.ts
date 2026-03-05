@@ -221,13 +221,15 @@ const PORT_FACES = new Set<MmdsPortFace>(["top", "bottom", "left", "right"]);
 function normalizePort(value: unknown): MmdsPort | undefined {
   if (!value || typeof value !== "object") return undefined;
   const maybe = value as Record<string, unknown>;
-  const face = typeof maybe.face === "string" && PORT_FACES.has(maybe.face as MmdsPortFace)
-    ? (maybe.face as MmdsPortFace)
-    : undefined;
+  const face =
+    typeof maybe.face === "string" && PORT_FACES.has(maybe.face as MmdsPortFace)
+      ? (maybe.face as MmdsPortFace)
+      : undefined;
   const fraction = asFiniteNumber(maybe.fraction);
   const position = normalizePosition(maybe.position);
   const group_size = asFiniteNumber(maybe.group_size);
-  if (!face || fraction === undefined || !position || group_size === undefined) return undefined;
+  if (!face || fraction === undefined || !position || group_size === undefined)
+    return undefined;
   return { face, fraction, position, group_size: Math.round(group_size) };
 }
 

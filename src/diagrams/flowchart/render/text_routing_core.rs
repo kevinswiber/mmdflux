@@ -1571,7 +1571,7 @@ mod port_attachment_tests {
         );
         let edges = vec![Edge::new("A", "A")];
         let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
-        assert!(result.get(&0).is_none() || result[&0] == (None, None));
+        assert!(!result.contains_key(&0) || result[&0] == (None, None));
     }
 
     #[test]
@@ -1585,7 +1585,7 @@ mod port_attachment_tests {
         edge.stroke = Stroke::Invisible;
         let edges = vec![edge];
         let result = compute_port_attachments_from_geometry(&edges, &geometry, Direction::TopDown);
-        assert!(result.get(&0).is_none() || result[&0] == (None, None));
+        assert!(!result.contains_key(&0) || result[&0] == (None, None));
     }
 
     #[test]

@@ -396,7 +396,11 @@ function elbowMidPoint(points: Point[]): number {
   return clamp01(firstLeg / total);
 }
 
-function nudgeAwayFromBorder(value: number, border: number, clearance: number): number {
+function nudgeAwayFromBorder(
+  value: number,
+  border: number,
+  clearance: number,
+): number {
   const delta = value - border;
   if (Math.abs(delta) >= clearance) return value;
   return delta >= 0 ? border + clearance : border - clearance;
@@ -829,9 +833,6 @@ export function convertToTldraw(
 ): TldrawConvertResult {
   const scale = options.scale ?? 1;
   const normalized = normalizeMmds(mmds);
-  const horizontal =
-    normalized.metadata?.direction === "LR" ||
-    normalized.metadata?.direction === "RL";
   const adaptiveRatio = computeAdaptiveGrowthRatio(normalized.nodes, scale);
   const nodeSpacing = options.nodeSpacing ?? adaptiveRatio;
   const positionScale = autoPositionScale(

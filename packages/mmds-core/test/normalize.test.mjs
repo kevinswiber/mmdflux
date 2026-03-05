@@ -121,8 +121,18 @@ test("normalizeMmds passes through edge port metadata", () => {
   const doc = {
     version: 1,
     nodes: [
-      { id: "A", label: "A", position: { x: 0, y: 0 }, size: { width: 40, height: 20 } },
-      { id: "B", label: "B", position: { x: 0, y: 50 }, size: { width: 40, height: 20 } },
+      {
+        id: "A",
+        label: "A",
+        position: { x: 0, y: 0 },
+        size: { width: 40, height: 20 },
+      },
+      {
+        id: "B",
+        label: "B",
+        position: { x: 0, y: 50 },
+        size: { width: 40, height: 20 },
+      },
     ],
     edges: [
       {
@@ -163,8 +173,18 @@ test("normalizeMmds sets port to undefined when absent", () => {
   const doc = {
     version: 1,
     nodes: [
-      { id: "A", label: "A", position: { x: 0, y: 0 }, size: { width: 40, height: 20 } },
-      { id: "B", label: "B", position: { x: 0, y: 50 }, size: { width: 40, height: 20 } },
+      {
+        id: "A",
+        label: "A",
+        position: { x: 0, y: 0 },
+        size: { width: 40, height: 20 },
+      },
+      {
+        id: "B",
+        label: "B",
+        position: { x: 0, y: 50 },
+        size: { width: 40, height: 20 },
+      },
     ],
     edges: [{ id: "e0", source: "A", target: "B" }],
   };
