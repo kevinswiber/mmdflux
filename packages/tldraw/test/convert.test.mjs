@@ -623,7 +623,7 @@ test("faceAndFractionToNormalizedAnchor: clamps out-of-range fraction", () => {
 
 // --- port-aware binding tests ---
 
-test("binding uses port metadata when available", () => {
+test("binding prefers routed path anchors over ports when both are present", () => {
   const mmds = {
     version: 1,
     defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
@@ -635,7 +635,40 @@ test("binding uses port metadata when available", () => {
     ],
     edges: [{
       id: "e0", source: "A", target: "B",
-      path: [[50, 40], [50, 80]],
+      // Endpoints are intentionally inset from the corners while ports are at
+      // face extremes; path anchors should win to avoid border collisions.
+      path: [[34, 40], [34, 72], [66, 72], [66, 80]],
+      is_backward: false,
+      source_port: { face: "bottom", fraction: 0.0, position: { x: 30, y: 40 }, group_size: 1 },
+      target_port: { face: "top", fraction: 1.0, position: { x: 70, y: 80 }, group_size: 1 },
+    }],
+  };
+  const result = convertToTldraw(mmds);
+  const bindings = result.records.filter((r) => r.typeName === "binding");
+  const startBinding = bindings.find((b) => b.props.terminal === "start");
+  const endBinding = bindings.find((b) => b.props.terminal === "end");
+
+  assert.ok(startBinding, "should have start binding");
+  assert.ok(endBinding, "should have end binding");
+  // Path endpoints map to x≈0.1 (bottom) and x≈0.9 (top), not port fractions 0/1.
+  assert.ok(Math.abs(startBinding.props.normalizedAnchor.x - 0.1) < 1e-6);
+  assert.equal(startBinding.props.normalizedAnchor.y, 1.0);
+  assert.ok(Math.abs(endBinding.props.normalizedAnchor.x - 0.9) < 1e-6);
+  assert.equal(endBinding.props.normalizedAnchor.y, 0.0);
+});
+
+test("binding uses port metadata when routed path is missing", () => {
+  const mmds = {
+    version: 1,
+    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    geometry_level: "routed",
+    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 100, height: 120 } },
+    nodes: [
+      { id: "A", label: "A", position: { x: 50, y: 30 }, size: { width: 40, height: 20 } },
+      { id: "B", label: "B", position: { x: 50, y: 90 }, size: { width: 40, height: 20 } },
+    ],
+    edges: [{
+      id: "e0", source: "A", target: "B",
       is_backward: false,
       source_port: { face: "bottom", fraction: 0.5, position: { x: 50, y: 40 }, group_size: 1 },
       target_port: { face: "top", fraction: 0.5, position: { x: 50, y: 80 }, group_size: 1 },
@@ -648,9 +681,7 @@ test("binding uses port metadata when available", () => {
 
   assert.ok(startBinding, "should have start binding");
   assert.ok(endBinding, "should have end binding");
-  // Port face=bottom, fraction=0.5 → anchor (0.5, 1.0) for rectangle
   assert.deepEqual(startBinding.props.normalizedAnchor, { x: 0.5, y: 1.0 });
-  // Port face=top, fraction=0.5 → anchor (0.5, 0.0) for rectangle
   assert.deepEqual(endBinding.props.normalizedAnchor, { x: 0.5, y: 0.0 });
 });
 
@@ -678,6 +709,76 @@ test("binding falls back to edgeAnchor when no ports", () => {
   // edgeAnchor should produce some valid normalizedAnchor
   assert.ok(typeof startBinding.props.normalizedAnchor.x === "number");
   assert.ok(typeof startBinding.props.normalizedAnchor.y === "number");
+});
+
+test("vertical elbows derive elbowMidPoint from the routed horizontal lane", () => {
+  const mmds = {
+    version: 1,
+    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    geometry_level: "routed",
+    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 240, height: 280 } },
+    nodes: [
+      { id: "A", label: "A", position: { x: 100, y: 30 }, size: { width: 80, height: 40 } },
+      { id: "C", label: "C", position: { x: 100, y: 240 }, size: { width: 80, height: 40 } },
+    ],
+    edges: [{
+      id: "e0",
+      source: "A",
+      target: "C",
+      path: [[140, 50], [140, 210], [100, 210], [100, 220]],
+      source_port: { face: "bottom", fraction: 1, position: { x: 140, y: 50 }, group_size: 1 },
+      target_port: { face: "top", fraction: 0.5, position: { x: 100, y: 220 }, group_size: 1 },
+    }],
+  };
+
+  const result = convertToTldraw(mmds);
+  const edge = result.records.find(
+    (record) =>
+      record.typeName === "shape" &&
+      record.type === "arrow" &&
+      record.id === "shape:edge_e0",
+  );
+  assert.ok(edge);
+  assert.ok(
+    edge.props.elbowMidPoint > 0.9,
+    `expected elbowMidPoint to follow the routed lane near target, got ${edge.props.elbowMidPoint}`,
+  );
+});
+
+test("vertical elbows nudge away from intermediate node borders", () => {
+  const mmds = {
+    version: 1,
+    defaults: { node: { shape: "rectangle" }, edge: { stroke: "solid", arrow_start: "none", arrow_end: "normal", minlen: 1 } },
+    geometry_level: "routed",
+    metadata: { diagram_type: "flowchart", direction: "TD", bounds: { width: 260, height: 300 } },
+    nodes: [
+      { id: "A", label: "A", position: { x: 100, y: 30 }, size: { width: 80, height: 40 } },
+      { id: "B", label: "B", position: { x: 120, y: 140 }, size: { width: 80, height: 40 } },
+      { id: "C", label: "C", position: { x: 100, y: 240 }, size: { width: 80, height: 40 } },
+    ],
+    edges: [{
+      id: "e0",
+      source: "A",
+      target: "C",
+      // The horizontal lane sits exactly on B's bottom border (y=160).
+      path: [[140, 50], [140, 160], [100, 160], [100, 220]],
+      source_port: { face: "bottom", fraction: 1, position: { x: 140, y: 50 }, group_size: 1 },
+      target_port: { face: "top", fraction: 0.5, position: { x: 100, y: 220 }, group_size: 1 },
+    }],
+  };
+
+  const result = convertToTldraw(mmds);
+  const edge = result.records.find(
+    (record) =>
+      record.typeName === "shape" &&
+      record.type === "arrow" &&
+      record.id === "shape:edge_e0",
+  );
+  assert.ok(edge);
+  assert.ok(
+    edge.props.elbowMidPoint > 0.66,
+    `expected elbowMidPoint to be nudged away from collision, got ${edge.props.elbowMidPoint}`,
+  );
 });
 
 // --- Phase 8: Integration & backward compat ---
@@ -722,7 +823,7 @@ test("backward compat: old MMDS fixture without port fields normalizes correctly
   assert.ok(result.records.length > 0);
 });
 
-test("routed fixture with ports: all bindings use port-based anchoring", () => {
+test("routed fixture with ports: all bindings remain precise", () => {
   const mmds = fixture("tests", "fixtures", "mmds", "positioned", "routed-fan-in-ports.json");
   const result = convertToTldraw(mmds);
   const bindings = result.records.filter((r) => r.typeName === "binding");

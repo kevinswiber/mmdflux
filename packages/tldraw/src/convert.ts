@@ -363,12 +363,90 @@ function signedBend(start: Point, end: Point, handle: Point): number {
 function elbowMidPoint(points: Point[]): number {
   if (points.length < 3) return 0.5;
   const start = points[0];
-  const corner = points[1];
   const end = points[points.length - 1];
+  const dxTotal = end.x - start.x;
+  const dyTotal = end.y - start.y;
+  const verticalDominant = Math.abs(dyTotal) >= Math.abs(dxTotal);
+  const tolerance = 0.001;
+
+  // For top-down / bottom-up elbows, match the routed horizontal lane when possible.
+  // This avoids placing the elbow lane on unrelated node borders.
+  if (verticalDominant && Math.abs(dyTotal) > tolerance) {
+    let widestHorizontal = -1;
+    let laneY: number | null = null;
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1];
+      const b = points[i];
+      const segDx = Math.abs(b.x - a.x);
+      const segDy = Math.abs(b.y - a.y);
+      if (segDy <= tolerance && segDx > tolerance && segDx > widestHorizontal) {
+        widestHorizontal = segDx;
+        laneY = a.y;
+      }
+    }
+    if (laneY !== null) {
+      return clamp01((laneY - start.y) / dyTotal);
+    }
+  }
+
+  const corner = points[1];
   const total = Math.abs(end.x - start.x) + Math.abs(end.y - start.y);
   if (total <= 0) return 0.5;
   const firstLeg = Math.abs(corner.x - start.x) + Math.abs(corner.y - start.y);
   return clamp01(firstLeg / total);
+}
+
+function nudgeAwayFromBorder(value: number, border: number, clearance: number): number {
+  const delta = value - border;
+  if (Math.abs(delta) >= clearance) return value;
+  return delta >= 0 ? border + clearance : border - clearance;
+}
+
+function nudgeElbowMidPointForBorderCollisions(
+  pathPoints: Point[],
+  baseMidPoint: number,
+  start: Point,
+  end: Point,
+  fromShapeId: string | undefined,
+  toShapeId: string | undefined,
+  boundsByShapeId: ReadonlyMap<string, Rect>,
+): number {
+  if (pathPoints.length < 3) return baseMidPoint;
+
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const verticalDominant = Math.abs(dy) >= Math.abs(dx);
+  if (!verticalDominant || Math.abs(dy) < 0.001) return baseMidPoint;
+
+  let widestHorizontal = -1;
+  let laneXMin = Math.min(start.x, end.x);
+  let laneXMax = Math.max(start.x, end.x);
+  for (let i = 1; i < pathPoints.length; i++) {
+    const a = pathPoints[i - 1];
+    const b = pathPoints[i];
+    const segDx = Math.abs(b.x - a.x);
+    const segDy = Math.abs(b.y - a.y);
+    if (segDy <= 0.001 && segDx > 0.001 && segDx > widestHorizontal) {
+      widestHorizontal = segDx;
+      laneXMin = Math.min(a.x, b.x);
+      laneXMax = Math.max(a.x, b.x);
+    }
+  }
+
+  const clearance = 8;
+  let laneY = start.y + dy * baseMidPoint;
+
+  for (const [shapeId, rect] of boundsByShapeId) {
+    if (shapeId === fromShapeId || shapeId === toShapeId) continue;
+    if (rect.x > laneXMax || rect.x + rect.w < laneXMin) continue;
+    laneY = nudgeAwayFromBorder(laneY, rect.y, clearance);
+    laneY = nudgeAwayFromBorder(laneY, rect.y + rect.h, clearance);
+  }
+
+  const minY = Math.min(start.y, end.y) + 6;
+  const maxY = Math.max(start.y, end.y) - 6;
+  laneY = Math.max(minY, Math.min(maxY, laneY));
+  return clamp01((laneY - start.y) / dy);
 }
 
 // Keep edge labels away from endpoints to avoid overlapping nodes.
@@ -978,6 +1056,7 @@ export function convertToTldraw(
     if (!src || !tgt) continue;
 
     const routedPoints = toPoints(edge.path, positionScale);
+    const hasRoutedPath = routedPoints.length >= 2;
     const start =
       routedPoints.length >= 2
         ? routedPoints[0]
@@ -1011,6 +1090,18 @@ export function convertToTldraw(
     );
 
     const kind = isOrthogonal(pathPoints) ? "elbow" : "arc";
+    const elbowMidPointValue =
+      kind === "elbow"
+        ? nudgeElbowMidPointForBorderCollisions(
+            pathPoints,
+            elbowMidPoint(pathPoints),
+            start,
+            end,
+            fromShapeId,
+            toShapeIdResolved,
+            absoluteBoundsByShapeId,
+          )
+        : 0.5;
 
     const handle =
       localPath.length > 2
@@ -1061,7 +1152,7 @@ export function convertToTldraw(
         richText: toRichText(edge.label ?? ""),
         labelPosition: computeLabelPositionRatio(pathPoints, labelPos),
         scale: edge.label ? 1.5 : 1,
-        elbowMidPoint: kind === "elbow" ? elbowMidPoint(localPath) : 0.5,
+        elbowMidPoint: elbowMidPointValue,
       },
       meta: {},
     } as TLRecord);
@@ -1070,6 +1161,15 @@ export function convertToTldraw(
       const fromRect = absoluteBoundsByShapeId.get(fromShapeId);
       const fromGeo = geoByShapeId.get(fromShapeId) ?? "rectangle";
       const startPort = edge.source_port;
+      const startAnchor = hasRoutedPath
+        ? edgeAnchor(start, pathPoints, true, fromRect, fromGeo)
+        : startPort
+          ? faceAndFractionToNormalizedAnchor(
+              startPort.face,
+              startPort.fraction,
+              fromGeo,
+            )
+          : edgeAnchor(start, pathPoints, true, fromRect, fromGeo);
       bindingRecords.push({
         id: toBindingId("edge_start", edge.id),
         typeName: "binding",
@@ -1078,9 +1178,7 @@ export function convertToTldraw(
         toId: fromShapeId,
         props: {
           terminal: "start",
-          normalizedAnchor: startPort
-            ? faceAndFractionToNormalizedAnchor(startPort.face, startPort.fraction, fromGeo)
-            : edgeAnchor(start, pathPoints, true, fromRect, fromGeo),
+          normalizedAnchor: startAnchor,
           isExact: false,
           isPrecise: true,
           snap: kind === "elbow" ? "edge" : "none",
@@ -1093,6 +1191,15 @@ export function convertToTldraw(
       const toRect = absoluteBoundsByShapeId.get(toShapeIdResolved);
       const toGeo = geoByShapeId.get(toShapeIdResolved) ?? "rectangle";
       const endPort = edge.target_port;
+      const endAnchor = hasRoutedPath
+        ? edgeAnchor(end, pathPoints, false, toRect, toGeo)
+        : endPort
+          ? faceAndFractionToNormalizedAnchor(
+              endPort.face,
+              endPort.fraction,
+              toGeo,
+            )
+          : edgeAnchor(end, pathPoints, false, toRect, toGeo);
       bindingRecords.push({
         id: toBindingId("edge_end", edge.id),
         typeName: "binding",
@@ -1101,9 +1208,7 @@ export function convertToTldraw(
         toId: toShapeIdResolved,
         props: {
           terminal: "end",
-          normalizedAnchor: endPort
-            ? faceAndFractionToNormalizedAnchor(endPort.face, endPort.fraction, toGeo)
-            : edgeAnchor(end, pathPoints, false, toRect, toGeo),
+          normalizedAnchor: endAnchor,
           isExact: false,
           isPrecise: true,
           snap: kind === "elbow" ? "edge" : "none",

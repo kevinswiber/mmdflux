@@ -319,7 +319,7 @@
     "props": {
       "terminal": "end",
       "normalizedAnchor": {
-        "x": 0,
+        "x": 0.1160954769202192,
         "y": 0
       },
       "isExact": false,
@@ -337,7 +337,7 @@
     "props": {
       "terminal": "end",
       "normalizedAnchor": {
-        "x": 0.5,
+        "x": 0.4999999999999999,
         "y": 0
       },
       "isExact": false,
@@ -355,7 +355,7 @@
     "props": {
       "terminal": "end",
       "normalizedAnchor": {
-        "x": 1,
+        "x": 0.8839045230797806,
         "y": 0
       },
       "isExact": false,
@@ -373,7 +373,7 @@
     "props": {
       "terminal": "start",
       "normalizedAnchor": {
-        "x": 0.5,
+        "x": 0.8839045230797808,
         "y": 1
       },
       "isExact": false,
@@ -391,7 +391,7 @@
     "props": {
       "terminal": "start",
       "normalizedAnchor": {
-        "x": 0.5,
+        "x": 0.4999999999999999,
         "y": 1
       },
       "isExact": false,
@@ -409,7 +409,7 @@
     "props": {
       "terminal": "start",
       "normalizedAnchor": {
-        "x": 0.5,
+        "x": 0.11609547692021878,
         "y": 1
       },
       "isExact": false,
