@@ -81,7 +81,7 @@ jobs:
         run: npm run build
 
       - name: Deploy preview (attempt 1)
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         id: deploy_preview_1
         continue-on-error: true
         uses: cloudflare/wrangler-action@v3
@@ -92,7 +92,7 @@ jobs:
           command: pages deploy web/dist --project-name=mmdflux-play --branch=${{ github.head_ref }}
 
       - name: Deploy preview (attempt 2)
-        if: github.event_name == 'pull_request' && steps.deploy_preview_1.outcome == 'failure'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.deploy_preview_1.outcome == 'failure'
         id: deploy_preview_2
         continue-on-error: true
         uses: cloudflare/wrangler-action@v3
@@ -103,7 +103,7 @@ jobs:
           command: pages deploy web/dist --project-name=mmdflux-play --branch=${{ github.head_ref }}
 
       - name: Deploy preview (attempt 3)
-        if: github.event_name == 'pull_request' && steps.deploy_preview_1.outcome == 'failure' && steps.deploy_preview_2.outcome == 'failure'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.deploy_preview_1.outcome == 'failure' && steps.deploy_preview_2.outcome == 'failure'
         id: deploy_preview_3
         continue-on-error: true
         uses: cloudflare/wrangler-action@v3
@@ -114,13 +114,13 @@ jobs:
           command: pages deploy web/dist --project-name=mmdflux-play --branch=${{ github.head_ref }}
 
       - name: Fail if preview deploy did not succeed after retries
-        if: github.event_name == 'pull_request' && steps.deploy_preview_1.outcome == 'failure' && steps.deploy_preview_2.outcome == 'failure' && steps.deploy_preview_3.outcome == 'failure'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && steps.deploy_preview_1.outcome == 'failure' && steps.deploy_preview_2.outcome == 'failure' && steps.deploy_preview_3.outcome == 'failure'
         run: |
           echo "Cloudflare preview deploy failed after 3 attempts."
           exit 1
 
       - name: Resolve preview deployment URLs
-        if: github.event_name == 'pull_request' && (steps.deploy_preview_1.outcome == 'success' || steps.deploy_preview_2.outcome == 'success' || steps.deploy_preview_3.outcome == 'success')
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (steps.deploy_preview_1.outcome == 'success' || steps.deploy_preview_2.outcome == 'success' || steps.deploy_preview_3.outcome == 'success')
         id: preview_urls
         env:
           DEPLOYMENT_URL_1: ${{ steps.deploy_preview_1.outputs['deployment-url'] }}
