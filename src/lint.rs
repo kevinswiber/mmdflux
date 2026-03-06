@@ -10,6 +10,7 @@ use serde::Serialize;
 use crate::parser::{
     DiagramType, ParseError, ParseOptions, detect_diagram_type, parse_flowchart_with_options,
 };
+use crate::style::parse_node_style_statement;
 
 /// Severity level of a diagnostic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -173,10 +174,6 @@ const UNSUPPORTED_KEYWORDS: &[(&str, &str)] = &[
         "classDef statements are parsed but ignored in rendering",
     ),
     (
-        "style ",
-        "style statements are parsed but ignored in rendering",
-    ),
-    (
         "click ",
         "click statements are not applicable in text/ASCII output",
     ),
@@ -186,18 +183,23 @@ const UNSUPPORTED_KEYWORDS: &[(&str, &str)] = &[
     ),
 ];
 
-/// Collect warnings for unsupported keywords that are parsed but ignored in rendering.
+/// Collect warnings for unsupported or partially supported keywords.
 ///
-/// Returns warnings for `classDef`, `style`, `click`, `linkStyle`, and `class`
-/// statements with their line numbers.
+/// Returns warnings for `classDef`, `click`, `linkStyle`, and `class`
+/// statements plus property-level diagnostics for flowchart node `style`.
 pub fn collect_unsupported_warnings(input: &str) -> Vec<LintDiagnostic> {
     let mut warnings = Vec::new();
 
     for (line_num, line) in input.lines().enumerate() {
         let trimmed = line.trim();
 
+        if ci_starts_with(trimmed, "style ") {
+            warnings.extend(collect_style_warnings(trimmed, line_num + 1));
+            continue;
+        }
+
         for &(prefix, message) in UNSUPPORTED_KEYWORDS {
-            if trimmed.starts_with(prefix) {
+            if ci_starts_with(trimmed, prefix) {
                 warnings.push(LintDiagnostic {
                     severity: Severity::Warning,
                     line: Some(line_num + 1),
@@ -209,7 +211,7 @@ pub fn collect_unsupported_warnings(input: &str) -> Vec<LintDiagnostic> {
         }
 
         // "class " needs special handling to avoid matching "classDef"
-        if trimmed.starts_with("class ") && !trimmed.starts_with("classDef") {
+        if ci_starts_with(trimmed, "class ") && !ci_starts_with(trimmed, "classDef") {
             warnings.push(LintDiagnostic {
                 severity: Severity::Warning,
                 line: Some(line_num + 1),
@@ -220,6 +222,27 @@ pub fn collect_unsupported_warnings(input: &str) -> Vec<LintDiagnostic> {
     }
 
     warnings
+}
+
+fn collect_style_warnings(line: &str, line_num: usize) -> Vec<LintDiagnostic> {
+    match parse_node_style_statement(line) {
+        Some(parsed) => parsed
+            .issues
+            .into_iter()
+            .map(|issue| LintDiagnostic {
+                severity: Severity::Warning,
+                line: Some(line_num),
+                column: Some(1),
+                message: issue.message(),
+            })
+            .collect(),
+        None => vec![LintDiagnostic {
+            severity: Severity::Warning,
+            line: Some(line_num),
+            column: Some(1),
+            message: "style statements must use the form `style NODE key:value,...`".to_string(),
+        }],
+    }
 }
 
 fn ci_starts_with(line: &str, prefix: &str) -> bool {
@@ -447,11 +470,47 @@ mod tests {
     }
 
     #[test]
-    fn test_lint_warns_on_style() {
-        let result = lint("graph TD\nA --> B\nstyle A fill:#f9f\n");
+    fn test_lint_allows_supported_style_properties_without_blanket_warning() {
+        let result = lint("graph TD\nA --> B\nstyle A fill:#f9f,stroke:#333,color:#111\n");
+        assert!(result.is_valid());
+        assert!(!result.has_warnings());
+    }
+
+    #[test]
+    fn test_lint_warns_on_unsupported_style_properties_not_on_supported_style_statements() {
+        let result = lint("graph TD\nA --> B\nstyle A fill:#fff,stroke-width:4px\n");
         assert!(result.is_valid());
         assert!(result.has_warnings());
-        assert!(result.warnings[0].message.contains("style"));
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|warning| warning.message.contains("stroke-width"))
+        );
+        assert!(!result.warnings.iter().any(|warning| {
+            warning
+                .message
+                .contains("style statements are parsed but ignored")
+        }));
+    }
+
+    #[test]
+    fn test_lint_reports_unsupported_style_keys_with_line_numbers() {
+        let input = "graph TD\nA\nstyle A fill:#fff,stroke-width:4px,rx:4px\n";
+        let result = lint(input);
+
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|warning| warning.line == Some(3) && warning.message.contains("stroke-width"))
+        );
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|warning| warning.line == Some(3) && warning.message.contains("rx"))
+        );
     }
 
     #[test]

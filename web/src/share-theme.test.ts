@@ -11,6 +11,7 @@ describe("share state", () => {
     const original = {
       input: "graph LR\nA-->B\nB-->C",
       format: "svg" as const,
+      textPreviewMode: "ansi" as const,
       renderSettings: {
         ...DEFAULT_SHARE_RENDER_SETTINGS,
         layoutEngine: "mermaid-layered" as const,
@@ -38,6 +39,7 @@ describe("share state", () => {
     expect(decoded).toEqual({
       input: legacy.input,
       format: legacy.format,
+      textPreviewMode: "plain",
       renderSettings: DEFAULT_SHARE_RENDER_SETTINGS,
     });
   });
@@ -60,6 +62,7 @@ describe("share state", () => {
       .replaceAll("=", "");
     const decoded = decodeShareState(hash);
     expect(decoded?.renderSettings.pathSimplification).toBe("lossless");
+    expect(decoded?.textPreviewMode).toBe("plain");
   });
 });
 

@@ -51,6 +51,11 @@ wasm-build:
     wasm-pack build crates/mmdflux-wasm --target web --dev --out-dir ../../target/wasm-pkg-web
     wasm-pack build crates/mmdflux-wasm --target bundler --dev --out-dir ../../target/wasm-pkg-bundler
 
+# Build size-optimized release wasm bindings for browser and bundler targets
+wasm-build-release:
+    CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 CARGO_PROFILE_RELEASE_LTO=fat CARGO_PROFILE_RELEASE_PANIC=abort wasm-pack build crates/mmdflux-wasm --target web --release --out-dir ../../target/wasm-pkg-web
+    CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 CARGO_PROFILE_RELEASE_LTO=fat CARGO_PROFILE_RELEASE_PANIC=abort wasm-pack build crates/mmdflux-wasm --target bundler --release --out-dir ../../target/wasm-pkg-bundler
+
 # Run browser-executed wasm-bindgen contract tests
 wasm-test:
     just wasm-build

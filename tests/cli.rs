@@ -10,6 +10,27 @@ fn mmdflux() -> Command {
     cargo_bin_cmd!("mmdflux")
 }
 
+fn strip_ansi(input: &str) -> String {
+    let mut stripped = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\u{1b}' && matches!(chars.peek(), Some('[')) {
+            chars.next();
+            for next in chars.by_ref() {
+                if next.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+            continue;
+        }
+
+        stripped.push(ch);
+    }
+
+    stripped
+}
+
 // =============================================================================
 // Debug Flag Tests
 // =============================================================================
@@ -129,6 +150,108 @@ fn cli_rejects_removed_svg_edge_path_style_flag() {
         .stderr(predicate::str::contains(
             "unexpected argument '--svg-edge-path-style' found",
         ));
+}
+
+#[test]
+fn cli_color_flag_accepts_off_auto_and_always() {
+    for value in ["off", "auto", "always"] {
+        mmdflux()
+            .args(["--color", value])
+            .write_stdin("graph TD\nA-->B")
+            .assert()
+            .success();
+    }
+}
+
+#[test]
+fn cli_color_always_emits_ansi_for_styled_nodes() {
+    let input = include_str!("fixtures/flowchart/style-basic.mmd");
+
+    let plain = mmdflux()
+        .args(["--color", "off"])
+        .write_stdin(input)
+        .output()
+        .expect("plain styled render should execute");
+    assert!(
+        plain.status.success(),
+        "plain styled render failed: stderr={}",
+        String::from_utf8_lossy(&plain.stderr)
+    );
+
+    let ansi = mmdflux()
+        .args(["--color", "always"])
+        .write_stdin(input)
+        .output()
+        .expect("ansi styled render should execute");
+    assert!(
+        ansi.status.success(),
+        "ansi styled render failed: stderr={}",
+        String::from_utf8_lossy(&ansi.stderr)
+    );
+
+    let plain_stdout =
+        String::from_utf8(plain.stdout).expect("plain styled render should be utf-8");
+    let ansi_stdout = String::from_utf8(ansi.stdout).expect("ansi styled render should be utf-8");
+
+    assert!(ansi_stdout.contains("38;2;"));
+    assert!(ansi_stdout.contains("48;2;"));
+    assert_eq!(strip_ansi(&ansi_stdout), plain_stdout);
+}
+
+#[test]
+fn cli_color_auto_preserves_plain_output_for_same_fixture() {
+    let input = include_str!("fixtures/flowchart/style-basic.mmd");
+
+    let plain = mmdflux()
+        .args(["--color", "off"])
+        .write_stdin(input)
+        .output()
+        .expect("plain styled render should execute");
+    assert!(
+        plain.status.success(),
+        "plain styled render failed: stderr={}",
+        String::from_utf8_lossy(&plain.stderr)
+    );
+
+    let auto = mmdflux()
+        .args(["--color", "auto"])
+        .write_stdin(input)
+        .output()
+        .expect("auto styled render should execute");
+    assert!(
+        auto.status.success(),
+        "auto styled render failed: stderr={}",
+        String::from_utf8_lossy(&auto.stderr)
+    );
+
+    let plain_stdout =
+        String::from_utf8(plain.stdout).expect("plain styled render should be utf-8");
+    let auto_stdout = String::from_utf8(auto.stdout).expect("auto styled render should be utf-8");
+
+    assert!(!auto_stdout.contains("\u{1b}["));
+    assert_eq!(auto_stdout, plain_stdout);
+}
+
+#[test]
+fn cli_explicit_color_always_overrides_no_color_env() {
+    let input = include_str!("fixtures/flowchart/style-basic.mmd");
+
+    let ansi = mmdflux()
+        .args(["--color", "always"])
+        .env("NO_COLOR", "1")
+        .write_stdin(input)
+        .output()
+        .expect("ansi styled render should execute");
+    assert!(
+        ansi.status.success(),
+        "ansi styled render failed: stderr={}",
+        String::from_utf8_lossy(&ansi.stderr)
+    );
+
+    let ansi_stdout = String::from_utf8(ansi.stdout).expect("ansi styled render should be utf-8");
+
+    assert!(ansi_stdout.contains("38;2;"));
+    assert!(ansi_stdout.contains("48;2;"));
 }
 
 // =============================================================================
@@ -774,6 +897,34 @@ fn cli_mmds_keeps_non_default_edge_fields() {
         .stdout(predicate::str::contains("\"stroke\": \"dotted\""))
         .stdout(predicate::str::contains("\"arrow_end\": \"cross\""))
         .stdout(predicate::str::contains("\"minlen\": 3"));
+}
+
+#[test]
+fn cli_mmds_emits_node_style_extension_when_styles_exist() {
+    let assert = mmdflux()
+        .args(["--format", "mmds"])
+        .write_stdin(include_str!("fixtures/flowchart/style-basic.mmd"))
+        .assert()
+        .success();
+
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+
+    assert!(
+        parsed["profiles"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|profile| profile == "mmdflux-node-style-v1")
+    );
+    assert_eq!(
+        parsed["extensions"]["org.mmdflux.node-style.v1"]["nodes"]["A"]["fill"],
+        "#ffeeaa"
+    );
+    assert_eq!(
+        parsed["extensions"]["org.mmdflux.node-style.v1"]["nodes"]["A"]["color"],
+        "#111"
+    );
 }
 
 // =============================================================================

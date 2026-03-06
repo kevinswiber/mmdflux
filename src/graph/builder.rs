@@ -1,6 +1,6 @@
 //! Converts AST to graph data structures.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::diagram::{Diagram, Direction, Subgraph};
 use super::edge::{Arrow, Edge, Stroke};
@@ -9,12 +9,14 @@ use crate::parser::{
     ArrowHead, ConnectorSpec, Direction as ParseDirection, EdgeSpec, Flowchart, ShapeSpec,
     Statement, StrokeSpec, Vertex,
 };
+use crate::style::NodeStyle;
 
 /// Build a Diagram from a parsed Flowchart.
 pub fn build_diagram(flowchart: &Flowchart) -> Diagram {
     let direction = convert_direction(flowchart.direction);
     let mut diagram = Diagram::new(direction);
-    process_statements(&mut diagram, &flowchart.statements, None);
+    let mut node_styles = HashMap::new();
+    process_statements(&mut diagram, &flowchart.statements, None, &mut node_styles);
     resolve_subgraph_edges(&mut diagram);
     diagram
 }
@@ -23,20 +25,36 @@ fn process_statements(
     diagram: &mut Diagram,
     statements: &[Statement],
     parent_subgraph: Option<&str>,
+    node_styles: &mut HashMap<String, NodeStyle>,
 ) {
     for statement in statements {
         match statement {
             Statement::Vertex(vertex) => {
-                add_vertex_to_diagram(diagram, vertex, parent_subgraph);
+                add_vertex_to_diagram(
+                    diagram,
+                    vertex,
+                    parent_subgraph,
+                    node_styles.get(&vertex.id),
+                );
             }
             Statement::Edge(edge_spec) => {
-                add_vertex_to_diagram(diagram, &edge_spec.from, parent_subgraph);
-                add_vertex_to_diagram(diagram, &edge_spec.to, parent_subgraph);
+                add_vertex_to_diagram(
+                    diagram,
+                    &edge_spec.from,
+                    parent_subgraph,
+                    node_styles.get(&edge_spec.from.id),
+                );
+                add_vertex_to_diagram(
+                    diagram,
+                    &edge_spec.to,
+                    parent_subgraph,
+                    node_styles.get(&edge_spec.to.id),
+                );
                 let edge = convert_edge(edge_spec);
                 diagram.add_edge(edge);
             }
             Statement::Subgraph(sg_spec) => {
-                process_statements(diagram, &sg_spec.statements, Some(&sg_spec.id));
+                process_statements(diagram, &sg_spec.statements, Some(&sg_spec.id), node_styles);
                 let node_ids = collect_node_ids(&sg_spec.statements);
                 diagram.subgraphs.insert(
                     sg_spec.id.clone(),
@@ -49,6 +67,9 @@ fn process_statements(
                     },
                 );
                 diagram.subgraph_order.push(sg_spec.id.clone());
+            }
+            Statement::NodeStyle(style_stmt) => {
+                merge_node_style(diagram, node_styles, &style_stmt.node_id, &style_stmt.style);
             }
         }
     }
@@ -63,7 +84,12 @@ fn convert_direction(dir: ParseDirection) -> Direction {
     }
 }
 
-fn add_vertex_to_diagram(diagram: &mut Diagram, vertex: &Vertex, parent: Option<&str>) {
+fn add_vertex_to_diagram(
+    diagram: &mut Diagram,
+    vertex: &Vertex,
+    parent: Option<&str>,
+    style: Option<&NodeStyle>,
+) {
     if let Some(existing) = diagram.nodes.get_mut(&vertex.id) {
         // Update existing node if this vertex has more specific shape info
         if let Some(shape_spec) = &vertex.shape
@@ -77,10 +103,33 @@ fn add_vertex_to_diagram(diagram: &mut Diagram, vertex: &Vertex, parent: Option<
         if parent.is_some() && existing.parent.is_none() {
             existing.parent = parent.map(|s| s.to_string());
         }
+        if let Some(style) = style {
+            existing.style = style.clone();
+        }
     } else {
         let mut node = convert_vertex(vertex);
         node.parent = parent.map(|s| s.to_string());
+        if let Some(style) = style {
+            node.style = style.clone();
+        }
         diagram.add_node(node);
+    }
+}
+
+fn merge_node_style(
+    diagram: &mut Diagram,
+    node_styles: &mut HashMap<String, NodeStyle>,
+    node_id: &str,
+    style: &NodeStyle,
+) {
+    let merged_style = node_styles
+        .entry(node_id.to_string())
+        .and_modify(|existing| *existing = existing.merge(style))
+        .or_insert_with(|| style.clone())
+        .clone();
+
+    if let Some(node) = diagram.nodes.get_mut(node_id) {
+        node.style = merged_style;
     }
 }
 
@@ -204,6 +253,7 @@ fn collect_node_ids_inner(
             Statement::Subgraph(sg) => {
                 collect_node_ids_inner(&sg.statements, result, seen);
             }
+            Statement::NodeStyle(_) => {}
         }
     }
 }
@@ -445,6 +495,68 @@ mod tests {
         // Should have the shape info from the second occurrence
         assert_eq!(node_a.label, "Start");
         assert_eq!(node_a.shape, Shape::Rectangle);
+    }
+
+    #[test]
+    fn test_build_diagram_merges_style_onto_existing_node() {
+        let input = "graph TD\nA[Alpha]\nstyle A fill:#ffeeaa,stroke:#333,color:#111\n";
+        let chart = parse_flowchart(input).unwrap();
+        let diagram = build_diagram(&chart);
+        let node = diagram.get_node("A").unwrap();
+
+        assert_eq!(node.style.fill.as_ref().unwrap().raw(), "#ffeeaa");
+        assert_eq!(node.style.stroke.as_ref().unwrap().raw(), "#333");
+        assert_eq!(node.style.color.as_ref().unwrap().raw(), "#111");
+    }
+
+    #[test]
+    fn style_before_node_definition_is_applied_after_build() {
+        let input = "graph TD\nstyle A fill:#ffeeaa\nA[Alpha]\n";
+        let chart = parse_flowchart(input).unwrap();
+        let diagram = build_diagram(&chart);
+
+        assert_eq!(
+            diagram
+                .get_node("A")
+                .unwrap()
+                .style
+                .fill
+                .as_ref()
+                .unwrap()
+                .raw(),
+            "#ffeeaa"
+        );
+    }
+
+    #[test]
+    fn repeated_style_statements_merge_by_property() {
+        let input = "graph TD\nA[Alpha]\nstyle A fill:#ffeeaa,stroke:#333\nstyle A color:#111,stroke:#555\n";
+        let chart = parse_flowchart(input).unwrap();
+        let diagram = build_diagram(&chart);
+        let style = &diagram.get_node("A").unwrap().style;
+
+        assert_eq!(style.fill.as_ref().unwrap().raw(), "#ffeeaa");
+        assert_eq!(style.stroke.as_ref().unwrap().raw(), "#555");
+        assert_eq!(style.color.as_ref().unwrap().raw(), "#111");
+    }
+
+    #[test]
+    fn style_after_implicit_node_from_edge_is_applied() {
+        let input = "graph TD\nA --> B\nstyle A stroke:#333\n";
+        let chart = parse_flowchart(input).unwrap();
+        let diagram = build_diagram(&chart);
+
+        assert_eq!(
+            diagram
+                .get_node("A")
+                .unwrap()
+                .style
+                .stroke
+                .as_ref()
+                .unwrap()
+                .raw(),
+            "#333"
+        );
     }
 
     #[test]

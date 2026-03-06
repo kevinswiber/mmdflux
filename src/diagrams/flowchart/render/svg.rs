@@ -27,6 +27,35 @@ const NODE_FILL: &str = "white";
 const TEXT_COLOR: &str = "#333";
 const MIN_BASIS_VISIBLE_STEM_PX: f64 = 8.0;
 
+#[derive(Clone, Copy)]
+struct ResolvedSvgNodeStyle<'a> {
+    fill: Option<&'a str>,
+    stroke: Option<&'a str>,
+    text: Option<&'a str>,
+}
+
+impl<'a> ResolvedSvgNodeStyle<'a> {
+    fn from_node(node: &'a Node) -> Self {
+        Self {
+            fill: node.style.fill.as_ref().map(|color| color.raw()),
+            stroke: node.style.stroke.as_ref().map(|color| color.raw()),
+            text: node.style.color.as_ref().map(|color| color.raw()),
+        }
+    }
+
+    fn fill_or(self, default: &'a str) -> &'a str {
+        self.fill.unwrap_or(default)
+    }
+
+    fn stroke_or(self, default: &'a str) -> &'a str {
+        self.stroke.unwrap_or(default)
+    }
+
+    fn text_or(self, default: &'a str) -> &'a str {
+        self.text.unwrap_or(default)
+    }
+}
+
 pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
     let svg_options = &options.svg;
     let metrics = SvgTextMetrics::new(
@@ -2316,6 +2345,7 @@ fn render_edge_labels(
             point.x * scale,
             point.y * scale,
             label,
+            TEXT_COLOR,
             metrics,
             scale,
         );
@@ -2339,10 +2369,26 @@ fn render_edge_labels(
         let (head_pos, tail_pos) =
             crate::diagrams::flowchart::routing::compute_end_label_positions(&path);
         if let (Some(label), Some(pos)) = (&edge.head_label, head_pos) {
-            render_text_centered(writer, pos.x * scale, pos.y * scale, label, metrics, scale);
+            render_text_centered(
+                writer,
+                pos.x * scale,
+                pos.y * scale,
+                label,
+                TEXT_COLOR,
+                metrics,
+                scale,
+            );
         }
         if let (Some(label), Some(pos)) = (&edge.tail_label, tail_pos) {
-            render_text_centered(writer, pos.x * scale, pos.y * scale, label, metrics, scale);
+            render_text_centered(
+                writer,
+                pos.x * scale,
+                pos.y * scale,
+                label,
+                TEXT_COLOR,
+                metrics,
+                scale,
+            );
         }
     }
 
@@ -2367,7 +2413,8 @@ fn render_nodes(
             continue;
         };
         let rect: Rect = pos_node.rect.into();
-        render_node_shape(writer, node, &rect, scale, diagram.direction);
+        let style = ResolvedSvgNodeStyle::from_node(node);
+        render_node_shape(writer, node, &rect, scale, diagram.direction, style);
 
         let center = rect.center();
         let mut text_x = center.x;
@@ -2396,10 +2443,13 @@ fn render_nodes(
         }
         render_node_label(
             writer,
-            text_x * scale,
-            text_y * scale,
+            Point {
+                x: text_x * scale,
+                y: text_y * scale,
+            },
             &node.label,
             &rect,
+            style,
             metrics,
             scale,
         );
@@ -2411,24 +2461,26 @@ fn render_nodes(
 /// Render a node's label, converting `Node::SEPARATOR` lines into horizontal rules.
 fn render_node_label(
     writer: &mut SvgWriter,
-    x: f64,
-    y: f64,
+    center: Point,
     text: &str,
     rect: &Rect,
+    style: ResolvedSvgNodeStyle<'_>,
     metrics: &SvgTextMetrics,
     scale: f64,
 ) {
     let lines: Vec<&str> = text.split('\n').collect();
     let has_separator = lines.contains(&Node::SEPARATOR);
+    let stroke = style.stroke_or(STROKE_COLOR);
+    let text_color = style.text_or(TEXT_COLOR);
 
     if !has_separator {
-        render_text_centered(writer, x, y, text, metrics, scale);
+        render_text_centered(writer, center.x, center.y, text, text_color, metrics, scale);
         return;
     }
 
     let line_height = metrics.line_height * scale;
     let total_height = line_height * (lines.len().saturating_sub(1) as f64);
-    let start_y = y - total_height / 2.0;
+    let start_y = center.y - total_height / 2.0;
     let x1 = rect.x * scale;
     let x2 = (rect.x + rect.width) * scale;
     // Left-align x: node left edge + padding (matches text renderer's x+2 convention)
@@ -2444,7 +2496,7 @@ fn render_node_label(
                 x1 = fmt_f64(x1),
                 y = fmt_f64(line_y),
                 x2 = fmt_f64(x2),
-                stroke = STROKE_COLOR,
+                stroke = stroke,
                 sw = fmt_f64(1.0 * scale),
             );
             writer.push_line(&line);
@@ -2454,7 +2506,7 @@ fn render_node_label(
                 "<text x=\"{x}\" y=\"{y}\" text-anchor=\"start\" dominant-baseline=\"middle\" fill=\"{color}\">{text}</text>",
                 x = fmt_f64(left_x),
                 y = fmt_f64(line_y),
-                color = TEXT_COLOR,
+                color = text_color,
                 text = escape_text(line_text)
             );
             writer.push_line(&line);
@@ -2462,9 +2514,9 @@ fn render_node_label(
             // Class name: centered
             let line = format!(
                 "<text x=\"{x}\" y=\"{y}\" text-anchor=\"middle\" dominant-baseline=\"middle\" fill=\"{color}\">{text}</text>",
-                x = fmt_f64(x),
+                x = fmt_f64(center.x),
                 y = fmt_f64(line_y),
-                color = TEXT_COLOR,
+                color = text_color,
                 text = escape_text(line_text)
             );
             writer.push_line(&line);
@@ -2478,13 +2530,16 @@ fn render_node_shape(
     rect: &Rect,
     scale: f64,
     direction: Direction,
+    node_style: ResolvedSvgNodeStyle<'_>,
 ) {
     let rect = scale_rect(rect, scale);
     let stroke_width = fmt_f64(1.0 * scale);
+    let fill = node_style.fill_or(NODE_FILL);
+    let stroke = node_style.stroke_or(STROKE_COLOR);
     let style = format!(
         " fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" stroke-linejoin=\"round\"",
-        fill = NODE_FILL,
-        stroke = STROKE_COLOR,
+        fill = fill,
+        stroke = stroke,
         stroke_width = stroke_width
     );
 
@@ -2591,7 +2646,7 @@ fn render_node_shape(
             let _ = write!(fold_d, " L{},{}", fmt_f64(right_x), fmt_f64(fold_top_y));
             fold_d.push_str(" Z");
             writer.push_line(&format!(
-                "<path d=\"{fold_d}\" fill=\"{NODE_FILL}\" stroke=\"{STROKE_COLOR}\" stroke-width=\"{stroke_width}\" />"
+                "<path d=\"{fold_d}\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" />"
             ));
         }
         Shape::Card => {
@@ -2639,7 +2694,7 @@ fn render_node_shape(
                 fmt_f64(rect.y + rect.height - tag),
             );
             writer.push_line(&format!(
-                "<path d=\"{tag_d}\" fill=\"{NODE_FILL}\" stroke=\"{STROKE_COLOR}\" stroke-width=\"{stroke_width}\" />"
+                "<path d=\"{tag_d}\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" />"
             ));
         }
         Shape::Diamond => {
@@ -2814,8 +2869,8 @@ fn render_node_shape(
                 cx = fmt_f64(cx),
                 cy = fmt_f64(cy),
                 r = fmt_f64(radius),
-                fill = STROKE_COLOR,
-                stroke = STROKE_COLOR,
+                fill = node_style.fill_or(stroke),
+                stroke = stroke,
                 sw = stroke_width
             );
             writer.push_line(&circle);
@@ -2840,8 +2895,8 @@ fn render_node_shape(
                 cx = fmt_f64(cx),
                 cy = fmt_f64(cy),
                 r = fmt_f64(inner_radius),
-                fill = STROKE_COLOR,
-                stroke = STROKE_COLOR,
+                fill = node_style.fill_or(stroke),
+                stroke = stroke,
                 sw = stroke_width
             );
             writer.push_line(&inner);
@@ -2861,7 +2916,7 @@ fn render_node_shape(
             writer.push_line(&circle);
             let stroke_attr = format!(
                 " stroke=\"{stroke}\" stroke-width=\"{stroke_width}\"",
-                stroke = STROKE_COLOR,
+                stroke = stroke,
                 stroke_width = stroke_width
             );
             // Cross lines span the full radius at 45 degrees
@@ -2901,7 +2956,7 @@ fn render_node_shape(
             let x2 = rect.x + rect.width - inset;
             let stroke = format!(
                 " stroke=\"{stroke}\" stroke-width=\"{stroke_width}\"",
-                stroke = STROKE_COLOR,
+                stroke = stroke,
                 stroke_width = stroke_width
             );
             let left_line = format!(
@@ -2954,7 +3009,7 @@ fn render_node_shape(
             );
             let inner_style = format!(
                 " fill=\"none\" stroke=\"{stroke}\" stroke-width=\"{sw}\"",
-                stroke = STROKE_COLOR,
+                stroke = stroke,
                 sw = stroke_width,
             );
             let inner = format!("<path d=\"{inner_d}\"{inner_style} />");
@@ -2969,7 +3024,7 @@ fn render_node_shape(
                 let x = rect.x + rect.width / 2.0;
                 let stroke = format!(
                     " stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" stroke-linecap=\"square\"",
-                    stroke = STROKE_COLOR,
+                    stroke = stroke,
                     stroke_width = fmt_f64((rect.width * 0.3).max(3.0 * scale))
                 );
                 let line = format!(
@@ -2985,7 +3040,7 @@ fn render_node_shape(
                 let y = rect.y + rect.height / 2.0;
                 let stroke = format!(
                     " stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" stroke-linecap=\"square\"",
-                    stroke = STROKE_COLOR,
+                    stroke = stroke,
                     stroke_width = fmt_f64((rect.height * 0.3).max(3.0 * scale))
                 );
                 let line = format!(
@@ -3006,6 +3061,7 @@ fn render_text_centered(
     x: f64,
     y: f64,
     text: &str,
+    color: &str,
     metrics: &SvgTextMetrics,
     scale: f64,
 ) {
@@ -3015,7 +3071,7 @@ fn render_text_centered(
             "<text x=\"{x}\" y=\"{y}\" text-anchor=\"middle\" dominant-baseline=\"middle\" fill=\"{color}\">{text}</text>",
             x = fmt_f64(x),
             y = fmt_f64(y),
-            color = TEXT_COLOR,
+            color = color,
             text = escape_text(text)
         );
         writer.push_line(&line);
@@ -3032,7 +3088,7 @@ fn render_text_centered(
             "<text x=\"{x}\" y=\"{y}\" text-anchor=\"middle\" dominant-baseline=\"middle\" fill=\"{color}\">{text}</text>",
             x = fmt_f64(x),
             y = fmt_f64(line_y),
-            color = TEXT_COLOR,
+            color = color,
             text = escape_text(line_text)
         );
         writer.push_line(&line);

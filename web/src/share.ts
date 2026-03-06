@@ -9,6 +9,7 @@ export type ShareEdgePreset =
   | "basis";
 export type ShareGeometryLevel = "layout" | "routed";
 export type SharePathSimplification = "none" | "lossless" | "lossy" | "minimal";
+export type ShareTextPreviewMode = "plain" | "styled" | "ansi";
 type LegacySharePathDetail = "full" | "compact" | "simplified" | "endpoints";
 
 export interface ShareRenderSettings {
@@ -28,6 +29,7 @@ export const DEFAULT_SHARE_RENDER_SETTINGS: ShareRenderSettings = {
 export interface ShareState {
   input: string;
   format: ShareFormat;
+  textPreviewMode: ShareTextPreviewMode;
   renderSettings: ShareRenderSettings;
 }
 
@@ -44,7 +46,15 @@ interface ShareWireStateV2 {
   renderSettings?: Partial<ShareRenderSettings>;
 }
 
-type ShareWireState = ShareWireStateV1 | ShareWireStateV2;
+interface ShareWireStateV3 {
+  v: 3;
+  input: string;
+  format: ShareFormat;
+  textPreviewMode?: ShareTextPreviewMode | "escapes";
+  renderSettings?: Partial<ShareRenderSettings>;
+}
+
+type ShareWireState = ShareWireStateV1 | ShareWireStateV2 | ShareWireStateV3;
 
 function isShareFormat(value: string): value is ShareFormat {
   return value === "text" || value === "svg" || value === "mmds";
@@ -91,6 +101,22 @@ function isPathSimplification(value: string): value is SharePathSimplification {
     value === "lossy" ||
     value === "minimal"
   );
+}
+
+function isTextPreviewMode(value: string): value is ShareTextPreviewMode {
+  return value === "plain" || value === "styled" || value === "ansi";
+}
+
+export function normalizeShareTextPreviewMode(
+  value: unknown,
+): ShareTextPreviewMode {
+  if (value === "escapes") {
+    return "ansi";
+  }
+
+  return typeof value === "string" && isTextPreviewMode(value)
+    ? value
+    : "plain";
 }
 
 function isLegacyPathDetail(value: string): value is LegacySharePathDetail {
@@ -191,10 +217,11 @@ function base64UrlDecode(value: string): string {
 }
 
 export function encodeShareState(state: ShareState): string {
-  const wireState: ShareWireStateV2 = {
-    v: 2,
+  const wireState: ShareWireStateV3 = {
+    v: 3,
     input: state.input,
     format: state.format,
+    textPreviewMode: state.textPreviewMode,
     renderSettings: state.renderSettings,
   };
   return base64UrlEncode(JSON.stringify(wireState));
@@ -210,7 +237,7 @@ export function decodeShareState(value: string): ShareState | null {
     const decoded = JSON.parse(
       base64UrlDecode(normalized),
     ) as Partial<ShareWireState>;
-    if (decoded.v !== 1 && decoded.v !== 2) {
+    if (decoded.v !== 1 && decoded.v !== 2 && decoded.v !== 3) {
       return null;
     }
     if (typeof decoded.input !== "string") {
@@ -223,8 +250,12 @@ export function decodeShareState(value: string): ShareState | null {
     return {
       input: decoded.input,
       format: decoded.format,
+      textPreviewMode:
+        decoded.v === 3
+          ? normalizeShareTextPreviewMode(decoded.textPreviewMode)
+          : "plain",
       renderSettings:
-        decoded.v === 2
+        decoded.v === 2 || decoded.v === 3
           ? normalizeShareRenderSettings(decoded.renderSettings)
           : DEFAULT_SHARE_RENDER_SETTINGS,
     };

@@ -411,12 +411,84 @@ body {
   padding: 0.85rem;
 }
 
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
 .panel h2 {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
+}
+
+.text-preview-toolbar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.text-preview-toolbar[hidden] {
+  display: none;
+}
+
+.preview-mode-tabs {
+  display: inline-flex;
+  gap: 0.18rem;
+  background: var(--tab-bg);
+  border: 1px solid var(--surface-border);
+  border-radius: 999px;
+  padding: 0.18rem;
+}
+
+.preview-mode-tabs button,
+.preview-text-action {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--button-text);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 650;
+  line-height: 1;
+  min-height: 1.95rem;
+}
+
+.preview-mode-tabs button {
+  padding: 0.4rem 0.72rem;
+}
+
+.preview-mode-tabs button.is-active {
+  background: var(--button-active-bg);
+  color: var(--button-active-text);
+}
+
+.preview-text-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.preview-text-action {
+  border: 1px solid var(--button-border);
+  background: color-mix(in srgb, var(--button-bg) 88%, transparent);
+  padding: 0.4rem 0.72rem;
+}
+
+.preview-mode-tabs button:hover,
+.preview-text-action:hover {
+  background: color-mix(in srgb, var(--button-active-bg) 18%, var(--button-bg));
+}
+
+.preview-mode-tabs button.is-active:hover {
+  background: var(--button-active-bg);
 }
 
 .share-status,
@@ -592,6 +664,17 @@ body {
   white-space: pre;
 }
 
+.preview-output.is-terminal {
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(56, 136, 233, 0.14),
+      transparent 34%
+    ),
+    linear-gradient(180deg, rgba(11, 23, 39, 0.98), rgba(7, 15, 28, 0.98));
+  color: #edf5ff;
+}
+
 .preview-output.is-svg {
   overflow: hidden;
   white-space: normal;
@@ -717,6 +800,13 @@ body {
   max-height: none;
   transform-origin: top left;
   touch-action: none;
+}
+
+.ansi-preview {
+  margin: 0;
+  min-height: 100%;
+  white-space: pre;
+  font: inherit;
 }
 
 .snippet-gallery {

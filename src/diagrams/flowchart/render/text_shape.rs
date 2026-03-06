@@ -1,7 +1,7 @@
 //! Node shape rendering.
 
 use crate::graph::{Direction, Node, Shape};
-use crate::render::canvas::Canvas;
+use crate::render::canvas::{Canvas, CellStyle};
 use crate::render::chars::CharSet;
 use crate::render::intersect::NodeFace;
 
@@ -265,6 +265,61 @@ pub fn node_dimensions(node: &Node, direction: Direction) -> (usize, usize) {
     (w, h)
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+struct ResolvedTextNodeStyle {
+    fill: Option<(u8, u8, u8)>,
+    stroke: Option<(u8, u8, u8)>,
+    color: Option<(u8, u8, u8)>,
+}
+
+impl ResolvedTextNodeStyle {
+    fn from_node(node: &Node) -> Self {
+        Self {
+            fill: node.style.fill.as_ref().and_then(|color| color.to_rgb()),
+            stroke: node.style.stroke.as_ref().and_then(|color| color.to_rgb()),
+            color: node.style.color.as_ref().and_then(|color| color.to_rgb()),
+        }
+    }
+}
+
+fn merge_fg(canvas: &mut Canvas, x: usize, y: usize, rgb: Option<(u8, u8, u8)>) {
+    if let Some((r, g, b)) = rgb {
+        canvas.merge_style(x, y, CellStyle::fg_rgb(r, g, b));
+    }
+}
+
+fn merge_bg_span(
+    canvas: &mut Canvas,
+    start_x: usize,
+    end_x: usize,
+    y: usize,
+    rgb: Option<(u8, u8, u8)>,
+) {
+    let Some((r, g, b)) = rgb else {
+        return;
+    };
+
+    for x in start_x..end_x {
+        canvas.merge_style(x, y, CellStyle::bg_rgb(r, g, b));
+    }
+}
+
+fn merge_text_fg(
+    canvas: &mut Canvas,
+    start_x: usize,
+    y: usize,
+    text: &str,
+    rgb: Option<(u8, u8, u8)>,
+) {
+    let Some((r, g, b)) = rgb else {
+        return;
+    };
+
+    for (offset, _) in text.chars().enumerate() {
+        canvas.merge_style(start_x + offset, y, CellStyle::fg_rgb(r, g, b));
+    }
+}
+
 /// Render a node at the specified position.
 ///
 /// Returns the bounding box of the rendered node.
@@ -279,10 +334,11 @@ pub fn render_node(
     let (width, height) = node_dimensions(node, direction);
     let label = &node.label;
     let label_len = label.chars().count();
+    let style = ResolvedTextNodeStyle::from_node(node);
 
     match categorize_shape(node.shape) {
         ShapeCategory::Diamond => {
-            render_diamond(canvas, x, y, width, label_len, label, charset);
+            render_diamond(canvas, x, y, width, label_len, label, charset, style);
         }
         ShapeCategory::Box { corners, modifier } => {
             let corners = match corners {
@@ -300,15 +356,15 @@ pub fn render_node(
                 ),
             };
             render_box(
-                canvas, x, y, width, height, label, charset, corners, modifier,
+                canvas, x, y, width, height, label, charset, corners, modifier, style,
             );
         }
         ShapeCategory::Borderless => {
-            render_borderless(canvas, x, y, width, height, label);
+            render_borderless(canvas, x, y, width, height, label, style);
         }
         ShapeCategory::Glyph(kind) => {
             if label.trim().is_empty() {
-                render_glyph(canvas, x, y, width, height, kind, charset);
+                render_glyph(canvas, x, y, width, height, kind, charset, style);
             } else {
                 let corners = (
                     charset.round_tl,
@@ -326,12 +382,13 @@ pub fn render_node(
                     charset,
                     corners,
                     BoxModifier::default(),
+                    style,
                 );
             }
         }
         ShapeCategory::Bar => {
             if label.trim().is_empty() {
-                render_bar(canvas, x, y, width, height, charset, direction);
+                render_bar(canvas, x, y, width, height, charset, direction, style);
             } else {
                 let corners = (
                     charset.corner_tl,
@@ -349,6 +406,7 @@ pub fn render_node(
                     charset,
                     corners,
                     BoxModifier::default(),
+                    style,
                 );
             }
         }
@@ -386,6 +444,7 @@ fn render_box(
     charset: &CharSet,
     corners: (char, char, char, char),
     modifier: BoxModifier,
+    style: ResolvedTextNodeStyle,
 ) {
     let (tl, tr, bl, br) = corners;
     let top_horizontal = charset.horizontal;
@@ -408,11 +467,12 @@ fn render_box(
         fold_col = Some(x + width - 2);
     }
     if modifier.shadow {
-        render_shadow_box(canvas, x + 1, y + 1, width, height, charset, corners);
+        render_shadow_box(canvas, x + 1, y + 1, width, height, charset, corners, style);
     }
 
     // Top border
     canvas.set(x, y, tl);
+    merge_fg(canvas, x, y, style.stroke);
     for dx in 1..width - 1 {
         let ch = if fold_col == Some(x + dx) {
             charset.fold_corner
@@ -420,8 +480,10 @@ fn render_box(
             top_horizontal
         };
         canvas.set(x + dx, y, ch);
+        merge_fg(canvas, x + dx, y, style.stroke);
     }
     canvas.set(x + width - 1, y, tr);
+    merge_fg(canvas, x + width - 1, y, style.stroke);
 
     // Content rows
     let lines: Vec<&str> = label.split('\n').collect();
@@ -436,9 +498,13 @@ fn render_box(
         // Single-line: centered
         let mid_y = y + height / 2;
         canvas.set(x, mid_y, left_vertical);
+        merge_fg(canvas, x, mid_y, style.stroke);
+        merge_bg_span(canvas, x + 1, x + width - 1, mid_y, style.fill);
         let label_start = x + (width - label.chars().count()) / 2;
         canvas.write_str(label_start, mid_y, label);
+        merge_text_fg(canvas, label_start, mid_y, label, style.color);
         canvas.set(x + width - 1, mid_y, right_vertical);
+        merge_fg(canvas, x + width - 1, mid_y, style.stroke);
     } else {
         // Multi-line: by default left-aligned with padding.
         // For compartment-style labels (`---` separators), center title/attributes
@@ -447,12 +513,17 @@ fn render_box(
             let row_y = y + 1 + i;
             if *line == Node::SEPARATOR {
                 canvas.set(x, row_y, charset.tee_right);
+                merge_fg(canvas, x, row_y, style.stroke);
                 for dx in 1..width - 1 {
                     canvas.set(x + dx, row_y, top_horizontal);
+                    merge_fg(canvas, x + dx, row_y, style.stroke);
                 }
                 canvas.set(x + width - 1, row_y, charset.tee_left);
+                merge_fg(canvas, x + width - 1, row_y, style.stroke);
             } else {
                 canvas.set(x, row_y, left_vertical);
+                merge_fg(canvas, x, row_y, style.stroke);
+                merge_bg_span(canvas, x + 1, x + width - 1, row_y, style.fill);
                 let center_line = if let Some(first_sep) = first_separator_idx {
                     if let Some(second_sep) = second_separator_idx {
                         i < second_sep
@@ -468,7 +539,9 @@ fn render_box(
                     x + 2
                 };
                 canvas.write_str(label_start, row_y, line);
+                merge_text_fg(canvas, label_start, row_y, line, style.color);
                 canvas.set(x + width - 1, row_y, right_vertical);
+                merge_fg(canvas, x + width - 1, row_y, style.stroke);
             }
         }
     };
@@ -476,12 +549,16 @@ fn render_box(
     // Bottom border
     let bot_y = y + height - 1;
     canvas.set(x, bot_y, bl);
+    merge_fg(canvas, x, bot_y, style.stroke);
     for dx in 1..width - 1 {
         canvas.set(x + dx, bot_y, bottom_horizontal);
+        merge_fg(canvas, x + dx, bot_y, style.stroke);
     }
     canvas.set(x + width - 1, bot_y, br);
+    merge_fg(canvas, x + width - 1, bot_y, style.stroke);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_shadow_box(
     canvas: &mut Canvas,
     x: usize,
@@ -490,6 +567,7 @@ fn render_shadow_box(
     height: usize,
     charset: &CharSet,
     corners: (char, char, char, char),
+    style: ResolvedTextNodeStyle,
 ) {
     let (_tl, _tr, _bl, br) = corners;
     let bottom_horizontal = charset.horizontal;
@@ -499,14 +577,17 @@ fn render_shadow_box(
     // Right edge only (shadow)
     for dy in 0..height {
         canvas.set(right_x, y + dy, charset.vertical);
+        merge_fg(canvas, right_x, y + dy, style.stroke);
     }
 
     // Bottom edge only (shadow)
     for dx in 0..width {
         canvas.set(x + dx, bot_y, bottom_horizontal);
+        merge_fg(canvas, x + dx, bot_y, style.stroke);
     }
 
     canvas.set(right_x, bot_y, br);
+    merge_fg(canvas, right_x, bot_y, style.stroke);
 }
 
 /// Render a borderless text block (label only).
@@ -517,6 +598,7 @@ fn render_borderless(
     width: usize,
     height: usize,
     label: &str,
+    style: ResolvedTextNodeStyle,
 ) {
     let mid_y = y + height / 2;
     let label_len = label.chars().count();
@@ -525,9 +607,11 @@ fn render_borderless(
     }
     let label_start = x + (width - label_len) / 2;
     canvas.write_str(label_start, mid_y, label);
+    merge_text_fg(canvas, label_start, mid_y, label, style.color);
 }
 
 /// Render a bar (fork/join), perpendicular to flow direction.
+#[allow(clippy::too_many_arguments)]
 fn render_bar(
     canvas: &mut Canvas,
     x: usize,
@@ -536,23 +620,27 @@ fn render_bar(
     height: usize,
     charset: &CharSet,
     direction: Direction,
+    style: ResolvedTextNodeStyle,
 ) {
     if matches!(direction, Direction::LeftRight | Direction::RightLeft) {
         // Vertical bar for horizontal flow
         let mid_x = x + width / 2;
         for dy in 0..height {
             canvas.set(mid_x, y + dy, charset.heavy_vertical);
+            merge_fg(canvas, mid_x, y + dy, style.stroke);
         }
     } else {
         // Horizontal bar for vertical flow
         let mid_y = y + height / 2;
         for dx in 0..width {
             canvas.set(x + dx, mid_y, charset.heavy_horizontal);
+            merge_fg(canvas, x + dx, mid_y, style.stroke);
         }
     }
 }
 
 /// Render a glyph node (single character or short string).
+#[allow(clippy::too_many_arguments)]
 fn render_glyph(
     canvas: &mut Canvas,
     x: usize,
@@ -561,6 +649,7 @@ fn render_glyph(
     height: usize,
     kind: GlyphKind,
     charset: &CharSet,
+    style: ResolvedTextNodeStyle,
 ) {
     let glyph = match kind {
         GlyphKind::SmallCircle => charset.glyph_small_circle,
@@ -571,6 +660,7 @@ fn render_glyph(
     let mid_y = y + height / 2;
     let start_x = x + (width.saturating_sub(glyph_len)) / 2;
     canvas.write_str(start_x, mid_y, glyph);
+    merge_text_fg(canvas, start_x, mid_y, glyph, style.stroke);
 }
 
 /// Render a diamond shape.
@@ -581,6 +671,7 @@ fn render_glyph(
 /// < Christmas >
 /// └───────────┘
 /// ```
+#[allow(clippy::too_many_arguments)]
 fn render_diamond(
     canvas: &mut Canvas,
     x: usize,
@@ -589,28 +680,39 @@ fn render_diamond(
     label_len: usize,
     label: &str,
     charset: &CharSet,
+    style: ResolvedTextNodeStyle,
 ) {
     // Top border
     canvas.set(x, y, charset.corner_tl);
+    merge_fg(canvas, x, y, style.stroke);
     for dx in 1..width - 1 {
         canvas.set(x + dx, y, charset.horizontal);
+        merge_fg(canvas, x + dx, y, style.stroke);
     }
     canvas.set(x + width - 1, y, charset.corner_tr);
+    merge_fg(canvas, x + width - 1, y, style.stroke);
 
     // Middle row with label and angle brackets
     let mid_y = y + 1;
     canvas.set(x, mid_y, '<');
+    merge_fg(canvas, x, mid_y, style.stroke);
+    merge_bg_span(canvas, x + 1, x + width - 1, mid_y, style.fill);
     let label_start = x + (width - label_len) / 2;
     canvas.write_str(label_start, mid_y, label);
+    merge_text_fg(canvas, label_start, mid_y, label, style.color);
     canvas.set(x + width - 1, mid_y, '>');
+    merge_fg(canvas, x + width - 1, mid_y, style.stroke);
 
     // Bottom border
     let bot_y = y + 2;
     canvas.set(x, bot_y, charset.corner_bl);
+    merge_fg(canvas, x, bot_y, style.stroke);
     for dx in 1..width - 1 {
         canvas.set(x + dx, bot_y, charset.horizontal);
+        merge_fg(canvas, x + dx, bot_y, style.stroke);
     }
     canvas.set(x + width - 1, bot_y, charset.corner_br);
+    merge_fg(canvas, x + width - 1, bot_y, style.stroke);
 }
 
 #[cfg(test)]

@@ -7,11 +7,50 @@ fn error_debug(error: wasm_bindgen::JsError) -> String {
     format!("{error:?}")
 }
 
+fn strip_ansi(input: &str) -> String {
+    let mut stripped = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\u{1b}' && matches!(chars.peek(), Some('[')) {
+            chars.next();
+            for next in chars.by_ref() {
+                if next.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+            continue;
+        }
+
+        stripped.push(ch);
+    }
+
+    stripped
+}
+
 #[wasm_bindgen_test]
 fn renders_flowchart_text() {
     let output = render("graph TD\nA-->B", "text", "{}").expect("render should succeed");
     assert!(output.contains("A"));
     assert!(output.contains("B"));
+}
+
+#[wasm_bindgen_test]
+fn renders_flowchart_text_with_color_policy_config() {
+    let input = include_str!("../../../tests/fixtures/flowchart/style-basic.mmd");
+    let plain = render(input, "text", r#"{"color":"off"}"#)
+        .expect("render with plain color config should succeed");
+    let auto = render(input, "text", r#"{"color":"auto"}"#)
+        .expect("render with auto color should succeed");
+    let ansi = render(input, "text", r#"{"color":"always"}"#)
+        .expect("render with ansi color config should succeed");
+
+    assert!(!plain.contains("\u{1b}["));
+    assert!(!auto.contains("\u{1b}["));
+    assert!(ansi.contains("38;2;"));
+    assert!(ansi.contains("48;2;"));
+    assert_eq!(plain, auto);
+    assert_eq!(strip_ansi(&ansi), plain);
 }
 
 #[wasm_bindgen_test]

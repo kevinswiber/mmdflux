@@ -1,11 +1,12 @@
-use std::fs;
-use std::io::{self, Read};
+use std::ffi::OsStr;
+use std::io::{self, IsTerminal, Read};
 use std::path::PathBuf;
+use std::{env, fs};
 
 use clap::{Parser, ValueEnum};
 use mmdflux::diagram::{
-    Curve, EdgePreset, EngineAlgorithmId, GeometryLevel, LayoutConfig, OutputFormat,
-    PathSimplification, RenderConfig, RoutingStyle,
+    ColorWhen, Curve, EdgePreset, EngineAlgorithmId, GeometryLevel, LayoutConfig, OutputFormat,
+    PathSimplification, RenderConfig, RoutingStyle, TextColorMode,
 };
 use mmdflux::layered::Ranker;
 use mmdflux::registry::default_registry;
@@ -33,6 +34,10 @@ struct Cli {
     /// Output format (text, ascii, svg, or mmds; json is an alias)
     #[arg(short = 'f', long, value_enum, default_value_t = FormatArg::Text)]
     format: FormatArg,
+
+    /// Text and ASCII color policy (off, auto, or always). Explicit --color overrides NO_COLOR.
+    #[arg(long)]
+    color: Option<ColorWhen>,
 
     /// Ranking algorithm
     #[arg(long, value_enum, default_value_t = RankerArg::NetworkSimplex)]
@@ -214,6 +219,22 @@ fn resolve_curve_from_cli(raw: Option<&str>) -> Result<Option<Curve>, String> {
     })
 }
 
+fn resolve_text_color_mode(
+    color_when: Option<ColorWhen>,
+    stdout_is_terminal: bool,
+    no_color_env: Option<&OsStr>,
+) -> TextColorMode {
+    if let Some(color_when) = color_when {
+        return color_when.resolve(stdout_is_terminal);
+    }
+
+    if matches!(no_color_env, Some(value) if !value.is_empty()) {
+        return TextColorMode::Plain;
+    }
+
+    ColorWhen::Auto.resolve(stdout_is_terminal)
+}
+
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
@@ -227,6 +248,12 @@ fn main() -> io::Result<()> {
     };
 
     let format: OutputFormat = cli.format.into();
+    let no_color_env = env::var_os("NO_COLOR");
+    let text_color_mode = resolve_text_color_mode(
+        cli.color,
+        cli.output.is_none() && io::stdout().is_terminal(),
+        no_color_env.as_deref(),
+    );
 
     // Lint mode: validate and exit
     if cli.lint {
@@ -311,6 +338,7 @@ fn main() -> io::Result<()> {
         layout_engine: engine_algo,
         cluster_ranksep: cli.cluster_ranksep,
         padding: cli.padding,
+        text_color_mode,
         svg_scale: cli.svg_scale,
         svg_node_padding_x: cli.svg_node_padding_x,
         svg_node_padding_y: cli.svg_node_padding_y,
@@ -369,4 +397,55 @@ fn main() -> io::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsStr;
+
+    use super::*;
+
+    #[test]
+    fn color_auto_defaults_to_plain_when_stdout_is_not_a_terminal() {
+        assert_eq!(
+            resolve_text_color_mode(None, false, None),
+            TextColorMode::Plain
+        );
+    }
+
+    #[test]
+    fn no_color_env_disables_default_auto_color_on_terminal() {
+        assert_eq!(
+            resolve_text_color_mode(None, true, Some(OsStr::new("1"))),
+            TextColorMode::Plain
+        );
+        assert_eq!(
+            resolve_text_color_mode(None, true, Some(OsStr::new("true"))),
+            TextColorMode::Plain
+        );
+    }
+
+    #[test]
+    fn empty_no_color_env_does_not_disable_default_auto_color_on_terminal() {
+        assert_eq!(
+            resolve_text_color_mode(None, true, Some(OsStr::new(""))),
+            TextColorMode::Ansi
+        );
+    }
+
+    #[test]
+    fn explicit_color_flag_overrides_no_color_env() {
+        assert_eq!(
+            resolve_text_color_mode(Some(ColorWhen::Always), true, Some(OsStr::new("1"))),
+            TextColorMode::Ansi
+        );
+        assert_eq!(
+            resolve_text_color_mode(Some(ColorWhen::Off), true, Some(OsStr::new("1"))),
+            TextColorMode::Plain
+        );
+        assert_eq!(
+            resolve_text_color_mode(Some(ColorWhen::Auto), true, Some(OsStr::new("1"))),
+            TextColorMode::Ansi
+        );
+    }
 }

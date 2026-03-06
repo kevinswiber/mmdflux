@@ -14,7 +14,7 @@ pub use chars::CharSet;
 
 use crate::diagram::{
     AlgorithmId, Curve, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId, GraphEngine,
-    OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
+    OutputFormat, PathSimplification, RenderConfig, RoutingStyle, TextColorMode,
 };
 pub use crate::diagrams::flowchart::render::svg::{render_svg, render_svg_from_geometry};
 use crate::diagrams::flowchart::render::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
@@ -89,6 +89,7 @@ impl From<&RenderConfig> for RenderOptions {
 
         RenderOptions {
             output_format: OutputFormat::Text,
+            text_color_mode: config.text_color_mode,
             svg,
             ranker: Some(config.layout.ranker),
             node_spacing: Some(config.layout.node_sep),
@@ -144,6 +145,8 @@ impl Default for SvgOptions {
 pub struct RenderOptions {
     /// Output format (text, ascii, or svg).
     pub output_format: OutputFormat,
+    /// Resolved ANSI policy for text/ascii serialization.
+    pub text_color_mode: TextColorMode,
     /// SVG-specific options.
     pub svg: SvgOptions,
     /// Ranking algorithm override. None uses the default (NetworkSimplex).
@@ -170,6 +173,7 @@ impl Default for RenderOptions {
     fn default() -> Self {
         Self {
             output_format: OutputFormat::Text,
+            text_color_mode: TextColorMode::Plain,
             svg: SvgOptions::default(),
             ranker: None,
             node_spacing: None,
@@ -305,7 +309,11 @@ pub fn render_text_from_layout(
     );
 
     // Step 5: Convert canvas to string
-    canvas.to_string()
+    if options.text_color_mode.uses_ansi() {
+        canvas.to_ansi_string()
+    } else {
+        canvas.to_string()
+    }
 }
 
 /// Compute layout configuration appropriate for the diagram.

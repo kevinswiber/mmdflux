@@ -15,6 +15,12 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  WASM_CARGO_PROFILE_RELEASE_OPT_LEVEL: z
+  WASM_CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+  WASM_CARGO_PROFILE_RELEASE_LTO: fat
+  WASM_CARGO_PROFILE_RELEASE_PANIC: abort
+
 concurrency:
   group: wasm-release-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
   cancel-in-progress: false
@@ -91,6 +97,11 @@ jobs:
           npm --version
 
       - name: Build bundler package
+        env:
+          CARGO_PROFILE_RELEASE_OPT_LEVEL: ${{ env.WASM_CARGO_PROFILE_RELEASE_OPT_LEVEL }}
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: ${{ env.WASM_CARGO_PROFILE_RELEASE_CODEGEN_UNITS }}
+          CARGO_PROFILE_RELEASE_LTO: ${{ env.WASM_CARGO_PROFILE_RELEASE_LTO }}
+          CARGO_PROFILE_RELEASE_PANIC: ${{ env.WASM_CARGO_PROFILE_RELEASE_PANIC }}
         run: wasm-pack build crates/mmdflux-wasm --target bundler --release --out-dir ../../target/wasm-pkg-release
 
       - name: Enforce npm package contract

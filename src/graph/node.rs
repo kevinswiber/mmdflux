@@ -2,6 +2,8 @@
 
 use serde::Serialize;
 
+use crate::style::NodeStyle;
+
 /// Shape of a node in the diagram.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -79,6 +81,9 @@ pub struct Node {
     /// Parent subgraph ID, if this node belongs to a subgraph.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
+    /// Optional style hints carried with the node.
+    #[serde(skip_serializing_if = "NodeStyle::is_empty", default)]
+    pub style: NodeStyle,
 }
 
 impl Node {
@@ -94,6 +99,7 @@ impl Node {
             id,
             shape: Shape::default(),
             parent: None,
+            style: NodeStyle::default(),
         }
     }
 

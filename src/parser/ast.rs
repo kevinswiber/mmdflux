@@ -1,5 +1,7 @@
 //! Abstract Syntax Tree types for parsed Mermaid flowcharts.
 
+use crate::style::NodeStyle;
+
 /// Shape specification from parsing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShapeSpec {
@@ -199,6 +201,15 @@ pub struct SubgraphSpec {
     pub dir: Option<super::flowchart::Direction>,
 }
 
+/// A Mermaid `style NODE ...` statement for flowchart nodes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NodeStyleStatement {
+    /// The target node identifier.
+    pub node_id: String,
+    /// Supported node style properties extracted from the declaration list.
+    pub style: NodeStyle,
+}
+
 /// A statement in the flowchart AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
@@ -208,6 +219,8 @@ pub enum Statement {
     Edge(EdgeSpec),
     /// A subgraph block.
     Subgraph(SubgraphSpec),
+    /// A flowchart node style declaration.
+    NodeStyle(NodeStyleStatement),
 }
 
 #[cfg(test)]

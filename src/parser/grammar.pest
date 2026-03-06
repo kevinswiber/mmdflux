@@ -168,7 +168,9 @@ subgraph_stmt = {
     end_keyword
 }
 
-// Style/class passthrough statements (parsed and discarded)
+// Style/class passthrough statements.
+// The Rust parser preserves flowchart node `style` declarations after grammar capture;
+// the other statement families remain permissive passthroughs for now.
 // These consume everything up to end-of-line/semicolon after the keyword.
 // Word boundary: keyword+boundary is atomic to prevent implicit whitespace insertion
 // between the keyword and the lookahead.
@@ -188,7 +190,7 @@ click_stmt = _{ click_kw ~ style_rest }
 linkstyle_stmt = _{ linkstyle_kw ~ style_rest }
 direction_stmt = { direction_kw ~ direction_value }
 
-// Statement: subgraph, style passthrough, or vertex statement
+// Statement: subgraph, passthrough keyword statement, or vertex statement
 statement = { subgraph_stmt | style_stmt | classdef_stmt | class_stmt | click_stmt | linkstyle_stmt | direction_stmt | vertex_statement }
 
 // Comment line

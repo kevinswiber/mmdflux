@@ -27,6 +27,10 @@ permissions:
 env:
   WASM_WEB_OUT_DIR: target/wasm-pkg-web
   WASM_BUNDLER_OUT_DIR: target/wasm-pkg-bundler
+  WASM_CARGO_PROFILE_RELEASE_OPT_LEVEL: z
+  WASM_CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+  WASM_CARGO_PROFILE_RELEASE_LTO: fat
+  WASM_CARGO_PROFILE_RELEASE_PANIC: abort
   # Size budgets are regression guardrails, not "match Mermaid.js" targets.
   # Mermaid's minified bundle is ~2.7 MB; mmdflux release wasm is currently
   # about ~1.9 MB raw / ~0.6 MB gzip. Keep headroom to catch accidental bloat,
@@ -61,76 +65,26 @@ jobs:
           chrome-version: stable
 
       - name: Build WASM package (web target)
+        env:
+          CARGO_PROFILE_RELEASE_OPT_LEVEL: ${{ env.WASM_CARGO_PROFILE_RELEASE_OPT_LEVEL }}
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: ${{ env.WASM_CARGO_PROFILE_RELEASE_CODEGEN_UNITS }}
+          CARGO_PROFILE_RELEASE_LTO: ${{ env.WASM_CARGO_PROFILE_RELEASE_LTO }}
+          CARGO_PROFILE_RELEASE_PANIC: ${{ env.WASM_CARGO_PROFILE_RELEASE_PANIC }}
         run: wasm-pack build crates/mmdflux-wasm --target web --release --out-dir ../../${{ env.WASM_WEB_OUT_DIR }}
 
       - name: Build WASM package (bundler target)
+        env:
+          CARGO_PROFILE_RELEASE_OPT_LEVEL: ${{ env.WASM_CARGO_PROFILE_RELEASE_OPT_LEVEL }}
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: ${{ env.WASM_CARGO_PROFILE_RELEASE_CODEGEN_UNITS }}
+          CARGO_PROFILE_RELEASE_LTO: ${{ env.WASM_CARGO_PROFILE_RELEASE_LTO }}
+          CARGO_PROFILE_RELEASE_PANIC: ${{ env.WASM_CARGO_PROFILE_RELEASE_PANIC }}
         run: wasm-pack build crates/mmdflux-wasm --target bundler --release --out-dir ../../${{ env.WASM_BUNDLER_OUT_DIR }}
 
       - name: Run host wasm contract tests
         run: cargo test -p mmdflux-wasm --locked
 
       - name: Run browser tests
-        run: wasm-pack test --headless --chrome crates/mmdflux-wasm
+        run: ./scripts/run-wasm-browser-tests.sh
 
       - name: Report and enforce WASM size budget
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          web_wasm="${WASM_WEB_OUT_DIR}/mmdflux_wasm_bg.wasm"
-          bundler_wasm="${WASM_BUNDLER_OUT_DIR}/mmdflux_wasm_bg.wasm"
-
-          for wasm in "$web_wasm" "$bundler_wasm"; do
-            if [[ ! -f "$wasm" ]]; then
-              echo "Expected wasm artifact missing: $wasm" >&2
-              exit 1
-            fi
-            gzip -kf "$wasm"
-          done
-
-          report_target() {
-            local label="$1"
-            local wasm_file="$2"
-            local gzip_file="${wasm_file}.gz"
-
-            local wasm_bytes
-            local gzip_bytes
-            wasm_bytes=$(wc -c < "$wasm_file" | tr -d ' ')
-            gzip_bytes=$(wc -c < "$gzip_file" | tr -d ' ')
-
-            local wasm_kib
-            local gzip_kib
-            wasm_kib=$(awk "BEGIN {printf \"%.1f\", ${wasm_bytes}/1024}")
-            gzip_kib=$(awk "BEGIN {printf \"%.1f\", ${gzip_bytes}/1024}")
-
-            printf '| %s | %s | %s | %s | %s |\n' \
-              "$label" \
-              "$wasm_bytes" \
-              "$wasm_kib" \
-              "$gzip_bytes" \
-              "$gzip_kib" >> "$GITHUB_STEP_SUMMARY"
-
-            if (( wasm_bytes > WASM_MAX_BYTES )); then
-              echo "${label} raw wasm size ${wasm_bytes} exceeds budget ${WASM_MAX_BYTES}" >&2
-              return 1
-            fi
-
-            if (( gzip_bytes > WASM_GZIP_MAX_BYTES )); then
-              echo "${label} gzipped wasm size ${gzip_bytes} exceeds budget ${WASM_GZIP_MAX_BYTES}" >&2
-              return 1
-            fi
-
-            return 0
-          }
-
-          {
-            echo "## WASM Size Report"
-            echo
-            echo "Budget: raw <= ${WASM_MAX_BYTES} bytes, gzip <= ${WASM_GZIP_MAX_BYTES} bytes."
-            echo
-            echo "| Target | Raw (bytes) | Raw (KiB) | Gzip (bytes) | Gzip (KiB) |"
-            echo "| --- | ---: | ---: | ---: | ---: |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          report_target "web" "$web_wasm"
-          report_target "bundler" "$bundler_wasm"
+        run: ./scripts/check-wasm-size.sh --no-build

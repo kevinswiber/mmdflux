@@ -137,6 +137,12 @@ printf 'graph LR\nA-->B\n' | mmdflux
 # Text output (default)
 mmdflux --format text diagram.mmd
 
+# Disable ANSI color by default for styled text/ascii output
+NO_COLOR=1 mmdflux --format text diagram.mmd
+
+# Explicit CLI policy overrides NO_COLOR for a single invocation
+NO_COLOR=1 mmdflux --format text --color always diagram.mmd
+
 # SVG output (flowchart/class)
 mmdflux --format svg diagram.mmd -o diagram.svg
 

@@ -15,8 +15,8 @@ MMDS input support is active:
 
 | `geometry_level`      | text | ascii | svg | mmds/json |
 | --------------------- | ---- | ----- | --- | --------- |
-| `layout`              | ✅    | ✅     | ✅   | ✅         |
-| `routed` (positioned) | ✅*   | ✅*    | ✅   | ✅         |
+| `layout`              | ✅   | ✅    | ✅  | ✅        |
+| `routed` (positioned) | ✅\* | ✅\*  | ✅  | ✅        |
 
 \* For text/ascii, routed path fields are currently ignored and output is re-routed on the text grid from core topology.
 
@@ -62,7 +62,8 @@ Example (validated by tests):
 - Generation preserves semantics, not source formatting. Comments, original statement ordering, quoting style, and alias spellings are not reconstructed.
 - Non-graph payloads (for example `diagram_type: "sequence"`) are rejected with `MmdsGenerationError`.
 - IDs that are not Mermaid-safe are normalized; exact original ID text is not retained in generated Mermaid.
-- Style/class/link directives are out of scope for MMDS semantic generation.
+- Mermaid regeneration from MMDS does not yet emit style, class, or link directives.
+- Node styles can still round-trip through the `mmdflux-node-style-v1` extension for MMDS, text, and SVG rendering.
 
 ## MMDS Input Validation Contract
 
@@ -185,6 +186,7 @@ MMDS keeps core graph semantics compact while allowing renderer- or adapter-spec
 - `mmds-core-v1` — baseline MMDS core behavior contract.
 - `mmdflux-svg-v1` — SVG-oriented controls and expectations.
 - `mmdflux-text-v1` — text/ASCII-oriented controls and expectations.
+- `mmdflux-node-style-v1` — node style extension contract for `fill`, `stroke`, and `color` replay.
 
 ### Extension Namespace Rules
 
@@ -206,6 +208,39 @@ MMDS keeps core graph semantics compact while allowing renderer- or adapter-spec
 3. Apply only recognized extension namespaces.
 4. Ignore unknown profiles/extensions without mutating core semantics.
 5. If a required profile is missing, fall back deterministically or fail with a clear capability error.
+
+### Node Style Extension
+
+When at least one node carries a non-empty internal `NodeStyle`, mmdflux emits:
+
+- profile: `mmdflux-node-style-v1`
+- extension namespace: `org.mmdflux.node-style.v1`
+
+Payload shape:
+
+```json
+{
+  "profiles": ["mmds-core-v1", "mmdflux-node-style-v1"],
+  "extensions": {
+    "org.mmdflux.node-style.v1": {
+      "nodes": {
+        "A": {
+          "fill": "#ffeeaa",
+          "stroke": "#333",
+          "color": "#111"
+        }
+      }
+    }
+  }
+}
+```
+
+Rules:
+
+- Omit the profile and extension entirely when no node styles are present.
+- `fill`, `stroke`, and `color` preserve the raw Mermaid/MMDS color token.
+- MMDS input hydration replays this extension back into internal node styles for text and SVG rendering.
+- Mermaid generation from MMDS style extensions is still deferred.
 
 ### Node
 
@@ -235,19 +270,19 @@ MMDS keeps core graph semantics compact while allowing renderer- or adapter-spec
 | `path`           | `[[x,y],...]` | routed | Polyline path coordinates                                                                                                                        |
 | `label_position` | `{x, y}`      | routed | Label center                                                                                                                                     |
 | `is_backward`    | boolean       | routed | Flows backward in layout                                                                                                                         |
-| `source_port`    | Port?         | routed | Source endpoint attachment (see Port below)                                                                                                       |
-| `target_port`    | Port?         | routed | Target endpoint attachment (see Port below)                                                                                                       |
+| `source_port`    | Port?         | routed | Source endpoint attachment (see Port below)                                                                                                      |
+| `target_port`    | Port?         | routed | Target endpoint attachment (see Port below)                                                                                                      |
 
 ### Port
 
 Port metadata describes where an edge attaches to a node boundary.
 
-| Field        | Type     | Description                                                                                              |
-| ------------ | -------- | -------------------------------------------------------------------------------------------------------- |
-| `face`       | string   | Node boundary face: `"top"`, `"bottom"`, `"left"`, or `"right"`                                          |
-| `fraction`   | number   | Position along the face (0.0 = start, 1.0 = end). Top/bottom: left-to-right. Left/right: top-to-bottom.  |
-| `position`   | `{x, y}` | Absolute attachment point in MMDS coordinate space                                                       |
-| `group_size` | integer  | Number of edges sharing this face on this node                                                           |
+| Field        | Type     | Description                                                                                             |
+| ------------ | -------- | ------------------------------------------------------------------------------------------------------- |
+| `face`       | string   | Node boundary face: `"top"`, `"bottom"`, `"left"`, or `"right"`                                         |
+| `fraction`   | number   | Position along the face (0.0 = start, 1.0 = end). Top/bottom: left-to-right. Left/right: top-to-bottom. |
+| `position`   | `{x, y}` | Absolute attachment point in MMDS coordinate space                                                      |
+| `group_size` | integer  | Number of edges sharing this face on this node                                                          |
 
 ### Subgraph
 
@@ -280,6 +315,7 @@ In current mmdflux output, these values are SVG-pixel-aligned.
 Consumers may scale these values to pixels, character cells, or any target render space.
 Consumers SHOULD scale uniformly (same factor on both axes) to preserve the aspect ratio implied by `metadata.bounds`.
 Consumers rendering top-left-anchored primitives should convert node placement as:
+
 - `left = position.x - size.width / 2`
 - `top = position.y - size.height / 2`
 

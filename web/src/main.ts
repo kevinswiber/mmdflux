@@ -18,13 +18,18 @@ import {
   type LiveUpdateDebounceSetting,
 } from "./live-update";
 import { tokenizeMermaidText } from "./mermaid-language";
-import { createPreviewController } from "./preview";
+import {
+  createPreviewController,
+  type PreviewCopyKind,
+  type TextPreviewMode,
+} from "./preview";
 import { createPreviewControls } from "./preview-controls";
 import {
   DEFAULT_SHARE_RENDER_SETTINGS,
   decodeShareState,
   encodeShareState,
   normalizeShareRenderSettings,
+  normalizeShareTextPreviewMode,
   type ShareEdgePreset,
   type ShareLayoutEngine,
   type SharePathSimplification,
@@ -87,10 +92,21 @@ interface PersistedPlaygroundStateV3 {
   customInput: string;
 }
 
+interface PersistedPlaygroundStateV4 {
+  v: 4;
+  input: string;
+  format: PlaygroundFormat;
+  renderSettings: ShareRenderSettings;
+  textPreviewMode: TextPreviewMode | "escapes";
+  selectedExampleId: ExampleSelectionId;
+  customInput: string;
+}
+
 interface EffectivePlaygroundState {
   input: string;
   format: PlaygroundFormat;
   renderSettings: ShareRenderSettings;
+  textPreviewMode: TextPreviewMode;
   selectedExampleId: ExampleSelectionId;
   customInput: string;
 }
@@ -98,7 +114,8 @@ interface EffectivePlaygroundState {
 type PersistedPlaygroundState =
   | PersistedPlaygroundStateV1
   | PersistedPlaygroundStateV2
-  | PersistedPlaygroundStateV3;
+  | PersistedPlaygroundStateV3
+  | PersistedPlaygroundStateV4;
 
 interface RenderControlBinding {
   control: RenderControlId;
@@ -199,6 +216,10 @@ function isPathSimplification(value: string): value is SharePathSimplification {
   );
 }
 
+function isTextPreviewMode(value: string): value is TextPreviewMode {
+  return value === "plain" || value === "styled" || value === "ansi";
+}
+
 function parsePersistedPlaygroundState(
   rawValue: string | null,
 ): EffectivePlaygroundState | null {
@@ -208,7 +229,7 @@ function parsePersistedPlaygroundState(
 
   try {
     const parsed = JSON.parse(rawValue) as Partial<PersistedPlaygroundState>;
-    if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3) {
+    if (parsed.v !== 1 && parsed.v !== 2 && parsed.v !== 3 && parsed.v !== 4) {
       return null;
     }
     if (typeof parsed.input !== "string") {
@@ -232,7 +253,8 @@ function parsePersistedPlaygroundState(
       (example) => example.input === parsed.input,
     );
     const parsedSelectedExampleId =
-      parsed.v === 3 && typeof parsed.selectedExampleId === "string"
+      (parsed.v === 3 || parsed.v === 4) &&
+      typeof parsed.selectedExampleId === "string"
         ? parsed.selectedExampleId === LEGACY_CUSTOM_EXAMPLE_ID
           ? DRAFT_EXAMPLE_ID
           : parsed.selectedExampleId
@@ -244,14 +266,20 @@ function parsePersistedPlaygroundState(
         ? (parsedSelectedExampleId as ExampleSelectionId)
         : (matchingExample?.id ?? DRAFT_EXAMPLE_ID);
     const customInput =
-      parsed.v === 3 && typeof parsed.customInput === "string"
+      (parsed.v === 3 || parsed.v === 4) &&
+      typeof parsed.customInput === "string"
         ? parsed.customInput
         : parsed.input;
+    const textPreviewMode =
+      "textPreviewMode" in parsed
+        ? normalizeShareTextPreviewMode(parsed.textPreviewMode)
+        : "plain";
 
     return {
       input: parsed.input,
       format: parsed.format,
       renderSettings,
+      textPreviewMode,
       selectedExampleId,
       customInput,
     };
@@ -280,11 +308,12 @@ function persistPlaygroundState(
     return;
   }
 
-  const persisted: PersistedPlaygroundStateV3 = {
-    v: 3,
+  const persisted: PersistedPlaygroundStateV4 = {
+    v: 4,
     input: state.input,
     format: state.format,
     renderSettings: state.renderSettings,
+    textPreviewMode: state.textPreviewMode,
     selectedExampleId: state.selectedExampleId,
     customInput: state.customInput,
   };
@@ -564,6 +593,10 @@ export function renderApp(
     restoredShareState?.renderSettings ??
     restoredLocalState?.renderSettings ??
     DEFAULT_SHARE_RENDER_SETTINGS;
+  const initialTextPreviewMode =
+    restoredShareState?.textPreviewMode ??
+    restoredLocalState?.textPreviewMode ??
+    "plain";
 
   root.innerHTML = `
     <main class="playground playground-app">
@@ -645,7 +678,20 @@ export function renderApp(
           <p class="preview-error" data-preview-error hidden></p>
         </div>
         <div class="panel">
-          <h2>Preview</h2>
+          <div class="panel-header">
+            <h2>Preview</h2>
+            <div class="text-preview-toolbar" data-text-preview-toolbar hidden>
+              <div class="preview-mode-tabs" role="tablist" aria-label="Text preview mode">
+                <button type="button" role="tab" class="is-active" data-text-preview-mode="plain" aria-selected="true">Plain</button>
+                <button type="button" role="tab" data-text-preview-mode="styled" aria-selected="false">Styled</button>
+                <button type="button" role="tab" data-text-preview-mode="ansi" aria-selected="false">ANSI</button>
+              </div>
+              <div class="preview-text-actions">
+                <button type="button" class="preview-text-action" data-copy-plain>Copy plain</button>
+                <button type="button" class="preview-text-action" data-copy-ansi title="Copy raw ANSI escape sequences">Copy ANSI</button>
+              </div>
+            </div>
+          </div>
           <p class="share-status" data-share-status hidden></p>
           <div class="preview-stage" data-preview-stage>
             <div class="preview-controls-overlay" data-preview-controls-overlay hidden>
@@ -748,6 +794,16 @@ export function renderApp(
   const previewControlsRoot = root.querySelector<HTMLElement>(
     "[data-preview-controls]",
   );
+  const textPreviewToolbar = root.querySelector<HTMLElement>(
+    "[data-text-preview-toolbar]",
+  );
+  const textPreviewModeButtons = root.querySelectorAll<HTMLButtonElement>(
+    "[data-text-preview-mode]",
+  );
+  const copyPlainButton =
+    root.querySelector<HTMLButtonElement>("[data-copy-plain]");
+  const copyAnsiButton =
+    root.querySelector<HTMLButtonElement>("[data-copy-ansi]");
   const zoomOutButton =
     root.querySelector<HTMLButtonElement>("[data-zoom-out]");
   const zoomInButton = root.querySelector<HTMLButtonElement>("[data-zoom-in]");
@@ -792,6 +848,10 @@ export function renderApp(
     !previewControlsOverlayRoot ||
     !previewControlsToggleButton ||
     !previewControlsRoot ||
+    !textPreviewToolbar ||
+    textPreviewModeButtons.length === 0 ||
+    !copyPlainButton ||
+    !copyAnsiButton ||
     !zoomOutButton ||
     !zoomInButton ||
     !zoomFitButton ||
@@ -928,6 +988,7 @@ export function renderApp(
   let renderSettings: ShareRenderSettings = normalizeShareRenderSettings(
     initialRenderSettings,
   );
+  let textPreviewMode: TextPreviewMode = initialTextPreviewMode;
   let selectedExampleId: ExampleSelectionId =
     selectedInitialExample?.id ?? DRAFT_EXAMPLE_ID;
   let draftInput = initialDraftInput;
@@ -1008,10 +1069,27 @@ export function renderApp(
     }
   };
 
+  const applyTextPreviewModeState = (): void => {
+    const visible = selectedFormat === "text";
+    textPreviewToolbar.hidden = !visible;
+    copyPlainButton.disabled = !visible;
+    copyAnsiButton.disabled = !visible;
+
+    for (const button of textPreviewModeButtons) {
+      const active = button.dataset.textPreviewMode === textPreviewMode;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", String(active));
+    }
+  };
+
   const currentConfigJson = (): string => {
     const config: Record<string, string> = {};
     if (renderSettings.layoutEngine !== "auto") {
       config.layoutEngine = renderSettings.layoutEngine;
+    }
+
+    if (selectedFormat === "text") {
+      config.color = "always";
     }
 
     if (selectedFormat === "svg") {
@@ -1047,7 +1125,38 @@ export function renderApp(
     }
 
     applyRenderControlState();
+    applyTextPreviewModeState();
     previewControls.onResult(format);
+  };
+
+  const setTextPreviewMode = (mode: TextPreviewMode): void => {
+    textPreviewMode = mode;
+    preview.setTextMode(mode);
+    applyTextPreviewModeState();
+  };
+
+  const copyPreviewText = async (kind: PreviewCopyKind): Promise<void> => {
+    const text = preview.getCopyText(kind);
+    if (text === null) {
+      updateShareStatus("Render a text preview before copying.");
+      return;
+    }
+
+    const copied = await copyToClipboard(text);
+    if (copied) {
+      updateShareStatus(
+        kind === "plain"
+          ? "Plain text copied to clipboard."
+          : "ANSI text copied to clipboard.",
+      );
+      return;
+    }
+
+    updateShareStatus(
+      kind === "plain"
+        ? "Clipboard access unavailable. Copy directly from the preview."
+        : "Clipboard access unavailable. Switch to ANSI mode and copy directly from the preview.",
+    );
   };
 
   const persistCurrentState = (): void => {
@@ -1055,6 +1164,7 @@ export function renderApp(
       input: editor.getValue(),
       format: selectedFormat,
       renderSettings,
+      textPreviewMode,
       selectedExampleId,
       customInput: draftInput,
     });
@@ -1111,6 +1221,26 @@ export function renderApp(
 
   advancedToggleButton.addEventListener("click", () => {
     setAdvancedPanelOpen(!advancedOpen);
+  });
+
+  for (const button of textPreviewModeButtons) {
+    button.addEventListener("click", () => {
+      const mode = button.dataset.textPreviewMode;
+      if (!mode || !isTextPreviewMode(mode)) {
+        return;
+      }
+
+      setTextPreviewMode(mode);
+      persistCurrentState();
+    });
+  }
+
+  copyPlainButton.addEventListener("click", () => {
+    void copyPreviewText("plain");
+  });
+
+  copyAnsiButton.addEventListener("click", () => {
+    void copyPreviewText("ansi");
   });
 
   snippetGrid.addEventListener("click", (event) => {
@@ -1234,6 +1364,7 @@ export function renderApp(
       input: editor.getValue(),
       format: selectedFormat,
       renderSettings,
+      textPreviewMode,
     };
     const hash = encodeShareState(shareState);
     const shareUrl = `${window.location.origin}${window.location.pathname}#${hash}`;
@@ -1258,6 +1389,7 @@ export function renderApp(
 
   applyRenderSettingsToControls();
   setAdvancedPanelOpen(false);
+  setTextPreviewMode(textPreviewMode);
   setFormat(selectedFormat);
   persistCurrentState();
   scheduleRender();

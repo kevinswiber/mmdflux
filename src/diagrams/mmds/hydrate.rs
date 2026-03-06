@@ -15,9 +15,17 @@ use crate::diagrams::flowchart::geometry::{
 use crate::diagrams::flowchart::render::route_policy::build_node_directions;
 use crate::diagrams::flowchart::routing::route_graph_geometry;
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
-use crate::mmds::{MmdsEdge, MmdsOutput};
+use crate::mmds::{
+    MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MMDS_NODE_STYLE_PROFILE, MmdsEdge, MmdsOutput,
+};
+use crate::style::{ColorToken, NodeStyle};
 
-const SUPPORTED_MMDS_PROFILES: &[&str] = &["mmds-core-v1", "mmdflux-svg-v1", "mmdflux-text-v1"];
+const SUPPORTED_MMDS_PROFILES: &[&str] = &[
+    "mmds-core-v1",
+    "mmdflux-svg-v1",
+    "mmdflux-text-v1",
+    MMDS_NODE_STYLE_PROFILE,
+];
 
 /// Placeholder hydration entrypoint for future MMDS input work.
 pub fn stub_hydrate() {}
@@ -140,6 +148,8 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Diagram, MmdsHydrationErr
         hydrated.parent = node.parent.clone();
         diagram.add_node(hydrated);
     }
+
+    hydrate_node_style_extension(&mut diagram, &output.extensions);
 
     for node in diagram.nodes.values() {
         if let Some(parent) = &node.parent
@@ -268,6 +278,45 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Diagram, MmdsHydrationErr
     }
 
     Ok(diagram)
+}
+
+fn hydrate_node_style_extension(
+    diagram: &mut Diagram,
+    extensions: &std::collections::BTreeMap<String, Map<String, Value>>,
+) {
+    let Some(extension) = extensions.get(MMDS_NODE_STYLE_EXTENSION_NAMESPACE) else {
+        return;
+    };
+    let Some(nodes) = extension.get("nodes").and_then(Value::as_object) else {
+        return;
+    };
+
+    for (node_id, raw_style) in nodes {
+        let Some(style_object) = raw_style.as_object() else {
+            continue;
+        };
+        let Some(node) = diagram.nodes.get_mut(node_id) else {
+            continue;
+        };
+
+        let style = parse_node_style_extension(style_object);
+        if !style.is_empty() {
+            node.style = node.style.merge(&style);
+        }
+    }
+}
+
+fn parse_node_style_extension(style_object: &Map<String, Value>) -> NodeStyle {
+    NodeStyle {
+        fill: parse_node_style_color(style_object, "fill"),
+        stroke: parse_node_style_color(style_object, "stroke"),
+        color: parse_node_style_color(style_object, "color"),
+    }
+}
+
+fn parse_node_style_color(style_object: &Map<String, Value>, key: &str) -> Option<ColorToken> {
+    let raw = style_object.get(key)?.as_str()?;
+    ColorToken::parse(raw).ok()
 }
 
 fn reconstruct_compound_membership(diagram: &mut Diagram) {

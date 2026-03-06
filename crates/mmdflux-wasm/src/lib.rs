@@ -1,7 +1,7 @@
 use mmdflux::ParseDiagnostic;
 use mmdflux::diagram::{
-    AlgorithmId, Curve, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel, OutputFormat,
-    PathSimplification, RenderConfig, RenderError, RoutingStyle,
+    AlgorithmId, ColorWhen, Curve, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel,
+    OutputFormat, PathSimplification, RenderConfig, RenderError, RoutingStyle,
 };
 use mmdflux::layered::Ranker;
 use mmdflux::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
@@ -28,6 +28,7 @@ struct WasmRenderConfig {
     svg_node_padding_x: Option<f64>,
     svg_node_padding_y: Option<f64>,
     show_ids: Option<bool>,
+    color: Option<String>,
     geometry_level: Option<String>,
     path_simplification: Option<String>,
     layout: Option<WasmLayoutConfig>,
@@ -204,6 +205,9 @@ impl WasmRenderConfig {
         if let Some(show_ids) = self.show_ids {
             config.show_ids = show_ids;
         }
+        if let Some(color) = self.color {
+            config.text_color_mode = parse_via_render_error::<ColorWhen>(&color)?.resolve(false);
+        }
         if let Some(edge_preset) = self.edge_preset {
             config.edge_preset = Some(parse_edge_preset(&edge_preset)?);
         }
@@ -292,6 +296,8 @@ fn apply_wasm_format_defaults(format: OutputFormat, config: &mut RenderConfig) {
 
 #[cfg(test)]
 mod tests {
+    use mmdflux::diagram::TextColorMode;
+
     use super::*;
 
     #[test]
@@ -382,6 +388,20 @@ mod tests {
     }
 
     #[test]
+    fn parse_render_config_accepts_text_color_policy() {
+        let off = parse_render_config(OutputFormat::Text, r#"{"color":"off"}"#)
+            .expect("off color config should parse");
+        let auto = parse_render_config(OutputFormat::Text, r#"{"color":"auto"}"#)
+            .expect("auto color config should parse");
+        let always = parse_render_config(OutputFormat::Text, r#"{"color":"always"}"#)
+            .expect("always color config should parse");
+
+        assert_eq!(off.text_color_mode, TextColorMode::Plain);
+        assert_eq!(auto.text_color_mode, TextColorMode::Plain);
+        assert_eq!(always.text_color_mode, TextColorMode::Ansi);
+    }
+
+    #[test]
     fn parse_render_config_rejects_legacy_interpolation_style_field() {
         let err = serde_json::from_str::<WasmRenderConfig>(r#"{"interpolationStyle":"linear"}"#)
             .unwrap_err()
@@ -452,20 +472,11 @@ mod tests {
     }
 
     #[test]
-    fn validate_returns_warning_for_style_statement() {
+    fn validate_returns_no_diagnostics_for_supported_style_statement() {
         let result = validate("graph TD\nA --> B\nstyle A fill:#f9f");
         let value: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(value["valid"], true);
-        let diagnostics = value["diagnostics"].as_array().unwrap();
-        assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0]["severity"], "warning");
-        assert!(diagnostics[0]["line"].is_number());
-        assert!(
-            diagnostics[0]["message"]
-                .as_str()
-                .unwrap()
-                .contains("style")
-        );
+        assert!(value.get("diagnostics").is_none());
     }
 
     #[test]

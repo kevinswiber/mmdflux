@@ -29,7 +29,7 @@
       <text x="240.24" y="384.06" text-anchor="middle" dominant-baseline="middle" fill="#333">Error</text>
       <rect x="8.00" y="357.06" width="134.61" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="75.31" y="384.06" text-anchor="middle" dominant-baseline="middle" fill="#333">process-A</text>
-      <rect x="110.14" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <rect x="110.14" y="8.00" width="95.26" height="54.00" fill="#f9f" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="157.77" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
     </g>
     <g class="edgePaths">

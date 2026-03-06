@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::{EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig};
+use mmdflux::diagram::{EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode};
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 use mmdflux::diagrams::flowchart::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
@@ -60,6 +60,22 @@ fn render_fixture(name: &str) -> String {
     render(&diagram, &RenderOptions::default())
 }
 
+fn render_fixture_with_options(
+    name: &str,
+    format: OutputFormat,
+    text_color_mode: TextColorMode,
+) -> String {
+    let diagram = parse_and_build(name);
+    render(
+        &diagram,
+        &RenderOptions {
+            output_format: format,
+            text_color_mode,
+            ..Default::default()
+        },
+    )
+}
+
 /// Parse, build, and render a Mermaid input string.
 fn render_input(input: &str) -> String {
     let flowchart = parse_flowchart(input).expect("Failed to parse input");
@@ -69,14 +85,28 @@ fn render_input(input: &str) -> String {
 
 /// Parse, build, and render a fixture file with ASCII-only output.
 fn render_fixture_ascii(name: &str) -> String {
-    let diagram = parse_and_build(name);
-    render(
-        &diagram,
-        &RenderOptions {
-            output_format: OutputFormat::Ascii,
-            ..Default::default()
-        },
-    )
+    render_fixture_with_options(name, OutputFormat::Ascii, TextColorMode::Plain)
+}
+
+fn strip_ansi(input: &str) -> String {
+    let mut stripped = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\u{1b}' && matches!(chars.peek(), Some('[')) {
+            chars.next();
+            for next in chars.by_ref() {
+                if next.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+            continue;
+        }
+
+        stripped.push(ch);
+    }
+
+    stripped
 }
 
 /// Assert that all values in the slice are distinct.
@@ -367,6 +397,53 @@ mod rendering {
         assert!(output.contains("o"));
         assert!(output.contains("(o)"));
         assert!(output.contains("x"));
+    }
+
+    #[test]
+    fn text_render_uses_stroke_fill_and_label_colors_when_ansi_enabled() {
+        let plain = render_fixture_with_options(
+            "style-basic.mmd",
+            OutputFormat::Text,
+            TextColorMode::Plain,
+        );
+        let ansi =
+            render_fixture_with_options("style-basic.mmd", OutputFormat::Text, TextColorMode::Ansi);
+
+        assert!(ansi.contains("38;2;"));
+        assert!(ansi.contains("48;2;"));
+        assert_eq!(strip_ansi(&ansi), plain);
+    }
+
+    #[test]
+    fn text_render_clears_fill_background_before_right_border() {
+        let ansi =
+            render_fixture_with_options("style-basic.mmd", OutputFormat::Text, TextColorMode::Ansi);
+
+        assert!(
+            ansi.contains("\u{1b}[38;2;51;51;51;49m│"),
+            "expected right border to clear fill background: {ansi:?}"
+        );
+        assert!(
+            !ansi.contains("\u{1b}[48;2;255;238;170m \u{1b}[38;2;51;51;51m│"),
+            "right border should not retain fill background: {ansi:?}"
+        );
+    }
+
+    #[test]
+    fn ascii_render_keeps_same_geometry_with_color_disabled() {
+        let plain = render_fixture_with_options(
+            "style-basic.mmd",
+            OutputFormat::Ascii,
+            TextColorMode::Plain,
+        );
+        let ansi = render_fixture_with_options(
+            "style-basic.mmd",
+            OutputFormat::Ascii,
+            TextColorMode::Ansi,
+        );
+
+        assert!(ansi.contains("\u{1b}["));
+        assert_eq!(strip_ansi(&ansi), plain);
     }
 
     #[test]

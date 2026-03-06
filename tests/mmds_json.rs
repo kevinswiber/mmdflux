@@ -7,12 +7,61 @@
 use std::path::Path;
 
 use mmdflux::diagram::{
-    EngineAlgorithmId, GeometryLevel, OutputFormat, PathSimplification, RenderConfig,
+    EngineAlgorithmId, GeometryLevel, OutputFormat, PathSimplification, RenderConfig, TextColorMode,
 };
 use mmdflux::diagrams::flowchart::FlowchartInstance;
+use mmdflux::diagrams::mmds::MmdsInstance;
 use mmdflux::mmds::MmdsOutput;
 use mmdflux::registry::DiagramInstance;
 use serde_json::Value;
+
+const STYLED_MMDS_LAYOUT: &str = r##"{
+  "version": 1,
+  "profiles": ["mmds-core-v1", "mmdflux-node-style-v1"],
+  "extensions": {
+    "org.mmdflux.node-style.v1": {
+      "nodes": {
+        "A": {
+          "fill": "#ffeeaa",
+          "stroke": "#333",
+          "color": "#111"
+        }
+      }
+    }
+  },
+  "defaults": {
+    "node": { "shape": "rectangle" },
+    "edge": {
+      "stroke": "solid",
+      "arrow_start": "none",
+      "arrow_end": "normal",
+      "minlen": 1
+    }
+  },
+  "geometry_level": "layout",
+  "metadata": {
+    "diagram_type": "flowchart",
+    "direction": "TD",
+    "bounds": { "width": 120.0, "height": 200.0 }
+  },
+  "nodes": [
+    {
+      "id": "A",
+      "label": "Alpha",
+      "position": { "x": 60.0, "y": 35.0 },
+      "size": { "width": 99.16, "height": 54.0 }
+    },
+    {
+      "id": "B",
+      "label": "Beta",
+      "position": { "x": 60.0, "y": 139.0 },
+      "size": { "width": 88.0, "height": 54.0 }
+    }
+  ],
+  "edges": [
+    { "id": "e0", "source": "A", "target": "B" }
+  ]
+}"##;
 
 fn flowchart_fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -55,6 +104,12 @@ fn render_routed_mmds_with_engine(input: &str, engine: &str) -> String {
             },
         )
         .unwrap()
+}
+
+fn render_mmds_input(input: &str, format: OutputFormat, config: RenderConfig) -> String {
+    let mut instance = MmdsInstance::default();
+    instance.parse(input).unwrap();
+    instance.render(format, &config).unwrap()
 }
 
 fn mmds_fixture(path: &str) -> Value {
@@ -134,6 +189,89 @@ fn mmds_has_nodes_and_edges() {
     let output: MmdsOutput = serde_json::from_str(&json).unwrap();
     assert_eq!(output.nodes.len(), 2);
     assert_eq!(output.edges.len(), 1);
+}
+
+#[test]
+fn mmds_output_emits_node_style_extension_when_styles_exist() {
+    let json = render_json(&flowchart_fixture("style-basic.mmd"));
+    let value: Value = serde_json::from_str(&json).unwrap();
+
+    assert!(
+        value["profiles"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|profile| profile == "mmdflux-node-style-v1")
+    );
+    assert_eq!(
+        value["extensions"]["org.mmdflux.node-style.v1"]["nodes"]["A"]["fill"],
+        "#ffeeaa"
+    );
+    assert_eq!(
+        value["extensions"]["org.mmdflux.node-style.v1"]["nodes"]["A"]["stroke"],
+        "#333"
+    );
+    assert_eq!(
+        value["extensions"]["org.mmdflux.node-style.v1"]["nodes"]["A"]["color"],
+        "#111"
+    );
+    assert_schema_valid(value);
+}
+
+#[test]
+fn mmds_output_omits_node_style_extension_when_styles_absent() {
+    let json = render_json("graph TD\nA-->B");
+    let value: Value = serde_json::from_str(&json).unwrap();
+
+    assert!(!value["profiles"].as_array().is_some_and(|profiles| {
+        profiles
+            .iter()
+            .any(|profile| profile == "mmdflux-node-style-v1")
+    }));
+    assert!(
+        value
+            .get("extensions")
+            .and_then(|extensions| extensions.get("org.mmdflux.node-style.v1"))
+            .is_none()
+    );
+}
+
+#[test]
+fn mmds_hydration_replays_node_styles_into_svg_and_text_rendering() {
+    let svg = render_mmds_input(
+        STYLED_MMDS_LAYOUT,
+        OutputFormat::Svg,
+        RenderConfig::default(),
+    );
+    let text = render_mmds_input(
+        STYLED_MMDS_LAYOUT,
+        OutputFormat::Text,
+        RenderConfig {
+            text_color_mode: TextColorMode::Ansi,
+            ..RenderConfig::default()
+        },
+    );
+
+    assert!(
+        svg.contains("fill=\"#ffeeaa\""),
+        "styled MMDS SVG fill missing: {svg}"
+    );
+    assert!(
+        svg.contains("stroke=\"#333\""),
+        "styled MMDS SVG stroke missing: {svg}"
+    );
+    assert!(
+        svg.contains("fill=\"#111\">Alpha</text>"),
+        "styled MMDS SVG label color missing: {svg}"
+    );
+    assert!(
+        text.contains("Alpha"),
+        "styled MMDS text label missing: {text}"
+    );
+    assert!(
+        text.contains("\u{1b}["),
+        "styled MMDS text ANSI missing: {text}"
+    );
 }
 
 // -----------------------------------------------------------------------
@@ -813,6 +951,33 @@ fn docs_reference_initial_profile_set() {
     assert!(docs.contains("mmds-core-v1"));
     assert!(docs.contains("mmdflux-svg-v1"));
     assert!(docs.contains("mmdflux-text-v1"));
+}
+
+#[test]
+fn docs_and_schema_reference_node_style_extension_contract() {
+    let docs = std::fs::read_to_string("docs/mmds.md").unwrap();
+    assert!(docs.contains("mmdflux-node-style-v1"));
+    assert!(docs.contains("org.mmdflux.node-style.v1"));
+
+    let schema = std::fs::read_to_string("docs/mmds.schema.json").unwrap();
+    assert!(schema.contains("org.mmdflux.node-style.v1"));
+}
+
+#[test]
+fn docs_cover_live_style_scope_and_wasm_color_config() {
+    let mmds_docs = std::fs::read_to_string("docs/mmds.md").unwrap();
+    assert!(!mmds_docs.contains("Style/class/link directives are out of scope"));
+    assert!(mmds_docs.contains("Mermaid regeneration from MMDS does not yet emit style"));
+
+    let wasm_docs = std::fs::read_to_string("docs/development/wasm.md").unwrap();
+    assert!(wasm_docs.contains("color"));
+    assert!(wasm_docs.contains("off"));
+    assert!(wasm_docs.contains("auto"));
+    assert!(wasm_docs.contains("always"));
+
+    let readme = std::fs::read_to_string("README.md").unwrap();
+    assert!(readme.contains("NO_COLOR=1 mmdflux --format text"));
+    assert!(readme.contains("--color always"));
 }
 
 // -----------------------------------------------------------------------

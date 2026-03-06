@@ -34,11 +34,47 @@ impl Connections {
     }
 }
 
+/// Optional ANSI style metadata carried alongside a visible cell.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CellStyle {
+    pub fg: Option<(u8, u8, u8)>,
+    pub bg: Option<(u8, u8, u8)>,
+}
+
+impl CellStyle {
+    pub fn fg_rgb(r: u8, g: u8, b: u8) -> Self {
+        Self {
+            fg: Some((r, g, b)),
+            bg: None,
+        }
+    }
+
+    pub fn bg_rgb(r: u8, g: u8, b: u8) -> Self {
+        Self {
+            fg: None,
+            bg: Some((r, g, b)),
+        }
+    }
+
+    pub fn is_empty(self) -> bool {
+        self.fg.is_none() && self.bg.is_none()
+    }
+
+    pub fn merge(self, overlay: Self) -> Self {
+        Self {
+            fg: overlay.fg.or(self.fg),
+            bg: overlay.bg.or(self.bg),
+        }
+    }
+}
+
 /// A single cell on the canvas.
 #[derive(Debug, Clone, Default)]
 pub struct Cell {
     /// The character displayed in this cell.
     pub ch: char,
+    /// Optional style metadata emitted only during final serialization.
+    pub style: Option<CellStyle>,
     /// Connection metadata for junction resolution.
     pub connections: Connections,
     /// Whether this cell is part of a node (protected from edge overwrite).
@@ -127,6 +163,34 @@ impl Canvas {
                 return false;
             }
             cell.ch = ch;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Set the full style metadata for a cell.
+    ///
+    /// Returns `false` if the position is out of bounds.
+    pub fn set_style(&mut self, x: usize, y: usize, style: CellStyle) -> bool {
+        if let Some(cell) = self.get_mut(x, y) {
+            cell.style = (!style.is_empty()).then_some(style);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Merge style metadata into an existing cell style.
+    ///
+    /// Returns `false` if the position is out of bounds.
+    pub fn merge_style(&mut self, x: usize, y: usize, style: CellStyle) -> bool {
+        if let Some(cell) = self.get_mut(x, y) {
+            if style.is_empty() {
+                return true;
+            }
+
+            cell.style = Some(cell.style.unwrap_or_default().merge(style));
             true
         } else {
             false
@@ -238,6 +302,117 @@ impl Canvas {
             self.set(x + i, y, ch);
         }
     }
+
+    /// Convert the canvas to a string with ANSI escapes emitted from cell styles.
+    ///
+    /// Visible text matches `Canvas::to_string()` after escape stripping.
+    pub fn to_ansi_string(&self) -> String {
+        let row_ends: Vec<usize> = self
+            .cells
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .rposition(|cell| cell.ch != ' ')
+                    .map_or(0, |idx| idx + 1)
+            })
+            .collect();
+
+        let first_non_empty = row_ends.iter().position(|&end| end > 0).unwrap_or(0);
+        let last_non_empty = row_ends
+            .iter()
+            .rposition(|&end| end > 0)
+            .unwrap_or(self.cells.len().saturating_sub(1));
+
+        let min_indent = row_ends[first_non_empty..=last_non_empty]
+            .iter()
+            .enumerate()
+            .filter_map(|(offset, &end)| {
+                if end == 0 {
+                    return None;
+                }
+
+                let row = &self.cells[first_non_empty + offset][..end];
+                Some(row.iter().take_while(|cell| cell.ch == ' ').count())
+            })
+            .min()
+            .unwrap_or(0);
+
+        let rows = &self.cells[first_non_empty..=last_non_empty];
+        let ends = &row_ends[first_non_empty..=last_non_empty];
+
+        let mut output = String::new();
+        for (row_index, (row, &end)) in rows.iter().zip(ends.iter()).enumerate() {
+            let start = min_indent.min(end);
+            let mut active_style = None;
+
+            for cell in &row[start..end] {
+                if cell.style != active_style {
+                    push_sgr_transition(&mut output, active_style, cell.style);
+                    active_style = cell.style;
+                }
+                output.push(cell.ch);
+            }
+
+            if active_style.is_some() {
+                push_sgr_transition(&mut output, active_style, None);
+            }
+
+            if row_index + 1 < rows.len() {
+                output.push('\n');
+            }
+        }
+
+        output
+    }
+}
+
+fn push_sgr_transition(output: &mut String, from: Option<CellStyle>, to: Option<CellStyle>) {
+    if from == to {
+        return;
+    }
+
+    match to {
+        None => output.push_str("\u{1b}[0m"),
+        Some(next) => {
+            output.push_str("\u{1b}[");
+            let mut first = true;
+            let prev = from.unwrap_or_default();
+
+            if prev.fg != next.fg {
+                match next.fg {
+                    Some((r, g, b)) => push_rgb_sgr_code(output, &mut first, 38, r, g, b),
+                    None if prev.fg.is_some() => push_reset_sgr_code(output, &mut first, 39),
+                    None => {}
+                }
+            }
+
+            if prev.bg != next.bg {
+                match next.bg {
+                    Some((r, g, b)) => push_rgb_sgr_code(output, &mut first, 48, r, g, b),
+                    None if prev.bg.is_some() => push_reset_sgr_code(output, &mut first, 49),
+                    None => {}
+                }
+            }
+
+            output.push('m');
+        }
+    }
+}
+
+fn push_rgb_sgr_code(output: &mut String, first: &mut bool, code: u8, r: u8, g: u8, b: u8) {
+    if !*first {
+        output.push(';');
+    }
+    *first = false;
+    output.push_str(&format!("{code};2;{r};{g};{b}"));
+}
+
+fn push_reset_sgr_code(output: &mut String, first: &mut bool, code: u8) {
+    if !*first {
+        output.push(';');
+    }
+    *first = false;
+    output.push_str(&code.to_string());
 }
 
 impl fmt::Display for Canvas {
@@ -296,6 +471,35 @@ impl fmt::Display for Canvas {
 mod tests {
     use super::*;
 
+    fn strip_ansi(input: &str) -> String {
+        let mut stripped = String::with_capacity(input.len());
+        let mut chars = input.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '\u{1b}' && matches!(chars.peek(), Some('[')) {
+                chars.next();
+                for next in chars.by_ref() {
+                    if next.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            stripped.push(ch);
+        }
+
+        stripped
+    }
+
+    fn visible_width(input: &str) -> usize {
+        input.chars().count()
+    }
+
+    fn count_sgr_sequences(input: &str) -> usize {
+        input.match_indices("\u{1b}[").count()
+    }
+
     #[test]
     fn test_canvas_new() {
         let canvas = Canvas::new(10, 5);
@@ -342,6 +546,59 @@ mod tests {
         canvas.write_str(0, 1, "There");
         let output = canvas.to_string();
         assert_eq!(output, "Hi\nThere");
+    }
+
+    #[test]
+    fn canvas_to_ansi_string_does_not_change_visible_width() {
+        let mut canvas = Canvas::new(3, 1);
+        canvas.set(0, 0, 'A');
+        canvas.set(1, 0, 'B');
+        canvas.set(2, 0, 'C');
+        canvas.set_style(1, 0, CellStyle::fg_rgb(255, 0, 0));
+
+        let plain = canvas.to_string();
+        let ansi = canvas.to_ansi_string();
+
+        assert_eq!(strip_ansi(&ansi), plain);
+        assert_eq!(visible_width(&strip_ansi(&ansi)), 3);
+    }
+
+    #[test]
+    fn ansi_serializer_emits_compact_style_runs() {
+        let mut canvas = Canvas::new(2, 1);
+        canvas.set(0, 0, 'A');
+        canvas.set(1, 0, 'B');
+        canvas.set_style(0, 0, CellStyle::fg_rgb(255, 0, 0));
+        canvas.set_style(1, 0, CellStyle::fg_rgb(255, 0, 0));
+
+        let ansi = canvas.to_ansi_string();
+
+        assert_eq!(count_sgr_sequences(&ansi), 2);
+    }
+
+    #[test]
+    fn ansi_serializer_clears_background_when_next_cell_has_no_background() {
+        let mut canvas = Canvas::new(3, 1);
+        canvas.set(0, 0, '│');
+        canvas.set(1, 0, ' ');
+        canvas.set(2, 0, '│');
+        canvas.set_style(0, 0, CellStyle::fg_rgb(51, 51, 51));
+        canvas.set_style(
+            1,
+            0,
+            CellStyle {
+                fg: Some((17, 17, 17)),
+                bg: Some((255, 238, 170)),
+            },
+        );
+        canvas.set_style(2, 0, CellStyle::fg_rgb(51, 51, 51));
+
+        let ansi = canvas.to_ansi_string();
+
+        assert!(
+            ansi.contains("\u{1b}[38;2;51;51;51m│\u{1b}[38;2;17;17;17;48;2;255;238;170m \u{1b}[38;2;51;51;51;49m│\u{1b}[0m"),
+            "expected right border transition to clear fill background: {ansi:?}"
+        );
     }
 
     #[test]

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RenderWorkerClient } from "../src/main";
 import { renderApp } from "../src/main";
-import { encodeShareState } from "../src/share";
+import { decodeShareState, encodeShareState } from "../src/share";
 
 interface MemoryStorage {
   getItem: (key: string) => string | null;
@@ -29,6 +29,11 @@ function createFakeRenderClient() {
     })),
     terminate: vi.fn(),
   } satisfies RenderWorkerClient;
+}
+
+async function flushTasks(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 describe("playground state persistence", () => {
@@ -211,20 +216,153 @@ describe("playground state persistence", () => {
       v?: number;
       input?: string;
       format?: string;
+      textPreviewMode?: string;
       selectedExampleId?: string;
       customInput?: string;
       renderSettings?: Record<string, string>;
     };
 
-    expect(persisted.v).toBe(3);
+    expect(persisted.v).toBe(4);
     expect(persisted.input).toBe("graph TD\nA-->Saved");
     expect(persisted.format).toBe("mmds");
+    expect(persisted.textPreviewMode).toBe("plain");
     expect(persisted.selectedExampleId).toBe("__draft__");
     expect(persisted.customInput).toBe("graph TD\nA-->Saved");
     expect(persisted.renderSettings).toMatchObject({
       layoutEngine: "mermaid-layered",
       pathSimplification: "lossless",
     });
+  });
+
+  it("persists and restores text preview mode in local state", async () => {
+    const storage = createMemoryStorage();
+    const renderClient = {
+      render: vi.fn(async (request) => ({
+        seq: request.seq,
+        format: request.format,
+        output:
+          request.format === "text"
+            ? "\u001b[38;2;255;0;0mAlpha\u001b[0m"
+            : `${request.format}:${request.input}`,
+      })),
+      terminate: vi.fn(),
+    } satisfies RenderWorkerClient;
+
+    const root = document.createElement("div");
+    renderApp(root, {
+      renderClientFactory: () => renderClient,
+      debounceMs: 0,
+      stateStorage: storage,
+    });
+
+    const textTab = root.querySelector<HTMLButtonElement>(
+      'button[data-format="text"]',
+    );
+    const ansiModeButton = root.querySelector<HTMLButtonElement>(
+      'button[data-text-preview-mode="ansi"]',
+    );
+
+    if (!textTab || !ansiModeButton) {
+      throw new Error("expected text tab and ANSI preview mode button");
+    }
+
+    textTab.click();
+    await flushTasks();
+    ansiModeButton.click();
+
+    const persisted = JSON.parse(
+      storage.getItem("mmdflux-playground-state") ?? "{}",
+    ) as {
+      v?: number;
+      textPreviewMode?: string;
+    };
+    expect(persisted.v).toBe(4);
+    expect(persisted.textPreviewMode).toBe("ansi");
+
+    const restoredRoot = document.createElement("div");
+    renderApp(restoredRoot, {
+      renderClientFactory: () => renderClient,
+      debounceMs: 0,
+      stateStorage: storage,
+    });
+    await flushTasks();
+
+    const restoredAnsiButton = restoredRoot.querySelector<HTMLButtonElement>(
+      'button[data-text-preview-mode="ansi"]',
+    );
+    const previewOutput = restoredRoot.querySelector<HTMLElement>(
+      "[data-preview-output]",
+    );
+
+    expect(restoredAnsiButton?.classList.contains("is-active")).toBe(true);
+    expect(previewOutput?.textContent).toBe("\\x1b[38;2;255;0;0mAlpha\\x1b[0m");
+  });
+
+  it("serializes text preview mode into share URLs and restores it from hash", async () => {
+    const clipboard = {
+      writeText: vi.fn(async () => {}),
+    };
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: clipboard,
+    });
+
+    try {
+      history.replaceState(null, "", window.location.pathname);
+
+      const storage = createMemoryStorage();
+      const root = document.createElement("div");
+      renderApp(root, {
+        renderClientFactory: () => createFakeRenderClient(),
+        debounceMs: 0,
+        stateStorage: storage,
+      });
+
+      const textTab = root.querySelector<HTMLButtonElement>(
+        'button[data-format="text"]',
+      );
+      const ansiModeButton = root.querySelector<HTMLButtonElement>(
+        'button[data-text-preview-mode="ansi"]',
+      );
+      const shareButton = root.querySelector<HTMLButtonElement>("[data-share]");
+
+      if (!textTab || !ansiModeButton || !shareButton) {
+        throw new Error(
+          "expected text tab, ANSI preview button, and share button",
+        );
+      }
+
+      textTab.click();
+      await flushTasks();
+      ansiModeButton.click();
+      shareButton.click();
+      await flushTasks();
+
+      const copiedShareUrl = clipboard.writeText.mock.calls[0]?.[0] as
+        | string
+        | undefined;
+      expect(copiedShareUrl).toBeDefined();
+
+      const shareHash = new URL(copiedShareUrl ?? window.location.href).hash;
+      const decoded = decodeShareState(shareHash);
+      expect(decoded?.textPreviewMode).toBe("ansi");
+
+      history.replaceState(null, "", shareHash);
+
+      const restoredRoot = document.createElement("div");
+      renderApp(restoredRoot, {
+        renderClientFactory: () => createFakeRenderClient(),
+        debounceMs: 0,
+        stateStorage: createMemoryStorage(),
+      });
+
+      const restoredAnsiButton = restoredRoot.querySelector<HTMLButtonElement>(
+        'button[data-text-preview-mode="ansi"]',
+      );
+      expect(restoredAnsiButton?.classList.contains("is-active")).toBe(true);
+    } finally {
+      history.replaceState(null, "", window.location.pathname);
+    }
   });
 
   it("always emits routed geometry for MMDS config from legacy share settings", async () => {

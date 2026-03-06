@@ -4,9 +4,11 @@ use pest::Parser;
 use pest_derive::Parser;
 
 use super::ast::{
-    ArrowHead, ConnectorSpec, EdgeSpec, ShapeSpec, Statement, StrokeSpec, SubgraphSpec, Vertex,
+    ArrowHead, ConnectorSpec, EdgeSpec, NodeStyleStatement, ShapeSpec, Statement, StrokeSpec,
+    SubgraphSpec, Vertex,
 };
 use super::error::ParseError;
+use crate::style::parse_node_style_statement;
 
 #[derive(Parser)]
 #[grammar = "parser/grammar.pest"]
@@ -51,7 +53,7 @@ impl Flowchart {
                     result.push(&e.from);
                     result.push(&e.to);
                 }
-                Statement::Subgraph(_) => {}
+                Statement::Subgraph(_) | Statement::NodeStyle(_) => {}
             }
         }
         result
@@ -256,6 +258,13 @@ fn parse_statement(
     pair: pest::iterators::Pair<Rule>,
     subgraph_counter: &mut usize,
 ) -> Vec<Statement> {
+    if let Some(style_statement) = parse_node_style_statement(pair.as_str()) {
+        return vec![Statement::NodeStyle(NodeStyleStatement {
+            node_id: style_statement.node_id,
+            style: style_statement.style,
+        })];
+    }
+
     pair.into_inner()
         .flat_map(|inner| match inner.as_rule() {
             Rule::vertex_statement => parse_vertex_statement(inner),
@@ -321,6 +330,16 @@ fn parse_subgraph(pair: pest::iterators::Pair<Rule>, counter: &mut usize) -> Sub
             Rule::subgraph_body_line => {
                 for body_inner in inner.into_inner() {
                     if body_inner.as_rule() == Rule::statement {
+                        if let Some(style_statement) =
+                            parse_node_style_statement(body_inner.as_str())
+                        {
+                            body_statements.push(Statement::NodeStyle(NodeStyleStatement {
+                                node_id: style_statement.node_id,
+                                style: style_statement.style,
+                            }));
+                            continue;
+                        }
+
                         for stmt_inner in body_inner.into_inner() {
                             match stmt_inner.as_rule() {
                                 Rule::direction_stmt => {
@@ -1613,12 +1632,37 @@ mod tests {
         ));
     }
 
-    // Style/class passthrough tests (Task 1.2)
     #[test]
-    fn test_style_statement_ignored() {
-        let input = "graph TD\nA --> B\nstyle A fill:#f9f,stroke:#333\n";
-        let result = parse_flowchart(input).unwrap();
-        assert_eq!(result.edges().len(), 1);
+    fn test_parse_flowchart_keeps_node_style_statements() {
+        let input = "graph TD\nA[Alpha]\nstyle A fill:#ffeeaa,stroke:#333,color:#111\n";
+        let chart = parse_flowchart(input).unwrap();
+
+        assert!(
+            chart
+                .statements
+                .iter()
+                .any(|stmt| matches!(stmt, Statement::NodeStyle(_)))
+        );
+    }
+
+    #[test]
+    fn test_parse_style_statement_extracts_supported_node_properties() {
+        let input = "graph TD\nstyle A fill:#ffeeaa,stroke:#333,color:#111\n";
+        let chart = parse_flowchart(input).unwrap();
+
+        let style = chart
+            .statements
+            .iter()
+            .find_map(|stmt| match stmt {
+                Statement::NodeStyle(style) => Some(style),
+                _ => None,
+            })
+            .unwrap();
+
+        assert_eq!(style.node_id, "A");
+        assert_eq!(style.style.fill.as_ref().unwrap().raw(), "#ffeeaa");
+        assert_eq!(style.style.stroke.as_ref().unwrap().raw(), "#333");
+        assert_eq!(style.style.color.as_ref().unwrap().raw(), "#111");
     }
 
     #[test]

@@ -3716,6 +3716,42 @@ fn render_svg_edge_styles_and_labels() {
 }
 
 #[test]
+fn svg_render_applies_fill_stroke_and_label_color_from_node_style() {
+    let diagram = load_flowchart_fixture_diagram("style-basic.mmd");
+    let svg = render_fixture_svg(&diagram, EdgeRouting::OrthogonalRoute, SMOOTH);
+
+    assert!(
+        svg.contains("fill=\"#ffeeaa\""),
+        "styled node fill missing: {svg}"
+    );
+    assert!(
+        svg.contains("stroke=\"#333\""),
+        "styled node stroke missing: {svg}"
+    );
+    assert!(
+        svg.contains("fill=\"#111\">Alpha</text>"),
+        "styled node label color missing: {svg}"
+    );
+}
+
+#[test]
+fn unstyled_svg_keeps_existing_default_colors() {
+    let input = "graph TD\nA-->B\n";
+    let flowchart = parse_flowchart(input).unwrap();
+    let diagram = build_diagram(&flowchart);
+    let svg = render_svg(&diagram, &RenderOptions::default_svg());
+
+    assert!(
+        svg.contains("fill=\"white\" stroke=\"#333\""),
+        "unstyled node shape colors changed: {svg}"
+    );
+    assert!(
+        svg.contains("fill=\"#333\">A</text>"),
+        "unstyled node label color changed: {svg}"
+    );
+}
+
+#[test]
 fn render_svg_subgraphs_and_self_edges() {
     let input = "graph TD\nsubgraph Group\nA-->A\nend\n";
     let flowchart = parse_flowchart(input).unwrap();

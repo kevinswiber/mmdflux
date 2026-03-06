@@ -12,6 +12,10 @@ WASM_WEB_OUT_DIR="${WASM_WEB_OUT_DIR:-target/wasm-pkg-web}"
 WASM_BUNDLER_OUT_DIR="${WASM_BUNDLER_OUT_DIR:-target/wasm-pkg-bundler}"
 WASM_MAX_BYTES="${WASM_MAX_BYTES:-2097152}"
 WASM_GZIP_MAX_BYTES="${WASM_GZIP_MAX_BYTES:-700000}"
+WASM_CARGO_PROFILE_RELEASE_OPT_LEVEL="${WASM_CARGO_PROFILE_RELEASE_OPT_LEVEL:-z}"
+WASM_CARGO_PROFILE_RELEASE_CODEGEN_UNITS="${WASM_CARGO_PROFILE_RELEASE_CODEGEN_UNITS:-1}"
+WASM_CARGO_PROFILE_RELEASE_LTO="${WASM_CARGO_PROFILE_RELEASE_LTO:-fat}"
+WASM_CARGO_PROFILE_RELEASE_PANIC="${WASM_CARGO_PROFILE_RELEASE_PANIC:-abort}"
 
 build_artifacts=1
 
@@ -27,7 +31,20 @@ Environment overrides:
   WASM_BUNDLER_OUT_DIR  (default: target/wasm-pkg-bundler)
   WASM_MAX_BYTES        (default: 2097152)
   WASM_GZIP_MAX_BYTES   (default: 700000)
+  WASM_CARGO_PROFILE_RELEASE_OPT_LEVEL     (default: z)
+  WASM_CARGO_PROFILE_RELEASE_CODEGEN_UNITS (default: 1)
+  WASM_CARGO_PROFILE_RELEASE_LTO           (default: fat)
+  WASM_CARGO_PROFILE_RELEASE_PANIC         (default: abort)
 EOF
+}
+
+wasm_pack_release_build() {
+  env \
+    CARGO_PROFILE_RELEASE_OPT_LEVEL="${WASM_CARGO_PROFILE_RELEASE_OPT_LEVEL}" \
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS="${WASM_CARGO_PROFILE_RELEASE_CODEGEN_UNITS}" \
+    CARGO_PROFILE_RELEASE_LTO="${WASM_CARGO_PROFILE_RELEASE_LTO}" \
+    CARGO_PROFILE_RELEASE_PANIC="${WASM_CARGO_PROFILE_RELEASE_PANIC}" \
+    wasm-pack build "$@"
 }
 
 while (($# > 0)); do
@@ -55,10 +72,10 @@ if ((build_artifacts)); then
   fi
 
   echo "Building release wasm package (web target)..."
-  wasm-pack build crates/mmdflux-wasm --target web --release --out-dir "../../${WASM_WEB_OUT_DIR}"
+  wasm_pack_release_build crates/mmdflux-wasm --target web --release --out-dir "../../${WASM_WEB_OUT_DIR}"
 
   echo "Building release wasm package (bundler target)..."
-  wasm-pack build crates/mmdflux-wasm --target bundler --release --out-dir "../../${WASM_BUNDLER_OUT_DIR}"
+  wasm_pack_release_build crates/mmdflux-wasm --target bundler --release --out-dir "../../${WASM_BUNDLER_OUT_DIR}"
 fi
 
 web_wasm="${WASM_WEB_OUT_DIR}/mmdflux_wasm_bg.wasm"
@@ -121,6 +138,16 @@ report_target() {
     "$gzip_kib" \
     "$status"
 
+  if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+    printf '| %s | %s | %s | %s | %s | %s |\n' \
+      "$label" \
+      "$wasm_bytes_fmt" \
+      "$wasm_kib" \
+      "$gzip_bytes_fmt" \
+      "$gzip_kib" \
+      "$status" >> "$GITHUB_STEP_SUMMARY"
+  fi
+
   if (( wasm_bytes > WASM_MAX_BYTES )); then
     echo "${label} raw wasm size ${wasm_bytes} exceeds budget ${WASM_MAX_BYTES}" >&2
   fi
@@ -137,6 +164,17 @@ echo
 echo "+----------+----------------+-----------+----------------+-----------+--------+"
 printf '| %-8s | %14s | %9s | %14s | %9s | %-6s |\n' "Target" "Raw (bytes)" "Raw KiB" "Gzip (bytes)" "Gzip KiB" "Status"
 echo "+----------+----------------+-----------+----------------+-----------+--------+"
+
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  {
+    echo "## WASM Size Report"
+    echo
+    echo "Budget: raw <= $(format_int "${WASM_MAX_BYTES}") bytes, gzip <= $(format_int "${WASM_GZIP_MAX_BYTES}") bytes."
+    echo
+    echo "| Target | Raw (bytes) | Raw (KiB) | Gzip (bytes) | Gzip (KiB) | Status |"
+    echo "| --- | ---: | ---: | ---: | ---: | --- |"
+  } >> "$GITHUB_STEP_SUMMARY"
+fi
 
 report_target "web" "$web_wasm"
 report_target "bundler" "$bundler_wasm"

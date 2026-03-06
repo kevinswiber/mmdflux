@@ -23,7 +23,7 @@
         "type": "string"
       },
       "default": [],
-      "description": "Optional behavior bundles used for profile negotiation (for example 'mmds-core-v1', 'mmdflux-svg-v1')."
+      "description": "Optional behavior bundles used for profile negotiation (for example 'mmds-core-v1', 'mmdflux-svg-v1', or 'mmdflux-node-style-v1')."
     },
     "extensions": {
       "type": "object",
@@ -31,6 +31,11 @@
       "propertyNames": {
         "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[.-][a-z0-9]+)*)*\\.v[0-9]+$",
         "description": "Namespaced extension key ending with '.v{number}', for example 'org.mmdflux.render.svg.v1'."
+      },
+      "properties": {
+        "org.mmdflux.node-style.v1": {
+          "$ref": "#/$defs/NodeStyleExtension"
+        }
       },
       "additionalProperties": {
         "type": "object"
@@ -42,10 +47,7 @@
       "description": "Document-level defaults for omitted node/edge fields."
     },
     "geometry_level": {
-      "enum": [
-        "layout",
-        "routed"
-      ],
+      "enum": ["layout", "routed"],
       "description": "Geometry detail level. 'layout' includes node geometry + edge topology only. 'routed' adds edge paths, bounds, and routing metadata."
     },
     "metadata": {
@@ -77,10 +79,7 @@
   "$defs": {
     "Defaults": {
       "type": "object",
-      "required": [
-        "node",
-        "edge"
-      ],
+      "required": ["node", "edge"],
       "properties": {
         "node": {
           "$ref": "#/$defs/NodeDefaults"
@@ -92,9 +91,7 @@
     },
     "NodeDefaults": {
       "type": "object",
-      "required": [
-        "shape"
-      ],
+      "required": ["shape"],
       "properties": {
         "shape": {
           "type": "string",
@@ -104,20 +101,10 @@
     },
     "EdgeDefaults": {
       "type": "object",
-      "required": [
-        "stroke",
-        "arrow_start",
-        "arrow_end",
-        "minlen"
-      ],
+      "required": ["stroke", "arrow_start", "arrow_end", "minlen"],
       "properties": {
         "stroke": {
-          "enum": [
-            "solid",
-            "dotted",
-            "thick",
-            "invisible"
-          ],
+          "enum": ["solid", "dotted", "thick", "invisible"],
           "description": "Default edge stroke used when an edge omits stroke."
         },
         "arrow_start": {
@@ -152,23 +139,14 @@
     },
     "Metadata": {
       "type": "object",
-      "required": [
-        "diagram_type",
-        "direction",
-        "bounds"
-      ],
+      "required": ["diagram_type", "direction", "bounds"],
       "properties": {
         "diagram_type": {
           "type": "string",
           "description": "Diagram type identifier (e.g., 'flowchart', 'class')."
         },
         "direction": {
-          "enum": [
-            "TD",
-            "BT",
-            "LR",
-            "RL"
-          ],
+          "enum": ["TD", "BT", "LR", "RL"],
           "description": "Layout direction."
         },
         "bounds": {
@@ -183,12 +161,7 @@
     },
     "Node": {
       "type": "object",
-      "required": [
-        "id",
-        "label",
-        "position",
-        "size"
-      ],
+      "required": ["id", "label", "position", "size"],
       "properties": {
         "id": {
           "type": "string",
@@ -219,11 +192,7 @@
     },
     "Edge": {
       "type": "object",
-      "required": [
-        "id",
-        "source",
-        "target"
-      ],
+      "required": ["id", "source", "target"],
       "properties": {
         "id": {
           "type": "string",
@@ -250,12 +219,7 @@
           "description": "Edge label text."
         },
         "stroke": {
-          "enum": [
-            "solid",
-            "dotted",
-            "thick",
-            "invisible"
-          ],
+          "enum": ["solid", "dotted", "thick", "invisible"],
           "default": "solid",
           "description": "Stroke style. If omitted, consumers should use defaults.edge.stroke."
         },
@@ -322,11 +286,7 @@
     },
     "Subgraph": {
       "type": "object",
-      "required": [
-        "id",
-        "title",
-        "children"
-      ],
+      "required": ["id", "title", "children"],
       "properties": {
         "id": {
           "type": "string",
@@ -348,12 +308,7 @@
           "description": "Parent subgraph ID, if nested."
         },
         "direction": {
-          "enum": [
-            "TD",
-            "BT",
-            "LR",
-            "RL"
-          ],
+          "enum": ["TD", "BT", "LR", "RL"],
           "description": "Subgraph direction override."
         },
         "bounds": {
@@ -364,20 +319,10 @@
     },
     "Port": {
       "type": "object",
-      "required": [
-        "face",
-        "fraction",
-        "position",
-        "group_size"
-      ],
+      "required": ["face", "fraction", "position", "group_size"],
       "properties": {
         "face": {
-          "enum": [
-            "top",
-            "bottom",
-            "left",
-            "right"
-          ],
+          "enum": ["top", "bottom", "left", "right"],
           "description": "Node boundary face where the edge attaches."
         },
         "fraction": {
@@ -397,12 +342,41 @@
         }
       }
     },
+    "NodeStyleExtension": {
+      "type": "object",
+      "required": ["nodes"],
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "description": "Node-ID keyed style overrides replayed into renderer-visible node fill/stroke/text colors.",
+          "additionalProperties": {
+            "$ref": "#/$defs/NodeStyle"
+          }
+        }
+      }
+    },
+    "NodeStyle": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "fill": {
+          "type": "string",
+          "description": "Raw color token for node fill."
+        },
+        "stroke": {
+          "type": "string",
+          "description": "Raw color token for node border stroke."
+        },
+        "color": {
+          "type": "string",
+          "description": "Raw color token for node label text."
+        }
+      },
+      "additionalProperties": false
+    },
     "Position": {
       "type": "object",
-      "required": [
-        "x",
-        "y"
-      ],
+      "required": ["x", "y"],
       "properties": {
         "x": {
           "type": "number",
@@ -416,10 +390,7 @@
     },
     "Size": {
       "type": "object",
-      "required": [
-        "width",
-        "height"
-      ],
+      "required": ["width", "height"],
       "properties": {
         "width": {
           "type": "number",
@@ -433,10 +404,7 @@
     },
     "Bounds": {
       "type": "object",
-      "required": [
-        "width",
-        "height"
-      ],
+      "required": ["width", "height"],
       "properties": {
         "width": {
           "type": "number",

@@ -14,12 +14,17 @@ use crate::diagrams::flowchart::geometry::{
     EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry,
 };
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
+use crate::style::NodeStyle;
 
 mod generate;
 
 pub use generate::{
     MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str,
 };
+
+pub const MMDS_CORE_PROFILE: &str = "mmds-core-v1";
+pub const MMDS_NODE_STYLE_PROFILE: &str = "mmdflux-node-style-v1";
+pub const MMDS_NODE_STYLE_EXTENSION_NAMESPACE: &str = "org.mmdflux.node-style.v1";
 
 /// Serialize a graph-family diagram to MMDS JSON at layout level.
 ///
@@ -164,6 +169,7 @@ fn build_mmds_output(
     engine_id: Option<EngineAlgorithmId>,
 ) -> MmdsOutput {
     let level = if routed.is_some() { "routed" } else { "layout" };
+    let styled_nodes = collect_styled_nodes(diagram);
 
     let metadata = MmdsMetadata {
         diagram_type: diagram_type.to_string(),
@@ -260,10 +266,21 @@ fn build_mmds_output(
         .collect();
     subgraphs.sort_by(|a, b| a.id.cmp(&b.id));
 
+    let mut profiles = Vec::new();
+    let mut extensions = BTreeMap::new();
+    if !styled_nodes.is_empty() {
+        profiles.push(MMDS_CORE_PROFILE.to_string());
+        profiles.push(MMDS_NODE_STYLE_PROFILE.to_string());
+        extensions.insert(
+            MMDS_NODE_STYLE_EXTENSION_NAMESPACE.to_string(),
+            node_style_extension(styled_nodes),
+        );
+    }
+
     MmdsOutput {
         version: 1,
-        profiles: Vec::new(),
-        extensions: BTreeMap::new(),
+        profiles,
+        extensions,
         defaults: MmdsDefaults::default(),
         geometry_level: level.to_string(),
         metadata,
@@ -271,6 +288,47 @@ fn build_mmds_output(
         edges,
         subgraphs,
     }
+}
+
+fn collect_styled_nodes(diagram: &Diagram) -> BTreeMap<String, NodeStyle> {
+    diagram
+        .nodes
+        .iter()
+        .filter(|(_, node)| !node.style.is_empty())
+        .map(|(node_id, node)| (node_id.clone(), node.style.clone()))
+        .collect()
+}
+
+fn node_style_extension(styled_nodes: BTreeMap<String, NodeStyle>) -> Map<String, Value> {
+    let nodes = styled_nodes
+        .iter()
+        .map(|(node_id, style)| {
+            (
+                node_id.clone(),
+                Value::Object(serialize_node_style_extension(style)),
+            )
+        })
+        .collect();
+    let mut extension = Map::new();
+    extension.insert("nodes".to_string(), Value::Object(nodes));
+    extension
+}
+
+fn serialize_node_style_extension(style: &NodeStyle) -> Map<String, Value> {
+    let mut payload = Map::new();
+    if let Some(fill) = &style.fill {
+        payload.insert("fill".to_string(), Value::String(fill.raw().to_string()));
+    }
+    if let Some(stroke) = &style.stroke {
+        payload.insert(
+            "stroke".to_string(),
+            Value::String(stroke.raw().to_string()),
+        );
+    }
+    if let Some(color) = &style.color {
+        payload.insert("color".to_string(), Value::String(color.raw().to_string()));
+    }
+    payload
 }
 
 fn mmds_node(pn: &PositionedNode) -> MmdsNode {

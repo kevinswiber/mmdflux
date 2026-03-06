@@ -21,13 +21,19 @@ You can override detection with `BROWSER=/path/to/chrome` and
 
 ```bash
 just wasm-build
+just wasm-build-release
 just wasm-test
+just wasm-size
 ```
 
 - `just wasm-build` compiles the library for `wasm32-unknown-unknown` with
-  both `web` and `bundler` wasm-pack targets.
+  both `web` and `bundler` wasm-pack targets in dev mode for local browser testing.
+- `just wasm-build-release` compiles the shipped `web` and `bundler` artifacts with
+  the size-optimized wasm release profile used by CI and npm publishing.
 - `just wasm-test` runs browser-executed wasm-bindgen contract tests for
   `crates/mmdflux-wasm`.
+- `just wasm-size` builds size-optimized release artifacts (unless `--no-build`
+  is supplied) and enforces the CI-equivalent raw/gzip budgets.
 
 ## Runtime Config Contract
 
@@ -54,6 +60,7 @@ Supported top-level keys:
 - `svgNodePaddingX`
 - `svgNodePaddingY`
 - `showIds`
+- `color` (`off`, `auto`, `always`)
 - `geometryLevel` (`layout`, `routed`)
 - `pathSimplification` (`none`, `lossless`, `lossy`, `minimal`)
 - `layout` object:
@@ -62,6 +69,10 @@ Supported top-level keys:
 Notes:
 
 - For SVG output, if `layoutEngine` is omitted, WASM defaults to `flux-layered`.
+- `color` only affects text/ascii output. `always` forces ANSI escapes, while `auto`
+  resolves to plain text in WASM because there is no terminal-capability probe.
+- Release wasm artifacts use a size-optimized Cargo profile:
+  `opt-level=z`, `codegen-units=1`, `lto=fat`, `panic=abort`.
 - Legacy keys such as `edgeRouting`, `edgeStyle`, `svgEdgeCurve`, and
   `svgEdgeCurveRadius` are rejected.
 
@@ -107,6 +118,7 @@ Local preflight before tagging:
 
 ```bash
 cargo test --features cli
-just wasm-build
+just wasm-build-release
 just wasm-test
+just wasm-size --no-build
 ```
