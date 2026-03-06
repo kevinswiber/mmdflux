@@ -7,6 +7,11 @@
 - Fixed MMDS node positions using top-left origin instead of center-point
   coordinates. MMDS output now emits node centers per the spec, and hydration
   correctly converts centers back to the internal top-left rectangle origin.
+- Fixed supported flowchart `style` statements still being reported as
+  "parsed but ignored" in lint and WASM validation; only unsupported style
+  properties now emit warnings.
+- Fixed ANSI text fill backgrounds bleeding onto right node borders during
+  transitions back to stroke-only border cells.
 
 - Fixed backward edges detaching from source nodes in SVG when the backward
   path's first horizontal segment fell exactly on the source node's bottom
@@ -28,6 +33,17 @@
 
 ### Added
 
+- Added Mermaid flowchart node `style` support for `fill`, `stroke`, and
+  `color`, including parser/builder ingestion, ANSI-capable text/ASCII
+  rendering, SVG rendering, and regression fixtures/snapshots for styled
+  output.
+- Added MMDS node-style round-tripping via the `mmdflux-node-style-v1`
+  profile and the `org.mmdflux.node-style.v1` extension namespace.
+- Added `NO_COLOR` support for default text/ASCII color suppression; explicit
+  `--color` still overrides `NO_COLOR` for per-invocation control.
+- Added web playground text preview modes (`Plain`, `Styled`, `ANSI`) with
+  copy actions and share/local-state persistence for the selected preview
+  mode.
 - Added `scripts/svg-gallery-diff` for side-by-side before/after HTML gallery
   of changed SVG snapshots versus a base ref.
 
