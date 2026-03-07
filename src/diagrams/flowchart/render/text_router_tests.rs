@@ -76,12 +76,13 @@ fn test_route_edge_straight_vertical() {
     // Should have at least one segment
     assert!(!routed.segments.is_empty());
 
-    // For vertically aligned nodes, routing produces connector + main + connector segments.
-    // All segments should be vertical and share the same x coordinate.
+    // For vertically aligned nodes, routing may coalesce the connector and main
+    // runs into a single colinear segment. All remaining segments should be
+    // vertical and share the same x coordinate.
     if routed.start.x == routed.end.x {
         assert!(
-            routed.segments.len() >= 2,
-            "Expected at least 2 segments, got {}",
+            !routed.segments.is_empty(),
+            "Expected at least 1 segment, got {}",
             routed.segments.len()
         );
         for seg in &routed.segments {
@@ -245,6 +246,7 @@ fn minimal_layout(
         v_spacing: 3,
         edge_waypoints: std::collections::HashMap::new(),
         routed_edge_paths,
+        preserve_routed_path_topology: std::collections::HashSet::new(),
         edge_label_positions: std::collections::HashMap::new(),
         node_shapes,
         subgraph_bounds: std::collections::HashMap::new(),
@@ -736,6 +738,48 @@ fn simple_forward_edge_does_not_prefer_shared_routed_draw_path() {
         result.probe.path_family,
         TextPathFamily::SharedRoutedDrawPath
     );
+}
+
+#[test]
+fn criss_cross_b_to_e_shared_draw_path_keeps_vertical_terminal_support() {
+    let (diagram, layout) = routed_text_layout_for_fixture("criss_cross.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "B" && edge.to == "E")
+        .expect("criss_cross should contain B -> E");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("criss_cross B -> E should route");
+
+    assert_eq!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
+    assert_eq!(result.probe.rejection_reason, None);
+    assert_eq!(result.routed.entry_direction, AttachDirection::Top);
+
+    let terminal = result
+        .routed
+        .segments
+        .iter()
+        .rev()
+        .find(|segment| segment.length() > 0)
+        .expect("criss_cross B -> E should keep a terminal segment");
+    match terminal {
+        Segment::Vertical { x, y_start, y_end } => {
+            assert!(
+                y_end > y_start,
+                "criss_cross B -> E terminal support should point downward into E: {terminal:?}"
+            );
+            assert_eq!(
+                *x, result.routed.end.x,
+                "criss_cross B -> E terminal support should stay aligned with the target face: end={:?}, terminal={terminal:?}",
+                result.routed.end
+            );
+        }
+        other => panic!("criss_cross B -> E terminal support should be vertical, got {other:?}"),
+    }
 }
 
 #[test]

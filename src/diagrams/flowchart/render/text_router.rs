@@ -27,6 +27,8 @@ struct EdgeEndpoints {
 struct RoutingOverrides {
     src_attach: Option<(usize, usize)>,
     tgt_attach: Option<(usize, usize)>,
+    src_face: Option<NodeFace>,
+    tgt_face: Option<NodeFace>,
     src_first_vertical: bool,
 }
 
@@ -250,6 +252,8 @@ pub struct RoutedEdge {
     pub end: Point,
     /// Path segments from start to end.
     pub segments: Vec<Segment>,
+    /// Direction from the launch cell back toward the source node.
+    pub source_connection: Option<AttachDirection>,
     /// Direction from which the edge enters the target node (for arrow drawing).
     pub entry_direction: AttachDirection,
     /// Whether this edge goes backward in the layout direction.
@@ -265,6 +269,15 @@ pub enum AttachDirection {
     Bottom,
     Left,
     Right,
+}
+
+fn source_connection_direction(face: NodeFace) -> AttachDirection {
+    match face {
+        NodeFace::Top => AttachDirection::Bottom,
+        NodeFace::Bottom => AttachDirection::Top,
+        NodeFace::Left => AttachDirection::Right,
+        NodeFace::Right => AttachDirection::Left,
+    }
 }
 
 /// Get the outgoing and incoming attachment directions based on diagram direction.
@@ -483,12 +496,16 @@ fn should_prefer_shared_forward_route_for_text(
         return false;
     }
 
-    layout
+    let draw_waypoint_count = waypoints_from_draw_path(draw_path).len();
+    let has_normalized_waypoints = layout
         .edge_waypoints
         .get(&edge.index)
-        .is_some_and(|waypoints| waypoints.len() >= 2)
-        && draw_path.len() >= 4
-        && waypoints_from_draw_path(draw_path).len() >= 2
+        .is_some_and(|waypoints| waypoints.len() >= 2);
+    let structured_short_forward =
+        layout.preserve_routed_path_topology.contains(&edge.index) && draw_waypoint_count >= 2;
+
+    (has_normalized_waypoints && draw_path.len() >= 4 && draw_waypoint_count >= 2)
+        || structured_short_forward
 }
 
 /// Route an edge between two nodes.
@@ -563,6 +580,8 @@ pub(crate) fn route_edge_with_probe(
                 RoutingOverrides {
                     src_attach: src_attach_override,
                     tgt_attach: tgt_attach_override,
+                    src_face: None,
+                    tgt_face: None,
                     src_first_vertical,
                 },
             ) {
@@ -632,9 +651,13 @@ pub(crate) fn route_edge_with_probe(
             &endpoints,
             &waypoints,
             diagram_direction,
-            src_attach_override,
-            tgt_attach_override,
-            src_first_vertical,
+            RoutingOverrides {
+                src_attach: src_attach_override,
+                tgt_attach: tgt_attach_override,
+                src_face: None,
+                tgt_face: None,
+                src_first_vertical,
+            },
         )
         .map(|routed| {
             route_result(
@@ -659,9 +682,13 @@ pub(crate) fn route_edge_with_probe(
                     &endpoints,
                     &synthetic_wps,
                     diagram_direction,
-                    src_attach_override,
-                    tgt_attach_override,
-                    src_first_vertical,
+                    RoutingOverrides {
+                        src_attach: src_attach_override,
+                        tgt_attach: tgt_attach_override,
+                        src_face: None,
+                        tgt_face: None,
+                        src_first_vertical,
+                    },
                 )
                 .map(|routed| {
                     route_result(
@@ -714,8 +741,13 @@ fn route_edge_from_draw_path(
         return Err(TextPathRejection::TooShort);
     }
 
-    let mut points: Vec<(usize, usize)> = draw_path.to_vec();
-    points.dedup();
+    let points = if layout.preserve_routed_path_topology.contains(&edge.index) {
+        normalize_draw_path_points(draw_path, direction)
+    } else {
+        let mut points = draw_path.to_vec();
+        points.dedup();
+        points
+    };
     if points.len() < 3 {
         return Err(TextPathRejection::TooShort);
     }
@@ -745,16 +777,31 @@ fn route_edge_from_draw_path(
         return Err(TextPathRejection::WaypointInsideFace);
     }
 
-    let routed = route_edge_with_waypoints(
-        edge,
-        ep,
-        &waypoints,
-        direction,
-        inferred_src_override.or(overrides.src_attach),
-        inferred_tgt_override.or(overrides.tgt_attach),
-        overrides.src_first_vertical,
-    )
-    .ok_or(TextPathRejection::FaceInference)?;
+    let prefer_planned_face_spread = layout.preserve_routed_path_topology.contains(&edge.index);
+    let src_override = inferred_src_override.or(overrides.src_attach);
+    let tgt_override = select_draw_path_attachment_override(
+        &ep.to_bounds,
+        inferred_tgt_face,
+        inferred_tgt_override,
+        overrides.tgt_attach,
+        prefer_planned_face_spread,
+    );
+    let routing = RoutingOverrides {
+        src_attach: src_override,
+        tgt_attach: tgt_override,
+        src_face: inferred_src_face.or(overrides.src_face),
+        tgt_face: inferred_tgt_face.or(overrides.tgt_face),
+        src_first_vertical: overrides.src_first_vertical,
+    };
+    let mut routed = route_edge_with_waypoints(edge, ep, &waypoints, direction, routing)
+        .ok_or(TextPathRejection::FaceInference)?;
+    if prefer_planned_face_spread
+        && edge.arrow_start == Arrow::None
+        && points.len() <= 4
+        && let Some(src_face) = inferred_src_face
+    {
+        ensure_source_face_launch_support(&mut routed.segments, routed.start, src_face);
+    }
     if segments_collide_with_other_nodes(routed.segments.as_slice(), layout, edge) {
         return Err(TextPathRejection::SegmentCollision);
     }
@@ -767,6 +814,23 @@ fn route_edge_from_draw_path(
     }
 
     Ok(routed)
+}
+
+fn select_draw_path_attachment_override(
+    bounds: &NodeBounds,
+    inferred_face: Option<NodeFace>,
+    inferred_override: Option<(usize, usize)>,
+    planned_override: Option<(usize, usize)>,
+    prefer_planned_face_spread: bool,
+) -> Option<(usize, usize)> {
+    if prefer_planned_face_spread
+        && let (Some(face), Some(planned)) = (inferred_face, planned_override)
+        && infer_face_from_attachment(bounds, planned, face) == face
+    {
+        return Some(planned);
+    }
+
+    inferred_override.or(planned_override)
 }
 
 fn route_result(
@@ -850,6 +914,151 @@ fn waypoints_from_draw_path(points: &[(usize, usize)]) -> Vec<(usize, usize)> {
     waypoints
 }
 
+fn normalize_draw_path_points(
+    points: &[(usize, usize)],
+    direction: Direction,
+) -> Vec<(usize, usize)> {
+    let mut deduped: Vec<(usize, usize)> = Vec::with_capacity(points.len());
+    for &point in points {
+        if deduped.last().copied() != Some(point) {
+            deduped.push(point);
+        }
+    }
+    if deduped.len() <= 2 {
+        return deduped;
+    }
+
+    let repaired = repair_terminal_staircase_draw_path(&deduped, direction);
+    if repaired
+        .windows(2)
+        .all(|segment| draw_segment_is_axis_aligned(segment[0], segment[1]))
+    {
+        repaired
+    } else {
+        deduped
+    }
+}
+
+fn repair_terminal_staircase_draw_path(
+    points: &[(usize, usize)],
+    direction: Direction,
+) -> Vec<(usize, usize)> {
+    if points.len() <= 4 {
+        return points.to_vec();
+    }
+
+    let len = points.len();
+    let a = points[len - 4];
+    let b = points[len - 3];
+    let c = points[len - 2];
+    let d = points[len - 1];
+
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            if draw_segment_is_vertical(a, b)
+                && draw_segment_is_horizontal(b, c)
+                && draw_segment_is_vertical(c, d)
+                && draw_segment_sign(b.1 as isize - a.1 as isize)
+                    == draw_segment_sign(d.1 as isize - c.1 as isize)
+                && draw_segment_sign(b.1 as isize - a.1 as isize) != 0
+            {
+                let pullback_y = if d.1 > c.1 {
+                    c.1.saturating_sub(1)
+                } else {
+                    c.1.saturating_add(1)
+                };
+                let adjusted_b = (b.0, pullback_y);
+                let adjusted_c = (c.0, pullback_y);
+                if adjusted_b != a
+                    && adjusted_b != d
+                    && adjusted_c != a
+                    && adjusted_c != d
+                    && pullback_y != b.1
+                    && !would_introduce_axial_turnback_draw_path(points, len - 4, a, adjusted_b)
+                {
+                    let mut compacted = points[..(len - 3)].to_vec();
+                    compacted.push(adjusted_b);
+                    compacted.push(adjusted_c);
+                    compacted.push(d);
+                    return compacted;
+                }
+            }
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            if draw_segment_is_horizontal(a, b)
+                && draw_segment_is_vertical(b, c)
+                && draw_segment_is_horizontal(c, d)
+                && draw_segment_sign(b.0 as isize - a.0 as isize)
+                    == draw_segment_sign(d.0 as isize - c.0 as isize)
+                && draw_segment_sign(b.0 as isize - a.0 as isize) != 0
+            {
+                let pullback_x = if d.0 > c.0 {
+                    c.0.saturating_sub(1)
+                } else {
+                    c.0.saturating_add(1)
+                };
+                let adjusted_b = (pullback_x, b.1);
+                let adjusted_c = (pullback_x, c.1);
+                if adjusted_b != a
+                    && adjusted_b != d
+                    && adjusted_c != a
+                    && adjusted_c != d
+                    && pullback_x != b.0
+                    && !would_introduce_axial_turnback_draw_path(points, len - 4, a, adjusted_b)
+                {
+                    let mut compacted = points[..(len - 3)].to_vec();
+                    compacted.push(adjusted_b);
+                    compacted.push(adjusted_c);
+                    compacted.push(d);
+                    return compacted;
+                }
+            }
+        }
+    }
+
+    points.to_vec()
+}
+
+fn would_introduce_axial_turnback_draw_path(
+    points: &[(usize, usize)],
+    anchor_idx: usize,
+    anchor: (usize, usize),
+    elbow: (usize, usize),
+) -> bool {
+    if anchor_idx == 0 || anchor_idx >= points.len() {
+        return false;
+    }
+
+    let prefix = points[anchor_idx - 1];
+    let dx1 = anchor.0 as isize - prefix.0 as isize;
+    let dy1 = anchor.1 as isize - prefix.1 as isize;
+    let dx2 = elbow.0 as isize - anchor.0 as isize;
+    let dy2 = elbow.1 as isize - anchor.1 as isize;
+    let cross = dx1 * dy2 - dy1 * dx2;
+    let dot = dx1 * dx2 + dy1 * dy2;
+    cross == 0 && dot < 0
+}
+
+fn draw_segment_is_vertical(start: (usize, usize), end: (usize, usize)) -> bool {
+    start.0 == end.0 && start.1 != end.1
+}
+
+fn draw_segment_is_horizontal(start: (usize, usize), end: (usize, usize)) -> bool {
+    start.1 == end.1 && start.0 != end.0
+}
+
+fn draw_segment_is_axis_aligned(start: (usize, usize), end: (usize, usize)) -> bool {
+    draw_segment_is_vertical(start, end) || draw_segment_is_horizontal(start, end)
+}
+
+fn draw_segment_sign(delta: isize) -> i8 {
+    match delta.cmp(&0) {
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
+    }
+}
+
 fn waypoint_is_outside_face(waypoint: (usize, usize), bounds: &NodeBounds, face: NodeFace) -> bool {
     let left = bounds.x;
     let right = bounds.x + bounds.width.saturating_sub(1);
@@ -913,14 +1122,12 @@ fn route_edge_with_waypoints(
     ep: &EdgeEndpoints,
     waypoints: &[(usize, usize)],
     direction: Direction,
-    src_attach_override: Option<(usize, usize)>,
-    tgt_attach_override: Option<(usize, usize)>,
-    src_first_vertical: bool,
+    overrides: RoutingOverrides,
 ) -> Option<RoutedEdge> {
     // Calculate attachment points, using overrides where provided
     let (src_attach_raw, tgt_attach_raw) = resolve_attachment_points(
-        src_attach_override,
-        tgt_attach_override,
+        overrides.src_attach,
+        overrides.tgt_attach,
         ep,
         waypoints,
         direction,
@@ -950,8 +1157,12 @@ fn route_edge_with_waypoints(
     } else {
         let (default_src_face, default_tgt_face) = edge_faces(direction, is_backward);
         (
-            infer_face_from_attachment(&ep.from_bounds, src_attach, default_src_face),
-            infer_face_from_attachment(&ep.to_bounds, tgt_attach, default_tgt_face),
+            overrides.src_face.unwrap_or_else(|| {
+                infer_face_from_attachment(&ep.from_bounds, src_attach, default_src_face)
+            }),
+            overrides.tgt_face.unwrap_or_else(|| {
+                infer_face_from_attachment(&ep.to_bounds, tgt_attach, default_tgt_face)
+            }),
         )
     };
     let mut start = offset_for_face(src_attach, src_face);
@@ -1036,10 +1247,12 @@ fn route_edge_with_waypoints(
             waypoints,
             end,
             direction,
-            src_first_vertical,
+            overrides.src_first_vertical,
             edge.arrow_start != Arrow::None,
         ));
     }
+
+    ensure_terminal_face_support(&mut segments, start, end, tgt_face);
 
     // Determine entry direction based on final segment orientation
     let entry_direction = entry_direction_from_segments(&segments);
@@ -1056,6 +1269,7 @@ fn route_edge_with_waypoints(
         start,
         end,
         segments,
+        source_connection: Some(source_connection_direction(src_face)),
         entry_direction,
         is_backward,
         is_self_edge: false,
@@ -1116,6 +1330,8 @@ fn route_backward_with_synthetic_waypoints(
         edge.arrow_start != Arrow::None,
     ));
 
+    ensure_terminal_face_support(&mut segments, start, end, tgt_face);
+
     let entry_direction = entry_direction_from_segments(&segments);
 
     Some(RoutedEdge {
@@ -1123,6 +1339,7 @@ fn route_backward_with_synthetic_waypoints(
         start,
         end,
         segments,
+        source_connection: Some(source_connection_direction(src_face)),
         entry_direction,
         is_backward: true,
         is_self_edge: false,
@@ -1254,6 +1471,8 @@ fn route_edge_direct(
         ));
     }
 
+    ensure_terminal_face_support(&mut segments, start, end, tgt_face);
+
     // Determine entry direction: use canonical direction when start == end
     // (zero-length path produces a degenerate segment that can't indicate direction)
     let entry_direction = if start == end {
@@ -1272,6 +1491,7 @@ fn route_edge_direct(
         start,
         end,
         segments,
+        source_connection: Some(source_connection_direction(src_face)),
         entry_direction,
         is_backward,
         is_self_edge: false,
@@ -1401,6 +1621,189 @@ fn infer_face_from_attachment(
         NodeFace::Bottom
     } else {
         fallback
+    }
+}
+
+fn ensure_terminal_face_support(
+    segments: &mut Vec<Segment>,
+    start: Point,
+    end: Point,
+    target_face: NodeFace,
+) {
+    let mut points = polyline_points_from_segments(start, segments);
+    if points.last().copied() != Some(end) {
+        points.push(end);
+    }
+    normalize_polyline_points(&mut points);
+    let original_points = points.clone();
+    if points.len() < 2 || terminal_support_matches_face(&points, target_face) {
+        *segments = polyline_points_to_segments(&points);
+        return;
+    }
+
+    let support = terminal_support_point(end, target_face);
+    if support == end {
+        *segments = polyline_points_to_segments(&points);
+        return;
+    }
+
+    let pre_end_idx = points.len() - 2;
+    match target_face {
+        NodeFace::Top | NodeFace::Bottom => {
+            let anchor = points[pre_end_idx];
+            let adjusted_anchor = Point::new(anchor.x, support.y);
+            points[pre_end_idx] = adjusted_anchor;
+            if adjusted_anchor.x != end.x {
+                points.insert(points.len() - 1, Point::new(end.x, support.y));
+            }
+        }
+        NodeFace::Left | NodeFace::Right => {
+            let anchor = points[pre_end_idx];
+            let adjusted_anchor = Point::new(support.x, anchor.y);
+            points[pre_end_idx] = adjusted_anchor;
+            if adjusted_anchor.y != end.y {
+                points.insert(points.len() - 1, Point::new(support.x, end.y));
+            }
+        }
+    }
+
+    normalize_polyline_points(&mut points);
+    if points
+        .windows(2)
+        .all(|segment| point_segment_is_axis_aligned(segment[0], segment[1]))
+    {
+        *segments = polyline_points_to_segments(&points);
+    } else {
+        *segments = polyline_points_to_segments(&original_points);
+    }
+}
+
+fn ensure_source_face_launch_support(
+    segments: &mut Vec<Segment>,
+    start: Point,
+    source_face: NodeFace,
+) {
+    let mut points = polyline_points_from_segments(start, segments);
+    if points.len() < 2 {
+        return;
+    }
+
+    let next = points[1];
+    let (support, corner) = match source_face {
+        NodeFace::Top if next.y == start.y => {
+            let support = Point::new(start.x, start.y.saturating_sub(1));
+            (support, Point::new(next.x, support.y))
+        }
+        NodeFace::Bottom if next.y == start.y => {
+            let support = Point::new(start.x, start.y + 1);
+            (support, Point::new(next.x, support.y))
+        }
+        NodeFace::Left if next.x == start.x => {
+            let support = Point::new(start.x.saturating_sub(1), start.y);
+            (support, Point::new(support.x, next.y))
+        }
+        NodeFace::Right if next.x == start.x => {
+            let support = Point::new(start.x + 1, start.y);
+            (support, Point::new(support.x, next.y))
+        }
+        _ => return,
+    };
+
+    if support == start || support == next {
+        return;
+    }
+
+    points.insert(1, support);
+    if corner != start && corner != support && corner != next {
+        points.insert(2, corner);
+    }
+    normalize_polyline_points(&mut points);
+    *segments = polyline_points_to_segments(&points);
+}
+
+fn polyline_points_from_segments(start: Point, segments: &[Segment]) -> Vec<Point> {
+    let mut points = vec![start];
+    for segment in segments {
+        let end = segment.end_point();
+        if points.last().copied() != Some(end) {
+            points.push(end);
+        }
+    }
+    points
+}
+
+fn normalize_polyline_points(points: &mut Vec<Point>) {
+    points.dedup();
+    let mut idx = 1;
+    while idx + 1 < points.len() {
+        let prev = points[idx - 1];
+        let curr = points[idx];
+        let next = points[idx + 1];
+        let collinear_vertical = prev.x == curr.x && curr.x == next.x;
+        let collinear_horizontal = prev.y == curr.y && curr.y == next.y;
+        if collinear_vertical || collinear_horizontal {
+            points.remove(idx);
+        } else {
+            idx += 1;
+        }
+    }
+}
+
+fn polyline_points_to_segments(points: &[Point]) -> Vec<Segment> {
+    let mut segments = Vec::new();
+    for pair in points.windows(2) {
+        let start = pair[0];
+        let end = pair[1];
+        if start == end {
+            continue;
+        }
+        if start.x == end.x {
+            segments.push(Segment::Vertical {
+                x: start.x,
+                y_start: start.y,
+                y_end: end.y,
+            });
+        } else if start.y == end.y {
+            segments.push(Segment::Horizontal {
+                y: start.y,
+                x_start: start.x,
+                x_end: end.x,
+            });
+        } else {
+            debug_assert!(
+                false,
+                "polyline_points_to_segments requires axis-aligned points: {start:?} -> {end:?}"
+            );
+        }
+    }
+    segments
+}
+
+fn point_segment_is_axis_aligned(start: Point, end: Point) -> bool {
+    start.x == end.x || start.y == end.y
+}
+
+fn terminal_support_matches_face(points: &[Point], target_face: NodeFace) -> bool {
+    if points.len() < 2 {
+        return false;
+    }
+
+    let prev = points[points.len() - 2];
+    let end = points[points.len() - 1];
+    match target_face {
+        NodeFace::Top => prev.x == end.x && prev.y < end.y,
+        NodeFace::Bottom => prev.x == end.x && prev.y > end.y,
+        NodeFace::Left => prev.y == end.y && prev.x < end.x,
+        NodeFace::Right => prev.y == end.y && prev.x > end.x,
+    }
+}
+
+fn terminal_support_point(end: Point, target_face: NodeFace) -> Point {
+    match target_face {
+        NodeFace::Top => Point::new(end.x, end.y.saturating_sub(1)),
+        NodeFace::Bottom => Point::new(end.x, end.y + 1),
+        NodeFace::Left => Point::new(end.x.saturating_sub(1), end.y),
+        NodeFace::Right => Point::new(end.x + 1, end.y),
     }
 }
 
@@ -2161,6 +2564,7 @@ fn route_self_edge(data: &SelfEdgeDrawData, edge: &Edge, direction: Direction) -
         start,
         end,
         segments,
+        source_connection: None,
         entry_direction,
         is_backward: false,
         is_self_edge: true,

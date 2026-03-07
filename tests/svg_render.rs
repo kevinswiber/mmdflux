@@ -3029,6 +3029,34 @@ fn svg_orthogonal_route_backward_edges_preserve_selected_non_orth_style() {
 }
 
 #[test]
+fn svg_orthogonal_criss_cross_step_preserves_center_corridor_detour() {
+    let diagram = load_flowchart_fixture_diagram("criss_cross.mmd");
+    let edge_idx = edge_index(&diagram, "B", "E");
+    let svg = render_fixture_svg(&diagram, EdgeRouting::OrthogonalRoute, SHARP);
+    let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
+
+    assert!(
+        points.len() >= 6,
+        "criss_cross B->E should keep the orthogonal detour points in SVG sharp mode instead of collapsing back into the overlapping mirrored lane: {points:?}"
+    );
+
+    let center_x = (points.first().expect("path has points").0
+        + points.last().expect("path has points").0)
+        / 2.0;
+    let mut center_corridor_levels: Vec<f64> = points
+        .iter()
+        .filter(|(x, _)| (*x - center_x).abs() <= 0.75)
+        .map(|(_, y)| *y)
+        .collect();
+    center_corridor_levels.sort_by(|a, b| a.total_cmp(b));
+    center_corridor_levels.dedup_by(|a, b| (*a - *b).abs() <= 0.75);
+    assert!(
+        center_corridor_levels.len() >= 2,
+        "criss_cross B->E sharp SVG path should traverse a visible center corridor after de-overlap instead of collapsing back onto the mirrored edge lane: center_x={center_x}, levels={center_corridor_levels:?}, points={points:?}"
+    );
+}
+
+#[test]
 fn svg_orthogonal_orthogonal_route_label_spacing_keeps_td_departure_stems_from_source() {
     let diagram = load_flowchart_fixture_diagram("label_spacing.mmd");
     let mut options = RenderOptions::default_svg();

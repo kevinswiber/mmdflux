@@ -304,6 +304,7 @@ fn inject_routed_paths(
         if let Some(layout_edge) = updated.edges.iter_mut().find(|e| e.index == edge.index) {
             layout_edge.layout_path_hint = Some(edge.path);
             layout_edge.label_position = edge.label_position;
+            layout_edge.preserve_orthogonal_topology = edge.preserve_orthogonal_topology;
         }
     }
     updated
@@ -316,6 +317,7 @@ fn inject_orthogonal_route_paths(diagram: &Diagram, geom: &GraphGeometry) -> Gra
         if let Some(layout_edge) = updated.edges.iter_mut().find(|e| e.index == edge.index) {
             layout_edge.layout_path_hint = Some(edge.path);
             layout_edge.label_position = edge.label_position;
+            layout_edge.preserve_orthogonal_topology = edge.preserve_orthogonal_topology;
         }
     }
     updated
@@ -947,7 +949,7 @@ fn prepare_rendered_edge_paths(
         }
     }
 
-    let mut edge_paths: Vec<(usize, Vec<Point>)> = geom
+    let mut edge_paths: Vec<(usize, Vec<Point>, bool)> = geom
         .edges
         .iter()
         .map(|edge| {
@@ -956,7 +958,7 @@ fn prepare_rendered_edge_paths(
                 .as_ref()
                 .map(|ps| ps.iter().map(|p| (*p).into()).collect())
                 .unwrap_or_default();
-            (edge.index, points)
+            (edge.index, points, edge.preserve_orthogonal_topology)
         })
         .collect();
     edge_paths.extend(geom.self_edges.iter().map(|se| {
@@ -964,9 +966,9 @@ fn prepare_rendered_edge_paths(
             .get(&se.edge_index)
             .cloned()
             .unwrap_or_else(|| se.points.iter().map(|p| (*p).into()).collect());
-        (se.edge_index, points)
+        (se.edge_index, points, false)
     }));
-    edge_paths.sort_by_key(|(index, _)| *index);
+    edge_paths.sort_by_key(|(index, _, _)| *index);
 
     let mut rendered_paths: HashMap<usize, Vec<Point>> = HashMap::new();
     let mut basis_stem_edge_indexes: HashSet<usize> = HashSet::new();
@@ -978,7 +980,7 @@ fn prepare_rendered_edge_paths(
         }
         *incoming_edge_counts.entry(edge.to.clone()).or_default() += 1;
     }
-    for (index, points) in edge_paths {
+    for (index, points, preserve_orthogonal_topology) in edge_paths {
         let Some(edge) = diagram.edges.get(index) else {
             continue;
         };
@@ -1130,11 +1132,20 @@ fn prepare_rendered_edge_paths(
             points = vec![projected_start, projected_end];
         }
 
+        let preserve_forward_orthogonal_topology =
+            matches!(edge_routing, EdgeRouting::OrthogonalRoute)
+                && !is_backward
+                && edge.from != edge.to
+                && preserve_orthogonal_topology
+                && points.len() > 4;
+        let preserve_orthogonal_marker_contract =
+            preserve_orthogonal_endpoint_contract || preserve_forward_orthogonal_topology;
+
         // Only densify corners for direct/orthogonal sharp paths. For engine-provided
         // polyline geometry, this synthetic densification introduces tiny visible jogs
         // on axis-to-diagonal turns (for example ampersand fan-in).
         if is_sharp
-            && !preserve_orthogonal_endpoint_contract
+            && !preserve_orthogonal_marker_contract
             && !matches!(
                 edge_routing,
                 EdgeRouting::PolylineRoute | EdgeRouting::EngineProvided
@@ -1146,6 +1157,7 @@ fn prepare_rendered_edge_paths(
             && is_basis
             && !is_backward
             && edge.from != edge.to
+            && !preserve_forward_orthogonal_topology
         {
             points = collapse_primary_face_fan_channel_for_curved(
                 geom,
@@ -1171,7 +1183,8 @@ fn prepare_rendered_edge_paths(
                 is_backward,
                 allow_interior_nudges,
                 enforce_primary_axis_no_backtrack,
-                preserve_orthogonal: preserve_orthogonal_endpoint_contract,
+                preserve_orthogonal: preserve_orthogonal_marker_contract,
+                preserve_explicit_topology: preserve_forward_orthogonal_topology,
                 collapse_terminal_elbows: !is_basis,
                 is_curved_style: is_basis,
                 is_rounded_style: is_rounded_corner && target_incoming_count >= 3,
@@ -1196,7 +1209,7 @@ fn prepare_rendered_edge_paths(
         // smoothing on orthogonal routing paths.
         if !is_rounded_corner
             && !is_basis
-            && !preserve_orthogonal_endpoint_contract
+            && !preserve_orthogonal_marker_contract
             && !matches!(edge_routing, EdgeRouting::EngineProvided)
             && edge.from != edge.to
         {
@@ -1221,6 +1234,7 @@ fn prepare_rendered_edge_paths(
             edge_routing,
             path_curve,
             path_simplification,
+            preserve_forward_orthogonal_topology,
         );
         let rank_span =
             edge_rank_span_for_svg(geom, edge).unwrap_or_else(|| edge.minlen.max(1) as usize);
@@ -3275,6 +3289,7 @@ fn points_for_svg_path(
     edge_routing: EdgeRouting,
     curve: Curve,
     path_simplification: PathSimplification,
+    preserve_orthogonal_topology: bool,
 ) -> Vec<Point> {
     if points.is_empty() {
         return Vec::new();
@@ -3318,7 +3333,7 @@ fn points_for_svg_path(
                 .simplify_with_coords(&compacted, |point| (point.x, point.y))
         }
         PathSimplification::Lossy if needs_orthogonalization => {
-            simplify_orthogonal_points(&points, direction)
+            simplify_orthogonal_points(&points, direction, preserve_orthogonal_topology)
         }
         _ => path_simplification.simplify_with_coords(&points, |point| (point.x, point.y)),
     }
@@ -3374,13 +3389,23 @@ fn path_from_prepared_points(
     }
 }
 
-fn simplify_orthogonal_points(points: &[Point], direction: Direction) -> Vec<Point> {
+fn simplify_orthogonal_points(
+    points: &[Point],
+    direction: Direction,
+    preserve_orthogonal_topology: bool,
+) -> Vec<Point> {
     if points.len() <= 2 {
         return points.to_vec();
     }
 
-    let start = points[0];
-    let end = points[points.len() - 1];
+    let compacted =
+        PathSimplification::Lossless.simplify_with_coords(points, |point| (point.x, point.y));
+    if preserve_orthogonal_topology && compacted.len() > 4 {
+        return compacted;
+    }
+
+    let start = compacted[0];
+    let end = compacted[compacted.len() - 1];
     if segment_axis(start, end).is_some() {
         return vec![start, end];
     }
@@ -3964,6 +3989,7 @@ struct MarkerOffsetOptions {
     allow_interior_nudges: bool,
     enforce_primary_axis_no_backtrack: bool,
     preserve_orthogonal: bool,
+    preserve_explicit_topology: bool,
     collapse_terminal_elbows: bool,
     is_curved_style: bool,
     is_rounded_style: bool,
@@ -3986,6 +4012,7 @@ fn apply_marker_offsets(
         allow_interior_nudges,
         enforce_primary_axis_no_backtrack,
         preserve_orthogonal,
+        preserve_explicit_topology,
         collapse_terminal_elbows,
         is_curved_style,
         is_rounded_style,
@@ -4065,14 +4092,26 @@ fn apply_marker_offsets(
         } else {
             MIN_ENDPOINT_SUPPORT
         };
+        let start_min_endpoint_support =
+            if preserve_explicit_topology && edge.arrow_start == Arrow::None {
+                0.0
+            } else {
+                min_endpoint_support
+            };
+        let end_min_endpoint_support =
+            if preserve_explicit_topology && edge.arrow_end == Arrow::None {
+                0.0
+            } else {
+                min_endpoint_support
+            };
         // Save original endpoints before support extension so we can detect
         // when extension shifts the source/target off the node boundary.
         let original_start = points[0];
         let original_end = points[points.len() - 1];
         points = enforce_min_orthogonal_endpoint_support(
             &points,
-            start_offset + min_endpoint_support,
-            end_offset + min_endpoint_support,
+            start_offset + start_min_endpoint_support,
+            end_offset + end_min_endpoint_support,
         );
 
         // For backward edges, enforce_min_orthogonal_endpoint_support may shift
@@ -4101,8 +4140,8 @@ fn apply_marker_offsets(
         // cannot invert the terminal segment direction.
         let start_support = segment_manhattan_len(points[0], points[1]);
         let end_support = segment_manhattan_len(points[points.len() - 2], points[points.len() - 1]);
-        start_offset = start_offset.min((start_support - min_endpoint_support).max(0.0));
-        end_offset = end_offset.min((end_support - min_endpoint_support).max(0.0));
+        start_offset = start_offset.min((start_support - start_min_endpoint_support).max(0.0));
+        end_offset = end_offset.min((end_support - end_min_endpoint_support).max(0.0));
     }
 
     let mut out = Vec::with_capacity(points.len());

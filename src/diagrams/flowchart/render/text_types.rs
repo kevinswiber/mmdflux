@@ -5,7 +5,7 @@
 //! engine float coordinates to draw coordinates) and consumed by the text
 //! edge, shape, subgraph, and router modules.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::text_shape::NodeBounds;
 use crate::graph::{Direction, Shape};
@@ -104,6 +104,9 @@ pub struct Layout {
     /// When present for an edge, text routing can consume these points directly
     /// and only perform grid/character conversion.
     pub routed_edge_paths: HashMap<usize, Vec<(usize, usize)>>,
+
+    /// Routed edges whose deliberate orthogonal corridor should be preserved.
+    pub preserve_routed_path_topology: HashSet<usize>,
 
     /// Pre-computed label positions for edges with labels.
     /// Key: edge index in `Diagram::edges`, Value: (x, y) position for the label center.

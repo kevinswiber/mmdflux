@@ -105,6 +105,23 @@ fn render_fixture_ascii(name: &str) -> String {
     render_fixture_with_options(name, OutputFormat::Ascii, TextColorMode::Plain)
 }
 
+#[test]
+fn criss_cross_text_keeps_vertical_terminal_arrowheads() {
+    let output = render_fixture("criss_cross.mmd");
+
+    assert!(
+        !output.contains('►') && !output.contains('◄'),
+        "criss_cross text output should not fall back to a horizontal terminal arrowhead after the orthogonal de-overlap reroute:\n{output}"
+    );
+    let has_bottom_arrival_row = output
+        .lines()
+        .any(|line| line.chars().filter(|&ch| ch == '▼').count() >= 4);
+    assert!(
+        has_bottom_arrival_row,
+        "criss_cross text output should keep visible downward terminal arrowheads into the bottom row targets:\n{output}"
+    );
+}
+
 fn assert_flowchart_snapshot(name: &str) {
     let output = render_fixture(name);
     let snapshot_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -666,7 +683,7 @@ mod rendering {
 
         assert_eq!(
             remote_to_working.segments.len(),
-            6,
+            5,
             "git_workflow Remote -> Working should collapse to the shared bottom-channel family when routed draw paths are available: {:?}",
             remote_to_working.segments
         );
@@ -676,8 +693,8 @@ mod rendering {
             remote_to_working.segments
         );
         assert_eq!(
-            vertical_segments, 4,
-            "git_workflow Remote -> Working should keep four vertical support segments in the compact bottom-channel family: {:?}",
+            vertical_segments, 3,
+            "git_workflow Remote -> Working should keep three vertical support segments in the compact bottom-channel family: {:?}",
             remote_to_working.segments
         );
     }
@@ -705,7 +722,7 @@ mod rendering {
 
             assert_eq!(
                 a_to_d.segments.len(),
-                6,
+                5,
                 "{fixture} A -> D should use the compact routed elbow family when routed draw paths are available: {:?}",
                 a_to_d.segments
             );
@@ -715,11 +732,38 @@ mod rendering {
                 a_to_d.segments
             );
             assert_eq!(
-                vertical_segments, 4,
-                "{fixture} A -> D should keep exactly four vertical segments in the routed elbow family: {:?}",
+                vertical_segments, 3,
+                "{fixture} A -> D should keep exactly three vertical segments in the routed elbow family: {:?}",
                 a_to_d.segments
             );
         }
+    }
+
+    #[test]
+    fn criss_cross_b_to_e_keeps_vertical_terminal_support_in_text() {
+        let (diagram, layout) = layout_fixture_with_routed("criss_cross.mmd");
+        let routed = route_all_edges(&diagram.edges, &layout, diagram.direction);
+        let b_to_e = routed
+            .iter()
+            .find(|edge| edge.edge.from == "B" && edge.edge.to == "E")
+            .expect("criss_cross should contain B -> E");
+
+        let final_segment = b_to_e
+            .segments
+            .iter()
+            .rev()
+            .find(|segment| segment.length() > 0)
+            .expect("criss_cross B -> E should keep a visible terminal support");
+        assert!(
+            matches!(
+                final_segment,
+                Segment::Vertical { x, y_start, y_end }
+                    if *x == b_to_e.end.x && *y_end > *y_start
+            ),
+            "criss_cross B -> E should keep a downward terminal support into E: end={:?}, segments={:?}",
+            b_to_e.end,
+            b_to_e.segments
+        );
     }
 
     #[test]

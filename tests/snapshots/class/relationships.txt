@@ -2,8 +2,8 @@
  │ Service │
  └─────────┘
       ┆
-authenticates
       ┆
+authenticates
       ┆
       ┆
       ▼
@@ -20,8 +20,8 @@ authenticates
   │ Order │
   └───────┘
       ◆
-contains
       │
+contains
       │
       │
       │

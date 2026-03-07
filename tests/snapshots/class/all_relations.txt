@@ -4,8 +4,8 @@
    │        │        △        ◆        ◇        ┆        ┆
    │        │        │        │        │        ┆        ┆
    │        │        │        │        │        ┆        ┆
-   │        │        │        │        │    directed dep ┆
    │        │        │        │        │        ┆        ┆
+   │        │        │        │        │    directed dep ┆
    │    directed     │   composition   │   dependency    ┆
 association │   inheritance   │   aggregation   ┆        ┆
    │        │        │        │        │        ┆        ┆

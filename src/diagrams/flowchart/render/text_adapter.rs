@@ -23,8 +23,11 @@ use super::text_layout::{
 };
 use super::text_shape::{NodeBounds, node_dimensions};
 use crate::diagrams::flowchart::geometry::{GraphGeometry, RoutedGraphGeometry};
-use crate::graph::{Diagram, Direction, Shape};
+use crate::graph::{Diagram, Direction, Edge, Shape};
 use crate::layered::{Direction as LayeredDirection, Rect};
+
+type DrawPath = Vec<(usize, usize)>;
+type DrawPathPair = (DrawPath, DrawPath);
 
 /// Convenience: run the full engine → adapter pipeline to produce a `Layout`.
 ///
@@ -373,22 +376,32 @@ pub fn geometry_to_text_layout_with_routed(
         width,
         height,
     );
-    let mut routed_edge_paths: HashMap<usize, Vec<(usize, usize)>> = HashMap::new();
+    let mut routed_edge_paths: HashMap<usize, DrawPath> = HashMap::new();
+    let mut preserve_routed_path_topology: HashSet<usize> = HashSet::new();
     if let Some(routed) = routed {
         for edge in &routed.edges {
             if edge.path.is_empty() {
                 continue;
             }
-            let mut converted: Vec<(usize, usize)> = Vec::with_capacity(edge.path.len());
+            let mut converted: DrawPath = Vec::with_capacity(edge.path.len());
             for point in &edge.path {
                 converted.push(ctx.to_ascii(point.x, point.y));
             }
             converted.dedup();
             if converted.len() >= 2 {
                 routed_edge_paths.insert(edge.index, converted);
+                if edge.preserve_orthogonal_topology {
+                    preserve_routed_path_topology.insert(edge.index);
+                }
             }
         }
     }
+    compact_vertical_criss_cross_draw_paths(
+        diagram,
+        &node_bounds,
+        &mut routed_edge_paths,
+        &preserve_routed_path_topology,
+    );
 
     let mut edge_label_positions = transform_label_positions_direct(
         &engine_hints.label_positions,
@@ -681,10 +694,274 @@ pub fn geometry_to_text_layout_with_routed(
         v_spacing: config.v_spacing,
         edge_waypoints,
         routed_edge_paths,
+        preserve_routed_path_topology,
         edge_label_positions,
         node_shapes,
         subgraph_bounds,
         self_edges,
         node_directions,
     }
+}
+
+fn compact_vertical_criss_cross_draw_paths(
+    diagram: &Diagram,
+    node_bounds: &HashMap<String, NodeBounds>,
+    routed_edge_paths: &mut HashMap<usize, DrawPath>,
+    preserve_routed_path_topology: &HashSet<usize>,
+) {
+    if !matches!(diagram.direction, Direction::TopDown | Direction::BottomTop) {
+        return;
+    }
+
+    let mut adjusted_edges: HashSet<usize> = HashSet::new();
+
+    for i in 0..diagram.edges.len() {
+        let first = &diagram.edges[i];
+        if adjusted_edges.contains(&first.index)
+            || first.from_subgraph.is_some()
+            || first.to_subgraph.is_some()
+            || !preserve_routed_path_topology.contains(&first.index)
+        {
+            continue;
+        }
+
+        for second in diagram.edges.iter().skip(i + 1) {
+            if adjusted_edges.contains(&second.index)
+                || second.from_subgraph.is_some()
+                || second.to_subgraph.is_some()
+                || !preserve_routed_path_topology.contains(&second.index)
+            {
+                continue;
+            }
+
+            let Some(first_path) = routed_edge_paths.get(&first.index).cloned() else {
+                continue;
+            };
+            let Some(second_path) = routed_edge_paths.get(&second.index).cloned() else {
+                continue;
+            };
+
+            let compacted = if is_vertical_criss_cross_simple_path(&first_path)
+                && is_vertical_criss_cross_detour_path(&second_path)
+                && forms_vertical_criss_cross_pair(
+                    first,
+                    &first_path,
+                    second,
+                    &second_path,
+                    node_bounds,
+                    diagram.direction,
+                ) {
+                compact_vertical_criss_cross_pair(&first_path, &second_path, diagram.direction)
+                    .map(|(simple, detour)| (first.index, simple, second.index, detour))
+            } else if is_vertical_criss_cross_detour_path(&first_path)
+                && is_vertical_criss_cross_simple_path(&second_path)
+                && forms_vertical_criss_cross_pair(
+                    second,
+                    &second_path,
+                    first,
+                    &first_path,
+                    node_bounds,
+                    diagram.direction,
+                )
+            {
+                compact_vertical_criss_cross_pair(&second_path, &first_path, diagram.direction)
+                    .map(|(simple, detour)| (second.index, simple, first.index, detour))
+            } else {
+                None
+            };
+
+            let Some((simple_idx, simple_points, detour_idx, detour_points)) = compacted else {
+                continue;
+            };
+
+            routed_edge_paths.insert(simple_idx, simple_points);
+            routed_edge_paths.insert(detour_idx, detour_points);
+            adjusted_edges.insert(simple_idx);
+            adjusted_edges.insert(detour_idx);
+            break;
+        }
+    }
+}
+
+fn is_vertical_criss_cross_simple_path(points: &[(usize, usize)]) -> bool {
+    if points.len() != 4 {
+        return false;
+    }
+
+    point_delta(points[0].0, points[1].0) == 0
+        && point_delta(points[1].1, points[2].1) == 0
+        && point_delta(points[2].0, points[3].0) == 0
+        && point_delta(points[0].1, points[1].1) != 0
+        && point_delta(points[1].0, points[2].0) != 0
+        && point_delta(points[2].1, points[3].1) != 0
+        && point_delta(points[0].1, points[1].1) == point_delta(points[2].1, points[3].1)
+}
+
+fn is_vertical_criss_cross_detour_path(points: &[(usize, usize)]) -> bool {
+    if points.len() != 6 {
+        return false;
+    }
+
+    point_delta(points[0].0, points[1].0) == 0
+        && point_delta(points[1].1, points[2].1) == 0
+        && point_delta(points[2].0, points[3].0) == 0
+        && point_delta(points[3].1, points[4].1) == 0
+        && point_delta(points[4].0, points[5].0) == 0
+        && point_delta(points[0].1, points[1].1) != 0
+        && point_delta(points[1].0, points[2].0) != 0
+        && point_delta(points[2].1, points[3].1) != 0
+        && point_delta(points[3].0, points[4].0) != 0
+        && point_delta(points[4].1, points[5].1) != 0
+        && point_delta(points[0].1, points[1].1) == point_delta(points[2].1, points[3].1)
+        && point_delta(points[2].1, points[3].1) == point_delta(points[4].1, points[5].1)
+        && point_delta(points[1].0, points[2].0) == point_delta(points[3].0, points[4].0)
+}
+
+fn forms_vertical_criss_cross_pair(
+    simple_edge: &Edge,
+    simple_path: &[(usize, usize)],
+    detour_edge: &Edge,
+    detour_path: &[(usize, usize)],
+    node_bounds: &HashMap<String, NodeBounds>,
+    direction: Direction,
+) -> bool {
+    let Some(simple_src) = node_bounds.get(&simple_edge.from) else {
+        return false;
+    };
+    let Some(simple_tgt) = node_bounds.get(&simple_edge.to) else {
+        return false;
+    };
+    let Some(detour_src) = node_bounds.get(&detour_edge.from) else {
+        return false;
+    };
+    let Some(detour_tgt) = node_bounds.get(&detour_edge.to) else {
+        return false;
+    };
+
+    let vertical_sign = point_delta(simple_path[0].1, simple_path[1].1);
+    let simple_horizontal_sign = point_delta(simple_path[1].0, simple_path[2].0);
+    let detour_horizontal_sign = point_delta(detour_path[1].0, detour_path[2].0);
+    if vertical_sign == 0 || simple_horizontal_sign == 0 || detour_horizontal_sign == 0 {
+        return false;
+    }
+
+    let forward = match direction {
+        Direction::TopDown => simple_src.y < simple_tgt.y && detour_src.y < detour_tgt.y,
+        Direction::BottomTop => simple_src.y > simple_tgt.y && detour_src.y > detour_tgt.y,
+        Direction::LeftRight | Direction::RightLeft => false,
+    };
+    if !forward {
+        return false;
+    }
+
+    let sources_share_rank = simple_src.y == detour_src.y;
+    let targets_share_rank = simple_tgt.y == detour_tgt.y;
+    let sources_cross = simple_src.x > detour_src.x;
+    let targets_cross = simple_tgt.x < detour_tgt.x;
+    if !(sources_share_rank && targets_share_rank && sources_cross && targets_cross) {
+        return false;
+    }
+
+    if simple_path[0].1 != detour_path[0].1 || simple_path[3].1 != detour_path[5].1 {
+        return false;
+    }
+    if simple_path[0].0 != detour_path[5].0 || simple_path[3].0 != detour_path[0].0 {
+        return false;
+    }
+
+    let center_y = simple_path[1].1;
+    let upper_y = detour_path[1].1;
+    let lower_y = detour_path[3].1;
+    let vertical_order_ok = if vertical_sign > 0 {
+        upper_y < center_y && center_y < lower_y
+    } else {
+        upper_y > center_y && center_y > lower_y
+    };
+    if !vertical_order_ok {
+        return false;
+    }
+
+    detour_path[2].0 > detour_path[1].0
+        && detour_path[2].0 < detour_path[4].0
+        && simple_horizontal_sign < 0
+        && detour_horizontal_sign > 0
+}
+
+fn compact_vertical_criss_cross_pair(
+    simple_path: &[(usize, usize)],
+    detour_path: &[(usize, usize)],
+    direction: Direction,
+) -> Option<DrawPathPair> {
+    if !matches!(direction, Direction::TopDown | Direction::BottomTop) {
+        return None;
+    }
+
+    let vertical_sign = point_delta(simple_path[0].1, simple_path[1].1) as isize;
+    let simple_horizontal_sign = point_delta(simple_path[1].0, simple_path[2].0) as isize;
+    let detour_horizontal_sign = point_delta(detour_path[3].0, detour_path[4].0) as isize;
+    if vertical_sign == 0 || simple_horizontal_sign == 0 || detour_horizontal_sign == 0 {
+        return None;
+    }
+
+    let lower_gap = detour_path[3].1.abs_diff(simple_path[1].1);
+    if lower_gap < 2 {
+        return None;
+    }
+    let detour_run = detour_path[4].0.abs_diff(detour_path[3].0);
+    if detour_run < 2 {
+        return None;
+    }
+
+    let simple_shifted_x = shift_axis(simple_path[0].0, simple_horizontal_sign)?;
+    let target_pull = if detour_run >= 4 { 2 } else { 1 } as isize;
+    let detour_target_x = shift_axis(detour_path[4].0, -detour_horizontal_sign * target_pull)?;
+    let detour_lower_y = shift_axis(detour_path[3].1, -vertical_sign)?;
+
+    let center_x = detour_path[2].0 as isize;
+    let simple_shifted_x_i = simple_shifted_x as isize;
+    let detour_target_x_i = detour_target_x as isize;
+    if simple_shifted_x_i <= center_x || detour_target_x_i <= center_x {
+        return None;
+    }
+    if detour_target_x_i <= center_x + 1 {
+        return None;
+    }
+
+    let center_y = simple_path[1].1 as isize;
+    let detour_lower_y_i = detour_lower_y as isize;
+    if (vertical_sign > 0 && detour_lower_y_i <= center_y)
+        || (vertical_sign < 0 && detour_lower_y_i >= center_y)
+    {
+        return None;
+    }
+
+    let simple_stem_y = shift_axis(simple_path[1].1, -vertical_sign)?;
+    let simple = vec![
+        (simple_shifted_x, simple_path[0].1),
+        (simple_shifted_x, simple_stem_y),
+        (simple_shifted_x, simple_path[1].1),
+        simple_path[2],
+        simple_path[3],
+    ];
+
+    let mut detour = detour_path.to_vec();
+    detour[3].1 = detour_lower_y;
+    detour[4].0 = detour_target_x;
+    detour[4].1 = detour_lower_y;
+    detour[5].0 = detour_target_x;
+
+    Some((simple, detour))
+}
+
+fn point_delta(a: usize, b: usize) -> i8 {
+    match b.cmp(&a) {
+        std::cmp::Ordering::Less => -1,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
+    }
+}
+
+fn shift_axis(value: usize, delta: isize) -> Option<usize> {
+    let shifted = value as isize + delta;
+    (shifted >= 0).then_some(shifted as usize)
 }

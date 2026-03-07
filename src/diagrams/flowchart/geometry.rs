@@ -121,6 +121,9 @@ pub struct LayoutEdge {
     pub to_subgraph: Option<String>,
     /// Optional complete path from engines that provide full routing (e.g. ELK).
     pub layout_path_hint: Option<Vec<FPoint>>,
+    /// Preserve the explicit orthogonal topology instead of simplifying it away.
+    /// Used when routing introduced a deliberate de-overlap corridor.
+    pub preserve_orthogonal_topology: bool,
 }
 
 /// Subgraph bounding box in layout float space.
@@ -285,6 +288,7 @@ pub fn from_layered_layout(result: &layered::LayoutResult, diagram: &Diagram) ->
                 } else {
                     Some(el.points.iter().map(|p| FPoint::new(p.x, p.y)).collect())
                 },
+                preserve_orthogonal_topology: false,
             }
         })
         .collect();
@@ -416,6 +420,9 @@ pub struct RoutedEdgeGeometry {
     pub source_port: Option<EdgePort>,
     /// Port attachment at the target node.
     pub target_port: Option<EdgePort>,
+    /// Preserve the explicit orthogonal topology instead of simplifying it away.
+    /// Set when routing introduced a deliberate de-overlap corridor.
+    pub preserve_orthogonal_topology: bool,
 }
 
 /// A routed self-edge loop.
@@ -830,6 +837,7 @@ mod tests {
             from_subgraph: None,
             to_subgraph: None,
             layout_path_hint: None,
+            preserve_orthogonal_topology: false,
         };
         assert!(edge.layout_path_hint.is_none());
         assert_eq!(edge.waypoints.len(), 1);
@@ -888,6 +896,7 @@ mod tests {
             to_subgraph: None,
             source_port: Some(port),
             target_port: None,
+            preserve_orthogonal_topology: false,
         };
         assert!(edge.source_port.is_some());
         assert!(edge.target_port.is_none());

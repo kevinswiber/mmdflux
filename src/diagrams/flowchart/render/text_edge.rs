@@ -44,11 +44,7 @@ pub fn calc_end_label_positions(segments: &[Segment]) -> (Option<Point>, Option<
         return (None, None);
     }
     let total_length: usize = segments.iter().map(Segment::length).sum();
-    if total_length < 3 {
-        return (None, None);
-    }
-
-    let fraction = (total_length as f64 * 0.15).max(1.0) as usize;
+    let fraction = (total_length as f64 * 0.15).floor() as usize;
 
     // Tail: near path start
     let tail = {
@@ -85,7 +81,7 @@ pub fn calc_end_label_positions(segments: &[Segment]) -> (Option<Point>, Option<
     (head, tail)
 }
 
-const PRECOMPUTED_LABEL_MAX_DRIFT: f64 = 2.0;
+const PRECOMPUTED_LABEL_BASE_DRIFT: f64 = 2.0;
 const LABEL_POINT_EPS: f64 = 0.000_001;
 
 fn point_distance(a: (f64, f64), b: (f64, f64)) -> f64 {
@@ -118,6 +114,18 @@ fn distance_point_to_path(point: (usize, usize), segments: &[Segment]) -> f64 {
         .iter()
         .map(|segment| distance_point_to_segment(p, segment))
         .fold(f64::INFINITY, f64::min)
+}
+
+fn allowed_precomputed_label_drift(
+    direction: Direction,
+    label_width: usize,
+    label_height: usize,
+) -> f64 {
+    let cross_axis_span = match direction {
+        Direction::TopDown | Direction::BottomTop => label_width.max(1) as f64 / 2.0,
+        Direction::LeftRight | Direction::RightLeft => label_height.max(1) as f64 / 2.0,
+    };
+    PRECOMPUTED_LABEL_BASE_DRIFT + cross_axis_span + 1.0
 }
 
 /// A label split into lines with precomputed dimensions.
@@ -165,6 +173,51 @@ fn exit_direction_from_segments(segments: &[Segment]) -> AttachDirection {
     }
 }
 
+fn source_connection(direction: AttachDirection) -> Connections {
+    match direction {
+        AttachDirection::Top => Connections {
+            up: true,
+            down: false,
+            left: false,
+            right: false,
+        },
+        AttachDirection::Bottom => Connections {
+            up: false,
+            down: true,
+            left: false,
+            right: false,
+        },
+        AttachDirection::Left => Connections {
+            up: false,
+            down: false,
+            left: true,
+            right: false,
+        },
+        AttachDirection::Right => Connections {
+            up: false,
+            down: false,
+            left: false,
+            right: true,
+        },
+    }
+}
+
+fn draw_source_launch(canvas: &mut Canvas, routed: &RoutedEdge, charset: &CharSet) {
+    if routed.edge.arrow_start != Arrow::None || routed.is_self_edge || routed.segments.is_empty() {
+        return;
+    }
+    let Some(direction) = routed.source_connection else {
+        return;
+    };
+    canvas.set_with_connection(
+        routed.start.x,
+        routed.start.y,
+        source_connection(direction),
+        charset,
+        routed.edge.stroke,
+    );
+}
+
 /// Render a routed edge onto the canvas.
 pub fn render_edge(
     canvas: &mut Canvas,
@@ -182,6 +235,7 @@ pub fn render_edge(
     for segment in &routed.segments {
         draw_segment(canvas, segment, stroke, charset);
     }
+    draw_source_launch(canvas, routed, charset);
 
     // Draw arrow at the end point using entry direction
     if routed.edge.arrow_end != Arrow::None {
@@ -282,45 +336,10 @@ fn draw_edge_label_with_tracking(
                         // Fall back to vertical segment placement.
                         // For backward edges, prefer the longest inner vertical segment.
                         // For forward edges, prefer the longest vertical near the source.
-                        let chosen_seg = select_label_segment(&routed.segments);
-
-                        if let Some(seg) = chosen_seg {
-                            // Determine which side to place the label based on target position
-                            let mut place_right = routed.end.x > routed.start.x;
-
-                            // Check if the proposed position would place the label between
-                            // two attachment ports. If an edge cell exists on the far side
-                            // of the label, flip sides.
-                            let (trial_x, trial_y) = find_label_position_on_segment_with_side(
-                                seg,
-                                label_width,
-                                place_right,
-                            );
-                            if label_adjacent_to_edge_on_far_side(
-                                canvas,
-                                trial_x,
-                                trial_y,
-                                label_width,
-                                label_height,
-                                place_right,
-                            ) {
-                                place_right = !place_right;
-                            }
-
-                            find_label_position_on_segment_with_side(seg, label_width, place_right)
-                        } else {
-                            // Fallback to midpoint
-                            let center_y = (routed.start.y + routed.end.y) / 2;
-                            (routed.end.x.saturating_sub(label_width / 2), center_y)
-                        }
+                        vertical_label_position(canvas, routed, label_width, label_height)
                     }
                 } else {
-                    // Simple straight path - place label beside the edge line
-                    let center_y = (routed.start.y + routed.end.y) / 2;
-                    // Place label to the left of the edge, not centered on it
-                    // This avoids collision with the edge line
-                    let label_x = routed.end.x.saturating_sub(label_width + 1);
-                    (label_x, center_y)
+                    vertical_label_position(canvas, routed, label_width, label_height)
                 }
             }
             Direction::LeftRight => {
@@ -372,7 +391,18 @@ fn draw_edge_label_with_tracking(
     // Try to find a position that doesn't collide with nodes or other labels.
     // When placed above a horizontal segment, skip edge collision checks since
     // the label intentionally overwrites edge cells on the jog line.
-    let check_edge = !on_h_seg;
+    let is_simple_axis_aligned = routed.segments.len() <= 2
+        && match direction {
+            Direction::TopDown | Direction::BottomTop => routed
+                .segments
+                .iter()
+                .all(|segment| matches!(segment, Segment::Vertical { .. })),
+            Direction::LeftRight | Direction::RightLeft => routed
+                .segments
+                .iter()
+                .all(|segment| matches!(segment, Segment::Horizontal { .. })),
+        };
+    let check_edge = !on_h_seg && !is_simple_axis_aligned;
     let (label_x, label_y) = find_safe_label_position(
         canvas,
         (base_x, base_y),
@@ -431,6 +461,36 @@ fn draw_edge_label_with_tracking(
         width: label_width,
         height: label_height,
     })
+}
+
+fn vertical_label_position(
+    canvas: &Canvas,
+    routed: &RoutedEdge,
+    label_width: usize,
+    label_height: usize,
+) -> (usize, usize) {
+    if let Some(seg) = select_label_segment(&routed.segments) {
+        // Prefer the side implied by the path direction, then flip if that
+        // would sandwich the label between nearby edges.
+        let mut place_right = routed.end.x > routed.start.x;
+        let (trial_x, trial_y) =
+            find_label_position_on_segment_with_side(seg, label_width, place_right);
+        if label_adjacent_to_edge_on_far_side(
+            canvas,
+            trial_x,
+            trial_y,
+            label_width,
+            label_height,
+            place_right,
+        ) {
+            place_right = !place_right;
+        }
+
+        find_label_position_on_segment_with_side(seg, label_width, place_right)
+    } else {
+        let center_y = (routed.start.y + routed.end.y) / 2;
+        (routed.end.x.saturating_sub(label_width / 2), center_y)
+    }
 }
 
 /// Position a label above the best horizontal segment for LR/RL multi-segment edges.
@@ -882,13 +942,21 @@ struct PlacedLabel {
 }
 
 impl PlacedLabel {
-    /// Check if this label overlaps with a proposed label position.
+    /// Check if this label collides with a proposed label position.
+    ///
+    /// A one-cell horizontal gutter keeps nearby edge labels from visually
+    /// running together on the same row when straight routes share a corridor.
     fn overlaps(&self, x: usize, y: usize, width: usize, height: usize) -> bool {
-        let self_end_x = self.x + self.width;
+        let self_start_x = self.x.saturating_sub(1);
+        let self_end_x = self.x + self.width + 1;
         let self_end_y = self.y + self.height;
-        let other_end_x = x + width;
+        let other_start_x = x.saturating_sub(1);
+        let other_end_x = x + width + 1;
         let other_end_y = y + height;
-        x < self_end_x && self.x < other_end_x && y < self_end_y && self.y < other_end_y
+        other_start_x < self_end_x
+            && self_start_x < other_end_x
+            && y < self_end_y
+            && self.y < other_end_y
     }
 }
 
@@ -934,6 +1002,7 @@ pub fn render_all_edges_with_labels(
         for segment in &routed.segments {
             draw_segment(canvas, segment, routed.edge.stroke, charset);
         }
+        draw_source_launch(canvas, routed, charset);
         if routed.edge.arrow_end != Arrow::None {
             draw_arrow_with_entry(
                 canvas,
@@ -981,7 +1050,12 @@ pub fn render_all_edges_with_labels(
                             return None;
                         }
                         let drift = distance_point_to_path((px, py), &routed.segments);
-                        if drift <= PRECOMPUTED_LABEL_MAX_DRIFT {
+                        let allowed_drift = allowed_precomputed_label_drift(
+                            diagram_direction,
+                            label_width,
+                            label_height,
+                        );
+                        if drift <= allowed_drift {
                             Some((px, py))
                         } else {
                             stale_precomputed_anchor = true;
@@ -2078,5 +2152,67 @@ mod tests {
             b_line,
             output
         );
+    }
+
+    #[test]
+    fn compact_bottom_launch_renders_corner_at_start_cell() {
+        let charset = CharSet::unicode();
+        let mut canvas = Canvas::new(12, 8);
+        let routed = RoutedEdge {
+            edge: Edge::new("A", "B"),
+            start: Point::new(2, 3),
+            end: Point::new(8, 6),
+            segments: vec![
+                Segment::Horizontal {
+                    y: 3,
+                    x_start: 2,
+                    x_end: 8,
+                },
+                Segment::Vertical {
+                    x: 8,
+                    y_start: 3,
+                    y_end: 6,
+                },
+            ],
+            source_connection: Some(AttachDirection::Top),
+            entry_direction: AttachDirection::Top,
+            is_backward: false,
+            is_self_edge: false,
+        };
+
+        render_edge(&mut canvas, &routed, &charset, Direction::TopDown);
+
+        assert_eq!(canvas.get(2, 3).unwrap().ch, '└');
+    }
+
+    #[test]
+    fn compact_right_launch_renders_corner_at_start_cell() {
+        let charset = CharSet::unicode();
+        let mut canvas = Canvas::new(12, 8);
+        let routed = RoutedEdge {
+            edge: Edge::new("A", "B"),
+            start: Point::new(6, 4),
+            end: Point::new(2, 1),
+            segments: vec![
+                Segment::Vertical {
+                    x: 6,
+                    y_start: 4,
+                    y_end: 1,
+                },
+                Segment::Horizontal {
+                    y: 1,
+                    x_start: 6,
+                    x_end: 2,
+                },
+            ],
+            source_connection: Some(AttachDirection::Left),
+            entry_direction: AttachDirection::Right,
+            is_backward: true,
+            is_self_edge: false,
+        };
+
+        render_edge(&mut canvas, &routed, &charset, Direction::LeftRight);
+
+        assert_eq!(canvas.get(6, 4).unwrap().ch, '┘');
     }
 }

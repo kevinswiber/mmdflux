@@ -145,6 +145,7 @@ pub fn route_graph_geometry(
                         target_port: port_attachments
                             .get(&edge.index)
                             .and_then(|(_, tp)| tp.clone()),
+                        preserve_orthogonal_topology: false,
                     }
                 })
                 .collect()
@@ -874,6 +875,7 @@ mod tests {
             from_subgraph: None,
             to_subgraph: None,
             layout_path_hint: Some(vec![FPoint::new(50.0, 35.0), FPoint::new(50.0, 65.0)]),
+            preserve_orthogonal_topology: false,
         }];
 
         let geom = GraphGeometry {
@@ -1053,6 +1055,7 @@ mod tests {
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: None,
+                preserve_orthogonal_topology: false,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -1117,6 +1120,7 @@ mod tests {
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: None,
+                preserve_orthogonal_topology: false,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -1185,6 +1189,7 @@ mod tests {
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: None,
+                preserve_orthogonal_topology: false,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -1316,6 +1321,7 @@ mod tests {
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: Some(direct_hint.clone()),
+                preserve_orthogonal_topology: false,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -1391,6 +1397,7 @@ mod tests {
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: Some(fallback_hint.clone()),
+                preserve_orthogonal_topology: false,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -1637,6 +1644,7 @@ mod tests {
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: None,
+                preserve_orthogonal_topology: false,
             },
             LayoutEdge {
                 index: 1,
@@ -1648,6 +1656,7 @@ mod tests {
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: None,
+                preserve_orthogonal_topology: false,
             },
             LayoutEdge {
                 index: 2,
@@ -1659,6 +1668,7 @@ mod tests {
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: None,
+                preserve_orthogonal_topology: false,
             },
         ];
 

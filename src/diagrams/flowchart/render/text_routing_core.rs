@@ -1481,6 +1481,7 @@ mod port_attachment_tests {
                 from_subgraph: None,
                 to_subgraph: None,
                 layout_path_hint: None,
+                preserve_orthogonal_topology: false,
             })
             .collect();
         GraphGeometry {

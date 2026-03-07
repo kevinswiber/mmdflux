@@ -12,8 +12,8 @@
 └──────────────┘  │
         │         │
         │         │
-        │         │
-   git commit git pull
+        │     git pull
+   git commit     │
         │         │
         ▼         │
  ┌────────────┐   │

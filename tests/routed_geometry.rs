@@ -3421,6 +3421,118 @@ fn five_fan_out_primary_face_channels_are_staggered_without_overlap() {
 }
 
 #[test]
+fn criss_cross_forward_pair_uses_distinct_orthogonal_channels() {
+    let (diagram, geom) = layout_fixture("criss_cross.mmd");
+    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+
+    let c_to_d = routed
+        .edges
+        .iter()
+        .find(|edge| edge.from == "C" && edge.to == "D")
+        .expect("criss_cross should route C -> D");
+    let b_to_e = routed
+        .edges
+        .iter()
+        .find(|edge| edge.from == "B" && edge.to == "E")
+        .expect("criss_cross should route B -> E");
+
+    assert!(
+        !has_coincident_horizontal_overlap(&c_to_d.path, &b_to_e.path),
+        "criss_cross should avoid coincident horizontal overlap between C -> D and B -> E: C->D={:?}, B->E={:?}",
+        c_to_d.path,
+        b_to_e.path
+    );
+    assert!(
+        !has_coincident_vertical_overlap(&c_to_d.path, &b_to_e.path),
+        "criss_cross should avoid coincident vertical overlap between C -> D and B -> E: C->D={:?}, B->E={:?}",
+        c_to_d.path,
+        b_to_e.path
+    );
+
+    let path_with_corridor = if c_to_d.path.len() >= b_to_e.path.len() {
+        &c_to_d.path
+    } else {
+        &b_to_e.path
+    };
+    assert!(
+        path_with_corridor.len() >= 5,
+        "criss_cross should preserve a multi-bend detour for one diagonal edge so the orthogonal routes stay legible: C->D={:?}, B->E={:?}",
+        c_to_d.path,
+        b_to_e.path
+    );
+
+    let corridor_x = path_with_corridor.iter().map(|point| point.x).sum::<f64>()
+        / path_with_corridor.len() as f64;
+    let diagram_center_x = geom
+        .nodes
+        .get("A")
+        .expect("criss_cross should contain A")
+        .rect
+        .center_x();
+    assert!(
+        (corridor_x - diagram_center_x).abs() <= 24.0,
+        "criss_cross detour should run through the center corridor instead of collapsing back onto the mirrored edge lane: corridor_x={corridor_x}, center_x={diagram_center_x}, path={path_with_corridor:?}"
+    );
+
+    let lane_clearance = minimum_parallel_clearance(&c_to_d.path, &b_to_e.path);
+    assert!(
+        lane_clearance >= 5.0,
+        "criss_cross should keep a visible clearance band between the mirrored diagonals so the orthogonal routes remain legible in SVG and text: clearance={lane_clearance}, C->D={:?}, B->E={:?}",
+        c_to_d.path,
+        b_to_e.path
+    );
+}
+
+fn minimum_parallel_clearance(path_a: &[FPoint], path_b: &[FPoint]) -> f64 {
+    const EPS: f64 = 0.5;
+    let mut best = f64::INFINITY;
+
+    for seg_a in path_a.windows(2) {
+        let a0 = seg_a[0];
+        let a1 = seg_a[1];
+        let a_min_x = a0.x.min(a1.x);
+        let a_max_x = a0.x.max(a1.x);
+        let a_min_y = a0.y.min(a1.y);
+        let a_max_y = a0.y.max(a1.y);
+        let a_is_horizontal = (a0.y - a1.y).abs() <= EPS && (a0.x - a1.x).abs() > EPS;
+        let a_is_vertical = (a0.x - a1.x).abs() <= EPS && (a0.y - a1.y).abs() > EPS;
+
+        for seg_b in path_b.windows(2) {
+            let b0 = seg_b[0];
+            let b1 = seg_b[1];
+            let b_min_x = b0.x.min(b1.x);
+            let b_max_x = b0.x.max(b1.x);
+            let b_min_y = b0.y.min(b1.y);
+            let b_max_y = b0.y.max(b1.y);
+            let b_is_horizontal = (b0.y - b1.y).abs() <= EPS && (b0.x - b1.x).abs() > EPS;
+            let b_is_vertical = (b0.x - b1.x).abs() <= EPS && (b0.y - b1.y).abs() > EPS;
+
+            let clearance = if a_is_horizontal && b_is_horizontal {
+                if a_max_x.min(b_max_x) - a_min_x.max(b_min_x) > EPS {
+                    Some((a0.y - b0.y).abs())
+                } else {
+                    None
+                }
+            } else if a_is_vertical && b_is_vertical {
+                if a_max_y.min(b_max_y) - a_min_y.max(b_min_y) > EPS {
+                    Some((a0.x - b0.x).abs())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            if let Some(clearance) = clearance.filter(|value| *value > EPS) {
+                best = best.min(clearance);
+            }
+        }
+    }
+
+    best
+}
+
+#[test]
 fn five_fan_out_lr_primary_face_channels_are_staggered_without_overlap() {
     let (diagram, geom) = layout_fixture_svg("five_fan_out_lr.mmd");
     assert_eq!(geom.direction, mmdflux::Direction::LeftRight);
