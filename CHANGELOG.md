@@ -37,6 +37,9 @@
   edges by reusing validated shared routed paths only when they are nontrivial
   and collision-free, while keeping short backward loops on the text-specific
   fallback path.
+- Fixed orthogonal flowchart criss-cross routing in text and SVG so overlapping
+  crossings separate more clearly while preserving compact source elbows and
+  target-facing terminal arrowhead support.
 - Fixed `mermaid-layered` rank assignment diverging from Dagre/Mermaid on
   feedback-cycle graphs by restoring Dagre-compatible network simplex feasible
   tree growth and entering-edge cut selection.
@@ -59,6 +62,8 @@
 - Added Dagre parity fixtures and regression coverage for the
   `callgraph_feedback_cycle` feedback-cycle layout, along with text and SVG
   snapshots for the new flowchart fixture.
+- Added `criss_cross.mmd` flowchart fixture coverage, including text and SVG
+  regression snapshots for the orthogonal-routing overlap case.
 
 ## v1.3.1
 
