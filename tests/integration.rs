@@ -805,6 +805,19 @@ mod rendering {
             upper_y < center_y && center_y < lower_y,
             "callgraph_feedback_cycle lower criss-cross should preserve a distinct center crossing row between the detour's upper and lower lanes: simple={simple:?}, detour={detour:?}"
         );
+        let detour_center_x = detour[2].0;
+        assert!(
+            simple
+                .windows(2)
+                .all(|segment| !(segment[0].0 == detour_center_x
+                    && segment[1].0 == detour_center_x
+                    && segment[0].1 != segment[1].1)),
+            "callgraph_feedback_cycle lower criss-cross should cross the detour spine in a single cell instead of sharing a vertical run: simple={simple:?}, detour={detour:?}"
+        );
+        assert!(
+            simple[2].0 > detour_center_x && simple[3].0 < detour_center_x,
+            "callgraph_feedback_cycle lower criss-cross should cross on the center row and descend on a target-side column: simple={simple:?}, detour={detour:?}"
+        );
     }
 
     #[test]

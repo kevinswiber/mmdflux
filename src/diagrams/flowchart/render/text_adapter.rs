@@ -794,8 +794,14 @@ fn compact_vertical_criss_cross_match(
             direction,
         )
     {
-        return compact_vertical_criss_cross_pair(first_path, second_path, direction)
-            .map(|(simple, detour)| (first.index, simple, second.index, detour));
+        let simple_target = node_bounds.get(&first.to)?;
+        return compact_vertical_criss_cross_pair(
+            first_path,
+            second_path,
+            simple_target,
+            direction,
+        )
+        .map(|(simple, detour)| (first.index, simple, second.index, detour));
     }
 
     if is_vertical_criss_cross_detour_path(first_path)
@@ -809,8 +815,14 @@ fn compact_vertical_criss_cross_match(
             direction,
         )
     {
-        return compact_vertical_criss_cross_pair(second_path, first_path, direction)
-            .map(|(simple, detour)| (second.index, simple, first.index, detour));
+        let simple_target = node_bounds.get(&second.to)?;
+        return compact_vertical_criss_cross_pair(
+            second_path,
+            first_path,
+            simple_target,
+            direction,
+        )
+        .map(|(simple, detour)| (second.index, simple, first.index, detour));
     }
 
     None
@@ -928,6 +940,7 @@ fn forms_vertical_criss_cross_pair(
 fn compact_vertical_criss_cross_pair(
     simple_path: &[(usize, usize)],
     detour_path: &[(usize, usize)],
+    simple_target_bounds: &NodeBounds,
     direction: Direction,
 ) -> Option<DrawPathPair> {
     if !matches!(direction, Direction::TopDown | Direction::BottomTop) {
@@ -985,12 +998,26 @@ fn compact_vertical_criss_cross_pair(
     }
 
     let simple_stem_y = shift_axis(center_y, -vertical_sign)?;
+    let compact_simple_target = should_compact_vertical_criss_cross_simple_target(
+        simple_shifted_x,
+        detour_path[2].0,
+        simple_path[3].0,
+    );
+    let simple_target_x = if compact_simple_target {
+        compact_vertical_criss_cross_target_x(
+            simple_target_bounds,
+            detour_path[2].0,
+            simple_horizontal_sign,
+        )?
+    } else {
+        simple_path[3].0
+    };
     let simple = vec![
         (simple_shifted_x, simple_path[0].1),
         (simple_shifted_x, simple_stem_y),
         (simple_shifted_x, center_y),
-        (simple_path[3].0, center_y),
-        simple_path[3],
+        (simple_target_x, center_y),
+        (simple_target_x, simple_path[3].1),
     ];
 
     let detour = vec![
@@ -1033,6 +1060,32 @@ fn collapsed_vertical_criss_cross_center_y(
         (upper_y < center_y && center_y < lower_y).then_some(center_y)
     } else {
         (upper_y > center_y && center_y > lower_y).then_some(center_y)
+    }
+}
+
+fn should_compact_vertical_criss_cross_simple_target(
+    simple_shifted_x: usize,
+    center_x: usize,
+    simple_target_x: usize,
+) -> bool {
+    simple_shifted_x.abs_diff(simple_target_x) >= 12 && simple_shifted_x.abs_diff(center_x) >= 6
+}
+
+fn compact_vertical_criss_cross_target_x(
+    bounds: &NodeBounds,
+    center_x: usize,
+    simple_horizontal_sign: isize,
+) -> Option<usize> {
+    let face_left = bounds.x.saturating_add(1);
+    let face_right = bounds.x + bounds.width.saturating_sub(2);
+    if face_left > face_right {
+        return None;
+    }
+
+    if simple_horizontal_sign < 0 {
+        Some(face_right.min(center_x.saturating_sub(1)))
+    } else {
+        Some(face_left.max(center_x.saturating_add(1)))
     }
 }
 
