@@ -286,11 +286,26 @@ fn js_error(message: impl Into<String>) -> JsError {
     JsError::new(&message.into())
 }
 
+fn default_svg_engine() -> EngineAlgorithmId {
+    EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered)
+}
+
 fn apply_wasm_format_defaults(format: OutputFormat, config: &mut RenderConfig) {
-    // For SVG output, default to flux-layered engine (provides orthogonal routing).
-    // This preserves the previous behavior where SVG defaulted to orthogonal routing.
-    if matches!(format, OutputFormat::Svg) && config.layout_engine.is_none() {
-        config.layout_engine = Some(EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered));
+    if !matches!(format, OutputFormat::Svg) {
+        return;
+    }
+
+    // Web/WASM "auto" SVG rendering targets the native flux-layered engine.
+    if config.layout_engine.is_none() {
+        config.layout_engine = Some(default_svg_engine());
+    }
+
+    if config.edge_preset.is_some() || config.routing_style.is_some() || config.curve.is_some() {
+        return;
+    }
+
+    if config.layout_engine.unwrap_or(default_svg_engine()) == default_svg_engine() {
+        config.edge_preset = Some(EdgePreset::SmoothStep);
     }
 }
 
@@ -330,6 +345,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_render_config_defaults_flux_svg_to_smooth_step() {
+        let config = parse_render_config(OutputFormat::Svg, "{}")
+            .expect("svg config parsing should succeed");
+        assert_eq!(config.edge_preset, Some(EdgePreset::SmoothStep));
+    }
+
+    #[test]
     fn parse_render_config_keeps_non_svg_without_engine_default() {
         let config = parse_render_config(OutputFormat::Text, "{}")
             .expect("text config parsing should succeed");
@@ -348,6 +370,14 @@ mod tests {
                 AlgorithmId::Layered
             ))
         );
+    }
+
+    #[test]
+    fn parse_render_config_keeps_mermaid_layered_without_default_flux_preset() {
+        let config =
+            parse_render_config(OutputFormat::Svg, r#"{"layoutEngine":"mermaid-layered"}"#)
+                .expect("explicit layout engine should parse");
+        assert_eq!(config.edge_preset, None);
     }
 
     #[test]

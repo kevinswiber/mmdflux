@@ -143,7 +143,7 @@ NO_COLOR=1 mmdflux --format text diagram.mmd
 # Explicit CLI policy overrides NO_COLOR for a single invocation
 NO_COLOR=1 mmdflux --format text --color always diagram.mmd
 
-# SVG output (flowchart/class)
+# SVG output (flowchart/class, defaults to smooth-step on flux-layered)
 mmdflux --format svg diagram.mmd -o diagram.svg
 
 # Native flux layered (default) SVG with smooth orthogonal corners

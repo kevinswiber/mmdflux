@@ -105,7 +105,25 @@
         "x": 176.9984,
         "y": 239.0
       },
-      "is_backward": false
+      "is_backward": false,
+      "source_port": {
+        "face": "right",
+        "fraction": 0.5,
+        "position": {
+          "x": 151.9984,
+          "y": 239.0
+        },
+        "group_size": 1
+      },
+      "target_port": {
+        "face": "left",
+        "fraction": 0.5,
+        "position": {
+          "x": 201.9984,
+          "y": 239.0
+        },
+        "group_size": 1
+      }
     },
     {
       "id": "e1",
@@ -125,7 +143,25 @@
         "x": 335.9968,
         "y": 239.0
       },
-      "is_backward": false
+      "is_backward": false,
+      "source_port": {
+        "face": "right",
+        "fraction": 0.5,
+        "position": {
+          "x": 310.9968,
+          "y": 239.0
+        },
+        "group_size": 1
+      },
+      "target_port": {
+        "face": "left",
+        "fraction": 0.5,
+        "position": {
+          "x": 360.9968,
+          "y": 239.0
+        },
+        "group_size": 1
+      }
     },
     {
       "id": "e2",
@@ -153,7 +189,25 @@
         "x": 88.81179999999999,
         "y": 137.0
       },
-      "is_backward": false
+      "is_backward": false,
+      "source_port": {
+        "face": "bottom",
+        "fraction": 0.5,
+        "position": {
+          "x": 80.12440000000001,
+          "y": 62.0
+        },
+        "group_size": 1
+      },
+      "target_port": {
+        "face": "top",
+        "fraction": 0.5,
+        "position": {
+          "x": 97.4992,
+          "y": 212.0
+        },
+        "group_size": 1
+      }
     },
     {
       "id": "e3",
@@ -181,7 +235,25 @@
         "x": 328.2395058823529,
         "y": 341.0
       },
-      "is_backward": false
+      "is_backward": false,
+      "source_port": {
+        "face": "right",
+        "fraction": 0.5,
+        "position": {
+          "x": 469.9952,
+          "y": 239.0
+        },
+        "group_size": 1
+      },
+      "target_port": {
+        "face": "left",
+        "fraction": 0.5,
+        "position": {
+          "x": 230.88039999999998,
+          "y": 443.0
+        },
+        "group_size": 1
+      }
     }
   ],
   "subgraphs": [

@@ -5,8 +5,8 @@ use std::{env, fs};
 
 use clap::{Parser, ValueEnum};
 use mmdflux::diagram::{
-    ColorWhen, Curve, EdgePreset, EngineAlgorithmId, GeometryLevel, LayoutConfig, OutputFormat,
-    PathSimplification, RenderConfig, RoutingStyle, TextColorMode,
+    AlgorithmId, ColorWhen, Curve, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel,
+    LayoutConfig, OutputFormat, PathSimplification, RenderConfig, RoutingStyle, TextColorMode,
 };
 use mmdflux::layered::Ranker;
 use mmdflux::registry::default_registry;
@@ -235,6 +235,24 @@ fn resolve_text_color_mode(
     ColorWhen::Auto.resolve(stdout_is_terminal)
 }
 
+fn default_svg_engine() -> EngineAlgorithmId {
+    EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered)
+}
+
+fn apply_cli_svg_surface_defaults(format: OutputFormat, config: &mut RenderConfig) {
+    if !matches!(format, OutputFormat::Svg) {
+        return;
+    }
+
+    if config.edge_preset.is_some() || config.routing_style.is_some() || config.curve.is_some() {
+        return;
+    }
+
+    if config.layout_engine.unwrap_or(default_svg_engine()) == default_svg_engine() {
+        config.edge_preset = Some(EdgePreset::SmoothStep);
+    }
+}
+
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
@@ -326,7 +344,7 @@ fn main() -> io::Result<()> {
         None => None,
     };
 
-    let config = RenderConfig {
+    let mut config = RenderConfig {
         layout: LayoutConfig {
             node_sep: cli.node_spacing.unwrap_or(50.0),
             edge_sep: cli.edge_spacing.unwrap_or(20.0),
@@ -351,6 +369,7 @@ fn main() -> io::Result<()> {
         geometry_level: cli.geometry_level.map(Into::into).unwrap_or_default(),
         path_simplification: cli.path_simplification.map(Into::into).unwrap_or_default(),
     };
+    apply_cli_svg_surface_defaults(format, &mut config);
 
     // Use registry for detection and rendering
     let registry = default_registry();

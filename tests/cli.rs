@@ -129,6 +129,77 @@ fn cli_svg_defaults_to_flux_layered_behavior() {
 }
 
 #[test]
+fn cli_svg_defaults_to_smooth_step_on_flux_layered() {
+    let input = "graph TD\nA[Start] --> B{Check}\nB --> C[Yes]\nB --> D[No]\nD --> A\n";
+
+    let default = mmdflux()
+        .args(["--format", "svg"])
+        .write_stdin(input)
+        .output()
+        .expect("default render should execute");
+    assert!(
+        default.status.success(),
+        "default render failed: stderr={}",
+        String::from_utf8_lossy(&default.stderr)
+    );
+
+    let explicit = mmdflux()
+        .args(["--format", "svg", "--edge-preset", "smooth-step"])
+        .write_stdin(input)
+        .output()
+        .expect("smooth-step render should execute");
+    assert!(
+        explicit.status.success(),
+        "smooth-step render failed: stderr={}",
+        String::from_utf8_lossy(&explicit.stderr)
+    );
+
+    assert_eq!(
+        default.stdout, explicit.stdout,
+        "default svg render should match explicit smooth-step on flux-layered"
+    );
+}
+
+#[test]
+fn cli_svg_mermaid_layered_keeps_engine_default_when_no_style_is_selected() {
+    let input = "graph TD\nA[Start] --> B{Check}\nB --> C[Yes]\nB --> D[No]\nD --> A\n";
+
+    let default = mmdflux()
+        .args(["--format", "svg", "--layout-engine", "mermaid-layered"])
+        .write_stdin(input)
+        .output()
+        .expect("mermaid-layered render should execute");
+    assert!(
+        default.status.success(),
+        "mermaid-layered render failed: stderr={}",
+        String::from_utf8_lossy(&default.stderr)
+    );
+
+    let explicit = mmdflux()
+        .args([
+            "--format",
+            "svg",
+            "--layout-engine",
+            "mermaid-layered",
+            "--edge-preset",
+            "basis",
+        ])
+        .write_stdin(input)
+        .output()
+        .expect("mermaid-layered basis render should execute");
+    assert!(
+        explicit.status.success(),
+        "mermaid-layered basis render failed: stderr={}",
+        String::from_utf8_lossy(&explicit.stderr)
+    );
+
+    assert_eq!(
+        default.stdout, explicit.stdout,
+        "mermaid-layered auto svg render should still match explicit basis"
+    );
+}
+
+#[test]
 fn cli_rejects_removed_routing_mode_flag() {
     mmdflux()
         .args(["--format", "svg", "--routing-mode", "polyline"])

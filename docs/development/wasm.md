@@ -69,6 +69,8 @@ Supported top-level keys:
 Notes:
 
 - For SVG output, if `layoutEngine` is omitted, WASM defaults to `flux-layered`.
+- When SVG rendering uses `flux-layered` and no explicit edge style is provided,
+  WASM defaults to the `smooth-step` preset.
 - `color` only affects text/ascii output. `always` forces ANSI escapes, while `auto`
   resolves to plain text in WASM because there is no terminal-capability probe.
 - Release wasm artifacts use a size-optimized Cargo profile:
@@ -81,7 +83,7 @@ Example:
 ```json
 {
   "layoutEngine": "flux-layered",
-  "edgePreset": "curved-step",
+  "edgePreset": "smooth-step",
   "edgeRadius": 6,
   "geometryLevel": "routed",
   "pathSimplification": "lossless",
