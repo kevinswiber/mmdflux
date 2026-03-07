@@ -37,6 +37,9 @@
   edges by reusing validated shared routed paths only when they are nontrivial
   and collision-free, while keeping short backward loops on the text-specific
   fallback path.
+- Fixed `mermaid-layered` rank assignment diverging from Dagre/Mermaid on
+  feedback-cycle graphs by restoring Dagre-compatible network simplex feasible
+  tree growth and entering-edge cut selection.
 
 ### Added
 
@@ -53,6 +56,9 @@
   mode.
 - Added `scripts/svg-gallery-diff` for side-by-side before/after HTML gallery
   of changed SVG snapshots versus a base ref.
+- Added Dagre parity fixtures and regression coverage for the
+  `callgraph_feedback_cycle` feedback-cycle layout, along with text and SVG
+  snapshots for the new flowchart fixture.
 
 ## v1.3.1
 
