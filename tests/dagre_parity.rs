@@ -632,3 +632,47 @@ mod backward_edge_bends {
         );
     }
 }
+
+mod feedback_cycle_ranking {
+    use super::*;
+
+    const INPUT_PATH: &str =
+        "tests/parity-fixtures/callgraph_feedback_cycle/mmdflux-dagre-input.json";
+    const EXPECTED_PATH: &str = "tests/parity-fixtures/callgraph_feedback_cycle/dagre-layout.json";
+
+    #[test]
+    fn callgraph_feedback_cycle_node_y_positions_match_dagre() {
+        let input: InputGraph = load_json(INPUT_PATH);
+        let expected: DagreLayout = load_json(EXPECTED_PATH);
+
+        let graph = build_digraph_from_input(&input);
+        let config = LayoutConfig {
+            node_sep: 50.0,
+            edge_sep: 20.0,
+            rank_sep: 50.0,
+            margin: 8.0,
+            ..Default::default()
+        };
+
+        let result = layout(&graph, &config, |_, dims| *dims);
+        let tolerance = 1.0;
+
+        for expected_node in &expected.nodes {
+            let node_id = mmdflux::layered::NodeId::from(expected_node.id.as_str());
+            let actual = result
+                .nodes
+                .get(&node_id)
+                .unwrap_or_else(|| panic!("Missing node {}", expected_node.id));
+
+            let y_diff = (actual.y - expected_node.y).abs();
+            assert!(
+                y_diff < tolerance,
+                "{} y mismatch: actual={}, expected={} (diff={})",
+                expected_node.id,
+                actual.y,
+                expected_node.y,
+                y_diff
+            );
+        }
+    }
+}

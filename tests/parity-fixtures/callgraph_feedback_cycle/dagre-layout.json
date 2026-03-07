@@ -1,0 +1,702 @@
+{
+  "graph": {
+    "rankdir": "TB",
+    "nodesep": 50,
+    "edgesep": 20,
+    "ranksep": 50,
+    "ranker": "network-simplex",
+    "marginx": 8,
+    "marginy": 8,
+    "width": 158.5,
+    "height": 655
+  },
+  "nodes": [
+    {
+      "id": "n0",
+      "x": 10,
+      "y": 220,
+      "width": 27,
+      "height": 3,
+      "center_x": 23.5,
+      "center_y": 221.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n1",
+      "x": 8,
+      "y": 273,
+      "width": 31,
+      "height": 3,
+      "center_x": 23.5,
+      "center_y": 274.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n10",
+      "x": 122.5,
+      "y": 485,
+      "width": 28,
+      "height": 3,
+      "center_x": 136.5,
+      "center_y": 486.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n11",
+      "x": 50,
+      "y": 432,
+      "width": 21,
+      "height": 3,
+      "center_x": 60.5,
+      "center_y": 433.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n12",
+      "x": 48.5,
+      "y": 485,
+      "width": 24,
+      "height": 3,
+      "center_x": 60.5,
+      "center_y": 486.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n13",
+      "x": 101.25,
+      "y": 8,
+      "width": 24,
+      "height": 3,
+      "center_x": 113.25,
+      "center_y": 9.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n14",
+      "x": 90.25,
+      "y": 61,
+      "width": 46,
+      "height": 3,
+      "center_x": 113.25,
+      "center_y": 62.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n15",
+      "x": 93.25,
+      "y": 114,
+      "width": 40,
+      "height": 3,
+      "center_x": 113.25,
+      "center_y": 115.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n16",
+      "x": 102.25,
+      "y": 167,
+      "width": 22,
+      "height": 3,
+      "center_x": 113.25,
+      "center_y": 168.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n17",
+      "x": 102.75,
+      "y": 220,
+      "width": 21,
+      "height": 3,
+      "center_x": 113.25,
+      "center_y": 221.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n18",
+      "x": 102.25,
+      "y": 273,
+      "width": 22,
+      "height": 3,
+      "center_x": 113.25,
+      "center_y": 274.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n19",
+      "x": 102.25,
+      "y": 326,
+      "width": 22,
+      "height": 3,
+      "center_x": 113.25,
+      "center_y": 327.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n2",
+      "x": 11,
+      "y": 326,
+      "width": 25,
+      "height": 3,
+      "center_x": 23.5,
+      "center_y": 327.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n3",
+      "x": 64,
+      "y": 538,
+      "width": 22,
+      "height": 3,
+      "center_x": 75,
+      "center_y": 539.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n4",
+      "x": 23.5,
+      "y": 591,
+      "width": 28,
+      "height": 3,
+      "center_x": 37.5,
+      "center_y": 592.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n5",
+      "x": 16,
+      "y": 644,
+      "width": 23,
+      "height": 3,
+      "center_x": 27.5,
+      "center_y": 645.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n6",
+      "x": 111,
+      "y": 644,
+      "width": 23,
+      "height": 3,
+      "center_x": 122.5,
+      "center_y": 645.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n7",
+      "x": 101.5,
+      "y": 591,
+      "width": 22,
+      "height": 3,
+      "center_x": 112.5,
+      "center_y": 592.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n8",
+      "x": 87.5,
+      "y": 379,
+      "width": 22,
+      "height": 3,
+      "center_x": 98.5,
+      "center_y": 380.5,
+      "parent": null,
+      "is_compound": false
+    },
+    {
+      "id": "n9",
+      "x": 125.5,
+      "y": 432,
+      "width": 22,
+      "height": 3,
+      "center_x": 136.5,
+      "center_y": 433.5,
+      "parent": null,
+      "is_compound": false
+    }
+  ],
+  "edges": [
+    {
+      "index": 0,
+      "name": "0",
+      "from": "n0",
+      "to": "n1",
+      "points": [
+        [
+          23.5,
+          223
+        ],
+        [
+          23.5,
+          248
+        ],
+        [
+          23.5,
+          273
+        ]
+      ]
+    },
+    {
+      "index": 1,
+      "name": "1",
+      "from": "n1",
+      "to": "n2",
+      "points": [
+        [
+          23.5,
+          276
+        ],
+        [
+          23.5,
+          301
+        ],
+        [
+          23.5,
+          326
+        ]
+      ]
+    },
+    {
+      "index": 2,
+      "name": "2",
+      "from": "n2",
+      "to": "n3",
+      "points": [
+        [
+          22.933962264150942,
+          329
+        ],
+        [
+          13.5,
+          354
+        ],
+        [
+          13.5,
+          380.5
+        ],
+        [
+          13.5,
+          407
+        ],
+        [
+          13.5,
+          433.5
+        ],
+        [
+          13.5,
+          460
+        ],
+        [
+          13.5,
+          486.5
+        ],
+        [
+          13.5,
+          513
+        ],
+        [
+          71.51886792452831,
+          538
+        ]
+      ]
+    },
+    {
+      "index": 3,
+      "name": "3",
+      "from": "n3",
+      "to": "n4",
+      "points": [
+        [
+          72.87735849056604,
+          541
+        ],
+        [
+          37.5,
+          566
+        ],
+        [
+          37.5,
+          591
+        ]
+      ]
+    },
+    {
+      "index": 4,
+      "name": "4",
+      "from": "n4",
+      "to": "n5",
+      "points": [
+        [
+          36.367924528301884,
+          594
+        ],
+        [
+          17.5,
+          619
+        ],
+        [
+          26.933962264150942,
+          644
+        ]
+      ]
+    },
+    {
+      "index": 5,
+      "name": "5",
+      "from": "n4",
+      "to": "n6",
+      "points": [
+        [
+          40.18867924528302,
+          594
+        ],
+        [
+          85,
+          619
+        ],
+        [
+          120.37735849056604,
+          644
+        ]
+      ]
+    },
+    {
+      "index": 6,
+      "name": "6",
+      "from": "n3",
+      "to": "n7",
+      "points": [
+        [
+          77.12264150943396,
+          541
+        ],
+        [
+          112.5,
+          566
+        ],
+        [
+          112.5,
+          591
+        ]
+      ]
+    },
+    {
+      "index": 7,
+      "name": "7",
+      "from": "n7",
+      "to": "n5",
+      "points": [
+        [
+          109.81132075471699,
+          594
+        ],
+        [
+          65,
+          619
+        ],
+        [
+          29.62264150943396,
+          644
+        ]
+      ]
+    },
+    {
+      "index": 8,
+      "name": "8",
+      "from": "n7",
+      "to": "n6",
+      "points": [
+        [
+          113.63207547169812,
+          594
+        ],
+        [
+          132.5,
+          619
+        ],
+        [
+          123.06603773584905,
+          644
+        ]
+      ]
+    },
+    {
+      "index": 9,
+      "name": "9",
+      "from": "n2",
+      "to": "n8",
+      "points": [
+        [
+          24.830188679245282,
+          329
+        ],
+        [
+          47,
+          354
+        ],
+        [
+          95.58490566037736,
+          379
+        ]
+      ]
+    },
+    {
+      "index": 10,
+      "name": "10",
+      "from": "n8",
+      "to": "n9",
+      "points": [
+        [
+          100.65094339622641,
+          382
+        ],
+        [
+          136.5,
+          407
+        ],
+        [
+          136.5,
+          432
+        ]
+      ]
+    },
+    {
+      "index": 11,
+      "name": "11",
+      "from": "n9",
+      "to": "n10",
+      "points": [
+        [
+          136.5,
+          435
+        ],
+        [
+          136.5,
+          460
+        ],
+        [
+          136.5,
+          485
+        ]
+      ]
+    },
+    {
+      "index": 12,
+      "name": "12",
+      "from": "n10",
+      "to": "n3",
+      "points": [
+        [
+          136.5,
+          488
+        ],
+        [
+          136.5,
+          513
+        ],
+        [
+          78.48113207547169,
+          538
+        ]
+      ]
+    },
+    {
+      "index": 13,
+      "name": "13",
+      "from": "n8",
+      "to": "n11",
+      "points": [
+        [
+          96.34905660377359,
+          382
+        ],
+        [
+          60.5,
+          407
+        ],
+        [
+          60.5,
+          432
+        ]
+      ]
+    },
+    {
+      "index": 14,
+      "name": "14",
+      "from": "n11",
+      "to": "n12",
+      "points": [
+        [
+          60.5,
+          435
+        ],
+        [
+          60.5,
+          460
+        ],
+        [
+          60.5,
+          485
+        ]
+      ]
+    },
+    {
+      "index": 15,
+      "name": "15",
+      "from": "n13",
+      "to": "n14",
+      "points": [
+        [
+          113.25,
+          11
+        ],
+        [
+          113.25,
+          36
+        ],
+        [
+          113.25,
+          61
+        ]
+      ]
+    },
+    {
+      "index": 16,
+      "name": "16",
+      "from": "n14",
+      "to": "n15",
+      "points": [
+        [
+          113.25,
+          64
+        ],
+        [
+          113.25,
+          89
+        ],
+        [
+          113.25,
+          114
+        ]
+      ]
+    },
+    {
+      "index": 17,
+      "name": "17",
+      "from": "n15",
+      "to": "n16",
+      "points": [
+        [
+          113.25,
+          117
+        ],
+        [
+          113.25,
+          142
+        ],
+        [
+          113.25,
+          167
+        ]
+      ]
+    },
+    {
+      "index": 18,
+      "name": "18",
+      "from": "n16",
+      "to": "n17",
+      "points": [
+        [
+          113.25,
+          170
+        ],
+        [
+          113.25,
+          195
+        ],
+        [
+          113.25,
+          220
+        ]
+      ]
+    },
+    {
+      "index": 19,
+      "name": "19",
+      "from": "n17",
+      "to": "n18",
+      "points": [
+        [
+          113.25,
+          223
+        ],
+        [
+          113.25,
+          248
+        ],
+        [
+          113.25,
+          273
+        ]
+      ]
+    },
+    {
+      "index": 20,
+      "name": "20",
+      "from": "n18",
+      "to": "n19",
+      "points": [
+        [
+          113.25,
+          276
+        ],
+        [
+          113.25,
+          301
+        ],
+        [
+          113.25,
+          326
+        ]
+      ]
+    },
+    {
+      "index": 21,
+      "name": "21",
+      "from": "n19",
+      "to": "n8",
+      "points": [
+        [
+          113.25,
+          329
+        ],
+        [
+          113.25,
+          354
+        ],
+        [
+          99.33490566037736,
+          379
+        ]
+      ]
+    }
+  ],
+  "subgraph_bounds": []
+}

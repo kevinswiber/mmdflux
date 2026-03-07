@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 233.82 536.00" style="max-width: 233.82px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 243.54 586.00" style="max-width: 243.54px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -19,33 +19,33 @@
       <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
     </marker>
   </defs>
-  <g transform="translate(17.36,-50.00)">
+  <g transform="translate(-20.27,0.00)">
     <g class="clusters">
-      <rect class="subgraph" x="-9.36" y="243.00" width="217.82" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="99.55" y="247.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Horizontal Section</text>
+      <rect class="subgraph" x="38.00" y="243.00" width="217.82" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="146.91" y="247.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Horizontal Section</text>
     </g>
     <g class="nodes">
-      <rect x="5.64" y="274.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="40.09" y="301.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
-      <rect x="124.55" y="274.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="159.00" y="301.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
-      <rect x="8.00" y="58.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="42.45" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
-      <rect x="122.18" y="524.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="156.64" y="551.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
-      <rect x="8.00" y="162.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="42.45" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">E</text>
-      <rect x="87.45" y="420.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="121.91" y="447.00" text-anchor="middle" dominant-baseline="middle" fill="#333">F</text>
+      <rect x="53.00" y="274.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="87.45" y="301.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      <rect x="171.91" y="274.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="206.36" y="301.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+      <rect x="102.45" y="8.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="136.91" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      <rect x="122.45" y="524.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="156.91" y="551.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
+      <rect x="28.27" y="112.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="62.73" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">E</text>
+      <rect x="28.27" y="420.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="62.73" y="447.00" text-anchor="middle" dominant-baseline="middle" fill="#333">F</text>
     </g>
     <g class="edgePaths">
-      <path d="M74.55,301.00 L120.55,301.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M68.91,112.00 L68.91,132.00 Q68.91,137.00 63.91,137.00 L47.45,137.00 Q42.45,137.00 42.45,142.00 L42.45,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M42.45,216.00 L42.45,270.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M16.00,112.00 L5.00,112.00 Q0.00,112.00 0.00,117.00 L0.00,250.00 Q0.00,255.00 5.00,255.00 L61.55,255.00 Q66.55,255.00 66.55,260.00 L66.55,270.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M132.55,328.00 L132.55,338.60 Q132.55,343.60 127.55,343.60 L126.91,343.60 Q121.91,343.60 121.91,348.60 L121.91,416.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M130.55,474.00 L130.55,520.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M185.45,328.00 L185.45,349.00 Q185.45,354.00 180.45,354.00 L164.00,354.00 Q159.00,354.00 159.00,359.00 L159.00,520.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M121.91,301.00 L167.91,301.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M110.45,62.00 L110.45,68.40 Q110.45,73.40 105.45,73.40 L74.15,73.40 Q69.15,73.40 69.15,78.40 L69.15,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M62.73,166.00 L62.73,270.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M163.36,62.00 L163.36,239.40 Q163.36,244.40 158.36,244.40 L118.91,244.40 Q113.91,244.40 113.91,249.40 L113.91,270.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M179.91,328.00 L179.91,338.60 Q179.91,343.60 174.91,343.60 L67.73,343.60 Q62.73,343.60 62.73,348.60 L62.73,416.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M74.34,474.00 L74.34,480.40 Q74.34,485.40 79.34,485.40 L125.45,485.40 Q130.45,485.40 130.45,490.40 L130.45,520.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M232.82,328.00 L232.82,349.00 Q232.82,354.00 227.82,354.00 L188.36,354.00 Q183.36,354.00 183.36,359.00 L183.36,520.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

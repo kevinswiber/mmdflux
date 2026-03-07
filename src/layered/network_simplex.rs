@@ -114,7 +114,7 @@ fn tight_tree(tree: &mut SpanningTree, graph: &LayoutGraph, adj: &[Vec<(usize, u
     tree.size()
 }
 
-/// Find the edge with minimum absolute slack that crosses the tree boundary
+/// Find the edge with minimum slack that crosses the tree boundary
 /// (one endpoint in tree, one outside). Returns Some((edge_idx, delta)) where delta
 /// is the value to add to all tree node ranks to make this edge tight.
 /// Returns None if no crossing edge exists (disconnected graph).
@@ -129,7 +129,7 @@ fn find_min_slack_crossing(tree: &SpanningTree, graph: &LayoutGraph) -> Option<(
         if from_in == to_in {
             continue; // both in or both out
         }
-        let s = slack(graph, edge_idx).abs();
+        let s = slack(graph, edge_idx);
         if s < best_slack {
             best_slack = s;
             best_edge = Some(edge_idx);
@@ -415,22 +415,17 @@ fn leave_edge(tree: &SpanningTree) -> Option<usize> {
 /// Follows Dagre.js enterEdge (lines 156-192).
 fn enter_edge(tree: &SpanningTree, graph: &LayoutGraph, leave_node: usize) -> Option<usize> {
     let edges = graph.effective_edges();
-    let parent = tree.parent[leave_node].unwrap();
     let leave_edge_idx = tree.parent_edge[leave_node].unwrap();
 
-    // Determine direction: is leave_node the tail (source) of the directed edge?
-    let (from, _to) = edges[leave_edge_idx];
-    let leave_is_tail = from == leave_node;
-
-    // Determine which side of the cut is the "tail" side
-    // If leave_node.lim > parent.lim, the tail side is the parent's subtree (flip)
-    let flip = tree.lim[leave_node] > tree.lim[parent];
-
-    let tail_node = if flip != leave_is_tail {
-        leave_node
-    } else {
-        parent
-    };
+    // Dagre treats the leaving tree edge as an undirected edge and then
+    // re-orients it into the graph's directed tail/head pair before testing
+    // candidate cut crossings. Reconstruct that same view here.
+    let (tail, head) = edges[leave_edge_idx];
+    let mut tail_root = tail;
+    let flip = tree.lim[tail] > tree.lim[head];
+    if flip {
+        tail_root = head;
+    }
 
     let mut best_edge = None;
     let mut best_slack = i32::MAX;
@@ -440,13 +435,9 @@ fn enter_edge(tree: &SpanningTree, graph: &LayoutGraph, leave_node: usize) -> Op
             continue; // skip tree edges
         }
 
-        // Check if this edge crosses the cut:
-        // tail side descendant for source XOR flip
-        let from_desc = is_descendant(tree, e_from, tail_node);
-        let to_desc = is_descendant(tree, e_to, tail_node);
-
-        // We want edges where source is on tail side and target is on head side (or vice versa with flip)
-        if from_desc == to_desc {
+        let from_desc = is_descendant(tree, e_from, tail_root);
+        let to_desc = is_descendant(tree, e_to, tail_root);
+        if from_desc != flip || to_desc == flip {
             continue; // both on same side
         }
 

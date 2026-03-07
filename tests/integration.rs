@@ -30,6 +30,8 @@ fn load_fixture(name: &str) -> String {
     fs::read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read fixture {}: {}", name, e))
 }
 
+const ISSUE_21_FIXTURE: &str = "callgraph_feedback_cycle.mmd";
+
 /// Load an MMDS fixture file by name from `tests/fixtures/mmds/`.
 fn load_mmds_fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -184,52 +186,6 @@ fn first_segment(path: &[FPoint]) -> (f64, bool) {
     let dx = (p1.x - p0.x).abs();
     let dy = (p1.y - p0.y).abs();
     (dx + dy, dy > dx + 0.000_001)
-}
-
-fn issue_21_repro_input() -> &'static str {
-    r#"graph TD
-  n0["__clone3 s:0.00 t:49.00"]
-  n1["start_thread s:0.00 t:49.00"]
-  n0 --> n1
-  n2["fn1... s:0.00 t:48.00"]
-  n1 --> n2
-  n3["fn2 s:1.00 t:47.00"]
-  n2 --> n3
-  n4["fn3_co... s:0.00 t:31.00"]
-  n3 --> n4
-  n5["fn4 s:27.00 t:27.00"]
-  n4 --> n5
-  n6["fn5 s:18.00 t:18.00"]
-  n4 --> n6
-  n7["fn6 s:1.00 t:15.00"]
-  n3 --> n7
-  n7 --> n5
-  n7 --> n6
-  n8["fn7 s:0.00 t:46.00"]
-  n2 --> n8
-  n9["fn8 s:0.00 t:39.00"]
-  n8 --> n9
-  n10["fn8_in... s:1.00 t:39.00"]
-  n9 --> n10
-  n10 --> n3
-  n11["fn1 s:0.00 t:7.00"]
-  n8 --> n11
-  n12["fn1... s:0.00 t:7.00"]
-  n11 --> n12
-  n13["_start s:0.00 t:7.00"]
-  n14["__libc_start_main@GLIBC_2... s:0.00 t:7.00"]
-  n13 --> n14
-  n15["__libc_start_call_main s:0.00 t:7.00"]
-  n14 --> n15
-  n16["main s:0.00 t:7.00"]
-  n15 --> n16
-  n17["fn9 s:0.00 t:7.00"]
-  n16 --> n17
-  n18["fn10 s:0.00 t:7.00"]
-  n17 --> n18
-  n19["fn11 s:0.00 t:7.00"]
-  n18 --> n19
-  n19 --> n8"#
 }
 
 fn ranges_overlap(a1: usize, a2: usize, b1: usize, b2: usize) -> bool {
@@ -802,10 +758,7 @@ mod rendering {
 
     #[test]
     fn ascii_issue_21_backward_edge_does_not_clip_right_edge() {
-        let input = issue_21_repro_input();
-
-        let flowchart = parse_flowchart(input).expect("issue #21 input should parse");
-        let diagram = build_diagram(&flowchart);
+        let diagram = parse_and_build(ISSUE_21_FIXTURE);
         let output = render(
             &diagram,
             &RenderOptions {
@@ -828,10 +781,7 @@ mod rendering {
 
     #[test]
     fn issue_21_quantized_waypoint_corridor_does_not_cross_unrelated_nodes() {
-        let flowchart =
-            parse_flowchart(issue_21_repro_input()).expect("issue #21 input should parse");
-        let diagram = build_diagram(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let (diagram, layout) = layout_fixture(ISSUE_21_FIXTURE);
         let routed = route_all_edges(&diagram.edges, &layout, diagram.direction);
         let intrusions: Vec<String> = unrelated_node_intrusions(&routed, &layout)
             .into_iter()
