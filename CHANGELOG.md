@@ -30,6 +30,13 @@
 - Fixed `render_svg()` ignoring `routing_style` when deriving `edge_routing`,
   causing basis and straight preset snapshots to use orthogonal routing paths
   instead of polyline and direct routing respectively.
+- Fixed post-quantization text waypoint collisions by repairing whole
+  orthogonal segments after snapping, eliminating issue-21-style corridor
+  clips that point-only waypoint nudging could miss.
+- Fixed text routing parity gaps in LR/RL backward edges and forward long-skip
+  edges by reusing validated shared routed paths only when they are nontrivial
+  and collision-free, while keeping short backward loops on the text-specific
+  fallback path.
 
 ### Added
 
