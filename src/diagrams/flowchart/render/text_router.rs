@@ -30,6 +30,36 @@ struct RoutingOverrides {
     src_first_vertical: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TextPathFamily {
+    SharedRoutedDrawPath,
+    WaypointFallback,
+    SyntheticBackward,
+    Direct,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TextPathRejection {
+    TooShort,
+    NoWaypoints,
+    FaceInference,
+    WaypointInsideFace,
+    SegmentCollision,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TextRouteProbe {
+    pub(crate) path_family: TextPathFamily,
+    pub(crate) rejection_reason: Option<TextPathRejection>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct RouteEdgeResult {
+    pub(crate) routed: RoutedEdge,
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(crate) probe: TextRouteProbe,
+}
+
 fn subgraph_edge_face(bounds: &NodeBounds, other: &NodeBounds, direction: Direction) -> NodeFace {
     let bounds_right = bounds.x + bounds.width.saturating_sub(1);
     let bounds_bottom = bounds.y + bounds.height.saturating_sub(1);
@@ -396,6 +426,71 @@ fn generate_corridor_backward_waypoints(
     }
 }
 
+fn should_use_routed_draw_path(
+    edge: &Edge,
+    layout: &Layout,
+    from_bounds: &NodeBounds,
+    to_bounds: &NodeBounds,
+    direction: Direction,
+) -> bool {
+    if edge.from_subgraph.is_some()
+        || edge.to_subgraph.is_some()
+        || node_inside_any_subgraph(layout, &edge.from)
+        || node_inside_any_subgraph(layout, &edge.to)
+    {
+        return false;
+    }
+
+    let Some(draw_path) = layout.routed_edge_paths.get(&edge.index) else {
+        return false;
+    };
+
+    if is_backward_edge(from_bounds, to_bounds, direction) {
+        return should_prefer_shared_backward_route_for_text(draw_path, direction);
+    }
+
+    should_prefer_shared_forward_route_for_text(
+        edge,
+        layout,
+        draw_path,
+        from_bounds,
+        to_bounds,
+        direction,
+    )
+}
+
+fn should_prefer_shared_backward_route_for_text(
+    draw_path: &[(usize, usize)],
+    direction: Direction,
+) -> bool {
+    match direction {
+        Direction::LeftRight | Direction::RightLeft => {
+            draw_path.len() >= 6 && waypoints_from_draw_path(draw_path).len() >= 4
+        }
+        Direction::TopDown | Direction::BottomTop => true,
+    }
+}
+
+fn should_prefer_shared_forward_route_for_text(
+    edge: &Edge,
+    layout: &Layout,
+    draw_path: &[(usize, usize)],
+    from_bounds: &NodeBounds,
+    to_bounds: &NodeBounds,
+    direction: Direction,
+) -> bool {
+    if edge.from == edge.to || is_backward_edge(from_bounds, to_bounds, direction) {
+        return false;
+    }
+
+    layout
+        .edge_waypoints
+        .get(&edge.index)
+        .is_some_and(|waypoints| waypoints.len() >= 2)
+        && draw_path.len() >= 4
+        && waypoints_from_draw_path(draw_path).len() >= 2
+}
+
 /// Route an edge between two nodes.
 pub fn route_edge(
     edge: &Edge,
@@ -405,6 +500,25 @@ pub fn route_edge(
     tgt_attach_override: Option<(usize, usize)>,
     src_first_vertical: bool,
 ) -> Option<RoutedEdge> {
+    route_edge_with_probe(
+        edge,
+        layout,
+        diagram_direction,
+        src_attach_override,
+        tgt_attach_override,
+        src_first_vertical,
+    )
+    .map(|result| result.routed)
+}
+
+pub(crate) fn route_edge_with_probe(
+    edge: &Edge,
+    layout: &Layout,
+    diagram_direction: Direction,
+    src_attach_override: Option<(usize, usize)>,
+    tgt_attach_override: Option<(usize, usize)>,
+    src_first_vertical: bool,
+) -> Option<RouteEdgeResult> {
     let (from_bounds, to_bounds) = resolve_edge_bounds(layout, edge)?;
 
     // Get node shapes for intersection calculation
@@ -433,19 +547,14 @@ pub fn route_edge(
         to_bounds,
         to_shape,
     };
+    let mut draw_path_rejection = None;
 
     let use_routed_draw_path =
-        matches!(diagram_direction, Direction::TopDown | Direction::BottomTop)
-            && edge.from_subgraph.is_none()
-            && edge.to_subgraph.is_none()
-            && !node_inside_any_subgraph(layout, &edge.from)
-            && !node_inside_any_subgraph(layout, &edge.to)
-            && is_backward_edge(&from_bounds, &to_bounds, diagram_direction)
-            && layout.routed_edge_paths.contains_key(&edge.index);
+        should_use_routed_draw_path(edge, layout, &from_bounds, &to_bounds, diagram_direction);
 
     if use_routed_draw_path {
-        if let Some(draw_path) = layout.routed_edge_paths.get(&edge.index)
-            && let Some(routed) = route_edge_from_draw_path(
+        if let Some(draw_path) = layout.routed_edge_paths.get(&edge.index) {
+            match route_edge_from_draw_path(
                 edge,
                 layout,
                 &endpoints,
@@ -456,9 +565,19 @@ pub fn route_edge(
                     tgt_attach: tgt_attach_override,
                     src_first_vertical,
                 },
-            )
-        {
-            return Some(routed);
+            ) {
+                Ok(routed) => {
+                    return Some(route_result(
+                        routed,
+                        TextPathFamily::SharedRoutedDrawPath,
+                        None,
+                    ));
+                }
+                Err(rejection) => {
+                    draw_path_rejection = Some(rejection);
+                    debug_draw_path_rejection(edge, rejection, draw_path);
+                }
+            }
         }
         // Float→integer draw path collided with intermediate nodes.
         // Build a clean channel path directly in integer coordinates.
@@ -480,7 +599,14 @@ pub fn route_edge(
                 None,
                 None,
                 src_first_vertical,
-            );
+            )
+            .map(|routed| {
+                route_result(
+                    routed,
+                    TextPathFamily::SyntheticBackward,
+                    draw_path_rejection,
+                )
+            });
         }
     }
 
@@ -509,7 +635,14 @@ pub fn route_edge(
             src_attach_override,
             tgt_attach_override,
             src_first_vertical,
-        );
+        )
+        .map(|routed| {
+            route_result(
+                routed,
+                TextPathFamily::WaypointFallback,
+                draw_path_rejection,
+            )
+        });
     }
 
     // For backward edges with no layout waypoints, generate synthetic ones
@@ -529,7 +662,14 @@ pub fn route_edge(
                     src_attach_override,
                     tgt_attach_override,
                     src_first_vertical,
-                );
+                )
+                .map(|routed| {
+                    route_result(
+                        routed,
+                        TextPathFamily::SyntheticBackward,
+                        draw_path_rejection,
+                    )
+                });
             }
             return route_backward_with_synthetic_waypoints(
                 edge,
@@ -539,7 +679,14 @@ pub fn route_edge(
                 src_attach_override,
                 tgt_attach_override,
                 src_first_vertical,
-            );
+            )
+            .map(|routed| {
+                route_result(
+                    routed,
+                    TextPathFamily::SyntheticBackward,
+                    draw_path_rejection,
+                )
+            });
         }
     }
 
@@ -552,6 +699,7 @@ pub fn route_edge(
         tgt_attach_override,
         src_first_vertical,
     )
+    .map(|routed| route_result(routed, TextPathFamily::Direct, draw_path_rejection))
 }
 
 fn route_edge_from_draw_path(
@@ -561,20 +709,20 @@ fn route_edge_from_draw_path(
     draw_path: &[(usize, usize)],
     direction: Direction,
     overrides: RoutingOverrides,
-) -> Option<RoutedEdge> {
+) -> Result<RoutedEdge, TextPathRejection> {
     if draw_path.len() < 3 {
-        return None;
+        return Err(TextPathRejection::TooShort);
     }
 
     let mut points: Vec<(usize, usize)> = draw_path.to_vec();
     points.dedup();
     if points.len() < 3 {
-        return None;
+        return Err(TextPathRejection::TooShort);
     }
 
     let waypoints = waypoints_from_draw_path(&points);
     if waypoints.is_empty() {
-        return None;
+        return Err(TextPathRejection::NoWaypoints);
     }
 
     let inferred_src_face = source_face_from_step(&points);
@@ -594,7 +742,7 @@ fn route_edge_from_draw_path(
         || inferred_tgt_face
             .is_some_and(|face| !waypoint_is_outside_face(last_anchor, &ep.to_bounds, face))
     {
-        return None;
+        return Err(TextPathRejection::WaypointInsideFace);
     }
 
     let routed = route_edge_with_waypoints(
@@ -605,9 +753,10 @@ fn route_edge_from_draw_path(
         inferred_src_override.or(overrides.src_attach),
         inferred_tgt_override.or(overrides.tgt_attach),
         overrides.src_first_vertical,
-    )?;
+    )
+    .ok_or(TextPathRejection::FaceInference)?;
     if segments_collide_with_other_nodes(routed.segments.as_slice(), layout, edge) {
-        return None;
+        return Err(TextPathRejection::SegmentCollision);
     }
 
     if std::env::var("MMDFLUX_DEBUG_ROUTE_SEGMENTS").is_ok_and(|value| value == "1") {
@@ -617,7 +766,34 @@ fn route_edge_from_draw_path(
         );
     }
 
-    Some(routed)
+    Ok(routed)
+}
+
+fn route_result(
+    routed: RoutedEdge,
+    path_family: TextPathFamily,
+    rejection_reason: Option<TextPathRejection>,
+) -> RouteEdgeResult {
+    RouteEdgeResult {
+        routed,
+        probe: TextRouteProbe {
+            path_family,
+            rejection_reason,
+        },
+    }
+}
+
+fn debug_draw_path_rejection(
+    edge: &Edge,
+    rejection: TextPathRejection,
+    draw_path: &[(usize, usize)],
+) {
+    if std::env::var("MMDFLUX_DEBUG_ROUTE_SEGMENTS").is_ok_and(|value| value == "1") {
+        eprintln!(
+            "[route-routed-reject] {} -> {}: reason={rejection:?} points={draw_path:?}",
+            edge.from, edge.to
+        );
+    }
 }
 
 fn source_face_from_step(points: &[(usize, usize)]) -> Option<NodeFace> {

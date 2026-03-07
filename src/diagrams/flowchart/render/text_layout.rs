@@ -1509,22 +1509,293 @@ pub(crate) fn nudge_colliding_waypoints(
     canvas_width: usize,
     canvas_height: usize,
 ) {
+    let mut sorted_bounds: Vec<NodeBounds> = node_bounds.values().copied().collect();
+    sorted_bounds.sort_by_key(|bounds| (bounds.y, bounds.x, bounds.width, bounds.height));
+
     for waypoints in edge_waypoints.values_mut() {
-        for wp in waypoints.iter_mut() {
-            for bounds in node_bounds.values() {
-                if bounds.contains(wp.0, wp.1) {
-                    if is_vertical {
-                        wp.0 = bounds.x + bounds.width + 1;
-                    } else {
-                        wp.1 = bounds.y + bounds.height + 1;
-                    }
-                    break;
+        nudge_waypoint_points(
+            waypoints,
+            &sorted_bounds,
+            is_vertical,
+            canvas_width,
+            canvas_height,
+        );
+        *waypoints = repair_quantized_waypoint_segments(
+            waypoints,
+            &sorted_bounds,
+            is_vertical,
+            canvas_width,
+            canvas_height,
+        );
+        nudge_waypoint_points(
+            waypoints,
+            &sorted_bounds,
+            is_vertical,
+            canvas_width,
+            canvas_height,
+        );
+    }
+}
+
+fn nudge_waypoint_points(
+    waypoints: &mut [(usize, usize)],
+    node_bounds: &[NodeBounds],
+    is_vertical: bool,
+    canvas_width: usize,
+    canvas_height: usize,
+) {
+    for wp in waypoints.iter_mut() {
+        for bounds in node_bounds {
+            if bounds.contains(wp.0, wp.1) {
+                if is_vertical {
+                    wp.0 = bounds.x + bounds.width + 1;
+                } else {
+                    wp.1 = bounds.y + bounds.height + 1;
                 }
+                break;
             }
-            wp.0 = wp.0.min(canvas_width.saturating_sub(1));
-            wp.1 = wp.1.min(canvas_height.saturating_sub(1));
+        }
+        clamp_waypoint(wp, canvas_width, canvas_height);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SegmentAxis {
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct WaypointSegment {
+    start: (usize, usize),
+    end: (usize, usize),
+    axis: SegmentAxis,
+}
+
+fn repair_quantized_waypoint_segments(
+    waypoints: &[(usize, usize)],
+    node_bounds: &[NodeBounds],
+    is_vertical: bool,
+    canvas_width: usize,
+    canvas_height: usize,
+) -> Vec<(usize, usize)> {
+    if waypoints.len() < 2 || node_bounds.is_empty() {
+        return waypoints.to_vec();
+    }
+
+    let mut repaired = waypoints.to_vec();
+    let max_repairs = node_bounds.len().saturating_mul(waypoints.len().max(1)) * 2;
+    let mut repairs = 0usize;
+
+    loop {
+        let mut changed = false;
+
+        for idx in 0..repaired.len().saturating_sub(1) {
+            let from = repaired[idx];
+            let to = repaired[idx + 1];
+            let Some((blocker, axis)) = first_blocking_segment(from, to, node_bounds, is_vertical)
+            else {
+                continue;
+            };
+
+            let detour = detour_waypoints_around_blocker(
+                from,
+                to,
+                blocker,
+                axis,
+                canvas_width,
+                canvas_height,
+            );
+            if detour.is_empty() {
+                continue;
+            }
+
+            repaired.splice(idx + 1..idx + 1, detour);
+            changed = true;
+            repairs += 1;
+            break;
+        }
+
+        if !changed || repairs >= max_repairs {
+            break;
         }
     }
+
+    repaired.dedup();
+    repaired
+}
+
+fn first_blocking_segment(
+    from: (usize, usize),
+    to: (usize, usize),
+    node_bounds: &[NodeBounds],
+    is_vertical: bool,
+) -> Option<(NodeBounds, SegmentAxis)> {
+    let segments = orthogonal_segments_between_waypoints(from, to, is_vertical);
+
+    for segment in segments {
+        for bounds in node_bounds {
+            if orthogonal_segment_intersects_bounds(segment.start, segment.end, bounds) {
+                return Some((*bounds, segment.axis));
+            }
+        }
+    }
+
+    None
+}
+
+fn orthogonal_segments_between_waypoints(
+    from: (usize, usize),
+    to: (usize, usize),
+    is_vertical: bool,
+) -> Vec<WaypointSegment> {
+    if from == to {
+        return Vec::new();
+    }
+
+    if from.0 == to.0 {
+        return vec![WaypointSegment {
+            start: from,
+            end: to,
+            axis: SegmentAxis::Vertical,
+        }];
+    }
+
+    if from.1 == to.1 {
+        return vec![WaypointSegment {
+            start: from,
+            end: to,
+            axis: SegmentAxis::Horizontal,
+        }];
+    }
+
+    if is_vertical {
+        let elbow = (to.0, from.1);
+        vec![
+            WaypointSegment {
+                start: from,
+                end: elbow,
+                axis: SegmentAxis::Horizontal,
+            },
+            WaypointSegment {
+                start: elbow,
+                end: to,
+                axis: SegmentAxis::Vertical,
+            },
+        ]
+    } else {
+        let elbow = (from.0, to.1);
+        vec![
+            WaypointSegment {
+                start: from,
+                end: elbow,
+                axis: SegmentAxis::Vertical,
+            },
+            WaypointSegment {
+                start: elbow,
+                end: to,
+                axis: SegmentAxis::Horizontal,
+            },
+        ]
+    }
+}
+
+fn orthogonal_segment_intersects_bounds(
+    start: (usize, usize),
+    end: (usize, usize),
+    bounds: &NodeBounds,
+) -> bool {
+    let left = bounds.x;
+    let right = bounds.x + bounds.width.saturating_sub(1);
+    let top = bounds.y;
+    let bottom = bounds.y + bounds.height.saturating_sub(1);
+
+    if start.0 == end.0 {
+        let x = start.0;
+        let (y_min, y_max) = if start.1 <= end.1 {
+            (start.1, end.1)
+        } else {
+            (end.1, start.1)
+        };
+        return x >= left && x <= right && y_min <= bottom && top <= y_max;
+    }
+
+    if start.1 == end.1 {
+        let y = start.1;
+        let (x_min, x_max) = if start.0 <= end.0 {
+            (start.0, end.0)
+        } else {
+            (end.0, start.0)
+        };
+        return y >= top && y <= bottom && x_min <= right && left <= x_max;
+    }
+
+    false
+}
+
+fn detour_waypoints_around_blocker(
+    from: (usize, usize),
+    to: (usize, usize),
+    blocker: NodeBounds,
+    axis: SegmentAxis,
+    canvas_width: usize,
+    canvas_height: usize,
+) -> Vec<(usize, usize)> {
+    let mut detour = Vec::with_capacity(2);
+
+    match axis {
+        SegmentAxis::Horizontal => {
+            let detour_y =
+                choose_detour_coordinate(from.1, to.1, blocker.y, blocker.height, canvas_height);
+            if detour_y != from.1 {
+                detour.push((from.0, detour_y));
+            }
+            if detour.last().copied() != Some((to.0, detour_y)) {
+                detour.push((to.0, detour_y));
+            }
+        }
+        SegmentAxis::Vertical => {
+            let detour_x =
+                choose_detour_coordinate(from.0, to.0, blocker.x, blocker.width, canvas_width);
+            if detour_x != from.0 {
+                detour.push((detour_x, from.1));
+            }
+            if detour.last().copied() != Some((detour_x, to.1)) {
+                detour.push((detour_x, to.1));
+            }
+        }
+    }
+
+    detour
+}
+
+fn choose_detour_coordinate(
+    start_coord: usize,
+    end_coord: usize,
+    blocker_origin: usize,
+    blocker_span: usize,
+    canvas_limit: usize,
+) -> usize {
+    let max_coord = canvas_limit.saturating_sub(1);
+    let before = blocker_origin.saturating_sub(1);
+    let after = blocker_origin
+        .saturating_add(blocker_span)
+        .saturating_add(1)
+        .min(max_coord);
+
+    let mut candidates = [before, after];
+    candidates.sort_by_key(|candidate| {
+        (
+            start_coord.abs_diff(*candidate) + end_coord.abs_diff(*candidate),
+            usize::MAX - *candidate,
+        )
+    });
+    candidates[0]
+}
+
+fn clamp_waypoint(waypoint: &mut (usize, usize), canvas_width: usize, canvas_height: usize) {
+    waypoint.0 = waypoint.0.min(canvas_width.saturating_sub(1));
+    waypoint.1 = waypoint.1.min(canvas_height.saturating_sub(1));
 }
 
 /// Transform layout waypoints to ASCII draw coordinates using uniform scale factors.
@@ -1723,6 +1994,46 @@ mod tests {
     use super::super::text_adapter::compute_layout;
     use super::*;
     use crate::layered::{self, Direction as LayeredDirection, LayoutConfig as LayeredConfig};
+
+    fn test_node_bounds(x: usize, y: usize, width: usize, height: usize) -> NodeBounds {
+        NodeBounds {
+            x,
+            y,
+            width,
+            height,
+            layout_center_x: None,
+            layout_center_y: None,
+        }
+    }
+
+    fn segment_intersects_node(a: (usize, usize), b: (usize, usize), bounds: &NodeBounds) -> bool {
+        let left = bounds.x;
+        let right = bounds.x + bounds.width.saturating_sub(1);
+        let top = bounds.y;
+        let bottom = bounds.y + bounds.height.saturating_sub(1);
+
+        if a.0 == b.0 {
+            let x = a.0;
+            let (y_min, y_max) = if a.1 <= b.1 { (a.1, b.1) } else { (b.1, a.1) };
+            return x >= left && x <= right && y_min <= bottom && top <= y_max;
+        }
+
+        if a.1 == b.1 {
+            let y = a.1;
+            let (x_min, x_max) = if a.0 <= b.0 { (a.0, b.0) } else { (b.0, a.0) };
+            return y >= top && y <= bottom && x_min <= right && left <= x_max;
+        }
+
+        false
+    }
+
+    fn segment_chain_clears_nodes(waypoints: &[(usize, usize)], bounds: &[NodeBounds]) -> bool {
+        waypoints.windows(2).all(|pair| {
+            bounds
+                .iter()
+                .all(|bounds| !segment_intersects_node(pair[0], pair[1], bounds))
+        })
+    }
 
     // =========================================================================
     // Scale Factor Tests (Phase 2)
@@ -2066,6 +2377,23 @@ mod tests {
         };
         let result = transform_waypoints_direct(&waypoints, &edges, &ctx, &[], true, 80, 20);
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn nudge_colliding_waypoints_repairs_segment_collision_not_just_point_collision() {
+        let mut edge_waypoints = HashMap::from([(0usize, vec![(20, 10), (40, 10)])]);
+        let blocking_node = test_node_bounds(28, 8, 8, 4);
+        let node_bounds = HashMap::from([("blocker".to_string(), blocking_node)]);
+
+        nudge_colliding_waypoints(&mut edge_waypoints, &node_bounds, true, 80, 40);
+
+        let repaired = edge_waypoints
+            .get(&0)
+            .expect("test edge should still have waypoints");
+        assert!(
+            segment_chain_clears_nodes(repaired, &[blocking_node]),
+            "segment-wise repair should clear nodes even when waypoint points stay outside the node: {repaired:?}"
+        );
     }
 
     // =========================================================================

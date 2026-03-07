@@ -12,8 +12,8 @@ use mmdflux::diagrams::flowchart::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
 use mmdflux::diagrams::mmds::from_mmds_str;
 use mmdflux::render::{
-    Layout, RenderOptions, TextLayoutConfig, compute_layout, render, render_all_edges_with_labels,
-    route_all_edges,
+    Layout, NodeBounds, RenderOptions, RoutedEdge, Segment, TextLayoutConfig, compute_layout,
+    geometry_to_text_layout_with_routed, render, render_all_edges_with_labels, route_all_edges,
 };
 use mmdflux::{
     Diagram, Direction, EdgeRouting, EngineConfig, Shape, build_diagram, default_registry,
@@ -54,6 +54,21 @@ fn layout_fixture(name: &str) -> (Diagram, Layout) {
     (diagram, layout)
 }
 
+fn layout_fixture_with_routed(name: &str) -> (Diagram, Layout) {
+    let diagram = parse_and_build(name);
+    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
+    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+        .expect("layout should succeed");
+    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let layout = geometry_to_text_layout_with_routed(
+        &diagram,
+        &geom,
+        Some(&routed),
+        &TextLayoutConfig::default(),
+    );
+    (diagram, layout)
+}
+
 /// Parse, build, and render a fixture file.
 fn render_fixture(name: &str) -> String {
     let diagram = parse_and_build(name);
@@ -86,6 +101,19 @@ fn render_input(input: &str) -> String {
 /// Parse, build, and render a fixture file with ASCII-only output.
 fn render_fixture_ascii(name: &str) -> String {
     render_fixture_with_options(name, OutputFormat::Ascii, TextColorMode::Plain)
+}
+
+fn assert_flowchart_snapshot(name: &str) {
+    let output = render_fixture(name);
+    let snapshot_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("snapshots")
+        .join("flowchart")
+        .join(name.replace(".mmd", ".txt"));
+    let expected = fs::read_to_string(&snapshot_path)
+        .unwrap_or_else(|_| panic!("Missing snapshot: {}", snapshot_path.display()));
+
+    assert_eq!(output, expected, "Snapshot mismatch for {name}");
 }
 
 fn strip_ansi(input: &str) -> String {
@@ -156,6 +184,97 @@ fn first_segment(path: &[FPoint]) -> (f64, bool) {
     let dx = (p1.x - p0.x).abs();
     let dy = (p1.y - p0.y).abs();
     (dx + dy, dy > dx + 0.000_001)
+}
+
+fn issue_21_repro_input() -> &'static str {
+    r#"graph TD
+  n0["__clone3 s:0.00 t:49.00"]
+  n1["start_thread s:0.00 t:49.00"]
+  n0 --> n1
+  n2["fn1... s:0.00 t:48.00"]
+  n1 --> n2
+  n3["fn2 s:1.00 t:47.00"]
+  n2 --> n3
+  n4["fn3_co... s:0.00 t:31.00"]
+  n3 --> n4
+  n5["fn4 s:27.00 t:27.00"]
+  n4 --> n5
+  n6["fn5 s:18.00 t:18.00"]
+  n4 --> n6
+  n7["fn6 s:1.00 t:15.00"]
+  n3 --> n7
+  n7 --> n5
+  n7 --> n6
+  n8["fn7 s:0.00 t:46.00"]
+  n2 --> n8
+  n9["fn8 s:0.00 t:39.00"]
+  n8 --> n9
+  n10["fn8_in... s:1.00 t:39.00"]
+  n9 --> n10
+  n10 --> n3
+  n11["fn1 s:0.00 t:7.00"]
+  n8 --> n11
+  n12["fn1... s:0.00 t:7.00"]
+  n11 --> n12
+  n13["_start s:0.00 t:7.00"]
+  n14["__libc_start_main@GLIBC_2... s:0.00 t:7.00"]
+  n13 --> n14
+  n15["__libc_start_call_main s:0.00 t:7.00"]
+  n14 --> n15
+  n16["main s:0.00 t:7.00"]
+  n15 --> n16
+  n17["fn9 s:0.00 t:7.00"]
+  n16 --> n17
+  n18["fn10 s:0.00 t:7.00"]
+  n17 --> n18
+  n19["fn11 s:0.00 t:7.00"]
+  n18 --> n19
+  n19 --> n8"#
+}
+
+fn ranges_overlap(a1: usize, a2: usize, b1: usize, b2: usize) -> bool {
+    let (a_min, a_max) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
+    let (b_min, b_max) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
+    a_min <= b_max && b_min <= a_max
+}
+
+fn segment_intersects_bounds(segment: Segment, bounds: &NodeBounds) -> bool {
+    let left = bounds.x;
+    let right = bounds.x + bounds.width.saturating_sub(1);
+    let top = bounds.y;
+    let bottom = bounds.y + bounds.height.saturating_sub(1);
+
+    match segment {
+        Segment::Vertical { x, y_start, y_end } => {
+            x >= left && x <= right && ranges_overlap(y_start, y_end, top, bottom)
+        }
+        Segment::Horizontal { y, x_start, x_end } => {
+            y >= top && y <= bottom && ranges_overlap(x_start, x_end, left, right)
+        }
+    }
+}
+
+fn unrelated_node_intrusions(routed: &[RoutedEdge], layout: &Layout) -> Vec<String> {
+    let mut intrusions = Vec::new();
+
+    for edge in routed {
+        for (node_id, bounds) in &layout.node_bounds {
+            if node_id == &edge.edge.from || node_id == &edge.edge.to {
+                continue;
+            }
+
+            for segment in &edge.segments {
+                if segment_intersects_bounds(*segment, bounds) {
+                    intrusions.push(format!(
+                        "{} -> {} intersects unrelated node {} via {:?} against {:?}",
+                        edge.edge.from, edge.edge.to, node_id, segment, bounds
+                    ));
+                }
+            }
+        }
+    }
+
+    intrusions
 }
 
 // =============================================================================
@@ -561,6 +680,93 @@ mod rendering {
     }
 
     #[test]
+    fn git_workflow_matches_snapshot() {
+        assert_flowchart_snapshot("git_workflow.mmd");
+    }
+
+    #[test]
+    fn backward_loop_lr_matches_snapshot() {
+        assert_flowchart_snapshot("backward_loop_lr.mmd");
+    }
+
+    #[test]
+    fn git_workflow_backward_route_uses_compact_bottom_channel_with_routed_layout() {
+        let (diagram, layout) = layout_fixture_with_routed("git_workflow.mmd");
+        let routed = route_all_edges(&diagram.edges, &layout, diagram.direction);
+        let remote_to_working = routed
+            .iter()
+            .find(|edge| edge.edge.from == "Remote" && edge.edge.to == "Working")
+            .expect("git_workflow should contain Remote -> Working");
+        let horizontal_segments = remote_to_working
+            .segments
+            .iter()
+            .filter(|segment| matches!(segment, Segment::Horizontal { .. }))
+            .count();
+        let vertical_segments = remote_to_working
+            .segments
+            .iter()
+            .filter(|segment| matches!(segment, Segment::Vertical { .. }))
+            .count();
+
+        assert_eq!(
+            remote_to_working.segments.len(),
+            6,
+            "git_workflow Remote -> Working should collapse to the shared bottom-channel family when routed draw paths are available: {:?}",
+            remote_to_working.segments
+        );
+        assert_eq!(
+            horizontal_segments, 2,
+            "git_workflow Remote -> Working should keep two horizontal traversals in the compact bottom-channel family: {:?}",
+            remote_to_working.segments
+        );
+        assert_eq!(
+            vertical_segments, 4,
+            "git_workflow Remote -> Working should keep four vertical support segments in the compact bottom-channel family: {:?}",
+            remote_to_working.segments
+        );
+    }
+
+    #[test]
+    fn routed_long_skip_edges_use_compact_shared_elbow_family() {
+        for fixture in ["double_skip.mmd", "skip_edge_collision.mmd"] {
+            let (diagram, layout) = layout_fixture_with_routed(fixture);
+            let routed = route_all_edges(&diagram.edges, &layout, diagram.direction);
+            let a_to_d = routed
+                .iter()
+                .find(|edge| edge.edge.from == "A" && edge.edge.to == "D")
+                .unwrap_or_else(|| panic!("{fixture} should contain A -> D"));
+
+            let horizontal_segments = a_to_d
+                .segments
+                .iter()
+                .filter(|segment| matches!(segment, Segment::Horizontal { .. }))
+                .count();
+            let vertical_segments = a_to_d
+                .segments
+                .iter()
+                .filter(|segment| matches!(segment, Segment::Vertical { .. }))
+                .count();
+
+            assert_eq!(
+                a_to_d.segments.len(),
+                6,
+                "{fixture} A -> D should use the compact routed elbow family when routed draw paths are available: {:?}",
+                a_to_d.segments
+            );
+            assert_eq!(
+                horizontal_segments, 2,
+                "{fixture} A -> D should keep exactly two horizontal traversals in the routed elbow family: {:?}",
+                a_to_d.segments
+            );
+            assert_eq!(
+                vertical_segments, 4,
+                "{fixture} A -> D should keep exactly four vertical segments in the routed elbow family: {:?}",
+                a_to_d.segments
+            );
+        }
+    }
+
+    #[test]
     fn http_request_renders() {
         let output = render_fixture("http_request.mmd");
         // Due to cycle handling, node order may vary. Check for presence of key elements.
@@ -596,49 +802,7 @@ mod rendering {
 
     #[test]
     fn ascii_issue_21_backward_edge_does_not_clip_right_edge() {
-        let input = r#"graph TD
-  n0["__clone3 s:0.00 t:49.00"]
-  n1["start_thread s:0.00 t:49.00"]
-  n0 --> n1
-  n2["fn1... s:0.00 t:48.00"]
-  n1 --> n2
-  n3["fn2 s:1.00 t:47.00"]
-  n2 --> n3
-  n4["fn3_co... s:0.00 t:31.00"]
-  n3 --> n4
-  n5["fn4 s:27.00 t:27.00"]
-  n4 --> n5
-  n6["fn5 s:18.00 t:18.00"]
-  n4 --> n6
-  n7["fn6 s:1.00 t:15.00"]
-  n3 --> n7
-  n7 --> n5
-  n7 --> n6
-  n8["fn7 s:0.00 t:46.00"]
-  n2 --> n8
-  n9["fn8 s:0.00 t:39.00"]
-  n8 --> n9
-  n10["fn8_in... s:1.00 t:39.00"]
-  n9 --> n10
-  n10 --> n3
-  n11["fn1 s:0.00 t:7.00"]
-  n8 --> n11
-  n12["fn1... s:0.00 t:7.00"]
-  n11 --> n12
-  n13["_start s:0.00 t:7.00"]
-  n14["__libc_start_main@GLIBC_2... s:0.00 t:7.00"]
-  n13 --> n14
-  n15["__libc_start_call_main s:0.00 t:7.00"]
-  n14 --> n15
-  n16["main s:0.00 t:7.00"]
-  n15 --> n16
-  n17["fn9 s:0.00 t:7.00"]
-  n16 --> n17
-  n18["fn10 s:0.00 t:7.00"]
-  n17 --> n18
-  n19["fn11 s:0.00 t:7.00"]
-  n18 --> n19
-  n19 --> n8"#;
+        let input = issue_21_repro_input();
 
         let flowchart = parse_flowchart(input).expect("issue #21 input should parse");
         let diagram = build_diagram(&flowchart);
@@ -659,6 +823,25 @@ mod rendering {
             "ASCII output should not be clipped on the right edge for issue #21.\nFound clipped lines:\n{}\n\nFull output:\n{}",
             clipped_lines.join("\n"),
             output
+        );
+    }
+
+    #[test]
+    fn issue_21_quantized_waypoint_corridor_does_not_cross_unrelated_nodes() {
+        let flowchart =
+            parse_flowchart(issue_21_repro_input()).expect("issue #21 input should parse");
+        let diagram = build_diagram(&flowchart);
+        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let routed = route_all_edges(&diagram.edges, &layout, diagram.direction);
+        let intrusions: Vec<String> = unrelated_node_intrusions(&routed, &layout)
+            .into_iter()
+            .filter(|intrusion| intrusion.starts_with("n3 -> n4"))
+            .collect();
+
+        assert!(
+            intrusions.is_empty(),
+            "issue_21 text routing should keep the reranked n3 -> n4 corridor out of unrelated nodes:\n{}",
+            intrusions.join("\n")
         );
     }
 

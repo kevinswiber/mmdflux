@@ -1,14 +1,22 @@
+use std::fs;
+use std::path::Path;
+
 use super::super::text_adapter::compute_layout;
-use super::super::text_layout::TextLayoutConfig;
+use super::super::text_layout::{GridPos, TextLayoutConfig};
 use super::*;
+use crate::diagram::OutputFormat;
+use crate::diagrams::flowchart::engine::MeasurementMode;
 use crate::diagrams::flowchart::geometry::{FPoint, FRect};
+use crate::diagrams::flowchart::render::text_adapter::geometry_to_text_layout_with_routed;
 use crate::diagrams::flowchart::render::text_routing_core::{
     Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
     classify_face_float, edge_faces, fan_in_overflow_face_for_slot, fan_in_primary_face_capacity,
     plan_attachments, point_on_face_float, resolve_overflow_backward_channel_conflict,
 };
+use crate::diagrams::flowchart::routing::route_graph_geometry;
 use crate::graph::{Diagram, Node};
 use crate::render::intersect::NodeFace;
+use crate::{EdgeRouting, EngineConfig, build_diagram, parse_flowchart};
 
 fn simple_td_diagram() -> Diagram {
     let mut diagram = Diagram::new(Direction::TopDown);
@@ -16,6 +24,44 @@ fn simple_td_diagram() -> Diagram {
     diagram.add_node(Node::new("B").with_label("End"));
     diagram.add_edge(Edge::new("A", "B"));
     diagram
+}
+
+fn load_flowchart_fixture(name: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("flowchart")
+        .join(name);
+    fs::read_to_string(path).expect("fixture should load")
+}
+
+fn routed_text_layout_for_fixture(name: &str) -> (Diagram, Layout) {
+    let input = load_flowchart_fixture(name);
+    let flowchart = parse_flowchart(&input).expect("fixture should parse");
+    let diagram = build_diagram(&flowchart);
+    let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+    let geom = crate::diagrams::flowchart::engine::run_layered_layout(
+        &MeasurementMode::for_format(OutputFormat::Text, &crate::diagram::RenderConfig::default()),
+        &diagram,
+        &config,
+    )
+    .expect("layout should succeed");
+    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let layout = geometry_to_text_layout_with_routed(
+        &diagram,
+        &geom,
+        Some(&routed),
+        &TextLayoutConfig::default(),
+    );
+    (diagram, layout)
+}
+
+fn text_layout_for_fixture(name: &str) -> (Diagram, Layout) {
+    let input = load_flowchart_fixture(name);
+    let flowchart = parse_flowchart(&input).expect("fixture should parse");
+    let diagram = build_diagram(&flowchart);
+    let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+    (diagram, layout)
 }
 
 #[test]
@@ -152,6 +198,58 @@ fn make_bounds_sized(x: usize, y: usize, width: usize, height: usize) -> NodeBou
         height,
         layout_center_x: None,
         layout_center_y: None,
+    }
+}
+
+fn minimal_layout(
+    bounds: &[(&str, NodeBounds)],
+    routed_paths: &[(usize, Vec<(usize, usize)>)],
+) -> Layout {
+    let node_bounds: std::collections::HashMap<String, NodeBounds> = bounds
+        .iter()
+        .map(|(id, bounds)| ((*id).to_string(), *bounds))
+        .collect();
+    let draw_positions: std::collections::HashMap<String, (usize, usize)> = bounds
+        .iter()
+        .map(|(id, bounds)| ((*id).to_string(), (bounds.x, bounds.y)))
+        .collect();
+    let grid_positions: std::collections::HashMap<String, GridPos> = bounds
+        .iter()
+        .enumerate()
+        .map(|(idx, (id, _))| {
+            (
+                (*id).to_string(),
+                GridPos {
+                    layer: idx,
+                    pos: idx,
+                },
+            )
+        })
+        .collect();
+    let node_shapes: std::collections::HashMap<String, Shape> = bounds
+        .iter()
+        .map(|(id, _)| ((*id).to_string(), Shape::Rectangle))
+        .collect();
+    let routed_edge_paths: std::collections::HashMap<usize, Vec<(usize, usize)>> = routed_paths
+        .iter()
+        .map(|(edge_idx, points)| (*edge_idx, points.clone()))
+        .collect();
+
+    Layout {
+        grid_positions,
+        draw_positions,
+        node_bounds,
+        width: 120,
+        height: 80,
+        h_spacing: 4,
+        v_spacing: 3,
+        edge_waypoints: std::collections::HashMap::new(),
+        routed_edge_paths,
+        edge_label_positions: std::collections::HashMap::new(),
+        node_shapes,
+        subgraph_bounds: std::collections::HashMap::new(),
+        self_edges: Vec::new(),
+        node_directions: std::collections::HashMap::new(),
     }
 }
 
@@ -459,6 +557,185 @@ fn test_route_backward_edge_td() {
 
     // Should have segments connecting B to A
     assert!(!routed.segments.is_empty());
+}
+
+#[test]
+fn route_edge_reports_shared_routed_draw_path_when_backward_draw_path_is_used() {
+    let mut diagram = Diagram::new(Direction::TopDown);
+    diagram.add_node(Node::new("A").with_label("Top"));
+    diagram.add_node(Node::new("B").with_label("Bottom"));
+    diagram.add_edge(Edge::new("A", "B"));
+    diagram.add_edge(Edge::new("B", "A"));
+
+    let source = make_bounds_sized(20, 20, 10, 3);
+    let target = make_bounds_sized(20, 0, 10, 3);
+    let draw_path = vec![(30, 21), (40, 21), (40, 1), (30, 1)];
+    let layout = minimal_layout(
+        &[("A", target), ("B", source)],
+        &[(diagram.edges[1].index, draw_path)],
+    );
+
+    let result = route_edge_with_probe(
+        &diagram.edges[1],
+        &layout,
+        Direction::TopDown,
+        None,
+        None,
+        false,
+    )
+    .expect("backward routed draw path should route");
+
+    assert_eq!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
+    assert_eq!(result.probe.rejection_reason, None);
+}
+
+#[test]
+fn route_edge_reports_rejection_reason_when_draw_path_hits_unrelated_node() {
+    let mut diagram = Diagram::new(Direction::TopDown);
+    diagram.add_node(Node::new("A").with_label("Top"));
+    diagram.add_node(Node::new("B").with_label("Bottom"));
+    diagram.add_node(Node::new("C").with_label("Blocker"));
+    diagram.add_edge(Edge::new("A", "B"));
+    diagram.add_edge(Edge::new("B", "A"));
+
+    let source = make_bounds_sized(20, 20, 10, 3);
+    let target = make_bounds_sized(20, 0, 10, 3);
+    let blocker = make_bounds_sized(38, 10, 8, 4);
+    let draw_path = vec![(30, 21), (40, 21), (40, 1), (30, 1)];
+    let layout = minimal_layout(
+        &[("A", target), ("B", source), ("C", blocker)],
+        &[(diagram.edges[1].index, draw_path)],
+    );
+
+    let result = route_edge_with_probe(
+        &diagram.edges[1],
+        &layout,
+        Direction::TopDown,
+        None,
+        None,
+        false,
+    )
+    .expect("backward edge should fall back after draw-path rejection");
+
+    assert_eq!(result.probe.path_family, TextPathFamily::SyntheticBackward);
+    assert_eq!(
+        result.probe.rejection_reason,
+        Some(TextPathRejection::SegmentCollision)
+    );
+}
+
+#[test]
+fn git_workflow_remote_to_working_prefers_shared_routed_draw_path() {
+    let (diagram, layout) = routed_text_layout_for_fixture("git_workflow.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "Remote" && edge.to == "Working")
+        .expect("git_workflow should contain Remote -> Working");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("git_workflow backward edge should route");
+
+    assert_eq!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
+    assert_eq!(result.probe.rejection_reason, None);
+}
+
+#[test]
+fn git_workflow_default_text_layout_keeps_backward_edge_off_shared_routed_draw_path() {
+    let (diagram, layout) = text_layout_for_fixture("git_workflow.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "Remote" && edge.to == "Working")
+        .expect("git_workflow should contain Remote -> Working");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("git_workflow backward edge should route");
+
+    assert_ne!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
+}
+
+#[test]
+fn backward_loop_lr_default_text_layout_keeps_backward_edge_off_shared_routed_draw_path() {
+    let (diagram, layout) = text_layout_for_fixture("backward_loop_lr.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "G" && edge.to == "F")
+        .expect("backward_loop_lr should contain G -> F");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("backward_loop_lr backward edge should route");
+
+    assert_ne!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
+}
+
+#[test]
+fn double_skip_a_to_d_prefers_shared_routed_draw_path() {
+    let (diagram, layout) = routed_text_layout_for_fixture("double_skip.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "A" && edge.to == "D")
+        .expect("double_skip should contain A -> D");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("double_skip A -> D should route");
+
+    assert_eq!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
+    assert_eq!(result.probe.rejection_reason, None);
+}
+
+#[test]
+fn skip_edge_collision_a_to_d_prefers_shared_routed_draw_path() {
+    let (diagram, layout) = routed_text_layout_for_fixture("skip_edge_collision.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "A" && edge.to == "D")
+        .expect("skip_edge_collision should contain A -> D");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("skip_edge_collision A -> D should route");
+
+    assert_eq!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
+    assert_eq!(result.probe.rejection_reason, None);
+}
+
+#[test]
+fn simple_forward_edge_does_not_prefer_shared_routed_draw_path() {
+    let (diagram, layout) = routed_text_layout_for_fixture("simple.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "A" && edge.to == "B")
+        .expect("simple should contain A -> B");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("simple A -> B should route");
+
+    assert_ne!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
 }
 
 #[test]
