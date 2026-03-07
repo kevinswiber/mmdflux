@@ -171,12 +171,15 @@ fn build_mmds_output(
     let level = if routed.is_some() { "routed" } else { "layout" };
     let styled_nodes = collect_styled_nodes(diagram);
 
+    // At routed level, use the recomputed routed bounds (which cover all
+    // routed edge paths) instead of stale layout bounds.
+    let effective_bounds = routed.map_or(geometry.bounds, |r| r.bounds);
     let metadata = MmdsMetadata {
         diagram_type: diagram_type.to_string(),
         direction: direction_str(diagram.direction).to_string(),
         bounds: MmdsBounds {
-            width: geometry.bounds.width,
-            height: geometry.bounds.height,
+            width: effective_bounds.width,
+            height: effective_bounds.height,
         },
         engine: engine_id.map(|id| id.to_string()),
     };
@@ -1107,5 +1110,30 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.message.contains("routed MMDS output requested"));
+    }
+
+    #[test]
+    fn routed_mmds_metadata_uses_routed_bounds_not_layout_bounds() {
+        let (diagram, geom) = layout_geometry("graph TD\nA-->B\nB-->C\nC-->A");
+        let routed = routed_geometry(&diagram, &geom);
+
+        let routed_output: MmdsOutput =
+            serde_json::from_str(&to_mmds_routed(&diagram, &geom, &routed)).unwrap();
+
+        // The MMDS routed bounds must always match the routed geometry bounds.
+        assert!(
+            (routed_output.metadata.bounds.width - routed.bounds.width).abs() < 0.001,
+            "routed MMDS metadata.bounds.width should match routed geometry bounds.width; \
+             mmds={:.2}, routed_geom={:.2}",
+            routed_output.metadata.bounds.width,
+            routed.bounds.width
+        );
+        assert!(
+            (routed_output.metadata.bounds.height - routed.bounds.height).abs() < 0.001,
+            "routed MMDS metadata.bounds.height should match routed geometry bounds.height; \
+             mmds={:.2}, routed_geom={:.2}",
+            routed_output.metadata.bounds.height,
+            routed.bounds.height
+        );
     }
 }

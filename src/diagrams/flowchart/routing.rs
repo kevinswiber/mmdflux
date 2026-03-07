@@ -161,14 +161,62 @@ pub fn route_graph_geometry(
         })
         .collect();
 
+    let bounds = recompute_routed_bounds(geometry, &edges, &self_edges);
+
     RoutedGraphGeometry {
         nodes: geometry.nodes.clone(),
         edges,
         subgraphs: geometry.subgraphs.clone(),
         self_edges,
         direction: geometry.direction,
-        bounds: geometry.bounds,
+        bounds,
     }
+}
+
+/// Recompute bounds as the union of the original layout bounds with all
+/// routed edge paths and self-edge paths.
+///
+/// The layout bounds seed already covers node rects and subgraph rects.
+/// This expands that envelope to include any path points that routing
+/// pushed beyond the layout box (e.g. backward channels).
+fn recompute_routed_bounds(
+    geometry: &GraphGeometry,
+    edges: &[RoutedEdgeGeometry],
+    self_edges: &[RoutedSelfEdge],
+) -> FRect {
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+
+    // Seed from layout bounds (covers nodes and subgraphs).
+    let b = geometry.bounds;
+    min_x = min_x.min(b.x);
+    min_y = min_y.min(b.y);
+    max_x = max_x.max(b.x + b.width);
+    max_y = max_y.max(b.y + b.height);
+
+    // Expand for all routed edge path points.
+    for edge in edges {
+        for p in &edge.path {
+            min_x = min_x.min(p.x);
+            min_y = min_y.min(p.y);
+            max_x = max_x.max(p.x);
+            max_y = max_y.max(p.y);
+        }
+    }
+
+    // Expand for self-edge paths.
+    for se in self_edges {
+        for p in &se.path {
+            min_x = min_x.min(p.x);
+            min_y = min_y.min(p.y);
+            max_x = max_x.max(p.x);
+            max_y = max_y.max(p.y);
+        }
+    }
+
+    FRect::new(min_x, min_y, max_x - min_x, max_y - min_y)
 }
 
 fn build_direct_path(
@@ -1548,5 +1596,107 @@ mod tests {
             edge.target_port.is_some(),
             "target_port should be populated for orthogonal"
         );
+    }
+
+    /// Routed bounds must cover all edge path points, even when routing
+    /// pushes paths beyond the original layout bounds (e.g. backward channels).
+    #[test]
+    fn routed_bounds_cover_all_edge_path_points() {
+        // Build a 3-node TD diagram with a backward edge whose channel
+        // extends beyond the tight layout bounds.
+        let mut diagram = Diagram::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_node(crate::graph::Node::new("B"));
+        diagram.add_node(crate::graph::Node::new("C"));
+        diagram.add_edge(crate::graph::Edge::new("A", "B"));
+        diagram.add_edge(crate::graph::Edge::new("B", "C"));
+        diagram.add_edge(crate::graph::Edge::new("C", "A")); // backward
+
+        let mut nodes = HashMap::new();
+        for (id, y) in [("A", 10.0), ("B", 50.0), ("C", 90.0)] {
+            nodes.insert(
+                id.to_string(),
+                PositionedNode {
+                    id: id.to_string(),
+                    rect: FRect::new(10.0, y, 40.0, 20.0), // right edge at 50
+                    shape: crate::graph::Shape::Rectangle,
+                    label: id.to_string(),
+                    parent: None,
+                },
+            );
+        }
+
+        let edges = vec![
+            LayoutEdge {
+                index: 0,
+                from: "A".into(),
+                to: "B".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+            },
+            LayoutEdge {
+                index: 1,
+                from: "B".into(),
+                to: "C".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+            },
+            LayoutEdge {
+                index: 2,
+                from: "C".into(),
+                to: "A".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+            },
+        ];
+
+        let geom = GraphGeometry {
+            nodes,
+            edges,
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: HashMap::new(),
+            // Tight bounds: right edge of nodes is at x=50, channel needs x>=58
+            bounds: FRect::new(0.0, 0.0, 55.0, 120.0),
+            reversed_edges: vec![2], // C->A is backward
+            engine_hints: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: true,
+        };
+
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+
+        // Verify all path points are within the recomputed bounds.
+        let b = routed.bounds;
+        let eps = 0.001;
+        for edge in &routed.edges {
+            for p in &edge.path {
+                assert!(
+                    p.x >= b.x - eps
+                        && p.x <= b.x + b.width + eps
+                        && p.y >= b.y - eps
+                        && p.y <= b.y + b.height + eps,
+                    "path point ({:.1}, {:.1}) outside bounds {:?} for edge {}->{}",
+                    p.x,
+                    p.y,
+                    b,
+                    edge.from,
+                    edge.to
+                );
+            }
+        }
     }
 }
