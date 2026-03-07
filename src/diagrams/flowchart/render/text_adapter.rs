@@ -898,7 +898,13 @@ fn forms_vertical_criss_cross_pair(
     if simple_path[0].1 != detour_path[0].1 || simple_path[3].1 != detour_path[5].1 {
         return false;
     }
-    if simple_path[0].0 != detour_path[5].0 || simple_path[3].0 != detour_path[0].0 {
+    let center_x = detour_path[2].0;
+    let simple_crosses_center = simple_path[3].0 < center_x && simple_path[0].0 > center_x;
+    let detour_covers_center =
+        detour_path[1].0 < detour_path[2].0 && detour_path[2].0 < detour_path[4].0;
+    let endpoints_cross =
+        simple_path[0].0 > detour_path[0].0 && simple_path[3].0 < detour_path[5].0;
+    if !(simple_crosses_center && detour_covers_center && endpoints_cross) {
         return false;
     }
 
@@ -910,14 +916,13 @@ fn forms_vertical_criss_cross_pair(
     } else {
         upper_y > center_y && center_y > lower_y
     };
-    if !vertical_order_ok {
+    let collapsed_to_lower =
+        simple_path_collapses_to_detour_lower_row(simple_path, detour_path, vertical_sign);
+    if !(vertical_order_ok || collapsed_to_lower) {
         return false;
     }
 
-    detour_path[2].0 > detour_path[1].0
-        && detour_path[2].0 < detour_path[4].0
-        && simple_horizontal_sign < 0
-        && detour_horizontal_sign > 0
+    simple_horizontal_sign < 0 && detour_horizontal_sign > 0
 }
 
 fn compact_vertical_criss_cross_pair(
@@ -936,10 +941,22 @@ fn compact_vertical_criss_cross_pair(
         return None;
     }
 
-    let lower_gap = detour_path[3].1.abs_diff(simple_path[1].1);
-    if lower_gap < 2 {
-        return None;
-    }
+    let collapsed_to_lower =
+        simple_path_collapses_to_detour_lower_row(simple_path, detour_path, vertical_sign as i8);
+    let center_y = if collapsed_to_lower {
+        collapsed_vertical_criss_cross_center_y(detour_path, vertical_sign)?
+    } else {
+        simple_path[1].1
+    };
+    let detour_lower_y = if collapsed_to_lower {
+        shift_axis(detour_path[3].1, -vertical_sign)?
+    } else {
+        let lower_gap = detour_path[3].1.abs_diff(center_y);
+        if lower_gap < 2 {
+            return None;
+        }
+        shift_axis(detour_path[3].1, -vertical_sign)?
+    };
     let detour_run = detour_path[4].0.abs_diff(detour_path[3].0);
     if detour_run < 2 {
         return None;
@@ -948,7 +965,6 @@ fn compact_vertical_criss_cross_pair(
     let simple_shifted_x = shift_axis(simple_path[0].0, simple_horizontal_sign)?;
     let target_pull = if detour_run >= 4 { 2 } else { 1 } as isize;
     let detour_target_x = shift_axis(detour_path[4].0, -detour_horizontal_sign * target_pull)?;
-    let detour_lower_y = shift_axis(detour_path[3].1, -vertical_sign)?;
 
     let center_x = detour_path[2].0 as isize;
     let simple_shifted_x_i = simple_shifted_x as isize;
@@ -960,30 +976,64 @@ fn compact_vertical_criss_cross_pair(
         return None;
     }
 
-    let center_y = simple_path[1].1 as isize;
+    let center_y_i = center_y as isize;
     let detour_lower_y_i = detour_lower_y as isize;
-    if (vertical_sign > 0 && detour_lower_y_i <= center_y)
-        || (vertical_sign < 0 && detour_lower_y_i >= center_y)
+    if (vertical_sign > 0 && detour_lower_y_i <= center_y_i)
+        || (vertical_sign < 0 && detour_lower_y_i >= center_y_i)
     {
         return None;
     }
 
-    let simple_stem_y = shift_axis(simple_path[1].1, -vertical_sign)?;
+    let simple_stem_y = shift_axis(center_y, -vertical_sign)?;
     let simple = vec![
         (simple_shifted_x, simple_path[0].1),
         (simple_shifted_x, simple_stem_y),
-        (simple_shifted_x, simple_path[1].1),
-        simple_path[2],
+        (simple_shifted_x, center_y),
+        (simple_path[3].0, center_y),
         simple_path[3],
     ];
 
-    let mut detour = detour_path.to_vec();
-    detour[3].1 = detour_lower_y;
-    detour[4].0 = detour_target_x;
-    detour[4].1 = detour_lower_y;
-    detour[5].0 = detour_target_x;
+    let detour = vec![
+        detour_path[0],
+        detour_path[1],
+        detour_path[2],
+        (detour_path[2].0, detour_lower_y),
+        (detour_target_x, detour_lower_y),
+        (detour_target_x, detour_path[5].1),
+    ];
 
     Some((simple, detour))
+}
+
+fn simple_path_collapses_to_detour_lower_row(
+    simple_path: &[(usize, usize)],
+    detour_path: &[(usize, usize)],
+    vertical_sign: i8,
+) -> bool {
+    if vertical_sign > 0 {
+        simple_path[1].1 == detour_path[3].1
+            && detour_path[1].1 < detour_path[3].1
+            && detour_path[3].1 < simple_path[3].1
+    } else {
+        simple_path[1].1 == detour_path[3].1
+            && detour_path[1].1 > detour_path[3].1
+            && detour_path[3].1 > simple_path[3].1
+    }
+}
+
+fn collapsed_vertical_criss_cross_center_y(
+    detour_path: &[(usize, usize)],
+    vertical_sign: isize,
+) -> Option<usize> {
+    let upper_y = detour_path[1].1;
+    let lower_y = detour_path[3].1;
+    let center_y = shift_axis(lower_y, -2 * vertical_sign)?;
+
+    if vertical_sign > 0 {
+        (upper_y < center_y && center_y < lower_y).then_some(center_y)
+    } else {
+        (upper_y > center_y && center_y > lower_y).then_some(center_y)
+    }
 }
 
 fn point_delta(a: usize, b: usize) -> i8 {

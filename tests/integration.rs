@@ -767,6 +767,47 @@ mod rendering {
     }
 
     #[test]
+    fn callgraph_feedback_cycle_lower_criss_cross_stays_separated_in_text() {
+        let (diagram, layout) = layout_fixture_with_routed("callgraph_feedback_cycle.mmd");
+        let n4_to_n6 = diagram
+            .edges
+            .iter()
+            .find(|edge| edge.from == "n4" && edge.to == "n6")
+            .expect("callgraph_feedback_cycle should contain n4 -> n6");
+        let n7_to_n5 = diagram
+            .edges
+            .iter()
+            .find(|edge| edge.from == "n7" && edge.to == "n5")
+            .expect("callgraph_feedback_cycle should contain n7 -> n5");
+
+        let detour = layout
+            .routed_edge_paths
+            .get(&n4_to_n6.index)
+            .expect("n4 -> n6 should keep its routed detour");
+        let simple = layout
+            .routed_edge_paths
+            .get(&n7_to_n5.index)
+            .expect("n7 -> n5 should keep its routed crossing path");
+
+        assert!(
+            detour.len() >= 6,
+            "n4 -> n6 should remain a multi-bend detour after text adaptation: {detour:?}"
+        );
+        assert!(
+            simple.len() >= 5,
+            "n7 -> n5 should retain an explicit center crossing row after text adaptation: {simple:?}"
+        );
+
+        let upper_y = detour[1].1;
+        let lower_y = detour[3].1;
+        let center_y = simple[2].1;
+        assert!(
+            upper_y < center_y && center_y < lower_y,
+            "callgraph_feedback_cycle lower criss-cross should preserve a distinct center crossing row between the detour's upper and lower lanes: simple={simple:?}, detour={detour:?}"
+        );
+    }
+
+    #[test]
     fn http_request_renders() {
         let output = render_fixture("http_request.mmd");
         // Due to cycle handling, node order may vary. Check for presence of key elements.
