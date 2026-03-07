@@ -28,6 +28,7 @@ use crate::layered::{Direction as LayeredDirection, Rect};
 
 type DrawPath = Vec<(usize, usize)>;
 type DrawPathPair = (DrawPath, DrawPath);
+type IndexedDrawPathPair = (usize, DrawPath, usize, DrawPath);
 
 /// Convenience: run the full engine → adapter pipeline to produce a `Layout`.
 ///
@@ -717,20 +718,20 @@ fn compact_vertical_criss_cross_draw_paths(
 
     for i in 0..diagram.edges.len() {
         let first = &diagram.edges[i];
-        if adjusted_edges.contains(&first.index)
-            || first.from_subgraph.is_some()
-            || first.to_subgraph.is_some()
-            || !preserve_routed_path_topology.contains(&first.index)
-        {
+        if !eligible_for_vertical_criss_cross_compaction(
+            first,
+            &adjusted_edges,
+            preserve_routed_path_topology,
+        ) {
             continue;
         }
 
         for second in diagram.edges.iter().skip(i + 1) {
-            if adjusted_edges.contains(&second.index)
-                || second.from_subgraph.is_some()
-                || second.to_subgraph.is_some()
-                || !preserve_routed_path_topology.contains(&second.index)
-            {
+            if !eligible_for_vertical_criss_cross_compaction(
+                second,
+                &adjusted_edges,
+                preserve_routed_path_topology,
+            ) {
                 continue;
             }
 
@@ -741,34 +742,14 @@ fn compact_vertical_criss_cross_draw_paths(
                 continue;
             };
 
-            let compacted = if is_vertical_criss_cross_simple_path(&first_path)
-                && is_vertical_criss_cross_detour_path(&second_path)
-                && forms_vertical_criss_cross_pair(
-                    first,
-                    &first_path,
-                    second,
-                    &second_path,
-                    node_bounds,
-                    diagram.direction,
-                ) {
-                compact_vertical_criss_cross_pair(&first_path, &second_path, diagram.direction)
-                    .map(|(simple, detour)| (first.index, simple, second.index, detour))
-            } else if is_vertical_criss_cross_detour_path(&first_path)
-                && is_vertical_criss_cross_simple_path(&second_path)
-                && forms_vertical_criss_cross_pair(
-                    second,
-                    &second_path,
-                    first,
-                    &first_path,
-                    node_bounds,
-                    diagram.direction,
-                )
-            {
-                compact_vertical_criss_cross_pair(&second_path, &first_path, diagram.direction)
-                    .map(|(simple, detour)| (second.index, simple, first.index, detour))
-            } else {
-                None
-            };
+            let compacted = compact_vertical_criss_cross_match(
+                first,
+                &first_path,
+                second,
+                &second_path,
+                node_bounds,
+                diagram.direction,
+            );
 
             let Some((simple_idx, simple_points, detour_idx, detour_points)) = compacted else {
                 continue;
@@ -781,6 +762,58 @@ fn compact_vertical_criss_cross_draw_paths(
             break;
         }
     }
+}
+
+fn eligible_for_vertical_criss_cross_compaction(
+    edge: &Edge,
+    adjusted_edges: &HashSet<usize>,
+    preserve_routed_path_topology: &HashSet<usize>,
+) -> bool {
+    !adjusted_edges.contains(&edge.index)
+        && edge.from_subgraph.is_none()
+        && edge.to_subgraph.is_none()
+        && preserve_routed_path_topology.contains(&edge.index)
+}
+
+fn compact_vertical_criss_cross_match(
+    first: &Edge,
+    first_path: &[(usize, usize)],
+    second: &Edge,
+    second_path: &[(usize, usize)],
+    node_bounds: &HashMap<String, NodeBounds>,
+    direction: Direction,
+) -> Option<IndexedDrawPathPair> {
+    if is_vertical_criss_cross_simple_path(first_path)
+        && is_vertical_criss_cross_detour_path(second_path)
+        && forms_vertical_criss_cross_pair(
+            first,
+            first_path,
+            second,
+            second_path,
+            node_bounds,
+            direction,
+        )
+    {
+        return compact_vertical_criss_cross_pair(first_path, second_path, direction)
+            .map(|(simple, detour)| (first.index, simple, second.index, detour));
+    }
+
+    if is_vertical_criss_cross_detour_path(first_path)
+        && is_vertical_criss_cross_simple_path(second_path)
+        && forms_vertical_criss_cross_pair(
+            second,
+            second_path,
+            first,
+            first_path,
+            node_bounds,
+            direction,
+        )
+    {
+        return compact_vertical_criss_cross_pair(second_path, first_path, direction)
+            .map(|(simple, detour)| (second.index, simple, first.index, detour));
+    }
+
+    None
 }
 
 fn is_vertical_criss_cross_simple_path(points: &[(usize, usize)]) -> bool {

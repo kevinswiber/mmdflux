@@ -218,6 +218,34 @@ fn draw_source_launch(canvas: &mut Canvas, routed: &RoutedEdge, charset: &CharSe
     );
 }
 
+fn draw_edge_path_and_arrows(canvas: &mut Canvas, routed: &RoutedEdge, charset: &CharSet) {
+    for segment in &routed.segments {
+        draw_segment(canvas, segment, routed.edge.stroke, charset);
+    }
+    draw_source_launch(canvas, routed, charset);
+
+    if routed.edge.arrow_end != Arrow::None {
+        draw_arrow_with_entry(
+            canvas,
+            &routed.end,
+            routed.entry_direction,
+            charset,
+            routed.edge.arrow_end,
+        );
+    }
+
+    if routed.edge.arrow_start != Arrow::None && !routed.is_self_edge {
+        let exit_direction = exit_direction_from_segments(&routed.segments);
+        draw_arrow_with_entry(
+            canvas,
+            &routed.start,
+            exit_direction,
+            charset,
+            routed.edge.arrow_start,
+        );
+    }
+}
+
 /// Render a routed edge onto the canvas.
 pub fn render_edge(
     canvas: &mut Canvas,
@@ -229,36 +257,7 @@ pub fn render_edge(
         return;
     }
 
-    let stroke = routed.edge.stroke;
-
-    // Draw each segment
-    for segment in &routed.segments {
-        draw_segment(canvas, segment, stroke, charset);
-    }
-    draw_source_launch(canvas, routed, charset);
-
-    // Draw arrow at the end point using entry direction
-    if routed.edge.arrow_end != Arrow::None {
-        draw_arrow_with_entry(
-            canvas,
-            &routed.end,
-            routed.entry_direction,
-            charset,
-            routed.edge.arrow_end,
-        );
-    }
-
-    // Draw arrow at the start point using exit direction (if not a self-edge)
-    if routed.edge.arrow_start != Arrow::None && !routed.is_self_edge {
-        let exit_direction = exit_direction_from_segments(&routed.segments);
-        draw_arrow_with_entry(
-            canvas,
-            &routed.start,
-            exit_direction,
-            charset,
-            routed.edge.arrow_start,
-        );
-    }
+    draw_edge_path_and_arrows(canvas, routed, charset);
 
     // Draw label if present
     if let Some(label) = &routed.edge.label {
@@ -999,29 +998,7 @@ pub fn render_all_edges_with_labels(
         if routed.edge.stroke == Stroke::Invisible {
             continue;
         }
-        for segment in &routed.segments {
-            draw_segment(canvas, segment, routed.edge.stroke, charset);
-        }
-        draw_source_launch(canvas, routed, charset);
-        if routed.edge.arrow_end != Arrow::None {
-            draw_arrow_with_entry(
-                canvas,
-                &routed.end,
-                routed.entry_direction,
-                charset,
-                routed.edge.arrow_end,
-            );
-        }
-        if routed.edge.arrow_start != Arrow::None && !routed.is_self_edge {
-            let exit_direction = exit_direction_from_segments(&routed.segments);
-            draw_arrow_with_entry(
-                canvas,
-                &routed.start,
-                exit_direction,
-                charset,
-                routed.edge.arrow_start,
-            );
-        }
+        draw_edge_path_and_arrows(canvas, routed, charset);
     }
 
     // Second pass: draw all labels (so they appear on top of segments)
