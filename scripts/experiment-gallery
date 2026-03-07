@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+# Generate a side-by-side gallery comparing baseline vs experiment SVG output.
+#
+# Usage:
+#   scripts/experiment-gallery
+#   scripts/experiment-gallery --no-open
+#   scripts/experiment-gallery --text          # compare text output instead of SVG
+#   FIXTURES="double_skip,decision" scripts/experiment-gallery
+#   scripts/experiment-gallery --style step   # use a specific edge preset
+#
+# Renders every flowchart fixture twice (baseline and with experiment env vars)
+# and shows only fixtures where output differs.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+AUTO_OPEN=1
+MODE="svg"
+EDGE_PRESET=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-open) AUTO_OPEN=0; shift ;;
+    --text)    MODE="text"; shift ;;
+    --style)   EDGE_PRESET="$2"; shift 2 ;;
+    *)         printf 'Unknown argument: %s\n' "$1" >&2; exit 1 ;;
+  esac
+done
+
+# Build extra CLI flags
+EXTRA_FLAGS=()
+if [[ -n "$EDGE_PRESET" ]]; then
+  EXTRA_FLAGS+=(--edge-preset "$EDGE_PRESET")
+fi
+
+# Build first
+cargo build --quiet --manifest-path "$REPO_ROOT/Cargo.toml"
+BIN="$REPO_ROOT/target/debug/mmdflux"
+
+OUT_DIR="$REPO_ROOT/scripts/out/experiment-gallery-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$OUT_DIR/baseline" "$OUT_DIR/experiment"
+
+FIXTURE_DIR="$REPO_ROOT/tests/fixtures/flowchart"
+FIXTURES_CSV="${FIXTURES:-}"
+
+# Collect fixtures
+FIXTURE_FILES=()
+if [[ -n "$FIXTURES_CSV" ]]; then
+  IFS=',' read -ra FILTER <<< "$FIXTURES_CSV"
+  for stem in "${FILTER[@]}"; do
+    for f in "$FIXTURE_DIR"/*"$stem"*.mmd; do
+      [[ -f "$f" ]] && FIXTURE_FILES+=("$f")
+    done
+  done
+else
+  for f in "$FIXTURE_DIR"/*.mmd; do
+    FIXTURE_FILES+=("$f")
+  done
+fi
+
+if [[ ${#FIXTURE_FILES[@]} -eq 0 ]]; then
+  echo "No fixtures found."
+  exit 1
+fi
+
+printf 'Rendering %d fixtures in %s mode...\n' "${#FIXTURE_FILES[@]}" "$MODE"
+
+# Render baseline and experiment versions
+CHANGED=()
+for f in "${FIXTURE_FILES[@]}"; do
+  name="$(basename "$f" .mmd)"
+
+  if [[ "$MODE" == "svg" ]]; then
+    "$BIN" --format svg "${EXTRA_FLAGS[@]}" "$f" > "$OUT_DIR/baseline/$name.svg" 2>/dev/null || true
+    MMDFLUX_EXPERIMENT_LONG_EDGE_PERIPHERY=1 \
+      "$BIN" --format svg "${EXTRA_FLAGS[@]}" "$f" > "$OUT_DIR/experiment/$name.svg" 2>/dev/null || true
+
+    if ! diff -q "$OUT_DIR/baseline/$name.svg" "$OUT_DIR/experiment/$name.svg" >/dev/null 2>&1; then
+      CHANGED+=("$name")
+    else
+      rm -f "$OUT_DIR/baseline/$name.svg" "$OUT_DIR/experiment/$name.svg"
+    fi
+  else
+    "$BIN" "$f" > "$OUT_DIR/baseline/$name.txt" 2>/dev/null || true
+    MMDFLUX_EXPERIMENT_LONG_EDGE_PERIPHERY=1 \
+    MMDFLUX_EXPERIMENT_TEXT_USE_SHARED_LONG_SKIP=1 \
+      "$BIN" "$f" > "$OUT_DIR/experiment/$name.txt" 2>/dev/null || true
+
+    if ! diff -q "$OUT_DIR/baseline/$name.txt" "$OUT_DIR/experiment/$name.txt" >/dev/null 2>&1; then
+      CHANGED+=("$name")
+    else
+      rm -f "$OUT_DIR/baseline/$name.txt" "$OUT_DIR/experiment/$name.txt"
+    fi
+  fi
+done
+
+if [[ ${#CHANGED[@]} -eq 0 ]]; then
+  echo "No fixtures changed."
+  rm -rf "$OUT_DIR"
+  exit 0
+fi
+
+printf '\n%d of %d fixtures changed:\n' "${#CHANGED[@]}" "${#FIXTURE_FILES[@]}"
+for name in "${CHANGED[@]}"; do
+  printf '  %s\n' "$name"
+done
+
+# Generate HTML gallery
+cat > "$OUT_DIR/index.html" << 'HEADER'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Experiment Gallery — Long Skip Periphery Routing</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f5; padding: 20px; }
+  h1 { margin-bottom: 8px; }
+  .stats { color: #666; margin-bottom: 20px; }
+  .controls { margin-bottom: 20px; display: flex; gap: 12px; align-items: center; }
+  .controls input { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 300px; }
+  .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); margin-bottom: 24px; overflow: hidden; }
+  .card-header { padding: 12px 16px; background: #f8f8f8; border-bottom: 1px solid #eee; font-weight: 600; font-size: 15px; }
+  .card-body { display: flex; }
+  .panel { flex: 1; padding: 16px; overflow: auto; }
+  .panel + .panel { border-left: 2px solid #e0e0e0; }
+  .panel-label { font-size: 12px; font-weight: 600; text-transform: uppercase; color: #888; margin-bottom: 8px; }
+  .panel svg { width: 100%; height: auto; }
+  .panel pre { font-size: 13px; line-height: 1.4; white-space: pre; overflow-x: auto; font-family: 'SF Mono', 'Menlo', monospace; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<h1>Experiment Gallery</h1>
+HEADER
+
+STYLE_LABEL="${EDGE_PRESET:-default (basis)}"
+if [[ "$MODE" == "svg" ]]; then
+  printf '<p class="stats">%d of %d fixtures changed · style: %s · MMDFLUX_EXPERIMENT_LONG_EDGE_PERIPHERY=1</p>\n' \
+    "${#CHANGED[@]}" "${#FIXTURE_FILES[@]}" "$STYLE_LABEL" >> "$OUT_DIR/index.html"
+else
+  printf '<p class="stats">%d of %d fixtures changed · both experiment flags enabled</p>\n' \
+    "${#CHANGED[@]}" "${#FIXTURE_FILES[@]}" >> "$OUT_DIR/index.html"
+fi
+
+cat >> "$OUT_DIR/index.html" << 'FILTER'
+<div class="controls">
+  <input type="text" id="filter" placeholder="Filter fixtures..." oninput="filterCards()">
+</div>
+FILTER
+
+for name in "${CHANGED[@]}"; do
+  printf '<div class="card" data-name="%s">\n' "$name" >> "$OUT_DIR/index.html"
+  printf '  <div class="card-header">%s</div>\n' "$name" >> "$OUT_DIR/index.html"
+  printf '  <div class="card-body">\n' >> "$OUT_DIR/index.html"
+
+  if [[ "$MODE" == "svg" ]]; then
+    printf '    <div class="panel"><div class="panel-label">Baseline</div>\n' >> "$OUT_DIR/index.html"
+    cat "$OUT_DIR/baseline/$name.svg" >> "$OUT_DIR/index.html"
+    printf '    </div>\n' >> "$OUT_DIR/index.html"
+    printf '    <div class="panel"><div class="panel-label">Experiment</div>\n' >> "$OUT_DIR/index.html"
+    cat "$OUT_DIR/experiment/$name.svg" >> "$OUT_DIR/index.html"
+    printf '    </div>\n' >> "$OUT_DIR/index.html"
+  else
+    printf '    <div class="panel"><div class="panel-label">Baseline</div><pre>' >> "$OUT_DIR/index.html"
+    sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' "$OUT_DIR/baseline/$name.txt" >> "$OUT_DIR/index.html"
+    printf '</pre></div>\n' >> "$OUT_DIR/index.html"
+    printf '    <div class="panel"><div class="panel-label">Experiment</div><pre>' >> "$OUT_DIR/index.html"
+    sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g' "$OUT_DIR/experiment/$name.txt" >> "$OUT_DIR/index.html"
+    printf '</pre></div>\n' >> "$OUT_DIR/index.html"
+  fi
+
+  printf '  </div>\n</div>\n' >> "$OUT_DIR/index.html"
+done
+
+cat >> "$OUT_DIR/index.html" << 'FOOTER'
+<script>
+function filterCards() {
+  const q = document.getElementById('filter').value.toLowerCase();
+  document.querySelectorAll('.card').forEach(card => {
+    card.classList.toggle('hidden', !card.dataset.name.toLowerCase().includes(q));
+  });
+}
+</script>
+</body>
+</html>
+FOOTER
+
+printf '\nGallery: %s/index.html\n' "$OUT_DIR"
+
+if [[ "$AUTO_OPEN" -eq 1 ]]; then
+  open "$OUT_DIR/index.html" 2>/dev/null || true
+fi
