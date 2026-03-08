@@ -595,6 +595,26 @@ fn route_edge_reports_shared_routed_draw_path_when_backward_draw_path_is_used() 
 }
 
 #[test]
+fn lr_backward_waypoints_prefer_waypoint_inferred_bottom_faces() {
+    let from = make_bounds_sized(20, 2, 10, 3);
+    let to = make_bounds_sized(4, 2, 10, 3);
+    let endpoints = EdgeEndpoints {
+        from_bounds: from,
+        from_shape: Shape::Rectangle,
+        to_bounds: to,
+        to_shape: Shape::Rectangle,
+    };
+
+    let waypoints = vec![(20, 7), (14, 7)];
+
+    let (src_attach, tgt_attach) =
+        resolve_attachment_points(None, None, &endpoints, &waypoints, Direction::LeftRight);
+
+    assert_eq!(src_attach.1, from.y + from.height - 1);
+    assert_eq!(tgt_attach.1, to.y + to.height - 1);
+}
+
+#[test]
 fn route_edge_reports_rejection_reason_when_draw_path_hits_unrelated_node() {
     let mut diagram = Diagram::new(Direction::TopDown);
     diagram.add_node(Node::new("A").with_label("Top"));

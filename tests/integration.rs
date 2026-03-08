@@ -663,6 +663,11 @@ mod rendering {
     }
 
     #[test]
+    fn backward_in_subgraph_lr_matches_snapshot() {
+        assert_flowchart_snapshot("backward_in_subgraph_lr.mmd");
+    }
+
+    #[test]
     fn git_workflow_backward_route_uses_compact_bottom_channel_with_routed_layout() {
         let (diagram, layout) = layout_fixture_with_routed("git_workflow.mmd");
         let routed = route_all_edges(&diagram.edges, &layout, diagram.direction);

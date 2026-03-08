@@ -2151,6 +2151,18 @@ fn resolve_attachment_points(
     // Backward edges use center-y on the opposite side face.
     match direction {
         Direction::LeftRight | Direction::RightLeft => {
+            if is_backward
+                && let (Some(&first_wp), Some(&last_wp)) = (waypoints.first(), waypoints.last())
+            {
+                let src_face = classify_face(&from_bounds, first_wp, ep.from_shape);
+                let tgt_face = classify_face(&to_bounds, last_wp, ep.to_shape);
+                let src =
+                    src_override.unwrap_or_else(|| clamp_to_face(&from_bounds, src_face, first_wp));
+                let tgt =
+                    tgt_override.unwrap_or_else(|| clamp_to_face(&to_bounds, tgt_face, last_wp));
+                return (src, tgt);
+            }
+
             let flows_right = matches!(direction, Direction::LeftRight) != is_backward;
             let y = if is_backward {
                 // Backward: each node uses its own center_y
