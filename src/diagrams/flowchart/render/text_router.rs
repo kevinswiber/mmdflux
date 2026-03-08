@@ -16,6 +16,8 @@ use crate::render::intersect::{
     NodeFace, calculate_attachment_points, classify_face, spread_points_on_face,
 };
 
+type NodeContainingSubgraphMap<'a> = HashMap<&'a str, &'a str>;
+
 /// Grouped endpoint parameters for edge routing functions.
 struct EdgeEndpoints {
     from_bounds: NodeBounds,
@@ -155,7 +157,7 @@ fn node_inside_subgraph(bounds: &NodeBounds, sg: &SubgraphBounds) -> bool {
     bounds.x >= sg.x && bounds.y >= sg.y && node_right <= sg_right && node_bottom <= sg_bottom
 }
 
-fn containing_subgraph_id<'a>(layout: &'a Layout, node_id: &str) -> Option<&'a str> {
+fn containing_subgraph_id_uncached<'a>(layout: &'a Layout, node_id: &str) -> Option<&'a str> {
     let bounds = layout.node_bounds.get(node_id)?;
     layout
         .subgraph_bounds
@@ -163,6 +165,27 @@ fn containing_subgraph_id<'a>(layout: &'a Layout, node_id: &str) -> Option<&'a s
         .filter(|(_, sg)| node_inside_subgraph(bounds, sg))
         .max_by_key(|(_, sg)| (sg.depth, usize::MAX - (sg.width * sg.height)))
         .map(|(id, _)| id.as_str())
+}
+
+fn containing_subgraph_id<'a>(
+    layout: &'a Layout,
+    node_id: &str,
+    node_containing_subgraph: Option<&NodeContainingSubgraphMap<'a>>,
+) -> Option<&'a str> {
+    node_containing_subgraph
+        .and_then(|map| map.get(node_id).copied())
+        .or_else(|| containing_subgraph_id_uncached(layout, node_id))
+}
+
+fn build_node_containing_subgraph_map<'a>(layout: &'a Layout) -> NodeContainingSubgraphMap<'a> {
+    layout
+        .node_bounds
+        .keys()
+        .filter_map(|node_id| {
+            containing_subgraph_id_uncached(layout, node_id.as_str())
+                .map(|subgraph_id| (node_id.as_str(), subgraph_id))
+        })
+        .collect()
 }
 
 /// A point on the canvas.
@@ -471,6 +494,7 @@ fn should_use_routed_draw_path(
     from_bounds: &NodeBounds,
     to_bounds: &NodeBounds,
     direction: Direction,
+    node_containing_subgraph: Option<&NodeContainingSubgraphMap<'_>>,
 ) -> bool {
     if edge.from_subgraph.is_some() || edge.to_subgraph.is_some() {
         return false;
@@ -480,11 +504,14 @@ fn should_use_routed_draw_path(
         return false;
     };
 
-    let from_subgraph = containing_subgraph_id(layout, &edge.from);
-    let to_subgraph = containing_subgraph_id(layout, &edge.to);
+    let from_subgraph = containing_subgraph_id(layout, &edge.from, node_containing_subgraph);
+    let to_subgraph = containing_subgraph_id(layout, &edge.to, node_containing_subgraph);
     if from_subgraph.is_some() && from_subgraph == to_subgraph {
         return false;
     }
+    // Shared draw-path reuse is valid only when the edge is entirely outside
+    // subgraphs or when it connects two different containing subgraphs.
+    // One-in/one-out edges are the cases that collapse onto cluster borders.
     if from_subgraph.is_some() ^ to_subgraph.is_some() {
         return false;
     }
@@ -549,9 +576,10 @@ fn route_inter_subgraph_edge_via_outer_lane(
     draw_path: &[(usize, usize)],
     direction: Direction,
     overrides: RoutingOverrides,
+    node_containing_subgraph: Option<&NodeContainingSubgraphMap<'_>>,
 ) -> Option<RoutedEdge> {
-    let from_subgraph = containing_subgraph_id(layout, &edge.from)?;
-    let to_subgraph = containing_subgraph_id(layout, &edge.to)?;
+    let from_subgraph = containing_subgraph_id(layout, &edge.from, node_containing_subgraph)?;
+    let to_subgraph = containing_subgraph_id(layout, &edge.to, node_containing_subgraph)?;
     if from_subgraph == to_subgraph || is_backward_edge(&ep.from_bounds, &ep.to_bounds, direction) {
         return None;
     }
@@ -663,6 +691,26 @@ pub(crate) fn route_edge_with_probe(
     tgt_attach_override: Option<(usize, usize)>,
     src_first_vertical: bool,
 ) -> Option<RouteEdgeResult> {
+    route_edge_with_probe_cached(
+        edge,
+        layout,
+        diagram_direction,
+        src_attach_override,
+        tgt_attach_override,
+        src_first_vertical,
+        None,
+    )
+}
+
+fn route_edge_with_probe_cached<'a>(
+    edge: &Edge,
+    layout: &Layout,
+    diagram_direction: Direction,
+    src_attach_override: Option<(usize, usize)>,
+    tgt_attach_override: Option<(usize, usize)>,
+    src_first_vertical: bool,
+    node_containing_subgraph: Option<&NodeContainingSubgraphMap<'a>>,
+) -> Option<RouteEdgeResult> {
     let (from_bounds, to_bounds) = resolve_edge_bounds(layout, edge)?;
 
     // Get node shapes for intersection calculation
@@ -693,8 +741,14 @@ pub(crate) fn route_edge_with_probe(
     };
     let mut draw_path_rejection = None;
 
-    let use_routed_draw_path =
-        should_use_routed_draw_path(edge, layout, &from_bounds, &to_bounds, diagram_direction);
+    let use_routed_draw_path = should_use_routed_draw_path(
+        edge,
+        layout,
+        &from_bounds,
+        &to_bounds,
+        diagram_direction,
+        node_containing_subgraph,
+    );
 
     if use_routed_draw_path {
         if let Some(draw_path) = layout.routed_edge_paths.get(&edge.index) {
@@ -714,9 +768,12 @@ pub(crate) fn route_edge_with_probe(
             ) {
                 Ok(routed) => {
                     return Some(route_result(
-                        post_process_routed_edge(routed, layout, edge),
+                        routed,
                         TextPathFamily::SharedRoutedDrawPath,
                         None,
+                        layout,
+                        edge,
+                        node_containing_subgraph,
                     ));
                 }
                 Err(TextPathRejection::SegmentCollision) => {
@@ -733,11 +790,15 @@ pub(crate) fn route_edge_with_probe(
                             tgt_face: None,
                             src_first_vertical,
                         },
+                        node_containing_subgraph,
                     ) {
                         return Some(route_result(
-                            post_process_routed_edge(routed, layout, edge),
+                            routed,
                             TextPathFamily::SharedRoutedDrawPath,
                             None,
+                            layout,
+                            edge,
+                            node_containing_subgraph,
                         ));
                     }
                     let repaired_draw_path = if layout.subgraph_bounds.is_empty() {
@@ -762,9 +823,12 @@ pub(crate) fn route_edge_with_probe(
                         )
                     {
                         return Some(route_result(
-                            post_process_routed_edge(routed, layout, edge),
+                            routed,
                             TextPathFamily::SharedRoutedDrawPath,
                             None,
+                            layout,
+                            edge,
+                            node_containing_subgraph,
                         ));
                     }
                     draw_path_rejection = Some(TextPathRejection::SegmentCollision);
@@ -803,9 +867,12 @@ pub(crate) fn route_edge_with_probe(
             )
             .map(|routed| {
                 route_result(
-                    post_process_routed_edge(routed, layout, edge),
+                    routed,
                     TextPathFamily::SyntheticBackward,
                     draw_path_rejection,
+                    layout,
+                    edge,
+                    node_containing_subgraph,
                 )
             });
         }
@@ -843,9 +910,12 @@ pub(crate) fn route_edge_with_probe(
         )
         .map(|routed| {
             route_result(
-                post_process_routed_edge(routed, layout, edge),
+                routed,
                 TextPathFamily::WaypointFallback,
                 draw_path_rejection,
+                layout,
+                edge,
+                node_containing_subgraph,
             )
         });
     }
@@ -874,9 +944,12 @@ pub(crate) fn route_edge_with_probe(
                 )
                 .map(|routed| {
                     route_result(
-                        post_process_routed_edge(routed, layout, edge),
+                        routed,
                         TextPathFamily::SyntheticBackward,
                         draw_path_rejection,
+                        layout,
+                        edge,
+                        node_containing_subgraph,
                     )
                 });
             }
@@ -895,9 +968,12 @@ pub(crate) fn route_edge_with_probe(
             )
             .map(|routed| {
                 route_result(
-                    post_process_routed_edge(routed, layout, edge),
+                    routed,
                     TextPathFamily::SyntheticBackward,
                     draw_path_rejection,
+                    layout,
+                    edge,
+                    node_containing_subgraph,
                 )
             });
         }
@@ -914,9 +990,12 @@ pub(crate) fn route_edge_with_probe(
     )
     .map(|routed| {
         route_result(
-            post_process_routed_edge(routed, layout, edge),
+            routed,
             TextPathFamily::Direct,
             draw_path_rejection,
+            layout,
+            edge,
+            node_containing_subgraph,
         )
     })
 }
@@ -1029,18 +1108,22 @@ fn route_result(
     routed: RoutedEdge,
     path_family: TextPathFamily,
     rejection_reason: Option<TextPathRejection>,
+    layout: &Layout,
+    edge: &Edge,
+    node_containing_subgraph: Option<&NodeContainingSubgraphMap<'_>>,
 ) -> RouteEdgeResult {
     RouteEdgeResult {
-        routed,
+        routed: nudge_routed_edge_clear_of_unrelated_subgraph_borders(
+            routed,
+            layout,
+            edge,
+            node_containing_subgraph,
+        ),
         probe: TextRouteProbe {
             path_family,
             rejection_reason,
         },
     }
-}
-
-fn post_process_routed_edge(routed: RoutedEdge, layout: &Layout, edge: &Edge) -> RoutedEdge {
-    nudge_routed_edge_clear_of_unrelated_subgraph_borders(routed, layout, edge)
 }
 
 fn debug_draw_path_rejection(
@@ -1330,6 +1413,9 @@ fn repair_draw_path_segment_collisions(
         return repaired;
     }
 
+    // Each pass repairs at most one colliding segment before restarting the
+    // scan. Bound the work to a small multiple of blockers x segments; text
+    // diagrams stay small enough that this remains comfortably bounded.
     let max_repairs = blockers.len().saturating_mul(repaired.len().max(1)) * 2;
     let mut repairs = 0usize;
 
@@ -1460,16 +1546,24 @@ fn choose_detour_coordinate(
     candidates.sort_by_key(|candidate| {
         (
             start_coord.abs_diff(*candidate) + end_coord.abs_diff(*candidate),
+            // Prefer the larger coordinate when distances tie so detours bias
+            // outward rather than folding back toward the blocker.
             usize::MAX - *candidate,
         )
     });
     candidates[0]
 }
 
+// Border-nudging policy:
+// - skip routes fully contained in the same subgraph
+// - skip routes crossing between two different subgraphs; those use the shared outer lane
+// - nudge one-in/one-out routes only near the contained endpoint
+// - nudge fully external routes away from unrelated borders along the middle spans
 fn nudge_routed_edge_clear_of_unrelated_subgraph_borders(
     mut routed: RoutedEdge,
     layout: &Layout,
     edge: &Edge,
+    node_containing_subgraph: Option<&NodeContainingSubgraphMap<'_>>,
 ) -> RoutedEdge {
     if layout.subgraph_bounds.is_empty() {
         return routed;
@@ -1485,8 +1579,8 @@ fn nudge_routed_edge_clear_of_unrelated_subgraph_borders(
 
     let from_bounds = layout.node_bounds.get(&edge.from);
     let to_bounds = layout.node_bounds.get(&edge.to);
-    let from_container = containing_subgraph_id(layout, &edge.from);
-    let to_container = containing_subgraph_id(layout, &edge.to);
+    let from_container = containing_subgraph_id(layout, &edge.from, node_containing_subgraph);
+    let to_container = containing_subgraph_id(layout, &edge.to, node_containing_subgraph);
     let from_inside_any = from_container.is_some();
     let to_inside_any = to_container.is_some();
 
@@ -1501,7 +1595,7 @@ fn nudge_routed_edge_clear_of_unrelated_subgraph_borders(
             .then_with(|| left_id.cmp(right_id))
     });
 
-    for (_sg_id, sg) in ordered_subgraph_bounds {
+    for (_, sg) in ordered_subgraph_bounds {
         let from_inside = from_bounds.is_some_and(|bounds| node_inside_subgraph(bounds, sg));
         let to_inside = to_bounds.is_some_and(|bounds| node_inside_subgraph(bounds, sg));
         let is_inter_subgraph_crossing =
@@ -3114,6 +3208,11 @@ pub fn route_all_edges(
 ) -> Vec<RoutedEdge> {
     // Pre-pass: compute attachment plan for edges sharing a face
     let plan = compute_attachment_plan(edges, layout, diagram_direction);
+    let node_containing_subgraph = if layout.subgraph_bounds.is_empty() {
+        None
+    } else {
+        Some(build_node_containing_subgraph_map(layout))
+    };
 
     let mut routed: Vec<RoutedEdge> = edges
         .iter()
@@ -3131,14 +3230,16 @@ pub fn route_all_edges(
                 .map(|ov| (ov.source, ov.target, ov.source_first_vertical))
                 .unwrap_or((None, None, false));
             let edge_dir = layout.effective_edge_direction(&edge.from, &edge.to, diagram_direction);
-            route_edge(
+            route_edge_with_probe_cached(
                 edge,
                 layout,
                 edge_dir,
                 src_override,
                 tgt_override,
                 src_first_vertical,
+                node_containing_subgraph.as_ref(),
             )
+            .map(|result| result.routed)
         })
         .collect();
 

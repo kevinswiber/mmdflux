@@ -666,6 +666,11 @@ pub fn geometry_to_text_layout_with_routed(
                             })
                         });
                         if stale {
+                            // Keep the richer routed draw path even when the
+                            // clipped normalization waypoints are stale. The
+                            // downstream text router now repairs/filters those
+                            // draw paths instead of dropping back to a direct
+                            // centerline route for cross-subgraph edges.
                             edge_waypoints.remove(&key);
                         } else {
                             edge_waypoints.insert(key, clipped);
