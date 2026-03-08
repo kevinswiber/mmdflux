@@ -3,6 +3,7 @@ use std::path::Path;
 
 use super::super::text_adapter::compute_layout;
 use super::super::text_layout::{GridPos, TextLayoutConfig};
+use super::super::text_types::SubgraphBounds;
 use super::*;
 use crate::diagram::OutputFormat;
 use crate::diagrams::flowchart::engine::MeasurementMode;
@@ -1010,6 +1011,44 @@ fn backward_in_subgraph_lr_prefers_compact_direct_backward_route() {
         "backward_in_subgraph_lr backward edge should stay compact, got {:?}",
         result.routed.segments
     );
+}
+
+#[test]
+fn compact_lr_backward_route_yields_to_subgraph_border_in_corridor() {
+    let mut diagram = Diagram::new(Direction::LeftRight);
+    diagram.add_node(Node::new("A").with_label("Start"));
+    diagram.add_node(Node::new("B").with_label("End"));
+    diagram.add_edge(Edge::new("A", "B"));
+    diagram.add_edge(Edge::new("B", "A"));
+
+    let from = make_bounds_sized(20, 2, 8, 3);
+    let to = make_bounds_sized(4, 2, 8, 3);
+    let mut layout = minimal_layout(&[("A", to), ("B", from)], &[]);
+    layout.subgraph_bounds.insert(
+        "blocker".to_string(),
+        SubgraphBounds {
+            x: 14,
+            y: 1,
+            width: 5,
+            height: 6,
+            title: "Blocker".to_string(),
+            depth: 0,
+        },
+    );
+
+    let result = route_edge_with_probe(
+        &diagram.edges[1],
+        &layout,
+        diagram.direction,
+        None,
+        None,
+        false,
+    )
+    .expect(
+        "compact LR backward edge should still route when a subgraph border blocks the direct lane",
+    );
+
+    assert_eq!(result.probe.path_family, TextPathFamily::SyntheticBackward);
 }
 
 #[test]

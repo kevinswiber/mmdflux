@@ -411,7 +411,7 @@ pub fn generate_backward_waypoints(
     }
 }
 
-fn compact_lr_rl_backward_direct_attachments(
+fn compact_lr_backward_attachments(
     edge: &Edge,
     layout: &Layout,
     src_bounds: &NodeBounds,
@@ -420,6 +420,8 @@ fn compact_lr_rl_backward_direct_attachments(
 ) -> Option<((usize, usize), (usize, usize))> {
     if !matches!(direction, Direction::LeftRight | Direction::RightLeft)
         || !is_backward_edge(src_bounds, tgt_bounds, direction)
+        || edge.from_subgraph.is_some()
+        || edge.to_subgraph.is_some()
     {
         return None;
     }
@@ -431,6 +433,9 @@ fn compact_lr_rl_backward_direct_attachments(
         return None;
     }
 
+    // Bias toward the bottom-most shared row so the compact backward lane stays
+    // visibly separated from the forward centerline, which typically uses the
+    // nodes' middle row in LR/RL layouts.
     let lane_y = overlap_bottom;
     let (src_attach, tgt_attach) = match direction {
         Direction::LeftRight => (
@@ -456,6 +461,30 @@ fn compact_lr_rl_backward_direct_attachments(
         let overlaps_lane = bounds.y <= lane_y && lane_y <= node_bottom;
         let overlaps_corridor = bounds.x <= corridor_x_max && corridor_x_min <= node_right;
         if overlaps_lane && overlaps_corridor {
+            return None;
+        }
+    }
+
+    for sg in layout.subgraph_bounds.values() {
+        let source_inside = node_inside_subgraph(src_bounds, sg);
+        let target_inside = node_inside_subgraph(tgt_bounds, sg);
+        if source_inside && target_inside {
+            continue;
+        }
+
+        let left = sg.x;
+        let right = sg.x + sg.width.saturating_sub(1);
+        let top = sg.y;
+        let bottom = sg.y + sg.height.saturating_sub(1);
+
+        let overlaps_horizontal_border = (lane_y == top || lane_y == bottom)
+            && ranges_overlap(corridor_x_min, corridor_x_max, left, right);
+        let overlaps_vertical_border = lane_y >= top
+            && lane_y <= bottom
+            && (corridor_x_min <= left && left <= corridor_x_max
+                || corridor_x_min <= right && right <= corridor_x_max);
+
+        if overlaps_horizontal_border || overlaps_vertical_border {
             return None;
         }
     }
@@ -974,7 +1003,7 @@ fn route_edge_with_probe_cached<'a>(
 
     // For backward edges with no layout waypoints, generate synthetic ones
     if is_backward_edge(&from_bounds, &to_bounds, diagram_direction) {
-        if let Some((compact_src, compact_tgt)) = compact_lr_rl_backward_direct_attachments(
+        if let Some((compact_src, compact_tgt)) = compact_lr_backward_attachments(
             edge,
             layout,
             &from_bounds,
