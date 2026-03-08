@@ -975,12 +975,41 @@ fn test_route_backward_edge_lr() {
     )
     .unwrap();
 
-    // Backward edge uses synthetic waypoints routing below nodes.
-    // In the current routed geometry, the final segment enters from Right.
+    // Short LR backward edges should stay compact: a lower side-lane direct
+    // route is enough when no corridor obstruction exists.
     assert_eq!(routed.entry_direction, AttachDirection::Right);
+    assert!(
+        !routed.segments.is_empty(),
+        "backward edge should produce at least one segment"
+    );
+    assert!(
+        routed
+            .segments
+            .iter()
+            .all(|segment| matches!(segment, Segment::Horizontal { .. })),
+        "short LR backward edge should stay horizontal, got {:?}",
+        routed.segments
+    );
+}
 
-    // Should have segments connecting B to A
-    assert!(!routed.segments.is_empty());
+#[test]
+fn backward_in_subgraph_lr_prefers_compact_direct_backward_route() {
+    let (diagram, layout) = text_layout_for_fixture("backward_in_subgraph_lr.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "B" && edge.to == "A")
+        .expect("backward_in_subgraph_lr should contain B -> A");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("backward_in_subgraph_lr backward edge should route");
+
+    assert_eq!(result.probe.path_family, TextPathFamily::Direct);
+    assert!(
+        result.routed.segments.len() <= 3,
+        "backward_in_subgraph_lr backward edge should stay compact, got {:?}",
+        result.routed.segments
+    );
 }
 
 #[test]

@@ -411,6 +411,58 @@ pub fn generate_backward_waypoints(
     }
 }
 
+fn compact_lr_rl_backward_direct_attachments(
+    edge: &Edge,
+    layout: &Layout,
+    src_bounds: &NodeBounds,
+    tgt_bounds: &NodeBounds,
+    direction: Direction,
+) -> Option<((usize, usize), (usize, usize))> {
+    if !matches!(direction, Direction::LeftRight | Direction::RightLeft)
+        || !is_backward_edge(src_bounds, tgt_bounds, direction)
+    {
+        return None;
+    }
+
+    let overlap_top = src_bounds.y.max(tgt_bounds.y);
+    let overlap_bottom = (src_bounds.y + src_bounds.height.saturating_sub(1))
+        .min(tgt_bounds.y + tgt_bounds.height.saturating_sub(1));
+    if overlap_top > overlap_bottom {
+        return None;
+    }
+
+    let lane_y = overlap_bottom;
+    let (src_attach, tgt_attach) = match direction {
+        Direction::LeftRight => (
+            (src_bounds.x, lane_y),
+            (tgt_bounds.x + tgt_bounds.width.saturating_sub(1), lane_y),
+        ),
+        Direction::RightLeft => (
+            (src_bounds.x + src_bounds.width.saturating_sub(1), lane_y),
+            (tgt_bounds.x, lane_y),
+        ),
+        _ => unreachable!(),
+    };
+
+    let corridor_x_min = src_attach.0.min(tgt_attach.0);
+    let corridor_x_max = src_attach.0.max(tgt_attach.0);
+    for (node_id, bounds) in &layout.node_bounds {
+        if node_id == &edge.from || node_id == &edge.to {
+            continue;
+        }
+
+        let node_bottom = bounds.y + bounds.height.saturating_sub(1);
+        let node_right = bounds.x + bounds.width.saturating_sub(1);
+        let overlaps_lane = bounds.y <= lane_y && lane_y <= node_bottom;
+        let overlaps_corridor = bounds.x <= corridor_x_max && corridor_x_min <= node_right;
+        if overlaps_lane && overlaps_corridor {
+            return None;
+        }
+    }
+
+    Some((src_attach, tgt_attach))
+}
+
 /// Generate backward channel waypoints that clear all intermediate nodes.
 ///
 /// Unlike `generate_backward_waypoints` which only considers source and target,
@@ -922,6 +974,33 @@ fn route_edge_with_probe_cached<'a>(
 
     // For backward edges with no layout waypoints, generate synthetic ones
     if is_backward_edge(&from_bounds, &to_bounds, diagram_direction) {
+        if let Some((compact_src, compact_tgt)) = compact_lr_rl_backward_direct_attachments(
+            edge,
+            layout,
+            &from_bounds,
+            &to_bounds,
+            diagram_direction,
+        ) {
+            return route_edge_direct(
+                edge,
+                &endpoints,
+                diagram_direction,
+                Some(compact_src),
+                Some(compact_tgt),
+                src_first_vertical,
+            )
+            .map(|routed| {
+                route_result(
+                    routed,
+                    TextPathFamily::Direct,
+                    draw_path_rejection,
+                    layout,
+                    edge,
+                    node_containing_subgraph,
+                )
+            });
+        }
+
         let synthetic_wps =
             generate_backward_waypoints(&from_bounds, &to_bounds, diagram_direction);
         if !synthetic_wps.is_empty() {
