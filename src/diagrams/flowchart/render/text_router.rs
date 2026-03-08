@@ -147,17 +147,22 @@ fn bounds_for_node_id(layout: &Layout, node_id: &str) -> Option<NodeBounds> {
         .map(subgraph_bounds_as_node)
 }
 
-fn node_inside_any_subgraph(layout: &Layout, node_id: &str) -> bool {
-    let Some(bounds) = layout.node_bounds.get(node_id) else {
-        return false;
-    };
+fn node_inside_subgraph(bounds: &NodeBounds, sg: &SubgraphBounds) -> bool {
     let node_right = bounds.x + bounds.width;
     let node_bottom = bounds.y + bounds.height;
-    layout.subgraph_bounds.values().any(|sg| {
-        let sg_right = sg.x + sg.width;
-        let sg_bottom = sg.y + sg.height;
-        bounds.x >= sg.x && bounds.y >= sg.y && node_right <= sg_right && node_bottom <= sg_bottom
-    })
+    let sg_right = sg.x + sg.width;
+    let sg_bottom = sg.y + sg.height;
+    bounds.x >= sg.x && bounds.y >= sg.y && node_right <= sg_right && node_bottom <= sg_bottom
+}
+
+fn containing_subgraph_id<'a>(layout: &'a Layout, node_id: &str) -> Option<&'a str> {
+    let bounds = layout.node_bounds.get(node_id)?;
+    layout
+        .subgraph_bounds
+        .iter()
+        .filter(|(_, sg)| node_inside_subgraph(bounds, sg))
+        .max_by_key(|(_, sg)| (sg.depth, usize::MAX - (sg.width * sg.height)))
+        .map(|(id, _)| id.as_str())
 }
 
 /// A point on the canvas.
@@ -467,11 +472,7 @@ fn should_use_routed_draw_path(
     to_bounds: &NodeBounds,
     direction: Direction,
 ) -> bool {
-    if edge.from_subgraph.is_some()
-        || edge.to_subgraph.is_some()
-        || node_inside_any_subgraph(layout, &edge.from)
-        || node_inside_any_subgraph(layout, &edge.to)
-    {
+    if edge.from_subgraph.is_some() || edge.to_subgraph.is_some() {
         return false;
     }
 
@@ -479,7 +480,9 @@ fn should_use_routed_draw_path(
         return false;
     };
 
-    if !layout.subgraph_bounds.is_empty() {
+    let from_subgraph = containing_subgraph_id(layout, &edge.from);
+    let to_subgraph = containing_subgraph_id(layout, &edge.to);
+    if from_subgraph.is_some() && from_subgraph == to_subgraph {
         return false;
     }
 
@@ -529,8 +532,11 @@ fn should_prefer_shared_forward_route_for_text(
     let structured_short_forward =
         layout.preserve_routed_path_topology.contains(&edge.index) && draw_waypoint_count >= 2;
 
-    (has_normalized_waypoints && draw_path.len() >= 4 && draw_waypoint_count >= 2)
+    let structured_draw_path = draw_path.len() >= 4 && draw_waypoint_count >= 2;
+
+    (has_normalized_waypoints && structured_draw_path)
         || structured_short_forward
+        || (!layout.subgraph_bounds.is_empty() && structured_draw_path)
 }
 
 /// Route an edge between two nodes.
@@ -612,10 +618,43 @@ pub(crate) fn route_edge_with_probe(
             ) {
                 Ok(routed) => {
                     return Some(route_result(
-                        routed,
+                        nudge_routed_edge_clear_of_unrelated_subgraph_borders(routed, layout, edge),
                         TextPathFamily::SharedRoutedDrawPath,
                         None,
                     ));
+                }
+                Err(TextPathRejection::SegmentCollision) => {
+                    let repaired_draw_path = if layout.subgraph_bounds.is_empty() {
+                        draw_path.to_vec()
+                    } else {
+                        repair_draw_path_segment_collisions(draw_path, layout, edge)
+                    };
+                    if repaired_draw_path.as_slice() != draw_path.as_slice()
+                        && let Ok(routed) = route_edge_from_draw_path(
+                            edge,
+                            layout,
+                            &endpoints,
+                            &repaired_draw_path,
+                            diagram_direction,
+                            RoutingOverrides {
+                                src_attach: src_attach_override,
+                                tgt_attach: tgt_attach_override,
+                                src_face: None,
+                                tgt_face: None,
+                                src_first_vertical,
+                            },
+                        )
+                    {
+                        return Some(route_result(
+                            nudge_routed_edge_clear_of_unrelated_subgraph_borders(
+                                routed, layout, edge,
+                            ),
+                            TextPathFamily::SharedRoutedDrawPath,
+                            None,
+                        ));
+                    }
+                    draw_path_rejection = Some(TextPathRejection::SegmentCollision);
+                    debug_draw_path_rejection(edge, TextPathRejection::SegmentCollision, draw_path);
                 }
                 Err(rejection) => {
                     draw_path_rejection = Some(rejection);
@@ -1144,6 +1183,236 @@ fn ranges_overlap(a1: usize, a2: usize, b1: usize, b2: usize) -> bool {
     let (a_min, a_max) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
     let (b_min, b_max) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
     a_min <= b_max && b_min <= a_max
+}
+
+fn repair_draw_path_segment_collisions(
+    draw_path: &[(usize, usize)],
+    layout: &Layout,
+    edge: &Edge,
+) -> Vec<(usize, usize)> {
+    let mut repaired = draw_path.to_vec();
+    repaired.dedup();
+    if repaired.len() < 2 {
+        return repaired;
+    }
+
+    let blockers: Vec<NodeBounds> = layout
+        .node_bounds
+        .iter()
+        .filter(|(node_id, _)| *node_id != &edge.from && *node_id != &edge.to)
+        .map(|(_, bounds)| *bounds)
+        .collect();
+    if blockers.is_empty() {
+        return repaired;
+    }
+
+    let max_repairs = blockers.len().saturating_mul(repaired.len().max(1)) * 2;
+    let mut repairs = 0usize;
+
+    loop {
+        let mut changed = false;
+
+        for idx in 0..repaired.len().saturating_sub(1) {
+            let from = repaired[idx];
+            let to = repaired[idx + 1];
+            let Some((blocker, vertical)) = first_blocking_draw_path_segment(from, to, &blockers)
+            else {
+                continue;
+            };
+
+            let detour = detour_draw_path_around_blocker(
+                from,
+                to,
+                blocker,
+                vertical,
+                layout.width,
+                layout.height,
+            );
+            if detour.is_empty() {
+                continue;
+            }
+
+            repaired.splice(idx + 1..idx + 1, detour);
+            repaired.dedup();
+            changed = true;
+            repairs += 1;
+            break;
+        }
+
+        if !changed || repairs >= max_repairs {
+            break;
+        }
+    }
+
+    repaired
+}
+
+fn first_blocking_draw_path_segment(
+    from: (usize, usize),
+    to: (usize, usize),
+    blockers: &[NodeBounds],
+) -> Option<(NodeBounds, bool)> {
+    if from == to {
+        return None;
+    }
+
+    if from.0 == to.0 {
+        let segment = Segment::Vertical {
+            x: from.0,
+            y_start: from.1,
+            y_end: to.1,
+        };
+        return blockers
+            .iter()
+            .copied()
+            .find(|bounds| segment_intersects_bounds(segment, bounds))
+            .map(|bounds| (bounds, true));
+    }
+
+    if from.1 == to.1 {
+        let segment = Segment::Horizontal {
+            y: from.1,
+            x_start: from.0,
+            x_end: to.0,
+        };
+        return blockers
+            .iter()
+            .copied()
+            .find(|bounds| segment_intersects_bounds(segment, bounds))
+            .map(|bounds| (bounds, false));
+    }
+
+    None
+}
+
+fn detour_draw_path_around_blocker(
+    from: (usize, usize),
+    to: (usize, usize),
+    blocker: NodeBounds,
+    vertical: bool,
+    canvas_width: usize,
+    canvas_height: usize,
+) -> Vec<(usize, usize)> {
+    let mut detour = Vec::with_capacity(2);
+
+    if vertical {
+        let detour_x =
+            choose_detour_coordinate(from.0, to.0, blocker.x, blocker.width, canvas_width);
+        if detour_x != from.0 {
+            detour.push((detour_x, from.1));
+        }
+        if detour.last().copied() != Some((detour_x, to.1)) {
+            detour.push((detour_x, to.1));
+        }
+    } else {
+        let detour_y =
+            choose_detour_coordinate(from.1, to.1, blocker.y, blocker.height, canvas_height);
+        if detour_y != from.1 {
+            detour.push((from.0, detour_y));
+        }
+        if detour.last().copied() != Some((to.0, detour_y)) {
+            detour.push((to.0, detour_y));
+        }
+    }
+
+    detour
+}
+
+fn choose_detour_coordinate(
+    start_coord: usize,
+    end_coord: usize,
+    blocker_origin: usize,
+    blocker_span: usize,
+    canvas_limit: usize,
+) -> usize {
+    let max_coord = canvas_limit.saturating_sub(1);
+    let before = blocker_origin.saturating_sub(1);
+    let after = blocker_origin
+        .saturating_add(blocker_span)
+        .saturating_add(1)
+        .min(max_coord);
+
+    let mut candidates = [before, after];
+    candidates.sort_by_key(|candidate| {
+        (
+            start_coord.abs_diff(*candidate) + end_coord.abs_diff(*candidate),
+            usize::MAX - *candidate,
+        )
+    });
+    candidates[0]
+}
+
+fn nudge_routed_edge_clear_of_unrelated_subgraph_borders(
+    mut routed: RoutedEdge,
+    layout: &Layout,
+    edge: &Edge,
+) -> RoutedEdge {
+    if layout.subgraph_bounds.is_empty() {
+        return routed;
+    }
+
+    let mut points = polyline_points_from_segments(routed.start, &routed.segments);
+    if points.last().copied() != Some(routed.end) {
+        points.push(routed.end);
+    }
+    if points.len() < 4 {
+        return routed;
+    }
+
+    let from_bounds = layout.node_bounds.get(&edge.from);
+    let to_bounds = layout.node_bounds.get(&edge.to);
+
+    for sg in layout.subgraph_bounds.values() {
+        if from_bounds.is_some_and(|bounds| node_inside_subgraph(bounds, sg))
+            || to_bounds.is_some_and(|bounds| node_inside_subgraph(bounds, sg))
+        {
+            continue;
+        }
+
+        let left = sg.x;
+        let right = sg.x + sg.width.saturating_sub(1);
+        let top = sg.y;
+        let bottom = sg.y + sg.height.saturating_sub(1);
+
+        for idx in 1..points.len().saturating_sub(2) {
+            let current = points[idx];
+            let next = points[idx + 1];
+
+            if current.y == next.y && ranges_overlap(current.x, next.x, left, right) {
+                if current.y == bottom || current.y == bottom.saturating_add(1) {
+                    let target_y = bottom.saturating_add(2);
+                    points[idx].y = target_y;
+                    points[idx + 1].y = target_y;
+                } else if current.y == top || current.y == top.saturating_sub(1) {
+                    let target_y = top.saturating_sub(2);
+                    points[idx].y = target_y;
+                    points[idx + 1].y = target_y;
+                }
+            } else if current.x == next.x && ranges_overlap(current.y, next.y, top, bottom) {
+                if current.x == right || current.x == right.saturating_add(1) {
+                    let target_x = right.saturating_add(2);
+                    points[idx].x = target_x;
+                    points[idx + 1].x = target_x;
+                } else if current.x == left || current.x == left.saturating_sub(1) {
+                    let target_x = left.saturating_sub(2);
+                    points[idx].x = target_x;
+                    points[idx + 1].x = target_x;
+                }
+            }
+        }
+    }
+
+    normalize_polyline_points(&mut points);
+    if points
+        .windows(2)
+        .all(|segment| point_segment_is_axis_aligned(segment[0], segment[1]))
+    {
+        routed.start = points[0];
+        routed.end = *points.last().unwrap_or(&routed.end);
+        routed.segments = polyline_points_to_segments(&points);
+    }
+
+    routed
 }
 
 /// Route an edge using waypoints from normalization.

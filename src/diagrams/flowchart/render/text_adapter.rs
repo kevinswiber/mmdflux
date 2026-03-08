@@ -652,7 +652,6 @@ pub fn geometry_to_text_layout_with_routed(
                         });
                         if stale {
                             edge_waypoints.remove(&key);
-                            routed_edge_paths.remove(&key);
                         } else {
                             edge_waypoints.insert(key, clipped);
                         }

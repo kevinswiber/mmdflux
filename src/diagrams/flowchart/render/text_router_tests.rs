@@ -741,7 +741,7 @@ fn simple_forward_edge_does_not_prefer_shared_routed_draw_path() {
 }
 
 #[test]
-fn subgraph_direction_isolated_d_to_e_avoids_shared_routed_draw_path() {
+fn subgraph_direction_isolated_d_to_e_keeps_shared_route_clear_of_subgraph_border() {
     let (diagram, layout) = routed_text_layout_for_fixture("subgraph_direction_isolated.mmd");
     let edge = diagram
         .edges
@@ -752,14 +752,35 @@ fn subgraph_direction_isolated_d_to_e_avoids_shared_routed_draw_path() {
     let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
         .expect("subgraph_direction_isolated D -> E should route");
 
-    assert_ne!(
+    assert_eq!(
         result.probe.path_family,
         TextPathFamily::SharedRoutedDrawPath
+    );
+
+    let sg = layout
+        .subgraph_bounds
+        .get("sg1")
+        .expect("subgraph_direction_isolated should contain sg1");
+    let bottom = sg.y + sg.height.saturating_sub(1);
+    let routed_points = polyline_points_from_segments(result.routed.start, &result.routed.segments);
+    assert!(
+        routed_points
+            .windows(2)
+            .any(|segment| segment[0].y == segment[1].y
+                && segment[0].y >= bottom.saturating_add(2)
+                && ranges_overlap(
+                    segment[0].x,
+                    segment[1].x,
+                    sg.x,
+                    sg.x + sg.width.saturating_sub(1)
+                )),
+        "D -> E should keep a visible gap below the LR subgraph border: {:?}",
+        result.routed
     );
 }
 
 #[test]
-fn subgraph_direction_mixed_b_to_c_avoids_shared_routed_draw_path() {
+fn subgraph_direction_mixed_b_to_c_avoids_direct_centerline_route() {
     let (diagram, layout) = routed_text_layout_for_fixture("subgraph_direction_mixed.mmd");
     let edge = diagram
         .edges
@@ -770,9 +791,11 @@ fn subgraph_direction_mixed_b_to_c_avoids_shared_routed_draw_path() {
     let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
         .expect("subgraph_direction_mixed B -> C should route");
 
-    assert_ne!(
-        result.probe.path_family,
-        TextPathFamily::SharedRoutedDrawPath
+    assert_ne!(result.probe.path_family, TextPathFamily::Direct);
+    assert!(
+        result.routed.segments.len() >= 3,
+        "B -> C should keep a multi-segment routed detour instead of collapsing to a straight centerline: {:?}",
+        result.routed
     );
 }
 
