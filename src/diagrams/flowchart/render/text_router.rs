@@ -485,6 +485,9 @@ fn should_use_routed_draw_path(
     if from_subgraph.is_some() && from_subgraph == to_subgraph {
         return false;
     }
+    if from_subgraph.is_some() ^ to_subgraph.is_some() {
+        return false;
+    }
 
     if is_backward_edge(from_bounds, to_bounds, direction) {
         return should_prefer_shared_backward_route_for_text(draw_path, direction);
@@ -537,6 +540,99 @@ fn should_prefer_shared_forward_route_for_text(
     (has_normalized_waypoints && structured_draw_path)
         || structured_short_forward
         || (!layout.subgraph_bounds.is_empty() && structured_draw_path)
+}
+
+fn route_inter_subgraph_edge_via_outer_lane(
+    edge: &Edge,
+    layout: &Layout,
+    ep: &EdgeEndpoints,
+    draw_path: &[(usize, usize)],
+    direction: Direction,
+    overrides: RoutingOverrides,
+) -> Option<RoutedEdge> {
+    let from_subgraph = containing_subgraph_id(layout, &edge.from)?;
+    let to_subgraph = containing_subgraph_id(layout, &edge.to)?;
+    if from_subgraph == to_subgraph || is_backward_edge(&ep.from_bounds, &ep.to_bounds, direction) {
+        return None;
+    }
+
+    let points = normalize_draw_path_points(draw_path, direction);
+    if points.len() < 3 {
+        return None;
+    }
+
+    let (lane_waypoint, src_attach, tgt_attach, src_face, tgt_face) = match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            let lane_x = points[1].0;
+            let src_face = if lane_x >= ep.from_bounds.center_x() {
+                NodeFace::Right
+            } else {
+                NodeFace::Left
+            };
+            let tgt_face = if lane_x >= ep.to_bounds.center_x() {
+                NodeFace::Right
+            } else {
+                NodeFace::Left
+            };
+            (
+                (lane_x, ep.to_bounds.center_y()),
+                Some(clamp_to_face(
+                    &ep.from_bounds,
+                    src_face,
+                    (lane_x, ep.from_bounds.center_y()),
+                )),
+                Some(clamp_to_face(
+                    &ep.to_bounds,
+                    tgt_face,
+                    (lane_x, ep.to_bounds.center_y()),
+                )),
+                Some(src_face),
+                Some(tgt_face),
+            )
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            let lane_y = points[1].1;
+            let src_face = if lane_y >= ep.from_bounds.center_y() {
+                NodeFace::Bottom
+            } else {
+                NodeFace::Top
+            };
+            let tgt_face = if lane_y >= ep.to_bounds.center_y() {
+                NodeFace::Bottom
+            } else {
+                NodeFace::Top
+            };
+            (
+                (ep.to_bounds.center_x(), lane_y),
+                Some(clamp_to_face(
+                    &ep.from_bounds,
+                    src_face,
+                    (ep.from_bounds.center_x(), lane_y),
+                )),
+                Some(clamp_to_face(
+                    &ep.to_bounds,
+                    tgt_face,
+                    (ep.to_bounds.center_x(), lane_y),
+                )),
+                Some(src_face),
+                Some(tgt_face),
+            )
+        }
+    };
+
+    route_edge_with_waypoints(
+        edge,
+        ep,
+        &[lane_waypoint],
+        direction,
+        RoutingOverrides {
+            src_attach: src_attach.or(overrides.src_attach),
+            tgt_attach: tgt_attach.or(overrides.tgt_attach),
+            src_face: src_face.or(overrides.src_face),
+            tgt_face: tgt_face.or(overrides.tgt_face),
+            src_first_vertical: overrides.src_first_vertical,
+        },
+    )
 }
 
 /// Route an edge between two nodes.
@@ -618,12 +714,32 @@ pub(crate) fn route_edge_with_probe(
             ) {
                 Ok(routed) => {
                     return Some(route_result(
-                        nudge_routed_edge_clear_of_unrelated_subgraph_borders(routed, layout, edge),
+                        post_process_routed_edge(routed, layout, edge),
                         TextPathFamily::SharedRoutedDrawPath,
                         None,
                     ));
                 }
                 Err(TextPathRejection::SegmentCollision) => {
+                    if let Some(routed) = route_inter_subgraph_edge_via_outer_lane(
+                        edge,
+                        layout,
+                        &endpoints,
+                        draw_path,
+                        diagram_direction,
+                        RoutingOverrides {
+                            src_attach: src_attach_override,
+                            tgt_attach: tgt_attach_override,
+                            src_face: None,
+                            tgt_face: None,
+                            src_first_vertical,
+                        },
+                    ) {
+                        return Some(route_result(
+                            post_process_routed_edge(routed, layout, edge),
+                            TextPathFamily::SharedRoutedDrawPath,
+                            None,
+                        ));
+                    }
                     let repaired_draw_path = if layout.subgraph_bounds.is_empty() {
                         draw_path.to_vec()
                     } else {
@@ -646,9 +762,7 @@ pub(crate) fn route_edge_with_probe(
                         )
                     {
                         return Some(route_result(
-                            nudge_routed_edge_clear_of_unrelated_subgraph_borders(
-                                routed, layout, edge,
-                            ),
+                            post_process_routed_edge(routed, layout, edge),
                             TextPathFamily::SharedRoutedDrawPath,
                             None,
                         ));
@@ -689,7 +803,7 @@ pub(crate) fn route_edge_with_probe(
             )
             .map(|routed| {
                 route_result(
-                    routed,
+                    post_process_routed_edge(routed, layout, edge),
                     TextPathFamily::SyntheticBackward,
                     draw_path_rejection,
                 )
@@ -729,7 +843,7 @@ pub(crate) fn route_edge_with_probe(
         )
         .map(|routed| {
             route_result(
-                routed,
+                post_process_routed_edge(routed, layout, edge),
                 TextPathFamily::WaypointFallback,
                 draw_path_rejection,
             )
@@ -760,7 +874,7 @@ pub(crate) fn route_edge_with_probe(
                 )
                 .map(|routed| {
                     route_result(
-                        routed,
+                        post_process_routed_edge(routed, layout, edge),
                         TextPathFamily::SyntheticBackward,
                         draw_path_rejection,
                     )
@@ -781,7 +895,7 @@ pub(crate) fn route_edge_with_probe(
             )
             .map(|routed| {
                 route_result(
-                    routed,
+                    post_process_routed_edge(routed, layout, edge),
                     TextPathFamily::SyntheticBackward,
                     draw_path_rejection,
                 )
@@ -798,7 +912,13 @@ pub(crate) fn route_edge_with_probe(
         tgt_attach_override,
         src_first_vertical,
     )
-    .map(|routed| route_result(routed, TextPathFamily::Direct, draw_path_rejection))
+    .map(|routed| {
+        route_result(
+            post_process_routed_edge(routed, layout, edge),
+            TextPathFamily::Direct,
+            draw_path_rejection,
+        )
+    })
 }
 
 fn route_edge_from_draw_path(
@@ -917,6 +1037,10 @@ fn route_result(
             rejection_reason,
         },
     }
+}
+
+fn post_process_routed_edge(routed: RoutedEdge, layout: &Layout, edge: &Edge) -> RoutedEdge {
+    nudge_routed_edge_clear_of_unrelated_subgraph_borders(routed, layout, edge)
 }
 
 fn debug_draw_path_rejection(
@@ -1361,11 +1485,30 @@ fn nudge_routed_edge_clear_of_unrelated_subgraph_borders(
 
     let from_bounds = layout.node_bounds.get(&edge.from);
     let to_bounds = layout.node_bounds.get(&edge.to);
+    let from_container = containing_subgraph_id(layout, &edge.from);
+    let to_container = containing_subgraph_id(layout, &edge.to);
+    let from_inside_any = from_container.is_some();
+    let to_inside_any = to_container.is_some();
 
-    for sg in layout.subgraph_bounds.values() {
-        if from_bounds.is_some_and(|bounds| node_inside_subgraph(bounds, sg))
-            || to_bounds.is_some_and(|bounds| node_inside_subgraph(bounds, sg))
-        {
+    let mut ordered_subgraph_bounds: Vec<(&String, &SubgraphBounds)> =
+        layout.subgraph_bounds.iter().collect();
+    ordered_subgraph_bounds.sort_by(|(left_id, left_bounds), (right_id, right_bounds)| {
+        left_bounds
+            .depth
+            .cmp(&right_bounds.depth)
+            .then_with(|| left_bounds.y.cmp(&right_bounds.y))
+            .then_with(|| left_bounds.x.cmp(&right_bounds.x))
+            .then_with(|| left_id.cmp(right_id))
+    });
+
+    for (_sg_id, sg) in ordered_subgraph_bounds {
+        let from_inside = from_bounds.is_some_and(|bounds| node_inside_subgraph(bounds, sg));
+        let to_inside = to_bounds.is_some_and(|bounds| node_inside_subgraph(bounds, sg));
+        let is_inter_subgraph_crossing =
+            from_inside != to_inside && from_container.is_some() && to_container.is_some();
+        let allow_cross_boundary_nudge = (from_inside && !to_inside && !to_inside_any)
+            || (to_inside && !from_inside && !from_inside_any);
+        if (from_inside && to_inside) || is_inter_subgraph_crossing {
             continue;
         }
 
@@ -1373,6 +1516,31 @@ fn nudge_routed_edge_clear_of_unrelated_subgraph_borders(
         let right = sg.x + sg.width.saturating_sub(1);
         let top = sg.y;
         let bottom = sg.y + sg.height.saturating_sub(1);
+
+        if allow_cross_boundary_nudge {
+            if from_inside {
+                nudge_endpoint_segment_clear_of_subgraph_border(
+                    &mut points,
+                    left,
+                    right,
+                    top,
+                    bottom,
+                    true,
+                );
+            }
+            if to_inside {
+                nudge_endpoint_segment_clear_of_subgraph_border(
+                    &mut points,
+                    left,
+                    right,
+                    top,
+                    bottom,
+                    false,
+                );
+            }
+        } else if from_inside || to_inside {
+            continue;
+        }
 
         for idx in 1..points.len().saturating_sub(2) {
             let current = points[idx];
@@ -1413,6 +1581,76 @@ fn nudge_routed_edge_clear_of_unrelated_subgraph_borders(
     }
 
     routed
+}
+
+fn nudge_endpoint_segment_clear_of_subgraph_border(
+    points: &mut Vec<Point>,
+    left: usize,
+    right: usize,
+    top: usize,
+    bottom: usize,
+    source_segment: bool,
+) {
+    if points.len() < 2 {
+        return;
+    }
+
+    let (current, next) = if source_segment {
+        (points[0], points[1])
+    } else {
+        let len = points.len();
+        (points[len - 2], points[len - 1])
+    };
+
+    if current.y == next.y && ranges_overlap(current.x, next.x, left, right) {
+        let target_y = if current.y == bottom || current.y == bottom.saturating_add(1) {
+            Some(bottom.saturating_add(2))
+        } else if current.y == top || current.y == top.saturating_sub(1) {
+            Some(top.saturating_sub(2))
+        } else {
+            None
+        };
+        if let Some(target_y) = target_y {
+            if source_segment {
+                let detour = Point::new(current.x, target_y);
+                points[1].y = target_y;
+                if detour != current && detour != points[1] {
+                    points.insert(1, detour);
+                }
+            } else {
+                let len = points.len();
+                let detour = Point::new(next.x, target_y);
+                points[len - 2].y = target_y;
+                if detour != points[len - 2] && detour != next {
+                    points.insert(len - 1, detour);
+                }
+            }
+        }
+    } else if current.x == next.x && ranges_overlap(current.y, next.y, top, bottom) {
+        let target_x = if current.x == right || current.x == right.saturating_add(1) {
+            Some(right.saturating_add(2))
+        } else if current.x == left || current.x == left.saturating_sub(1) {
+            Some(left.saturating_sub(2))
+        } else {
+            None
+        };
+        if let Some(target_x) = target_x {
+            if source_segment {
+                let detour = Point::new(target_x, current.y);
+                points[1].x = target_x;
+                if detour != current && detour != points[1] {
+                    points.insert(1, detour);
+                }
+            } else {
+                let len = points.len();
+                let detour = Point::new(target_x, next.y);
+                points[len - 2].x = target_x;
+                if detour != points[len - 2] && detour != next {
+                    points.insert(len - 1, detour);
+                }
+            }
+        }
+    }
 }
 
 /// Route an edge using waypoints from normalization.

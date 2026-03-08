@@ -4186,6 +4186,28 @@ fn text_label_revalidation_fixtures_match_between_orthogonal_route_and_polyline_
 }
 
 #[test]
+fn top_level_render_matches_flowchart_instance_for_subgraph_direction_mixed() {
+    let input = load_fixture("subgraph_direction_mixed.mmd");
+    let diagram = parse_and_build("subgraph_direction_mixed.mmd");
+
+    let top_level = render(&diagram, &RenderOptions::default());
+
+    let registry = default_registry();
+    let mut instance = registry
+        .create("flowchart")
+        .expect("flowchart instance should exist");
+    instance.parse(&input).expect("fixture should parse");
+    let instance_output = instance
+        .render(OutputFormat::Text, &RenderConfig::default())
+        .expect("instance render should succeed");
+
+    assert_eq!(
+        top_level, instance_output,
+        "top-level render() should match the flowchart instance text pipeline for subgraph fixtures"
+    );
+}
+
+#[test]
 fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_fixture() {
     fn distance_to_segment(point: (f64, f64), start: (f64, f64), end: (f64, f64)) -> f64 {
         let (px, py) = point;

@@ -792,9 +792,99 @@ fn subgraph_direction_mixed_b_to_c_avoids_direct_centerline_route() {
         .expect("subgraph_direction_mixed B -> C should route");
 
     assert_ne!(result.probe.path_family, TextPathFamily::Direct);
+    assert_eq!(
+        result.routed.entry_direction,
+        AttachDirection::Right,
+        "B -> C should enter C from the outer right-side lane instead of dropping into the old centerline: {:?}",
+        result.routed
+    );
+
+    let lr_group = layout
+        .subgraph_bounds
+        .get("lr_group")
+        .expect("subgraph_direction_mixed should contain lr_group");
+    let bt_group = layout
+        .subgraph_bounds
+        .get("bt_group")
+        .expect("subgraph_direction_mixed should contain bt_group");
+    let vertical_lane = result
+        .routed
+        .segments
+        .iter()
+        .find_map(|segment| match segment {
+            Segment::Vertical { x, y_start, y_end }
+                if *x >= lr_group.x + lr_group.width.saturating_sub(4)
+                    && *x >= bt_group.x + bt_group.width.saturating_sub(4)
+                    && *y_start.min(y_end) <= lr_group.y + lr_group.height.saturating_sub(2)
+                    && *y_start.max(y_end) > bt_group.y =>
+            {
+                Some((*x, *y_start, *y_end))
+            }
+            _ => None,
+        });
+    assert!(
+        vertical_lane.is_some(),
+        "B -> C should keep a long exterior vertical lane spanning between the two subgraphs: {:?}",
+        result.routed
+    );
+}
+
+#[test]
+fn direction_override_c_to_end_avoids_shared_routed_draw_path_border_hug() {
+    let (diagram, layout) = routed_text_layout_for_fixture("direction_override.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "C" && edge.to == "End")
+        .expect("direction_override should contain C -> End");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("direction_override C -> End should route");
+
+    assert_ne!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath,
+        "C -> End should prefer a recomputed cross-boundary route over a clipped draw path that rides the subgraph border: {:?}",
+        result.routed
+    );
+}
+
+#[test]
+fn subgraph_direction_cross_boundary_b_to_d_avoids_long_right_border_support() {
+    let (diagram, layout) = routed_text_layout_for_fixture("subgraph_direction_cross_boundary.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "B" && edge.to == "D")
+        .expect("subgraph_direction_cross_boundary should contain B -> D");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("subgraph_direction_cross_boundary B -> D should route");
+
+    let sg = layout
+        .subgraph_bounds
+        .get("sg1")
+        .expect("subgraph_direction_cross_boundary should contain sg1");
+    let right = sg.x + sg.width.saturating_sub(1);
+    let bottom = sg.y + sg.height.saturating_sub(1);
+    let routed_points = polyline_points_from_segments(result.routed.start, &result.routed.segments);
+
+    let rides_right_border = routed_points.windows(2).any(|segment| {
+        segment[0].x == segment[1].x
+            && segment[0].x >= right
+            && segment[0].x <= right.saturating_add(1)
+            && segment[0].y.min(segment[1].y) <= bottom
+            && segment[0].y.max(segment[1].y) >= bottom.saturating_add(2)
+    });
+    assert!(
+        !rides_right_border,
+        "B -> D should not keep a long vertical support on the subgraph's right border: {:?}",
+        result.routed
+    );
+
     assert!(
         result.routed.segments.len() >= 3,
-        "B -> C should keep a multi-segment routed detour instead of collapsing to a straight centerline: {:?}",
+        "B -> D should keep a visible detour after leaving the subgraph instead of collapsing into a single vertical support: {:?}",
         result.routed
     );
 }

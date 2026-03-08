@@ -220,29 +220,14 @@ pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
     config.ranker = options.ranker;
 
     let engine = crate::diagrams::flowchart::engine::FluxLayeredEngine::text();
-    // Construct LayeredConfig from raw LayoutConfig values. Do NOT call
-    // layered_config_for_layout() here — the engine's internal round-trip
-    // (layout_config_from_layered → build_layered_layout → layered_config_for_layout)
-    // applies cluster_rank_sep once. Pre-applying it here would double it.
-    let engine_config = crate::diagram::EngineConfig::Layered(crate::layered::LayoutConfig {
-        direction: match diagram.direction {
-            Direction::TopDown => crate::layered::Direction::TopBottom,
-            Direction::BottomTop => crate::layered::Direction::BottomTop,
-            Direction::LeftRight => crate::layered::Direction::LeftRight,
-            Direction::RightLeft => crate::layered::Direction::RightLeft,
-        },
-        node_sep: config.node_sep,
-        edge_sep: config.edge_sep,
-        rank_sep: config.rank_sep,
-        margin: config.margin,
-        acyclic: true,
-        ranker: config.ranker.unwrap_or_default(),
-        ..Default::default()
-    });
-    let request = crate::diagram::GraphSolveRequest::from_config(
-        &RenderConfig::default(),
-        options.output_format,
-    );
+    let engine_config = layered_engine_config_for_render(diagram, options);
+    let request_config = RenderConfig {
+        routing_style: routing_style_from_edge_routing(options.edge_routing),
+        path_simplification: options.path_simplification,
+        ..RenderConfig::default()
+    };
+    let request =
+        crate::diagram::GraphSolveRequest::from_config(&request_config, options.output_format);
     let result = engine
         .solve(diagram, &engine_config, &request)
         .expect("engine solve failed in render()");
@@ -255,6 +240,51 @@ pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
     let layout =
         geometry_to_text_layout_with_routed(diagram, &result.geometry, Some(&routed), &config);
     render_text_from_layout(diagram, &layout, options)
+}
+
+fn layered_engine_config_for_render(
+    diagram: &Diagram,
+    options: &RenderOptions,
+) -> crate::diagram::EngineConfig {
+    // Match FlowchartInstance text rendering: solve with the raw layered
+    // layout config, then apply text-specific spacing adjustments only in the
+    // adapter path.
+    let mut config = crate::layered::LayoutConfig {
+        direction: match diagram.direction {
+            Direction::TopDown => crate::layered::Direction::TopBottom,
+            Direction::BottomTop => crate::layered::Direction::BottomTop,
+            Direction::LeftRight => crate::layered::Direction::LeftRight,
+            Direction::RightLeft => crate::layered::Direction::RightLeft,
+        },
+        ..Default::default()
+    };
+
+    if let Some(node_spacing) = options.node_spacing {
+        config.node_sep = node_spacing;
+    }
+    if let Some(rank_spacing) = options.rank_spacing {
+        config.rank_sep = rank_spacing;
+    }
+    if let Some(edge_spacing) = options.edge_spacing {
+        config.edge_sep = edge_spacing;
+    }
+    if let Some(margin) = options.margin {
+        config.margin = margin;
+    }
+    if let Some(ranker) = options.ranker {
+        config.ranker = ranker;
+    }
+
+    crate::diagram::EngineConfig::Layered(config)
+}
+
+fn routing_style_from_edge_routing(edge_routing: Option<EdgeRouting>) -> Option<RoutingStyle> {
+    match edge_routing {
+        Some(EdgeRouting::DirectRoute) => Some(RoutingStyle::Direct),
+        Some(EdgeRouting::PolylineRoute) => Some(RoutingStyle::Polyline),
+        Some(EdgeRouting::OrthogonalRoute) => Some(RoutingStyle::Orthogonal),
+        Some(EdgeRouting::EngineProvided) | None => None,
+    }
 }
 
 /// Render a diagram to text from a pre-computed `Layout`.

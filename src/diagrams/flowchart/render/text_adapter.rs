@@ -615,7 +615,22 @@ pub fn geometry_to_text_layout_with_routed(
         );
 
         // Invalidate/adjust waypoints for edges touching override subgraphs.
-        for sg in diagram.subgraphs.values() {
+        let override_subgraph_ids: Vec<&String> = if !diagram.subgraph_order.is_empty() {
+            diagram.subgraph_order.iter().collect()
+        } else {
+            let mut ids: Vec<&String> = diagram.subgraphs.keys().collect();
+            ids.sort_by(|a, b| {
+                diagram
+                    .subgraph_depth(a)
+                    .cmp(&diagram.subgraph_depth(b))
+                    .then_with(|| a.cmp(b))
+            });
+            ids
+        };
+        for sg_id in override_subgraph_ids {
+            let Some(sg) = diagram.subgraphs.get(sg_id) else {
+                continue;
+            };
             if sg.dir.is_none() {
                 continue;
             }
