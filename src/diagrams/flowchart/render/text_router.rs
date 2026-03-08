@@ -479,6 +479,10 @@ fn should_use_routed_draw_path(
         return false;
     };
 
+    if !layout.subgraph_bounds.is_empty() {
+        return false;
+    }
+
     if is_backward_edge(from_bounds, to_bounds, direction) {
         return should_prefer_shared_backward_route_for_text(draw_path, direction);
     }

@@ -741,6 +741,42 @@ fn simple_forward_edge_does_not_prefer_shared_routed_draw_path() {
 }
 
 #[test]
+fn subgraph_direction_isolated_d_to_e_avoids_shared_routed_draw_path() {
+    let (diagram, layout) = routed_text_layout_for_fixture("subgraph_direction_isolated.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "D" && edge.to == "E")
+        .expect("subgraph_direction_isolated should contain D -> E");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("subgraph_direction_isolated D -> E should route");
+
+    assert_ne!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
+}
+
+#[test]
+fn subgraph_direction_mixed_b_to_c_avoids_shared_routed_draw_path() {
+    let (diagram, layout) = routed_text_layout_for_fixture("subgraph_direction_mixed.mmd");
+    let edge = diagram
+        .edges
+        .iter()
+        .find(|edge| edge.from == "B" && edge.to == "C")
+        .expect("subgraph_direction_mixed should contain B -> C");
+
+    let result = route_edge_with_probe(edge, &layout, diagram.direction, None, None, false)
+        .expect("subgraph_direction_mixed B -> C should route");
+
+    assert_ne!(
+        result.probe.path_family,
+        TextPathFamily::SharedRoutedDrawPath
+    );
+}
+
+#[test]
 fn criss_cross_b_to_e_shared_draw_path_keeps_vertical_terminal_support() {
     let (diagram, layout) = routed_text_layout_for_fixture("criss_cross.mmd");
     let edge = diagram
