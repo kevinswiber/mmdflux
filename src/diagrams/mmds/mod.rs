@@ -10,7 +10,7 @@ pub use hydrate::{
 };
 pub use instance::MmdsInstance;
 
-use crate::diagram::{DiagramFamily, OutputFormat};
+use crate::engines::graph::{DiagramFamily, OutputFormat};
 pub use crate::mmds::{
     MmdsParseError, MmdsProfileNegotiation, evaluate_mmds_profiles,
     evaluate_mmds_profiles_for_output, parse_mmds_input,

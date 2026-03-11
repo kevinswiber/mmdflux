@@ -3,7 +3,7 @@
 //! Packet diagrams display network packet layouts.
 //! Currently renders as a simple text table.
 
-use crate::diagram::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
+use crate::engines::graph::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
 /// Detect if input is a packet diagram.

@@ -226,8 +226,8 @@ fn enforce_minimum_separation(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layered::graph::DiGraph;
-    use crate::layered::{acyclic, order};
+    use crate::engines::graph::layered::graph::DiGraph;
+    use crate::engines::graph::layered::{acyclic, order};
 
     fn run_full_layout(
         nodes: &[(&str, f64, f64)],

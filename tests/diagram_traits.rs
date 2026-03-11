@@ -42,7 +42,7 @@ fn dummy_model_compiles() {
 
 #[test]
 fn engine_config_layered_variant_exists() {
-    let layered_cfg = mmdflux::layered::LayoutConfig::default();
+    let layered_cfg = mmdflux::engines::graph::layered::LayoutConfig::default();
     let ec = EngineConfig::Layered(layered_cfg);
     assert!(matches!(ec, EngineConfig::Layered(_)));
 }

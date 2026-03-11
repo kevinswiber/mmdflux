@@ -10,7 +10,7 @@ pub mod parser;
 
 pub use instance::ClassInstance;
 
-use crate::diagram::{DiagramFamily, OutputFormat};
+use crate::engines::graph::{DiagramFamily, OutputFormat};
 use crate::registry::{DiagramDefinition, DiagramDetector};
 
 /// Detect if input is a class diagram.

@@ -8,19 +8,19 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
-use mmdflux::diagrams::flowchart::geometry::*;
 use mmdflux::diagrams::flowchart::routing::{route_graph_geometry, snap_path_to_grid_preview};
 use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
+use mmdflux::graph::geometry::*;
 use mmdflux::{OutputFormat, RenderConfig, build_diagram, parse_flowchart};
 
 /// Flux-layered LayoutConfig with all enhancements enabled.
 fn flux_layout_config() -> EngineConfig {
-    EngineConfig::Layered(mmdflux::layered::types::LayoutConfig {
+    EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig {
         greedy_switch: true,
         model_order_tiebreak: true,
         variable_rank_spacing: true,
         track_reversed_chains: true,
-        ..mmdflux::layered::types::LayoutConfig::default()
+        ..mmdflux::engines::graph::layered::types::LayoutConfig::default()
     })
 }
 
@@ -830,26 +830,26 @@ fn snap_path_to_grid_preserves_start_and_end_nodes() {
 fn orthogonal_route_preserves_core_routed_geometry_contracts() {
     for fixture in ["simple.mmd", "chain.mmd", "simple_cycle.mmd"] {
         let (diagram, geom) = layout_fixture(fixture);
-        let legacy = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let polyline = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
         let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
         assert_eq!(
             orthogonal.edges.len(),
-            legacy.edges.len(),
+            polyline.edges.len(),
             "edge count diverged for fixture {fixture}"
         );
         assert_eq!(
             orthogonal.self_edges.len(),
-            legacy.self_edges.len(),
+            polyline.self_edges.len(),
             "self-edge count diverged for fixture {fixture}"
         );
 
-        for (u, l) in orthogonal.edges.iter().zip(legacy.edges.iter()) {
-            assert_eq!(u.index, l.index, "edge index mismatch in fixture {fixture}");
-            assert_eq!(u.from, l.from, "edge source mismatch in fixture {fixture}");
-            assert_eq!(u.to, l.to, "edge target mismatch in fixture {fixture}");
+        for (u, p) in orthogonal.edges.iter().zip(polyline.edges.iter()) {
+            assert_eq!(u.index, p.index, "edge index mismatch in fixture {fixture}");
+            assert_eq!(u.from, p.from, "edge source mismatch in fixture {fixture}");
+            assert_eq!(u.to, p.to, "edge target mismatch in fixture {fixture}");
             assert_eq!(
-                u.is_backward, l.is_backward,
+                u.is_backward, p.is_backward,
                 "backward-edge flag mismatch in fixture {fixture}"
             );
             assert!(

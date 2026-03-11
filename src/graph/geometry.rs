@@ -6,8 +6,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::engines::graph::layered;
 use crate::graph::{Diagram, Direction, Shape};
-use crate::layered;
 
 // ---------------------------------------------------------------------------
 // Float coordinate primitives
@@ -114,7 +114,7 @@ pub struct LayoutEdge {
     /// Label position computed by layout engine.
     pub label_position: Option<FPoint>,
     /// Label side (Above/Below/Center) from side selection.
-    pub label_side: Option<crate::layered::normalize::LabelSide>,
+    pub label_side: Option<crate::engines::graph::layered::normalize::LabelSide>,
     /// If source is a subgraph-as-node, the subgraph ID.
     pub from_subgraph: Option<String>,
     /// If target is a subgraph-as-node, the subgraph ID.
@@ -406,7 +406,7 @@ pub struct RoutedEdgeGeometry {
     /// Label center position.
     pub label_position: Option<FPoint>,
     /// Label side (Above/Below/Center) from side selection.
-    pub label_side: Option<crate::layered::normalize::LabelSide>,
+    pub label_side: Option<crate::engines::graph::layered::normalize::LabelSide>,
     /// Label position near the target endpoint (head).
     pub head_label_position: Option<FPoint>,
     /// Label position near the source endpoint (tail).
@@ -497,9 +497,9 @@ pub struct EdgePort {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::engines::graph::layered::normalize::WaypointWithRank;
+    use crate::engines::graph::layered::types::{EdgeLayout, NodeId, Point, Rect, SelfEdgeLayout};
     use crate::graph::{Edge, Node};
-    use crate::layered::normalize::WaypointWithRank;
-    use crate::layered::types::{EdgeLayout, NodeId, Point, Rect, SelfEdgeLayout};
 
     /// Build a simple LayoutResult with two nodes and one edge.
     fn sample_layout_result() -> layered::LayoutResult {

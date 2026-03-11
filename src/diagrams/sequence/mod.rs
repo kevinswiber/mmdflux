@@ -12,7 +12,7 @@ pub mod render;
 
 pub use instance::SequenceInstance;
 
-use crate::diagram::{DiagramFamily, OutputFormat};
+use crate::engines::graph::{DiagramFamily, OutputFormat};
 use crate::registry::{DiagramDefinition, DiagramDetector};
 
 /// Detect if input is a sequence diagram.

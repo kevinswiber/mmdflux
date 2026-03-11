@@ -2,7 +2,7 @@
 //!
 //! Renders a `GraphSolveResult` to MMDS JSON.
 
-use crate::diagram::{
+use crate::engines::graph::{
     EdgeRouting, GeometryLevel, GraphSolveResult, PathSimplification, RenderError,
 };
 use crate::graph::Diagram;

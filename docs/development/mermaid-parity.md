@@ -139,22 +139,22 @@ SVG and routed MMDS outputs:
 # Preview orthogonal float-first routing (SVG)
 cargo run -- -f svg --edge-routing orthogonal-preview --edge-style straight diagram.mmd
 
-# Roll back to legacy routing behavior (default)
+# Use full-compute routing behavior (default)
 cargo run -- -f svg --edge-style straight diagram.mmd
 ```
 
 Notes:
-- Default rendering remains legacy unless `--edge-routing orthogonal-preview` is set.
-- `--edge-routing full-compute` is the explicit legacy override.
+- Default rendering remains `full-compute` unless `--edge-routing orthogonal-preview` is set.
+- `--edge-routing full-compute` explicitly selects the default full-compute path.
 - The parity harness currently tracks a known straight-SVG delta on
   `simple_cycle.mmd` for orthogonal preview.
 
-### Preview Parity Gates
+### Preview and Rollback Gates
 
 ```bash
-cargo test svg_orthogonal_preview_parity_core_fixture_subset_has_expected_deltas --test svg_snapshots
-cargo test svg_full_compute_override_matches_legacy_straight_core_subset --test svg_snapshots
-cargo test orthogonal_preview_preserves_core_routed_geometry_contracts --test routed_geometry
+cargo test svg_snapshot_all_fixtures_straight --test svg_snapshots
+cargo test svg_polyline_route_rollback_is_stable_across_repeated_renders --test svg_snapshots
+cargo test orthogonal_route_preserves_core_routed_geometry_contracts --test routed_geometry
 ```
 
 ## Troubleshooting

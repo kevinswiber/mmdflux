@@ -477,8 +477,8 @@ pub(crate) fn get_label_position_with_thickness(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layered::graph::{DiGraph, LayoutGraph};
-    use crate::layered::{LayoutConfig, acyclic, rank};
+    use crate::engines::graph::layered::graph::{DiGraph, LayoutGraph};
+    use crate::engines::graph::layered::{LayoutConfig, acyclic, rank};
 
     /// Helper to create a layout graph for testing.
     fn create_test_graph(nodes: &[&str], edges: &[(&str, &str)]) -> LayoutGraph {
@@ -708,7 +708,8 @@ mod tests {
         side: LabelSide,
     ) -> (LayoutGraph, usize) {
         // Minimal graph: two real nodes + one label dummy in a chain
-        let mut graph: crate::layered::graph::DiGraph<()> = crate::layered::graph::DiGraph::new();
+        let mut graph: crate::engines::graph::layered::graph::DiGraph<()> =
+            crate::engines::graph::layered::graph::DiGraph::new();
         graph.add_node("A", ());
         graph.add_node("B", ());
         graph.add_edge("A", "B");

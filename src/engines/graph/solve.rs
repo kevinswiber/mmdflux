@@ -4,11 +4,10 @@
 //! through this function.  It resolves the concrete engine from the
 //! registry and delegates the solve.
 
-use crate::diagram::{
-    AlgorithmId, EngineAlgorithmId, EngineConfig, EngineId, GraphSolveRequest, GraphSolveResult,
-    OutputFormat, RenderConfig, RenderError,
+use crate::engines::graph::{
+    AlgorithmId, EngineAlgorithmId, EngineConfig, EngineId, GraphEngineRegistry, GraphSolveRequest,
+    GraphSolveResult, OutputFormat, RenderConfig, RenderError,
 };
-use crate::engines::graph::GraphEngineRegistry;
 use crate::graph::Diagram;
 
 /// Solve layout through the graph engine registry.

@@ -7,9 +7,9 @@ use std::fmt;
 
 use serde_json::{Map, Value};
 
-use crate::diagram::EdgeRouting;
 use crate::diagrams::flowchart::render::route_policy::build_node_directions;
 use crate::diagrams::flowchart::routing::route_graph_geometry;
+use crate::engines::graph::EdgeRouting;
 use crate::graph::geometry::{
     FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode, RoutedGraphGeometry,
     SelfEdgeGeometry, SubgraphGeometry,

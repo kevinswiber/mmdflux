@@ -30,7 +30,7 @@ impl EngineAlgorithmId {
 #[non_exhaustive]
 pub enum EngineConfig {
     /// Layered (Sugiyama) layout engine configuration.
-    Layered(crate::layered::types::LayoutConfig),
+    Layered(crate::engines::graph::layered::types::LayoutConfig),
 }
 
 impl From<LayoutConfig> for EngineConfig {

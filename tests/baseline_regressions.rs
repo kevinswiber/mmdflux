@@ -1,8 +1,8 @@
-//! Old-vs-new comparison harness — renders all locked fixtures and compares outputs
-//! against baseline snapshots captured from main branch before the rewrite.
+//! Frozen-output regression harness.
 //!
-//! This harness ensures the architecture rewrite does not silently change any
-//! rendering output. Any intentional change must be reviewed and explicitly approved.
+//! Renders the locked fixtures from the baseline manifest and compares them
+//! against the checked-in output baselines. Any intentional rendering change
+//! should update the baselines only after review.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -11,7 +11,7 @@ use mmdflux::registry::default_registry;
 use mmdflux::{OutputFormat, RenderConfig};
 
 #[derive(serde::Deserialize)]
-struct CutoverManifest {
+struct BaselineManifest {
     fixture_outputs: HashMap<String, FixtureContract>,
     #[allow(dead_code)]
     version: u32,
@@ -30,17 +30,17 @@ struct FixtureContract {
     mmds: bool,
 }
 
-fn load_manifest() -> CutoverManifest {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cutover/baseline_manifest.json");
+fn load_manifest() -> BaselineManifest {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/baselines/manifest.json");
     let content = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("cutover manifest missing: {}", e));
-    serde_json::from_str(&content).unwrap_or_else(|e| panic!("cutover manifest invalid: {}", e))
+        .unwrap_or_else(|e| panic!("baseline manifest missing: {}", e));
+    serde_json::from_str(&content).unwrap_or_else(|e| panic!("baseline manifest invalid: {}", e))
 }
 
 /// Load the frozen text baseline for a fixture.
 fn load_text_baseline(fixture_path: &str) -> String {
     let snapshot_path = fixture_path
-        .replace("tests/fixtures/", "tests/cutover/baselines/text/")
+        .replace("tests/fixtures/", "tests/baselines/text/")
         .replace(".mmd", ".txt");
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(&snapshot_path);
     std::fs::read_to_string(&path)
@@ -50,7 +50,7 @@ fn load_text_baseline(fixture_path: &str) -> String {
 /// Load the frozen MMDS baseline for a fixture.
 fn load_mmds_baseline(fixture_path: &str) -> String {
     let snapshot_path = fixture_path
-        .replace("tests/fixtures/", "tests/cutover/baselines/mmds/")
+        .replace("tests/fixtures/", "tests/baselines/mmds/")
         .replace(".mmd", ".json");
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(&snapshot_path);
     std::fs::read_to_string(&path)
@@ -60,7 +60,7 @@ fn load_mmds_baseline(fixture_path: &str) -> String {
 /// Load the frozen SVG baseline for a fixture.
 fn load_svg_baseline(fixture_path: &str) -> String {
     let snapshot_path = fixture_path
-        .replace("tests/fixtures/", "tests/cutover/baselines/svg/")
+        .replace("tests/fixtures/", "tests/baselines/svg/")
         .replace(".mmd", ".svg");
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(&snapshot_path);
     std::fs::read_to_string(&path)
@@ -85,7 +85,7 @@ fn render_fixture(fixture_path: &str, format: OutputFormat) -> String {
 }
 
 #[test]
-fn cutover_text_outputs_match_baselines() {
+fn text_outputs_match_frozen_baselines() {
     let manifest = load_manifest();
     let mut failures = Vec::new();
 
@@ -113,7 +113,7 @@ fn cutover_text_outputs_match_baselines() {
 }
 
 #[test]
-fn cutover_svg_outputs_match_baselines() {
+fn svg_outputs_match_frozen_baselines() {
     let manifest = load_manifest();
     let mut failures = Vec::new();
 
@@ -141,7 +141,7 @@ fn cutover_svg_outputs_match_baselines() {
 }
 
 #[test]
-fn cutover_mmds_outputs_match_baselines() {
+fn mmds_outputs_match_frozen_baselines() {
     let manifest = load_manifest();
     let mut failures = Vec::new();
 
@@ -169,7 +169,7 @@ fn cutover_mmds_outputs_match_baselines() {
 }
 
 #[test]
-fn cutover_registry_detects_all_manifest_fixtures() {
+fn registry_detects_all_manifest_fixtures() {
     let manifest = load_manifest();
     let registry = default_registry();
     let mut failures = Vec::new();

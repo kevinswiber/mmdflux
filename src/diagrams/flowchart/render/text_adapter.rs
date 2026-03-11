@@ -22,9 +22,9 @@ use super::text_layout::{
     transform_label_positions_direct, transform_waypoints_direct,
 };
 use super::text_shape::{NodeBounds, node_dimensions};
-use crate::diagrams::flowchart::geometry::{GraphGeometry, RoutedGraphGeometry};
+use crate::engines::graph::layered::{Direction as LayeredDirection, Rect};
+use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::{Diagram, Direction, Edge, Shape};
-use crate::layered::{Direction as LayeredDirection, Rect};
 
 type DrawPath = Vec<(usize, usize)>;
 type DrawPathPair = (DrawPath, DrawPath);
@@ -36,11 +36,11 @@ type IndexedDrawPathPair = (usize, DrawPath, usize, DrawPath);
 /// `TextLayoutConfig`. Internally runs `FluxLayeredEngine::text().solve()` then
 /// `geometry_to_text_layout()`.
 pub fn compute_layout(diagram: &Diagram, config: &TextLayoutConfig) -> Layout {
-    use crate::diagram::{
+    use crate::diagrams::flowchart::engine::FluxLayeredEngine;
+    use crate::engines::graph::layered::LayoutConfig as LayeredConfig;
+    use crate::engines::graph::{
         EngineConfig, GraphEngine, GraphSolveRequest, OutputFormat, RenderConfig,
     };
-    use crate::diagrams::flowchart::engine::FluxLayeredEngine;
-    use crate::layered::LayoutConfig as LayeredConfig;
 
     let engine = FluxLayeredEngine::text();
     // Construct raw LayeredConfig without pre-applying cluster_rank_sep.
@@ -351,7 +351,7 @@ pub fn geometry_to_text_layout_with_routed(
 
     // --- Phase G: Rank-to-draw mapping ---
     let engine_hints = match &geometry.engine_hints {
-        Some(crate::diagrams::flowchart::geometry::EngineHints::Layered(h)) => h,
+        Some(crate::graph::geometry::EngineHints::Layered(h)) => h,
         _ => unreachable!("text adapter requires layered engine hints"),
     };
     let layer_starts = compute_layer_starts(&engine_hints.node_ranks, &node_bounds, is_vertical);

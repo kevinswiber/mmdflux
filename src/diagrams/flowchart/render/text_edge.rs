@@ -918,7 +918,7 @@ fn draw_arrow_with_entry(
     canvas.set(ax, ay, arrow_char);
 }
 
-/// Draw an arrow at the given point (legacy function for tests).
+/// Draw an arrow at the given point for test-only assertions.
 #[cfg(test)]
 fn draw_arrow(canvas: &mut Canvas, point: &Point, direction: Direction, charset: &CharSet) {
     let arrow_char = match direction {

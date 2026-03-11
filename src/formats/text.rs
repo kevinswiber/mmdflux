@@ -3,8 +3,8 @@
 //! Renders a `GraphSolveResult` to Unicode or ASCII text via the
 //! character-grid pipeline.
 
-use crate::diagram::{EdgeRouting, GraphSolveResult};
 use crate::diagrams::flowchart::render::text_adapter::geometry_to_text_layout_with_routed;
+use crate::engines::graph::{EdgeRouting, GraphSolveResult};
 use crate::graph::Diagram;
 use crate::graph::routing::route_graph_geometry;
 use crate::render::{RenderOptions, layout_config_for_diagram, render_text_from_layout};

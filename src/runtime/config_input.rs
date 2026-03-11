@@ -10,7 +10,7 @@ use crate::api::{
     ColorWhen, Curve, EdgePreset, EngineAlgorithmId, GeometryLevel, PathSimplification,
     RenderConfig, RenderError, RoutingStyle, normalize_enum_token,
 };
-use crate::layered::Ranker;
+use crate::engines::graph::layered::Ranker;
 
 /// Serde-friendly render config accepted from JSON callers.
 ///

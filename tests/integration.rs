@@ -7,10 +7,10 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
-use mmdflux::diagrams::flowchart::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
 use mmdflux::diagrams::mmds::from_mmds_str;
 use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
+use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::render::{
     Layout, NodeBounds, RenderOptions, RoutedEdge, Segment, TextLayoutConfig, compute_layout,
     geometry_to_text_layout_with_routed, render, render_all_edges_with_labels, route_all_edges,
@@ -58,7 +58,8 @@ fn layout_fixture(name: &str) -> (Diagram, Layout) {
 
 fn layout_fixture_with_routed(name: &str) -> (Diagram, Layout) {
     let diagram = parse_and_build(name);
-    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
+    let config =
+        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -171,7 +172,8 @@ fn assert_all_distinct(values: &[usize], context: &str) {
 
 fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
     let diagram = parse_and_build(fixture);
-    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
+    let config =
+        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
         .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
@@ -180,7 +182,8 @@ fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
 fn route_input_orthogonal(input: &str) -> RoutedGraphGeometry {
     let flowchart = parse_flowchart(input).expect("fixture input should parse");
     let diagram = build_diagram(&flowchart);
-    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
+    let config =
+        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
         .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
@@ -3041,7 +3044,8 @@ fn test_route_policy_effective_edge_direction_with_nested_override_fixture() {
 #[test]
 fn test_orthogonal_route_routed_geometry_is_axis_aligned_for_forward_edges() {
     let diagram = parse_and_build("simple.mmd");
-    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
+    let config =
+        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -3119,15 +3123,17 @@ fn test_step_topology_preserves_fan_stem_room_and_lane_compaction() {
 }
 
 #[test]
-fn test_svg_orthogonal_route_differs_from_legacy_for_cycle_fixture() {
+fn test_svg_orthogonal_route_differs_from_mermaid_polyline_for_cycle_fixture() {
     let input = load_fixture("simple_cycle.mmd");
     let registry = default_registry();
 
-    let mut legacy = registry
+    let mut mermaid_polyline = registry
         .create("flowchart")
         .expect("flowchart instance should exist");
-    legacy.parse(&input).expect("fixture should parse");
-    let legacy_output = legacy
+    mermaid_polyline
+        .parse(&input)
+        .expect("fixture should parse");
+    let mermaid_polyline_output = mermaid_polyline
         .render(
             OutputFormat::Svg,
             &RenderConfig {
@@ -3152,7 +3158,7 @@ fn test_svg_orthogonal_route_differs_from_legacy_for_cycle_fixture() {
         .expect("flux-layered render should succeed");
 
     assert_ne!(
-        legacy_output, orthogonal_output,
+        mermaid_polyline_output, orthogonal_output,
         "orthogonal routing should route cycle fixture through a distinct path set"
     );
 }
@@ -3749,8 +3755,8 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_policy_
 #[test]
 fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex() {
     fn point_face(
-        rect: mmdflux::diagrams::flowchart::geometry::FRect,
-        point: mmdflux::diagrams::flowchart::geometry::FPoint,
+        rect: mmdflux::graph::geometry::FRect,
+        point: mmdflux::graph::geometry::FPoint,
     ) -> &'static str {
         let eps = 0.5;
         let left = rect.x;
@@ -3826,7 +3832,8 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
         let flowchart = parse_flowchart(&input).expect("fixture should parse");
         let diagram = build_diagram(&flowchart);
         let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
-        let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
+        let config =
+            EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
         let geom = run_layered_layout(&mode, &diagram, &config).expect("layout should succeed");
 
         let source_rect = geom
@@ -3918,8 +3925,8 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
     const MAX_HTTP_RIGHT_CLEARANCE_SHRINK_FROM_FULL: f64 = 8.0;
 
     fn point_face(
-        rect: mmdflux::diagrams::flowchart::geometry::FRect,
-        point: mmdflux::diagrams::flowchart::geometry::FPoint,
+        rect: mmdflux::graph::geometry::FRect,
+        point: mmdflux::graph::geometry::FPoint,
     ) -> &'static str {
         let eps = 0.5;
         let left = rect.x;
@@ -3972,7 +3979,8 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let flowchart = parse_flowchart(&input).expect("fixture should parse");
         let diagram = build_diagram(&flowchart);
         let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
-        let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
+        let config =
+            EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
         let geom = run_layered_layout(&mode, &diagram, &config).expect("layout should succeed");
         assert_eq!(
             geom.direction,
@@ -4055,7 +4063,8 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let input = load_fixture(fixture);
         let flowchart = parse_flowchart(&input).expect("fixture should parse");
         let diagram = build_diagram(&flowchart);
-        let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
+        let config =
+            EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
         let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
             .expect("layout should succeed");
 

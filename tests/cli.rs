@@ -508,7 +508,7 @@ fn cli_help_omits_legacy_curve_flags() {
         .stdout(predicate::str::contains("--corner-style").not());
 }
 
-// --- legacy style flags removed ---
+// --- deprecated style flags removed ---
 
 #[test]
 fn cli_rejects_legacy_interpolation_style_flag() {

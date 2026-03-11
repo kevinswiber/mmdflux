@@ -2,7 +2,7 @@
 //!
 //! Info diagrams display mmdflux version and build information.
 
-use crate::diagram::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
+use crate::engines::graph::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
 /// Detect if input is an info diagram.

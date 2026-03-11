@@ -5,17 +5,16 @@
 
 use std::collections::HashMap;
 
-use super::geometry::GraphGeometry;
 use super::render::svg::svg_node_dimensions;
 use super::render::svg_metrics::SvgTextMetrics;
 use super::render::text_layout::{center_override_subgraphs, expand_parent_bounds};
-use crate::diagram::{
+use crate::engines::graph::{
     AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineConfig, EngineId,
     GeometryLevel, GraphEngine, GraphSolveRequest, GraphSolveResult, OutputFormat, RenderConfig,
     RenderError, RouteOwnership, RoutingStyle,
 };
 use crate::graph::Diagram;
-use crate::graph::geometry::RoutedGraphGeometry;
+use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::render::SvgOptions;
 
 /// Measurement mode controls whether layout uses text-grid character
@@ -153,7 +152,7 @@ pub fn run_layered_layout(
     config: &EngineConfig,
 ) -> Result<GraphGeometry, RenderError> {
     use super::render::layout_building::build_layered_layout_with_config;
-    use crate::diagrams::flowchart::geometry;
+    use crate::graph::geometry;
 
     let EngineConfig::Layered(layered_cfg) = config;
     let text_config = layout_config_from_layered(layered_cfg, diagram);
@@ -223,10 +222,10 @@ pub struct FluxLayeredEngine {
 /// differ by curve (for example basis vs polyline) share the same node layout.
 /// Flux-layered also uses a unified enhanced profile across routing styles.
 pub(crate) fn flux_layout_profile(
-    input_cfg: &crate::layered::LayoutConfig,
-    _edge_routing: crate::diagram::EdgeRouting,
-) -> crate::layered::LayoutConfig {
-    crate::layered::LayoutConfig {
+    input_cfg: &crate::engines::graph::layered::LayoutConfig,
+    _edge_routing: crate::engines::graph::EdgeRouting,
+) -> crate::engines::graph::layered::LayoutConfig {
+    crate::engines::graph::layered::LayoutConfig {
         greedy_switch: true,
         model_order_tiebreak: input_cfg.model_order_tiebreak,
         variable_rank_spacing: true,
@@ -234,7 +233,7 @@ pub(crate) fn flux_layout_profile(
         track_reversed_chains: true,
         per_edge_label_spacing: true,
         label_side_selection: true,
-        label_dummy_strategy: crate::layered::LabelDummyStrategy::WidestLayer,
+        label_dummy_strategy: crate::engines::graph::layered::LabelDummyStrategy::WidestLayer,
         ..input_cfg.clone()
     }
 }
@@ -327,7 +326,7 @@ fn segment_crosses_rect_interior(
 fn edge_crowding_score(
     diagram: &Diagram,
     geometry: &GraphGeometry,
-    edge_routing: crate::diagram::EdgeRouting,
+    edge_routing: crate::engines::graph::EdgeRouting,
 ) -> CrowdingScore {
     let routed = super::routing::route_graph_geometry(diagram, geometry, edge_routing);
 
@@ -379,9 +378,9 @@ fn edge_crowding_score(
 pub(crate) fn adapt_flux_profile_for_reversed_chain_crowding(
     mode: &MeasurementMode,
     diagram: &Diagram,
-    edge_routing: crate::diagram::EdgeRouting,
-    profile: &crate::layered::LayoutConfig,
-) -> Result<crate::layered::LayoutConfig, RenderError> {
+    edge_routing: crate::engines::graph::EdgeRouting,
+    profile: &crate::engines::graph::layered::LayoutConfig,
+) -> Result<crate::engines::graph::layered::LayoutConfig, RenderError> {
     if !profile.track_reversed_chains {
         return Ok(profile.clone());
     }
@@ -605,7 +604,7 @@ impl GraphEngine for MermaidLayeredEngine {
         config: &EngineConfig,
         request: &GraphSolveRequest,
     ) -> Result<GraphSolveResult, RenderError> {
-        use crate::diagram::EdgeRouting;
+        use crate::engines::graph::EdgeRouting;
         use crate::render::SvgOptions;
 
         // MermaidLayeredEngine only supports SVG and MMDS output.
@@ -647,7 +646,7 @@ impl GraphEngine for MermaidLayeredEngine {
         // SVG/MMDS output: run the full SVG layout pipeline (subgraph post-processing,
         // direction overrides, padding, edge rerouting) via build_svg_layout_with_flags().
         // MermaidLayeredEngine uses PolylineRoute routing (no orthogonal path
-        // injection), preserving the legacy render_svg() behavior for this engine.
+        // injection), preserving the historical Mermaid SVG behavior for this engine.
         if matches!(
             request.output_format,
             OutputFormat::Svg | OutputFormat::Mmds
@@ -660,7 +659,7 @@ impl GraphEngine for MermaidLayeredEngine {
             let EngineConfig::Layered(ref layered_cfg) = *config;
             let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
             layout_config.cluster_rank_sep = 0.0;
-            let mermaid_flags = crate::layered::LayoutConfig {
+            let mermaid_flags = crate::engines::graph::layered::LayoutConfig {
                 always_compound_ordering: true,
                 ..Default::default()
             };
@@ -718,7 +717,7 @@ impl GraphEngine for MermaidLayeredEngine {
 /// This bridges the engine's layered config back to the flowchart render
 /// config that `build_layered_layout` expects.
 fn layout_config_from_layered(
-    layered_cfg: &crate::layered::types::LayoutConfig,
+    layered_cfg: &crate::engines::graph::layered::types::LayoutConfig,
     diagram: &Diagram,
 ) -> crate::diagrams::flowchart::render::text_layout::TextLayoutConfig {
     use crate::diagrams::flowchart::render::text_layout::TextLayoutConfig as FlowchartLayoutConfig;
@@ -750,7 +749,7 @@ fn layout_config_from_layered(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagram::{EdgeRouting, EngineAlgorithmId};
+    use crate::engines::graph::{EdgeRouting, EngineAlgorithmId};
 
     #[test]
     fn run_layered_layout_simple_graph() {
@@ -758,7 +757,8 @@ mod tests {
         let flowchart = crate::parser::parse_flowchart(input).unwrap();
         let diagram = crate::graph::build_diagram(&flowchart);
 
-        let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        let config =
+            EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig::default());
         let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
 
         assert_eq!(geom.nodes.len(), 2);
@@ -773,7 +773,8 @@ mod tests {
         let flowchart = crate::parser::parse_flowchart(input).unwrap();
         let diagram = crate::graph::build_diagram(&flowchart);
 
-        let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        let config =
+            EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig::default());
         let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
 
         assert!(geom.nodes.contains_key("A"));
@@ -788,7 +789,8 @@ mod tests {
         let flowchart = crate::parser::parse_flowchart(input).unwrap();
         let diagram = crate::graph::build_diagram(&flowchart);
 
-        let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        let config =
+            EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig::default());
         let text_geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
         let svg_geom = run_layered_layout(
             &MeasurementMode::Svg(SvgTextMetrics::new(16.0, 15.0, 15.0)),
@@ -820,7 +822,8 @@ mod tests {
         let flowchart = crate::parser::parse_flowchart(&input).unwrap();
         let diagram = crate::graph::build_diagram(&flowchart);
 
-        let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        let config =
+            EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig::default());
         let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
 
         // Subgraph bounds should encompass all member nodes.
@@ -865,7 +868,7 @@ mod tests {
 
     #[test]
     fn flux_layout_profile_polyline_uses_enhanced_profile() {
-        let input_cfg = crate::layered::types::LayoutConfig {
+        let input_cfg = crate::engines::graph::layered::types::LayoutConfig {
             greedy_switch: false,
             model_order_tiebreak: true,
             variable_rank_spacing: false,
@@ -873,7 +876,7 @@ mod tests {
             track_reversed_chains: false,
             per_edge_label_spacing: false,
             label_side_selection: false,
-            label_dummy_strategy: crate::layered::LabelDummyStrategy::Midpoint,
+            label_dummy_strategy: crate::engines::graph::layered::LabelDummyStrategy::Midpoint,
             ..Default::default()
         };
         let profile = flux_layout_profile(&input_cfg, EdgeRouting::PolylineRoute);
@@ -904,7 +907,7 @@ mod tests {
         );
         assert_eq!(
             profile.label_dummy_strategy,
-            crate::layered::LabelDummyStrategy::WidestLayer,
+            crate::engines::graph::layered::LabelDummyStrategy::WidestLayer,
             "polyline profile should use widest-layer label dummy placement"
         );
         assert!(
@@ -915,7 +918,7 @@ mod tests {
 
     #[test]
     fn flux_layout_profile_all_routing_styles_use_enhanced_profile() {
-        let input_cfg = crate::layered::types::LayoutConfig {
+        let input_cfg = crate::engines::graph::layered::types::LayoutConfig {
             greedy_switch: false,
             model_order_tiebreak: true,
             variable_rank_spacing: false,
@@ -923,7 +926,7 @@ mod tests {
             track_reversed_chains: false,
             per_edge_label_spacing: false,
             label_side_selection: false,
-            label_dummy_strategy: crate::layered::LabelDummyStrategy::Midpoint,
+            label_dummy_strategy: crate::engines::graph::layered::LabelDummyStrategy::Midpoint,
             ..Default::default()
         };
 
@@ -959,7 +962,7 @@ mod tests {
             );
             assert_eq!(
                 profile.label_dummy_strategy,
-                crate::layered::LabelDummyStrategy::WidestLayer,
+                crate::engines::graph::layered::LabelDummyStrategy::WidestLayer,
                 "{routing:?} profile should use widest-layer label dummy placement"
             );
             assert!(
@@ -976,7 +979,7 @@ mod tests {
         let diagram = crate::graph::build_diagram(&flowchart);
         let mode = MeasurementMode::Svg(SvgTextMetrics::new(16.0, 15.0, 15.0));
 
-        let input_cfg = crate::layered::types::LayoutConfig {
+        let input_cfg = crate::engines::graph::layered::types::LayoutConfig {
             model_order_tiebreak: true,
             ..Default::default()
         };
@@ -1010,7 +1013,7 @@ mod tests {
         let diagram = crate::graph::build_diagram(&flowchart);
         let mode = MeasurementMode::Svg(SvgTextMetrics::new(16.0, 15.0, 15.0));
 
-        let input_cfg = crate::layered::types::LayoutConfig {
+        let input_cfg = crate::engines::graph::layered::types::LayoutConfig {
             model_order_tiebreak: true,
             ..Default::default()
         };
@@ -1037,8 +1040,9 @@ mod tests {
     // =========================================================================
 
     fn solve_svg(engine: &dyn GraphEngine, diagram: &Diagram) -> GraphSolveResult {
-        use crate::diagram::PathSimplification;
-        let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        use crate::engines::graph::PathSimplification;
+        let config =
+            EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig::default());
         let request = GraphSolveRequest {
             output_format: OutputFormat::Svg,
             geometry_level: GeometryLevel::Layout,
@@ -1049,8 +1053,9 @@ mod tests {
     }
 
     fn solve_mmds_layout(engine: &dyn GraphEngine, diagram: &Diagram) -> GraphSolveResult {
-        use crate::diagram::PathSimplification;
-        let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        use crate::engines::graph::PathSimplification;
+        let config =
+            EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig::default());
         let request = GraphSolveRequest {
             output_format: OutputFormat::Mmds,
             geometry_level: GeometryLevel::Layout,
@@ -1415,14 +1420,16 @@ mod tests {
         let mode = MeasurementMode::Text;
 
         // Config with per_edge_label_spacing=true (as FluxLayeredEngine sets it)
-        let config_per_edge = EngineConfig::Layered(crate::layered::types::LayoutConfig {
-            per_edge_label_spacing: true,
-            ..Default::default()
-        });
+        let config_per_edge =
+            EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig {
+                per_edge_label_spacing: true,
+                ..Default::default()
+            });
         let geom_per_edge = run_layered_layout(&mode, &diagram, &config_per_edge).unwrap();
 
         // Config with per_edge_label_spacing=false (default)
-        let config_global = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        let config_global =
+            EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig::default());
         let geom_global = run_layered_layout(&mode, &diagram, &config_global).unwrap();
 
         // B->C edge (index 1) should differ: per-edge has no intermediate waypoints,

@@ -19,9 +19,9 @@ use super::text_routing_core::{
     edge_faces as shared_edge_faces, plan_attachment_candidates,
     point_on_face_float as shared_point_on_face_float,
 };
-use crate::diagrams::flowchart::geometry::FRect;
+use crate::engines::graph::layered::{LayoutResult, NodeId, Point, Rect};
+use crate::graph::geometry::FRect;
 use crate::graph::{Diagram, Direction};
-use crate::layered::{LayoutResult, NodeId, Point, Rect};
 
 /// The face an edge exits from in the given flow direction.
 fn exit_face(direction: Direction) -> Face {

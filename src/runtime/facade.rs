@@ -10,10 +10,10 @@
 //! - [`render_graph`] — (internal) graph-family engine+render pipeline.
 
 use crate::api::ParseDiagnostic;
-use crate::diagram::{
+use crate::engines::graph::{
     AlgorithmId, EngineAlgorithmId, EngineId, OutputFormat, RenderConfig, RenderError,
+    solve_graph_family,
 };
-use crate::engines::graph::solve_graph_family;
 use crate::graph::Diagram;
 use crate::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
 use crate::parser::{

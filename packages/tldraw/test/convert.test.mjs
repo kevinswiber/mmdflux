@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { normalizeMmds } from "@mmds/core";
@@ -74,6 +75,36 @@ test("tldraw CLI entrypoint owns the runtime main", () => {
     main: "function",
     hasConvertToTldrawStore: false,
   });
+});
+
+test("tldraw CLI runs when invoked through a symlinked bin path", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mmds-tldraw-cli-"));
+  const linkPath = path.join(tmpDir, "mmds-to-tldraw.mjs");
+  fs.symlinkSync(path.resolve(process.cwd(), "dist/cli.js"), linkPath);
+
+  try {
+    const result = spawnSync(process.execPath, [linkPath], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      input: JSON.stringify(
+        fixture("tests", "fixtures", "mmds", "positioned", "routed-basic.json"),
+      ),
+      timeout: 5_000,
+    });
+
+    assert.equal(
+      result.status,
+      0,
+      result.stderr || result.stdout || result.error?.message,
+    );
+
+    const parsed = JSON.parse(result.stdout);
+    assert.equal(parsed.tldrawFileFormatVersion, 1);
+    assert.ok(Array.isArray(parsed.records));
+    assert.ok(parsed.records.length > 0);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 });
 
 test("produces a .tldr envelope that parses with current tldraw parser", () => {

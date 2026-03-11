@@ -288,19 +288,19 @@ fn flowchart_render_mmds_through_solve_path() {
 // --- Text geometry-driven integration tests (Task 4.2) ---
 
 #[test]
-fn text_render_from_solve_matches_legacy() {
+fn text_render_from_solve_produces_output() {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/simple.mmd").unwrap();
     let mut instance = FlowchartInstance::new();
     instance.parse(&input).unwrap();
 
-    let legacy_out = instance
+    let output = instance
         .render(OutputFormat::Text, &RenderConfig::default())
         .unwrap();
-    assert!(!legacy_out.is_empty());
+    assert!(!output.is_empty());
 }
 
 #[test]
-fn text_snapshots_stable_after_geometry_driven_cutover() {
+fn text_snapshots_stable_after_geometry_driven_refactor() {
     for fixture in &["simple.mmd", "chain.mmd", "decision.mmd", "fan_in.mmd"] {
         let path = format!("tests/fixtures/flowchart/{fixture}");
         let input = std::fs::read_to_string(&path).unwrap();

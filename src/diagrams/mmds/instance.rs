@@ -4,7 +4,7 @@ use super::{
     MmdsProfileNegotiation, evaluate_mmds_profiles_for_output, from_mmds_output,
     hydrate_graph_geometry_from_output_with_diagram, parse_mmds_input,
 };
-use crate::diagram::{EdgeRouting, GeometryLevel, OutputFormat, RenderConfig, RenderError};
+use crate::engines::graph::{EdgeRouting, GeometryLevel, OutputFormat, RenderConfig, RenderError};
 use crate::mmds::{MmdsOutput, generate_mermaid_from_mmds};
 use crate::registry::DiagramInstance;
 use crate::render::{RenderOptions, render, render_svg_from_geometry};

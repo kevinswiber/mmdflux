@@ -15,9 +15,9 @@ use std::path::Path;
 
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
-use mmdflux::diagrams::flowchart::geometry::{GraphGeometry, LayoutEdge};
 use mmdflux::diagrams::mmds::from_mmds_str;
 use mmdflux::engines::graph::EngineConfig;
+use mmdflux::graph::geometry::{GraphGeometry, LayoutEdge};
 use mmdflux::graph::{Diagram, Subgraph};
 use mmdflux::registry::DiagramInstance;
 use mmdflux::render::{RenderOptions, render};
@@ -235,7 +235,8 @@ fn floats_eq(a: f64, b: f64) -> bool {
 /// Runs layered layout on both diagrams and compares node positions/sizes,
 /// edge count, and overall bounds.
 fn check_layout(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
-    let engine_config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
+    let engine_config =
+        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
 
     let direct_geom = match run_layered_layout(&MeasurementMode::Text, direct, &engine_config) {
         Ok(geom) => geom,

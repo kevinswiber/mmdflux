@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use crate::diagram::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
+use crate::engines::graph::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
 
 /// Detector function type.
 ///

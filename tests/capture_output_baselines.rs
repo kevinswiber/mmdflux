@@ -1,8 +1,9 @@
 //! One-shot baseline capture utility.
-//! Run with: cargo test --test capture_baselines -- --ignored
+//! Run with: cargo test --test capture_output_baselines -- --ignored
 //!
-//! Renders all fixtures listed in the cutover manifest and writes baseline files
-//! to tests/cutover/baselines/. Only run this once from a known-good state.
+//! Renders all fixtures listed in the baseline manifest and writes output files
+//! to `tests/baselines/`. Run this when intentionally refreshing the frozen
+//! regression outputs.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -11,7 +12,7 @@ use mmdflux::registry::default_registry;
 use mmdflux::{OutputFormat, RenderConfig};
 
 #[derive(serde::Deserialize)]
-struct CutoverManifest {
+struct BaselineManifest {
     fixture_outputs: HashMap<String, FixtureContract>,
     #[allow(dead_code)]
     version: u32,
@@ -34,9 +35,9 @@ struct FixtureContract {
 #[ignore] // Only run manually to capture baselines
 fn capture_all_baselines() {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let manifest_path = manifest_dir.join("tests/cutover/baseline_manifest.json");
+    let manifest_path = manifest_dir.join("tests/baselines/manifest.json");
     let content = std::fs::read_to_string(&manifest_path).unwrap();
-    let manifest: CutoverManifest = serde_json::from_str(&content).unwrap();
+    let manifest: BaselineManifest = serde_json::from_str(&content).unwrap();
 
     let registry = default_registry();
     let mut captured = 0;
@@ -62,7 +63,7 @@ fn capture_all_baselines() {
 
             let out_path = manifest_dir.join(
                 fixture_path
-                    .replace("tests/fixtures/", "tests/cutover/baselines/text/")
+                    .replace("tests/fixtures/", "tests/baselines/text/")
                     .replace(".mmd", ".txt"),
             );
             std::fs::create_dir_all(out_path.parent().unwrap()).unwrap();
@@ -77,7 +78,7 @@ fn capture_all_baselines() {
 
             let out_path = manifest_dir.join(
                 fixture_path
-                    .replace("tests/fixtures/", "tests/cutover/baselines/svg/")
+                    .replace("tests/fixtures/", "tests/baselines/svg/")
                     .replace(".mmd", ".svg"),
             );
             std::fs::create_dir_all(out_path.parent().unwrap()).unwrap();
@@ -92,7 +93,7 @@ fn capture_all_baselines() {
 
             let out_path = manifest_dir.join(
                 fixture_path
-                    .replace("tests/fixtures/", "tests/cutover/baselines/mmds/")
+                    .replace("tests/fixtures/", "tests/baselines/mmds/")
                     .replace(".mmd", ".json"),
             );
             std::fs::create_dir_all(out_path.parent().unwrap()).unwrap();

@@ -37,12 +37,10 @@
 
 pub mod api;
 // Core modules
-mod diagram;
 pub mod diagrams;
 pub mod engines;
 pub mod formats;
 pub mod graph;
-pub mod layered;
 pub mod lint;
 pub mod mmds;
 pub mod parser;

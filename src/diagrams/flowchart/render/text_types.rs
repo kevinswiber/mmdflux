@@ -8,8 +8,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::text_shape::NodeBounds;
+use crate::engines::graph::layered::Rect;
 use crate::graph::{Direction, Shape};
-use crate::layered::Rect;
 
 /// Bounding box for a subgraph border in draw coordinates.
 #[derive(Debug, Clone)]
@@ -197,7 +197,7 @@ pub struct TextLayoutConfig {
     /// Extra right margin for edge labels on right branches.
     pub right_label_margin: usize,
     /// Ranking algorithm override.
-    pub ranker: Option<crate::layered::types::Ranker>,
+    pub ranker: Option<crate::engines::graph::layered::types::Ranker>,
     /// Node spacing (nodesep).
     pub node_sep: f64,
     /// Edge segment spacing (edgesep).

@@ -15,9 +15,7 @@ use super::text_routing_core::{
     intersect_shape_boundary_float, normalize_orthogonal_route_contracts,
     resolve_overflow_backward_channel_conflict,
 };
-use crate::diagrams::flowchart::geometry::{
-    EngineHints, FPoint, FRect, GraphGeometry, RoutedEdgeGeometry,
-};
+use crate::graph::geometry::{EngineHints, FPoint, FRect, GraphGeometry, RoutedEdgeGeometry};
 use crate::graph::{Diagram, Direction, Shape};
 
 /// Preview options for orthogonal float-first routing.
@@ -136,7 +134,7 @@ pub(crate) fn route_edges_orthogonal(
             // (Above/Below have thickness-based offsets that would exceed the drift threshold)
             let label_position = if edge
                 .label_side
-                .is_some_and(|s| s != crate::layered::normalize::LabelSide::Center)
+                .is_some_and(|s| s != crate::engines::graph::layered::normalize::LabelSide::Center)
             {
                 edge.label_position
             } else {
@@ -182,7 +180,7 @@ fn resolve_forward_td_bt_criss_cross_overlaps(
         return;
     }
 
-    let edge_by_index: HashMap<usize, &crate::diagrams::flowchart::geometry::LayoutEdge> = geometry
+    let edge_by_index: HashMap<usize, &crate::graph::geometry::LayoutEdge> = geometry
         .edges
         .iter()
         .map(|edge| (edge.index, edge))
@@ -250,7 +248,7 @@ fn is_forward_td_bt_criss_cross_overlap_pair(
     a: &RoutedEdgeGeometry,
     b: &RoutedEdgeGeometry,
     geometry: &GraphGeometry,
-    edge_by_index: &HashMap<usize, &crate::diagrams::flowchart::geometry::LayoutEdge>,
+    edge_by_index: &HashMap<usize, &crate::graph::geometry::LayoutEdge>,
 ) -> bool {
     const EPS: f64 = 0.5;
 
@@ -309,7 +307,7 @@ fn preferred_criss_cross_reroute_order(
     b_idx: usize,
     routed: &[RoutedEdgeGeometry],
     geometry: &GraphGeometry,
-    edge_by_index: &HashMap<usize, &crate::diagrams::flowchart::geometry::LayoutEdge>,
+    edge_by_index: &HashMap<usize, &crate::graph::geometry::LayoutEdge>,
 ) -> [usize; 2] {
     let a_left_to_right = edge_by_index
         .get(&routed[a_idx].index)
@@ -334,7 +332,7 @@ fn preferred_criss_cross_reroute_order(
 }
 
 fn build_forward_td_bt_criss_cross_corridor_path(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     path: &[FPoint],
     routed: &[RoutedEdgeGeometry],
@@ -456,7 +454,7 @@ fn build_forward_td_bt_criss_cross_corridor_path(
 
 fn edge_endpoint_rects(
     geometry: &GraphGeometry,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
 ) -> Option<(FRect, FRect)> {
     let source_rect = *endpoint_rect(geometry, &edge.from, edge.from_subgraph.as_deref())?;
     let target_rect = *endpoint_rect(geometry, &edge.to, edge.to_subgraph.as_deref())?;
@@ -465,7 +463,7 @@ fn edge_endpoint_rects(
 
 fn edge_cross_axis_delta(
     geometry: &GraphGeometry,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
 ) -> Option<f64> {
     let (source_rect, target_rect) = edge_endpoint_rects(geometry, edge)?;
     Some((target_rect.x + target_rect.width / 2.0) - (source_rect.x + source_rect.width / 2.0))
@@ -796,7 +794,7 @@ fn distance_point_to_path(point: FPoint, path: &[FPoint]) -> f64 {
 
 #[allow(clippy::too_many_arguments)]
 fn build_orthogonal_path(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     is_backward: bool,
@@ -1063,7 +1061,7 @@ fn build_orthogonal_path(
 
 fn avoid_forward_td_bt_primary_lane_node_intrusion(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     target_primary_channel_depth: Option<f64>,
@@ -1157,7 +1155,7 @@ fn avoid_forward_td_bt_primary_lane_node_intrusion(
 
 fn reroute_skip_backward_lane_for_node_clearance(
     path: &mut [FPoint],
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     node_clearance: f64,
@@ -1344,7 +1342,7 @@ fn axis_aligned_segment_crosses_rect_interior(
 
 fn reroute_forward_td_bt_terminal_intrusion_with_safe_vertical_corridor(
     path: &[FPoint],
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) -> Option<Vec<FPoint>> {
@@ -1459,7 +1457,7 @@ fn reroute_forward_td_bt_terminal_intrusion_with_safe_vertical_corridor(
 
 fn avoid_backward_td_bt_vertical_lane_node_intrusion(
     path: &mut [FPoint],
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) {
@@ -1560,7 +1558,7 @@ fn avoid_backward_td_bt_vertical_lane_node_intrusion(
 /// corridor), the backward edge needs a full channel detour to avoid crossing
 /// them. Otherwise, a simple port-offset suffices.
 fn has_backward_corridor_obstructions(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) -> bool {
@@ -1622,7 +1620,7 @@ fn has_backward_corridor_obstructions(
 /// This matches the non-orthogonal `build_backward_channel_path` approach and
 /// is already axis-aligned, so it works directly for step/smooth-step/curved-step rendering.
 fn build_backward_orthogonal_channel_path(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) -> Option<Vec<FPoint>> {
@@ -1705,7 +1703,7 @@ fn build_backward_orthogonal_channel_path(
 /// endpoints on side faces (source leading-side, target trailing-side) and
 /// routes along a lower lane, matching direct/polyline intent.
 fn build_short_backward_side_lane_path(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) -> Option<Vec<FPoint>> {
@@ -1821,7 +1819,7 @@ fn stagger_forward_td_bt_terminal_horizontal_support(
 
 fn collapse_tiny_forward_td_bt_lateral_jog(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) {
@@ -1887,7 +1885,7 @@ fn collapse_tiny_forward_td_bt_lateral_jog(
 
 fn prefer_secondary_axis_departure_for_angular_sources(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) {
@@ -2065,7 +2063,7 @@ fn prefer_secondary_axis_departure_for_angular_sources(
 }
 
 fn segment_crosses_any_other_node_interior(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     a: FPoint,
     b: FPoint,
@@ -2086,7 +2084,7 @@ fn ranges_overlap(a_min: f64, a_max: f64, b_min: f64, b_max: f64) -> bool {
 }
 
 fn backward_td_bt_face_overrides(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     is_backward: bool,
@@ -2198,10 +2196,8 @@ fn fan_in_target_overflow_context(
     direction: Direction,
     visible_edge_count: usize,
 ) -> FanInTargetOverflowContext {
-    let mut incoming_by_target: HashMap<
-        String,
-        Vec<&crate::diagrams::flowchart::geometry::LayoutEdge>,
-    > = HashMap::new();
+    let mut incoming_by_target: HashMap<String, Vec<&crate::graph::geometry::LayoutEdge>> =
+        HashMap::new();
     for edge in geometry
         .edges
         .iter()
@@ -2223,7 +2219,7 @@ fn fan_in_target_overflow_context(
 
     for (target_id, mut incoming_edges) in incoming_by_target {
         incoming_edges.sort_unstable_by_key(|edge| edge.index);
-        let mut forward_edges: Vec<&crate::diagrams::flowchart::geometry::LayoutEdge> = Vec::new();
+        let mut forward_edges: Vec<&crate::graph::geometry::LayoutEdge> = Vec::new();
         let mut backward_edge_count = 0usize;
         for edge in incoming_edges {
             if geometry.reversed_edges.contains(&edge.index) {
@@ -2419,10 +2415,8 @@ fn fan_out_source_stagger_context(
     direction: Direction,
     visible_edge_count: usize,
 ) -> FanOutSourceStaggerContext {
-    let mut outgoing_by_source: HashMap<
-        String,
-        Vec<&crate::diagrams::flowchart::geometry::LayoutEdge>,
-    > = HashMap::new();
+    let mut outgoing_by_source: HashMap<String, Vec<&crate::graph::geometry::LayoutEdge>> =
+        HashMap::new();
     for edge in geometry
         .edges
         .iter()
@@ -2440,7 +2434,7 @@ fn fan_out_source_stagger_context(
 
     for (source_id, mut outgoing_edges) in outgoing_by_source {
         outgoing_edges.sort_unstable_by_key(|edge| edge.index);
-        let mut forward_edges: Vec<&crate::diagrams::flowchart::geometry::LayoutEdge> = Vec::new();
+        let mut forward_edges: Vec<&crate::graph::geometry::LayoutEdge> = Vec::new();
         for edge in outgoing_edges {
             if geometry.reversed_edges.contains(&edge.index) {
                 continue;
@@ -2603,7 +2597,7 @@ fn remap_angular_fan_in_target_fraction(base_fraction: f64, edge_count: usize) -
 
 fn fan_in_source_cross_axis(
     geometry: &GraphGeometry,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     direction: Direction,
 ) -> f64 {
     let Some(rect) = endpoint_rect(geometry, &edge.from, edge.from_subgraph.as_deref()) else {
@@ -2614,7 +2608,7 @@ fn fan_in_source_cross_axis(
 
 fn fan_out_target_cross_axis(
     geometry: &GraphGeometry,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     direction: Direction,
 ) -> f64 {
     let Some(rect) = endpoint_rect(geometry, &edge.to, edge.to_subgraph.as_deref()) else {
@@ -2628,7 +2622,7 @@ fn apply_near_aligned_primary_face_fraction_override(
     direction: Direction,
     primary_face: Face,
     target_rect: &FRect,
-    forward_edges: &[&crate::diagrams::flowchart::geometry::LayoutEdge],
+    forward_edges: &[&crate::graph::geometry::LayoutEdge],
     target_face_for_edge: &HashMap<usize, Face>,
     target_fraction_for_edge: &mut HashMap<usize, f64>,
 ) {
@@ -2818,7 +2812,7 @@ fn stagger_axis_value(
 
 fn edge_rank_span(
     geometry: &GraphGeometry,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
 ) -> Option<usize> {
     let EngineHints::Layered(hints) = geometry.engine_hints.as_ref()?;
     let src_rank = *hints.node_ranks.get(&edge.from)?;
@@ -2828,7 +2822,7 @@ fn edge_rank_span(
 
 fn ensure_primary_stem_for_flat_off_center_fanout_sources(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     is_backward: bool,
@@ -2842,7 +2836,7 @@ fn ensure_primary_stem_for_flat_off_center_fanout_sources(
         return;
     }
 
-    let fanout_outbound: Vec<&crate::diagrams::flowchart::geometry::LayoutEdge> = geometry
+    let fanout_outbound: Vec<&crate::graph::geometry::LayoutEdge> = geometry
         .edges
         .iter()
         .filter(|candidate| candidate.from == edge.from)
@@ -2988,7 +2982,7 @@ fn ensure_primary_stem_for_flat_off_center_fanout_sources(
 
 fn ensure_primary_stem_for_td_bt_angular_fanout_source(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     is_backward: bool,
@@ -3310,7 +3304,7 @@ fn ensure_backward_outer_lane_clearance(
 /// the backward channel lane, matching R-BACK-8/9/10.
 fn enforce_backward_minimum_channel_floor(
     path: &mut [FPoint],
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     min_clearance: f64,
@@ -3379,7 +3373,7 @@ fn enforce_backward_minimum_channel_floor(
 /// The same logic applies symmetrically for target-side diagonals and LR/RL.
 fn fix_backward_diagonal_node_collision(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) {
@@ -3407,7 +3401,7 @@ fn fix_backward_diagonal_node_collision(
 /// the outer lane (max-x of interior points).
 fn fix_backward_diagonal_source_td_bt(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     margin: f64,
     eps: f64,
@@ -3488,7 +3482,7 @@ fn fix_backward_diagonal_source_td_bt(
 /// TD/BT target-side: same check for the last segment.
 fn fix_backward_diagonal_target_td_bt(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     margin: f64,
     eps: f64,
@@ -3565,7 +3559,7 @@ fn fix_backward_diagonal_target_td_bt(
 /// the outer lane (max-y of interior points).
 fn fix_backward_diagonal_source_lr_rl(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     margin: f64,
     eps: f64,
@@ -3638,7 +3632,7 @@ fn fix_backward_diagonal_source_lr_rl(
 /// LR/RL target-side.
 fn fix_backward_diagonal_target_lr_rl(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     margin: f64,
     eps: f64,
@@ -3712,7 +3706,7 @@ fn fix_backward_diagonal_target_lr_rl(
 
 fn align_backward_source_stem_to_outer_lane(
     path: &mut [FPoint],
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) {
@@ -3767,7 +3761,7 @@ fn align_backward_outer_lane_to_hint(
     path: &mut [FPoint],
     hint: Option<&[FPoint]>,
     direction: Direction,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
 ) {
     const EPS: f64 = 0.000_001;
@@ -3917,7 +3911,7 @@ fn hint_side_face_for_td_alignment(point: FPoint, rect: FRect) -> Option<Face> {
 
 fn enforce_backward_terminal_tangent_direction(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     preserve_terminal_lane_on_overflow_target: bool,
@@ -4275,7 +4269,7 @@ fn collapse_tiny_backward_terminal_staircase(
 
 fn collapse_backward_terminal_node_intrusion(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) -> bool {
@@ -4380,7 +4374,7 @@ fn collapse_backward_terminal_node_intrusion(
 
 fn enforce_backward_source_tangent_direction(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     preferred_source_face: Option<Face>,
@@ -4571,7 +4565,7 @@ fn enforce_backward_source_tangent_direction(
 }
 
 pub(crate) fn build_path_from_hints(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
 ) -> Vec<FPoint> {
     if let Some(ref path) = edge.layout_path_hint {
@@ -4593,7 +4587,7 @@ pub(crate) fn build_path_from_hints(
 }
 
 fn build_path_from_nodes_and_waypoints(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
 ) -> Vec<FPoint> {
     let mut path = Vec::new();
@@ -4621,7 +4615,7 @@ fn hint_has_non_degenerate_span(path: &[FPoint]) -> bool {
 }
 
 fn hint_endpoints_attach_to_layout_bounds(
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     path: &[FPoint],
 ) -> bool {
@@ -4647,7 +4641,7 @@ fn endpoint_rect<'a>(
     geometry: &'a GraphGeometry,
     node_id: &str,
     subgraph_id: Option<&str>,
-) -> Option<&'a crate::diagrams::flowchart::geometry::FRect> {
+) -> Option<&'a crate::graph::geometry::FRect> {
     if let Some(sg_id) = subgraph_id {
         geometry.subgraphs.get(sg_id).map(|sg| &sg.rect)
     } else {
@@ -4655,15 +4649,11 @@ fn endpoint_rect<'a>(
     }
 }
 
-fn rect_center(rect: &crate::diagrams::flowchart::geometry::FRect) -> FPoint {
+fn rect_center(rect: &crate::graph::geometry::FRect) -> FPoint {
     FPoint::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0)
 }
 
-fn point_on_or_inside_rect(
-    point: FPoint,
-    rect: &crate::diagrams::flowchart::geometry::FRect,
-    eps: f64,
-) -> bool {
+fn point_on_or_inside_rect(point: FPoint, rect: &crate::graph::geometry::FRect, eps: f64) -> bool {
     let left = rect.x;
     let right = rect.x + rect.width;
     let top = rect.y;
@@ -4708,7 +4698,7 @@ fn build_contracted_path(control_points: &[FPoint], direction: Direction) -> Vec
 #[allow(clippy::too_many_arguments)]
 fn anchor_path_endpoints_to_endpoint_faces(
     path: &mut [FPoint],
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
     is_backward: bool,
@@ -4834,7 +4824,7 @@ fn anchor_path_endpoints_to_endpoint_faces(
 /// distinct ports for forward arrival and backward departure on the same face.
 fn offset_backward_source_from_primary_face(
     path: &mut [FPoint],
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
 ) {
@@ -4915,7 +4905,7 @@ fn offset_backward_source_from_primary_face(
 /// shape boundary using the adjacent path point as the approach direction.
 fn snap_backward_endpoints_to_shape(
     path: &mut [FPoint],
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
 ) {
     if path.len() < 2 {
@@ -5272,7 +5262,7 @@ fn clip_point_to_axis_face(
 
 fn enforce_backward_terminal_corner_inset(
     path: &mut Vec<FPoint>,
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
 ) {
     const EPS: f64 = 0.000_001;
@@ -5698,7 +5688,7 @@ fn flow_source_face_for_direction(direction: Direction) -> Face {
 
 fn endpoint_is_on_policy_face(
     path: &[FPoint],
-    edge: &crate::diagrams::flowchart::geometry::LayoutEdge,
+    edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
     face: RectFace,
 ) -> bool {

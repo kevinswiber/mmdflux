@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use super::backward_policy::prefer_backward_side_channel;
 use super::text_layout::{Layout, SubgraphBounds};
 use super::text_shape::NodeBounds;
-use crate::diagrams::flowchart::geometry::{EdgePort, FPoint, FRect, GraphGeometry, PortFace};
+use crate::graph::geometry::{EdgePort, FPoint, FRect, GraphGeometry, PortFace};
 use crate::graph::{Direction, Edge, Shape, Stroke};
 use crate::render::intersect::{NodeFace, classify_face};
 
@@ -1446,7 +1446,7 @@ mod port_attachment_tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::diagrams::flowchart::geometry::*;
+    use crate::graph::geometry::*;
     use crate::graph::{Edge, Stroke};
 
     fn make_geometry(

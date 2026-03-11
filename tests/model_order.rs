@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use mmdflux::layered::{self, DiGraph, LayoutConfig};
+use mmdflux::engines::graph::layered::{self, DiGraph, LayoutConfig};
 
 /// Build a graph, run full layout, return node center-x positions.
 /// In TD layout, x position reflects the within-rank ordering.

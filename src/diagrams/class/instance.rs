@@ -5,7 +5,7 @@
 
 use super::compiler;
 use super::parser::parse_class_diagram;
-use crate::diagram::{OutputFormat, RenderConfig, RenderError};
+use crate::engines::graph::{OutputFormat, RenderConfig, RenderError};
 use crate::graph::Diagram;
 use crate::registry::DiagramInstance;
 

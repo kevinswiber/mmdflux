@@ -7,8 +7,10 @@
 use std::collections::{HashMap, HashSet};
 
 use super::text_types::TextLayoutConfig;
+use crate::engines::graph::layered::{
+    self, Direction as LayeredDirection, LayoutConfig as LayeredConfig,
+};
 use crate::graph::{Diagram, Direction, Edge, Node, Stroke};
-use crate::layered::{self, Direction as LayeredDirection, LayoutConfig as LayeredConfig};
 
 /// Convert a graph-level Direction to a layered Direction.
 pub(crate) fn to_layered_direction(dir: Direction) -> LayeredDirection {

@@ -3,8 +3,8 @@
 //! Keeps backward channel/parity gates centralized so text and orthogonal
 //! routing paths can reuse the same decision rules.
 
-use crate::diagrams::flowchart::geometry::FRect;
 use crate::graph::Direction;
+use crate::graph::geometry::FRect;
 
 /// Long backward edges (3+ user-visible rank gaps, normalized rank_span >= 6)
 /// use side-face channel routing.

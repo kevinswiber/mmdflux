@@ -2,8 +2,8 @@
 //!
 //! Renders a `GraphSolveResult` to SVG.
 
-use crate::diagram::{EdgeRouting, GraphSolveResult};
 use crate::diagrams::flowchart::render::svg::render_svg_from_geometry;
+use crate::engines::graph::{EdgeRouting, GraphSolveResult};
 use crate::graph::Diagram;
 use crate::render::RenderOptions;
 

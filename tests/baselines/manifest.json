@@ -7,7 +7,6 @@
       "engines",
       "formats",
       "graph",
-      "layered",
       "lint",
       "mmds",
       "parser",

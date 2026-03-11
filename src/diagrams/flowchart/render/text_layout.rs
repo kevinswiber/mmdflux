@@ -5,8 +5,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-#[cfg(test)]
-pub(crate) use super::layout_building::build_layered_layout;
 // Re-export shared layout building functions from their canonical location.
 pub(crate) use super::layout_building::{
     SubLayoutResult, compute_sublayouts, layered_config_for_layout,
@@ -15,9 +13,9 @@ use super::text_shape::{NodeBounds, node_dimensions};
 pub(crate) use super::text_types::{CoordTransform, RawCenter, TransformContext};
 // Re-export text types from their canonical location.
 pub use super::text_types::{GridPos, Layout, SelfEdgeDrawData, SubgraphBounds, TextLayoutConfig};
-use crate::diagrams::flowchart::geometry::FPoint;
+use crate::engines::graph::layered::Rect;
+use crate::graph::geometry::FPoint;
 use crate::graph::{Diagram, Direction, Edge};
-use crate::layered::Rect;
 
 /// Reconcile direction-override sub-layout positions in draw coordinates.
 ///
@@ -1991,9 +1989,12 @@ pub(crate) fn clip_waypoints_to_subgraph(
 
 #[cfg(test)]
 mod tests {
+    use super::super::layout_building::build_layered_layout;
     use super::super::text_adapter::compute_layout;
     use super::*;
-    use crate::layered::{self, Direction as LayeredDirection, LayoutConfig as LayeredConfig};
+    use crate::engines::graph::layered::{
+        self, Direction as LayeredDirection, LayoutConfig as LayeredConfig,
+    };
 
     fn test_node_bounds(x: usize, y: usize, width: usize, height: usize) -> NodeBounds {
         NodeBounds {

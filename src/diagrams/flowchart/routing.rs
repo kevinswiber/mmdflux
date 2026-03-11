@@ -7,12 +7,12 @@
 //! - `EngineProvided`: Use engine-provided paths directly.
 //! - `OrthogonalRoute`: Produce axis-aligned (right-angle) edge paths.
 
-use super::geometry::*;
 use super::render::orthogonal_router::{
     OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal, snap_path_to_grid,
 };
 use super::render::route_policy::effective_edge_direction;
-use crate::diagram::EdgeRouting;
+use crate::engines::graph::EdgeRouting;
+use crate::graph::geometry::*;
 use crate::graph::{Diagram, Direction};
 
 /// Route graph geometry to produce fully-routed edge paths.
@@ -835,7 +835,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::diagram::EdgeRouting;
+    use crate::engines::graph::EdgeRouting;
 
     fn simple_geometry() -> (Diagram, GraphGeometry) {
         let mut diagram = Diagram::new(crate::graph::Direction::TopDown);

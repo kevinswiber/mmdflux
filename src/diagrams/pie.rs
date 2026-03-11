@@ -3,7 +3,7 @@
 //! Pie diagrams are rendered as simple text representations.
 //! Future enhancement: render as horizontal bar charts.
 
-use crate::diagram::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
+use crate::engines::graph::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
 /// Detect if input is a pie diagram.

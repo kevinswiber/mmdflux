@@ -1,15 +1,14 @@
-//! Cutover baseline tests — freeze the external contract before the architecture rewrite.
+//! Architecture guard tests for the stable public surface and module boundaries.
 //!
-//! These tests verify that a baseline manifest and architecture target document exist
-//! and capture the locked external surfaces of the project. They fail until the
-//! rewrite baseline is explicitly frozen.
+//! These tests verify that the baseline manifest and dependency-rules document
+//! remain aligned with the steady-state architecture.
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 /// Manifest capturing the project's locked external surfaces.
 #[derive(serde::Deserialize)]
-struct CutoverManifest {
+struct BaselineManifest {
     version: u32,
     rust_exports: RustExports,
     wasm_exports: Vec<String>,
@@ -31,17 +30,17 @@ struct FixtureContract {
     mmds: bool,
 }
 
-fn load_cutover_manifest() -> CutoverManifest {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/cutover/baseline_manifest.json");
+fn load_baseline_manifest() -> BaselineManifest {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/baselines/manifest.json");
     let content = std::fs::read_to_string(&path).unwrap_or_else(|e| {
         panic!(
-            "Failed to read cutover manifest at {}: {}",
+            "Failed to read baseline manifest at {}: {}",
             path.display(),
             e
         )
     });
     serde_json::from_str(&content)
-        .unwrap_or_else(|e| panic!("Failed to parse cutover manifest: {}", e))
+        .unwrap_or_else(|e| panic!("Failed to parse baseline manifest: {}", e))
 }
 
 /// Parse `src/lib.rs` to extract the actual `pub mod` declarations.
@@ -105,8 +104,8 @@ fn parse_pub_use_re_exports_from_lib_rs() -> BTreeSet<String> {
 }
 
 #[test]
-fn cutover_manifest_captures_locked_external_surfaces() {
-    let manifest = load_cutover_manifest();
+fn baseline_manifest_captures_locked_external_surfaces() {
+    let manifest = load_baseline_manifest();
 
     assert_eq!(manifest.version, 1);
 
@@ -177,8 +176,8 @@ fn cutover_manifest_captures_locked_external_surfaces() {
 }
 
 #[test]
-fn cutover_manifest_rust_exports_are_complete() {
-    let manifest = load_cutover_manifest();
+fn baseline_manifest_rust_exports_are_complete() {
+    let manifest = load_baseline_manifest();
 
     // Modules: source-derived check (same as in the surface test, kept as a
     // separate focused assertion for clearer failure messages).
@@ -201,8 +200,8 @@ fn cutover_manifest_rust_exports_are_complete() {
 }
 
 #[test]
-fn cutover_manifest_fixture_outputs_cover_all_diagram_types() {
-    let manifest = load_cutover_manifest();
+fn baseline_manifest_fixture_outputs_cover_all_diagram_types() {
+    let manifest = load_baseline_manifest();
 
     let has_flowchart = manifest
         .fixture_outputs
@@ -221,11 +220,10 @@ fn cutover_manifest_fixture_outputs_cover_all_diagram_types() {
 
 #[test]
 fn dependency_rules_file_exists_and_lists_forbidden_cross_layer_imports() {
-    let path =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/architecture/hard-cutover-target.md");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/architecture/dependency-rules.md");
     let rules = std::fs::read_to_string(&path).unwrap_or_else(|e| {
         panic!(
-            "Target architecture document must exist at {}: {}",
+            "Dependency rules document must exist at {}: {}",
             path.display(),
             e
         )
@@ -255,40 +253,21 @@ fn dependency_rules_file_exists_and_lists_forbidden_cross_layer_imports() {
 }
 
 #[test]
-fn dependency_rules_document_target_module_layout() {
-    let path =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/architecture/hard-cutover-target.md");
-    let rules = std::fs::read_to_string(&path).unwrap_or_else(|e| {
-        panic!(
-            "Target architecture document must exist at {}: {}",
-            path.display(),
-            e
-        )
-    });
+fn legacy_architecture_targets_are_gone() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
 
-    // Target module structure must be documented
-    assert!(
-        rules.contains("src/api/"),
-        "rules must document src/api/ module"
-    );
-    assert!(
-        rules.contains("src/runtime/"),
-        "rules must document src/runtime/ module"
-    );
-    assert!(
-        rules.contains("src/graph/"),
-        "rules must document src/graph/ module"
-    );
-    assert!(
-        rules.contains("src/engines/"),
-        "rules must document src/engines/ module"
-    );
-    assert!(
-        rules.contains("src/formats/"),
-        "rules must document src/formats/ module"
-    );
-    assert!(
-        rules.contains("src/diagrams/"),
-        "rules must document src/diagrams/ module"
-    );
+    for relative_path in [
+        "src/diagram.rs",
+        "src/render/mod.rs",
+        "src/layered/mod.rs",
+        "src/layered/compat_tests.rs",
+        "src/diagrams/flowchart/geometry.rs",
+    ] {
+        let path = repo_root.join(relative_path);
+        assert!(
+            !path.exists(),
+            "{} should remain removed from the architecture",
+            path.display()
+        );
+    }
 }

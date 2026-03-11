@@ -3,7 +3,7 @@
 //! Compiles Mermaid flowchart syntax to `graph::Diagram` (graph-family IR),
 //! then delegates rendering to the shared graph-family facade.
 
-use crate::diagram::{OutputFormat, RenderConfig, RenderError};
+use crate::engines::graph::{OutputFormat, RenderConfig, RenderError};
 use crate::graph::{Diagram, build_diagram};
 use crate::parser::parse_flowchart;
 use crate::registry::DiagramInstance;

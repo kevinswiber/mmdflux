@@ -12,10 +12,6 @@ pub use canvas::Canvas;
 use canvas::{Cell, Connections};
 pub use chars::CharSet;
 
-use crate::diagram::{
-    AlgorithmId, Curve, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId, GraphEngine,
-    OutputFormat, PathSimplification, RenderConfig, RoutingStyle, TextColorMode,
-};
 pub use crate::diagrams::flowchart::render::svg::{render_svg, render_svg_from_geometry};
 use crate::diagrams::flowchart::render::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
 pub use crate::diagrams::flowchart::render::text_adapter::{
@@ -34,6 +30,10 @@ pub use crate::diagrams::flowchart::render::text_shape::{
     NodeBounds, node_dimensions, render_node,
 };
 use crate::diagrams::flowchart::render::text_subgraph;
+use crate::engines::graph::{
+    AlgorithmId, Curve, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId, GraphEngine,
+    OutputFormat, PathSimplification, RenderConfig, RoutingStyle, TextColorMode,
+};
 use crate::graph::{Diagram, Direction};
 
 /// Engine defaults for SVG style (routing + curve).
@@ -150,7 +150,7 @@ pub struct RenderOptions {
     /// SVG-specific options.
     pub svg: SvgOptions,
     /// Ranking algorithm override. None uses the default (NetworkSimplex).
-    pub ranker: Option<crate::layered::types::Ranker>,
+    pub ranker: Option<crate::engines::graph::layered::types::Ranker>,
     /// Node spacing override (nodesep).
     pub node_spacing: Option<f64>,
     /// Rank spacing override (ranksep).
@@ -219,8 +219,10 @@ pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
         path_simplification: options.path_simplification,
         ..RenderConfig::default()
     };
-    let request =
-        crate::diagram::GraphSolveRequest::from_config(&request_config, options.output_format);
+    let request = crate::engines::graph::GraphSolveRequest::from_config(
+        &request_config,
+        options.output_format,
+    );
     let result = engine
         .solve(diagram, &engine_config, &request)
         .expect("engine solve failed in render()");
@@ -235,16 +237,16 @@ pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
 fn layered_engine_config_for_render(
     diagram: &Diagram,
     options: &RenderOptions,
-) -> crate::diagram::EngineConfig {
+) -> crate::engines::graph::EngineConfig {
     // Match FlowchartInstance text rendering: solve with the raw layered
     // layout config, then apply text-specific spacing adjustments only in the
     // adapter path.
-    let mut config = crate::layered::LayoutConfig {
+    let mut config = crate::engines::graph::layered::LayoutConfig {
         direction: match diagram.direction {
-            Direction::TopDown => crate::layered::Direction::TopBottom,
-            Direction::BottomTop => crate::layered::Direction::BottomTop,
-            Direction::LeftRight => crate::layered::Direction::LeftRight,
-            Direction::RightLeft => crate::layered::Direction::RightLeft,
+            Direction::TopDown => crate::engines::graph::layered::Direction::TopBottom,
+            Direction::BottomTop => crate::engines::graph::layered::Direction::BottomTop,
+            Direction::LeftRight => crate::engines::graph::layered::Direction::LeftRight,
+            Direction::RightLeft => crate::engines::graph::layered::Direction::RightLeft,
         },
         ..Default::default()
     };
@@ -265,7 +267,7 @@ fn layered_engine_config_for_render(
         config.ranker = ranker;
     }
 
-    crate::diagram::EngineConfig::Layered(config)
+    crate::engines::graph::EngineConfig::Layered(config)
 }
 
 fn routing_style_from_edge_routing(edge_routing: Option<EdgeRouting>) -> Option<RoutingStyle> {

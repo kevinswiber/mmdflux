@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::diagram::{EngineAlgorithmId, GeometryLevel, PathSimplification, RenderError};
+use crate::engines::graph::{EngineAlgorithmId, GeometryLevel, PathSimplification, RenderError};
 use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry};
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
 use crate::style::NodeStyle;
@@ -704,19 +704,20 @@ mod tests {
     use crate::parser::parse_flowchart;
 
     fn layout_geometry(input: &str) -> (Diagram, GraphGeometry) {
-        use crate::diagram::EngineConfig;
         use crate::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
+        use crate::engines::graph::EngineConfig;
 
         let fc = parse_flowchart(input).unwrap();
         let diagram = build_diagram(&fc);
-        let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+        let config =
+            EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig::default());
         let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
         (diagram, geom)
     }
 
     fn routed_geometry(diagram: &Diagram, geometry: &GraphGeometry) -> RoutedGraphGeometry {
-        use crate::diagram::EdgeRouting;
         use crate::diagrams::flowchart::routing::route_graph_geometry;
+        use crate::engines::graph::EdgeRouting;
         route_graph_geometry(diagram, geometry, EdgeRouting::PolylineRoute)
     }
 

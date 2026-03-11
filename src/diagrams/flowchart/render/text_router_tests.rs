@@ -5,9 +5,7 @@ use super::super::text_adapter::compute_layout;
 use super::super::text_layout::{GridPos, TextLayoutConfig};
 use super::super::text_types::SubgraphBounds;
 use super::*;
-use crate::diagram::OutputFormat;
 use crate::diagrams::flowchart::engine::MeasurementMode;
-use crate::diagrams::flowchart::geometry::{FPoint, FRect};
 use crate::diagrams::flowchart::render::text_adapter::geometry_to_text_layout_with_routed;
 use crate::diagrams::flowchart::render::text_routing_core::{
     Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
@@ -15,7 +13,8 @@ use crate::diagrams::flowchart::render::text_routing_core::{
     plan_attachments, point_on_face_float, resolve_overflow_backward_channel_conflict,
 };
 use crate::diagrams::flowchart::routing::route_graph_geometry;
-use crate::engines::graph::{EdgeRouting, EngineConfig};
+use crate::engines::graph::{EdgeRouting, EngineConfig, OutputFormat};
+use crate::graph::geometry::{FPoint, FRect};
 use crate::graph::{Diagram, Node};
 use crate::render::intersect::NodeFace;
 use crate::{build_diagram, parse_flowchart};
@@ -41,9 +40,13 @@ fn routed_text_layout_for_fixture(name: &str) -> (Diagram, Layout) {
     let input = load_flowchart_fixture(name);
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
     let diagram = build_diagram(&flowchart);
-    let config = EngineConfig::Layered(crate::layered::types::LayoutConfig::default());
+    let config =
+        EngineConfig::Layered(crate::engines::graph::layered::types::LayoutConfig::default());
     let geom = crate::diagrams::flowchart::engine::run_layered_layout(
-        &MeasurementMode::for_format(OutputFormat::Text, &crate::diagram::RenderConfig::default()),
+        &MeasurementMode::for_format(
+            OutputFormat::Text,
+            &crate::engines::graph::RenderConfig::default(),
+        ),
         &diagram,
         &config,
     )

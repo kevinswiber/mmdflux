@@ -1293,8 +1293,8 @@ fn count_crossings_between(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layered::graph::DiGraph;
-    use crate::layered::{LayoutConfig, NodeId};
+    use crate::engines::graph::layered::graph::DiGraph;
+    use crate::engines::graph::layered::{LayoutConfig, NodeId};
 
     fn setup_graph_and_run(
         nodes: &[&str],
@@ -1382,10 +1382,14 @@ mod tests {
         graph.add_edge("E", "F");
 
         let mut lg = LayoutGraph::from_digraph(&graph, |_, _| (10.0, 10.0));
-        crate::layered::acyclic::run(&mut lg);
+        crate::engines::graph::layered::acyclic::run(&mut lg);
         rank::run(&mut lg, &LayoutConfig::default());
         rank::normalize(&mut lg);
-        crate::layered::normalize::run(&mut lg, &std::collections::HashMap::new(), false);
+        crate::engines::graph::layered::normalize::run(
+            &mut lg,
+            &std::collections::HashMap::new(),
+            false,
+        );
 
         run(&mut lg, false);
 
@@ -1820,7 +1824,7 @@ mod tests {
 
     // --- Compound ordering constraint tests ---
 
-    use crate::layered::{border, nesting};
+    use crate::engines::graph::layered::{border, nesting};
 
     /// Build a compound graph with border segments, ready for ordering.
     ///

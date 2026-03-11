@@ -3,7 +3,7 @@ use std::str::FromStr;
 use super::{Curve, EdgePreset, RenderError, RoutingStyle, normalize_enum_token};
 
 /// Canonical layout configuration type for the public API.
-pub type LayoutConfig = crate::layered::types::LayoutConfig;
+pub type LayoutConfig = crate::engines::graph::layered::types::LayoutConfig;
 
 /// Engine family identifier used in the combined engine+algorithm taxonomy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

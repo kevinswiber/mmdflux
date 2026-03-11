@@ -8,8 +8,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::layout_building::SubLayoutResult;
+use crate::engines::graph::layered::{self, Rect};
 use crate::graph::{Diagram, Direction};
-use crate::layered::{self, Rect};
 
 /// Reconcile direction-override sub-layouts into a LayoutResult (SVG pipeline).
 ///

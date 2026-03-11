@@ -4,7 +4,7 @@ use super::model::SequenceModel;
 use super::parser::parse_sequence;
 use super::render::text;
 use super::{compiler, layout};
-use crate::diagram::{OutputFormat, RenderConfig, RenderError};
+use crate::engines::graph::{OutputFormat, RenderConfig, RenderError};
 use crate::registry::DiagramInstance;
 use crate::render::chars::CharSet;
 

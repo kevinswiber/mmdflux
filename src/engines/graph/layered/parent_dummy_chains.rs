@@ -226,8 +226,9 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::layered::graph::DiGraph;
-    use crate::layered::{LayoutConfig, normalize, rank};
+    use crate::engines::graph::layered::graph::DiGraph;
+    use crate::engines::graph::layered::support::{extract_self_edges, make_space_for_edge_labels};
+    use crate::engines::graph::layered::{LayoutConfig, normalize, rank};
 
     /// Build a LayoutGraph matching the external_node_subgraph fixture and run
     /// the pipeline up through parent_dummy_chains.
@@ -286,17 +287,17 @@ mod tests {
         let mut lg = LayoutGraph::from_digraph(&g, |_, dims| (dims.0 as f64, dims.1 as f64));
 
         // Run pipeline up through parent_dummy_chains (matching layout_with_labels)
-        crate::layered::extract_self_edges(&mut lg);
-        crate::layered::acyclic::run(&mut lg);
-        crate::layered::make_space_for_edge_labels(&mut lg);
-        crate::layered::nesting::run(&mut lg);
+        extract_self_edges(&mut lg);
+        crate::engines::graph::layered::acyclic::run(&mut lg);
+        make_space_for_edge_labels(&mut lg);
+        crate::engines::graph::layered::nesting::run(&mut lg);
         rank::run(&mut lg, &LayoutConfig::default());
         rank::remove_empty_ranks(&mut lg);
-        crate::layered::nesting::cleanup(&mut lg);
+        crate::engines::graph::layered::nesting::cleanup(&mut lg);
         rank::normalize(&mut lg);
-        crate::layered::nesting::insert_title_nodes(&mut lg);
+        crate::engines::graph::layered::nesting::insert_title_nodes(&mut lg);
         rank::normalize(&mut lg);
-        crate::layered::nesting::assign_rank_minmax(&mut lg);
+        crate::engines::graph::layered::nesting::assign_rank_minmax(&mut lg);
         normalize::run(&mut lg, &HashMap::new(), false);
         run(&mut lg);
 
@@ -412,23 +413,23 @@ mod tests {
         g.add_edge("B", "C");
 
         let config = LayoutConfig {
-            direction: crate::layered::Direction::LeftRight,
+            direction: crate::engines::graph::layered::Direction::LeftRight,
             ..Default::default()
         };
 
         let mut lg = LayoutGraph::from_digraph(&g, |_, dims| (dims.0 as f64, dims.1 as f64));
 
-        crate::layered::extract_self_edges(&mut lg);
-        crate::layered::acyclic::run(&mut lg);
-        crate::layered::make_space_for_edge_labels(&mut lg);
-        crate::layered::nesting::run(&mut lg);
+        extract_self_edges(&mut lg);
+        crate::engines::graph::layered::acyclic::run(&mut lg);
+        make_space_for_edge_labels(&mut lg);
+        crate::engines::graph::layered::nesting::run(&mut lg);
         rank::run(&mut lg, &config);
         rank::remove_empty_ranks(&mut lg);
-        crate::layered::nesting::cleanup(&mut lg);
+        crate::engines::graph::layered::nesting::cleanup(&mut lg);
         rank::normalize(&mut lg);
-        crate::layered::nesting::insert_title_nodes(&mut lg);
+        crate::engines::graph::layered::nesting::insert_title_nodes(&mut lg);
         rank::normalize(&mut lg);
-        crate::layered::nesting::assign_rank_minmax(&mut lg);
+        crate::engines::graph::layered::nesting::assign_rank_minmax(&mut lg);
         normalize::run(&mut lg, &HashMap::new(), false);
         run(&mut lg);
 

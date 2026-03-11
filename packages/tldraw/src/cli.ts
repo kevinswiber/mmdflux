@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -39,10 +40,15 @@ function openUrl(url: string) {
 
 function isDirectExecution() {
   const entry = process.argv[1];
-  return (
-    entry !== undefined &&
-    path.resolve(entry) === fileURLToPath(import.meta.url)
-  );
+  if (entry === undefined) {
+    return false;
+  }
+
+  try {
+    return realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return path.resolve(entry) === fileURLToPath(import.meta.url);
+  }
 }
 
 export async function main() {

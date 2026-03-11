@@ -7,6 +7,15 @@ export interface PlaygroundExample {
   input: string;
 }
 
+export type ExampleCategory = PlaygroundExample["category"];
+
+export const EXAMPLE_CATEGORY_ORDER: ExampleCategory[] = ["flowchart", "class"];
+
+export const EXAMPLE_CATEGORY_LABELS: Record<ExampleCategory, string> = {
+  flowchart: "Flowchart",
+  class: "Class",
+};
+
 export const PLAYGROUND_EXAMPLES: PlaygroundExample[] = [
   {
     id: "flowchart-basics",

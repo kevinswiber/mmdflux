@@ -3,7 +3,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
-use super::super::geometry::{self, EngineHints, FPoint, GraphGeometry};
 use super::layout_building::{build_layered_layout_with_config, layered_config_for_layout};
 use super::orthogonal_router::{OrthogonalRoutingOptions, route_edges_orthogonal};
 use super::route_policy::effective_edge_direction;
@@ -16,9 +15,10 @@ use super::text_layout::{
 use super::text_routing_core::{
     build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
 };
-use crate::diagram::{CornerStyle, Curve, EdgeRouting, PathSimplification};
+use crate::engines::graph::layered::{LayoutResult, Point, Rect};
+use crate::engines::graph::{CornerStyle, Curve, EdgeRouting, PathSimplification};
+use crate::graph::geometry::{self, EngineHints, FPoint, GraphGeometry};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke};
-use crate::layered::{LayoutResult, Point, Rect};
 use crate::render::{RenderOptions, layout_config_for_diagram};
 
 const STROKE_COLOR: &str = "#333";
@@ -77,12 +77,12 @@ pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
     let edge_routing = options.edge_routing.unwrap_or({
         // Derive from routing_style (same mapping as flux-layered engine).
         match options.svg.routing_style {
-            crate::diagram::RoutingStyle::Direct => EdgeRouting::DirectRoute,
-            crate::diagram::RoutingStyle::Polyline => EdgeRouting::PolylineRoute,
-            crate::diagram::RoutingStyle::Orthogonal => EdgeRouting::OrthogonalRoute,
+            crate::engines::graph::RoutingStyle::Direct => EdgeRouting::DirectRoute,
+            crate::engines::graph::RoutingStyle::Polyline => EdgeRouting::PolylineRoute,
+            crate::engines::graph::RoutingStyle::Orthogonal => EdgeRouting::OrthogonalRoute,
         }
     });
-    let input_cfg = crate::layered::LayoutConfig::default();
+    let input_cfg = crate::engines::graph::layered::LayoutConfig::default();
     let mut flux_flags = super::super::engine::flux_layout_profile(&input_cfg, edge_routing);
     // Apply crowding adaptation for large diagrams (same threshold as engine).
     if diagram.nodes.len() >= 10 {
@@ -126,7 +126,7 @@ pub(crate) fn build_svg_layout_with_flags(
     metrics: &SvgTextMetrics,
     edge_routing: EdgeRouting,
     skip_non_isolated_overrides: bool,
-    engine_flags: Option<&crate::layered::LayoutConfig>,
+    engine_flags: Option<&crate::engines::graph::layered::LayoutConfig>,
 ) -> GraphGeometry {
     let direction = diagram.direction;
     let mut layered_config = layered_config_for_layout(diagram, config);
@@ -419,7 +419,10 @@ fn apply_subgraph_svg_padding(
         rect.width = (rect.width + pad_x * 2.0).max(0.0);
         rect.height = (rect.height + pad_y * 2.0).max(0.0);
 
-        if let Some(node_rect) = layout.nodes.get_mut(&crate::layered::NodeId(id.clone())) {
+        if let Some(node_rect) = layout
+            .nodes
+            .get_mut(&crate::engines::graph::layered::NodeId(id.clone()))
+        {
             *node_rect = *rect;
         }
     }
@@ -428,12 +431,12 @@ fn apply_subgraph_svg_padding(
     for (id, rect) in layout.subgraph_bounds.iter() {
         if !layout
             .nodes
-            .contains_key(&crate::layered::NodeId(id.clone()))
+            .contains_key(&crate::engines::graph::layered::NodeId(id.clone()))
             && diagram.subgraphs.contains_key(id)
         {
             layout
                 .nodes
-                .insert(crate::layered::NodeId(id.clone()), *rect);
+                .insert(crate::engines::graph::layered::NodeId(id.clone()), *rect);
         }
     }
 }
@@ -490,7 +493,7 @@ fn push_node_from_subgraph(
     min_gap: f64,
     node_is_upstream: bool,
 ) {
-    let node_key = crate::layered::NodeId(node_id.to_string());
+    let node_key = crate::engines::graph::layered::NodeId(node_id.to_string());
     let sg_rect = match layout.subgraph_bounds.get(sg_id) {
         Some(r) => *r,
         None => return,
@@ -596,7 +599,7 @@ fn push_subgraph_from_subgraph(
 
     // Shift each member node.
     for node_id in &member_nodes {
-        let key = crate::layered::NodeId(node_id.clone());
+        let key = crate::engines::graph::layered::NodeId(node_id.clone());
         if let Some(rect) = layout.nodes.get_mut(&key) {
             match direction {
                 Direction::TopDown => rect.y += shift,
@@ -627,7 +630,7 @@ fn push_subgraph_from_subgraph(
             }
         }
         // Also update the nodes map entry for the subgraph.
-        let key = crate::layered::NodeId(sg_id.clone());
+        let key = crate::engines::graph::layered::NodeId(sg_id.clone());
         if let Some(rect) = layout.nodes.get_mut(&key) {
             match direction {
                 Direction::TopDown => rect.y += shift,
@@ -4770,7 +4773,7 @@ fn intersect_svg_node(rect: &Rect, point: Point, shape: Shape) -> Point {
 
 /// Hexagon boundary intersection using polygon-ray from the shared kernel.
 fn intersect_svg_hexagon(rect: &Rect, point: Point) -> Point {
-    use crate::diagrams::flowchart::geometry::{FPoint, FRect};
+    use crate::graph::geometry::{FPoint, FRect};
     let frect = FRect::new(rect.x, rect.y, rect.width, rect.height);
     let verts = hexagon_vertices(frect);
     let center = FPoint::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0);

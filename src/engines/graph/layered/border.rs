@@ -214,8 +214,8 @@ pub fn remove_nodes(lg: &mut LayoutGraph) -> HashMap<String, Rect> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layered::graph::DiGraph;
-    use crate::layered::{LayoutConfig, nesting, rank};
+    use crate::engines::graph::layered::graph::DiGraph;
+    use crate::engines::graph::layered::{LayoutConfig, nesting, rank};
 
     fn build_ranked_compound_graph() -> LayoutGraph {
         let mut g: DiGraph<(f64, f64)> = DiGraph::new();
