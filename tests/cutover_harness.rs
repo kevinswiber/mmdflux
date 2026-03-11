@@ -7,8 +7,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use mmdflux::diagram::{OutputFormat, RenderConfig};
 use mmdflux::registry::default_registry;
+use mmdflux::{OutputFormat, RenderConfig};
 
 #[derive(serde::Deserialize)]
 struct CutoverManifest {

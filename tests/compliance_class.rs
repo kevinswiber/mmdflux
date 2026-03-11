@@ -7,10 +7,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::diagram::{OutputFormat, RenderConfig};
 use mmdflux::diagrams::class::ClassInstance;
 use mmdflux::registry::DiagramInstance;
 use mmdflux::render::{RenderOptions, render_svg};
+use mmdflux::{OutputFormat, RenderConfig};
 
 fn class_fixture_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

@@ -5,9 +5,9 @@
 
 #![cfg(feature = "engine-elk")]
 
-use mmdflux::diagram::{EngineAlgorithmId, OutputFormat, RenderConfig, RenderError};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::registry::DiagramInstance;
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, RenderError};
 
 /// Helper: render via the FlowchartInstance with a specific engine.
 fn render_with_engine(input: &str, engine: &str) -> Result<String, RenderError> {

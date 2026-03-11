@@ -15,9 +15,10 @@ use crate::diagrams::flowchart::render::text_routing_core::{
     plan_attachments, point_on_face_float, resolve_overflow_backward_channel_conflict,
 };
 use crate::diagrams::flowchart::routing::route_graph_geometry;
+use crate::engines::graph::{EdgeRouting, EngineConfig};
 use crate::graph::{Diagram, Node};
 use crate::render::intersect::NodeFace;
-use crate::{EdgeRouting, EngineConfig, build_diagram, parse_flowchart};
+use crate::{build_diagram, parse_flowchart};
 
 fn simple_td_diagram() -> Diagram {
     let mut diagram = Diagram::new(Direction::TopDown);

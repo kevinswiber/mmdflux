@@ -12,3 +12,7 @@ mod solve;
 
 pub use registry::GraphEngineRegistry;
 pub(crate) use solve::solve_graph_family;
+
+pub use crate::diagram::{
+    EdgeRouting, EngineConfig, GraphEngine, GraphSolveRequest, GraphSolveResult,
+};

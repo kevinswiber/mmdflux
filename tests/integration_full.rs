@@ -6,11 +6,12 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::{OutputFormat, RenderConfig};
 use mmdflux::diagrams::mmds::from_mmds_str;
 use mmdflux::registry::default_registry;
 use mmdflux::render::{RenderOptions, render_svg};
-use mmdflux::{build_diagram, generate_mermaid_from_mmds_str, parse_flowchart};
+use mmdflux::{
+    OutputFormat, RenderConfig, build_diagram, generate_mermaid_from_mmds_str, parse_flowchart,
+};
 
 fn render_with_registry(input: &str, format: OutputFormat) -> String {
     let registry = default_registry();

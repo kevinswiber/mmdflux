@@ -1,9 +1,8 @@
 //! Parity checks between the direct render API and registry instance API.
 
-use mmdflux::diagram::{EngineAlgorithmId, OutputFormat, RenderConfig};
 use mmdflux::registry::default_registry;
 use mmdflux::render::{RenderOptions, render};
-use mmdflux::{build_diagram, parse_flowchart};
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, build_diagram, parse_flowchart};
 
 /// Helper to compare direct vs registry rendering paths.
 fn compare_outputs(input: &str, ascii: bool) {

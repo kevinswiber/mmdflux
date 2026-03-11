@@ -22,7 +22,7 @@
 //!
 //! ```
 //! use mmdflux::registry::default_registry;
-//! use mmdflux::diagram::{OutputFormat, RenderConfig};
+//! use mmdflux::{OutputFormat, RenderConfig};
 //!
 //! let registry = default_registry();
 //! let input = "graph TD\n    A-->B";
@@ -35,8 +35,9 @@
 //! }
 //! ```
 
+pub mod api;
 // Core modules
-pub mod diagram;
+mod diagram;
 pub mod diagrams;
 pub mod engines;
 pub mod formats;
@@ -47,18 +48,20 @@ pub mod mmds;
 pub mod parser;
 pub mod registry;
 pub mod render;
+pub(crate) mod runtime;
 pub mod style;
 
 // Re-export commonly used types for convenience
-pub use diagram::{
-    AlgorithmId, ColorWhen, EdgeRouting, EngineAlgorithmCapabilities, EngineAlgorithmId,
-    EngineConfig, EngineId, GeometryLevel, GraphEngine, GraphSolveRequest, GraphSolveResult,
-    OutputFormat, PathSimplification, RenderConfig, RenderError, RouteOwnership, TextColorMode,
+pub use api::{
+    AlgorithmId, ColorWhen, CornerStyle, Curve, DiagramFamily, EdgePreset, EngineAlgorithmId,
+    EngineId, GeometryLevel, OutputFormat, ParseDiagnostic, PathSimplification, RenderConfig,
+    RenderError, RenderRequest, RoutingStyle, TextColorMode,
 };
 pub use graph::{Diagram, Direction, Edge, Node, Shape, build_diagram};
 pub use mmds::{MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str};
-pub use parser::{
-    DiagramType, Flowchart, ParseDiagnostic, ParseError, detect_diagram_type, parse_flowchart,
-};
+pub use parser::{DiagramType, Flowchart, ParseError, detect_diagram_type, parse_flowchart};
 pub use registry::default_registry;
+// Runtime facade re-exports — curated entrypoints for adapters (CLI, WASM).
+pub use runtime::config_input::{RuntimeConfigInput, apply_svg_surface_defaults};
+pub use runtime::facade::{detect_diagram, render_diagram, validate_diagram};
 pub use style::{ColorToken, NodeStyle};

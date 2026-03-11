@@ -1,20 +1,19 @@
 //! Flowchart diagram instance implementation.
+//!
+//! Compiles Mermaid flowchart syntax to `graph::Diagram` (graph-family IR),
+//! then delegates rendering to the shared graph-family facade.
 
-use crate::diagram::{
-    AlgorithmId, EngineAlgorithmId, EngineId, OutputFormat, RenderConfig, RenderError,
-};
-use crate::engines::graph::solve_graph_family;
+use crate::diagram::{OutputFormat, RenderConfig, RenderError};
 use crate::graph::{Diagram, build_diagram};
 use crate::parser::parse_flowchart;
 use crate::registry::DiagramInstance;
-use crate::render::RenderOptions;
 
 /// Flowchart diagram instance.
 ///
-/// Wraps the existing flowchart parsing and rendering logic behind
-/// the `DiagramInstance` trait.
+/// Compiles flowchart syntax to `graph::Diagram`, then renders through
+/// the shared graph-family pipeline via [`crate::runtime::facade`].
 pub struct FlowchartInstance {
-    /// Built diagram model.
+    /// Compiled graph-family IR.
     diagram: Option<Diagram>,
 }
 
@@ -43,6 +42,7 @@ impl DiagramInstance for FlowchartInstance {
             message: "No diagram parsed. Call parse() first.".to_string(),
         })?;
 
+        // Diagram-specific pre-processing: annotate node IDs if requested.
         let annotated;
         let diagram = if config.show_ids {
             annotated = annotate_node_ids(diagram);
@@ -51,35 +51,8 @@ impl DiagramInstance for FlowchartInstance {
             diagram
         };
 
-        // Resolve engine (default: flux-layered).
-        let engine_id = config
-            .layout_engine
-            .unwrap_or_else(|| EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered));
-        engine_id.check_available()?;
-        engine_id.check_routing_style(config)?;
-
-        // Solve layout through the engine registry.
-        let result = solve_graph_family(diagram, engine_id, config, format)?;
-
-        let mut options: RenderOptions = config.into();
-        options.output_format = format;
-
-        // Dispatch to format-owned emitters.
-        match format {
-            OutputFormat::Mmds => crate::formats::mmds::render_mmds_full(
-                "flowchart",
-                diagram,
-                &result,
-                config.geometry_level,
-                config.path_simplification,
-            ),
-            OutputFormat::Svg => Ok(crate::formats::svg::render_svg_with_options(
-                diagram, &result, &options,
-            )),
-            _ => Ok(crate::formats::text::render_text_with_options(
-                diagram, &result, &options,
-            )),
-        }
+        // Delegate to the shared graph-family pipeline.
+        crate::runtime::facade::render_graph("flowchart", diagram, format, config)
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {

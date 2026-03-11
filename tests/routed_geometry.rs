@@ -7,11 +7,11 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::EdgeRouting;
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 use mmdflux::diagrams::flowchart::geometry::*;
 use mmdflux::diagrams::flowchart::routing::{route_graph_geometry, snap_path_to_grid_preview};
-use mmdflux::{EngineConfig, OutputFormat, RenderConfig, build_diagram, parse_flowchart};
+use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
+use mmdflux::{OutputFormat, RenderConfig, build_diagram, parse_flowchart};
 
 /// Flux-layered LayoutConfig with all enhancements enabled.
 fn flux_layout_config() -> EngineConfig {

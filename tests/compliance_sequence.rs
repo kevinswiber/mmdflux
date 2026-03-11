@@ -6,9 +6,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::diagram::{OutputFormat, RenderConfig};
 use mmdflux::diagrams::sequence::SequenceInstance;
 use mmdflux::registry::DiagramInstance;
+use mmdflux::{OutputFormat, RenderConfig};
 
 fn sequence_fixture_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

@@ -1,6 +1,6 @@
-use mmdflux::diagram::{OutputFormat, RenderConfig};
 use mmdflux::diagrams::{info, packet, pie};
 use mmdflux::registry::DiagramInstance;
+use mmdflux::{OutputFormat, RenderConfig};
 
 #[test]
 fn pie_definition_exists() {

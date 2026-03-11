@@ -1,6 +1,6 @@
-use mmdflux::diagram::{EdgePreset, EngineAlgorithmId, GeometryLevel, OutputFormat, RenderConfig};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::registry::DiagramInstance;
+use mmdflux::{EdgePreset, EngineAlgorithmId, GeometryLevel, OutputFormat, RenderConfig};
 
 fn edge_path_data(svg: &str) -> Vec<String> {
     svg.lines()

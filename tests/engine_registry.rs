@@ -1,14 +1,14 @@
 //! Engine registry tests: typed engine IDs, parsing, availability, and registry lookup.
 
-use mmdflux::diagram::{
-    AlgorithmId, CornerStyle, Curve, EdgePreset, EngineAlgorithmCapabilities, EngineAlgorithmId,
-    EngineConfig, EngineId, GeometryLevel, GraphEngine, GraphSolveRequest, OutputFormat,
-    PathSimplification, RenderConfig, RenderError, RouteOwnership, RoutingStyle,
-};
+use mmdflux::api::{EngineAlgorithmCapabilities, RouteOwnership};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::diagrams::flowchart::engine::{FluxLayeredEngine, MermaidLayeredEngine};
-use mmdflux::engines::graph::GraphEngineRegistry;
+use mmdflux::engines::graph::{EngineConfig, GraphEngine, GraphEngineRegistry, GraphSolveRequest};
 use mmdflux::registry::DiagramInstance;
+use mmdflux::{
+    AlgorithmId, CornerStyle, Curve, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel,
+    OutputFormat, PathSimplification, RenderConfig, RenderError, RoutingStyle,
+};
 
 // =============================================================================
 // Engine selection through render path
@@ -903,7 +903,7 @@ fn render_cycle_mmds_with_styles(routing: RoutingStyle, curve: Curve) -> String 
     let config = RenderConfig {
         routing_style: Some(routing),
         curve: Some(curve),
-        geometry_level: mmdflux::diagram::GeometryLevel::Layout,
+        geometry_level: mmdflux::GeometryLevel::Layout,
         ..Default::default()
     };
     instance

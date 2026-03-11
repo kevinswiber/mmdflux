@@ -4,12 +4,13 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 use clap::{Parser, ValueEnum};
-use mmdflux::diagram::{
-    AlgorithmId, ColorWhen, Curve, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel,
-    LayoutConfig, OutputFormat, PathSimplification, RenderConfig, RoutingStyle, TextColorMode,
-};
+use mmdflux::api::LayoutConfig;
 use mmdflux::layered::Ranker;
-use mmdflux::registry::default_registry;
+use mmdflux::{
+    ColorWhen, Curve, EdgePreset, EngineAlgorithmId, GeometryLevel, OutputFormat,
+    PathSimplification, RenderConfig, RoutingStyle, TextColorMode, apply_svg_surface_defaults,
+    detect_diagram, render_diagram,
+};
 
 const CURVE_CANONICAL_VALUES: &str = "basis, linear, linear-sharp, linear-rounded";
 const CURVE_ARG_HELP: &str = "SVG curve style (basis, linear, linear-sharp, or linear-rounded). \
@@ -235,24 +236,6 @@ fn resolve_text_color_mode(
     ColorWhen::Auto.resolve(stdout_is_terminal)
 }
 
-fn default_svg_engine() -> EngineAlgorithmId {
-    EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered)
-}
-
-fn apply_cli_svg_surface_defaults(format: OutputFormat, config: &mut RenderConfig) {
-    if !matches!(format, OutputFormat::Svg) {
-        return;
-    }
-
-    if config.edge_preset.is_some() || config.routing_style.is_some() || config.curve.is_some() {
-        return;
-    }
-
-    if config.layout_engine.unwrap_or(default_svg_engine()) == default_svg_engine() {
-        config.edge_preset = Some(EdgePreset::SmoothStep);
-    }
-}
-
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
@@ -291,7 +274,7 @@ fn main() -> io::Result<()> {
         std::process::exit(result.exit_code());
     }
 
-    // Parse new style flags.
+    // Parse CLI style flags.
     let edge_preset: Option<EdgePreset> = match cli.edge_preset.as_deref() {
         Some(s) => match EdgePreset::parse(s) {
             Ok(p) => Some(p),
@@ -322,7 +305,6 @@ fn main() -> io::Result<()> {
         }
     };
 
-    // Build render config from CLI options
     let engine_algo: Option<EngineAlgorithmId> = match cli
         .layout_engine
         .as_deref()
@@ -344,6 +326,7 @@ fn main() -> io::Result<()> {
         None => None,
     };
 
+    // Build render config from CLI flags.
     let mut config = RenderConfig {
         layout: LayoutConfig {
             node_sep: cli.node_spacing.unwrap_or(50.0),
@@ -369,12 +352,11 @@ fn main() -> io::Result<()> {
         geometry_level: cli.geometry_level.map(Into::into).unwrap_or_default(),
         path_simplification: cli.path_simplification.map(Into::into).unwrap_or_default(),
     };
-    apply_cli_svg_surface_defaults(format, &mut config);
+    // CLI does not force engine for SVG (auto-detect later).
+    apply_svg_surface_defaults(format, &mut config, false);
 
-    // Use registry for detection and rendering
-    let registry = default_registry();
-
-    let diagram_id = match registry.detect(&input) {
+    // Detect diagram type first for CLI-specific error formatting.
+    let diagram_id = match detect_diagram(&input) {
         Some(id) => id,
         None => {
             eprintln!("Error: Unknown diagram type");
@@ -386,31 +368,14 @@ fn main() -> io::Result<()> {
         eprintln!("Detected diagram type: {}", diagram_id);
     }
 
-    let mut instance = registry.create(diagram_id).unwrap_or_else(|| {
-        eprintln!("Error: No implementation for diagram type: {}", diagram_id);
-        std::process::exit(1);
-    });
-
-    if let Err(e) = instance.parse(&input) {
-        eprintln!("Parse error: {}", e);
-        std::process::exit(1);
-    }
-
-    if !instance.supports_format(format) {
-        eprintln!(
-            "Error: {} diagrams do not support {} output",
-            diagram_id, format
-        );
-        std::process::exit(1);
-    }
-
-    match instance.render(format, &config) {
+    // Render through the shared facade contract.
+    match render_diagram(&input, format, &config) {
         Ok(output) => match &cli.output {
             Some(path) => fs::write(path, &output)?,
             None => print!("{}", output),
         },
         Err(e) => {
-            eprintln!("Render error: {}", e);
+            eprintln!("Error: {}", e);
             std::process::exit(1);
         }
     }

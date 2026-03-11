@@ -1,6 +1,6 @@
-use mmdflux::diagram::{EngineAlgorithmId, OutputFormat, RenderConfig};
 use mmdflux::diagrams::sequence::SequenceInstance;
 use mmdflux::registry::DiagramInstance;
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig};
 
 #[test]
 fn sequence_instance_parse_and_render_text() {

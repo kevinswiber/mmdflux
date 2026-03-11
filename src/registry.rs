@@ -95,11 +95,51 @@ impl DiagramRegistry {
     pub fn create(&self, id: &str) -> Option<Box<dyn DiagramInstance>> {
         self.diagrams.get(id).map(|def| (def.factory)())
     }
+
+    /// Resolve input text to a diagram handle with metadata.
+    ///
+    /// Detects the diagram type and returns a [`ResolvedDiagram`] that
+    /// exposes the diagram ID, family, and supported formats without
+    /// creating an instance.
+    #[must_use]
+    pub fn resolve(&self, input: &str) -> Option<ResolvedDiagram<'_>> {
+        let id = self.detect(input)?;
+        let definition = self.diagrams.get(id)?;
+        Some(ResolvedDiagram { definition })
+    }
 }
 
 impl Default for DiagramRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Handle returned by [`DiagramRegistry::resolve`].
+///
+/// Provides diagram metadata (ID, family, supported formats) without
+/// creating an instance. Use the registry's `create()` to instantiate.
+pub struct ResolvedDiagram<'a> {
+    definition: &'a DiagramDefinition,
+}
+
+impl ResolvedDiagram<'_> {
+    /// Diagram type identifier (e.g., "flowchart", "class").
+    #[must_use]
+    pub fn diagram_id(&self) -> &'static str {
+        self.definition.id
+    }
+
+    /// Diagram family classification.
+    #[must_use]
+    pub fn family(&self) -> DiagramFamily {
+        self.definition.family
+    }
+
+    /// Supported output formats for this diagram type.
+    #[must_use]
+    pub fn supported_formats(&self) -> &'static [OutputFormat] {
+        self.definition.supported_formats
     }
 }
 

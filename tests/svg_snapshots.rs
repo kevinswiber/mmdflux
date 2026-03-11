@@ -1,15 +1,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::diagram::{
-    CornerStyle, Curve, EngineAlgorithmId, OutputFormat, PathSimplification, RenderConfig,
-    RoutingStyle,
-};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::diagrams::mmds::from_mmds_str;
 use mmdflux::registry::DiagramInstance;
 use mmdflux::render::{RenderOptions, render_svg};
-use mmdflux::{build_diagram, parse_flowchart};
+use mmdflux::{
+    CornerStyle, Curve, EngineAlgorithmId, OutputFormat, PathSimplification, RenderConfig,
+    RoutingStyle, build_diagram, parse_flowchart,
+};
 
 fn list_fixtures() -> Vec<String> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))

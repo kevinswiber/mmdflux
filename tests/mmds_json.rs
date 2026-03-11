@@ -6,13 +6,13 @@
 
 use std::path::Path;
 
-use mmdflux::diagram::{
-    EngineAlgorithmId, GeometryLevel, OutputFormat, PathSimplification, RenderConfig, TextColorMode,
-};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::diagrams::mmds::MmdsInstance;
 use mmdflux::mmds::MmdsOutput;
 use mmdflux::registry::DiagramInstance;
+use mmdflux::{
+    EngineAlgorithmId, GeometryLevel, OutputFormat, PathSimplification, RenderConfig, TextColorMode,
+};
 use serde_json::Value;
 
 const STYLED_MMDS_LAYOUT: &str = r##"{

@@ -1,9 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::{EngineAlgorithmId, GeometryLevel, OutputFormat, RenderConfig};
 use mmdflux::diagrams::class::ClassInstance;
 use mmdflux::registry::DiagramInstance;
+use mmdflux::{EngineAlgorithmId, GeometryLevel, OutputFormat, RenderConfig};
 
 #[test]
 fn class_instance_parse_simple() {

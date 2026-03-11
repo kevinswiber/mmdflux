@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::{DiagramFamily, GeometryLevel, OutputFormat, RenderConfig, RenderError};
 use mmdflux::registry::{DiagramDefinition, DiagramInstance, DiagramRegistry};
+use mmdflux::{DiagramFamily, GeometryLevel, OutputFormat, RenderConfig, RenderError};
 
 struct MockDiagram {
     parsed: Option<String>,

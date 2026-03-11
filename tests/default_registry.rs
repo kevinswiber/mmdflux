@@ -46,7 +46,7 @@ fn default_registry_includes_class_definition() {
 fn default_registry_class_is_graph_family() {
     let registry = default_registry();
     let def = registry.get("class").unwrap();
-    assert_eq!(def.family, mmdflux::diagram::DiagramFamily::Graph);
+    assert_eq!(def.family, mmdflux::DiagramFamily::Graph);
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn default_registry_includes_sequence_definition() {
 fn default_registry_sequence_is_timeline_family() {
     let registry = default_registry();
     let def = registry.get("sequence").unwrap();
-    assert_eq!(def.family, mmdflux::diagram::DiagramFamily::Timeline);
+    assert_eq!(def.family, mmdflux::DiagramFamily::Timeline);
 }
 
 #[test]

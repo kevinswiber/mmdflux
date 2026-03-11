@@ -1,6 +1,7 @@
-use mmdflux::diagram::{
-    CornerStyle, Curve, EdgePreset, EdgeRouting, EngineAlgorithmId, OutputFormat,
-    PathSimplification, RenderConfig, RenderError, RoutingStyle,
+use mmdflux::engines::graph::EdgeRouting;
+use mmdflux::{
+    CornerStyle, Curve, EdgePreset, EngineAlgorithmId, OutputFormat, PathSimplification,
+    RenderConfig, RenderError, RoutingStyle,
 };
 
 #[test]
@@ -49,8 +50,8 @@ fn render_config_to_render_options_conversion() {
 }
 
 #[test]
-fn diagram_layout_config_accessible_from_diagram_module() {
-    let _ = mmdflux::diagram::LayoutConfig::default();
+fn layout_config_accessible_from_api_module() {
+    let _ = mmdflux::api::LayoutConfig::default();
 }
 
 #[test]

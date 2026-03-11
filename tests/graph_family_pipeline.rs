@@ -4,13 +4,12 @@
 //! pipeline contract, and that text/SVG/MMDS renderers consume graph-family
 //! contracts (not parser-specific or renderer-specific state).
 
-use mmdflux::diagram::{
-    AlgorithmId, DiagramFamily, EngineAlgorithmId, EngineConfig, EngineId, GraphSolveRequest,
-    GraphSolveResult, OutputFormat,
+use mmdflux::engines::graph::{
+    EngineConfig, GraphEngineRegistry, GraphSolveRequest, GraphSolveResult,
 };
-use mmdflux::engines::graph::GraphEngineRegistry;
 use mmdflux::graph::Diagram;
 use mmdflux::registry::default_registry;
+use mmdflux::{AlgorithmId, DiagramFamily, EngineAlgorithmId, EngineId, OutputFormat};
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,6 +1,6 @@
-use mmdflux::diagram::{
-    DiagramFamily, DiagramModel, EngineConfig, OutputFormat, PathSimplification, RenderConfig,
-};
+use mmdflux::api::DiagramModel;
+use mmdflux::engines::graph::EngineConfig;
+use mmdflux::{DiagramFamily, OutputFormat, PathSimplification, RenderConfig};
 
 #[test]
 fn diagram_family_variants_exist() {

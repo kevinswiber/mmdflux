@@ -13,14 +13,15 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::{EngineConfig, OutputFormat, RenderConfig};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 use mmdflux::diagrams::flowchart::geometry::{GraphGeometry, LayoutEdge};
 use mmdflux::diagrams::mmds::from_mmds_str;
+use mmdflux::engines::graph::EngineConfig;
 use mmdflux::graph::{Diagram, Subgraph};
 use mmdflux::registry::DiagramInstance;
 use mmdflux::render::{RenderOptions, render};
+use mmdflux::{OutputFormat, RenderConfig};
 
 // ---------------------------------------------------------------------------
 // Conformance report model

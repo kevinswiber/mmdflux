@@ -1,4 +1,4 @@
-use mmdflux::diagram::OutputFormat;
+use mmdflux::OutputFormat;
 use mmdflux::registry::DiagramInstance;
 
 #[test]
@@ -31,7 +31,7 @@ fn mmds_routed_payload_renders_text_and_ascii_by_ignoring_paths() {
 
     for format in [OutputFormat::Text, OutputFormat::Ascii] {
         let output = instance
-            .render(format, &mmdflux::diagram::RenderConfig::default())
+            .render(format, &mmdflux::RenderConfig::default())
             .expect("routed MMDS should render text/ascii by ignoring paths");
         assert!(output.contains("Start"));
     }
@@ -55,7 +55,7 @@ fn mmds_capability_matrix_matches_geometry_level_contract() {
     ] {
         assert!(
             layout_instance
-                .render(format, &mmdflux::diagram::RenderConfig::default())
+                .render(format, &mmdflux::RenderConfig::default())
                 .is_ok(),
             "layout payload should support {format}"
         );
@@ -73,7 +73,7 @@ fn mmds_capability_matrix_matches_geometry_level_contract() {
     ] {
         assert!(
             routed_instance
-                .render(format, &mmdflux::diagram::RenderConfig::default())
+                .render(format, &mmdflux::RenderConfig::default())
                 .is_ok(),
             "routed payload should support {format}"
         );

@@ -2,15 +2,16 @@ use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::{
-    CornerStyle, Curve, EdgeRouting, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
-};
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
+use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
 use mmdflux::graph::Stroke;
 use mmdflux::registry::DiagramInstance;
 use mmdflux::render::{RenderOptions, render_svg};
-use mmdflux::{EngineConfig, build_diagram, parse_flowchart};
+use mmdflux::{
+    CornerStyle, Curve, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
+    build_diagram, parse_flowchart,
+};
 
 /// Extract SVG node center x-coordinates by label text.
 ///
@@ -1141,7 +1142,7 @@ fn render_flux_engine_svg_for_fixture_with_style(
             OutputFormat::Svg,
             &RenderConfig {
                 layout_engine: Some(
-                    mmdflux::diagram::EngineAlgorithmId::parse("flux-layered")
+                    mmdflux::EngineAlgorithmId::parse("flux-layered")
                         .expect("flux-layered id should parse"),
                 ),
                 routing_style: Some(routing_style),

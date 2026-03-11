@@ -6,18 +6,18 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::{EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode};
 use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
 use mmdflux::diagrams::flowchart::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
 use mmdflux::diagrams::mmds::from_mmds_str;
+use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
 use mmdflux::render::{
     Layout, NodeBounds, RenderOptions, RoutedEdge, Segment, TextLayoutConfig, compute_layout,
     geometry_to_text_layout_with_routed, render, render_all_edges_with_labels, route_all_edges,
 };
 use mmdflux::{
-    Diagram, Direction, EdgeRouting, EngineConfig, Shape, build_diagram, default_registry,
-    parse_flowchart,
+    Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,
+    TextColorMode, build_diagram, default_registry, parse_flowchart,
 };
 
 /// Load a fixture file by name from `tests/fixtures/flowchart/`.
@@ -3247,10 +3247,7 @@ fn registry_entrypoint_dispatches_mmds_input_to_mmds_instance() {
     instance.parse(&input).expect("MMDS parse should succeed");
 
     let output = instance
-        .render(
-            OutputFormat::Text,
-            &mmdflux::diagram::RenderConfig::default(),
-        )
+        .render(OutputFormat::Text, &mmdflux::RenderConfig::default())
         .expect("layout MMDS payload should render via registry entrypoint");
     assert!(output.contains("Start"));
     assert!(output.contains("End"));
