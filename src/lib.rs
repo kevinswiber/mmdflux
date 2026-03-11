@@ -3,62 +3,64 @@
 //! This library provides parsing and rendering for Mermaid diagram syntax.
 //! Currently supports flowcharts with text (Unicode/ASCII) output.
 //!
-//! # Quick Start (Direct Render API)
+//! # Quick Start
 //!
 //! ```
-//! use mmdflux::{parse_flowchart, build_diagram};
-//! use mmdflux::render::{render, RenderOptions};
+//! use mmdflux::{OutputFormat, RenderConfig, render_diagram};
 //!
 //! let input = "graph TD\n    A-->B";
-//! let flowchart = parse_flowchart(input).unwrap();
-//! let diagram = build_diagram(&flowchart);
-//! let output = render(&diagram, &RenderOptions::default());
+//! let output = render_diagram(input, OutputFormat::Text, &RenderConfig::default()).unwrap();
 //! println!("{}", output);
 //! ```
 //!
-//! # Using the Registry API
+//! # Advanced API
 //!
-//! The registry provides a unified interface for all diagram types:
+//! Low-level parsing, compilation, rendering, and registry access remain
+//! available through explicit namespaces such as `frontends`, `diagrams`,
+//! `render`, and `registry`.
 //!
 //! ```
-//! use mmdflux::registry::default_registry;
-//! use mmdflux::{OutputFormat, RenderConfig};
+//! use mmdflux::diagrams::flowchart::compile_to_graph;
+//! use mmdflux::frontends::mermaid::parse_flowchart;
+//! use mmdflux::render::graph::{render, RenderOptions};
 //!
-//! let registry = default_registry();
 //! let input = "graph TD\n    A-->B";
-//!
-//! if let Some(diagram_id) = registry.detect(input) {
-//!     let mut instance = registry.create(diagram_id).unwrap();
-//!     instance.parse(input).unwrap();
-//!     let output = instance.render(OutputFormat::Text, &RenderConfig::default()).unwrap();
-//!     println!("{}", output);
-//! }
+//! let flowchart = parse_flowchart(input).unwrap();
+//! let diagram = compile_to_graph(&flowchart);
+//! let output = render(&diagram, &RenderOptions::default());
+//! println!("{}", output);
 //! ```
 
-pub mod api;
+pub mod config;
+pub mod diagnostics;
 // Core modules
 pub mod diagrams;
 pub mod engines;
-pub mod formats;
+pub mod errors;
+pub mod family;
+pub mod format;
+pub mod frontends;
 pub mod graph;
 pub mod lint;
 pub mod mmds;
-pub mod parser;
 pub mod registry;
 pub mod render;
+pub mod request;
 pub(crate) mod runtime;
 pub mod style;
 
 // Re-export commonly used types for convenience
-pub use api::{
-    AlgorithmId, ColorWhen, CornerStyle, Curve, DiagramFamily, EdgePreset, EngineAlgorithmId,
-    EngineId, GeometryLevel, OutputFormat, ParseDiagnostic, PathSimplification, RenderConfig,
-    RenderError, RenderRequest, RoutingStyle, TextColorMode,
+pub use config::{
+    AlgorithmId, ColorWhen, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification,
+    RenderConfig, TextColorMode,
 };
-pub use graph::{Diagram, Direction, Edge, Node, Shape, build_diagram};
+pub use diagnostics::ParseDiagnostic;
+pub use errors::RenderError;
+pub use family::DiagramFamily;
+pub use format::{CornerStyle, Curve, EdgePreset, OutputFormat, RoutingStyle};
+pub use graph::{Diagram, Direction, Edge, Node, Shape};
 pub use mmds::{MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str};
-pub use parser::{DiagramType, Flowchart, ParseError, detect_diagram_type, parse_flowchart};
-pub use registry::default_registry;
+pub use request::RenderRequest;
 // Runtime facade re-exports — curated entrypoints for adapters (CLI, WASM).
 pub use runtime::config_input::{RuntimeConfigInput, apply_svg_surface_defaults};
 pub use runtime::facade::{detect_diagram, render_diagram, validate_diagram};

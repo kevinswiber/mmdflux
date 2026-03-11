@@ -1,29 +1,24 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use mmdflux::frontends::mermaid::{DiagramType, ParseError, detect_diagram_type, parse_flowchart};
 // Verify core expected items are accessible from crate root.
 use mmdflux::{
     Diagram,
-    DiagramType,
     Direction,
     Edge,
     Node,
     OutputFormat,
-    ParseError,
     RenderConfig,
     RenderError,
     RenderRequest,
     Shape,
-    build_diagram,
-    default_registry,
-    detect_diagram_type,
     // Diagrams
     diagrams::flowchart,
-    parse_flowchart,
     // Registry
     registry::DiagramInstance,
     // Direct rendering API
-    render::{RenderOptions, render},
+    render::graph::{RenderOptions, render},
 };
 
 fn public_exports_for_test() -> BTreeSet<String> {
@@ -66,6 +61,17 @@ fn all_exports_accessible() {
 }
 
 #[test]
+fn flat_public_contract_modules_are_accessible() {
+    let _ = mmdflux::config::LayoutConfig::default();
+    let _ = mmdflux::config::Ranker::NetworkSimplex;
+    let _ = mmdflux::format::RoutingStyle::Polyline;
+    let _ = mmdflux::errors::RenderError::from("surface");
+    let _ = mmdflux::request::RenderRequest::new("graph TD\nA-->B", OutputFormat::Text);
+    let _ = mmdflux::family::DiagramFamily::Graph;
+    let _ = mmdflux::diagnostics::ParseDiagnostic::warning(None, None, String::new());
+}
+
+#[test]
 fn crate_root_exports_only_the_curated_render_and_validation_surface() {
     let exports = public_exports_for_test();
 
@@ -73,6 +79,12 @@ fn crate_root_exports_only_the_curated_render_and_validation_surface() {
     assert!(exports.contains("RenderConfig"));
     assert!(exports.contains("RenderError"));
     assert!(exports.contains("RenderRequest"));
+    assert!(!exports.contains("DiagramType"));
+    assert!(!exports.contains("ParseError"));
+    assert!(!exports.contains("parse_flowchart"));
+    assert!(!exports.contains("detect_diagram_type"));
+    assert!(!exports.contains("compile_to_graph"));
+    assert!(!exports.contains("default_registry"));
 }
 
 #[test]
@@ -100,7 +112,7 @@ fn implementor_traits_and_engine_capabilities_are_not_crate_root_api() {
 
 #[test]
 fn registry_api_works() {
-    let registry = default_registry();
+    let registry = mmdflux::registry::default_registry();
     let input = "graph TD\n    A-->B";
 
     let diagram_id = registry.detect(input).unwrap();
@@ -119,7 +131,7 @@ fn registry_api_works() {
 fn direct_render_api_works() {
     let input = "graph TD\nA-->B";
     let flowchart = parse_flowchart(input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = flowchart::compile_to_graph(&flowchart);
     let output = render(&diagram, &RenderOptions::default());
     assert!(output.contains('A'));
     assert!(output.contains('B'));
@@ -139,26 +151,29 @@ fn core_types_accessible() {
 
 #[test]
 fn layered_engine_boundary_lives_under_engines_graph() {
-    let mut graph = mmdflux::engines::graph::layered::DiGraph::new();
+    let mut graph = mmdflux::engines::graph::algorithms::layered::DiGraph::new();
     graph.add_node("A", (10.0, 10.0));
     graph.add_node("B", (10.0, 10.0));
     graph.add_edge("A", "B");
 
-    let _ = mmdflux::engines::graph::layered::Ranker::NetworkSimplex;
-    let result = mmdflux::engines::graph::layered::run_layered_layout(
+    let _ = mmdflux::engines::graph::algorithms::layered::Ranker::NetworkSimplex;
+    let result = mmdflux::engines::graph::algorithms::layered::layout(
         &graph,
-        &mmdflux::engines::graph::layered::LayoutConfig::default(),
+        &mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
         |_, dims| *dims,
     );
 
-    assert!(
-        result
-            .nodes
-            .contains_key(&mmdflux::engines::graph::layered::NodeId::from("A"))
-    );
-    assert!(
-        result
-            .nodes
-            .contains_key(&mmdflux::engines::graph::layered::NodeId::from("B"))
-    );
+    assert!(result.nodes.contains_key(
+        &mmdflux::engines::graph::algorithms::layered::NodeId::from("A")
+    ));
+    assert!(result.nodes.contains_key(
+        &mmdflux::engines::graph::algorithms::layered::NodeId::from("B")
+    ));
+}
+
+#[test]
+fn engine_adapters_live_in_explicit_modules() {
+    let _ = mmdflux::engines::graph::flux::FluxLayeredEngine::text();
+    let _ = mmdflux::engines::graph::mermaid::MermaidLayeredEngine::new();
+    let _ = mmdflux::engines::graph::algorithms::layered::MeasurementMode::Text;
 }

@@ -1,13 +1,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::diagrams::mmds::from_mmds_str;
+use mmdflux::diagrams::flowchart::{FlowchartInstance, compile_to_graph};
+use mmdflux::frontends::mermaid::parse_flowchart;
+use mmdflux::frontends::mmds::{from_mmds_str, render_input};
 use mmdflux::registry::DiagramInstance;
-use mmdflux::render::{RenderOptions, render_svg};
+use mmdflux::render::graph::{RenderOptions, render_svg};
 use mmdflux::{
     CornerStyle, Curve, EngineAlgorithmId, OutputFormat, PathSimplification, RenderConfig,
-    RoutingStyle, build_diagram, parse_flowchart,
+    RoutingStyle,
 };
 
 fn list_fixtures() -> Vec<String> {
@@ -42,7 +43,7 @@ fn load_fixture(name: &str) -> String {
 fn render_svg_fixture(name: &str) -> String {
     let input = load_fixture(name);
     let flowchart = parse_flowchart(&input).expect("Failed to parse fixture");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let mut options = RenderOptions::default_svg();
     options.path_simplification = PathSimplification::None;
     render_svg(&diagram, &options)
@@ -51,7 +52,7 @@ fn render_svg_fixture(name: &str) -> String {
 fn render_svg_fixture_with_curve(name: &str, routing: RoutingStyle, curve: Curve) -> String {
     let input = load_fixture(name);
     let flowchart = parse_flowchart(&input).expect("Failed to parse fixture");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let mut options = RenderOptions::default_svg();
     options.svg.routing_style = routing;
     options.svg.curve = curve;
@@ -95,17 +96,15 @@ fn render_svg_positioned_mmds_fixture(name: &str) -> String {
         .join(name);
     let payload = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read MMDS fixture {}: {e}", path.display()));
-    let mut instance = mmdflux::diagrams::mmds::MmdsInstance::default();
-    instance.parse(&payload).expect("MMDS fixture should parse");
-    instance
-        .render(
-            OutputFormat::Svg,
-            &RenderConfig {
-                path_simplification: PathSimplification::None,
-                ..RenderConfig::default()
-            },
-        )
-        .expect("positioned MMDS should render SVG")
+    render_input(
+        &payload,
+        OutputFormat::Svg,
+        &RenderConfig {
+            path_simplification: PathSimplification::None,
+            ..RenderConfig::default()
+        },
+    )
+    .expect("positioned MMDS should render SVG")
 }
 
 fn assert_direct_vs_mmds_svg_parity(flowchart_fixture: &str, mmds_fixture: &str) {

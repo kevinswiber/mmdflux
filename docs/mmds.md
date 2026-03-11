@@ -4,7 +4,7 @@ MMDS is the structured JSON output format for graph-family diagrams produced by 
 
 ## Contract Ownership and Parity Harness
 
-Rust owns the canonical MMDS contract shape in `src/mmds.rs` and `src/mmds/contract.rs`, with format emission bridged through `src/formats/mmds.rs` and hydration built on that contract from `src/diagrams/mmds/`.
+Rust owns the canonical MMDS contract and output helpers under `src/mmds/`, while runtime MMDS input ingestion lives under `src/frontends/mmds/`.
 
 Locked cross-language contract fixtures live under `tests/fixtures/mmds/contracts/`. They are consumed by:
 
@@ -18,7 +18,7 @@ Any intentional MMDS contract change should update those locked fixtures and the
 
 MMDS input support is active:
 
-- The registry detects MMDS JSON input and dispatches to the `mmds` diagram type.
+- Runtime detects MMDS as an input frontend, resolves the logical diagram type from payload metadata, and dispatches through the existing family pipeline.
 - Parse-time envelope validation is active (`MMDS parse error: ...` on invalid JSON/envelope).
 - MMDS core hydration/validation contract is implemented (`MMDS validation error: ...` on invalid core payloads).
 - Render runtime dispatches by `geometry_level` with an explicit capability matrix.

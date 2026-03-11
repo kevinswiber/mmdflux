@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::diagrams::mmds::{MmdsInstance, evaluate_mmds_profiles, parse_mmds_input};
+use mmdflux::frontends::mmds::{evaluate_mmds_profiles, parse_mmds_input, render_input};
 use mmdflux::mmds::{MmdsOutput, SUPPORTED_MMDS_PROFILES};
 use mmdflux::registry::DiagramInstance;
 use mmdflux::{
@@ -107,9 +107,7 @@ fn render_routed_mmds_with_engine(input: &str, engine: &str) -> String {
 }
 
 fn render_mmds_input(input: &str, format: OutputFormat, config: RenderConfig) -> String {
-    let mut instance = MmdsInstance::default();
-    instance.parse(input).unwrap();
-    instance.render(format, &config).unwrap()
+    render_input(input, format, &config).unwrap()
 }
 
 fn mmds_fixture(path: &str) -> Value {

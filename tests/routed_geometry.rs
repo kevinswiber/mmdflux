@@ -7,27 +7,29 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
-use mmdflux::diagrams::flowchart::routing::{route_graph_geometry, snap_path_to_grid_preview};
+use mmdflux::diagrams::flowchart::compile_to_graph;
+use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
 use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
+use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::graph::geometry::*;
-use mmdflux::{OutputFormat, RenderConfig, build_diagram, parse_flowchart};
+use mmdflux::render::graph::routing::{route_graph_geometry, snap_path_to_grid_preview};
+use mmdflux::{OutputFormat, RenderConfig};
 
 /// Flux-layered LayoutConfig with all enhancements enabled.
 fn flux_layout_config() -> EngineConfig {
-    EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig {
+    EngineConfig::Layered(mmdflux::engines::graph::algorithms::layered::LayoutConfig {
         greedy_switch: true,
         model_order_tiebreak: true,
         variable_rank_spacing: true,
         track_reversed_chains: true,
-        ..mmdflux::engines::graph::layered::types::LayoutConfig::default()
+        ..mmdflux::engines::graph::algorithms::layered::LayoutConfig::default()
     })
 }
 
 /// Parse input and produce (Diagram, GraphGeometry) via the layout engine.
 fn layout_test(input: &str) -> (mmdflux::Diagram, GraphGeometry) {
     let fc = parse_flowchart(input).unwrap();
-    let diagram = build_diagram(&fc);
+    let diagram = compile_to_graph(&fc);
     let config = flux_layout_config();
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
     (diagram, geom)
@@ -46,7 +48,7 @@ fn layout_fixture(name: &str) -> (mmdflux::Diagram, GraphGeometry) {
 
 fn layout_test_svg(input: &str) -> (mmdflux::Diagram, GraphGeometry) {
     let fc = parse_flowchart(input).unwrap();
-    let diagram = build_diagram(&fc);
+    let diagram = compile_to_graph(&fc);
     let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
     let config = flux_layout_config();
     let geom = run_layered_layout(&mode, &diagram, &config).unwrap();

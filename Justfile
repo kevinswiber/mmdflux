@@ -39,6 +39,10 @@ fmt:
 run *args:
     cargo run -- {{ args }}
 
+# Generate a Mermaid dependency map for the Rust crate
+module-map *args:
+    ./scripts/generate-rust-module-deps.py {{ args }}
+
 # Run MMDS conformance checks (semantic/layout/visual tiers)
 conformance *args:
     cargo nextest run --test mmds_conformance --success-output immediate {{ args }}

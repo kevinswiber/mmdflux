@@ -6,7 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::engines::graph::layered;
+use crate::engines::graph::algorithms::layered;
 use crate::graph::{Diagram, Direction, Shape};
 
 // ---------------------------------------------------------------------------
@@ -114,7 +114,7 @@ pub struct LayoutEdge {
     /// Label position computed by layout engine.
     pub label_position: Option<FPoint>,
     /// Label side (Above/Below/Center) from side selection.
-    pub label_side: Option<crate::engines::graph::layered::normalize::LabelSide>,
+    pub label_side: Option<crate::engines::graph::algorithms::layered::normalize::LabelSide>,
     /// If source is a subgraph-as-node, the subgraph ID.
     pub from_subgraph: Option<String>,
     /// If target is a subgraph-as-node, the subgraph ID.
@@ -323,8 +323,7 @@ pub fn from_layered_layout(result: &layered::LayoutResult, diagram: &Diagram) ->
         .collect();
 
     // 5. Build per-node effective directions
-    let node_directions =
-        crate::diagrams::flowchart::render::route_policy::build_node_directions(diagram);
+    let node_directions = crate::render::graph::route_policy::build_node_directions(diagram);
 
     // 6. Build layered hints with rank-annotated data
     let hint_node_ranks: HashMap<String, i32> = result
@@ -406,7 +405,7 @@ pub struct RoutedEdgeGeometry {
     /// Label center position.
     pub label_position: Option<FPoint>,
     /// Label side (Above/Below/Center) from side selection.
-    pub label_side: Option<crate::engines::graph::layered::normalize::LabelSide>,
+    pub label_side: Option<crate::engines::graph::algorithms::layered::normalize::LabelSide>,
     /// Label position near the target endpoint (head).
     pub head_label_position: Option<FPoint>,
     /// Label position near the source endpoint (tail).
@@ -497,8 +496,10 @@ pub struct EdgePort {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engines::graph::layered::normalize::WaypointWithRank;
-    use crate::engines::graph::layered::types::{EdgeLayout, NodeId, Point, Rect, SelfEdgeLayout};
+    use crate::engines::graph::algorithms::layered::normalize::WaypointWithRank;
+    use crate::engines::graph::algorithms::layered::{
+        EdgeLayout, NodeId, Point, Rect, SelfEdgeLayout,
+    };
     use crate::graph::{Edge, Node};
 
     /// Build a simple LayoutResult with two nodes and one edge.

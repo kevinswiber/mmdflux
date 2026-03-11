@@ -5,6 +5,8 @@
 use crate::engines::graph::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
+pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];
+
 /// Detect if input is an info diagram.
 ///
 /// Delegates to the centralized parser detection to ensure consistent behavior:
@@ -12,7 +14,8 @@ use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 /// - Case-insensitive keyword matching
 /// - Exact first-word matching (not prefix)
 pub fn detect(input: &str) -> bool {
-    crate::parser::detect_diagram_type(input) == Some(crate::parser::DiagramType::Info)
+    crate::frontends::mermaid::detect_diagram_type(input)
+        == Some(crate::frontends::mermaid::DiagramType::Info)
 }
 
 /// Info diagram definition for registry.
@@ -22,7 +25,7 @@ pub fn definition() -> DiagramDefinition {
         family: DiagramFamily::Chart,
         detector: detect as DiagramDetector,
         factory: || Box::new(InfoInstance::default()),
-        supported_formats: &[OutputFormat::Text, OutputFormat::Ascii],
+        supported_formats: SUPPORTED_FORMATS,
     }
 }
 
@@ -46,9 +49,7 @@ impl Default for InfoInstance {
 
 impl DiagramInstance for InfoInstance {
     fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        if !detect(input) {
-            return Err("Not an info diagram".into());
-        }
+        crate::frontends::mermaid::parse_info(input)?;
         self.parsed = true;
         Ok(())
     }
@@ -58,14 +59,10 @@ impl DiagramInstance for InfoInstance {
             return Err("Not parsed".into());
         }
 
-        Ok(format!(
-            "mmdflux v{}\n\
-             Mermaid flowchart to text/SVG renderer",
-            env!("CARGO_PKG_VERSION")
-        ))
+        Ok(crate::render::diagram::info::render())
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
-        matches!(format, OutputFormat::Text | OutputFormat::Ascii)
+        SUPPORTED_FORMATS.contains(&format)
     }
 }

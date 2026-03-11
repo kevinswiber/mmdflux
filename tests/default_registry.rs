@@ -72,7 +72,14 @@ fn default_registry_sequence_is_timeline_family() {
 }
 
 #[test]
-fn default_registry_detects_mmds_json_before_mermaid() {
+fn default_registry_does_not_register_mmds_as_a_logical_diagram() {
+    let registry = default_registry();
+    assert!(registry.get("mmds").is_none());
+    assert!(!registry.diagram_ids().any(|id| id == "mmds"));
+}
+
+#[test]
+fn default_registry_ignores_mmds_json_input() {
     let registry = default_registry();
     let input = r#"{
   "version": 1,
@@ -89,13 +96,7 @@ fn default_registry_detects_mmds_json_before_mermaid() {
   "nodes": [],
   "edges": []
 }"#;
-    assert_eq!(registry.detect(input), Some("mmds"));
-}
-
-#[test]
-fn default_registry_includes_mmds_definition() {
-    let registry = default_registry();
-    assert!(registry.get("mmds").is_some());
+    assert_eq!(registry.detect(input), None);
 }
 
 #[test]

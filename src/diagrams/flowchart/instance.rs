@@ -3,9 +3,10 @@
 //! Compiles Mermaid flowchart syntax to `graph::Diagram` (graph-family IR),
 //! then delegates rendering to the shared graph-family facade.
 
+use super::compile_to_graph;
 use crate::engines::graph::{OutputFormat, RenderConfig, RenderError};
-use crate::graph::{Diagram, build_diagram};
-use crate::parser::parse_flowchart;
+use crate::frontends::mermaid::parse_flowchart;
+use crate::graph::Diagram;
 use crate::registry::DiagramInstance;
 
 /// Flowchart diagram instance.
@@ -33,7 +34,7 @@ impl Default for FlowchartInstance {
 impl DiagramInstance for FlowchartInstance {
     fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let flowchart = parse_flowchart(input)?;
-        self.diagram = Some(build_diagram(&flowchart));
+        self.diagram = Some(compile_to_graph(&flowchart));
         Ok(())
     }
 
@@ -56,10 +57,7 @@ impl DiagramInstance for FlowchartInstance {
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
-        matches!(
-            format,
-            OutputFormat::Text | OutputFormat::Ascii | OutputFormat::Svg | OutputFormat::Mmds
-        )
+        super::SUPPORTED_FORMATS.contains(&format)
     }
 }
 

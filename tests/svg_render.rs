@@ -2,16 +2,14 @@ use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
-use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
+use mmdflux::diagrams::flowchart::compile_to_graph;
+use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
 use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
+use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::graph::Stroke;
-use mmdflux::registry::DiagramInstance;
-use mmdflux::render::{RenderOptions, render_svg};
-use mmdflux::{
-    CornerStyle, Curve, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
-    build_diagram, parse_flowchart,
-};
+use mmdflux::render::graph::routing::route_graph_geometry;
+use mmdflux::render::graph::{RenderOptions, render_svg};
+use mmdflux::{CornerStyle, Curve, OutputFormat, PathSimplification, RenderConfig, RoutingStyle};
 
 /// Extract SVG node center x-coordinates by label text.
 ///
@@ -1239,7 +1237,7 @@ fn load_flowchart_fixture_diagram(name: &str) -> mmdflux::Diagram {
         .join(name);
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    build_diagram(&flowchart)
+    compile_to_graph(&flowchart)
 }
 
 /// Style tuple: (RoutingStyle, Curve)
@@ -1275,8 +1273,9 @@ fn edge_index(diagram: &mmdflux::Diagram, from: &str, to: &str) -> usize {
 }
 
 fn node_center_for_id(diagram: &mmdflux::Diagram, node_id: &str) -> (f64, f64) {
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let geom = run_layered_layout(&MeasurementMode::Text, diagram, &config)
         .expect("layout should succeed for center lookup");
     let node = geom
@@ -1323,7 +1322,7 @@ fn svg_curve_linear_rounded_uses_rounded_corner_pathing() {
 fn render_svg_basic_flowchart_has_svg_root() {
     let input = "graph TD\nA[Start] --> B[End]\n";
     let flowchart = parse_flowchart(input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
 
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
@@ -1627,8 +1626,9 @@ fn routing_overlap_skip_and_backward_orthogonal_paths_avoid_unrelated_node_inter
         let diagram = load_flowchart_fixture_diagram(fixture);
         let measurement_mode =
             MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
-        let config =
-            EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+        let config = EngineConfig::Layered(
+            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+        );
         let geometry = run_layered_layout(&measurement_mode, &diagram, &config)
             .expect("layout should succeed");
         let routed = route_graph_geometry(&diagram, &geometry, EdgeRouting::OrthogonalRoute);
@@ -1751,7 +1751,7 @@ fn svg_curved_step_td_departures_do_not_initially_curl_upward() {
 fn svg_orthogonal_mode_renders_axis_aligned_path_commands() {
     let input = "graph TD\nA --> B\nA --> C\n";
     let flowchart = parse_flowchart(input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
 
     let mut options = RenderOptions::default_svg();
     options.svg.routing_style = RoutingStyle::Orthogonal;
@@ -1786,7 +1786,7 @@ fn svg_lossless_path_simplification_sits_between_none_and_lossy_for_orthogonal_r
         .join("multi_subgraph_direction_override.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
 
     let render_with = |path_simplification: PathSimplification| {
         let mut options = RenderOptions::default_svg();
@@ -1824,7 +1824,7 @@ fn routed_svg_defaults_to_none_path_simplification() {
         .join("multi_subgraph_direction_override.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let edge_index = diagram
         .edges
         .iter()
@@ -2062,7 +2062,7 @@ fn path_simplification_monotonicity_holds_none_lossless_lossy() {
         .join("multi_subgraph_direction_override.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let edge_index = diagram
         .edges
         .iter()
@@ -2099,7 +2099,7 @@ fn svg_orthogonal_orthogonal_route_preserves_clear_terminal_stem_into_arrowhead(
         .join("multi_subgraph_direction_override.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let edge_index = diagram
         .edges
         .iter()
@@ -2159,7 +2159,7 @@ fn svg_orthogonal_orthogonal_route_does_not_add_short_staircase_jogs_after_adjus
         .join("multi_subgraph_direction_override.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
 
     let edge_index = diagram
         .edges
@@ -2168,8 +2168,9 @@ fn svg_orthogonal_orthogonal_route_does_not_add_short_staircase_jogs_after_adjus
         .expect("fixture should contain edge Bmid -> F")
         .index;
 
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -2205,7 +2206,7 @@ fn svg_orthogonal_orthogonal_route_multiple_cycles_avoids_tiny_terminal_staircas
         .join("multiple_cycles.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let edges = [
         edge_index(&diagram, "C", "A"),
         edge_index(&diagram, "C", "B"),
@@ -2323,8 +2324,9 @@ fn svg_orthogonal_orthogonal_route_hexagon_outbound_departure_insets_from_bottom
     ];
 
     let measurement_mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let geom = run_layered_layout(&measurement_mode, &diagram, &config)
         .expect("layout should succeed for hexagon_flow fixture");
     let source_rect = geom
@@ -2470,7 +2472,7 @@ fn svg_straight_orthogonal_route_avoids_primary_axis_backtrack_for_bmid_to_f() {
         .join("multi_subgraph_direction_override.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let edge_index = diagram
         .edges
         .iter()
@@ -2501,7 +2503,7 @@ fn svg_curved_orthogonal_route_avoids_primary_axis_backtrack_for_bmid_to_f() {
         .join("multi_subgraph_direction_override.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let edge_index = diagram
         .edges
         .iter()
@@ -2532,7 +2534,7 @@ fn svg_rounded_orthogonal_route_avoids_primary_axis_backtrack_for_bmid_to_f() {
         .join("multi_subgraph_direction_override.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let edge_index = diagram
         .edges
         .iter()
@@ -2582,7 +2584,7 @@ fn svg_non_orth_orthogonal_route_keeps_endpoint_pulled_back_for_visible_arrow_ti
         .join("multi_subgraph_direction_override.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let edge_index = diagram
         .edges
         .iter()
@@ -2627,7 +2629,7 @@ fn svg_non_orth_orthogonal_route_fan_in_lr_terminal_arrowheads_do_not_end_inside
         .join("fan_in_lr.mmd");
     let input = fs::read_to_string(fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
 
     let top_edge = edge_index(&diagram, "A", "D");
     let bottom_edge = edge_index(&diagram, "C", "D");
@@ -3096,7 +3098,7 @@ fn svg_non_orth_orthogonal_route_fan_in_backward_channel_conflict_keeps_backward
         .join("fan_in_backward_channel_conflict.mmd");
     let input = fs::read_to_string(&fixture).expect("fixture should load");
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let edge_idx = edge_index(&diagram, "Loop", "B");
 
     let styles = [SHARP, ROUNDED, SMOOTH];
@@ -3278,14 +3280,15 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_preserves_routed_termi
     let edge_idx = edge_index(&diagram, "D", "A");
 
     let measurement_mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
-    let config = EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig {
-        greedy_switch: true,
-        model_order_tiebreak: true,
-        variable_rank_spacing: true,
-        track_reversed_chains: true,
-        per_edge_label_spacing: true,
-        ..mmdflux::engines::graph::layered::types::LayoutConfig::default()
-    });
+    let config =
+        EngineConfig::Layered(mmdflux::engines::graph::algorithms::layered::LayoutConfig {
+            greedy_switch: true,
+            model_order_tiebreak: true,
+            variable_rank_spacing: true,
+            track_reversed_chains: true,
+            per_edge_label_spacing: true,
+            ..mmdflux::engines::graph::algorithms::layered::LayoutConfig::default()
+        });
     let geom = run_layered_layout(&measurement_mode, &diagram, &config)
         .expect("layout should succeed for decision fixture");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -3623,8 +3626,9 @@ fn orthogonal_route_diamond_boundary_clipping_matches_shape_boundary() {
     options.path_simplification = PathSimplification::None;
 
     let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let geom = run_layered_layout(&mode, &diagram, &config).unwrap();
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
@@ -3738,7 +3742,7 @@ fn orthogonal_route_nested_override_cross_boundary_edge_keeps_lr_side_faces() {
 fn render_svg_edge_styles_and_labels() {
     let input = "graph TD\nA ==>|yes| B\nB -.->|no| C\nC <--> D\n";
     let flowchart = parse_flowchart(input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     assert!(svg.contains("stroke-dasharray"));
@@ -3772,7 +3776,7 @@ fn svg_render_applies_fill_stroke_and_label_color_from_node_style() {
 fn unstyled_svg_keeps_existing_default_colors() {
     let input = "graph TD\nA-->B\n";
     let flowchart = parse_flowchart(input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     assert!(
@@ -3789,7 +3793,7 @@ fn unstyled_svg_keeps_existing_default_colors() {
 fn render_svg_subgraphs_and_self_edges() {
     let input = "graph TD\nsubgraph Group\nA-->A\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     assert!(svg.contains("Group"));
@@ -3804,7 +3808,7 @@ fn render_svg_direction_override_lr_node_positions() {
     let input =
         std::fs::read_to_string("tests/fixtures/flowchart/subgraph_direction_lr.mmd").unwrap();
     let flowchart = parse_flowchart(&input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     let positions = extract_node_x_positions(&svg);
@@ -3825,7 +3829,7 @@ fn render_svg_direction_override_cross_boundary() {
         std::fs::read_to_string("tests/fixtures/flowchart/subgraph_direction_cross_boundary.mmd")
             .unwrap();
     let flowchart = parse_flowchart(&input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     // A and B are inside the LR subgraph, should be horizontal
@@ -3848,7 +3852,7 @@ fn render_svg_direction_override_cross_boundary_remains_nan_free() {
         std::fs::read_to_string("tests/fixtures/flowchart/subgraph_direction_cross_boundary.mmd")
             .unwrap();
     let flowchart = parse_flowchart(&input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     assert!(!svg.contains("NaN"), "SVG should not contain NaN values");
@@ -3864,7 +3868,7 @@ fn cross_boundary_direction_override_edges_still_render_without_nan() {
         std::fs::read_to_string("tests/fixtures/flowchart/subgraph_direction_cross_boundary.mmd")
             .unwrap();
     let flowchart = parse_flowchart(&input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     assert!(!svg.contains("NaN"));
@@ -3876,7 +3880,7 @@ fn render_svg_direction_override_mixed() {
     let input =
         std::fs::read_to_string("tests/fixtures/flowchart/subgraph_direction_mixed.mmd").unwrap();
     let flowchart = parse_flowchart(&input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     let positions = extract_node_x_positions(&svg);
@@ -3903,7 +3907,7 @@ fn render_svg_direction_override_nested() {
     let input =
         std::fs::read_to_string("tests/fixtures/flowchart/subgraph_direction_nested.mmd").unwrap();
     let flowchart = parse_flowchart(&input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     let positions = extract_node_x_positions(&svg);
@@ -3927,7 +3931,7 @@ fn render_svg_direction_override_nested_both() {
         std::fs::read_to_string("tests/fixtures/flowchart/subgraph_direction_nested_both.mmd")
             .unwrap();
     let flowchart = parse_flowchart(&input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     let positions = extract_node_x_positions(&svg);
@@ -3962,7 +3966,7 @@ fn render_svg_all_direction_override_fixtures_valid() {
             std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read {path}: {e}"));
         let flowchart =
             parse_flowchart(&input).unwrap_or_else(|e| panic!("Failed to parse {path}: {e}"));
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
         assert!(
@@ -3993,7 +3997,7 @@ fn render_svg_direction_override_backward_edge() {
     B --> Start
 "#;
     let flowchart = parse_flowchart(input).unwrap();
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
 
     let positions = extract_node_x_positions(&svg);
@@ -4011,12 +4015,9 @@ fn render_svg_direction_override_backward_edge() {
 fn render_svg_positioned_mmds_routed_basic_includes_paths_and_subgraph() {
     let input = std::fs::read_to_string("tests/fixtures/mmds/positioned/routed-basic.json")
         .expect("positioned fixture should exist");
-    let mut instance = mmdflux::diagrams::mmds::MmdsInstance::default();
-    instance.parse(&input).expect("MMDS parse should succeed");
-
-    let svg = instance
-        .render(OutputFormat::Svg, &RenderConfig::default())
-        .expect("routed MMDS should render SVG");
+    let svg =
+        mmdflux::frontends::mmds::render_input(&input, OutputFormat::Svg, &RenderConfig::default())
+            .expect("routed MMDS should render SVG");
 
     assert!(svg.starts_with("<svg"));
     assert!(svg.contains("class=\"subgraph\""));
@@ -4035,14 +4036,15 @@ fn assert_mmds_svg_endpoint_convergence(
     // MMDS path (no SVG post-adjustment) — use flux-layered enhancements
     // to match the SVG path which goes through render_svg (flux-layered).
     let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
-    let config = EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig {
-        greedy_switch: true,
-        model_order_tiebreak: true,
-        variable_rank_spacing: true,
-        track_reversed_chains: true,
-        per_edge_label_spacing: true,
-        ..mmdflux::engines::graph::layered::types::LayoutConfig::default()
-    });
+    let config =
+        EngineConfig::Layered(mmdflux::engines::graph::algorithms::layered::LayoutConfig {
+            greedy_switch: true,
+            model_order_tiebreak: true,
+            variable_rank_spacing: true,
+            track_reversed_chains: true,
+            per_edge_label_spacing: true,
+            ..mmdflux::engines::graph::algorithms::layered::LayoutConfig::default()
+        });
     let geom = run_layered_layout(&mode, diagram, &config).unwrap();
     let routed = route_graph_geometry(diagram, &geom, EdgeRouting::OrthogonalRoute);
     let mmds_edge = routed
@@ -4330,7 +4332,7 @@ fn svg_flux_crossing_minimize_direct_and_orthogonal_avoid_known_crossing_pair() 
 fn svg_renders_head_label() {
     let input = "graph TD\n  A --> B\n";
     let flowchart = parse_flowchart(input).unwrap();
-    let mut diagram = build_diagram(&flowchart);
+    let mut diagram = compile_to_graph(&flowchart);
     diagram.edges[0].head_label = Some("1..*".to_string());
 
     let svg = render_svg(&diagram, &RenderOptions::default_svg());
@@ -4344,7 +4346,7 @@ fn svg_renders_head_label() {
 fn svg_renders_tail_label() {
     let input = "graph TD\n  A --> B\n";
     let flowchart = parse_flowchart(input).unwrap();
-    let mut diagram = build_diagram(&flowchart);
+    let mut diagram = compile_to_graph(&flowchart);
     diagram.edges[0].tail_label = Some("src".to_string());
 
     let svg = render_svg(&diagram, &RenderOptions::default_svg());

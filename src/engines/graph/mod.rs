@@ -1,15 +1,23 @@
-//! Graph-family engine registry and adapters.
+//! Graph-family engine registry, adapters, and shared algorithms.
 //!
-//! All graph-family diagram types (flowchart, state, class, ER) share
-//! the same engine registry. Engines are looked up by `LayoutEngineId`.
+//! All graph-family diagram types share the same engine registry. The
+//! namespace is split explicitly by concern:
+//! - `flux`, `mermaid`, and `elk` are engine adapters
+//! - `algorithms::layered` is the shared layered-layout kernel
+//!
+//! Low-level callers should use the fully qualified module paths instead
+//! of relying on root-module re-exports.
 
+pub mod algorithms;
 mod contracts;
-pub mod cose;
 #[cfg(feature = "engine-elk")]
 pub mod elk;
-pub mod layered;
+pub mod flux;
+pub mod mermaid;
 mod registry;
 mod solve;
+#[cfg(test)]
+mod tests;
 
 pub use contracts::*;
 pub use registry::GraphEngineRegistry;

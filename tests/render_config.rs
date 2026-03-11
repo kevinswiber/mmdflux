@@ -45,13 +45,13 @@ fn render_error_from_string() {
 #[test]
 fn render_config_to_render_options_conversion() {
     let config = RenderConfig::default();
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert!(matches!(options.output_format, OutputFormat::Text));
 }
 
 #[test]
-fn layout_config_accessible_from_api_module() {
-    let _ = mmdflux::api::LayoutConfig::default();
+fn layout_config_accessible_from_flat_config_module() {
+    let _ = mmdflux::config::LayoutConfig::default();
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn render_config_default_layout_engine_is_none() {
 fn render_options_default_config_uses_orthogonal_routing() {
     // Default engine (flux-layered) defaults to Orthogonal routing + Basis curve.
     let config = RenderConfig::default();
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert_eq!(
         options.svg.routing_style,
         RoutingStyle::Orthogonal,
@@ -97,7 +97,7 @@ fn render_options_step_preset_expands_to_orthogonal_routing() {
         edge_preset: Some(EdgePreset::Step),
         ..Default::default()
     };
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert_eq!(options.svg.routing_style, RoutingStyle::Orthogonal);
     assert_eq!(options.svg.curve, Curve::Linear(CornerStyle::Sharp));
 }
@@ -109,7 +109,7 @@ fn render_options_basis_preset_expands_to_polyline_routing() {
         edge_preset: Some(EdgePreset::Basis),
         ..Default::default()
     };
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert_eq!(options.svg.routing_style, RoutingStyle::Polyline);
     assert_eq!(options.svg.curve, Curve::Basis);
 }
@@ -122,7 +122,7 @@ fn render_options_explicit_routing_style_overrides_preset_routing() {
         routing_style: Some(RoutingStyle::Polyline), // override → Polyline
         ..Default::default()
     };
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert_eq!(
         options.svg.routing_style,
         RoutingStyle::Polyline,
@@ -134,7 +134,7 @@ fn render_options_explicit_routing_style_overrides_preset_routing() {
 
 #[test]
 fn render_options_default_curve_is_basis() {
-    let options: mmdflux::render::RenderOptions = (&RenderConfig::default()).into();
+    let options: mmdflux::render::graph::RenderOptions = (&RenderConfig::default()).into();
     assert_eq!(options.svg.curve, Curve::Basis);
 }
 
@@ -146,7 +146,7 @@ fn render_options_explicit_curve_overrides_preset_curve() {
         curve: Some(Curve::Basis),           // override → Basis
         ..Default::default()
     };
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert_eq!(options.svg.routing_style, RoutingStyle::Orthogonal); // from preset
     assert_eq!(options.svg.curve, Curve::Basis);
 }
@@ -155,7 +155,7 @@ fn render_options_explicit_curve_overrides_preset_curve() {
 fn render_options_default_flux_engine_selects_orthogonal_route() {
     // Default flux-layered with no explicit style → Orthogonal → OrthogonalRoute.
     let config = RenderConfig::default();
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert_eq!(
         options.edge_routing,
         Some(EdgeRouting::OrthogonalRoute),
@@ -170,7 +170,7 @@ fn render_options_straight_preset_selects_direct_route_on_flux() {
         edge_preset: Some(EdgePreset::Straight),
         ..Default::default()
     };
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert_eq!(
         options.edge_routing,
         Some(EdgeRouting::DirectRoute),
@@ -185,7 +185,7 @@ fn render_options_polyline_preset_selects_polyline_route_on_flux() {
         edge_preset: Some(EdgePreset::Polyline),
         ..Default::default()
     };
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert_eq!(
         options.edge_routing,
         Some(EdgeRouting::PolylineRoute),
@@ -205,8 +205,8 @@ fn render_options_curve_change_does_not_affect_edge_routing_selection() {
         edge_preset: Some(EdgePreset::Polyline), // Polyline + Linear(Sharp)
         ..Default::default()
     };
-    let opts_basis: mmdflux::render::RenderOptions = (&config_basis).into();
-    let opts_polyline: mmdflux::render::RenderOptions = (&config_polyline).into();
+    let opts_basis: mmdflux::render::graph::RenderOptions = (&config_basis).into();
+    let opts_polyline: mmdflux::render::graph::RenderOptions = (&config_polyline).into();
     // Both are Polyline routing → both should get PolylineRoute (same edge routing).
     assert_eq!(
         opts_basis.edge_routing, opts_polyline.edge_routing,
@@ -233,7 +233,7 @@ fn render_options_path_simplification_is_orthogonal_to_style_selection() {
             path_simplification: PathSimplification::Lossless,
             ..Default::default()
         };
-        let options: mmdflux::render::RenderOptions = (&config).into();
+        let options: mmdflux::render::graph::RenderOptions = (&config).into();
         assert_eq!(
             options.path_simplification,
             PathSimplification::Lossless,
@@ -249,7 +249,7 @@ fn render_options_mermaid_engine_uses_polyline_route_by_default() {
         layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
         ..Default::default()
     };
-    let options: mmdflux::render::RenderOptions = (&config).into();
+    let options: mmdflux::render::graph::RenderOptions = (&config).into();
     assert_eq!(
         options.edge_routing,
         Some(EdgeRouting::PolylineRoute),

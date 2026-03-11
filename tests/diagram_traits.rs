@@ -1,4 +1,3 @@
-use mmdflux::api::DiagramModel;
 use mmdflux::engines::graph::EngineConfig;
 use mmdflux::{DiagramFamily, OutputFormat, PathSimplification, RenderConfig};
 
@@ -15,34 +14,9 @@ fn output_format_default_is_text() {
     assert_eq!(OutputFormat::default(), OutputFormat::Text);
 }
 
-struct DummyModel;
-impl DiagramModel for DummyModel {
-    fn clear(&mut self) {}
-    fn title(&self) -> Option<&str> {
-        None
-    }
-    fn acc_title(&self) -> Option<&str> {
-        None
-    }
-    fn acc_description(&self) -> Option<&str> {
-        None
-    }
-}
-
-#[test]
-fn dummy_model_compiles() {
-    let mut model = DummyModel;
-    model.clear();
-    assert!(model.title().is_none());
-    assert!(model.acc_title().is_none());
-    assert!(model.acc_description().is_none());
-}
-
-// --- EngineConfig tests (Task 1.2) ---
-
 #[test]
 fn engine_config_layered_variant_exists() {
-    let layered_cfg = mmdflux::engines::graph::layered::LayoutConfig::default();
+    let layered_cfg = mmdflux::engines::graph::algorithms::layered::LayoutConfig::default();
     let ec = EngineConfig::Layered(layered_cfg);
     assert!(matches!(ec, EngineConfig::Layered(_)));
 }

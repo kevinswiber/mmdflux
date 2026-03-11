@@ -4,8 +4,8 @@
 //! then delegates rendering to the shared graph-family facade.
 
 use super::compiler;
-use super::parser::parse_class_diagram;
 use crate::engines::graph::{OutputFormat, RenderConfig, RenderError};
+use crate::frontends::mermaid::class::parse_class_diagram;
 use crate::graph::Diagram;
 use crate::registry::DiagramInstance;
 
@@ -48,9 +48,6 @@ impl DiagramInstance for ClassInstance {
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
-        matches!(
-            format,
-            OutputFormat::Text | OutputFormat::Ascii | OutputFormat::Svg | OutputFormat::Mmds
-        )
+        super::SUPPORTED_FORMATS.contains(&format)
     }
 }

@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::mmds::{
+use mmdflux::frontends::mmds::{
     MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str, hydrate_graph_geometry_from_mmds,
     hydrate_routed_geometry_from_mmds,
 };

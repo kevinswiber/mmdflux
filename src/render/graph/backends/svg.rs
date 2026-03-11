@@ -1,0 +1,27 @@
+//! SVG format emitter for graph-family diagrams.
+//!
+//! Renders a `GraphSolveResult` to SVG.
+
+use crate::engines::graph::{EdgeRouting, GraphSolveResult};
+use crate::graph::Diagram;
+use crate::render::graph::RenderOptions;
+use crate::render::graph::svg::render_svg_from_geometry;
+
+/// Render a graph-family diagram to SVG from a solve result.
+///
+/// Uses default SVG render options. The solve result provides geometry;
+/// edge routing defaults to orthogonal.
+pub fn render_svg(diagram: &Diagram, result: &GraphSolveResult) -> String {
+    let options = RenderOptions::default_svg();
+    render_svg_with_options(diagram, result, &options)
+}
+
+/// Render a graph-family diagram to SVG with explicit options.
+pub fn render_svg_with_options(
+    diagram: &Diagram,
+    result: &GraphSolveResult,
+    options: &RenderOptions,
+) -> String {
+    let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
+    render_svg_from_geometry(diagram, options, &result.geometry, edge_routing)
+}

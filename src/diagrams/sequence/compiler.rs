@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use super::model::{MessageStyle, Participant, SequenceEvent, SequenceModel};
-use super::parser::ast::{ArrowType, ParticipantKind, SequenceStatement};
+use crate::frontends::mermaid::sequence::ast::{ArrowType, ParticipantKind, SequenceStatement};
 
 /// Compile parsed sequence statements into a validated model.
 ///
@@ -116,7 +116,7 @@ fn ensure_participant(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagrams::sequence::parser::parse_sequence;
+    use crate::frontends::mermaid::sequence::parse_sequence;
 
     fn compile_input(input: &str) -> SequenceModel {
         let stmts = parse_sequence(input).unwrap();

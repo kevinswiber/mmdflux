@@ -1,12 +1,12 @@
 //! Sequence diagram instance implementation.
 
 use super::model::SequenceModel;
-use super::parser::parse_sequence;
-use super::render::text;
 use super::{compiler, layout};
 use crate::engines::graph::{OutputFormat, RenderConfig, RenderError};
+use crate::frontends::mermaid::sequence::parse_sequence;
 use crate::registry::DiagramInstance;
-use crate::render::chars::CharSet;
+use crate::render::CharSet;
+use crate::render::diagram::sequence::text;
 
 /// Sequence diagram instance.
 ///
@@ -70,6 +70,6 @@ impl DiagramInstance for SequenceInstance {
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
-        matches!(format, OutputFormat::Text | OutputFormat::Ascii)
+        super::SUPPORTED_FORMATS.contains(&format)
     }
 }

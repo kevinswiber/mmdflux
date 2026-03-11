@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use mmdflux::diagrams::class::ClassInstance;
 use mmdflux::registry::DiagramInstance;
-use mmdflux::render::{RenderOptions, render_svg};
+use mmdflux::render::graph::{RenderOptions, render_svg};
 use mmdflux::{OutputFormat, RenderConfig};
 
 fn class_fixture_dir() -> PathBuf {
@@ -68,7 +68,7 @@ fn render_class_svg(fixture: &str) -> String {
     let input = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read fixture {fixture}: {e}"));
     let model =
-        mmdflux::diagrams::class::parser::parse_class_diagram(&input).expect("Failed to parse");
+        mmdflux::frontends::mermaid::class::parse_class_diagram(&input).expect("Failed to parse");
     let diagram = mmdflux::diagrams::class::compiler::compile(&model);
     render_svg(&diagram, &RenderOptions::default_svg())
 }

@@ -11,6 +11,14 @@ pub struct MmdsParseError {
     message: String,
 }
 
+impl MmdsParseError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+
 impl fmt::Display for MmdsParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.message)
@@ -33,15 +41,13 @@ pub struct MmdsProfileNegotiation {
 /// Unlike a plain deserialize, this expands omitted node/edge fields using
 /// the top-level `defaults` block before constructing `MmdsOutput`.
 pub fn parse_mmds_input(input: &str) -> Result<MmdsOutput, MmdsParseError> {
-    let mut value: Value = serde_json::from_str(input).map_err(|err| MmdsParseError {
-        message: format!("MMDS parse error: {err}"),
-    })?;
+    let mut value: Value = serde_json::from_str(input)
+        .map_err(|err| MmdsParseError::new(format!("MMDS parse error: {err}")))?;
 
     expand_defaults_in_value(&mut value)?;
 
-    serde_json::from_value::<MmdsOutput>(value).map_err(|err| MmdsParseError {
-        message: format!("MMDS parse error: {err}"),
-    })
+    serde_json::from_value::<MmdsOutput>(value)
+        .map_err(|err| MmdsParseError::new(format!("MMDS parse error: {err}")))
 }
 
 /// Evaluate declared profiles against runtime-known profile vocabulary.
@@ -76,8 +82,8 @@ pub fn evaluate_mmds_profiles_for_output(output: &MmdsOutput) -> MmdsProfileNego
 }
 
 fn expand_defaults_in_value(value: &mut Value) -> Result<(), MmdsParseError> {
-    let root = value.as_object_mut().ok_or_else(|| MmdsParseError {
-        message: "MMDS parse error: top-level JSON value must be an object".to_string(),
+    let root = value.as_object_mut().ok_or_else(|| {
+        MmdsParseError::new("MMDS parse error: top-level JSON value must be an object")
     })?;
 
     let node_shape = default_string(

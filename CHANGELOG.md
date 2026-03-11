@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## v2.0.0
+
+### Breaking
+
+- Major refactor of the public API and crate/module layout. Library consumers
+  should expect import-path changes and may need to update integrations against
+  the new runtime, rendering, and configuration entry points.
+
 ## v1.4.0
 
 ### Fixed

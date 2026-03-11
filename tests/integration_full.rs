@@ -6,12 +6,12 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::mmds::from_mmds_str;
+use mmdflux::diagrams::flowchart::compile_to_graph;
+use mmdflux::frontends::mermaid::parse_flowchart;
+use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::registry::default_registry;
-use mmdflux::render::{RenderOptions, render_svg};
-use mmdflux::{
-    OutputFormat, RenderConfig, build_diagram, generate_mermaid_from_mmds_str, parse_flowchart,
-};
+use mmdflux::render::graph::{RenderOptions, render_svg};
+use mmdflux::{OutputFormat, RenderConfig, generate_mermaid_from_mmds_str};
 
 fn render_with_registry(input: &str, format: OutputFormat) -> String {
     let registry = default_registry();
@@ -45,7 +45,7 @@ fn render_flowchart_svg_fixture(name: &str) -> String {
     let input = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
     let flowchart = parse_flowchart(&input).expect("flowchart fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     render_svg(&diagram, &RenderOptions::default_svg())
 }
 

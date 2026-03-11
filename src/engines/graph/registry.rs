@@ -2,14 +2,11 @@
 //!
 //! Maps engine IDs to concrete engine adapters for the graph family.
 //! All graph-family engines operate on `Diagram` → `GraphGeometry`.
-//!
-//! Two lookup paths coexist during transition (removed in Phase 5):
-//! - Legacy: `get(LayoutEngineId)` → `&dyn GraphLayoutEngine`
-//! - New: `get_solver(EngineAlgorithmId)` → `&dyn GraphEngine`
 
 use std::collections::HashMap;
 
-use crate::diagrams::flowchart::engine::{FluxLayeredEngine, MermaidLayeredEngine};
+use crate::engines::graph::flux::FluxLayeredEngine;
+use crate::engines::graph::mermaid::MermaidLayeredEngine;
 use crate::engines::graph::{EngineAlgorithmId, GraphEngine};
 
 /// Concrete trait object type for graph solvers.

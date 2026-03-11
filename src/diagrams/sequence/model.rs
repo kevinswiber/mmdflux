@@ -3,7 +3,7 @@
 //! The validated model used by the timeline layout engine. Produced by
 //! compiling the raw parsed AST statements.
 
-use super::parser::ast::ParticipantKind;
+use crate::frontends::mermaid::sequence::ast::ParticipantKind;
 
 /// A participant in the sequence diagram.
 #[derive(Debug, Clone, PartialEq, Eq)]

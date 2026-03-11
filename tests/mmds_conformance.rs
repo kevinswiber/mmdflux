@@ -14,13 +14,13 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
-use mmdflux::diagrams::mmds::from_mmds_str;
 use mmdflux::engines::graph::EngineConfig;
+use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
+use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{GraphGeometry, LayoutEdge};
 use mmdflux::graph::{Diagram, Subgraph};
 use mmdflux::registry::DiagramInstance;
-use mmdflux::render::{RenderOptions, render};
+use mmdflux::render::graph::{RenderOptions, render};
 use mmdflux::{OutputFormat, RenderConfig};
 
 // ---------------------------------------------------------------------------
@@ -235,8 +235,9 @@ fn floats_eq(a: f64, b: f64) -> bool {
 /// Runs layered layout on both diagrams and compares node positions/sizes,
 /// edge count, and overall bounds.
 fn check_layout(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
-    let engine_config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let engine_config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
 
     let direct_geom = match run_layered_layout(&MeasurementMode::Text, direct, &engine_config) {
         Ok(geom) => geom,
@@ -420,8 +421,8 @@ fn run_flowchart_conformance(name: &str) -> ConformanceReport {
 
     // Direct path: parse → build → Diagram
     let direct_diagram = {
-        let fc = mmdflux::parse_flowchart(&input).unwrap();
-        mmdflux::build_diagram(&fc)
+        let fc = mmdflux::frontends::mermaid::parse_flowchart(&input).unwrap();
+        mmdflux::diagrams::flowchart::compile_to_graph(&fc)
     };
 
     // MMDS roundtrip: parse → build → layout → JSON → hydrate → Diagram
@@ -444,8 +445,8 @@ fn run_flowchart_conformance(name: &str) -> ConformanceReport {
 
 /// Run a full conformance case for a class diagram fixture.
 fn run_class_conformance(name: &str) -> ConformanceReport {
-    use mmdflux::diagrams::class::parser::parse_class_diagram;
     use mmdflux::diagrams::class::{ClassInstance, compiler};
+    use mmdflux::frontends::mermaid::class::parse_class_diagram;
 
     let input = fixture_input("class", name);
 

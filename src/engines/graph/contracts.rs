@@ -1,14 +1,17 @@
 //! Internal diagram contracts shared across families and engines.
 //!
-//! Consumer-facing config, format, error, and diagram trait definitions live in
-//! `crate::api`. This module keeps the engine-side solve contracts and provides
-//! an internal compatibility import path for existing modules.
+//! Consumer-facing config, format, family, and error definitions live in the
+//! crate's flat top-level public contract modules. This module keeps the
+//! engine-side solve contracts and provides a focused engine import surface.
 
-pub use crate::api::{
-    AlgorithmId, CornerStyle, Curve, DiagramFamily, EdgePreset, EngineAlgorithmCapabilities,
-    EngineAlgorithmId, EngineId, GeometryLevel, LayoutConfig, OutputFormat, PathSimplification,
-    RenderConfig, RenderError, RouteOwnership, RoutingStyle, TextColorMode,
+use crate::config::LayoutConfig;
+pub use crate::config::{
+    AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineId, GeometryLevel,
+    PathSimplification, RenderConfig, RouteOwnership, TextColorMode,
 };
+pub use crate::errors::RenderError;
+pub use crate::family::DiagramFamily;
+pub use crate::format::{CornerStyle, Curve, EdgePreset, OutputFormat, RoutingStyle};
 
 impl EngineAlgorithmId {
     /// Resolve the edge routing algorithm for a given routing style.
@@ -30,12 +33,12 @@ impl EngineAlgorithmId {
 #[non_exhaustive]
 pub enum EngineConfig {
     /// Layered (Sugiyama) layout engine configuration.
-    Layered(crate::engines::graph::layered::types::LayoutConfig),
+    Layered(crate::engines::graph::algorithms::layered::LayoutConfig),
 }
 
 impl From<LayoutConfig> for EngineConfig {
     fn from(config: LayoutConfig) -> Self {
-        EngineConfig::Layered(config)
+        EngineConfig::Layered(config.into())
     }
 }
 

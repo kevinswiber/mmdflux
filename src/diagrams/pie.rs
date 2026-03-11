@@ -6,6 +6,8 @@
 use crate::engines::graph::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
+pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];
+
 /// Detect if input is a pie diagram.
 ///
 /// Delegates to the centralized parser detection to ensure consistent behavior:
@@ -13,7 +15,8 @@ use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 /// - Case-insensitive keyword matching
 /// - Exact first-word matching (not prefix)
 pub fn detect(input: &str) -> bool {
-    crate::parser::detect_diagram_type(input) == Some(crate::parser::DiagramType::Pie)
+    crate::frontends::mermaid::detect_diagram_type(input)
+        == Some(crate::frontends::mermaid::DiagramType::Pie)
 }
 
 /// Pie diagram definition for registry.
@@ -23,7 +26,7 @@ pub fn definition() -> DiagramDefinition {
         family: DiagramFamily::Chart,
         detector: detect as DiagramDetector,
         factory: || Box::new(PieInstance::default()),
-        supported_formats: &[OutputFormat::Text, OutputFormat::Ascii],
+        supported_formats: SUPPORTED_FORMATS,
     }
 }
 
@@ -47,9 +50,7 @@ impl Default for PieInstance {
 
 impl DiagramInstance for PieInstance {
     fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        if !detect(input) {
-            return Err("Not a pie diagram".into());
-        }
+        crate::frontends::mermaid::parse_pie(input)?;
         self.input = Some(input.to_string());
         Ok(())
     }
@@ -57,10 +58,10 @@ impl DiagramInstance for PieInstance {
     fn render(&self, _format: OutputFormat, _config: &RenderConfig) -> Result<String, RenderError> {
         let input = self.input.as_ref().ok_or("Not parsed")?;
 
-        Ok(format!("[Pie Chart]\n{}", input))
+        Ok(crate::render::diagram::pie::render(input))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
-        matches!(format, OutputFormat::Text | OutputFormat::Ascii)
+        SUPPORTED_FORMATS.contains(&format)
     }
 }

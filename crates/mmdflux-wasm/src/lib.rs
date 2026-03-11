@@ -1,4 +1,6 @@
-use mmdflux::api::{OutputFormat, RenderConfig, RenderError};
+use mmdflux::config::RenderConfig;
+use mmdflux::errors::RenderError;
+use mmdflux::format::OutputFormat;
 use mmdflux::{
     RuntimeConfigInput, apply_svg_surface_defaults, detect_diagram, render_diagram,
     validate_diagram,
@@ -63,10 +65,10 @@ fn js_error(message: impl Into<String>) -> JsError {
 
 #[cfg(test)]
 mod tests {
-    use mmdflux::api::{
-        AlgorithmId, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification,
-        TextColorMode,
+    use mmdflux::config::{
+        AlgorithmId, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification, TextColorMode,
     };
+    use mmdflux::format::EdgePreset;
 
     use super::*;
 

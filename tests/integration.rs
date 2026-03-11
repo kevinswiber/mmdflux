@@ -6,18 +6,24 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
-use mmdflux::diagrams::flowchart::routing::route_graph_geometry;
-use mmdflux::diagrams::mmds::from_mmds_str;
+use mmdflux::diagrams::flowchart::compile_to_graph;
+use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
 use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
+use mmdflux::frontends::mermaid::parse_flowchart;
+use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
-use mmdflux::render::{
-    Layout, NodeBounds, RenderOptions, RoutedEdge, Segment, TextLayoutConfig, compute_layout,
-    geometry_to_text_layout_with_routed, render, render_all_edges_with_labels, route_all_edges,
-};
+use mmdflux::registry::default_registry;
+use mmdflux::render::graph::routing::route_graph_geometry;
+use mmdflux::render::graph::text_adapter::{compute_layout, geometry_to_text_layout_with_routed};
+use mmdflux::render::graph::text_edge::render_all_edges_with_labels;
+use mmdflux::render::graph::text_router::{RoutedEdge, Segment, route_all_edges};
+use mmdflux::render::graph::text_shape::{NodeBounds, render_node};
+use mmdflux::render::graph::text_types::{Layout, TextLayoutConfig};
+use mmdflux::render::graph::{RenderOptions, render};
+use mmdflux::render::{Canvas, CharSet};
 use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,
-    TextColorMode, build_diagram, default_registry, parse_flowchart,
+    TextColorMode,
 };
 
 /// Load a fixture file by name from `tests/fixtures/flowchart/`.
@@ -46,7 +52,7 @@ fn load_mmds_fixture(name: &str) -> String {
 fn parse_and_build(name: &str) -> Diagram {
     let input = load_fixture(name);
     let flowchart = parse_flowchart(&input).expect("Failed to parse fixture");
-    build_diagram(&flowchart)
+    compile_to_graph(&flowchart)
 }
 
 /// Parse, build, and compute layout for a fixture file.
@@ -58,8 +64,9 @@ fn layout_fixture(name: &str) -> (Diagram, Layout) {
 
 fn layout_fixture_with_routed(name: &str) -> (Diagram, Layout) {
     let diagram = parse_and_build(name);
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -97,7 +104,7 @@ fn render_fixture_with_options(
 /// Parse, build, and render a Mermaid input string.
 fn render_input(input: &str) -> String {
     let flowchart = parse_flowchart(input).expect("Failed to parse input");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     render(&diagram, &RenderOptions::default())
 }
 
@@ -172,8 +179,9 @@ fn assert_all_distinct(values: &[usize], context: &str) {
 
 fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
     let diagram = parse_and_build(fixture);
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
         .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
@@ -181,9 +189,10 @@ fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
 
 fn route_input_orthogonal(input: &str) -> RoutedGraphGeometry {
     let flowchart = parse_flowchart(input).expect("fixture input should parse");
-    let diagram = build_diagram(&flowchart);
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let diagram = compile_to_graph(&flowchart);
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
         .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
@@ -1364,7 +1373,7 @@ mod snapshots {
                 let name = path.file_stem().unwrap().to_str().unwrap();
                 let input = fs::read_to_string(&path).unwrap();
                 let flowchart = parse_flowchart(&input).expect("Failed to parse");
-                let diagram = build_diagram(&flowchart);
+                let diagram = compile_to_graph(&flowchart);
                 let output = render(&diagram, &RenderOptions::default());
                 let snapshot_path = snapshot_dir.join(format!("{}.txt", name));
                 if regenerate {
@@ -2632,7 +2641,7 @@ mod multigraph {
     fn test_multi_edge_parse_preserves_both() {
         let input = load_fixture("multi_edge.mmd");
         let flowchart = parse_flowchart(&input).unwrap();
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         assert_eq!(
             diagram.edges.len(),
             2,
@@ -2674,7 +2683,7 @@ mod multigraph {
     fn test_multi_edge_different_styles() {
         let input = "graph TD\n    A --> B\n    A -.-> B\n    A ==> B";
         let flowchart = parse_flowchart(input).unwrap();
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
 
         assert_eq!(
             diagram.edges.len(),
@@ -3044,8 +3053,9 @@ fn test_route_policy_effective_edge_direction_with_nested_override_fixture() {
 #[test]
 fn test_orthogonal_route_routed_geometry_is_axis_aligned_for_forward_edges() {
     let diagram = parse_and_build("simple.mmd");
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -3239,22 +3249,17 @@ fn test_render_subgraph_direction_cross_boundary() {
 }
 
 #[test]
-fn registry_entrypoint_dispatches_mmds_input_to_mmds_instance() {
+fn runtime_entrypoint_dispatches_mmds_input_through_frontend() {
     let input = load_mmds_fixture("minimal-layout.json");
-    let registry = default_registry();
-    let diagram_id = registry
-        .detect(&input)
-        .expect("registry should detect MMDS fixture");
-    assert_eq!(diagram_id, "mmds");
+    let diagram_id = mmdflux::detect_diagram(&input).expect("runtime should resolve MMDS fixture");
+    assert_eq!(diagram_id, "flowchart");
 
-    let mut instance = registry
-        .create(diagram_id)
-        .expect("registry should create mmds instance");
-    instance.parse(&input).expect("MMDS parse should succeed");
-
-    let output = instance
-        .render(OutputFormat::Text, &mmdflux::RenderConfig::default())
-        .expect("layout MMDS payload should render via registry entrypoint");
+    let output = mmdflux::render_diagram(
+        &input,
+        OutputFormat::Text,
+        &mmdflux::RenderConfig::default(),
+    )
+    .expect("layout MMDS payload should render via runtime frontend dispatch");
     assert!(output.contains("Start"));
     assert!(output.contains("End"));
 }
@@ -3830,10 +3835,11 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
     {
         let input = load_fixture(fixture);
         let flowchart = parse_flowchart(&input).expect("fixture should parse");
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
-        let config =
-            EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+        let config = EngineConfig::Layered(
+            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+        );
         let geom = run_layered_layout(&mode, &diagram, &config).expect("layout should succeed");
 
         let source_rect = geom
@@ -3977,10 +3983,11 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let fixture = "git_workflow.mmd";
         let input = load_fixture(fixture);
         let flowchart = parse_flowchart(&input).expect("fixture should parse");
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
-        let config =
-            EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+        let config = EngineConfig::Layered(
+            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+        );
         let geom = run_layered_layout(&mode, &diagram, &config).expect("layout should succeed");
         assert_eq!(
             geom.direction,
@@ -4062,9 +4069,10 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let fixture = "http_request.mmd";
         let input = load_fixture(fixture);
         let flowchart = parse_flowchart(&input).expect("fixture should parse");
-        let diagram = build_diagram(&flowchart);
-        let config =
-            EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+        let diagram = compile_to_graph(&flowchart);
+        let config = EngineConfig::Layered(
+            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+        );
         let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
             .expect("layout should succeed");
 
@@ -4263,18 +4271,15 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
         ((px - cx).powi(2) + (py - cy).powi(2)).sqrt()
     }
 
-    fn distance_to_routed_path(
-        point: (usize, usize),
-        segments: &[mmdflux::render::Segment],
-    ) -> f64 {
+    fn distance_to_routed_path(point: (usize, usize), segments: &[Segment]) -> f64 {
         let p = (point.0 as f64, point.1 as f64);
         segments
             .iter()
             .map(|segment| match segment {
-                mmdflux::render::Segment::Horizontal { y, x_start, x_end } => {
+                Segment::Horizontal { y, x_start, x_end } => {
                     distance_to_segment(p, (*x_start as f64, *y as f64), (*x_end as f64, *y as f64))
                 }
-                mmdflux::render::Segment::Vertical { x, y_start, y_end } => {
+                Segment::Vertical { x, y_start, y_end } => {
                     distance_to_segment(p, (*x as f64, *y_start as f64), (*x as f64, *y_end as f64))
                 }
             })
@@ -4284,19 +4289,19 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
     fn render_label_center(
         diagram: &Diagram,
         layout: &Layout,
-        routed_edges: &[mmdflux::render::RoutedEdge],
+        routed_edges: &[RoutedEdge],
         label: &str,
         label_positions: &HashMap<usize, (usize, usize)>,
     ) -> ((usize, usize), String) {
-        let mut canvas = mmdflux::render::Canvas::new(layout.width, layout.height);
-        let charset = mmdflux::render::CharSet::unicode();
+        let mut canvas = Canvas::new(layout.width, layout.height);
+        let charset = CharSet::unicode();
 
         let mut node_keys: Vec<&String> = diagram.nodes.keys().collect();
         node_keys.sort();
         for node_id in node_keys {
             let node = &diagram.nodes[node_id];
             if let Some(&(x, y)) = layout.draw_positions.get(node_id) {
-                mmdflux::render::render_node(&mut canvas, node, x, y, &charset, diagram.direction);
+                render_node(&mut canvas, node, x, y, &charset, diagram.direction);
             }
         }
 
@@ -4327,7 +4332,7 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
     let flowchart =
         parse_flowchart("graph TD\nA[Very Wide Source Node] -->|cfg| B[Very Wide Target Node]\n")
             .expect("fixture should parse");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let layout = compute_layout(&diagram, &TextLayoutConfig::default());
     let routed_edges = route_all_edges(&diagram.edges, &layout, diagram.direction);
 
@@ -4394,7 +4399,6 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
 
 #[test]
 fn classify_face_matches_expected_common_approaches() {
-    use mmdflux::render::NodeBounds;
     use mmdflux::render::intersect::{NodeFace, classify_face};
 
     let bounds = NodeBounds {
@@ -4419,8 +4423,8 @@ fn classify_face_matches_expected_common_approaches() {
 #[test]
 fn text_renders_head_label() {
     let input = "graph TD\n  A --> B\n";
-    let flowchart = mmdflux::parse_flowchart(input).unwrap();
-    let mut diagram = mmdflux::build_diagram(&flowchart);
+    let flowchart = mmdflux::frontends::mermaid::parse_flowchart(input).unwrap();
+    let mut diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
     diagram.edges[0].head_label = Some("*".to_string());
     let output = render(&diagram, &RenderOptions::default());
     assert!(
@@ -4432,8 +4436,8 @@ fn text_renders_head_label() {
 #[test]
 fn text_renders_tail_label() {
     let input = "graph TD\n  A --> B\n";
-    let flowchart = mmdflux::parse_flowchart(input).unwrap();
-    let mut diagram = mmdflux::build_diagram(&flowchart);
+    let flowchart = mmdflux::frontends::mermaid::parse_flowchart(input).unwrap();
+    let mut diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
     diagram.edges[0].tail_label = Some("src".to_string());
     let output = render(&diagram, &RenderOptions::default());
     assert!(

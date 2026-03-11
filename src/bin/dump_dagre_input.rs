@@ -1,8 +1,11 @@
 use std::{env, fs};
 
-use mmdflux::engines::graph::layered::LayoutConfig;
-use mmdflux::render::node_dimensions;
-use mmdflux::{Direction, build_diagram, parse_flowchart};
+use mmdflux::Direction;
+use mmdflux::diagrams::flowchart::compile_to_graph;
+use mmdflux::engines::graph::algorithms::layered::LayoutConfig;
+use mmdflux::frontends::mermaid::parse_flowchart;
+use mmdflux::render::graph::text_shape::node_dimensions;
+use mmdflux::render::graph::text_types::TextLayoutConfig;
 
 fn json_escape(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -36,7 +39,7 @@ fn main() {
         eprintln!("Failed to parse {}: {}", path, e);
         std::process::exit(1);
     });
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
 
     let rankdir = match diagram.direction {
         Direction::TopDown => "TB",
@@ -47,7 +50,7 @@ fn main() {
 
     // Match dagre defaults (Mermaid flowchart defaults).
     let config = LayoutConfig::default();
-    let render_config = mmdflux::render::TextLayoutConfig::default();
+    let render_config = TextLayoutConfig::default();
     let node_sep = config.node_sep;
     let edge_sep = config.edge_sep;
     let mut ranksep = config.rank_sep;

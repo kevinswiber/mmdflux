@@ -4,7 +4,7 @@
 //! and notes. Output is consumed by the text renderer.
 
 use super::model::{MessageStyle, Participant, SequenceEvent, SequenceModel};
-use super::parser::ast::ParticipantKind;
+use crate::frontends::mermaid::sequence::ast::ParticipantKind;
 
 /// Minimum gap between participant centers (characters).
 const MIN_PARTICIPANT_GAP: usize = 20;
@@ -257,7 +257,7 @@ fn layout_participants(participants: &[Participant], gap: usize) -> Vec<Particip
 mod tests {
     use super::*;
     use crate::diagrams::sequence::compiler;
-    use crate::diagrams::sequence::parser::parse_sequence;
+    use crate::frontends::mermaid::sequence::parse_sequence;
 
     fn layout_input(input: &str) -> SequenceLayout {
         let stmts = parse_sequence(input).unwrap();

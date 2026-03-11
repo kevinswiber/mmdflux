@@ -6,6 +6,8 @@
 use crate::engines::graph::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
+pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];
+
 /// Detect if input is a packet diagram.
 ///
 /// Delegates to the centralized parser detection to ensure consistent behavior:
@@ -13,7 +15,8 @@ use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 /// - Case-insensitive keyword matching
 /// - Accepts both `packet` and `packet-beta`
 pub fn detect(input: &str) -> bool {
-    crate::parser::detect_diagram_type(input) == Some(crate::parser::DiagramType::Packet)
+    crate::frontends::mermaid::detect_diagram_type(input)
+        == Some(crate::frontends::mermaid::DiagramType::Packet)
 }
 
 /// Packet diagram definition for registry.
@@ -23,7 +26,7 @@ pub fn definition() -> DiagramDefinition {
         family: DiagramFamily::Table,
         detector: detect as DiagramDetector,
         factory: || Box::new(PacketInstance::default()),
-        supported_formats: &[OutputFormat::Text, OutputFormat::Ascii],
+        supported_formats: SUPPORTED_FORMATS,
     }
 }
 
@@ -47,9 +50,7 @@ impl Default for PacketInstance {
 
 impl DiagramInstance for PacketInstance {
     fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        if !detect(input) {
-            return Err("Not a packet diagram".into());
-        }
+        crate::frontends::mermaid::parse_packet(input)?;
         self.input = Some(input.to_string());
         Ok(())
     }
@@ -57,10 +58,10 @@ impl DiagramInstance for PacketInstance {
     fn render(&self, _format: OutputFormat, _config: &RenderConfig) -> Result<String, RenderError> {
         let input = self.input.as_ref().ok_or("Not parsed")?;
 
-        Ok(format!("[Packet Diagram]\n{}", input))
+        Ok(crate::render::diagram::packet::render(input))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
-        matches!(format, OutputFormat::Text | OutputFormat::Ascii)
+        SUPPORTED_FORMATS.contains(&format)
     }
 }

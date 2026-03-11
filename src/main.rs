@@ -4,8 +4,7 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 use clap::{Parser, ValueEnum};
-use mmdflux::api::LayoutConfig;
-use mmdflux::engines::graph::layered::Ranker;
+use mmdflux::config::{LayoutConfig, Ranker};
 use mmdflux::{
     ColorWhen, Curve, EdgePreset, EngineAlgorithmId, GeometryLevel, OutputFormat,
     PathSimplification, RenderConfig, RoutingStyle, TextColorMode, apply_svg_surface_defaults,

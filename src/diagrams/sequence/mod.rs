@@ -7,17 +7,18 @@ pub mod compiler;
 mod instance;
 pub mod layout;
 pub mod model;
-pub mod parser;
-pub mod render;
 
 pub use instance::SequenceInstance;
 
 use crate::engines::graph::{DiagramFamily, OutputFormat};
 use crate::registry::{DiagramDefinition, DiagramDetector};
 
+pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];
+
 /// Detect if input is a sequence diagram.
 pub fn detect(input: &str) -> bool {
-    crate::parser::detect_diagram_type(input) == Some(crate::parser::DiagramType::Sequence)
+    crate::frontends::mermaid::detect_diagram_type(input)
+        == Some(crate::frontends::mermaid::DiagramType::Sequence)
 }
 
 /// Sequence diagram definition for registry.
@@ -27,6 +28,6 @@ pub fn definition() -> DiagramDefinition {
         family: DiagramFamily::Timeline,
         detector: detect as DiagramDetector,
         factory: || Box::new(SequenceInstance::default()),
-        supported_formats: &[OutputFormat::Text, OutputFormat::Ascii],
+        supported_formats: SUPPORTED_FORMATS,
     }
 }

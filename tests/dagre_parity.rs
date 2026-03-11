@@ -6,7 +6,7 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::engines::graph::layered::{DiGraph, LayoutConfig, layout};
+use mmdflux::engines::graph::algorithms::layered::{DiGraph, LayoutConfig, layout};
 use serde::Deserialize;
 
 // =============================================================================
@@ -113,13 +113,11 @@ fn graph_layered_pipeline_entrypoint_preserves_current_layout_contract() {
     let config = LayoutConfig::default();
 
     let result =
-        mmdflux::engines::graph::layered::run_layered_layout(&graph, &config, |_, dims| *dims);
+        mmdflux::engines::graph::algorithms::layered::layout(&graph, &config, |_, dims| *dims);
 
-    assert!(
-        result
-            .nodes
-            .contains_key(&mmdflux::engines::graph::layered::NodeId::from("A"))
-    );
+    assert!(result.nodes.contains_key(
+        &mmdflux::engines::graph::algorithms::layered::NodeId::from("A")
+    ));
     assert!(!result.edges.is_empty());
 }
 
@@ -682,7 +680,9 @@ mod feedback_cycle_ranking {
         let tolerance = 1.0;
 
         for expected_node in &expected.nodes {
-            let node_id = mmdflux::engines::graph::layered::NodeId::from(expected_node.id.as_str());
+            let node_id = mmdflux::engines::graph::algorithms::layered::NodeId::from(
+                expected_node.id.as_str(),
+            );
             let actual = result
                 .nodes
                 .get(&node_id)

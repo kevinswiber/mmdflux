@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use mmdflux::engines::graph::layered::{self, DiGraph, LayoutConfig};
+use mmdflux::engines::graph::algorithms::layered::{self, DiGraph, LayoutConfig};
 
 /// Build a graph, run full layout, return node center-x positions.
 /// In TD layout, x position reflects the within-rank ordering.
@@ -373,11 +373,11 @@ fn baseline_scan_fixtures_for_equal_barycenters() {
                 Ok(c) => c,
                 Err(_) => continue,
             };
-            let flowchart = match mmdflux::parse_flowchart(&content) {
+            let flowchart = match mmdflux::frontends::mermaid::parse_flowchart(&content) {
                 Ok(f) => f,
                 Err(_) => continue,
             };
-            let diagram = mmdflux::build_diagram(&flowchart);
+            let diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
 
             // Count fan-out patterns (source -> 2+ targets)
             let mut out_targets: HashMap<String, Vec<String>> = HashMap::new();

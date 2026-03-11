@@ -1,8 +1,9 @@
 //! Engine registry tests: typed engine IDs, parsing, availability, and registry lookup.
 
-use mmdflux::api::{EngineAlgorithmCapabilities, RouteOwnership};
+use mmdflux::config::{EngineAlgorithmCapabilities, RouteOwnership};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::diagrams::flowchart::engine::{FluxLayeredEngine, MermaidLayeredEngine};
+use mmdflux::engines::graph::flux::FluxLayeredEngine;
+use mmdflux::engines::graph::mermaid::MermaidLayeredEngine;
 use mmdflux::engines::graph::{EngineConfig, GraphEngine, GraphEngineRegistry, GraphSolveRequest};
 use mmdflux::registry::DiagramInstance;
 use mmdflux::{
@@ -396,8 +397,8 @@ fn solve_request_from_config_keeps_path_simplification_independent_of_style() {
 // =============================================================================
 
 fn build_simple_diagram() -> mmdflux::Diagram {
-    let flowchart = mmdflux::parse_flowchart("graph TD\nA-->B").unwrap();
-    mmdflux::build_diagram(&flowchart)
+    let flowchart = mmdflux::frontends::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();
+    mmdflux::diagrams::flowchart::compile_to_graph(&flowchart)
 }
 
 #[test]
@@ -427,8 +428,9 @@ fn flux_layered_solve_layout_level_has_no_routed_geometry() {
         path_simplification: PathSimplification::None,
         routing_style: None,
     };
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let result = engine.solve(&diagram, &config, &request).unwrap();
 
     assert_eq!(result.engine_id.engine(), EngineId::Flux);
@@ -449,8 +451,9 @@ fn flux_layered_solve_routed_level_has_routed_geometry() {
         path_simplification: PathSimplification::None,
         routing_style: None,
     };
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let result = engine.solve(&diagram, &config, &request).unwrap();
 
     assert!(
@@ -492,8 +495,9 @@ fn mermaid_layered_solve_layout_level_has_no_routed_geometry() {
         path_simplification: PathSimplification::None,
         routing_style: None,
     };
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let result = engine.solve(&diagram, &config, &request).unwrap();
 
     assert!(
@@ -511,8 +515,9 @@ fn mermaid_layered_layout_matches_flux_layered_layout() {
     // compact layout.  We verify that x-coordinates still match and that
     // Flux's y-spacing is <= Mermaid's (i.e., more compact or equal).
     let diagram = build_simple_diagram();
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let layout_req = GraphSolveRequest {
         output_format: OutputFormat::Mmds,
         geometry_level: GeometryLevel::Layout,
@@ -557,8 +562,9 @@ fn mermaid_layered_solve_routed_level_has_routed_geometry() {
         path_simplification: PathSimplification::None,
         routing_style: None,
     };
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::layered::types::LayoutConfig::default());
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
     let result = engine.solve(&diagram, &config, &request).unwrap();
 
     assert!(

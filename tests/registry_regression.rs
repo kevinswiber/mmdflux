@@ -1,14 +1,16 @@
 //! Parity checks between the direct render API and registry instance API.
 
+use mmdflux::diagrams::flowchart::compile_to_graph;
+use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::registry::default_registry;
-use mmdflux::render::{RenderOptions, render};
-use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, build_diagram, parse_flowchart};
+use mmdflux::render::graph::{RenderOptions, render};
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig};
 
 /// Helper to compare direct vs registry rendering paths.
 fn compare_outputs(input: &str, ascii: bool) {
     // Direct API path
     let flowchart = parse_flowchart(input).expect("Direct path parse failed");
-    let diagram = build_diagram(&flowchart);
+    let diagram = compile_to_graph(&flowchart);
     let output_format = if ascii {
         OutputFormat::Ascii
     } else {
@@ -362,24 +364,14 @@ fn regression_all_fixtures() {
 }
 
 #[test]
-fn mmds_dispatch_path_reaches_mmds_instance() {
+fn mmds_dispatch_path_uses_runtime_frontend_resolution() {
     let input = std::fs::read_to_string("tests/fixtures/mmds/minimal-layout.json")
         .expect("minimal-layout fixture should exist");
-    let registry = default_registry();
+    let diagram_id = mmdflux::detect_diagram(&input).expect("runtime should detect MMDS");
+    assert_eq!(diagram_id, "flowchart");
 
-    let diagram_id = registry
-        .detect(&input)
-        .expect("registry should detect MMDS");
-    assert_eq!(diagram_id, "mmds");
-
-    let mut instance = registry
-        .create(diagram_id)
-        .expect("registry should create MMDS instance");
-    instance.parse(&input).expect("MMDS parse should succeed");
-
-    let rendered = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .expect("layout MMDS payload should render through registry dispatch");
+    let rendered = mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+        .expect("layout MMDS payload should render through runtime dispatch");
     assert!(rendered.contains("Start"));
     assert!(rendered.contains("End"));
 }

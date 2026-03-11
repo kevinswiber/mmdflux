@@ -9,18 +9,19 @@
 //! - [`validate_diagram`] — parse and return structured diagnostics as JSON.
 //! - [`render_graph`] — (internal) graph-family engine+render pipeline.
 
-use crate::api::ParseDiagnostic;
+use crate::diagnostics::ParseDiagnostic;
 use crate::engines::graph::{
     AlgorithmId, EngineAlgorithmId, EngineId, OutputFormat, RenderConfig, RenderError,
     solve_graph_family,
 };
-use crate::graph::Diagram;
-use crate::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
-use crate::parser::{
+use crate::frontends::mermaid::{
     DiagramType, ParseError, ParseOptions, detect_diagram_type, parse_flowchart_with_options,
 };
+use crate::frontends::{InputFrontend, detect_input_frontend};
+use crate::graph::Diagram;
+use crate::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
 use crate::registry::default_registry;
-use crate::render::RenderOptions;
+use crate::render::graph::RenderOptions;
 
 /// Render a graph-family diagram through the shared pipeline.
 ///
@@ -48,18 +49,22 @@ pub(crate) fn render_graph(
 
     // Dispatch to format-owned emitters.
     match format {
-        OutputFormat::Mmds => crate::formats::mmds::render_mmds_full(
+        OutputFormat::Mmds => crate::render::graph::backends::mmds::render_mmds_full(
             diagram_id,
             diagram,
             &result,
             config.geometry_level,
             config.path_simplification,
         ),
-        OutputFormat::Svg => Ok(crate::formats::svg::render_svg_with_options(
-            diagram, &result, &options,
-        )),
+        OutputFormat::Svg => Ok(
+            crate::render::graph::backends::svg::render_svg_with_options(
+                diagram, &result, &options,
+            ),
+        ),
         OutputFormat::Text | OutputFormat::Ascii => Ok(
-            crate::formats::text::render_text_with_options(diagram, &result, &options),
+            crate::render::graph::backends::text::render_text_with_options(
+                diagram, &result, &options,
+            ),
         ),
         _ => Err(RenderError {
             message: format!("{format} output is not supported for {diagram_id} diagrams"),
@@ -72,7 +77,10 @@ pub(crate) fn render_graph(
 /// Returns the diagram type identifier (e.g. `"flowchart"`, `"class"`,
 /// `"sequence"`) or `None` if the input is not recognized.
 pub fn detect_diagram(input: &str) -> Option<&'static str> {
-    default_registry().detect(input)
+    match detect_input_frontend(input)? {
+        InputFrontend::Mermaid => default_registry().detect(input),
+        InputFrontend::Mmds => crate::frontends::mmds::detect_diagram_type(input).ok(),
+    }
 }
 
 /// Detect, parse, and render a diagram in one call.
@@ -85,6 +93,10 @@ pub fn render_diagram(
     format: OutputFormat,
     config: &RenderConfig,
 ) -> Result<String, RenderError> {
+    if matches!(detect_input_frontend(input), Some(InputFrontend::Mmds)) {
+        return crate::frontends::mmds::render_input(input, format, config);
+    }
+
     let registry = default_registry();
 
     let diagram_id = registry.detect(input).ok_or_else(|| RenderError {
@@ -115,6 +127,19 @@ pub fn render_diagram(
 /// - `{"valid": true, "diagnostics": [...]}` on success with warnings
 /// - `{"valid": false, "diagnostics": [...]}` on error
 pub fn validate_diagram(input: &str) -> String {
+    if matches!(detect_input_frontend(input), Some(InputFrontend::Mmds)) {
+        return match crate::frontends::mmds::validate_input(input) {
+            Ok(()) => serde_json::json!({ "valid": true }).to_string(),
+            Err(error) => serde_json::json!({
+                "valid": false,
+                "diagnostics": [{
+                    "message": error.message
+                }]
+            })
+            .to_string(),
+        };
+    }
+
     let registry = default_registry();
 
     let diagram_id = match registry.detect(input) {

@@ -4,7 +4,7 @@
 //   - packages/mermaid/src/diagrams/pie/pie.spec.ts (Langium parser)
 //   - cypress/integration/rendering/pie.spec.ts
 
-use mmdflux::parser::parse_pie;
+use mmdflux::frontends::mermaid::parse_pie;
 
 mod basic {
     use super::*;

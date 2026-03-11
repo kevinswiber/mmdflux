@@ -5,7 +5,7 @@
 //   - packages/mermaid/src/diagrams/info/info.spec.ts
 //   - packages/parser/tests/info.test.ts
 
-use mmdflux::parser::parse_info;
+use mmdflux::frontends::mermaid::parse_info;
 
 // ---------------------------------------------------------------------------
 // Minimal input

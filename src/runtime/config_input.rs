@@ -6,11 +6,12 @@
 
 use serde::Deserialize;
 
-use crate::api::{
-    ColorWhen, Curve, EdgePreset, EngineAlgorithmId, GeometryLevel, PathSimplification,
-    RenderConfig, RenderError, RoutingStyle, normalize_enum_token,
+use crate::config::{
+    AlgorithmId, ColorWhen, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification, Ranker,
+    RenderConfig,
 };
-use crate::engines::graph::layered::Ranker;
+use crate::errors::RenderError;
+use crate::format::{Curve, EdgePreset, OutputFormat, RoutingStyle, normalize_enum_token};
 
 /// Serde-friendly render config accepted from JSON callers.
 ///
@@ -121,7 +122,7 @@ fn parse_ranker(value: &str) -> Result<Ranker, RenderError> {
 
 /// The default SVG layout engine (flux-layered).
 pub fn default_svg_engine() -> EngineAlgorithmId {
-    EngineAlgorithmId::new(crate::api::EngineId::Flux, crate::api::AlgorithmId::Layered)
+    EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered)
 }
 
 /// Apply SVG surface defaults for flux-layered engine.
@@ -134,11 +135,11 @@ pub fn default_svg_engine() -> EngineAlgorithmId {
 /// - `true`: WASM behavior — always set flux-layered for SVG.
 /// - `false`: CLI behavior — leave engine unset (auto-detect later).
 pub fn apply_svg_surface_defaults(
-    format: crate::api::OutputFormat,
+    format: OutputFormat,
     config: &mut RenderConfig,
     force_engine: bool,
 ) {
-    if !matches!(format, crate::api::OutputFormat::Svg) {
+    if !matches!(format, OutputFormat::Svg) {
         return;
     }
 

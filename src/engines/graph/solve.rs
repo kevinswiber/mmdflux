@@ -39,7 +39,7 @@ pub(crate) fn solve_graph_family(
     })?;
     engine.solve(
         diagram,
-        &EngineConfig::Layered(config.layout.clone()),
+        &EngineConfig::Layered(config.layout.clone().into()),
         &request,
     )
 }

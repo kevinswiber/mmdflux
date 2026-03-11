@@ -6,16 +6,23 @@
 
 pub mod compiler;
 mod instance;
-pub mod parser;
 
 pub use instance::ClassInstance;
 
 use crate::engines::graph::{DiagramFamily, OutputFormat};
 use crate::registry::{DiagramDefinition, DiagramDetector};
 
+pub const SUPPORTED_FORMATS: &[OutputFormat] = &[
+    OutputFormat::Text,
+    OutputFormat::Ascii,
+    OutputFormat::Svg,
+    OutputFormat::Mmds,
+];
+
 /// Detect if input is a class diagram.
 pub fn detect(input: &str) -> bool {
-    crate::parser::detect_diagram_type(input) == Some(crate::parser::DiagramType::Class)
+    crate::frontends::mermaid::detect_diagram_type(input)
+        == Some(crate::frontends::mermaid::DiagramType::Class)
 }
 
 /// Class diagram definition for registry.
@@ -25,11 +32,6 @@ pub fn definition() -> DiagramDefinition {
         family: DiagramFamily::Graph,
         detector: detect as DiagramDetector,
         factory: || Box::new(ClassInstance::default()),
-        supported_formats: &[
-            OutputFormat::Text,
-            OutputFormat::Ascii,
-            OutputFormat::Svg,
-            OutputFormat::Mmds,
-        ],
+        supported_formats: SUPPORTED_FORMATS,
     }
 }

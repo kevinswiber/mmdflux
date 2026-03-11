@@ -1,11 +1,11 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::mmds::from_mmds_str;
+use mmdflux::diagrams::flowchart::compile_to_graph;
+use mmdflux::frontends::mermaid::parse_flowchart;
+use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::{Arrow, Stroke};
-use mmdflux::{
-    Diagram, Direction, Shape, build_diagram, generate_mermaid_from_mmds_str, parse_flowchart,
-};
+use mmdflux::{Diagram, Direction, Shape, generate_mermaid_from_mmds_str};
 
 fn fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -88,7 +88,7 @@ fn assert_semantic_roundtrip(mmds: &str) {
     let generated = generate_mermaid_from_mmds_str(mmds).expect("generator output");
     let from_mmds = from_mmds_str(mmds).expect("valid MMDS fixture");
     let parsed = parse_flowchart(&generated).expect("generated Mermaid must parse");
-    let rebuilt = build_diagram(&parsed);
+    let rebuilt = compile_to_graph(&parsed);
 
     let expected = semantic_diagram(&from_mmds);
     let actual = semantic_diagram(&rebuilt);

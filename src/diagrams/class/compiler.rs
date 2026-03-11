@@ -5,7 +5,7 @@
 
 use std::collections::HashSet;
 
-use super::parser::ast::{ClassModel, ClassRelationType};
+use crate::frontends::mermaid::class::ast::{ClassModel, ClassRelationType};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
 
 /// Compile a `ClassModel` into a canonical `graph::Diagram`.
@@ -210,7 +210,7 @@ fn relation_style(rel: ClassRelationType) -> (Stroke, Arrow) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagrams::class::parser::parse_class_diagram;
+    use crate::frontends::mermaid::class::parse_class_diagram;
 
     fn compile_class(input: &str) -> Diagram {
         let model = parse_class_diagram(input).unwrap();
