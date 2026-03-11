@@ -8,14 +8,14 @@ use std::fmt;
 use serde_json::{Map, Value};
 
 use crate::engines::graph::EdgeRouting;
+use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{
     FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode, RoutedGraphGeometry,
     SelfEdgeGeometry, SubgraphGeometry,
 };
+use crate::graph::routing::route_graph_geometry;
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
 use crate::mmds::{MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MmdsEdge, MmdsOutput, parse_mmds_input};
-use crate::render::graph::route_policy::build_node_directions;
-use crate::render::graph::routing::route_graph_geometry;
 use crate::style::{ColorToken, NodeStyle};
 
 /// Placeholder hydration entrypoint for future MMDS input work.

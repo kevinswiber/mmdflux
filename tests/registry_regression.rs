@@ -3,7 +3,7 @@
 use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::registry::default_registry;
-use mmdflux::render::graph::{RenderOptions, render};
+use mmdflux::testing::{RenderOptions, render};
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig};
 
 /// Helper to compare direct vs registry rendering paths.

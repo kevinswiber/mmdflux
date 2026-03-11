@@ -7,20 +7,20 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::registry::default_registry;
-use mmdflux::render::graph::routing::route_graph_geometry;
-use mmdflux::render::graph::text_adapter::{compute_layout, geometry_to_text_layout_with_routed};
-use mmdflux::render::graph::text_edge::render_all_edges_with_labels;
-use mmdflux::render::graph::text_router::{RoutedEdge, Segment, route_all_edges};
-use mmdflux::render::graph::text_shape::{NodeBounds, render_node};
-use mmdflux::render::graph::text_types::{Layout, TextLayoutConfig};
-use mmdflux::render::graph::{RenderOptions, render};
 use mmdflux::render::{Canvas, CharSet};
+use mmdflux::testing::routing::route_graph_geometry;
+use mmdflux::testing::text_adapter::{compute_layout, geometry_to_text_layout_with_routed};
+use mmdflux::testing::text_edge::render_all_edges_with_labels;
+use mmdflux::testing::text_router::{RoutedEdge, Segment, route_all_edges};
+use mmdflux::testing::text_shape::{NodeBounds, render_node};
+use mmdflux::testing::text_types::{Layout, TextLayoutConfig};
+use mmdflux::testing::{
+    EdgeRouting, EngineConfig, MeasurementMode, RenderOptions, render, run_layered_layout,
+};
 use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,
     TextColorMode,

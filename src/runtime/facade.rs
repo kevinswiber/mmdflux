@@ -21,7 +21,7 @@ use crate::frontends::{InputFrontend, detect_input_frontend};
 use crate::graph::Diagram;
 use crate::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
 use crate::registry::default_registry;
-use crate::render::graph::RenderOptions;
+use crate::render::graph::{SvgRenderOptions, TextRenderOptions};
 
 /// Render a graph-family diagram through the shared pipeline.
 ///
@@ -44,9 +44,6 @@ pub(crate) fn render_graph(
     // Solve layout through the engine registry.
     let result = solve_graph_family(diagram, engine_id, config, format)?;
 
-    let mut options: RenderOptions = config.into();
-    options.output_format = format;
-
     // Dispatch to format-owned emitters.
     match format {
         OutputFormat::Mmds => crate::render::graph::backends::mmds::render_mmds_full(
@@ -56,16 +53,23 @@ pub(crate) fn render_graph(
             config.geometry_level,
             config.path_simplification,
         ),
-        OutputFormat::Svg => Ok(
-            crate::render::graph::backends::svg::render_svg_with_options(
-                diagram, &result, &options,
-            ),
-        ),
-        OutputFormat::Text | OutputFormat::Ascii => Ok(
-            crate::render::graph::backends::text::render_text_with_options(
-                diagram, &result, &options,
-            ),
-        ),
+        OutputFormat::Svg => {
+            let options: SvgRenderOptions = config.into();
+            Ok(
+                crate::render::graph::backends::svg::render_svg_with_options(
+                    diagram, &result, &options,
+                ),
+            )
+        }
+        OutputFormat::Text | OutputFormat::Ascii => {
+            let mut options: TextRenderOptions = config.into();
+            options.output_format = format;
+            Ok(
+                crate::render::graph::backends::text::render_text_with_options(
+                    diagram, &result, &options,
+                ),
+            )
+        }
         _ => Err(RenderError {
             message: format!("{format} output is not supported for {diagram_id} diagrams"),
         }),

@@ -247,6 +247,7 @@ fn draw_edge_path_and_arrows(canvas: &mut Canvas, routed: &RoutedEdge, charset: 
 }
 
 /// Render a routed edge onto the canvas.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn render_edge(
     canvas: &mut Canvas,
     routed: &RoutedEdge,
@@ -970,6 +971,7 @@ impl PlacedLabel {
 /// * `charset` - Character set for drawing
 /// * `diagram_direction` - Layout direction for label positioning
 /// * `label_positions` - Optional pre-computed label positions from normalization
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn render_all_edges(
     canvas: &mut Canvas,
     routed_edges: &[RoutedEdge],
@@ -1244,6 +1246,7 @@ mod tests {
     use super::super::text_router::route_edge;
     use super::*;
     use crate::graph::{Diagram, Edge, Node};
+    use crate::testing::{RenderOptions, render};
 
     fn simple_diagram() -> Diagram {
         let mut diagram = Diagram::new(Direction::TopDown);
@@ -1427,8 +1430,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("End"));
         diagram.add_edge(Edge::new("A", "B").with_label("Yes"));
 
-        let output =
-            crate::render::graph::render(&diagram, &crate::render::graph::RenderOptions::default());
+        let output = render(&diagram, &RenderOptions::default());
         // Should contain the label
         assert!(output.contains("Yes"));
     }
@@ -1440,8 +1442,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("B"));
         diagram.add_edge(Edge::new("A", "B").with_label("yes\nno"));
 
-        let output =
-            crate::render::graph::render(&diagram, &crate::render::graph::RenderOptions::default());
+        let output = render(&diagram, &RenderOptions::default());
         let lines: Vec<&str> = output.lines().collect();
 
         let yes_line = lines
@@ -1487,7 +1488,7 @@ mod tests {
 
     #[test]
     fn test_label_rendered_at_precomputed_position() {
-        let output = crate::render::graph::render(
+        let output = render(
             &{
                 let mut d = Diagram::new(Direction::TopDown);
                 d.add_node(Node::new("A").with_label("A"));
@@ -1495,7 +1496,7 @@ mod tests {
                 d.add_edge(Edge::new("A", "B").with_label("yes"));
                 d
             },
-            &crate::render::graph::RenderOptions::default(),
+            &RenderOptions::default(),
         );
 
         assert!(output.contains("yes"), "Label 'yes' should be rendered");
@@ -1520,7 +1521,7 @@ mod tests {
         // Build a LR diagram where nodes are wide enough that
         // a precomputed label position could land on a node boundary.
         // After rendering, verify the label text doesn't collide with node cells.
-        let output = crate::render::graph::render(
+        let output = render(
             &{
                 let mut d = Diagram::new(Direction::LeftRight);
                 d.add_node(Node::new("A").with_label("Working Dir"));
@@ -1530,7 +1531,7 @@ mod tests {
                 d.add_edge(Edge::new("B", "C").with_label("git commit"));
                 d
             },
-            &crate::render::graph::RenderOptions::default(),
+            &RenderOptions::default(),
         );
 
         // Both labels should be fully visible (not clipped by node boundaries)
@@ -1949,8 +1950,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("B"));
         diagram.add_edge(Edge::new("A", "B").with_arrows(Arrow::None, Arrow::Cross));
 
-        let output =
-            crate::render::graph::render(&diagram, &crate::render::graph::RenderOptions::default());
+        let output = render(&diagram, &RenderOptions::default());
         assert!(
             output.contains('x'),
             "Output should contain 'x' for cross arrow:\n{output}"
@@ -1968,8 +1968,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("B"));
         diagram.add_edge(Edge::new("A", "B").with_arrows(Arrow::None, Arrow::Circle));
 
-        let output =
-            crate::render::graph::render(&diagram, &crate::render::graph::RenderOptions::default());
+        let output = render(&diagram, &RenderOptions::default());
         assert!(
             output.contains('o'),
             "Output should contain 'o' for circle arrow:\n{output}"
@@ -2098,8 +2097,6 @@ mod tests {
     fn backward_edge_label_near_routed_path_td() {
         use crate::diagrams::flowchart::compile_to_graph;
         use crate::frontends::mermaid::parse_flowchart;
-        use crate::render::graph::{RenderOptions, render};
-
         let flowchart = parse_flowchart("graph TD\n    A --> B\n    B -->|retry| A").unwrap();
         let diagram = compile_to_graph(&flowchart);
         let output = render(&diagram, &RenderOptions::default());

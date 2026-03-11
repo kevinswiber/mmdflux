@@ -1,11 +1,13 @@
+use super::TextLayoutConfig;
+use super::layout_building::{build_layered_layout_with_config, layered_config_for_layout};
+use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds};
 use crate::engines::graph::{EngineConfig, OutputFormat, RenderConfig, RenderError};
 use crate::graph::Diagram;
 use crate::graph::geometry::GraphGeometry;
-use crate::render::graph::SvgOptions;
-use crate::render::graph::layout_building::build_layered_layout_with_config;
-use crate::render::graph::svg::svg_node_dimensions;
-use crate::render::graph::svg_metrics::SvgTextMetrics;
-use crate::render::graph::text_layout::{center_override_subgraphs, expand_parent_bounds};
+use crate::graph::measure::{
+    DEFAULT_FONT_SIZE, DEFAULT_SVG_NODE_PADDING_X, DEFAULT_SVG_NODE_PADDING_Y, SvgTextMetrics,
+    svg_node_dimensions, text_edge_label_dimensions, text_node_dimensions,
+};
 
 /// Measurement mode controls whether layout uses text-grid character
 /// dimensions or SVG pixel dimensions for node sizing.
@@ -22,27 +24,19 @@ impl MeasurementMode {
     pub fn for_format(format: OutputFormat, config: &RenderConfig) -> Self {
         match format {
             OutputFormat::Mmds | OutputFormat::Svg => {
-                let defaults = SvgOptions::default();
-                let font_size = defaults.font_size;
-                let node_padding_x = config.svg_node_padding_x.unwrap_or(defaults.node_padding_x);
-                let node_padding_y = config.svg_node_padding_y.unwrap_or(defaults.node_padding_y);
+                let font_size = DEFAULT_FONT_SIZE;
+                let node_padding_x = config
+                    .svg_node_padding_x
+                    .unwrap_or(DEFAULT_SVG_NODE_PADDING_X);
+                let node_padding_y = config
+                    .svg_node_padding_y
+                    .unwrap_or(DEFAULT_SVG_NODE_PADDING_Y);
                 let metrics = SvgTextMetrics::new(font_size, node_padding_x, node_padding_y);
                 MeasurementMode::Svg(metrics)
             }
             _ => MeasurementMode::Text,
         }
     }
-}
-
-fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
-    let lines: Vec<&str> = label.split('\n').collect();
-    let width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .max()
-        .unwrap_or(0);
-    let height = lines.len().max(1);
-    (width as f64 + 2.0, height as f64)
 }
 
 /// Build a flowchart `TextLayoutConfig` from layered-engine settings.
@@ -52,9 +46,7 @@ fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
 pub(crate) fn layout_config_from_layered(
     layered_cfg: &super::LayoutConfig,
     diagram: &Diagram,
-) -> crate::render::graph::text_layout::TextLayoutConfig {
-    use crate::render::graph::text_layout::TextLayoutConfig;
-
+) -> TextLayoutConfig {
     let defaults = TextLayoutConfig::default();
     let extra_padding = if diagram.has_subgraphs() {
         diagram
@@ -88,12 +80,11 @@ pub fn run_layered_layout(
     diagram: &Diagram,
     config: &EngineConfig,
 ) -> Result<GraphGeometry, RenderError> {
-    use crate::graph::geometry;
+    use crate::engines::graph::algorithms::layered::from_layered_layout;
 
     let EngineConfig::Layered(layered_cfg) = config;
     let text_config = layout_config_from_layered(layered_cfg, diagram);
-    let mut lc =
-        crate::render::graph::layout_building::layered_config_for_layout(diagram, &text_config);
+    let mut lc = layered_config_for_layout(diagram, &text_config);
     lc.greedy_switch = layered_cfg.greedy_switch;
     lc.model_order_tiebreak = layered_cfg.model_order_tiebreak;
     lc.variable_rank_spacing = layered_cfg.variable_rank_spacing;
@@ -109,7 +100,7 @@ pub fn run_layered_layout(
             diagram,
             &lc,
             |node| {
-                let (w, h) = crate::render::graph::text_shape::node_dimensions(node, direction);
+                let (w, h) = text_node_dimensions(node, direction);
                 (w as f64, h as f64)
             },
             |edge| {
@@ -133,7 +124,7 @@ pub fn run_layered_layout(
     center_override_subgraphs(diagram, &mut result);
     expand_parent_bounds(diagram, &mut result, 0.0, 0.0);
 
-    let mut geom = geometry::from_layered_layout(&result, diagram);
+    let mut geom = from_layered_layout(&result, diagram);
     let has_enhancements = layered_cfg.greedy_switch
         || layered_cfg.model_order_tiebreak
         || layered_cfg.variable_rank_spacing;

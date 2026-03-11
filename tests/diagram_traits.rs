@@ -1,4 +1,4 @@
-use mmdflux::engines::graph::EngineConfig;
+use mmdflux::testing::EngineConfig;
 use mmdflux::{DiagramFamily, OutputFormat, PathSimplification, RenderConfig};
 
 #[test]

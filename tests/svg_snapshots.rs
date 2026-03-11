@@ -5,7 +5,7 @@ use mmdflux::diagrams::flowchart::{FlowchartInstance, compile_to_graph};
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::frontends::mmds::{from_mmds_str, render_input};
 use mmdflux::registry::DiagramInstance;
-use mmdflux::render::graph::{RenderOptions, render_svg};
+use mmdflux::testing::{RenderOptions, render_svg};
 use mmdflux::{
     CornerStyle, Curve, EngineAlgorithmId, OutputFormat, PathSimplification, RenderConfig,
     RoutingStyle,

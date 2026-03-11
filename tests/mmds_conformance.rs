@@ -14,13 +14,11 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::engines::graph::EngineConfig;
-use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
 use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{GraphGeometry, LayoutEdge};
 use mmdflux::graph::{Diagram, Subgraph};
 use mmdflux::registry::DiagramInstance;
-use mmdflux::render::graph::{RenderOptions, render};
+use mmdflux::testing::{EngineConfig, MeasurementMode, RenderOptions, render, run_layered_layout};
 use mmdflux::{OutputFormat, RenderConfig};
 
 // ---------------------------------------------------------------------------

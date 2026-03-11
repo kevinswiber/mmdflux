@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! Shared routing primitives used by text and SVG routing paths.
 
 use std::collections::HashMap;

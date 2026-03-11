@@ -6,7 +6,7 @@ contributors:
 
 - `frontends/` own source ingestion
 - `diagrams/` own compilation and instance behavior
-- `graph/` owns graph-family IR and solved geometry models
+- `graph/` owns graph-family IR, routed geometry, and shared policy/measurement helpers
 - `render/` owns output production
 - `mmds/` owns the MMDS contract and output helpers
 
@@ -39,9 +39,11 @@ Guard tests should fail when the code drifts away from these rules.
    renderers that do not use the shared graph-family pipeline live under
    `src/render/diagram/`.
 
-7. **graph/ owns graph-family IR and solved geometry only** — `src/graph/`
-   contains reusable graph-family models, geometry, and related data contracts.
-   Routing and output production do not live under `src/graph/`.
+7. **graph/ owns graph-family IR, routed geometry, and shared policy/measurement helpers** —
+   `src/graph/` contains reusable graph-family models, solved and routed
+   geometry, direction policy, and shared graph-family measurement/routing
+   helpers. Output emission does not live under `src/graph/`, but graph-family
+   routing and shared sizing/policy do.
 
 8. **mmds/ is the MMDS contract and output namespace** — `src/mmds/` owns the
    typed MMDS envelope, profile vocabulary, Mermaid regeneration helpers, and
@@ -52,9 +54,10 @@ Guard tests should fail when the code drifts away from these rules.
    diagram registry.
 
 10. **engines do not know about diagram types** — Engine implementations
-    (`src/engines/`) solve generic graph layout problems. They may use shared
-    graph-family measurement/render helpers, but they never reference
-    flowchart, class, sequence, or other logical diagram types.
+    (`src/engines/`) solve generic graph layout problems and own layout building / measurement adapters.
+    They may use shared graph-family helpers, but they never reference flowchart,
+    class, sequence, or other logical diagram types, and they do not import
+    render-owned modules.
 
 11. **flat top-level contract modules own the stable public contract** —
     Stable public config types, request/response types, diagnostics, and error

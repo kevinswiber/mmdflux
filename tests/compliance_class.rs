@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use mmdflux::diagrams::class::ClassInstance;
 use mmdflux::registry::DiagramInstance;
-use mmdflux::render::graph::{RenderOptions, render_svg};
+use mmdflux::testing::{RenderOptions, render_svg};
 use mmdflux::{OutputFormat, RenderConfig};
 
 fn class_fixture_dir() -> PathBuf {

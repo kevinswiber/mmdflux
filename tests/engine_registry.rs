@@ -4,8 +4,8 @@ use mmdflux::config::{EngineAlgorithmCapabilities, RouteOwnership};
 use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::engines::graph::flux::FluxLayeredEngine;
 use mmdflux::engines::graph::mermaid::MermaidLayeredEngine;
-use mmdflux::engines::graph::{EngineConfig, GraphEngine, GraphEngineRegistry, GraphSolveRequest};
 use mmdflux::registry::DiagramInstance;
+use mmdflux::testing::{EngineConfig, GraphEngine, GraphEngineRegistry, GraphSolveRequest};
 use mmdflux::{
     AlgorithmId, CornerStyle, Curve, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel,
     OutputFormat, PathSimplification, RenderConfig, RenderError, RoutingStyle,

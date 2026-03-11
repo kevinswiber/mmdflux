@@ -10,7 +10,7 @@ use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::registry::default_registry;
-use mmdflux::render::graph::{RenderOptions, render_svg};
+use mmdflux::testing::{RenderOptions, render_svg};
 use mmdflux::{OutputFormat, RenderConfig, generate_mermaid_from_mmds_str};
 
 fn render_with_registry(input: &str, format: OutputFormat) -> String {

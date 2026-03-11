@@ -7,7 +7,8 @@
 use std::collections::HashMap;
 
 use crate::engines::graph::algorithms::layered::{
-    LayoutConfig, MeasurementMode, layout_config_from_layered, run_layered_layout,
+    LayoutConfig, MeasurementMode, build_svg_layout_with_flags, layout_config_from_layered,
+    run_layered_layout,
 };
 use crate::engines::graph::{
     AlgorithmId, EdgeRouting, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineConfig,
@@ -16,6 +17,8 @@ use crate::engines::graph::{
 };
 use crate::graph::Diagram;
 use crate::graph::geometry::RoutedGraphGeometry;
+use crate::graph::measure::default_svg_text_metrics;
+use crate::graph::routing::route_graph_geometry;
 
 /// Mermaid dagre default for isolated subgraphs without explicit direction:
 /// alternate axis from parent (horizontal <-> vertical).
@@ -113,14 +116,8 @@ impl MermaidLayeredEngine {
     /// Mermaid renders to SVG, so this adapter defaults to SVG/MMDS-friendly
     /// measurement and rejects text-family outputs.
     pub fn new() -> Self {
-        let defaults = crate::render::graph::SvgOptions::default();
-        let metrics = crate::render::graph::svg_metrics::SvgTextMetrics::new(
-            defaults.font_size,
-            defaults.node_padding_x,
-            defaults.node_padding_y,
-        );
         Self {
-            mode: MeasurementMode::Svg(metrics),
+            mode: MeasurementMode::Svg(default_svg_text_metrics()),
         }
     }
 
@@ -149,8 +146,6 @@ impl GraphEngine for MermaidLayeredEngine {
         config: &EngineConfig,
         request: &GraphSolveRequest,
     ) -> Result<GraphSolveResult, RenderError> {
-        use crate::render::graph::SvgOptions;
-
         if matches!(
             request.output_format,
             OutputFormat::Text | OutputFormat::Ascii
@@ -167,15 +162,7 @@ impl GraphEngine for MermaidLayeredEngine {
         let mode = match request.output_format {
             OutputFormat::Svg | OutputFormat::Mmds => match &self.mode {
                 MeasurementMode::Svg(_) => self.mode.clone(),
-                MeasurementMode::Text => {
-                    let defaults = SvgOptions::default();
-                    let metrics = crate::render::graph::svg_metrics::SvgTextMetrics::new(
-                        defaults.font_size,
-                        defaults.node_padding_x,
-                        defaults.node_padding_y,
-                    );
-                    MeasurementMode::Svg(metrics)
-                }
+                MeasurementMode::Text => MeasurementMode::Svg(default_svg_text_metrics()),
             },
             _ => self.mode.clone(),
         };
@@ -196,7 +183,7 @@ impl GraphEngine for MermaidLayeredEngine {
                 always_compound_ordering: true,
                 ..Default::default()
             };
-            let geometry = crate::render::graph::svg::build_svg_layout_with_flags(
+            let geometry = build_svg_layout_with_flags(
                 diagram,
                 &layout_config,
                 metrics,
@@ -208,7 +195,7 @@ impl GraphEngine for MermaidLayeredEngine {
                 (request.output_format, request.geometry_level),
                 (OutputFormat::Mmds, GeometryLevel::Routed)
             ) {
-                Some(crate::render::graph::routing::route_graph_geometry(
+                Some(route_graph_geometry(
                     diagram,
                     &geometry,
                     EdgeRouting::PolylineRoute,
@@ -226,7 +213,7 @@ impl GraphEngine for MermaidLayeredEngine {
         let geometry = run_layered_layout(&mode, diagram, config)?;
         let routed: Option<RoutedGraphGeometry> =
             if matches!(request.geometry_level, GeometryLevel::Routed) {
-                Some(crate::render::graph::routing::route_graph_geometry(
+                Some(route_graph_geometry(
                     diagram,
                     &geometry,
                     EdgeRouting::PolylineRoute,

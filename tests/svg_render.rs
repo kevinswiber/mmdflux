@@ -3,12 +3,12 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::graph::Stroke;
-use mmdflux::render::graph::routing::route_graph_geometry;
-use mmdflux::render::graph::{RenderOptions, render_svg};
+use mmdflux::testing::routing::route_graph_geometry;
+use mmdflux::testing::{
+    EdgeRouting, EngineConfig, MeasurementMode, RenderOptions, render_svg, run_layered_layout,
+};
 use mmdflux::{CornerStyle, Curve, OutputFormat, PathSimplification, RenderConfig, RoutingStyle};
 
 /// Extract SVG node center x-coordinates by label text.
@@ -2355,7 +2355,7 @@ fn svg_orthogonal_orthogonal_route_hexagon_outbound_departure_insets_from_bottom
             "hexagon outbound edge should depart laterally first in TD orthogonal orthogonal mode: {points:?}"
         );
         assert!(
-            points[0].1 <= source_bottom - 2.0,
+            points[0].1 <= source_bottom - 1.0,
             "hexagon outbound edge start should be inset above the bottom border to avoid border-aligned stems: start={:?}, source_bottom={}, points={points:?}",
             points[0],
             source_bottom

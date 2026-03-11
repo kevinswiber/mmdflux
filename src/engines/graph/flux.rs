@@ -5,8 +5,8 @@
 //! routing behavior.
 
 use crate::engines::graph::algorithms::layered::{
-    LabelDummyStrategy, LayoutConfig, MeasurementMode, layout_config_from_layered,
-    run_layered_layout,
+    LabelDummyStrategy, LayoutConfig, MeasurementMode, build_svg_layout_with_flags,
+    layout_config_from_layered, run_layered_layout,
 };
 use crate::engines::graph::{
     AlgorithmId, EdgeRouting, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineConfig,
@@ -15,6 +15,8 @@ use crate::engines::graph::{
 };
 use crate::graph::Diagram;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
+use crate::graph::measure::default_svg_text_metrics;
+use crate::graph::routing::route_graph_geometry;
 
 /// Flux-layered engine: native graph-family layout plus native routing.
 pub struct FluxLayeredEngine {
@@ -133,8 +135,7 @@ fn edge_crowding_score(
     geometry: &GraphGeometry,
     edge_routing: EdgeRouting,
 ) -> CrowdingScore {
-    let routed =
-        crate::render::graph::routing::route_graph_geometry(diagram, geometry, edge_routing);
+    let routed = route_graph_geometry(diagram, geometry, edge_routing);
 
     let mut node_intrusions = 0usize;
     for edge in &routed.edges {
@@ -257,20 +258,10 @@ impl GraphEngine for FluxLayeredEngine {
         config: &EngineConfig,
         request: &GraphSolveRequest,
     ) -> Result<GraphSolveResult, RenderError> {
-        use crate::render::graph::SvgOptions;
-
         let mode = match request.output_format {
             OutputFormat::Svg | OutputFormat::Mmds => match &self.mode {
                 MeasurementMode::Svg(_) => self.mode.clone(),
-                MeasurementMode::Text => {
-                    let defaults = SvgOptions::default();
-                    let metrics = crate::render::graph::svg_metrics::SvgTextMetrics::new(
-                        defaults.font_size,
-                        defaults.node_padding_x,
-                        defaults.node_padding_y,
-                    );
-                    MeasurementMode::Svg(metrics)
-                }
+                MeasurementMode::Text => MeasurementMode::Svg(default_svg_text_metrics()),
             },
             _ => self.mode.clone(),
         };
@@ -304,7 +295,7 @@ impl GraphEngine for FluxLayeredEngine {
             let EngineConfig::Layered(ref layered_cfg) = *config;
             let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
             layout_config.cluster_rank_sep = 0.0;
-            let geometry = crate::render::graph::svg::build_svg_layout_with_flags(
+            let geometry = build_svg_layout_with_flags(
                 diagram,
                 &layout_config,
                 metrics,
@@ -322,11 +313,7 @@ impl GraphEngine for FluxLayeredEngine {
         let geometry = run_layered_layout(&mode, diagram, config)?;
         let routed: Option<RoutedGraphGeometry> =
             if matches!(request.geometry_level, GeometryLevel::Routed) {
-                Some(crate::render::graph::routing::route_graph_geometry(
-                    diagram,
-                    &geometry,
-                    edge_routing,
-                ))
+                Some(route_graph_geometry(diagram, &geometry, edge_routing))
             } else {
                 None
             };

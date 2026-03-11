@@ -1,7 +1,7 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
-use mmdflux::frontends::mermaid::{DiagramType, ParseError, detect_diagram_type, parse_flowchart};
+use mmdflux::frontends::mermaid::{DiagramType, ParseError, detect_diagram_type};
 // Verify core expected items are accessible from crate root.
 use mmdflux::{
     Diagram,
@@ -15,10 +15,15 @@ use mmdflux::{
     Shape,
     // Diagrams
     diagrams::flowchart,
+    graph::geometry::{
+        EngineHints, FRect, GraphGeometry, LayeredHints, LayoutEdge, PositionedNode,
+    },
     // Registry
     registry::DiagramInstance,
-    // Direct rendering API
-    render::graph::{RenderOptions, render},
+    // Render-only geometry API
+    render::graph::{
+        SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_text_from_geometry,
+    },
 };
 
 fn public_exports_for_test() -> BTreeSet<String> {
@@ -128,13 +133,72 @@ fn registry_api_works() {
 }
 
 #[test]
-fn direct_render_api_works() {
-    let input = "graph TD\nA-->B";
-    let flowchart = parse_flowchart(input).unwrap();
-    let diagram = flowchart::compile_to_graph(&flowchart);
-    let output = render(&diagram, &RenderOptions::default());
-    assert!(output.contains('A'));
-    assert!(output.contains('B'));
+fn render_only_geometry_api_works() {
+    let mut diagram = Diagram::new(Direction::LeftRight);
+    diagram.add_node(Node::new("A").with_shape(Shape::Rectangle));
+    diagram.add_node(Node::new("B").with_shape(Shape::Rectangle));
+    diagram.add_edge(Edge::new("A", "B"));
+
+    let geometry = GraphGeometry {
+        nodes: HashMap::from([
+            (
+                "A".to_string(),
+                PositionedNode {
+                    id: "A".to_string(),
+                    rect: FRect::new(0.0, 0.0, 9.0, 3.0),
+                    shape: Shape::Rectangle,
+                    label: "A".to_string(),
+                    parent: None,
+                },
+            ),
+            (
+                "B".to_string(),
+                PositionedNode {
+                    id: "B".to_string(),
+                    rect: FRect::new(20.0, 0.0, 9.0, 3.0),
+                    shape: Shape::Rectangle,
+                    label: "B".to_string(),
+                    parent: None,
+                },
+            ),
+        ]),
+        edges: vec![LayoutEdge {
+            index: 0,
+            from: "A".to_string(),
+            to: "B".to_string(),
+            waypoints: vec![],
+            label_position: None,
+            label_side: None,
+            from_subgraph: None,
+            to_subgraph: None,
+            layout_path_hint: None,
+            preserve_orthogonal_topology: false,
+        }],
+        subgraphs: HashMap::new(),
+        self_edges: vec![],
+        direction: Direction::LeftRight,
+        node_directions: HashMap::from([
+            ("A".to_string(), Direction::LeftRight),
+            ("B".to_string(), Direction::LeftRight),
+        ]),
+        bounds: FRect::new(0.0, 0.0, 30.0, 6.0),
+        reversed_edges: vec![],
+        engine_hints: Some(EngineHints::Layered(LayeredHints {
+            node_ranks: HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]),
+            rank_to_position: HashMap::from([(0, (0.0, 3.0)), (1, (20.0, 23.0))]),
+            edge_waypoints: HashMap::new(),
+            label_positions: HashMap::new(),
+        })),
+        rerouted_edges: HashSet::new(),
+        enhanced_backward_routing: false,
+    };
+
+    let text = render_text_from_geometry(&diagram, &geometry, None, &TextRenderOptions::default());
+    assert!(text.contains('A'));
+    assert!(text.contains('B'));
+
+    let svg = render_svg_from_geometry(&diagram, &geometry, &SvgRenderOptions::default());
+    assert!(svg.contains("<svg"));
 }
 
 #[test]
@@ -175,5 +239,4 @@ fn layered_engine_boundary_lives_under_engines_graph() {
 fn engine_adapters_live_in_explicit_modules() {
     let _ = mmdflux::engines::graph::flux::FluxLayeredEngine::text();
     let _ = mmdflux::engines::graph::mermaid::MermaidLayeredEngine::new();
-    let _ = mmdflux::engines::graph::algorithms::layered::MeasurementMode::Text;
 }

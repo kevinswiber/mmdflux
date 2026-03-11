@@ -10,7 +10,7 @@ use super::{
     GraphSolveResult, OutputFormat, PathSimplification, RoutingStyle,
 };
 use crate::graph::Diagram;
-use crate::render::graph::svg_metrics::SvgTextMetrics;
+use crate::graph::measure::SvgTextMetrics;
 
 #[test]
 fn run_layered_layout_simple_graph() {

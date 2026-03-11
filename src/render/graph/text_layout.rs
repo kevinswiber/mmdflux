@@ -605,14 +605,7 @@ pub(crate) use super::layout_subgraph_ops::{
 };
 
 pub(crate) fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
-    let lines: Vec<&str> = label.split('\n').collect();
-    let width = lines
-        .iter()
-        .map(|line| line.chars().count())
-        .max()
-        .unwrap_or(0);
-    let height = lines.len().max(1);
-    (width as f64 + 2.0, height as f64)
+    crate::graph::measure::text_edge_label_dimensions(label)
 }
 
 /// Assign grid positions to nodes based on layers.
@@ -2673,7 +2666,7 @@ mod tests {
     fn test_nested_borders_inner_visible() {
         use crate::diagrams::flowchart::compile_to_graph;
         use crate::frontends::mermaid::parse_flowchart;
-        use crate::render::graph::{RenderOptions, render};
+        use crate::testing::{RenderOptions, render};
 
         let input = "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB --> C\nend\nend\nA --> B\n";
         let flowchart = parse_flowchart(input).unwrap();
@@ -3572,7 +3565,7 @@ mod tests {
     fn cross_boundary_edge_no_panic() {
         use crate::diagrams::flowchart::compile_to_graph;
         use crate::frontends::mermaid::parse_flowchart;
-        use crate::render::graph::{RenderOptions, render};
+        use crate::testing::{RenderOptions, render};
 
         let input =
             "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA --> B\nend\nC --> A\nB --> D\n";

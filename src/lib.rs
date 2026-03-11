@@ -15,21 +15,9 @@
 //!
 //! # Advanced API
 //!
-//! Low-level parsing, compilation, rendering, and registry access remain
-//! available through explicit namespaces such as `frontends`, `diagrams`,
-//! `render`, and `registry`.
-//!
-//! ```
-//! use mmdflux::diagrams::flowchart::compile_to_graph;
-//! use mmdflux::frontends::mermaid::parse_flowchart;
-//! use mmdflux::render::graph::{render, RenderOptions};
-//!
-//! let input = "graph TD\n    A-->B";
-//! let flowchart = parse_flowchart(input).unwrap();
-//! let diagram = compile_to_graph(&flowchart);
-//! let output = render(&diagram, &RenderOptions::default());
-//! println!("{}", output);
-//! ```
+//! Low-level parsing, compilation, MMDS hydration, and render-only geometry
+//! emission remain available through explicit namespaces such as `frontends`,
+//! `diagrams`, `render`, and `registry`.
 
 pub mod config;
 pub mod diagnostics;
@@ -48,6 +36,8 @@ pub mod render;
 pub mod request;
 pub(crate) mod runtime;
 pub mod style;
+#[doc(hidden)]
+pub mod testing;
 
 // Re-export commonly used types for convenience
 pub use config::{

@@ -60,20 +60,36 @@ fn collect_rust_files(dir: &Path, files: &mut Vec<std::path::PathBuf>) {
 fn parse_pub_modules_from_lib_rs() -> BTreeSet<String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
     let content = std::fs::read_to_string(&path).unwrap();
-    content
-        .lines()
-        .filter_map(|line| {
-            let trimmed = line.trim();
-            if trimmed.starts_with("pub mod ") {
-                trimmed
-                    .strip_prefix("pub mod ")
-                    .and_then(|s| s.strip_suffix(';'))
-                    .map(|s| s.to_string())
-            } else {
-                None
+    let mut modules = BTreeSet::new();
+    let mut hide_next_pub_mod = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed == "#[doc(hidden)]" {
+            hide_next_pub_mod = true;
+            continue;
+        }
+
+        if trimmed.starts_with("pub mod ") {
+            let module = trimmed
+                .strip_prefix("pub mod ")
+                .and_then(|s| s.strip_suffix(';'))
+                .map(str::to_string);
+            if let Some(module) = module
+                && !hide_next_pub_mod
+            {
+                modules.insert(module);
             }
-        })
-        .collect()
+            hide_next_pub_mod = false;
+            continue;
+        }
+
+        if !trimmed.is_empty() && !trimmed.starts_with("#[") {
+            hide_next_pub_mod = false;
+        }
+    }
+
+    modules
 }
 
 fn parse_pub_use_re_exports_from_lib_rs() -> BTreeSet<String> {
@@ -228,10 +244,11 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
         "render/ owns output production",
         "render::graph::backends owns graph-family output targets",
         "render::diagram owns family-local renderers",
-        "graph/ owns graph-family IR and solved geometry only",
+        "graph/ owns graph-family IR, routed geometry, and shared policy/measurement helpers",
         "mmds/ is the MMDS contract and output namespace",
         "MMDS is a frontend, not a logical diagram type",
         "engines do not know about diagram types",
+        "own layout building / measurement adapters",
         "flat top-level contract modules own the stable public contract",
         "web main.ts is composition only",
     ] {
@@ -254,7 +271,6 @@ fn removed_transitional_module_roots_stay_gone() {
         "src/parser",
         "src/graph/builder.rs",
         "src/graph/render",
-        "src/graph/routing.rs",
         "src/diagrams/sequence/render",
         "src/diagrams/mmds",
     ] {
@@ -274,6 +290,19 @@ fn removed_transitional_module_roots_stay_gone() {
         repo_root.join("src/render/graph/backends").exists(),
         "graph-family output targets must live under render::graph::backends"
     );
+    for relative_path in [
+        "src/graph/routing.rs",
+        "src/graph/direction_policy.rs",
+        "src/graph/measure.rs",
+        "src/graph/routing_core.rs",
+    ] {
+        let path = repo_root.join(relative_path);
+        assert!(
+            path.exists(),
+            "{} should exist under graph/",
+            path.display()
+        );
+    }
 }
 
 #[test]
@@ -441,6 +470,46 @@ fn engine_graph_root_does_not_flatten_engine_taxonomy() {
         assert!(
             !content.contains(forbidden),
             "engines::graph root must not flatten the engine taxonomy: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn engine_graph_root_does_not_flatten_contracts_barrel() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/engines/graph/mod.rs");
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    assert!(
+        !content.contains("pub use contracts::*"),
+        "engines::graph should not expose a public contracts barrel"
+    );
+}
+
+#[test]
+fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/mod.rs");
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    for forbidden in [
+        "pub fn render(",
+        "pub struct RenderOptions",
+        "pub struct SvgOptions",
+    ] {
+        assert!(
+            !content.contains(forbidden),
+            "legacy direct render surface should not remain public: {forbidden}"
+        );
+    }
+
+    for required in [
+        "pub struct SvgRenderOptions",
+        "pub struct TextRenderOptions",
+        "pub fn render_svg_from_geometry(",
+        "pub fn render_text_from_geometry(",
+    ] {
+        assert!(
+            content.contains(required),
+            "render::graph should expose the render-only geometry API: {required}"
         );
     }
 }

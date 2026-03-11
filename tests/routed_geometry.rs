@@ -8,11 +8,10 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-use mmdflux::engines::graph::{EdgeRouting, EngineConfig};
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::graph::geometry::*;
-use mmdflux::render::graph::routing::{route_graph_geometry, snap_path_to_grid_preview};
+use mmdflux::testing::routing::{route_graph_geometry, snap_path_to_grid_preview};
+use mmdflux::testing::{EdgeRouting, EngineConfig, MeasurementMode, run_layered_layout};
 use mmdflux::{OutputFormat, RenderConfig};
 
 /// Flux-layered LayoutConfig with all enhancements enabled.

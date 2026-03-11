@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 //! SVG rendering for graph-family diagrams.
 
 use std::collections::{HashMap, HashSet};
@@ -15,14 +17,11 @@ use super::text_layout::{
 use super::text_routing_core::{
     build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
 };
-use crate::engines::graph::algorithms::layered::{LayoutResult, MeasurementMode, Point, Rect};
-use crate::engines::graph::flux::{
-    adapt_flux_profile_for_reversed_chain_crowding, flux_layout_profile,
-};
+use crate::engines::graph::algorithms::layered::{LayoutResult, Point, Rect, from_layered_layout};
 use crate::engines::graph::{CornerStyle, Curve, EdgeRouting, PathSimplification};
-use crate::graph::geometry::{self, EngineHints, FPoint, GraphGeometry};
+use crate::graph::geometry::{EngineHints, FPoint, FRect, GraphGeometry};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke};
-use crate::render::graph::{RenderOptions, layout_config_for_diagram};
+use crate::render::graph::SvgRenderOptions;
 
 const STROKE_COLOR: &str = "#333";
 const SUBGRAPH_STROKE: &str = "#888";
@@ -57,66 +56,6 @@ impl<'a> ResolvedSvgNodeStyle<'a> {
     fn text_or(self, default: &'a str) -> &'a str {
         self.text.unwrap_or(default)
     }
-}
-
-pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
-    let svg_options = &options.svg;
-    let metrics = SvgTextMetrics::new(
-        svg_options.font_size,
-        svg_options.node_padding_x,
-        svg_options.node_padding_y,
-    );
-
-    let mut config = layout_config_for_diagram(diagram, options);
-    config.ranker = options.ranker;
-    if options.cluster_ranksep.is_none() {
-        // Mermaid's renderer does not add extra rank separation for clusters.
-        // Keep the default for text output but disable it for SVG unless overridden.
-        config.cluster_rank_sep = 0.0;
-    }
-
-    // Use the canonical flux-layered profile from the engine, ensuring parity
-    // with FluxLayeredEngine::solve() (the CLI path).
-    let edge_routing = options.edge_routing.unwrap_or({
-        // Derive from routing_style (same mapping as flux-layered engine).
-        match options.svg.routing_style {
-            crate::engines::graph::RoutingStyle::Direct => EdgeRouting::DirectRoute,
-            crate::engines::graph::RoutingStyle::Polyline => EdgeRouting::PolylineRoute,
-            crate::engines::graph::RoutingStyle::Orthogonal => EdgeRouting::OrthogonalRoute,
-        }
-    });
-    let input_cfg = crate::engines::graph::algorithms::layered::LayoutConfig::default();
-    let mut flux_flags = flux_layout_profile(&input_cfg, edge_routing);
-    // Apply crowding adaptation for large diagrams (same threshold as engine).
-    if diagram.nodes.len() >= 10 {
-        let mode = MeasurementMode::Svg(metrics.clone());
-        if let Ok(adapted) = adapt_flux_profile_for_reversed_chain_crowding(
-            &mode,
-            diagram,
-            edge_routing,
-            &flux_flags,
-        ) {
-            flux_flags = adapted;
-        }
-    }
-    let geom = build_svg_layout_with_flags(
-        diagram,
-        &config,
-        &metrics,
-        edge_routing,
-        false,
-        Some(&flux_flags),
-    );
-    let rerouted_edges = geom.rerouted_edges.clone();
-    let override_nodes = svg_router::build_override_node_map(diagram);
-    render_svg_with_geometry_context(
-        diagram,
-        options,
-        &geom,
-        &rerouted_edges,
-        &override_nodes,
-        edge_routing,
-    )
 }
 
 /// Build SVG layout with optional engine layout config for enhancement flags.
@@ -236,7 +175,7 @@ pub(crate) fn build_svg_layout_with_flags(
     let has_enhancements = engine_flags
         .map(|f| f.greedy_switch || f.model_order_tiebreak || f.variable_rank_spacing)
         .unwrap_or(false);
-    let mut geom = geometry::from_layered_layout(&layout, diagram);
+    let mut geom = from_layered_layout(&layout, diagram);
     geom.enhanced_backward_routing = has_enhancements;
     if matches!(edge_routing, EdgeRouting::DirectRoute) {
         geom = inject_routed_paths(diagram, &geom, EdgeRouting::DirectRoute);
@@ -255,9 +194,9 @@ pub(crate) fn build_svg_layout_with_flags(
 /// Render SVG directly from precomputed graph geometry.
 ///
 /// This is used by runtime-selected engines that already produce `GraphGeometry`.
-pub fn render_svg_from_geometry(
+pub(crate) fn render_svg_from_geometry(
     diagram: &Diagram,
-    options: &RenderOptions,
+    options: &SvgRenderOptions,
     geom: &GraphGeometry,
     edge_routing: EdgeRouting,
 ) -> String {
@@ -327,18 +266,17 @@ fn inject_orthogonal_route_paths(diagram: &Diagram, geom: &GraphGeometry) -> Gra
 
 fn render_svg_with_geometry_context(
     diagram: &Diagram,
-    options: &RenderOptions,
+    options: &SvgRenderOptions,
     geom: &GraphGeometry,
     rerouted_edges: &HashSet<usize>,
     override_nodes: &HashMap<String, String>,
     edge_routing: EdgeRouting,
 ) -> String {
-    let svg_options = &options.svg;
-    let scale = svg_options.scale;
+    let scale = options.scale;
     let metrics = SvgTextMetrics::new(
-        svg_options.font_size,
-        svg_options.node_padding_x,
-        svg_options.node_padding_y,
+        options.font_size,
+        options.node_padding_x,
+        options.node_padding_y,
     );
 
     let self_edge_paths = compute_self_edge_paths(diagram, geom, &metrics);
@@ -349,8 +287,8 @@ fn render_svg_with_geometry_context(
         &self_edge_paths,
         rerouted_edges,
         edge_routing,
-        svg_options.curve,
-        svg_options.edge_radius,
+        options.curve,
+        options.edge_radius,
         options.path_simplification,
     );
     let bounds = compute_svg_bounds(
@@ -360,7 +298,7 @@ fn render_svg_with_geometry_context(
         &self_edge_paths,
         &prepared_edges.paths,
     );
-    let padding = svg_options.diagram_padding;
+    let padding = options.diagram_padding;
     let (min_x, min_y, max_x, max_y) = bounds.finalize(geom.bounds.width, geom.bounds.height);
     let width = (max_x - min_x + padding * 2.0) * scale;
     let height = (max_y - min_y + padding * 2.0) * scale;
@@ -371,8 +309,8 @@ fn render_svg_with_geometry_context(
     writer.start_svg(
         width,
         height,
-        &svg_options.font_family,
-        svg_options.font_size * scale,
+        &options.font_family,
+        options.font_size * scale,
     );
 
     render_defs(&mut writer, scale);
@@ -385,8 +323,8 @@ fn render_svg_with_geometry_context(
         &mut writer,
         diagram,
         &prepared_edges,
-        svg_options.curve,
-        svg_options.edge_radius,
+        options.curve,
+        options.edge_radius,
         scale,
     );
     render_edge_labels(
@@ -2739,7 +2677,7 @@ fn render_node_shape(
             writer.push_line(&line);
         }
         Shape::Hexagon => {
-            let frect = geometry::FRect::new(rect.x, rect.y, rect.width, rect.height);
+            let frect = FRect::new(rect.x, rect.y, rect.width, rect.height);
             let verts = hexagon_vertices(frect);
             let points: Vec<(f64, f64)> = verts.iter().map(|v| (v.x, v.y)).collect();
             let line = format!(
@@ -3315,9 +3253,9 @@ fn points_for_svg_path(
     let needs_orthogonalization =
         matches!(edge_routing, EdgeRouting::OrthogonalRoute) && matches!(curve, Curve::Linear(_));
     let points: Vec<Point> = if needs_orthogonalization && !points_are_axis_aligned(points) {
-        let start: geometry::FPoint = points[0].into();
-        let end: geometry::FPoint = points.last().copied().unwrap_or(points[0]).into();
-        let waypoints: Vec<geometry::FPoint> = points
+        let start: FPoint = points[0].into();
+        let end: FPoint = points.last().copied().unwrap_or(points[0]).into();
+        let waypoints: Vec<FPoint> = points
             .iter()
             .copied()
             .skip(1)
@@ -4023,7 +3961,7 @@ fn apply_marker_offsets(
         allow_interior_nudges,
         enforce_primary_axis_no_backtrack,
         preserve_orthogonal,
-        preserve_explicit_topology,
+        preserve_explicit_topology: _,
         collapse_terminal_elbows,
         is_curved_style,
         is_rounded_style,
@@ -4103,18 +4041,16 @@ fn apply_marker_offsets(
         } else {
             MIN_ENDPOINT_SUPPORT
         };
-        let start_min_endpoint_support =
-            if preserve_explicit_topology && edge.arrow_start == Arrow::None {
-                0.0
-            } else {
-                min_endpoint_support
-            };
-        let end_min_endpoint_support =
-            if preserve_explicit_topology && edge.arrow_end == Arrow::None {
-                0.0
-            } else {
-                min_endpoint_support
-            };
+        let start_min_endpoint_support = if edge.arrow_start == Arrow::None {
+            0.0
+        } else {
+            min_endpoint_support
+        };
+        let end_min_endpoint_support = if edge.arrow_end == Arrow::None {
+            0.0
+        } else {
+            min_endpoint_support
+        };
         // Save original endpoints before support extension so we can detect
         // when extension shifts the source/target off the node boundary.
         let original_start = points[0];

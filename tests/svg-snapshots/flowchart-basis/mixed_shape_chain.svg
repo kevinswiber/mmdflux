@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 130.88 442.88" style="max-width: 130.88px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 150.70 442.88" style="max-width: 150.70px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -21,19 +21,19 @@
   </defs>
   <g transform="translate(0.00,0.00)">
     <g class="nodes">
-      <rect x="17.81" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="65.44" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
-      <polygon points="65.44,112.00 122.88,169.44 65.44,226.88 8.00,169.44" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="65.44" y="169.44" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
-      <polygon points="34.34,276.88 96.53,276.88 117.27,303.88 96.53,330.88 34.34,330.88 13.61,303.88" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="65.44" y="303.88" text-anchor="middle" dominant-baseline="middle" fill="#333">Hexagon</text>
-      <rect x="22.45" y="380.88" width="85.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="65.44" y="407.88" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      <rect x="27.72" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="75.35" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      <polygon points="75.35,112.00 132.79,169.44 75.35,226.88 17.91,169.44" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="75.35" y="169.44" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
+      <polygon points="34.94,276.88 115.76,276.88 142.70,303.88 115.76,330.88 34.94,330.88 8.00,303.88" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="75.35" y="303.88" text-anchor="middle" dominant-baseline="middle" fill="#333">Hexagon</text>
+      <rect x="32.36" y="380.88" width="85.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="75.35" y="407.88" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
     </g>
     <g class="edgePaths">
-      <path d="M65.44,62.00 L65.44,64.78 C65.44,67.56 65.44,73.11 65.44,78.67 C65.44,84.22 65.44,89.78 65.44,94.67 C65.44,99.56 65.44,103.78 65.44,105.89 L65.44,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M65.44,226.88 L65.44,229.65 C65.44,232.43 65.44,237.99 65.44,243.54 C65.44,249.10 65.44,254.65 65.44,259.54 C65.44,264.43 65.44,268.65 65.44,270.77 L65.44,272.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M65.44,330.88 L65.44,333.65 C65.44,336.43 65.44,341.99 65.44,347.54 C65.44,353.10 65.44,358.65 65.44,363.54 C65.44,368.43 65.44,372.65 65.44,374.77 L65.44,376.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M75.35,62.00 L75.35,64.78 C75.35,67.56 75.35,73.11 75.35,78.67 C75.35,84.22 75.35,89.78 75.35,94.67 C75.35,99.56 75.35,103.78 75.35,105.89 L75.35,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M75.35,226.88 L75.35,229.65 C75.35,232.43 75.35,237.99 75.35,243.54 C75.35,249.10 75.35,254.65 75.35,259.54 C75.35,264.43 75.35,268.65 75.35,270.77 L75.35,272.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M75.35,330.88 L75.35,333.65 C75.35,336.43 75.35,341.99 75.35,347.54 C75.35,353.10 75.35,358.65 75.35,363.54 C75.35,368.43 75.35,372.65 75.35,374.77 L75.35,376.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

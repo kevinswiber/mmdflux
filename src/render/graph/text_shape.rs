@@ -1,24 +1,10 @@
 //! Node shape rendering.
 
+use crate::graph::measure::text_node_dimensions;
 use crate::graph::{Direction, Node, Shape};
 use crate::render::intersect::NodeFace;
 use crate::render::primitives::canvas::{Canvas, CellStyle};
 use crate::render::primitives::chars::CharSet;
-
-/// Split a label into lines, returning the lines and maximum content-line width.
-///
-/// Lines matching `Node::SEPARATOR` are excluded from the width calculation
-/// since they span the full box width regardless of content.
-fn label_lines(label: &str) -> (Vec<&str>, usize) {
-    let lines: Vec<&str> = label.split('\n').collect();
-    let max_width = lines
-        .iter()
-        .filter(|l| **l != Node::SEPARATOR)
-        .map(|l| l.chars().count())
-        .max()
-        .unwrap_or(0);
-    (lines, max_width)
-}
 
 /// Bounding box for a rendered node.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -250,19 +236,7 @@ pub fn categorize_shape(shape: Shape) -> ShapeCategory {
 /// ForkJoin bars are perpendicular to the flow direction: horizontal for TD/BT,
 /// vertical for LR/RL. When rendered vertically, width and height are swapped.
 pub fn node_dimensions(node: &Node, direction: Direction) -> (usize, usize) {
-    let (lines, max_line_len) = label_lines(&node.label);
-    let (w, h) = (max_line_len + 4, lines.len() + 2);
-
-    // ForkJoin bars without labels are rendered as bars perpendicular to flow.
-    // In LR/RL, the bar is vertical so we swap dimensions.
-    if node.shape == Shape::ForkJoin
-        && node.label.trim().is_empty()
-        && matches!(direction, Direction::LeftRight | Direction::RightLeft)
-    {
-        return (h, w);
-    }
-
-    (w, h)
+    text_node_dimensions(node, direction)
 }
 
 #[derive(Debug, Clone, Copy, Default)]

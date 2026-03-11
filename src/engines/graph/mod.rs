@@ -9,16 +9,18 @@
 //! of relying on root-module re-exports.
 
 pub mod algorithms;
-mod contracts;
+#[doc(hidden)]
+pub mod contracts;
 #[cfg(feature = "engine-elk")]
 pub mod elk;
 pub mod flux;
 pub mod mermaid;
-mod registry;
+#[doc(hidden)]
+pub mod registry;
 mod solve;
 #[cfg(test)]
 mod tests;
 
-pub use contracts::*;
-pub use registry::GraphEngineRegistry;
+pub(crate) use contracts::*;
+pub(crate) use registry::GraphEngineRegistry;
 pub(crate) use solve::solve_graph_family;

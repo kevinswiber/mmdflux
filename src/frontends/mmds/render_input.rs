@@ -2,7 +2,9 @@ use super::detect::resolve_logical_diagram_id;
 use super::hydrate::{from_mmds_output, hydrate_graph_geometry_from_output_with_diagram};
 use crate::engines::graph::{EdgeRouting, GeometryLevel, OutputFormat, RenderConfig, RenderError};
 use crate::mmds::{MmdsOutput, generate_mermaid_from_mmds, parse_mmds_input};
-use crate::render::graph::{RenderOptions, render};
+use crate::render::graph::{
+    SvgRenderOptions, render_svg_from_geometry, render_svg_from_geometry_with_routing,
+};
 
 /// Render MMDS input through the frontend path.
 pub fn render_input(
@@ -56,26 +58,32 @@ pub fn render_output(
         message: error.to_string(),
     })?;
 
-    let mut options: RenderOptions = config.into();
-    options.output_format = format;
-
-    if payload.geometry_level == "routed" && matches!(format, OutputFormat::Svg) {
-        let geometry = hydrate_graph_geometry_from_output_with_diagram(payload, &diagram).map_err(
-            |error| RenderError {
+    let geometry =
+        hydrate_graph_geometry_from_output_with_diagram(payload, &diagram).map_err(|error| {
+            RenderError {
                 message: error.to_string(),
-            },
-        )?;
-        return Ok(crate::render::graph::render_svg_from_geometry(
-            &diagram,
-            &options,
-            &geometry,
-            EdgeRouting::EngineProvided,
-        ));
-    }
+            }
+        })?;
 
     match format {
-        OutputFormat::Text | OutputFormat::Ascii | OutputFormat::Svg => {
-            Ok(render(&diagram, &options))
+        OutputFormat::Text | OutputFormat::Ascii => {
+            // Text rendering still relies on the solved layered-hint channel for
+            // rank-to-grid mapping, so MMDS text/ascii intentionally ignores
+            // hydrated routed paths and re-solves from the logical diagram.
+            crate::runtime::facade::render_graph(diagram_id, &diagram, format, config)
+        }
+        OutputFormat::Svg => {
+            let options: SvgRenderOptions = config.into();
+            if payload.geometry_level == "routed" {
+                Ok(render_svg_from_geometry_with_routing(
+                    &diagram,
+                    &geometry,
+                    &options,
+                    EdgeRouting::EngineProvided,
+                ))
+            } else {
+                Ok(render_svg_from_geometry(&diagram, &geometry, &options))
+            }
         }
         _ => Err(RenderError {
             message: format!("{format} output is not supported for {diagram_id} diagrams"),

@@ -4,8 +4,7 @@ use mmdflux::Direction;
 use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::engines::graph::algorithms::layered::LayoutConfig;
 use mmdflux::frontends::mermaid::parse_flowchart;
-use mmdflux::render::graph::text_shape::node_dimensions;
-use mmdflux::render::graph::text_types::TextLayoutConfig;
+use mmdflux::graph::measure::text_node_dimensions;
 
 fn json_escape(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -50,14 +49,13 @@ fn main() {
 
     // Match dagre defaults (Mermaid flowchart defaults).
     let config = LayoutConfig::default();
-    let render_config = TextLayoutConfig::default();
     let node_sep = config.node_sep;
     let edge_sep = config.edge_sep;
     let mut ranksep = config.rank_sep;
     // Apply cluster rank_sep offset when subgraphs are present, matching
     // the engine pipeline which adds cluster_rank_sep for compound graphs.
-    if diagram.has_subgraphs() && render_config.cluster_rank_sep > 0.0 {
-        ranksep += render_config.cluster_rank_sep;
+    if diagram.has_subgraphs() {
+        ranksep += 25.0;
     }
     let margin = config.margin;
 
@@ -72,7 +70,7 @@ fn main() {
 
     let mut nodes: Vec<NodeEntry> = Vec::new();
     for (id, node) in &diagram.nodes {
-        let (w, h) = node_dimensions(node, diagram.direction);
+        let (w, h) = text_node_dimensions(node, diagram.direction);
         nodes.push(NodeEntry {
             id: id.clone(),
             label: node.label.clone(),

@@ -10,7 +10,9 @@
 
 use crate::graph::Shape;
 use crate::graph::geometry::{FPoint, FRect};
-use crate::render::graph::text_routing_core::classify_face_float as shared_classify_face_float;
+use crate::graph::routing_core::{
+    Face as RoutingFace, classify_face_float as shared_classify_face_float,
+};
 use crate::render::graph::text_shape::NodeBounds;
 
 /// Minimum gap between adjacent attachment points on a face.
@@ -45,7 +47,12 @@ pub fn classify_face(
     );
     let approach = FPoint::new(approach_point.0 as f64, approach_point.1 as f64);
 
-    shared_classify_face_float(center, rect, approach).to_node_face()
+    match shared_classify_face_float(center, rect, approach) {
+        RoutingFace::Top => NodeFace::Top,
+        RoutingFace::Bottom => NodeFace::Bottom,
+        RoutingFace::Left => NodeFace::Left,
+        RoutingFace::Right => NodeFace::Right,
+    }
 }
 
 /// Compute N evenly-spaced attachment positions along a face.

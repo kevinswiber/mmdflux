@@ -1,43 +1,42 @@
-//! Graph-family rendering and routing.
+//! Render-only graph-family emission APIs.
 //!
-//! `render::graph` owns the advanced direct-render APIs and all shared
-//! graph-family output helpers. Adapters should normally use the high-level
-//! runtime facade, but lower-level callers can parse with `frontends`,
-//! compile with `diagrams`, and render through this namespace.
+//! `render::graph` exposes narrow, geometry-based rendering entrypoints for
+//! callers that already have `GraphGeometry` or `RoutedGraphGeometry`.
+//! Solve orchestration remains owned by the runtime facade and graph engines.
 
-pub mod backends;
+pub(crate) mod backends;
 pub(crate) mod backward_policy;
 pub(crate) mod layout_building;
 pub(crate) mod layout_subgraph_ops;
 pub(crate) mod orthogonal_router;
-pub mod route_policy;
-pub mod routing;
-pub mod svg;
+pub(crate) mod route_policy;
+pub(crate) mod routing;
+pub(crate) mod svg;
 pub(crate) mod svg_metrics;
 pub(crate) mod svg_router;
-pub mod text_adapter;
-pub mod text_edge;
-pub mod text_layout;
-pub mod text_router;
+pub(crate) mod text_adapter;
+pub(crate) mod text_edge;
+pub(crate) mod text_layout;
+pub(crate) mod text_router;
 pub(crate) mod text_routing_core;
-pub mod text_shape;
-pub mod text_subgraph;
-pub mod text_types;
+pub(crate) mod text_shape;
+pub(crate) mod text_subgraph;
+pub(crate) mod text_types;
 
-pub use self::svg::{render_svg, render_svg_from_geometry};
 use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
 use self::text_edge::render_all_edges_with_labels;
 use self::text_router::{RoutedEdge, Segment, route_all_edges};
 use self::text_shape::render_node;
 use self::text_types::{Layout, SubgraphBounds, TextLayoutConfig};
-use crate::engines::graph::flux::FluxLayeredEngine;
-use crate::engines::graph::{
-    AlgorithmId, Curve, EdgePreset, EdgeRouting, EngineAlgorithmId, EngineId, GraphEngine,
-    OutputFormat, PathSimplification, RenderConfig, RoutingStyle, TextColorMode,
-};
+use crate::engines::graph::EdgeRouting;
+use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::{Diagram, Direction};
 use crate::render::primitives::canvas::{Cell, Connections};
 use crate::render::{Canvas, CharSet};
+use crate::{
+    Curve, EdgePreset, EngineId, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
+    TextColorMode,
+};
 
 /// Engine defaults for SVG style (routing + curve).
 ///
@@ -50,9 +49,50 @@ fn engine_style_defaults(engine: Option<EngineId>) -> (RoutingStyle, Curve) {
     }
 }
 
-impl From<&RenderConfig> for RenderOptions {
+pub(crate) fn edge_routing_from_style(routing_style: RoutingStyle) -> EdgeRouting {
+    match routing_style {
+        RoutingStyle::Direct => EdgeRouting::DirectRoute,
+        RoutingStyle::Polyline => EdgeRouting::PolylineRoute,
+        RoutingStyle::Orthogonal => EdgeRouting::OrthogonalRoute,
+    }
+}
+
+/// Public SVG render options for render-only geometry emission.
+#[derive(Debug, Clone)]
+pub struct SvgRenderOptions {
+    pub scale: f64,
+    pub font_family: String,
+    pub font_size: f64,
+    pub node_padding_x: f64,
+    pub node_padding_y: f64,
+    pub routing_style: RoutingStyle,
+    pub curve: Curve,
+    pub edge_radius: f64,
+    pub diagram_padding: f64,
+    pub path_simplification: PathSimplification,
+}
+
+impl Default for SvgRenderOptions {
+    fn default() -> Self {
+        let font_size = DEFAULT_FONT_SIZE;
+        Self {
+            scale: 1.0,
+            font_family: DEFAULT_FONT_FAMILY.to_string(),
+            font_size,
+            node_padding_x: 15.0,
+            node_padding_y: 15.0,
+            routing_style: RoutingStyle::Orthogonal,
+            curve: Curve::Basis,
+            edge_radius: 5.0,
+            diagram_padding: 8.0,
+            path_simplification: PathSimplification::default(),
+        }
+    }
+}
+
+impl From<&RenderConfig> for SvgRenderOptions {
     fn from(config: &RenderConfig) -> Self {
-        let mut svg = SvgOptions::default();
+        let mut svg = Self::default();
         if let Some(scale) = config.svg_scale {
             svg.scale = scale;
         }
@@ -75,106 +115,100 @@ impl From<&RenderConfig> for RenderOptions {
             .edge_preset
             .map(EdgePreset::expand)
             .unwrap_or((def_routing, def_curve));
-        let resolved_curve = config.curve.unwrap_or(preset_curve);
+
         svg.routing_style = config.routing_style.unwrap_or(preset_routing);
-        svg.curve = resolved_curve;
-
-        let resolved_routing = svg.routing_style;
-        let default_engine = EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered);
-        let engine_id = config.layout_engine.unwrap_or(default_engine);
-        let edge_routing = engine_id.edge_routing_for_style(Some(resolved_routing));
-
-        RenderOptions {
-            output_format: OutputFormat::Text,
-            text_color_mode: config.text_color_mode,
-            svg,
-            ranker: Some(config.layout.ranker.into()),
-            node_spacing: Some(config.layout.node_sep),
-            rank_spacing: Some(config.layout.rank_sep),
-            edge_spacing: Some(config.layout.edge_sep),
-            margin: Some(config.layout.margin),
-            cluster_ranksep: config.cluster_ranksep,
-            padding: config.padding,
-            path_simplification: config.path_simplification,
-            edge_routing: Some(edge_routing),
-        }
+        svg.curve = config.curve.unwrap_or(preset_curve);
+        svg.path_simplification = config.path_simplification;
+        svg
     }
 }
 
-/// SVG render options.
+/// Public text render options for render-only geometry emission.
 #[derive(Debug, Clone)]
-pub struct SvgOptions {
-    pub scale: f64,
-    pub font_family: String,
-    pub font_size: f64,
-    pub node_padding_x: f64,
-    pub node_padding_y: f64,
-    pub routing_style: RoutingStyle,
-    pub curve: Curve,
-    pub edge_radius: f64,
-    pub diagram_padding: f64,
-}
-
-impl Default for SvgOptions {
-    fn default() -> Self {
-        let font_size = DEFAULT_FONT_SIZE;
-        Self {
-            scale: 1.0,
-            font_family: DEFAULT_FONT_FAMILY.to_string(),
-            font_size,
-            node_padding_x: 15.0,
-            node_padding_y: 15.0,
-            routing_style: RoutingStyle::Orthogonal,
-            curve: Curve::Basis,
-            edge_radius: 5.0,
-            diagram_padding: 8.0,
-        }
-    }
-}
-
-/// Render options for graph-family direct rendering.
-#[derive(Debug, Clone)]
-pub struct RenderOptions {
+pub struct TextRenderOptions {
     pub output_format: OutputFormat,
     pub text_color_mode: TextColorMode,
-    pub svg: SvgOptions,
-    pub ranker: Option<crate::engines::graph::algorithms::layered::Ranker>,
-    pub node_spacing: Option<f64>,
-    pub rank_spacing: Option<f64>,
-    pub edge_spacing: Option<f64>,
-    pub margin: Option<f64>,
+    pub routing_style: RoutingStyle,
     pub cluster_ranksep: Option<f64>,
     pub padding: Option<usize>,
     pub path_simplification: PathSimplification,
-    pub edge_routing: Option<EdgeRouting>,
 }
 
-impl Default for RenderOptions {
+impl Default for TextRenderOptions {
     fn default() -> Self {
         Self {
             output_format: OutputFormat::Text,
             text_color_mode: TextColorMode::Plain,
-            svg: SvgOptions::default(),
-            ranker: None,
-            node_spacing: None,
-            rank_spacing: None,
-            edge_spacing: None,
-            margin: None,
+            routing_style: RoutingStyle::Orthogonal,
             cluster_ranksep: None,
             padding: None,
             path_simplification: PathSimplification::default(),
-            edge_routing: None,
         }
     }
 }
 
-impl RenderOptions {
-    pub fn default_svg() -> Self {
+impl From<&RenderConfig> for TextRenderOptions {
+    fn from(config: &RenderConfig) -> Self {
         Self {
-            output_format: OutputFormat::Svg,
-            ..Self::default()
+            output_format: OutputFormat::Text,
+            text_color_mode: config.text_color_mode,
+            routing_style: config
+                .routing_style
+                .or_else(|| config.edge_preset.map(|preset| preset.expand().0))
+                .unwrap_or(RoutingStyle::Orthogonal),
+            cluster_ranksep: config.cluster_ranksep,
+            padding: config.padding,
+            path_simplification: config.path_simplification,
         }
     }
+}
+
+/// Render SVG directly from precomputed graph geometry.
+pub fn render_svg_from_geometry(
+    diagram: &Diagram,
+    geometry: &GraphGeometry,
+    options: &SvgRenderOptions,
+) -> String {
+    render_svg_from_geometry_with_routing(
+        diagram,
+        geometry,
+        options,
+        edge_routing_from_style(options.routing_style),
+    )
+}
+
+pub(crate) fn render_svg_from_geometry_with_routing(
+    diagram: &Diagram,
+    geometry: &GraphGeometry,
+    options: &SvgRenderOptions,
+    edge_routing: EdgeRouting,
+) -> String {
+    svg::render_svg_from_geometry(diagram, options, geometry, edge_routing)
+}
+
+/// Render text or ASCII directly from precomputed graph geometry.
+pub fn render_text_from_geometry(
+    diagram: &Diagram,
+    geometry: &GraphGeometry,
+    routed: Option<&RoutedGraphGeometry>,
+    options: &TextRenderOptions,
+) -> String {
+    let routed_geometry = match routed {
+        Some(routed) => routed.clone(),
+        None => routing::route_graph_geometry(
+            diagram,
+            geometry,
+            edge_routing_from_style(options.routing_style),
+        ),
+    };
+    let config = layout_config_for_diagram(diagram, options);
+    let layout = text_adapter::geometry_to_text_layout_with_routed(
+        diagram,
+        geometry,
+        Some(&routed_geometry),
+        &config,
+    );
+    render_text_from_layout(diagram, &layout, options)
 }
 
 /// Render a diagram to the configured output format.
@@ -182,95 +216,84 @@ impl RenderOptions {
 /// # Example
 ///
 /// ```
-/// use mmdflux::diagrams::flowchart::compile_to_graph;
-/// use mmdflux::frontends::mermaid::parse_flowchart;
-/// use mmdflux::render::graph::{render, RenderOptions};
+/// use mmdflux::graph::geometry::{
+///     EngineHints, FRect, GraphGeometry, LayeredHints, LayoutEdge, PositionedNode,
+/// };
+/// use mmdflux::render::graph::{render_text_from_geometry, TextRenderOptions};
+/// use mmdflux::{Diagram, Direction, Edge, Node, Shape};
+/// use std::collections::{HashMap, HashSet};
 ///
-/// let input = "graph TD\nA[Start] --> B[End]\n";
-/// let flowchart = parse_flowchart(input).unwrap();
-/// let diagram = compile_to_graph(&flowchart);
-/// let ascii = render(&diagram, &RenderOptions::default());
+/// let mut diagram = Diagram::new(Direction::LeftRight);
+/// diagram.add_node(Node::new("A"));
+/// diagram.add_node(Node::new("B"));
+/// diagram.add_edge(Edge::new("A", "B"));
+///
+/// let geometry = GraphGeometry {
+///     nodes: HashMap::from([
+///         (
+///             "A".to_string(),
+///             PositionedNode {
+///                 id: "A".to_string(),
+///                 rect: FRect::new(0.0, 0.0, 9.0, 3.0),
+///                 shape: Shape::Rectangle,
+///                 label: "A".to_string(),
+///                 parent: None,
+///             },
+///         ),
+///         (
+///             "B".to_string(),
+///             PositionedNode {
+///                 id: "B".to_string(),
+///                 rect: FRect::new(20.0, 0.0, 9.0, 3.0),
+///                 shape: Shape::Rectangle,
+///                 label: "B".to_string(),
+///                 parent: None,
+///             },
+///         ),
+///     ]),
+///     edges: vec![LayoutEdge {
+///         index: 0,
+///         from: "A".to_string(),
+///         to: "B".to_string(),
+///         waypoints: vec![],
+///         label_position: None,
+///         label_side: None,
+///         from_subgraph: None,
+///         to_subgraph: None,
+///         layout_path_hint: None,
+///         preserve_orthogonal_topology: false,
+///     }],
+///     subgraphs: HashMap::new(),
+///     self_edges: vec![],
+///     direction: Direction::LeftRight,
+///     node_directions: HashMap::from([
+///         ("A".to_string(), Direction::LeftRight),
+///         ("B".to_string(), Direction::LeftRight),
+///     ]),
+///     bounds: FRect::new(0.0, 0.0, 30.0, 6.0),
+///     reversed_edges: vec![],
+///     engine_hints: Some(EngineHints::Layered(LayeredHints {
+///         node_ranks: HashMap::from([
+///             ("A".to_string(), 0),
+///             ("B".to_string(), 1),
+///         ]),
+///         rank_to_position: HashMap::from([
+///             (0, (0.0, 3.0)),
+///             (1, (20.0, 23.0)),
+///         ]),
+///         edge_waypoints: HashMap::new(),
+///         label_positions: HashMap::new(),
+///     })),
+///     rerouted_edges: HashSet::new(),
+///     enhanced_backward_routing: false,
+/// };
+///
+/// let ascii = render_text_from_geometry(&diagram, &geometry, None, &TextRenderOptions::default());
 /// ```
-pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
-    let engine = FluxLayeredEngine::text();
-    let engine_config = layered_engine_config_for_render(diagram, options);
-    let request_config = RenderConfig {
-        routing_style: routing_style_from_edge_routing(options.edge_routing),
-        path_simplification: options.path_simplification,
-        ..RenderConfig::default()
-    };
-    let request = crate::engines::graph::GraphSolveRequest::from_config(
-        &request_config,
-        options.output_format,
-    );
-    let result = engine
-        .solve(diagram, &engine_config, &request)
-        .expect("engine solve failed in render()");
-
-    match options.output_format {
-        OutputFormat::Svg => backends::svg::render_svg_with_options(diagram, &result, options),
-        OutputFormat::Text | OutputFormat::Ascii => {
-            backends::text::render_text_with_options(diagram, &result, options)
-        }
-        OutputFormat::Mmds => {
-            panic!("use render::graph::backends::mmds::render_mmds_full for MMDS output")
-        }
-        other => panic!("graph-family direct render does not support {other} output"),
-    }
-}
-
-fn layered_engine_config_for_render(
-    diagram: &Diagram,
-    options: &RenderOptions,
-) -> crate::engines::graph::EngineConfig {
-    let mut config = crate::engines::graph::algorithms::layered::LayoutConfig {
-        direction: match diagram.direction {
-            Direction::TopDown => crate::engines::graph::algorithms::layered::Direction::TopBottom,
-            Direction::BottomTop => {
-                crate::engines::graph::algorithms::layered::Direction::BottomTop
-            }
-            Direction::LeftRight => {
-                crate::engines::graph::algorithms::layered::Direction::LeftRight
-            }
-            Direction::RightLeft => {
-                crate::engines::graph::algorithms::layered::Direction::RightLeft
-            }
-        },
-        ..Default::default()
-    };
-
-    if let Some(node_spacing) = options.node_spacing {
-        config.node_sep = node_spacing;
-    }
-    if let Some(rank_spacing) = options.rank_spacing {
-        config.rank_sep = rank_spacing;
-    }
-    if let Some(edge_spacing) = options.edge_spacing {
-        config.edge_sep = edge_spacing;
-    }
-    if let Some(margin) = options.margin {
-        config.margin = margin;
-    }
-    if let Some(ranker) = options.ranker {
-        config.ranker = ranker;
-    }
-
-    crate::engines::graph::EngineConfig::Layered(config)
-}
-
-fn routing_style_from_edge_routing(edge_routing: Option<EdgeRouting>) -> Option<RoutingStyle> {
-    match edge_routing {
-        Some(EdgeRouting::DirectRoute) => Some(RoutingStyle::Direct),
-        Some(EdgeRouting::PolylineRoute) => Some(RoutingStyle::Polyline),
-        Some(EdgeRouting::OrthogonalRoute) => Some(RoutingStyle::Orthogonal),
-        Some(EdgeRouting::EngineProvided) | None => None,
-    }
-}
-
 pub(crate) fn render_text_from_layout(
     diagram: &Diagram,
     layout: &Layout,
-    options: &RenderOptions,
+    options: &TextRenderOptions,
 ) -> String {
     let charset = match options.output_format {
         OutputFormat::Ascii => CharSet::ascii(),
@@ -317,7 +340,7 @@ pub(crate) fn render_text_from_layout(
 
 pub(crate) fn layout_config_for_diagram(
     diagram: &Diagram,
-    options: &RenderOptions,
+    options: &TextRenderOptions,
 ) -> TextLayoutConfig {
     let mut config = TextLayoutConfig::default();
 
@@ -366,18 +389,6 @@ pub(crate) fn layout_config_for_diagram(
         }
     }
 
-    if let Some(node_spacing) = options.node_spacing {
-        config.node_sep = node_spacing;
-    }
-    if let Some(rank_spacing) = options.rank_spacing {
-        config.rank_sep = rank_spacing;
-    }
-    if let Some(edge_spacing) = options.edge_spacing {
-        config.edge_sep = edge_spacing;
-    }
-    if let Some(margin) = options.margin {
-        config.margin = margin;
-    }
     if let Some(cluster_ranksep) = options.cluster_ranksep {
         config.cluster_rank_sep = cluster_ranksep;
     }
@@ -521,9 +532,9 @@ fn branching_label_info(diagram: &Diagram) -> (bool, usize, usize) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::diagrams::flowchart::compile_to_graph;
     use crate::frontends::mermaid::parse_flowchart;
+    use crate::testing::{RenderOptions, render};
 
     #[test]
     fn test_render_with_subgraph_produces_borders() {

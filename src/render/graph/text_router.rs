@@ -745,6 +745,7 @@ fn route_inter_subgraph_edge_via_outer_lane(
 }
 
 /// Route an edge between two nodes.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn route_edge(
     edge: &Edge,
     layout: &Layout,

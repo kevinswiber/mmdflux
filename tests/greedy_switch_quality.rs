@@ -6,7 +6,7 @@ use std::path::Path;
 
 use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::frontends::mermaid::parse_flowchart;
-use mmdflux::render::graph::{RenderOptions, render};
+use mmdflux::testing::{RenderOptions, render};
 
 fn load_fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
