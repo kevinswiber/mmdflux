@@ -7,15 +7,18 @@ use std::fmt::Write;
 
 use super::route_policy::effective_edge_direction;
 use super::svg_metrics::SvgTextMetrics;
-use super::svg_router;
 use super::text_routing_core::{
     build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
 };
-use crate::engines::graph::algorithms::layered::{Point, Rect};
-use crate::engines::graph::{CornerStyle, Curve, EdgeRouting, PathSimplification};
+use crate::graph::direction_policy::build_override_node_map;
 use crate::graph::geometry::{EngineHints, FPoint, FRect, GraphGeometry};
+use crate::graph::routing::EdgeRouting;
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke};
 use crate::render::graph::SvgRenderOptions;
+use crate::{CornerStyle, Curve, PathSimplification};
+
+type Point = FPoint;
+type Rect = FRect;
 
 const STROKE_COLOR: &str = "#333";
 const SUBGRAPH_STROKE: &str = "#888";
@@ -67,7 +70,7 @@ pub(crate) fn render_svg_from_geometry(
     if !matches!(edge_routing, EdgeRouting::DirectRoute) {
         rerouted_edges.extend(geom.rerouted_edges.iter().copied());
     }
-    let override_nodes = svg_router::build_override_node_map(diagram);
+    let override_nodes = build_override_node_map(diagram);
     render_svg_with_geometry_context(
         diagram,
         options,
@@ -324,7 +327,7 @@ fn render_subgraphs(
 
     writer.start_group("clusters");
     for (_id, sg_geom) in subgraphs {
-        let rect = scale_rect(&sg_geom.rect.into(), scale);
+        let rect = scale_rect(&sg_geom.rect, scale);
         let stroke_width = fmt_f64(1.0 * scale);
         let rect_line = format!(
             "<rect class=\"subgraph\" x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\" fill=\"none\" stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" />",
@@ -388,7 +391,7 @@ fn prepare_rendered_edge_paths(
             let points: Vec<Point> = edge
                 .layout_path_hint
                 .as_ref()
-                .map(|ps| ps.iter().map(|p| (*p).into()).collect())
+                .map(|ps| ps.to_vec())
                 .unwrap_or_default();
             (edge.index, points, edge.preserve_orthogonal_topology)
         })
@@ -397,7 +400,7 @@ fn prepare_rendered_edge_paths(
         let points = self_edge_paths
             .get(&se.edge_index)
             .cloned()
-            .unwrap_or_else(|| se.points.iter().map(|p| (*p).into()).collect());
+            .unwrap_or_else(|| se.points.to_vec());
         (se.edge_index, points, false)
     }));
     edge_paths.sort_by_key(|(index, _, _)| *index);
@@ -441,12 +444,12 @@ fn prepare_rendered_edge_paths(
             if let Some(sg_id) = edge.from_subgraph.as_ref()
                 && let Some(sg_geom) = geom.subgraphs.get(sg_id)
             {
-                points = clip_points_to_rect_start(&points, &sg_geom.rect.into());
+                points = clip_points_to_rect_start(&points, &sg_geom.rect);
             }
             if let Some(sg_id) = edge.to_subgraph.as_ref()
                 && let Some(sg_geom) = geom.subgraphs.get(sg_id)
             {
-                points = clip_points_to_rect_end(&points, &sg_geom.rect.into());
+                points = clip_points_to_rect_end(&points, &sg_geom.rect);
             }
         }
 
@@ -1074,11 +1077,11 @@ fn clamp_basis_edge_endpoints_to_boundaries(
     if let Some(sg_id) = edge.from_subgraph.as_ref()
         && let Some(sg_geom) = geom.subgraphs.get(sg_id)
     {
-        clamped = clip_points_to_rect_start(&clamped, &sg_geom.rect.into());
+        clamped = clip_points_to_rect_start(&clamped, &sg_geom.rect);
     } else if let (Some(node), Some(node_geom)) =
         (diagram.nodes.get(&edge.from), geom.nodes.get(&edge.from))
     {
-        let from_rect: Rect = node_geom.rect.into();
+        let from_rect: Rect = node_geom.rect;
         if !matches!(node.shape, Shape::Diamond | Shape::Hexagon)
             && point_inside_rect(&from_rect, clamped[0])
         {
@@ -1093,11 +1096,11 @@ fn clamp_basis_edge_endpoints_to_boundaries(
     if let Some(sg_id) = edge.to_subgraph.as_ref()
         && let Some(sg_geom) = geom.subgraphs.get(sg_id)
     {
-        clamped = clip_points_to_rect_end(&clamped, &sg_geom.rect.into());
+        clamped = clip_points_to_rect_end(&clamped, &sg_geom.rect);
     } else if let (Some(node), Some(node_geom)) =
         (diagram.nodes.get(&edge.to), geom.nodes.get(&edge.to))
     {
-        let to_rect: Rect = node_geom.rect.into();
+        let to_rect: Rect = node_geom.rect;
         let last = clamped.len() - 1;
         if !matches!(node.shape, Shape::Diamond | Shape::Hexagon)
             && point_inside_rect(&to_rect, clamped[last])
@@ -1380,7 +1383,7 @@ fn collapse_primary_face_fan_channel_for_curved(
     let Some(target_geom) = geom.nodes.get(&edge.to) else {
         return points.to_vec();
     };
-    let target_rect: Rect = target_geom.rect.into();
+    let target_rect: Rect = target_geom.rect;
     let mut out = points.to_vec();
     match direction {
         Direction::TopDown | Direction::BottomTop => {
@@ -1741,7 +1744,7 @@ fn render_edge_labels(
     let label_positions: HashMap<usize, Point> = geom
         .edges
         .iter()
-        .filter_map(|e| e.label_position.map(|p| (e.index, p.into())))
+        .filter_map(|e| e.label_position.map(|p| (e.index, p)))
         .collect();
 
     writer.start_group("edgeLabels");
@@ -1858,7 +1861,7 @@ fn render_nodes(
         let Some(pos_node) = geom.nodes.get(node_id) else {
             continue;
         };
-        let rect: Rect = pos_node.rect.into();
+        let rect: Rect = pos_node.rect;
         let style = ResolvedSvgNodeStyle::from_node(node);
         render_node_shape(writer, node, &rect, scale, diagram.direction, style);
 
@@ -2588,11 +2591,11 @@ fn compute_svg_bounds(
     let mut bounds = SvgBounds::new();
 
     for pos_node in geom.nodes.values() {
-        bounds.update_rect(&pos_node.rect.into());
+        bounds.update_rect(&pos_node.rect);
     }
 
     for sg_geom in geom.subgraphs.values() {
-        bounds.update_rect(&sg_geom.rect.into());
+        bounds.update_rect(&sg_geom.rect);
     }
 
     let is_invisible = |index: usize| -> bool {
@@ -2640,7 +2643,7 @@ fn compute_svg_bounds(
     let label_positions: HashMap<usize, Point> = geom
         .edges
         .iter()
-        .filter_map(|e| e.label_position.map(|p| (e.index, p.into())))
+        .filter_map(|e| e.label_position.map(|p| (e.index, p)))
         .collect();
 
     for edge in diagram.edges.iter() {
@@ -2736,19 +2739,15 @@ fn points_for_svg_path(
     let needs_orthogonalization =
         matches!(edge_routing, EdgeRouting::OrthogonalRoute) && matches!(curve, Curve::Linear(_));
     let points: Vec<Point> = if needs_orthogonalization && !points_are_axis_aligned(points) {
-        let start: FPoint = points[0].into();
-        let end: FPoint = points.last().copied().unwrap_or(points[0]).into();
+        let start: FPoint = points[0];
+        let end: FPoint = points.last().copied().unwrap_or(points[0]);
         let waypoints: Vec<FPoint> = points
             .iter()
             .copied()
             .skip(1)
             .take(points.len().saturating_sub(2))
-            .map(Into::into)
             .collect();
         build_orthogonal_path_float(start, end, direction, &waypoints)
-            .into_iter()
-            .map(Into::into)
-            .collect()
     } else {
         points.to_vec()
     };
@@ -2863,19 +2862,19 @@ fn edge_endpoint_shape_rects(
     edge: &Edge,
 ) -> Option<(EndpointShapeRect, EndpointShapeRect)> {
     let from = if let Some(sg_id) = edge.from_subgraph.as_ref() {
-        let sg_rect: Rect = geom.subgraphs.get(sg_id)?.rect.into();
+        let sg_rect: Rect = geom.subgraphs.get(sg_id)?.rect;
         (sg_rect, Shape::Rectangle)
     } else {
-        let node_rect: Rect = geom.nodes.get(&edge.from)?.rect.into();
+        let node_rect: Rect = geom.nodes.get(&edge.from)?.rect;
         let node = diagram.nodes.get(&edge.from)?;
         (node_rect, node.shape)
     };
 
     let to = if let Some(sg_id) = edge.to_subgraph.as_ref() {
-        let sg_rect: Rect = geom.subgraphs.get(sg_id)?.rect.into();
+        let sg_rect: Rect = geom.subgraphs.get(sg_id)?.rect;
         (sg_rect, Shape::Rectangle)
     } else {
-        let node_rect: Rect = geom.nodes.get(&edge.to)?.rect.into();
+        let node_rect: Rect = geom.nodes.get(&edge.to)?.rect;
         let node = diagram.nodes.get(&edge.to)?;
         (node_rect, node.shape)
     };
@@ -4563,8 +4562,8 @@ fn compute_self_edge_paths(
         if se.points.is_empty() {
             continue;
         }
-        let layout_rect: Rect = pos_node.rect.into();
-        let layout_points: Vec<Point> = se.points.iter().map(|p| (*p).into()).collect();
+        let layout_rect: Rect = pos_node.rect;
+        let layout_points: Vec<Point> = se.points.to_vec();
         let adjusted =
             adjust_self_edge_points(&layout_rect, &layout_points, diagram.direction, pad);
         paths.insert(se.edge_index, adjusted);
@@ -4682,12 +4681,12 @@ fn fallback_label_position(
     if let Some(layout_edge) = geom.edges.iter().find(|e| e.index == edge_index)
         && let Some(path) = &layout_edge.layout_path_hint
     {
-        return path.get(path.len() / 2).map(|p| (*p).into());
+        return path.get(path.len() / 2).copied();
     }
 
     // Try self-edges
     if let Some(se) = geom.self_edges.iter().find(|e| e.edge_index == edge_index) {
-        return se.points.get(se.points.len() / 2).map(|p| (*p).into());
+        return se.points.get(se.points.len() / 2).copied();
     }
 
     if let Some(points) = rendered_edge_paths.get(&edge_index) {

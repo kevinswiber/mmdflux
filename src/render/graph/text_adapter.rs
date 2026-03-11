@@ -14,12 +14,11 @@ use std::collections::{HashMap, HashSet};
 use super::text_layout::{
     CoordTransform, GridLayoutConfig, Layout, RawCenter, SelfEdgeDrawData, TransformContext,
     align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
-    compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts, compute_sublayouts,
+    compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts,
     ensure_external_edge_spacing, ensure_subgraph_contains_members, expand_parent_subgraph_bounds,
-    layered_config_for_layout, nudge_colliding_waypoints, rank_gap_repair,
-    reconcile_sublayouts_draw, resolve_sibling_overlaps_draw, shrink_subgraph_horizontal_gaps,
-    shrink_subgraph_vertical_gaps, subgraph_bounds_to_draw, text_edge_label_dimensions,
-    transform_label_positions_direct, transform_waypoints_direct,
+    nudge_colliding_waypoints, rank_gap_repair, reconcile_sublayouts_draw,
+    resolve_sibling_overlaps_draw, shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps,
+    subgraph_bounds_to_draw, transform_label_positions_direct, transform_waypoints_direct,
 };
 use super::text_shape::{NodeBounds, node_dimensions};
 use crate::graph::geometry::{FRect, GraphGeometry, RoutedGraphGeometry};
@@ -28,45 +27,6 @@ use crate::graph::{Diagram, Direction, Edge, Shape};
 type DrawPath = Vec<(usize, usize)>;
 type DrawPathPair = (DrawPath, DrawPath);
 type IndexedDrawPathPair = (usize, DrawPath, usize, DrawPath);
-
-/// Convenience: run the full engine → adapter pipeline to produce a `Layout`.
-///
-/// This is the canonical way to compute a grid layout from a `Diagram` and
-/// `GridLayoutConfig`. Internally runs `FluxLayeredEngine::text().solve()` then
-/// `geometry_to_text_layout()`.
-pub fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {
-    use crate::engines::graph::algorithms::layered::{
-        Direction as LayeredDirection, LayoutConfig as LayeredConfig,
-    };
-    use crate::engines::graph::flux::FluxLayeredEngine;
-    use crate::engines::graph::{
-        EngineConfig, GraphEngine, GraphSolveRequest, OutputFormat, RenderConfig,
-    };
-
-    let engine = FluxLayeredEngine::text();
-    // Construct raw LayeredConfig without pre-applying cluster_rank_sep.
-    // The engine's internal round-trip applies it exactly once.
-    let engine_config = EngineConfig::Layered(LayeredConfig {
-        direction: match diagram.direction {
-            Direction::TopDown => LayeredDirection::TopBottom,
-            Direction::BottomTop => LayeredDirection::BottomTop,
-            Direction::LeftRight => LayeredDirection::LeftRight,
-            Direction::RightLeft => LayeredDirection::RightLeft,
-        },
-        node_sep: config.node_sep,
-        edge_sep: config.edge_sep,
-        rank_sep: config.rank_sep,
-        margin: config.margin,
-        acyclic: true,
-        ranker: config.ranker.unwrap_or_default(),
-        ..Default::default()
-    });
-    let request = GraphSolveRequest::from_config(&RenderConfig::default(), OutputFormat::Text);
-    let result = engine
-        .solve(diagram, &engine_config, &request)
-        .expect("engine solve failed");
-    geometry_to_text_layout(diagram, &result.geometry, config)
-}
 
 /// Convert engine-produced `GraphGeometry` (with text-scale node dimensions)
 /// to the integer-coordinate `Layout` struct consumed by the text renderer.
@@ -92,23 +52,6 @@ pub fn geometry_to_text_layout_with_routed(
 ) -> Layout {
     let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomTop);
     let direction = diagram.direction;
-    let layered_config = layered_config_for_layout(diagram, config);
-
-    // Pre-compute sub-layouts for subgraphs with direction overrides.
-    let sublayouts = compute_sublayouts(
-        diagram,
-        &layered_config,
-        |node| {
-            let (w, h) = node_dimensions(node, direction);
-            (w as f64, h as f64)
-        },
-        |edge| {
-            edge.label
-                .as_ref()
-                .map(|label| text_edge_label_dimensions(label))
-        },
-        false,
-    );
 
     // --- Phase B: Group nodes into layers ---
 
@@ -175,8 +118,8 @@ pub fn geometry_to_text_layout_with_routed(
     let ranks_doubled_for_scale = false;
     let (scale_x, scale_y) = compute_ascii_scale_factors(
         &node_dims,
-        layered_config.rank_sep,
-        layered_config.node_sep,
+        config.rank_sep,
+        config.node_sep,
         config.v_spacing,
         config.h_spacing,
         is_vertical,
@@ -583,11 +526,13 @@ pub fn geometry_to_text_layout_with_routed(
     }
 
     // --- Phase M: Direction-override sub-layout reconciliation ---
-    if !sublayouts.is_empty() {
+    if let Some(projection) = grid_projection
+        && !projection.override_subgraphs.is_empty()
+    {
         reconcile_sublayouts_draw(
             diagram,
             config,
-            &sublayouts,
+            &projection.override_subgraphs,
             &mut draw_positions,
             &mut node_bounds,
             &mut subgraph_bounds,

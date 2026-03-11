@@ -1,9 +1,12 @@
 use super::GridLayoutConfig;
-use super::layout_building::{build_layered_layout_with_config, layered_config_for_layout};
+use super::layout_building::{
+    build_layered_layout_with_config, compute_sublayouts, layered_config_for_layout,
+};
 use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds};
 use crate::engines::graph::{EngineConfig, OutputFormat, RenderConfig, RenderError};
 use crate::graph::Diagram;
 use crate::graph::geometry::GraphGeometry;
+use crate::graph::grid_projection::{GridProjection, GridRanker, OverrideSubgraphProjection};
 use crate::graph::measure::{
     DEFAULT_FONT_SIZE, DEFAULT_SVG_NODE_PADDING_X, DEFAULT_SVG_NODE_PADDING_Y, SvgTextMetrics,
     svg_node_dimensions, text_edge_label_dimensions, text_node_dimensions,
@@ -65,10 +68,62 @@ pub(crate) fn layout_config_from_layered(
         edge_sep: layered_cfg.edge_sep,
         rank_sep: layered_cfg.rank_sep,
         margin: layered_cfg.margin,
-        ranker: Some(layered_cfg.ranker),
+        ranker: Some(match layered_cfg.ranker {
+            super::Ranker::NetworkSimplex => GridRanker::NetworkSimplex,
+            super::Ranker::LongestPath => GridRanker::LongestPath,
+        }),
         padding: defaults.padding + extra_padding,
         ..defaults
     }
+}
+
+fn override_subgraph_projections(
+    diagram: &Diagram,
+    layered_cfg: &super::LayoutConfig,
+) -> std::collections::HashMap<String, OverrideSubgraphProjection> {
+    let text_config = layout_config_from_layered(layered_cfg, diagram);
+    let layered_config = layered_config_for_layout(diagram, &text_config);
+    let direction = diagram.direction;
+
+    compute_sublayouts(
+        diagram,
+        &layered_config,
+        |node| {
+            let (w, h) = text_node_dimensions(node, direction);
+            (w as f64, h as f64)
+        },
+        |edge| {
+            edge.label
+                .as_ref()
+                .map(|label| text_edge_label_dimensions(label))
+        },
+        false,
+    )
+    .into_iter()
+    .map(|(subgraph_id, sublayout)| {
+        (
+            subgraph_id,
+            OverrideSubgraphProjection {
+                nodes: sublayout
+                    .result
+                    .nodes
+                    .into_iter()
+                    .map(|(node_id, rect)| {
+                        (
+                            node_id.0,
+                            crate::graph::geometry::FRect::new(
+                                rect.x,
+                                rect.y,
+                                rect.width,
+                                rect.height,
+                            ),
+                        )
+                    })
+                    .collect(),
+            },
+        )
+    })
+    .collect()
 }
 
 /// Run layered layout with a given measurement mode.
@@ -83,6 +138,7 @@ pub fn run_layered_layout(
     use crate::engines::graph::algorithms::layered::from_layered_layout;
 
     let EngineConfig::Layered(layered_cfg) = config;
+    let override_subgraphs = override_subgraph_projections(diagram, layered_cfg);
     let text_config = layout_config_from_layered(layered_cfg, diagram);
     let mut lc = layered_config_for_layout(diagram, &text_config);
     lc.greedy_switch = layered_cfg.greedy_switch;
@@ -125,6 +181,12 @@ pub fn run_layered_layout(
     expand_parent_bounds(diagram, &mut result, 0.0, 0.0);
 
     let mut geom = from_layered_layout(&result, diagram);
+    if !override_subgraphs.is_empty() {
+        let projection = geom
+            .grid_projection
+            .get_or_insert_with(GridProjection::default);
+        projection.override_subgraphs = override_subgraphs;
+    }
     let has_enhancements = layered_cfg.greedy_switch
         || layered_cfg.model_order_tiebreak
         || layered_cfg.variable_rank_spacing;

@@ -435,15 +435,17 @@ pub mod render {
                 .expect("engine solve failed in testing::render");
 
             match options.output_format {
-                OutputFormat::Svg => crate::render::graph::backends::svg::render_svg_with_options(
+                OutputFormat::Svg => crate::render::graph::render_svg_from_geometry_with_routing(
                     diagram,
-                    &result,
+                    &result.geometry,
                     &svg_render_options(options),
+                    internal_edge_routing(options),
                 ),
                 OutputFormat::Text | OutputFormat::Ascii => {
-                    crate::render::graph::backends::text::render_text_with_options(
+                    crate::render::graph::render_text_from_geometry(
                         diagram,
-                        &result,
+                        &result.geometry,
+                        result.routed.as_ref(),
                         &text_render_options(options),
                     )
                 }
@@ -503,9 +505,49 @@ pub mod render {
 
         /// Hidden text-layout adapter helpers.
         pub mod text_adapter {
-            pub use crate::render::graph::text_adapter::{
-                compute_layout, geometry_to_text_layout, geometry_to_text_layout_with_routed,
+            use crate::engines::graph::algorithms::layered::{
+                Direction as LayeredDirection, LayoutConfig as LayeredConfig, Ranker,
             };
+            use crate::engines::graph::flux::FluxLayeredEngine;
+            use crate::engines::graph::{
+                EngineConfig, GraphEngine, GraphSolveRequest, OutputFormat, RenderConfig,
+            };
+            use crate::graph::grid_projection::{GridLayoutConfig, GridRanker};
+            use crate::graph::{Diagram, Direction};
+            pub use crate::render::graph::text_adapter::{
+                geometry_to_text_layout, geometry_to_text_layout_with_routed,
+            };
+            use crate::render::graph::text_types::Layout;
+
+            /// Hidden compatibility helper for tests that still want
+            /// solve-and-project text layout in one step.
+            pub fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {
+                let engine = FluxLayeredEngine::text();
+                let engine_config = EngineConfig::Layered(LayeredConfig {
+                    direction: match diagram.direction {
+                        Direction::TopDown => LayeredDirection::TopBottom,
+                        Direction::BottomTop => LayeredDirection::BottomTop,
+                        Direction::LeftRight => LayeredDirection::LeftRight,
+                        Direction::RightLeft => LayeredDirection::RightLeft,
+                    },
+                    node_sep: config.node_sep,
+                    edge_sep: config.edge_sep,
+                    rank_sep: config.rank_sep,
+                    margin: config.margin,
+                    acyclic: true,
+                    ranker: match config.ranker.unwrap_or_default() {
+                        GridRanker::NetworkSimplex => Ranker::NetworkSimplex,
+                        GridRanker::LongestPath => Ranker::LongestPath,
+                    },
+                    ..Default::default()
+                });
+                let request =
+                    GraphSolveRequest::from_config(&RenderConfig::default(), OutputFormat::Text);
+                let result = engine
+                    .solve(diagram, &engine_config, &request)
+                    .expect("engine solve failed");
+                geometry_to_text_layout(diagram, &result.geometry, config)
+            }
         }
 
         /// Hidden text-edge helpers.
@@ -539,7 +581,12 @@ pub mod render {
 
                 pub fn render_text(diagram: &Diagram, result: &GraphSolveResult) -> String {
                     let internal: crate::engines::graph::GraphSolveResult = result.into();
-                    crate::render::graph::backends::text::render_text(diagram, &internal)
+                    crate::render::graph::render_text_from_geometry(
+                        diagram,
+                        &internal.geometry,
+                        internal.routed.as_ref(),
+                        &crate::render::graph::TextRenderOptions::default(),
+                    )
                 }
             }
 
@@ -549,7 +596,12 @@ pub mod render {
 
                 pub fn render_svg(diagram: &Diagram, result: &GraphSolveResult) -> String {
                     let internal: crate::engines::graph::GraphSolveResult = result.into();
-                    crate::render::graph::backends::svg::render_svg(diagram, &internal)
+                    crate::render::graph::render_svg_from_geometry_with_routing(
+                        diagram,
+                        &internal.geometry,
+                        &crate::render::graph::SvgRenderOptions::default(),
+                        crate::graph::routing::EdgeRouting::OrthogonalRoute,
+                    )
                 }
             }
 
@@ -564,12 +616,14 @@ pub mod render {
                     diagram: &Diagram,
                     result: &GraphSolveResult,
                 ) -> String {
-                    let internal: crate::engines::graph::GraphSolveResult = result.into();
-                    crate::render::graph::backends::mmds::render_mmds(
+                    render_mmds_full(
                         diagram_type,
                         diagram,
-                        &internal,
+                        result,
+                        GeometryLevel::Routed,
+                        PathSimplification::default(),
                     )
+                    .unwrap_or_else(|error| panic!("MMDS rendering failed: {}", error.message))
                 }
 
                 pub fn render_mmds_full(
@@ -580,12 +634,27 @@ pub mod render {
                     path_simplification: PathSimplification,
                 ) -> Result<String, RenderError> {
                     let internal: crate::engines::graph::GraphSolveResult = result.into();
-                    crate::render::graph::backends::mmds::render_mmds_full(
+                    let routed_owned;
+                    let routed_ref = match internal.routed.as_ref() {
+                        Some(routed) => Some(routed),
+                        None if matches!(level, GeometryLevel::Routed) => {
+                            routed_owned = crate::graph::routing::route_graph_geometry(
+                                diagram,
+                                &internal.geometry,
+                                crate::graph::routing::EdgeRouting::OrthogonalRoute,
+                            );
+                            Some(&routed_owned)
+                        }
+                        None => None,
+                    };
+                    crate::mmds::to_mmds_json_typed(
                         diagram_type,
                         diagram,
-                        &internal,
+                        &internal.geometry,
+                        routed_ref,
                         level,
                         path_simplification,
+                        Some(internal.engine_id),
                     )
                 }
             }

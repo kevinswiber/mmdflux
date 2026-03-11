@@ -21,7 +21,10 @@ use crate::frontends::{InputFrontend, detect_input_frontend};
 use crate::graph::Diagram;
 use crate::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
 use crate::registry::default_registry;
-use crate::render::graph::{SvgRenderOptions, TextRenderOptions};
+use crate::render::graph::{
+    SvgRenderOptions, TextRenderOptions, edge_routing_from_style,
+    render_svg_from_geometry_with_routing, render_text_from_geometry,
+};
 
 /// Render a graph-family diagram through the shared pipeline.
 ///
@@ -46,7 +49,7 @@ pub(crate) fn render_graph(
 
     // Dispatch to format-owned emitters.
     match format {
-        OutputFormat::Mmds => crate::render::graph::backends::mmds::render_mmds_full(
+        OutputFormat::Mmds => render_mmds_from_solve_result(
             diagram_id,
             diagram,
             &result,
@@ -55,25 +58,60 @@ pub(crate) fn render_graph(
         ),
         OutputFormat::Svg => {
             let options: SvgRenderOptions = config.into();
-            Ok(
-                crate::render::graph::backends::svg::render_svg_with_options(
-                    diagram, &result, &options,
-                ),
-            )
+            let edge_routing = edge_routing_from_style(options.routing_style);
+            Ok(render_svg_from_geometry_with_routing(
+                diagram,
+                &result.geometry,
+                &options,
+                edge_routing,
+            ))
         }
         OutputFormat::Text | OutputFormat::Ascii => {
             let mut options: TextRenderOptions = config.into();
             options.output_format = format;
-            Ok(
-                crate::render::graph::backends::text::render_text_with_options(
-                    diagram, &result, &options,
-                ),
-            )
+            Ok(render_text_from_geometry(
+                diagram,
+                &result.geometry,
+                result.routed.as_ref(),
+                &options,
+            ))
         }
         _ => Err(RenderError {
             message: format!("{format} output is not supported for {diagram_id} diagrams"),
         }),
     }
+}
+
+fn render_mmds_from_solve_result(
+    diagram_type: &str,
+    diagram: &Diagram,
+    result: &crate::engines::graph::GraphSolveResult,
+    level: crate::engines::graph::GeometryLevel,
+    path_simplification: crate::engines::graph::PathSimplification,
+) -> Result<String, RenderError> {
+    let routed_owned;
+    let routed_ref = match result.routed.as_ref() {
+        Some(routed) => Some(routed),
+        None if matches!(level, crate::engines::graph::GeometryLevel::Routed) => {
+            routed_owned = crate::graph::routing::route_graph_geometry(
+                diagram,
+                &result.geometry,
+                crate::graph::routing::EdgeRouting::OrthogonalRoute,
+            );
+            Some(&routed_owned)
+        }
+        None => None,
+    };
+
+    crate::mmds::to_mmds_json_typed(
+        diagram_type,
+        diagram,
+        &result.geometry,
+        routed_ref,
+        level,
+        path_simplification,
+        Some(result.engine_id),
+    )
 }
 
 /// Detect the diagram type from input text.

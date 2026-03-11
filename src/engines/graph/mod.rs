@@ -24,3 +24,5 @@ mod tests;
 pub(crate) use contracts::*;
 pub(crate) use registry::GraphEngineRegistry;
 pub(crate) use solve::solve_graph_family;
+
+pub(crate) use crate::graph::routing::EdgeRouting;

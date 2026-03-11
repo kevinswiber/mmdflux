@@ -57,6 +57,68 @@ fn collect_rust_files(dir: &Path, files: &mut Vec<std::path::PathBuf>) {
     }
 }
 
+fn strip_cfg_test_items(source: &str) -> String {
+    let mut kept = String::new();
+    let mut skip_next_item = false;
+    let mut skip_block_depth = 0usize;
+
+    for line in source.lines() {
+        let trimmed = line.trim();
+
+        if skip_block_depth > 0 {
+            skip_block_depth += trimmed.matches('{').count();
+            skip_block_depth = skip_block_depth.saturating_sub(trimmed.matches('}').count());
+            continue;
+        }
+
+        if skip_next_item {
+            if trimmed.contains('{') {
+                skip_block_depth += trimmed.matches('{').count();
+                skip_block_depth = skip_block_depth.saturating_sub(trimmed.matches('}').count());
+            }
+            if !trimmed.ends_with(';') && skip_block_depth == 0 {
+                continue;
+            }
+            skip_next_item = false;
+            continue;
+        }
+
+        if trimmed.starts_with("#[cfg(") && trimmed.contains("test") {
+            skip_next_item = true;
+            continue;
+        }
+
+        kept.push_str(line);
+        kept.push('\n');
+    }
+
+    kept
+}
+
+fn assert_no_production_imports(dir: &Path, forbidden: &[&str], message: &str) {
+    let mut files = Vec::new();
+    collect_rust_files(dir, &mut files);
+
+    for path in files {
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("");
+        if file_name == "tests.rs" || file_name.ends_with("_tests.rs") {
+            continue;
+        }
+        let content = std::fs::read_to_string(&path).unwrap();
+        let production = strip_cfg_test_items(&content);
+        for needle in forbidden {
+            assert!(
+                !production.contains(needle),
+                "{message}: forbidden import `{needle}` found in {}",
+                path.display()
+            );
+        }
+    }
+}
+
 fn parse_pub_modules_from_lib_rs() -> BTreeSet<String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
     let content = std::fs::read_to_string(&path).unwrap();
@@ -242,7 +304,8 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
         "diagrams do not parse source text directly",
         "diagrams do not render",
         "render/ owns output production",
-        "render::graph::backends owns graph-family output targets",
+        "render::graph owns geometry-based graph-family emitters",
+        "runtime owns graph-family solve-result dispatch",
         "render::diagram owns family-local renderers",
         "graph/ owns graph-family IR, routed geometry, and shared policy/measurement helpers",
         "mmds/ is the MMDS contract and output namespace",
@@ -287,8 +350,14 @@ fn removed_transitional_module_roots_stay_gone() {
         "top-level render namespace must be directory-based"
     );
     assert!(
-        repo_root.join("src/render/graph/backends").exists(),
-        "graph-family output targets must live under render::graph::backends"
+        !repo_root.join("src/render/graph/backends").exists(),
+        "graph-family solve-result adapters should not live under render::graph"
+    );
+    assert!(
+        !repo_root
+            .join("src/render/graph/layout_building.rs")
+            .exists(),
+        "render::graph should not keep a layout-building compatibility shim"
     );
     for relative_path in [
         "src/graph/routing.rs",
@@ -555,4 +624,45 @@ fn render_text_sources_use_graph_owned_projection_types_and_direct_mmds_replay()
             "render text replay should not rely on layered-owned bridge types or runtime solve fallback: {forbidden}"
         );
     }
+}
+
+#[test]
+fn graph_does_not_import_render_or_layered_kernel() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert_no_production_imports(
+        &repo_root.join("src/graph"),
+        &[
+            "crate::render::",
+            "crate::engines::graph::algorithms::layered",
+        ],
+        "graph/ should remain render-agnostic and layered-kernel agnostic",
+    );
+}
+
+#[test]
+fn engines_do_not_import_render() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert_no_production_imports(
+        &repo_root.join("src/engines"),
+        &["crate::render::"],
+        "engines/ should not import render-owned modules",
+    );
+}
+
+#[test]
+fn render_does_not_import_engine_adapters_or_layered_config() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert_no_production_imports(
+        &repo_root.join("src/render"),
+        &[
+            "crate::engines::graph::GraphSolveResult",
+            "crate::engines::graph::GraphSolveRequest",
+            "crate::engines::graph::EngineConfig",
+            "crate::engines::graph::solve_graph_family",
+            "crate::engines::graph::flux::FluxLayeredEngine",
+            "crate::engines::graph::mermaid::MermaidLayeredEngine",
+            "crate::engines::graph::algorithms::layered::",
+        ],
+        "render/ should remain engine-result and layered-config agnostic",
+    );
 }

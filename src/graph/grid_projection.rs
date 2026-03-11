@@ -7,7 +7,15 @@
 
 use std::collections::HashMap;
 
-use crate::graph::geometry::FPoint;
+use crate::graph::geometry::{FPoint, FRect};
+
+/// Grid-layout rank assignment strategy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GridRanker {
+    #[default]
+    NetworkSimplex,
+    LongestPath,
+}
 
 /// Configuration for discrete grid layout computation.
 ///
@@ -26,7 +34,7 @@ pub struct GridLayoutConfig {
     /// Extra right margin for edge labels on right branches.
     pub right_label_margin: usize,
     /// Ranking algorithm override.
-    pub ranker: Option<crate::engines::graph::algorithms::layered::Ranker>,
+    pub ranker: Option<GridRanker>,
     /// Node spacing (nodesep).
     pub node_sep: f64,
     /// Edge segment spacing (edgesep).
@@ -68,4 +76,13 @@ pub struct GridProjection {
     /// Label positions with rank info for grid-snap transformation.
     /// Key: edge index, Value: (position, rank).
     pub label_positions: HashMap<usize, (FPoint, i32)>,
+    /// Precomputed direction-override subgraph layouts for grid replay.
+    pub override_subgraphs: HashMap<String, OverrideSubgraphProjection>,
+}
+
+/// Graph-owned replay data for a direction-override subgraph.
+#[derive(Debug, Clone, Default)]
+pub struct OverrideSubgraphProjection {
+    /// Per-node sublayout rectangles in subgraph-local float coordinates.
+    pub nodes: HashMap<String, FRect>,
 }

@@ -126,6 +126,38 @@ def strip_comments(source: str) -> str:
     return LINE_COMMENT_RE.sub("", without_block_comments)
 
 
+def strip_cfg_test_items(source: str) -> str:
+    kept: list[str] = []
+    skip_next_item = False
+    skip_block_depth = 0
+
+    for line in source.splitlines():
+        stripped = line.strip()
+
+        if skip_block_depth > 0:
+            skip_block_depth += stripped.count("{")
+            skip_block_depth -= stripped.count("}")
+            continue
+
+        if skip_next_item:
+            if "{" in stripped:
+                skip_block_depth += stripped.count("{")
+                skip_block_depth -= stripped.count("}")
+            if stripped.endswith(";"):
+                skip_next_item = False
+            elif skip_block_depth == 0:
+                skip_next_item = False
+            continue
+
+        if stripped.startswith("#[cfg(") and "test" in stripped:
+            skip_next_item = True
+            continue
+
+        kept.append(line)
+
+    return "\n".join(kept)
+
+
 def split_top_level_commas(value: str) -> list[str]:
     parts: list[str] = []
     current: list[str] = []
@@ -223,7 +255,7 @@ def collect_dependencies(
         if not module_path:
             continue
 
-        source = strip_comments(read_text(file_path))
+        source = strip_cfg_test_items(strip_comments(read_text(file_path)))
 
         for use_body in USE_RE.findall(source):
             for raw_ref in expand_use_tree(use_body):

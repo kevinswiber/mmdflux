@@ -11,7 +11,7 @@ use serde_json::{Map, Number, Value};
 
 use crate::engines::graph::{EngineAlgorithmId, GeometryLevel, PathSimplification, RenderError};
 use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry};
-use crate::graph::grid_projection::GridProjection;
+use crate::graph::grid_projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
 use crate::style::NodeStyle;
 
@@ -371,6 +371,23 @@ fn serialize_grid_projection(grid_projection: &GridProjection) -> Map<String, Va
                 .collect(),
         ),
     );
+    if !grid_projection.override_subgraphs.is_empty() {
+        projection.insert(
+            "override_subgraphs".to_string(),
+            Value::Object(
+                grid_projection
+                    .override_subgraphs
+                    .iter()
+                    .map(|(subgraph_id, projection)| {
+                        (
+                            subgraph_id.clone(),
+                            Value::Object(serialize_override_subgraph_projection(projection)),
+                        )
+                    })
+                    .collect(),
+            ),
+        );
+    }
     projection
 }
 
@@ -385,6 +402,41 @@ fn ranked_point_value(point: crate::graph::geometry::FPoint, rank: i32) -> Value
         Value::Number(Number::from_f64(point.y).expect("grid projection y should be finite")),
     );
     value.insert("rank".to_string(), Value::Number(Number::from(rank)));
+    Value::Object(value)
+}
+
+fn serialize_override_subgraph_projection(
+    projection: &OverrideSubgraphProjection,
+) -> Map<String, Value> {
+    projection
+        .nodes
+        .iter()
+        .map(|(node_id, rect)| (node_id.clone(), rect_value(*rect)))
+        .collect()
+}
+
+fn rect_value(rect: crate::graph::geometry::FRect) -> Value {
+    let mut value = Map::new();
+    value.insert(
+        "x".to_string(),
+        Value::Number(Number::from_f64(rect.x).expect("subgraph projection x should be finite")),
+    );
+    value.insert(
+        "y".to_string(),
+        Value::Number(Number::from_f64(rect.y).expect("subgraph projection y should be finite")),
+    );
+    value.insert(
+        "width".to_string(),
+        Value::Number(
+            Number::from_f64(rect.width).expect("subgraph projection width should be finite"),
+        ),
+    );
+    value.insert(
+        "height".to_string(),
+        Value::Number(
+            Number::from_f64(rect.height).expect("subgraph projection height should be finite"),
+        ),
+    );
     Value::Object(value)
 }
 

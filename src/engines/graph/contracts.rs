@@ -12,6 +12,7 @@ pub use crate::config::{
 pub use crate::errors::RenderError;
 pub use crate::family::DiagramFamily;
 pub use crate::format::{CornerStyle, Curve, EdgePreset, OutputFormat, RoutingStyle};
+use crate::graph::routing::EdgeRouting;
 
 impl EngineAlgorithmId {
     /// Resolve the edge routing algorithm for a given routing style.
@@ -40,19 +41,6 @@ impl From<LayoutConfig> for EngineConfig {
     fn from(config: LayoutConfig) -> Self {
         EngineConfig::Layered(config.into())
     }
-}
-
-/// Edge routing determined by engine capabilities.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EdgeRouting {
-    /// Engine provides node positions; emit direct source→target paths.
-    DirectRoute,
-    /// Engine provides only node positions; run full edge routing.
-    PolylineRoute,
-    /// Engine provides routed edge paths; apply clipping and spacing only.
-    EngineProvided,
-    /// Engine produces axis-aligned (right-angle) edge paths.
-    OrthogonalRoute,
 }
 
 /// Request parameters for a `GraphEngine::solve()` call.

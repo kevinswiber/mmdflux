@@ -4,14 +4,11 @@
 //! callers that already have `GraphGeometry` or `RoutedGraphGeometry`.
 //! Solve orchestration remains owned by the runtime facade and graph engines.
 
-pub(crate) mod backends;
 pub(crate) mod backward_policy;
-pub(crate) mod layout_building;
 pub(crate) mod route_policy;
 pub(crate) mod routing;
 pub(crate) mod svg;
 pub(crate) mod svg_metrics;
-pub(crate) mod svg_router;
 pub(crate) mod text_adapter;
 pub(crate) mod text_edge;
 pub(crate) mod text_layout;
@@ -26,8 +23,8 @@ use self::text_edge::render_all_edges_with_labels;
 use self::text_router::{RoutedEdge, Segment, route_all_edges};
 use self::text_shape::render_node;
 use self::text_types::{GridLayoutConfig, Layout, SubgraphBounds};
-use crate::engines::graph::EdgeRouting;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
+use crate::graph::routing::EdgeRouting;
 use crate::graph::{Diagram, Direction};
 use crate::render::primitives::canvas::{Cell, Connections};
 use crate::render::{Canvas, CharSet};

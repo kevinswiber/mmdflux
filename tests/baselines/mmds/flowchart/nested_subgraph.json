@@ -1,5 +1,30 @@
 {
   "version": 1,
+  "profiles": [
+    "mmds-core-v1",
+    "mmdflux-text-v1"
+  ],
+  "extensions": {
+    "org.mmdflux.render.text.v1": {
+      "projection": {
+        "edge_waypoints": {
+          "1": [
+            {
+              "rank": 2,
+              "x": 121.768,
+              "y": 212.0
+            }
+          ]
+        },
+        "label_positions": {},
+        "node_ranks": {
+          "A": 1,
+          "B": 3,
+          "C": 4
+        }
+      }
+    }
+  },
   "defaults": {
     "node": {
       "shape": "rectangle"

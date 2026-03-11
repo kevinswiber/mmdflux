@@ -217,6 +217,7 @@ pub fn from_layered_layout(result: &LayoutResult, diagram: &Diagram) -> GraphGeo
                 .iter()
                 .map(|(&idx, wp)| (idx, (FPoint::new(wp.point.x, wp.point.y), wp.rank)))
                 .collect(),
+            override_subgraphs: HashMap::new(),
         }),
         rerouted_edges: HashSet::new(),
         enhanced_backward_routing: false,

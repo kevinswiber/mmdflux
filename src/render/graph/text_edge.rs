@@ -1241,11 +1241,11 @@ fn draw_label_direct(
 
 #[cfg(test)]
 mod tests {
-    use super::super::text_adapter::compute_layout;
     use super::super::text_layout::GridLayoutConfig;
     use super::super::text_router::route_edge;
     use super::*;
     use crate::graph::{Diagram, Edge, Node};
+    use crate::testing::text_adapter::compute_layout;
     use crate::testing::{RenderOptions, render};
 
     fn simple_diagram() -> Diagram {

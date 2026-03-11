@@ -30,60 +30,65 @@ Guard tests should fail when the code drifts away from these rules.
    `src/render/`. There is no top-level `formats/` ownership boundary and no
    graph render tree under `src/graph/`.
 
-5. **render::graph::backends owns graph-family output targets** — Shared
-   graph-family output targets (`text`, `svg`, `mmds`) live under
-   `src/render/graph/backends/`. They consume shared graph-family models and
-   solved geometry.
+5. **render::graph owns geometry-based graph-family emitters** — Shared
+   graph-family text and SVG emission lives under `src/render/graph/` and
+   consumes `GraphGeometry` or `RoutedGraphGeometry`. Render code does not
+   take `GraphSolveResult` or instantiate engines.
 
-6. **render::diagram owns family-local renderers** — Timeline/chart/table
+6. **runtime owns graph-family solve-result dispatch** — `src/runtime/`
+   resolves graph-family output formats from engine solve results and owns the
+   final dispatch to MMDS serialization or geometry-based renderers. Runtime
+   does not own renderer implementations.
+
+7. **render::diagram owns family-local renderers** — Timeline/chart/table
    renderers that do not use the shared graph-family pipeline live under
    `src/render/diagram/`.
 
-7. **graph/ owns graph-family IR, routed geometry, and shared policy/measurement helpers** —
+8. **graph/ owns graph-family IR, routed geometry, and shared policy/measurement helpers** —
    `src/graph/` contains reusable graph-family models, solved and routed
    geometry, direction policy, and shared graph-family measurement/routing
    helpers. Output emission does not live under `src/graph/`, but graph-family
    routing and shared sizing/policy do.
 
-8. **mmds/ is the MMDS contract and output namespace** — `src/mmds/` owns the
+9. **mmds/ is the MMDS contract and output namespace** — `src/mmds/` owns the
    typed MMDS envelope, profile vocabulary, Mermaid regeneration helpers, and
    MMDS serialization for graph-family output.
 
-9. **MMDS is a frontend, not a logical diagram type** — MMDS input handling
+10. **MMDS is a frontend, not a logical diagram type** — MMDS input handling
    lives under `src/frontends/mmds/`. MMDS is not registered in the logical
    diagram registry.
 
-10. **engines do not know about diagram types** — Engine implementations
+11. **engines do not know about diagram types** — Engine implementations
     (`src/engines/`) solve generic graph layout problems and own layout building / measurement adapters.
     They may use shared graph-family helpers, but they never reference flowchart,
     class, sequence, or other logical diagram types, and they do not import
     render-owned modules.
 
-11. **flat top-level contract modules own the stable public contract** —
+12. **flat top-level contract modules own the stable public contract** —
     Stable public config types, request/response types, diagnostics, and error
     vocabulary live in `src/config.rs`, `src/format.rs`, `src/request.rs`,
     `src/errors.rs`, `src/diagnostics.rs`, and `src/family.rs`. Other
     namespaces are either advanced APIs or internal helpers.
 
-12. **runtime/ is orchestration only** — The runtime layer detects input
+13. **runtime/ is orchestration only** — The runtime layer detects input
     frontends, resolves logical diagram types, manages the registry, and wires
     the pipeline. It does not own parsing grammars, layout algorithms, or
     renderer implementations.
 
-13. **registry is advanced infrastructure** — `src/registry.rs` remains public
+14. **registry is advanced infrastructure** — `src/registry.rs` remains public
     for power-user flows, but it is not the default onboarding path. The
     default public story is crate-root facade first.
 
 ## Adapter Rules
 
-14. **web main.ts is composition only** — The web playground's `main.ts` is a
+15. **web main.ts is composition only** — The web playground's `main.ts` is a
     composition root that wires stores, services, and controllers. It does not
     contain application logic, state management, or rendering orchestration.
 
-15. **wasm adapter is a thin boundary** — `crates/mmdflux-wasm` deserializes JS
+16. **wasm adapter is a thin boundary** — `crates/mmdflux-wasm` deserializes JS
     requests, calls the Rust facade, and serializes responses. It does not
     duplicate config parsing, registry logic, or format selection.
 
-16. **CLI adapter is a thin boundary** — `src/main.rs` maps CLI flags to the
+17. **CLI adapter is a thin boundary** — `src/main.rs` maps CLI flags to the
     Rust facade contract and formats output. It does not contain business logic
     beyond argument mapping.

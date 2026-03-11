@@ -12,9 +12,21 @@ use super::orthogonal_router::{
     OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal, snap_path_to_grid,
 };
 use super::routing_core::compute_port_attachments_from_geometry;
-use crate::engines::graph::EdgeRouting;
 use crate::graph::geometry::*;
 use crate::graph::{Diagram, Direction};
+
+/// Graph-family routed-path ownership mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EdgeRouting {
+    /// Build a single direct path from source to target.
+    DirectRoute,
+    /// Build a polyline from layout hints.
+    PolylineRoute,
+    /// Use complete edge paths supplied by the solve stage.
+    EngineProvided,
+    /// Build an axis-aligned path.
+    OrthogonalRoute,
+}
 
 /// Route graph geometry to produce fully-routed edge paths.
 ///

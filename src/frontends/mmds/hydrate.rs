@@ -7,14 +7,13 @@ use std::fmt;
 
 use serde_json::{Map, Value};
 
-use crate::engines::graph::EdgeRouting;
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{
     FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode, RoutedGraphGeometry,
     SelfEdgeGeometry, SubgraphGeometry,
 };
-use crate::graph::grid_projection::GridProjection;
-use crate::graph::routing::route_graph_geometry;
+use crate::graph::grid_projection::{GridProjection, OverrideSubgraphProjection};
+use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
 use crate::mmds::{
     MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MMDS_TEXT_EXTENSION_NAMESPACE, MmdsEdge, MmdsOutput,
@@ -436,10 +435,35 @@ fn hydrate_grid_projection(output: &MmdsOutput) -> Option<GridProjection> {
         })
         .unwrap_or_default();
 
+    let override_subgraphs = projection
+        .get("override_subgraphs")
+        .and_then(Value::as_object)
+        .map(|entries| {
+            entries
+                .iter()
+                .map(|(subgraph_id, value)| {
+                    let nodes = value
+                        .as_object()
+                        .map(|node_entries| {
+                            node_entries
+                                .iter()
+                                .filter_map(|(node_id, node_value)| {
+                                    parse_rect_value(node_value).map(|rect| (node_id.clone(), rect))
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    (subgraph_id.clone(), OverrideSubgraphProjection { nodes })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     Some(GridProjection {
         node_ranks,
         edge_waypoints,
         label_positions,
+        override_subgraphs,
     })
 }
 
@@ -452,6 +476,16 @@ fn parse_ranked_point_value(value: &Value) -> Option<(FPoint, i32)> {
         .as_i64()
         .and_then(|rank| i32::try_from(rank).ok())?;
     Some((FPoint::new(x, y), rank))
+}
+
+fn parse_rect_value(value: &Value) -> Option<FRect> {
+    let object = value.as_object()?;
+    Some(FRect::new(
+        object.get("x")?.as_f64()?,
+        object.get("y")?.as_f64()?,
+        object.get("width")?.as_f64()?,
+        object.get("height")?.as_f64()?,
+    ))
 }
 
 fn build_positioned_nodes(

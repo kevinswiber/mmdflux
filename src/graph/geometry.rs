@@ -39,6 +39,13 @@ impl FRect {
     pub fn center_y(&self) -> f64 {
         self.y + self.height / 2.0
     }
+
+    pub fn center(&self) -> FPoint {
+        FPoint {
+            x: self.center_x(),
+            y: self.center_y(),
+        }
+    }
 }
 
 /// Float-precision point (layout coordinate space).

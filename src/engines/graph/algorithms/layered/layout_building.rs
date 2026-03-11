@@ -7,8 +7,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::engines::graph::algorithms::layered::{
-    self, Direction as LayeredDirection, GridLayoutConfig, LayoutConfig as LayeredConfig,
+    self, Direction as LayeredDirection, GridLayoutConfig, LayoutConfig as LayeredConfig, Ranker,
 };
+use crate::graph::grid_projection::GridRanker;
 use crate::graph::{Diagram, Direction, Edge, Node, Stroke};
 
 /// Convert a graph-level Direction to a layered Direction.
@@ -214,7 +215,10 @@ pub(crate) fn layered_config_for_layout(
         rank_sep,
         margin: config.margin,
         acyclic: true,
-        ranker: config.ranker.unwrap_or_default(),
+        ranker: match config.ranker.unwrap_or_default() {
+            GridRanker::NetworkSimplex => Ranker::NetworkSimplex,
+            GridRanker::LongestPath => Ranker::LongestPath,
+        },
         ..Default::default()
     }
 }

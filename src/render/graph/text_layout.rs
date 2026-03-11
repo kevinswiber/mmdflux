@@ -5,15 +5,12 @@
 
 use std::collections::{HashMap, HashSet};
 
-// Re-export shared layout building functions from their canonical location.
-pub(crate) use super::layout_building::{
-    SubLayoutResult, compute_sublayouts, layered_config_for_layout,
-};
 use super::text_shape::{NodeBounds, node_dimensions};
 pub(crate) use super::text_types::{CoordTransform, RawCenter, TransformContext};
 // Re-export text types from their canonical location.
 pub use super::text_types::{GridLayoutConfig, GridPos, Layout, SelfEdgeDrawData, SubgraphBounds};
 use crate::graph::geometry::{FPoint, FRect};
+use crate::graph::grid_projection::OverrideSubgraphProjection;
 use crate::graph::{Diagram, Direction, Edge};
 
 /// Reconcile direction-override sub-layout positions in draw coordinates.
@@ -27,7 +24,7 @@ use crate::graph::{Diagram, Direction, Edge};
 pub(crate) fn reconcile_sublayouts_draw(
     diagram: &Diagram,
     config: &GridLayoutConfig,
-    sublayouts: &HashMap<String, SubLayoutResult>,
+    sublayouts: &HashMap<String, OverrideSubgraphProjection>,
     draw_positions: &mut HashMap<String, (usize, usize)>,
     node_bounds: &mut HashMap<String, NodeBounds>,
     subgraph_bounds: &mut HashMap<String, SubgraphBounds>,
@@ -74,14 +71,13 @@ pub(crate) fn reconcile_sublayouts_draw(
 
         // Compute sub-layout-specific scale factors
         let sub_node_dims: HashMap<String, (usize, usize)> = sublayout
-            .result
             .nodes
             .iter()
             .filter_map(|(id, _)| {
                 diagram
                     .nodes
-                    .get(&id.0)
-                    .map(|n| (id.0.clone(), node_dimensions(n, sub_dir)))
+                    .get(id)
+                    .map(|n| (id.clone(), node_dimensions(n, sub_dir)))
             })
             .collect();
 
@@ -98,21 +94,19 @@ pub(crate) fn reconcile_sublayouts_draw(
 
         // Find sub-layout bounding box min
         let sub_layout_min_x = sublayout
-            .result
             .nodes
             .values()
             .map(|r| r.x)
             .fold(f64::INFINITY, f64::min);
         let sub_layout_min_y = sublayout
-            .result
             .nodes
             .values()
             .map(|r| r.y)
             .fold(f64::INFINITY, f64::min);
 
         // Convert each sub-layout node to draw coordinates (relative)
-        for (node_id, rect) in &sublayout.result.nodes {
-            let (w, h) = match sub_node_dims.get(&node_id.0) {
+        for (node_id, rect) in &sublayout.nodes {
+            let (w, h) = match sub_node_dims.get(node_id) {
                 Some(&dims) => dims,
                 None => continue,
             };
@@ -124,7 +118,7 @@ pub(crate) fn reconcile_sublayouts_draw(
             let x = cx.saturating_sub(w / 2);
             let y = cy.saturating_sub(h / 2);
 
-            sub_draw_nodes.push((node_id.0.clone(), x, y, w, h));
+            sub_draw_nodes.push((node_id.clone(), x, y, w, h));
         }
 
         // Repair overlapping/touching nodes along the primary axis.
@@ -595,10 +589,6 @@ pub(crate) fn align_cross_boundary_siblings_draw(
             sb.height = new_bottom.saturating_sub(new_top);
         }
     }
-}
-
-pub(crate) fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
-    crate::graph::measure::text_edge_label_dimensions(label)
 }
 
 /// Assign grid positions to nodes based on layers.
@@ -1975,12 +1965,14 @@ pub(crate) fn clip_waypoints_to_subgraph(
 
 #[cfg(test)]
 mod tests {
-    use super::super::layout_building::build_layered_layout;
-    use super::super::text_adapter::compute_layout;
     use super::*;
+    use crate::engines::graph::algorithms::layered::layout_building::{
+        build_layered_layout, compute_sublayouts,
+    };
     use crate::engines::graph::algorithms::layered::{
         self, Direction as LayeredDirection, LayoutConfig as LayeredConfig,
     };
+    use crate::testing::text_adapter::compute_layout;
 
     fn test_node_bounds(x: usize, y: usize, width: usize, height: usize) -> NodeBounds {
         NodeBounds {
@@ -2107,7 +2099,7 @@ mod tests {
             |edge| {
                 edge.label
                     .as_ref()
-                    .map(|label| text_edge_label_dimensions(label))
+                    .map(|label| crate::graph::measure::text_edge_label_dimensions(label))
             },
         );
 
