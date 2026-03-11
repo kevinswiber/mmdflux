@@ -1,0 +1,108 @@
+//! One-shot baseline capture utility.
+//! Run with: cargo test --test capture_baselines -- --ignored
+//!
+//! Renders all fixtures listed in the cutover manifest and writes baseline files
+//! to tests/cutover/baselines/. Only run this once from a known-good state.
+
+use std::collections::HashMap;
+use std::path::Path;
+
+use mmdflux::diagram::{OutputFormat, RenderConfig};
+use mmdflux::registry::default_registry;
+
+#[derive(serde::Deserialize)]
+struct CutoverManifest {
+    fixture_outputs: HashMap<String, FixtureContract>,
+    #[allow(dead_code)]
+    version: u32,
+    #[allow(dead_code)]
+    rust_exports: serde_json::Value,
+    #[allow(dead_code)]
+    wasm_exports: serde_json::Value,
+    #[allow(dead_code)]
+    npm_packages: serde_json::Value,
+}
+
+#[derive(serde::Deserialize)]
+struct FixtureContract {
+    text: bool,
+    svg: bool,
+    mmds: bool,
+}
+
+#[test]
+#[ignore] // Only run manually to capture baselines
+fn capture_all_baselines() {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let manifest_path = manifest_dir.join("tests/cutover/baseline_manifest.json");
+    let content = std::fs::read_to_string(&manifest_path).unwrap();
+    let manifest: CutoverManifest = serde_json::from_str(&content).unwrap();
+
+    let registry = default_registry();
+    let mut captured = 0;
+
+    let mut fixtures: Vec<_> = manifest.fixture_outputs.iter().collect();
+    fixtures.sort_by_key(|(k, _)| (*k).clone());
+
+    for (fixture_path, contract) in &fixtures {
+        let full_path = manifest_dir.join(fixture_path);
+        let input = std::fs::read_to_string(&full_path)
+            .unwrap_or_else(|e| panic!("Missing fixture {fixture_path}: {e}"));
+
+        let diagram_id = registry
+            .detect(&input)
+            .unwrap_or_else(|| panic!("Cannot detect {fixture_path}"));
+        let mut instance = registry.create(diagram_id).unwrap();
+        instance.parse(&input).unwrap();
+
+        if contract.text {
+            let output = instance
+                .render(OutputFormat::Text, &RenderConfig::default())
+                .unwrap_or_else(|e| panic!("Text render failed for {fixture_path}: {e}"));
+
+            let out_path = manifest_dir.join(
+                fixture_path
+                    .replace("tests/fixtures/", "tests/cutover/baselines/text/")
+                    .replace(".mmd", ".txt"),
+            );
+            std::fs::create_dir_all(out_path.parent().unwrap()).unwrap();
+            std::fs::write(&out_path, &output).unwrap();
+            captured += 1;
+        }
+
+        if contract.svg {
+            let output = instance
+                .render(OutputFormat::Svg, &RenderConfig::default())
+                .unwrap_or_else(|e| panic!("SVG render failed for {fixture_path}: {e}"));
+
+            let out_path = manifest_dir.join(
+                fixture_path
+                    .replace("tests/fixtures/", "tests/cutover/baselines/svg/")
+                    .replace(".mmd", ".svg"),
+            );
+            std::fs::create_dir_all(out_path.parent().unwrap()).unwrap();
+            std::fs::write(&out_path, &output).unwrap();
+            captured += 1;
+        }
+
+        if contract.mmds {
+            let output = instance
+                .render(OutputFormat::Mmds, &RenderConfig::default())
+                .unwrap_or_else(|e| panic!("MMDS render failed for {fixture_path}: {e}"));
+
+            let out_path = manifest_dir.join(
+                fixture_path
+                    .replace("tests/fixtures/", "tests/cutover/baselines/mmds/")
+                    .replace(".mmd", ".json"),
+            );
+            std::fs::create_dir_all(out_path.parent().unwrap()).unwrap();
+            std::fs::write(&out_path, &output).unwrap();
+            captured += 1;
+        }
+    }
+
+    eprintln!(
+        "Captured {captured} baseline files from {} fixtures",
+        fixtures.len()
+    );
+}

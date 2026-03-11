@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "defaults": {
+    "node": {
+      "shape": "rectangle"
+    },
+    "edge": {
+      "stroke": "solid",
+      "arrow_start": "none",
+      "arrow_end": "normal",
+      "minlen": 1
+    }
+  },
+  "geometry_level": "layout",
+  "metadata": {
+    "diagram_type": "flowchart",
+    "direction": "TD",
+    "bounds": {
+      "width": 335.03679999999997,
+      "height": 547.8016
+    },
+    "engine": "flux-layered"
+  },
+  "nodes": [
+    {
+      "id": "Config",
+      "label": "Valid?",
+      "shape": "diamond",
+      "position": {
+        "x": 87.44,
+        "y": 337.9008
+      },
+      "size": {
+        "width": 97.8016,
+        "height": 97.8016
+      }
+    },
+    {
+      "id": "Error",
+      "label": "Handle Error",
+      "position": {
+        "x": 251.2864,
+        "y": 512.8016
+      },
+      "size": {
+        "width": 151.50079999999997,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Run",
+      "label": "Execute",
+      "position": {
+        "x": 66.768,
+        "y": 512.8016
+      },
+      "size": {
+        "width": 117.53599999999999,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Setup",
+      "label": "Setup",
+      "position": {
+        "x": 108.3536,
+        "y": 188.0
+      },
+      "size": {
+        "width": 100.4608,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Start",
+      "label": "Begin",
+      "position": {
+        "x": 108.3536,
+        "y": 35.0
+      },
+      "size": {
+        "width": 99.16159999999999,
+        "height": 54.0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "Start",
+      "target": "Setup",
+      "label": "initialize"
+    },
+    {
+      "id": "e1",
+      "source": "Setup",
+      "target": "Config",
+      "label": "configure"
+    },
+    {
+      "id": "e2",
+      "source": "Config",
+      "target": "Run",
+      "label": "yes"
+    },
+    {
+      "id": "e3",
+      "source": "Config",
+      "target": "Error",
+      "label": "no"
+    },
+    {
+      "id": "e4",
+      "source": "Error",
+      "target": "Setup",
+      "label": "retry",
+      "stroke": "dotted"
+    }
+  ]
+}
