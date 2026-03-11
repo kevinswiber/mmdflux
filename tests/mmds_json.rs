@@ -7,8 +7,8 @@
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::diagrams::mmds::MmdsInstance;
-use mmdflux::mmds::MmdsOutput;
+use mmdflux::diagrams::mmds::{MmdsInstance, evaluate_mmds_profiles, parse_mmds_input};
+use mmdflux::mmds::{MmdsOutput, SUPPORTED_MMDS_PROFILES};
 use mmdflux::registry::DiagramInstance;
 use mmdflux::{
     EngineAlgorithmId, GeometryLevel, OutputFormat, PathSimplification, RenderConfig, TextColorMode,
@@ -123,6 +123,30 @@ fn mmds_fixture(path: &str) -> Value {
     serde_json::from_str(&raw).unwrap_or_else(|err| panic!("invalid fixture JSON: {err}"))
 }
 
+fn mmds_contract_fixture_text(path: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("mmds")
+        .join("contracts")
+        .join(path);
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read contract fixture {}: {err}", path.display()))
+}
+
+fn mmds_contract_fixture(path: &str) -> Value {
+    mmds_fixture(&format!("contracts/{path}"))
+}
+
+fn assert_matches_contract_fixture(actual: &str, fixture_path: &str) {
+    let actual: Value = serde_json::from_str(actual).expect("actual MMDS should be valid JSON");
+    let expected = mmds_contract_fixture(fixture_path);
+    assert_eq!(
+        actual, expected,
+        "MMDS output drifted from locked contract fixture {fixture_path}"
+    );
+}
+
 fn mmds_schema_validator() -> jsonschema::Validator {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("docs")
@@ -157,6 +181,20 @@ fn assert_schema_invalid(payload: Value) {
         "expected schema-invalid payload but it validated"
     );
 }
+
+#[test]
+fn top_level_mmds_contract_helpers_parse_and_negotiate_shared_fixture_profiles() {
+    let payload = mmds_contract_fixture_text("flowchart-simple.layout.json");
+
+    let parsed = parse_mmds_input(&payload).expect("shared contract fixture should parse");
+    let negotiation =
+        evaluate_mmds_profiles(&payload).expect("shared contract fixture profile evaluation");
+
+    assert_eq!(parsed.metadata.diagram_type, "flowchart");
+    assert_eq!(negotiation.supported, Vec::<String>::new());
+    assert_eq!(negotiation.unknown, Vec::<String>::new());
+}
+
 // -----------------------------------------------------------------------
 // Contract: MMDS envelope
 // -----------------------------------------------------------------------
@@ -234,6 +272,18 @@ fn mmds_output_omits_node_style_extension_when_styles_absent() {
             .and_then(|extensions| extensions.get("org.mmdflux.node-style.v1"))
             .is_none()
     );
+}
+
+#[test]
+fn mmds_output_matches_locked_simple_contract_fixture() {
+    let json = render_json(&flowchart_fixture("simple.mmd"));
+    assert_matches_contract_fixture(&json, "flowchart-simple.layout.json");
+}
+
+#[test]
+fn mmds_output_matches_locked_node_style_contract_fixture() {
+    let json = render_json(&flowchart_fixture("style-basic.mmd"));
+    assert_matches_contract_fixture(&json, "flowchart-style.layout.json");
 }
 
 #[test]
@@ -883,6 +933,19 @@ fn mmds_routed_output_with_ports_validates_against_schema() {
 fn schema_accepts_profiles_and_namespaced_extensions() {
     let payload = mmds_fixture("profiles/profiles-svg-v1.json");
     assert_schema_valid(payload);
+}
+
+#[test]
+fn shared_mmds_profile_vocabulary_is_exported_from_contract_module() {
+    assert_eq!(
+        SUPPORTED_MMDS_PROFILES,
+        &[
+            "mmds-core-v1",
+            "mmdflux-svg-v1",
+            "mmdflux-text-v1",
+            "mmdflux-node-style-v1",
+        ]
+    );
 }
 
 #[test]

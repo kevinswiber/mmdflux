@@ -4,15 +4,17 @@ mod hydrate;
 mod instance;
 
 pub use hydrate::{
-    MmdsHydrationError, MmdsParseError, MmdsProfileNegotiation, evaluate_mmds_profiles,
-    evaluate_mmds_profiles_for_output, from_mmds_output, from_mmds_str,
-    hydrate_graph_geometry_from_mmds, hydrate_graph_geometry_from_output,
-    hydrate_graph_geometry_from_output_with_diagram, hydrate_routed_geometry_from_mmds,
-    hydrate_routed_geometry_from_output, parse_mmds_input, stub_hydrate,
+    MmdsHydrationError, from_mmds_output, from_mmds_str, hydrate_graph_geometry_from_mmds,
+    hydrate_graph_geometry_from_output, hydrate_graph_geometry_from_output_with_diagram,
+    hydrate_routed_geometry_from_mmds, hydrate_routed_geometry_from_output, stub_hydrate,
 };
 pub use instance::MmdsInstance;
 
 use crate::diagram::{DiagramFamily, OutputFormat};
+pub use crate::mmds::{
+    MmdsParseError, MmdsProfileNegotiation, evaluate_mmds_profiles,
+    evaluate_mmds_profiles_for_output, parse_mmds_input,
+};
 use crate::registry::{DiagramDefinition, DiagramDetector};
 
 /// Detect if input appears to be MMDS JSON.

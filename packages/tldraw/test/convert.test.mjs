@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -18,6 +19,21 @@ function fixture(...segments) {
   return JSON.parse(fs.readFileSync(fullPath, "utf8"));
 }
 
+function importPackage(specifier, expression) {
+  return spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `const mod = await import(${JSON.stringify(specifier)}); console.log(JSON.stringify(${expression})); process.exit(0);`,
+    ],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    },
+  );
+}
+
 function assertParses(file) {
   const schema = createTLStore().schema;
   const parsed = parseTldrawJsonFile({
@@ -27,6 +43,38 @@ function assertParses(file) {
 
   assert.equal(parsed.ok, true);
 }
+
+test("tldraw library entrypoint is side-effect free", () => {
+  const result = importPackage(
+    "@mmds/tldraw",
+    `{
+    convertToTldrawStore: typeof mod.convertToTldrawStore,
+    hasMain: "main" in mod,
+  }`,
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    convertToTldrawStore: "function",
+    hasMain: false,
+  });
+});
+
+test("tldraw CLI entrypoint owns the runtime main", () => {
+  const result = importPackage(
+    "@mmds/tldraw/cli",
+    `{
+    main: typeof mod.main,
+    hasConvertToTldrawStore: "convertToTldrawStore" in mod,
+  }`,
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    main: "function",
+    hasConvertToTldrawStore: false,
+  });
+});
 
 test("produces a .tldr envelope that parses with current tldraw parser", () => {
   const mmds = fixture(
@@ -41,6 +89,26 @@ test("produces a .tldr envelope that parses with current tldraw parser", () => {
   assert.equal(file.tldrawFileFormatVersion, 1);
   assert.ok(Array.isArray(file.records));
   assertParses(file);
+});
+
+test("shared flowchart contract fixture converts to a parseable .tldr file", () => {
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "contracts",
+    "flowchart-simple.layout.json",
+  );
+  const file = toTldrawFile(mmds);
+
+  assertParses(file);
+  const edge = file.records.find(
+    (record) =>
+      record.typeName === "shape" &&
+      record.type === "arrow" &&
+      record.id === "shape:edge_e0",
+  );
+  assert.ok(edge);
 });
 
 test("fixture integration: layout and routed basics parse and emit arrows", () => {
@@ -73,6 +141,21 @@ test("fixture integration: layout and routed basics parse and emit arrows", () =
   );
   assert.ok(routedArrow);
   assert.equal(routedArrow.props.kind, "arc");
+});
+
+test("shared MMDS profile fixtures remain consumable by the tldraw adapter", () => {
+  const mmds = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "profiles",
+    "profiles-svg-v1.json",
+  );
+
+  const file = toTldrawFile(mmds);
+
+  assertParses(file);
+  assert.ok(file.records.length > 0);
 });
 
 test("omits invisible edges from emitted tldraw shape records", () => {

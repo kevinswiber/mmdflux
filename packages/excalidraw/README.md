@@ -2,6 +2,16 @@
 
 Converts [MMDS](https://github.com/mmdflux/mmdflux/blob/main/docs/mmds.md) JSON (mmdflux's intermediate format) into Excalidraw `.excalidraw` files. Nodes become rectangles, diamonds, or ellipses; edges become polyline arrows with labels. Subgraph membership is preserved as Excalidraw groups.
 
+## Library Usage
+
+```ts
+import { convert } from "@mmds/excalidraw";
+
+const { elements, bounds } = convert(mmds);
+```
+
+The package root is library-only. CLI behavior lives in the `mmds-to-excalidraw` bin and the `@mmds/excalidraw/cli` entrypoint.
+
 ## Install
 
 ```bash

@@ -2,6 +2,18 @@
 
 MMDS is the structured JSON output format for graph-family diagrams produced by mmdflux. It is designed for machine consumption in LLM pipelines, adapter libraries, and agentic workflows.
 
+## Contract Ownership and Parity Harness
+
+Rust owns the canonical MMDS contract shape in `src/mmds.rs` and `src/mmds/contract.rs`, with format emission bridged through `src/formats/mmds.rs` and hydration built on that contract from `src/diagrams/mmds/`.
+
+Locked cross-language contract fixtures live under `tests/fixtures/mmds/contracts/`. They are consumed by:
+
+- Rust contract tests in `tests/mmds_json.rs`
+- `@mmds/core` parity tests in `packages/mmds-core/test/*.test.mjs`
+- adapter package fixture tests in `packages/*/test/*.test.mjs`
+
+Any intentional MMDS contract change should update those locked fixtures and the related Rust/TypeScript assertions in the same change.
+
 ## Input Status
 
 MMDS input support is active:

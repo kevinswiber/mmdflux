@@ -14,15 +14,28 @@ use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGrap
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
 use crate::style::NodeStyle;
 
+mod contract;
 mod generate;
 
+pub use contract::{
+    MmdsParseError, MmdsProfileNegotiation, evaluate_mmds_profiles,
+    evaluate_mmds_profiles_for_output, parse_mmds_input,
+};
 pub use generate::{
     MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str,
 };
 
 pub const MMDS_CORE_PROFILE: &str = "mmds-core-v1";
+pub const MMDS_SVG_PROFILE: &str = "mmdflux-svg-v1";
+pub const MMDS_TEXT_PROFILE: &str = "mmdflux-text-v1";
 pub const MMDS_NODE_STYLE_PROFILE: &str = "mmdflux-node-style-v1";
 pub const MMDS_NODE_STYLE_EXTENSION_NAMESPACE: &str = "org.mmdflux.node-style.v1";
+pub const SUPPORTED_MMDS_PROFILES: &[&str] = &[
+    MMDS_CORE_PROFILE,
+    MMDS_SVG_PROFILE,
+    MMDS_TEXT_PROFILE,
+    MMDS_NODE_STYLE_PROFILE,
+];
 
 /// Serialize a graph-family diagram to MMDS JSON at layout level.
 ///

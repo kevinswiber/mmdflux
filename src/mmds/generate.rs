@@ -3,8 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 
-use super::{MmdsEdge, MmdsNode, MmdsOutput, MmdsSubgraph};
-use crate::diagrams::mmds::parse_mmds_input;
+use super::{MmdsEdge, MmdsNode, MmdsOutput, MmdsSubgraph, parse_mmds_input};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MmdsGenerationError {

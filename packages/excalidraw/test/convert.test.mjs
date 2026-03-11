@@ -1,7 +1,32 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 
 import { convert } from "../dist/convert.js";
+
+const repoRoot = path.resolve(process.cwd(), "../..");
+
+function fixture(...segments) {
+  const fullPath = path.join(repoRoot, ...segments);
+  return JSON.parse(fs.readFileSync(fullPath, "utf8"));
+}
+
+function importPackage(specifier, expression) {
+  return spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `const mod = await import(${JSON.stringify(specifier)}); console.log(JSON.stringify(${expression})); process.exit(0);`,
+    ],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    },
+  );
+}
 
 function minimalDoc(overrides = {}) {
   return {
@@ -40,6 +65,38 @@ function minimalDoc(overrides = {}) {
   };
 }
 
+test("excalidraw library entrypoint is side-effect free", () => {
+  const result = importPackage(
+    "@mmds/excalidraw",
+    `{
+    convert: typeof mod.convert,
+    hasMain: "main" in mod,
+  }`,
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    convert: "function",
+    hasMain: false,
+  });
+});
+
+test("excalidraw CLI entrypoint owns upload/open behavior", () => {
+  const result = importPackage(
+    "@mmds/excalidraw/cli",
+    `{
+    main: typeof mod.main,
+    hasConvert: "convert" in mod,
+  }`,
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    main: "function",
+    hasConvert: false,
+  });
+});
+
 test("maps double_circle shape to ellipse", () => {
   const doc = minimalDoc({
     nodes: [
@@ -58,6 +115,26 @@ test("maps double_circle shape to ellipse", () => {
   const nodeShape = elements.find((e) => e.id === "A");
   assert.ok(nodeShape);
   assert.equal(nodeShape.type, "ellipse");
+});
+
+test("shared flowchart contract fixture converts without dropping nodes or edges", () => {
+  const doc = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "contracts",
+    "flowchart-simple.layout.json",
+  );
+
+  const { elements } = convert(doc);
+  const nodeIds = elements
+    .filter((element) => element.type !== "arrow")
+    .map((element) => element.id);
+  const arrow = elements.find((element) => element.id === "e0");
+
+  assert.ok(nodeIds.includes("A"));
+  assert.ok(nodeIds.includes("B"));
+  assert.ok(arrow);
 });
 
 test("skips invisible edges", () => {
