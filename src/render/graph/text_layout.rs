@@ -12,9 +12,8 @@ pub(crate) use super::layout_building::{
 use super::text_shape::{NodeBounds, node_dimensions};
 pub(crate) use super::text_types::{CoordTransform, RawCenter, TransformContext};
 // Re-export text types from their canonical location.
-pub use super::text_types::{GridPos, Layout, SelfEdgeDrawData, SubgraphBounds, TextLayoutConfig};
-use crate::engines::graph::algorithms::layered::Rect;
-use crate::graph::geometry::FPoint;
+pub use super::text_types::{GridLayoutConfig, GridPos, Layout, SelfEdgeDrawData, SubgraphBounds};
+use crate::graph::geometry::{FPoint, FRect};
 use crate::graph::{Diagram, Direction, Edge};
 
 /// Reconcile direction-override sub-layout positions in draw coordinates.
@@ -27,7 +26,7 @@ use crate::graph::{Diagram, Direction, Edge};
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn reconcile_sublayouts_draw(
     diagram: &Diagram,
-    config: &TextLayoutConfig,
+    config: &GridLayoutConfig,
     sublayouts: &HashMap<String, SubLayoutResult>,
     draw_positions: &mut HashMap<String, (usize, usize)>,
     node_bounds: &mut HashMap<String, NodeBounds>,
@@ -598,12 +597,6 @@ pub(crate) fn align_cross_boundary_siblings_draw(
     }
 }
 
-// Re-export float-coordinate subgraph operations from their canonical location.
-pub(crate) use super::layout_subgraph_ops::{
-    center_override_subgraphs, expand_parent_bounds, reconcile_sublayouts,
-    resolve_sublayout_overlaps,
-};
-
 pub(crate) fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
     crate::graph::measure::text_edge_label_dimensions(label)
 }
@@ -878,7 +871,7 @@ fn build_children_map(
 /// expand to contain their children. This ensures proper nesting of bounds.
 pub(crate) fn subgraph_bounds_to_draw(
     subgraphs: &HashMap<String, crate::graph::Subgraph>,
-    layout_bounds: &HashMap<String, Rect>,
+    layout_bounds: &HashMap<String, FRect>,
     transform: &CoordTransform,
 ) -> HashMap<String, SubgraphBounds> {
     let mut bounds: HashMap<String, SubgraphBounds> = HashMap::new();
@@ -2109,7 +2102,7 @@ mod tests {
 
         let result = build_layered_layout(
             &diagram,
-            &TextLayoutConfig::default(),
+            &GridLayoutConfig::default(),
             |node| (node.label.len() as f64 + 4.0, 3.0),
             |edge| {
                 edge.label
@@ -2491,7 +2484,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Group]\nA --> B\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
 
         assert!(
             layout.subgraph_bounds.contains_key("sg1"),
@@ -2511,7 +2504,7 @@ mod tests {
         let input = "graph TD\nsubgraph outer[Outer]\nA[Node A]\nsubgraph inner[Inner]\nB[Node B]\nend\nend\nA --> B\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
         assert!(
             layout.subgraph_bounds.contains_key("outer"),
             "should have outer bounds"
@@ -2530,7 +2523,7 @@ mod tests {
         let input = "graph TD\nA --> B\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
 
         assert!(layout.subgraph_bounds.is_empty());
     }
@@ -2543,7 +2536,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Group]\nA --> B\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
 
         let bounds = &layout.subgraph_bounds["sg1"];
         assert!(
@@ -2570,7 +2563,7 @@ mod tests {
         let diagram = compile_to_graph(&flowchart);
 
         // Should not panic
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
         assert!(layout.draw_positions.contains_key("A"));
         assert!(layout.draw_positions.contains_key("B"));
         assert!(layout.draw_positions.contains_key("C"));
@@ -2586,7 +2579,7 @@ mod tests {
         let diagram = compile_to_graph(&flowchart);
         assert!(!diagram.has_subgraphs());
 
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
         assert!(layout.draw_positions.contains_key("A"));
     }
 
@@ -2598,7 +2591,7 @@ mod tests {
         let input = "graph TD\n    A -->|yes| B";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
 
         // Label position should exist — edge A→B is at index 0
         let edge_idx = diagram
@@ -2690,7 +2683,7 @@ mod tests {
         let input = "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB\nend\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
         assert_eq!(layout.subgraph_bounds["outer"].depth, 0);
         assert_eq!(layout.subgraph_bounds["inner"].depth, 1);
     }
@@ -2703,7 +2696,7 @@ mod tests {
         let input = "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB --> C\nend\nend\nA --> B\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
         let outer = &layout.subgraph_bounds["outer"];
         let inner = &layout.subgraph_bounds["inner"];
         // Parent must fully contain child
@@ -2741,7 +2734,7 @@ mod tests {
         let input = "graph TD\nsubgraph outer[Outer]\nsubgraph inner[Inner]\nA --> B\nend\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
         assert!(
             layout.subgraph_bounds.contains_key("outer"),
             "outer should have bounds"
@@ -2813,7 +2806,7 @@ mod tests {
         let mut layout_bounds = HashMap::new();
         layout_bounds.insert(
             "sg1".to_string(),
-            Rect {
+            FRect {
                 x: 10.0,
                 y: 10.0,
                 width: 10.0,
@@ -2822,7 +2815,7 @@ mod tests {
         );
         layout_bounds.insert(
             "sg2".to_string(),
-            Rect {
+            FRect {
                 x: 40.0,
                 y: 10.0,
                 width: 10.0,
@@ -2830,10 +2823,10 @@ mod tests {
             },
         );
 
-        let config = TextLayoutConfig {
+        let config = GridLayoutConfig {
             padding: 0,
             left_label_margin: 0,
-            ..TextLayoutConfig::default()
+            ..GridLayoutConfig::default()
         };
 
         let transform = CoordTransform {
@@ -2887,7 +2880,7 @@ mod tests {
         let mut layout_bounds = HashMap::new();
         layout_bounds.insert(
             "sg1".to_string(),
-            Rect {
+            FRect {
                 x: 10.0,
                 y: 10.0,
                 width: 5.0,
@@ -2895,10 +2888,10 @@ mod tests {
             },
         );
 
-        let config = TextLayoutConfig {
+        let config = GridLayoutConfig {
             padding: 0,
             left_label_margin: 0,
-            ..TextLayoutConfig::default()
+            ..GridLayoutConfig::default()
         };
 
         let transform = CoordTransform {
@@ -2934,7 +2927,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[This Is A Very Long Title]\nA --> B\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
 
         let bounds = layout
             .subgraph_bounds
@@ -2964,7 +2957,7 @@ mod tests {
 
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         assert!(layout.subgraph_bounds.contains_key("sg1"));
@@ -2989,7 +2982,7 @@ mod tests {
             padding: 1,
             left_label_margin: 0,
         };
-        let rect = Rect {
+        let rect = FRect {
             x: 50.0,
             y: 30.0,
             width: 40.0,
@@ -3013,13 +3006,13 @@ mod tests {
             padding: 0,
             left_label_margin: 0,
         };
-        let rect1 = Rect {
+        let rect1 = FRect {
             x: 50.0,
             y: 50.0,
             width: 40.0,
             height: 20.0,
         };
-        let rect2 = Rect {
+        let rect2 = FRect {
             x: 100.0,
             y: 100.0,
             width: 40.0,
@@ -3043,13 +3036,13 @@ mod tests {
             padding: 0,
             left_label_margin: 0,
         };
-        let small = Rect {
+        let small = FRect {
             x: 50.0,
             y: 50.0,
             width: 20.0,
             height: 10.0,
         };
-        let large = Rect {
+        let large = FRect {
             x: 50.0,
             y: 50.0,
             width: 60.0,
@@ -3082,7 +3075,7 @@ mod tests {
             A --> C\nB --> D";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
 
         let sg1 = &layout.subgraph_bounds["sg1"];
         let sg2 = &layout.subgraph_bounds["sg2"];
@@ -3117,7 +3110,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Group]\nA[Node1]\nB[Node2]\nend\nA --> B";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
 
         assert_subgraph_contains_members(&layout, "sg1", &["A", "B"]);
     }
@@ -3133,7 +3126,7 @@ mod tests {
             A --> C\nB --> D";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+        let layout = compute_layout(&diagram, &GridLayoutConfig::default());
 
         assert_subgraph_contains_members(&layout, "sg1", &["A", "B"]);
         assert_subgraph_contains_members(&layout, "sg2", &["C", "D"]);
@@ -3189,7 +3182,7 @@ mod tests {
         assert_eq!(diagram.subgraphs["sg1"].dir, Some(Direction::LeftRight));
 
         // Layout computation succeeds without panic
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
         assert!(!layout.node_bounds.is_empty());
     }
@@ -3348,7 +3341,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Reverse]\ndirection RL\nA[Left] --> B[Right]\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let a = layout.get_bounds("A").unwrap();
@@ -3380,7 +3373,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Horizontal Section]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\nStart --> A\nC --> End\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let a = layout.get_bounds("A").unwrap();
@@ -3426,7 +3419,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let sg = &layout.subgraph_bounds["sg1"];
@@ -3448,7 +3441,7 @@ mod tests {
             "graph LR\nsubgraph sg1[Vertical]\ndirection BT\nA[Top] --> B[Mid] --> C[Bot]\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let sg = &layout.subgraph_bounds["sg1"];
@@ -3470,7 +3463,7 @@ mod tests {
             "graph TD\nsubgraph sg1[A Very Long Section Title]\ndirection LR\nA --> B\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let sg = &layout.subgraph_bounds["sg1"];
@@ -3492,7 +3485,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\nStart --> A\nC --> End\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         assert_subgraph_contains_members(&layout, "sg1", &["A", "B", "C"]);
@@ -3506,7 +3499,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\nStart --> A\nC --> End\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         // Verify no overlap between A, B, C
@@ -3537,7 +3530,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2]\nend\nStart --> A\nB --> End\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         let sg = &layout.subgraph_bounds["sg1"];
@@ -3590,7 +3583,7 @@ mod tests {
         let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> A\nB --> D\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let config = TextLayoutConfig::default();
+        let config = GridLayoutConfig::default();
         let layout = compute_layout(&diagram, &config);
 
         // Nodes inside the LR subgraph should have LR effective direction

@@ -7,6 +7,7 @@ use crate::graph::geometry::{
     EdgeLabelSide, EngineHints, FPoint, FRect, GraphGeometry, LayeredHints, LayoutEdge,
     PositionedNode, SelfEdgeGeometry, SubgraphGeometry,
 };
+use crate::graph::grid_projection::GridProjection;
 
 impl From<FPoint> for Point {
     fn from(p: FPoint) -> Self {
@@ -193,6 +194,30 @@ pub fn from_layered_layout(result: &LayoutResult, diagram: &Diagram) -> GraphGeo
             edge_waypoints: hint_edge_waypoints,
             label_positions: hint_label_positions,
         })),
+        grid_projection: Some(GridProjection {
+            node_ranks: result
+                .node_ranks
+                .iter()
+                .map(|(id, &rank)| (id.0.clone(), rank))
+                .collect(),
+            edge_waypoints: result
+                .edge_waypoints
+                .iter()
+                .map(|(&idx, wps)| {
+                    (
+                        idx,
+                        wps.iter()
+                            .map(|wp| (FPoint::new(wp.point.x, wp.point.y), wp.rank))
+                            .collect(),
+                    )
+                })
+                .collect(),
+            label_positions: result
+                .label_positions
+                .iter()
+                .map(|(&idx, wp)| (idx, (FPoint::new(wp.point.x, wp.point.y), wp.rank)))
+                .collect(),
+        }),
         rerouted_edges: HashSet::new(),
         enhanced_backward_routing: false,
     }

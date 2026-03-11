@@ -7,8 +7,6 @@
 pub(crate) mod backends;
 pub(crate) mod backward_policy;
 pub(crate) mod layout_building;
-pub(crate) mod layout_subgraph_ops;
-pub(crate) mod orthogonal_router;
 pub(crate) mod route_policy;
 pub(crate) mod routing;
 pub(crate) mod svg;
@@ -27,7 +25,7 @@ use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
 use self::text_edge::render_all_edges_with_labels;
 use self::text_router::{RoutedEdge, Segment, route_all_edges};
 use self::text_shape::render_node;
-use self::text_types::{Layout, SubgraphBounds, TextLayoutConfig};
+use self::text_types::{GridLayoutConfig, Layout, SubgraphBounds};
 use crate::engines::graph::EdgeRouting;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::{Diagram, Direction};
@@ -284,6 +282,7 @@ pub fn render_text_from_geometry(
 ///         edge_waypoints: HashMap::new(),
 ///         label_positions: HashMap::new(),
 ///     })),
+///     grid_projection: None,
 ///     rerouted_edges: HashSet::new(),
 ///     enhanced_backward_routing: false,
 /// };
@@ -341,8 +340,8 @@ pub(crate) fn render_text_from_layout(
 pub(crate) fn layout_config_for_diagram(
     diagram: &Diagram,
     options: &TextRenderOptions,
-) -> TextLayoutConfig {
-    let mut config = TextLayoutConfig::default();
+) -> GridLayoutConfig {
+    let mut config = GridLayoutConfig::default();
 
     let max_label_len = diagram
         .edges

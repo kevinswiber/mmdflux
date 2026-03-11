@@ -189,7 +189,10 @@ fn top_level_mmds_contract_helpers_parse_and_negotiate_shared_fixture_profiles()
         evaluate_mmds_profiles(&payload).expect("shared contract fixture profile evaluation");
 
     assert_eq!(parsed.metadata.diagram_type, "flowchart");
-    assert_eq!(negotiation.supported, Vec::<String>::new());
+    assert_eq!(
+        negotiation.supported,
+        vec!["mmds-core-v1".to_string(), "mmdflux-text-v1".to_string()]
+    );
     assert_eq!(negotiation.unknown, Vec::<String>::new());
 }
 
@@ -270,6 +273,24 @@ fn mmds_output_omits_node_style_extension_when_styles_absent() {
             .and_then(|extensions| extensions.get("org.mmdflux.node-style.v1"))
             .is_none()
     );
+}
+
+#[test]
+fn mmds_output_emits_grid_projection_extension_when_available() {
+    let json = render_json("graph TD\nA-->B");
+    let value: Value = serde_json::from_str(&json).unwrap();
+
+    assert!(
+        value["profiles"]
+            .as_array()
+            .is_some_and(|profiles| profiles.iter().any(|profile| profile == "mmdflux-text-v1"))
+    );
+    let projection = &value["extensions"]["org.mmdflux.render.text.v1"]["projection"];
+    assert!(projection["node_ranks"].get("A").is_some());
+    assert!(projection["node_ranks"].get("B").is_some());
+    assert!(projection["edge_waypoints"].is_object());
+    assert!(projection["label_positions"].is_object());
+    assert_schema_valid(value);
 }
 
 #[test]

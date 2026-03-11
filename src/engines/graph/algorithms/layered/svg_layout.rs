@@ -10,7 +10,7 @@ use super::layout_subgraph_ops::{
 use super::svg_router;
 use crate::engines::graph::EdgeRouting;
 use crate::engines::graph::algorithms::layered::{
-    LayoutConfig, LayoutResult, TextLayoutConfig, from_layered_layout,
+    GridLayoutConfig, LayoutConfig, LayoutResult, from_layered_layout,
 };
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::measure::{SvgTextMetrics, svg_node_dimensions};
@@ -20,7 +20,7 @@ use crate::graph::{Diagram, Direction, Stroke};
 
 pub(crate) fn build_svg_layout_with_flags(
     diagram: &Diagram,
-    config: &TextLayoutConfig,
+    config: &GridLayoutConfig,
     metrics: &SvgTextMetrics,
     edge_routing: EdgeRouting,
     skip_non_isolated_overrides: bool,

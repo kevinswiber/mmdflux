@@ -1496,6 +1496,7 @@ mod port_attachment_tests {
             bounds: FRect::new(0.0, 0.0, 200.0, 200.0),
             reversed_edges: vec![],
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: false,
         }

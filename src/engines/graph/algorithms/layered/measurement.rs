@@ -1,4 +1,4 @@
-use super::TextLayoutConfig;
+use super::GridLayoutConfig;
 use super::layout_building::{build_layered_layout_with_config, layered_config_for_layout};
 use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds};
 use crate::engines::graph::{EngineConfig, OutputFormat, RenderConfig, RenderError};
@@ -39,15 +39,15 @@ impl MeasurementMode {
     }
 }
 
-/// Build a flowchart `TextLayoutConfig` from layered-engine settings.
+/// Build a flowchart `GridLayoutConfig` from layered-engine settings.
 ///
 /// This bridges the engine-facing layered config back to the render-facing
 /// config used by shared graph-family layout construction.
 pub(crate) fn layout_config_from_layered(
     layered_cfg: &super::LayoutConfig,
     diagram: &Diagram,
-) -> TextLayoutConfig {
-    let defaults = TextLayoutConfig::default();
+) -> GridLayoutConfig {
+    let defaults = GridLayoutConfig::default();
     let extra_padding = if diagram.has_subgraphs() {
         diagram
             .subgraphs
@@ -60,7 +60,7 @@ pub(crate) fn layout_config_from_layered(
         0
     };
 
-    TextLayoutConfig {
+    GridLayoutConfig {
         node_sep: layered_cfg.node_sep,
         edge_sep: layered_cfg.edge_sep,
         rank_sep: layered_cfg.rank_sep,

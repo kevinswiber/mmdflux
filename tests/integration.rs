@@ -17,7 +17,7 @@ use mmdflux::testing::text_adapter::{compute_layout, geometry_to_text_layout_wit
 use mmdflux::testing::text_edge::render_all_edges_with_labels;
 use mmdflux::testing::text_router::{RoutedEdge, Segment, route_all_edges};
 use mmdflux::testing::text_shape::{NodeBounds, render_node};
-use mmdflux::testing::text_types::{Layout, TextLayoutConfig};
+use mmdflux::testing::text_types::{GridLayoutConfig, Layout};
 use mmdflux::testing::{
     EdgeRouting, EngineConfig, MeasurementMode, RenderOptions, render, run_layered_layout,
 };
@@ -58,7 +58,7 @@ fn parse_and_build(name: &str) -> Diagram {
 /// Parse, build, and compute layout for a fixture file.
 fn layout_fixture(name: &str) -> (Diagram, Layout) {
     let diagram = parse_and_build(name);
-    let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+    let layout = compute_layout(&diagram, &GridLayoutConfig::default());
     (diagram, layout)
 }
 
@@ -74,7 +74,7 @@ fn layout_fixture_with_routed(name: &str) -> (Diagram, Layout) {
         &diagram,
         &geom,
         Some(&routed),
-        &TextLayoutConfig::default(),
+        &GridLayoutConfig::default(),
     );
     (diagram, layout)
 }
@@ -4333,7 +4333,7 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
         parse_flowchart("graph TD\nA[Very Wide Source Node] -->|cfg| B[Very Wide Target Node]\n")
             .expect("fixture should parse");
     let diagram = compile_to_graph(&flowchart);
-    let layout = compute_layout(&diagram, &TextLayoutConfig::default());
+    let layout = compute_layout(&diagram, &GridLayoutConfig::default());
     let routed_edges = route_all_edges(&diagram.edges, &layout, diagram.direction);
 
     let target_edge = diagram

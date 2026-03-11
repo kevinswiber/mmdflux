@@ -2,6 +2,7 @@
   "version": 1,
   "profiles": [
     "mmds-core-v1",
+    "mmdflux-text-v1",
     "mmdflux-node-style-v1"
   ],
   "extensions": {
@@ -11,6 +12,15 @@
           "color": "#111",
           "fill": "#ffeeaa",
           "stroke": "#333"
+        }
+      }
+    },
+    "org.mmdflux.render.text.v1": {
+      "projection": {
+        "edge_waypoints": {},
+        "label_positions": {},
+        "node_ranks": {
+          "A": 0
         }
       }
     }

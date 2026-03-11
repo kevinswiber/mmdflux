@@ -6,13 +6,13 @@
 //! operates on character-grid integer coordinates).
 //!
 //! All phases (B-N) are implemented inline, reading directly from
-//! `GraphGeometry` and its `LayeredHints`. Direction-override subgraphs
+//! `GraphGeometry` and its graph-owned grid projection data. Direction-override subgraphs
 //! are handled by Phase M (sublayout reconciliation).
 
 use std::collections::{HashMap, HashSet};
 
 use super::text_layout::{
-    CoordTransform, Layout, RawCenter, SelfEdgeDrawData, TextLayoutConfig, TransformContext,
+    CoordTransform, GridLayoutConfig, Layout, RawCenter, SelfEdgeDrawData, TransformContext,
     align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
     compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts, compute_sublayouts,
     ensure_external_edge_spacing, ensure_subgraph_contains_members, expand_parent_subgraph_bounds,
@@ -22,8 +22,7 @@ use super::text_layout::{
     transform_label_positions_direct, transform_waypoints_direct,
 };
 use super::text_shape::{NodeBounds, node_dimensions};
-use crate::engines::graph::algorithms::layered::{Direction as LayeredDirection, Rect};
-use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
+use crate::graph::geometry::{FRect, GraphGeometry, RoutedGraphGeometry};
 use crate::graph::{Diagram, Direction, Edge, Shape};
 
 type DrawPath = Vec<(usize, usize)>;
@@ -32,11 +31,13 @@ type IndexedDrawPathPair = (usize, DrawPath, usize, DrawPath);
 
 /// Convenience: run the full engine → adapter pipeline to produce a `Layout`.
 ///
-/// This is the canonical way to compute a text layout from a `Diagram` and
-/// `TextLayoutConfig`. Internally runs `FluxLayeredEngine::text().solve()` then
+/// This is the canonical way to compute a grid layout from a `Diagram` and
+/// `GridLayoutConfig`. Internally runs `FluxLayeredEngine::text().solve()` then
 /// `geometry_to_text_layout()`.
-pub fn compute_layout(diagram: &Diagram, config: &TextLayoutConfig) -> Layout {
-    use crate::engines::graph::algorithms::layered::LayoutConfig as LayeredConfig;
+pub fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {
+    use crate::engines::graph::algorithms::layered::{
+        Direction as LayeredDirection, LayoutConfig as LayeredConfig,
+    };
     use crate::engines::graph::flux::FluxLayeredEngine;
     use crate::engines::graph::{
         EngineConfig, GraphEngine, GraphSolveRequest, OutputFormat, RenderConfig,
@@ -76,7 +77,7 @@ pub fn compute_layout(diagram: &Diagram, config: &TextLayoutConfig) -> Layout {
 pub fn geometry_to_text_layout(
     diagram: &Diagram,
     geometry: &GraphGeometry,
-    config: &TextLayoutConfig,
+    config: &GridLayoutConfig,
 ) -> Layout {
     geometry_to_text_layout_with_routed(diagram, geometry, None, config)
 }
@@ -87,7 +88,7 @@ pub fn geometry_to_text_layout_with_routed(
     diagram: &Diagram,
     geometry: &GraphGeometry,
     routed: Option<&RoutedGraphGeometry>,
-    config: &TextLayoutConfig,
+    config: &GridLayoutConfig,
 ) -> Layout {
     let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomTop);
     let direction = diagram.direction;
@@ -350,11 +351,10 @@ pub fn geometry_to_text_layout_with_routed(
     };
 
     // --- Phase G: Rank-to-draw mapping ---
-    let engine_hints = match &geometry.engine_hints {
-        Some(crate::graph::geometry::EngineHints::Layered(h)) => h,
-        _ => unreachable!("text adapter requires layered engine hints"),
-    };
-    let layer_starts = compute_layer_starts(&engine_hints.node_ranks, &node_bounds, is_vertical);
+    let grid_projection = geometry.grid_projection.as_ref();
+    let layer_starts = grid_projection
+        .map(|projection| compute_layer_starts(&projection.node_ranks, &node_bounds, is_vertical))
+        .unwrap_or_default();
 
     // --- Phase H: Transform waypoints and labels ---
     let ctx = TransformContext {
@@ -368,15 +368,19 @@ pub fn geometry_to_text_layout_with_routed(
         overhang_y: max_overhang_y,
     };
 
-    let edge_waypoints_converted = transform_waypoints_direct(
-        &engine_hints.edge_waypoints,
-        &diagram.edges,
-        &ctx,
-        &layer_starts,
-        is_vertical,
-        width,
-        height,
-    );
+    let edge_waypoints_converted = grid_projection
+        .map(|projection| {
+            transform_waypoints_direct(
+                &projection.edge_waypoints,
+                &diagram.edges,
+                &ctx,
+                &layer_starts,
+                is_vertical,
+                width,
+                height,
+            )
+        })
+        .unwrap_or_default();
     let mut routed_edge_paths: HashMap<usize, DrawPath> = HashMap::new();
     let mut preserve_routed_path_topology: HashSet<usize> = HashSet::new();
     if let Some(routed) = routed {
@@ -404,15 +408,19 @@ pub fn geometry_to_text_layout_with_routed(
         &preserve_routed_path_topology,
     );
 
-    let mut edge_label_positions = transform_label_positions_direct(
-        &engine_hints.label_positions,
-        &diagram.edges,
-        &ctx,
-        &layer_starts,
-        is_vertical,
-        width,
-        height,
-    );
+    let mut edge_label_positions = grid_projection
+        .map(|projection| {
+            transform_label_positions_direct(
+                &projection.label_positions,
+                &diagram.edges,
+                &ctx,
+                &layer_starts,
+                is_vertical,
+                width,
+                height,
+            )
+        })
+        .unwrap_or_default();
 
     // --- Phase I: Strip layout waypoints from backward edges ---
     // When ranks are doubled (labels present), backward edges get inflated layout
@@ -461,10 +469,10 @@ pub fn geometry_to_text_layout_with_routed(
         max_overhang_y,
         config,
     };
-    let layout_sg_bounds: HashMap<String, Rect> = geometry
+    let layout_sg_bounds: HashMap<String, FRect> = geometry
         .subgraphs
         .iter()
-        .map(|(id, sg)| (id.clone(), sg.rect.into()))
+        .map(|(id, sg)| (id.clone(), sg.rect))
         .collect();
     let mut subgraph_bounds =
         subgraph_bounds_to_draw(&diagram.subgraphs, &layout_sg_bounds, &coord_transform);
@@ -488,7 +496,6 @@ pub fn geometry_to_text_layout_with_routed(
     ensure_subgraph_contains_members(diagram, &node_bounds, &mut subgraph_bounds);
 
     // --- Phase L: Compute self-edge loop paths in draw coordinates ---
-    let layered_direction = layered_config.direction;
     let self_edges: Vec<SelfEdgeDrawData> = geometry
         .self_edges
         .iter()
@@ -496,8 +503,8 @@ pub fn geometry_to_text_layout_with_routed(
             let bounds = node_bounds.get(&se.node_id)?;
             let loop_extent = 3;
 
-            let points = match layered_direction {
-                LayeredDirection::TopBottom => {
+            let points = match diagram.direction {
+                Direction::TopDown => {
                     let right = bounds.x + bounds.width;
                     let loop_x = right + loop_extent;
                     let top_y = bounds.y;
@@ -509,7 +516,7 @@ pub fn geometry_to_text_layout_with_routed(
                         (right, bot_y),
                     ]
                 }
-                LayeredDirection::BottomTop => {
+                Direction::BottomTop => {
                     let right = bounds.x + bounds.width;
                     let loop_x = right + loop_extent;
                     let top_y = bounds.y;
@@ -521,7 +528,7 @@ pub fn geometry_to_text_layout_with_routed(
                         (right, top_y),
                     ]
                 }
-                LayeredDirection::LeftRight => {
+                Direction::LeftRight => {
                     let bot = bounds.y + bounds.height;
                     let loop_y = bot + loop_extent;
                     let left_x = bounds.x;
@@ -533,7 +540,7 @@ pub fn geometry_to_text_layout_with_routed(
                         (left_x, bot),
                     ]
                 }
-                LayeredDirection::RightLeft => {
+                Direction::RightLeft => {
                     let bot = bounds.y + bounds.height;
                     let loop_y = bot + loop_extent;
                     let left_x = bounds.x;

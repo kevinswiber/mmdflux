@@ -1,12 +1,14 @@
 use std::fs;
 use std::path::Path;
 
+use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::frontends::mmds::{
     MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str, hydrate_graph_geometry_from_mmds,
     hydrate_routed_geometry_from_mmds,
 };
 use mmdflux::graph::{Arrow, Stroke};
-use mmdflux::{Direction, Shape};
+use mmdflux::registry::DiagramInstance;
+use mmdflux::{Direction, OutputFormat, RenderConfig, Shape};
 
 fn fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -164,6 +166,22 @@ fn layout_geometry_level_builds_graph_geometry_without_edge_paths() {
     assert!(geom.edges[0].layout_path_hint.is_none());
     assert!(geom.edges[0].label_position.is_none());
     assert!(geom.subgraphs.contains_key("sg1"));
+}
+
+#[test]
+fn hydration_restores_grid_projection_from_generated_mmds() {
+    let mut instance = FlowchartInstance::new();
+    instance.parse("graph TD\nA-->B").unwrap();
+    let json = instance
+        .render(OutputFormat::Mmds, &RenderConfig::default())
+        .unwrap();
+
+    let geom = hydrate_graph_geometry_from_mmds(&json).expect("layout geometry should hydrate");
+    let projection = geom
+        .grid_projection
+        .expect("grid projection should hydrate");
+    assert!(projection.node_ranks.contains_key("A"));
+    assert!(projection.node_ranks.contains_key("B"));
 }
 
 #[test]

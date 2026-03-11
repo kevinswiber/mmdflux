@@ -525,7 +525,7 @@ pub mod render {
 
         /// Hidden text-type helpers.
         pub mod text_types {
-            pub use crate::render::graph::text_types::{Layout, TextLayoutConfig};
+            pub use crate::render::graph::text_types::{GridLayoutConfig, Layout};
         }
 
         /// Hidden graph-family backend helpers.
@@ -641,7 +641,7 @@ pub mod text_shape {
 
 /// Hidden text-type compatibility helpers.
 pub mod text_types {
-    pub use crate::testing::render::graph::text_types::{Layout, TextLayoutConfig};
+    pub use crate::testing::render::graph::text_types::{GridLayoutConfig, Layout};
 }
 
 /// Hidden graph-family backend compatibility helpers.

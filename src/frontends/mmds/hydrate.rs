@@ -13,9 +13,13 @@ use crate::graph::geometry::{
     FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode, RoutedGraphGeometry,
     SelfEdgeGeometry, SubgraphGeometry,
 };
+use crate::graph::grid_projection::GridProjection;
 use crate::graph::routing::route_graph_geometry;
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
-use crate::mmds::{MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MmdsEdge, MmdsOutput, parse_mmds_input};
+use crate::mmds::{
+    MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MMDS_TEXT_EXTENSION_NAMESPACE, MmdsEdge, MmdsOutput,
+    parse_mmds_input,
+};
 use crate::style::{ColorToken, NodeStyle};
 
 /// Placeholder hydration entrypoint for future MMDS input work.
@@ -353,6 +357,7 @@ fn build_graph_geometry(
     let nodes = build_positioned_nodes(output, diagram)?;
     let (edges, self_edges, reversed_edges) = build_layout_edges(output);
     let subgraphs = build_subgraph_geometry(output, diagram, &nodes);
+    let grid_projection = hydrate_grid_projection(output);
 
     Ok(GraphGeometry {
         nodes,
@@ -369,9 +374,84 @@ fn build_graph_geometry(
         ),
         reversed_edges,
         engine_hints: None,
+        grid_projection,
         rerouted_edges: std::collections::HashSet::new(),
         enhanced_backward_routing: false,
     })
+}
+
+fn hydrate_grid_projection(output: &MmdsOutput) -> Option<GridProjection> {
+    let projection = output
+        .extensions
+        .get(MMDS_TEXT_EXTENSION_NAMESPACE)?
+        .get("projection")?;
+
+    let node_ranks = projection
+        .get("node_ranks")
+        .and_then(Value::as_object)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|(node_id, value)| {
+                    value
+                        .as_i64()
+                        .and_then(|rank| i32::try_from(rank).ok())
+                        .map(|rank| (node_id.clone(), rank))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let edge_waypoints = projection
+        .get("edge_waypoints")
+        .and_then(Value::as_object)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|(edge_idx, value)| {
+                    let edge_idx = edge_idx.parse::<usize>().ok()?;
+                    let waypoints = value
+                        .as_array()?
+                        .iter()
+                        .filter_map(parse_ranked_point_value)
+                        .collect::<Vec<_>>();
+                    Some((edge_idx, waypoints))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let label_positions = projection
+        .get("label_positions")
+        .and_then(Value::as_object)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|(edge_idx, value)| {
+                    let edge_idx = edge_idx.parse::<usize>().ok()?;
+                    let point = parse_ranked_point_value(value)?;
+                    Some((edge_idx, point))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Some(GridProjection {
+        node_ranks,
+        edge_waypoints,
+        label_positions,
+    })
+}
+
+fn parse_ranked_point_value(value: &Value) -> Option<(FPoint, i32)> {
+    let object = value.as_object()?;
+    let x = object.get("x")?.as_f64()?;
+    let y = object.get("y")?.as_f64()?;
+    let rank = object
+        .get("rank")?
+        .as_i64()
+        .and_then(|rank| i32::try_from(rank).ok())?;
+    Some((FPoint::new(x, y), rank))
 }
 
 fn build_positioned_nodes(

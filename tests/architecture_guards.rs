@@ -513,3 +513,46 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
         );
     }
 }
+
+#[test]
+fn render_svg_source_does_not_define_layout_builders() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/svg.rs");
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    for forbidden in [
+        "build_svg_layout_with_flags",
+        "crate::engines::graph::algorithms::layered::LayoutConfig",
+    ] {
+        assert!(
+            !content.contains(forbidden),
+            "render::graph::svg should not define or import solve/build responsibilities: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn render_text_sources_use_graph_owned_projection_types_and_direct_mmds_replay() {
+    let text_types = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/text_types.rs");
+    let text_adapter =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/text_adapter.rs");
+    let mmds_render_input =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/frontends/mmds/render_input.rs");
+
+    let text_types = std::fs::read_to_string(&text_types).unwrap();
+    let text_adapter = std::fs::read_to_string(&text_adapter).unwrap();
+    let mmds_render_input = std::fs::read_to_string(&mmds_render_input).unwrap();
+
+    for forbidden in [
+        "crate::engines::graph::algorithms::layered::GridLayoutConfig",
+        "crate::engines::graph::algorithms::layered::Rect",
+        "unreachable!(\"text adapter requires layered engine hints\")",
+        "crate::runtime::facade::render_graph(",
+    ] {
+        assert!(
+            !text_types.contains(forbidden)
+                && !text_adapter.contains(forbidden)
+                && !mmds_render_input.contains(forbidden),
+            "render text replay should not rely on layered-owned bridge types or runtime solve fallback: {forbidden}"
+        );
+    }
+}

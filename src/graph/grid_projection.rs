@@ -1,11 +1,20 @@
-//! Shared text-layout configuration for graph-family layout bridges.
+//! Shared graph-family grid projection contracts.
+//!
+//! These types sit between engine-owned layout results and render-owned grid
+//! emission. They are graph-owned so text replay can happen directly from
+//! hydrated geometry without depending on engine hint enums or layered-owned
+//! config names.
 
-/// Configuration for text layout computation.
+use std::collections::HashMap;
+
+use crate::graph::geometry::FPoint;
+
+/// Configuration for discrete grid layout computation.
 ///
 /// Controls integer character-grid spacing, padding, and the underlying
-/// layered-layout engine parameters used by the text rendering pipeline.
+/// layout-derived parameters used by the grid projection pipeline.
 #[derive(Debug, Clone)]
-pub struct TextLayoutConfig {
+pub struct GridLayoutConfig {
     /// Horizontal spacing between nodes.
     pub h_spacing: usize,
     /// Vertical spacing between nodes.
@@ -30,7 +39,7 @@ pub struct TextLayoutConfig {
     pub cluster_rank_sep: f64,
 }
 
-impl Default for TextLayoutConfig {
+impl Default for GridLayoutConfig {
     fn default() -> Self {
         Self {
             h_spacing: 4,
@@ -46,4 +55,17 @@ impl Default for TextLayoutConfig {
             cluster_rank_sep: 25.0,
         }
     }
+}
+
+/// Graph-owned projection data needed to replay float geometry onto a discrete grid.
+#[derive(Debug, Clone, Default)]
+pub struct GridProjection {
+    /// Per-node rank assignments (node_id -> rank).
+    pub node_ranks: HashMap<String, i32>,
+    /// Waypoints with rank info for grid-snap transformation.
+    /// Key: edge index, Value: list of (position, rank) pairs.
+    pub edge_waypoints: HashMap<usize, Vec<(FPoint, i32)>>,
+    /// Label positions with rank info for grid-snap transformation.
+    /// Key: edge index, Value: (position, rank).
+    pub label_positions: HashMap<usize, (FPoint, i32)>,
 }

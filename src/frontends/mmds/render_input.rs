@@ -1,9 +1,13 @@
 use super::detect::resolve_logical_diagram_id;
-use super::hydrate::{from_mmds_output, hydrate_graph_geometry_from_output_with_diagram};
+use super::hydrate::{
+    from_mmds_output, hydrate_graph_geometry_from_output_with_diagram,
+    hydrate_routed_geometry_from_output,
+};
 use crate::engines::graph::{EdgeRouting, GeometryLevel, OutputFormat, RenderConfig, RenderError};
 use crate::mmds::{MmdsOutput, generate_mermaid_from_mmds, parse_mmds_input};
 use crate::render::graph::{
-    SvgRenderOptions, render_svg_from_geometry, render_svg_from_geometry_with_routing,
+    SvgRenderOptions, TextRenderOptions, render_svg_from_geometry,
+    render_svg_from_geometry_with_routing, render_text_from_geometry,
 };
 
 /// Render MMDS input through the frontend path.
@@ -67,10 +71,23 @@ pub fn render_output(
 
     match format {
         OutputFormat::Text | OutputFormat::Ascii => {
-            // Text rendering still relies on the solved layered-hint channel for
-            // rank-to-grid mapping, so MMDS text/ascii intentionally ignores
-            // hydrated routed paths and re-solves from the logical diagram.
-            crate::runtime::facade::render_graph(diagram_id, &diagram, format, config)
+            let mut options: TextRenderOptions = config.into();
+            options.output_format = format;
+            let routed = if payload.geometry_level == "routed" {
+                Some(
+                    hydrate_routed_geometry_from_output(payload).map_err(|error| RenderError {
+                        message: error.to_string(),
+                    })?,
+                )
+            } else {
+                None
+            };
+            Ok(render_text_from_geometry(
+                &diagram,
+                &geometry,
+                routed.as_ref(),
+                &options,
+            ))
         }
         OutputFormat::Svg => {
             let options: SvgRenderOptions = config.into();

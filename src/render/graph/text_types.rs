@@ -8,8 +8,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::text_shape::NodeBounds;
-use crate::engines::graph::algorithms::layered::Rect;
-pub use crate::engines::graph::algorithms::layered::TextLayoutConfig;
+use crate::graph::geometry::FRect;
+pub use crate::graph::grid_projection::GridLayoutConfig;
 use crate::graph::{Direction, Shape};
 
 /// Bounding box for a subgraph border in draw coordinates.
@@ -60,7 +60,7 @@ pub(crate) struct CoordTransform<'a> {
     pub(crate) layout_min_y: f64,
     pub(crate) max_overhang_x: usize,
     pub(crate) max_overhang_y: usize,
-    pub(crate) config: &'a TextLayoutConfig,
+    pub(crate) config: &'a GridLayoutConfig,
 }
 
 impl CoordTransform<'_> {
@@ -211,7 +211,7 @@ impl TransformContext {
     /// `to_ascii()`, then computes the draw rect between them. This ensures
     /// the transformed rect faithfully represents the layout bounding box in
     /// draw space.
-    pub(crate) fn to_ascii_rect(&self, rect: &Rect) -> (usize, usize, usize, usize) {
+    pub(crate) fn to_ascii_rect(&self, rect: &FRect) -> (usize, usize, usize, usize) {
         let (x1, y1) = self.to_ascii(rect.x, rect.y);
         let (x2, y2) = self.to_ascii(rect.x + rect.width, rect.y + rect.height);
         let draw_x = x1.min(x2);

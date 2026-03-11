@@ -66,7 +66,7 @@ Mermaid Text → Parser (pest PEG) → AST → Graph Builder → Diagram
 Modules are prefixed by pipeline: `text_*` for character-grid rendering, `svg*` for SVG, unprefixed for shared.
 
 - *Shared:* `layout_building.rs` (layered layout bridge), `layout_subgraph_ops.rs` (float-coord subgraph reconciliation), `orthogonal_router.rs`, `route_policy.rs`
-- *Text pipeline:* `text_types.rs` (Layout, TextLayoutConfig, SubgraphBounds, etc.), `text_layout.rs` (text-specific layout logic), `text_adapter.rs` (engine geometry → text Layout), `text_edge.rs`, `text_shape.rs`, `text_router.rs`, `text_subgraph.rs`, `text_routing_core.rs`
+- *Text pipeline:* `text_types.rs` (Layout, GridLayoutConfig, SubgraphBounds, etc.), `text_layout.rs` (text-specific layout logic), `text_adapter.rs` (engine geometry → text Layout), `text_edge.rs`, `text_shape.rs`, `text_router.rs`, `text_subgraph.rs`, `text_routing_core.rs`
 - *SVG pipeline:* `svg.rs` (SVG rendering + layout), `svg_router.rs` (SVG edge routing), `svg_metrics.rs` (font metrics)
 
 **`src/layered/`** - Hierarchical graph layout (Sugiyama framework, ~95% dagre v0.8.5 parity)

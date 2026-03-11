@@ -886,6 +886,7 @@ mod tests {
             bounds: FRect::new(0.0, 0.0, 100.0, 100.0),
             reversed_edges: vec![],
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: false,
         };
@@ -1062,6 +1063,7 @@ mod tests {
             bounds: FRect::new(0.0, 0.0, 140.0, 20.0),
             reversed_edges: vec![],
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: false,
         };
@@ -1127,6 +1129,7 @@ mod tests {
             bounds: FRect::new(0.0, 0.0, 140.0, 20.0),
             reversed_edges: vec![0],
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: true,
         };
@@ -1196,6 +1199,7 @@ mod tests {
             bounds: FRect::new(0.0, 0.0, 140.0, 20.0),
             reversed_edges: vec![0],
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: false,
         };
@@ -1328,6 +1332,7 @@ mod tests {
             bounds: FRect::new(0.0, 0.0, 200.0, 200.0),
             reversed_edges: vec![],
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: false,
         };
@@ -1404,6 +1409,7 @@ mod tests {
             bounds: FRect::new(0.0, 0.0, 200.0, 200.0),
             reversed_edges: vec![],
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: false,
         };
@@ -1578,6 +1584,7 @@ mod tests {
             bounds: FRect::new(0.0, 0.0, 100.0, 100.0),
             reversed_edges: vec![],
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: false,
         };
@@ -1681,6 +1688,7 @@ mod tests {
             bounds: FRect::new(0.0, 0.0, 55.0, 120.0),
             reversed_edges: vec![2], // C->A is backward
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: true,
         };

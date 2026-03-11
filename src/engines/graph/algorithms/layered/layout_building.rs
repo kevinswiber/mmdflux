@@ -2,12 +2,12 @@
 //!
 //! Contains the `build_layered_layout()` entry point, sublayout computation for
 //! direction-override subgraphs, and the `layered_config_for_layout()` bridge
-//! from `TextLayoutConfig` to `layered::LayoutConfig`.
+//! from `GridLayoutConfig` to `layered::LayoutConfig`.
 
 use std::collections::{HashMap, HashSet};
 
 use crate::engines::graph::algorithms::layered::{
-    self, Direction as LayeredDirection, LayoutConfig as LayeredConfig, TextLayoutConfig,
+    self, Direction as LayeredDirection, GridLayoutConfig, LayoutConfig as LayeredConfig,
 };
 use crate::graph::{Diagram, Direction, Edge, Node, Stroke};
 
@@ -194,7 +194,7 @@ where
 
 pub(crate) fn layered_config_for_layout(
     diagram: &Diagram,
-    config: &TextLayoutConfig,
+    config: &GridLayoutConfig,
 ) -> LayeredConfig {
     let layered_direction = to_layered_direction(diagram.direction);
 
@@ -373,7 +373,7 @@ where
 #[cfg(test)]
 pub(crate) fn build_layered_layout<FN, FE>(
     diagram: &Diagram,
-    config: &TextLayoutConfig,
+    config: &GridLayoutConfig,
     node_dims: FN,
     edge_label_dims: FE,
 ) -> layered::LayoutResult

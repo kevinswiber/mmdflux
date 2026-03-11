@@ -189,6 +189,7 @@ fn render_only_geometry_api_works() {
             edge_waypoints: HashMap::new(),
             label_positions: HashMap::new(),
         })),
+        grid_projection: None,
         rerouted_edges: HashSet::new(),
         enhanced_backward_routing: false,
     };
@@ -199,6 +200,68 @@ fn render_only_geometry_api_works() {
 
     let svg = render_svg_from_geometry(&diagram, &geometry, &SvgRenderOptions::default());
     assert!(svg.contains("<svg"));
+}
+
+#[test]
+fn render_text_geometry_api_does_not_require_engine_hints() {
+    let mut diagram = Diagram::new(Direction::LeftRight);
+    diagram.add_node(Node::new("A").with_shape(Shape::Rectangle));
+    diagram.add_node(Node::new("B").with_shape(Shape::Rectangle));
+    diagram.add_edge(Edge::new("A", "B"));
+
+    let geometry = GraphGeometry {
+        nodes: HashMap::from([
+            (
+                "A".to_string(),
+                PositionedNode {
+                    id: "A".to_string(),
+                    rect: FRect::new(0.0, 0.0, 9.0, 3.0),
+                    shape: Shape::Rectangle,
+                    label: "A".to_string(),
+                    parent: None,
+                },
+            ),
+            (
+                "B".to_string(),
+                PositionedNode {
+                    id: "B".to_string(),
+                    rect: FRect::new(20.0, 0.0, 9.0, 3.0),
+                    shape: Shape::Rectangle,
+                    label: "B".to_string(),
+                    parent: None,
+                },
+            ),
+        ]),
+        edges: vec![LayoutEdge {
+            index: 0,
+            from: "A".to_string(),
+            to: "B".to_string(),
+            waypoints: vec![],
+            label_position: None,
+            label_side: None,
+            from_subgraph: None,
+            to_subgraph: None,
+            layout_path_hint: None,
+            preserve_orthogonal_topology: false,
+        }],
+        subgraphs: HashMap::new(),
+        self_edges: vec![],
+        direction: Direction::LeftRight,
+        node_directions: HashMap::from([
+            ("A".to_string(), Direction::LeftRight),
+            ("B".to_string(), Direction::LeftRight),
+        ]),
+        bounds: FRect::new(0.0, 0.0, 30.0, 6.0),
+        reversed_edges: vec![],
+        engine_hints: None,
+        grid_projection: None,
+        rerouted_edges: HashSet::new(),
+        enhanced_backward_routing: false,
+    };
+
+    let text = render_text_from_geometry(&diagram, &geometry, None, &TextRenderOptions::default());
+    assert!(text.contains('A'));
+    assert!(text.contains('B'));
 }
 
 #[test]

@@ -1,5 +1,5 @@
-use mmdflux::OutputFormat;
 use mmdflux::frontends::mmds::{render_input, supports_format};
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig};
 
 #[test]
 fn output_format_from_render_module() {
@@ -32,6 +32,20 @@ fn mmds_routed_payload_renders_text_and_ascii_by_ignoring_paths() {
             .expect("routed MMDS should render text/ascii by ignoring paths");
         assert!(output.contains("Start"));
     }
+}
+
+#[test]
+fn routed_mmds_text_render_does_not_reenter_runtime_engine_selection() {
+    let input =
+        std::fs::read_to_string("tests/fixtures/mmds/positioned/routed-basic.json").unwrap();
+    let config = RenderConfig {
+        layout_engine: Some(EngineAlgorithmId::parse("elk-layered").unwrap()),
+        ..RenderConfig::default()
+    };
+
+    let output = render_input(&input, OutputFormat::Text, &config)
+        .expect("routed MMDS text replay should not depend on runtime engine availability");
+    assert!(output.contains("Start"));
 }
 
 fn mmds_fixture(name: &str) -> String {

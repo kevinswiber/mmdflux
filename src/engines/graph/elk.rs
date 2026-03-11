@@ -353,6 +353,7 @@ fn parse_elk_output(output: &str, diagram: &Diagram) -> Result<GraphGeometry, Re
         bounds: FRect::new(max_x / 2.0, max_y / 2.0, max_x, max_y),
         reversed_edges: Vec::new(),
         engine_hints: None,
+        grid_projection: None,
         rerouted_edges: std::collections::HashSet::new(),
         enhanced_backward_routing: false,
     })

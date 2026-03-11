@@ -7,10 +7,11 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::{Map, Number, Value};
 
 use crate::engines::graph::{EngineAlgorithmId, GeometryLevel, PathSimplification, RenderError};
 use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry};
+use crate::graph::grid_projection::GridProjection;
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
 use crate::style::NodeStyle;
 
@@ -18,6 +19,7 @@ pub const MMDS_CORE_PROFILE: &str = "mmds-core-v1";
 pub const MMDS_SVG_PROFILE: &str = "mmdflux-svg-v1";
 pub const MMDS_TEXT_PROFILE: &str = "mmdflux-text-v1";
 pub const MMDS_NODE_STYLE_PROFILE: &str = "mmdflux-node-style-v1";
+pub const MMDS_TEXT_EXTENSION_NAMESPACE: &str = "org.mmdflux.render.text.v1";
 pub const MMDS_NODE_STYLE_EXTENSION_NAMESPACE: &str = "org.mmdflux.node-style.v1";
 pub const SUPPORTED_MMDS_PROFILES: &[&str] = &[
     MMDS_CORE_PROFILE,
@@ -271,9 +273,17 @@ fn build_mmds_output(
 
     let mut profiles = Vec::new();
     let mut extensions = BTreeMap::new();
+    if let Some(grid_projection) = &geometry.grid_projection {
+        push_profile(&mut profiles, MMDS_CORE_PROFILE);
+        push_profile(&mut profiles, MMDS_TEXT_PROFILE);
+        extensions.insert(
+            MMDS_TEXT_EXTENSION_NAMESPACE.to_string(),
+            grid_projection_extension(grid_projection),
+        );
+    }
     if !styled_nodes.is_empty() {
-        profiles.push(MMDS_CORE_PROFILE.to_string());
-        profiles.push(MMDS_NODE_STYLE_PROFILE.to_string());
+        push_profile(&mut profiles, MMDS_CORE_PROFILE);
+        push_profile(&mut profiles, MMDS_NODE_STYLE_PROFILE);
         extensions.insert(
             MMDS_NODE_STYLE_EXTENSION_NAMESPACE.to_string(),
             node_style_extension(styled_nodes),
@@ -300,6 +310,82 @@ fn collect_styled_nodes(diagram: &Diagram) -> BTreeMap<String, NodeStyle> {
         .filter(|(_, node)| !node.style.is_empty())
         .map(|(node_id, node)| (node_id.clone(), node.style.clone()))
         .collect()
+}
+
+fn push_profile(profiles: &mut Vec<String>, profile: &str) {
+    if !profiles.iter().any(|existing| existing == profile) {
+        profiles.push(profile.to_string());
+    }
+}
+
+fn grid_projection_extension(grid_projection: &GridProjection) -> Map<String, Value> {
+    let mut extension = Map::new();
+    extension.insert(
+        "projection".to_string(),
+        Value::Object(serialize_grid_projection(grid_projection)),
+    );
+    extension
+}
+
+fn serialize_grid_projection(grid_projection: &GridProjection) -> Map<String, Value> {
+    let mut projection = Map::new();
+    projection.insert(
+        "node_ranks".to_string(),
+        Value::Object(
+            grid_projection
+                .node_ranks
+                .iter()
+                .map(|(node_id, rank)| (node_id.clone(), Value::Number(Number::from(*rank))))
+                .collect(),
+        ),
+    );
+    projection.insert(
+        "edge_waypoints".to_string(),
+        Value::Object(
+            grid_projection
+                .edge_waypoints
+                .iter()
+                .map(|(edge_idx, waypoints)| {
+                    (
+                        edge_idx.to_string(),
+                        Value::Array(
+                            waypoints
+                                .iter()
+                                .map(|(point, rank)| ranked_point_value(*point, *rank))
+                                .collect(),
+                        ),
+                    )
+                })
+                .collect(),
+        ),
+    );
+    projection.insert(
+        "label_positions".to_string(),
+        Value::Object(
+            grid_projection
+                .label_positions
+                .iter()
+                .map(|(edge_idx, (point, rank))| {
+                    (edge_idx.to_string(), ranked_point_value(*point, *rank))
+                })
+                .collect(),
+        ),
+    );
+    projection
+}
+
+fn ranked_point_value(point: crate::graph::geometry::FPoint, rank: i32) -> Value {
+    let mut value = Map::new();
+    value.insert(
+        "x".to_string(),
+        Value::Number(Number::from_f64(point.x).expect("grid projection x should be finite")),
+    );
+    value.insert(
+        "y".to_string(),
+        Value::Number(Number::from_f64(point.y).expect("grid projection y should be finite")),
+    );
+    value.insert("rank".to_string(), Value::Number(Number::from(rank)));
+    Value::Object(value)
 }
 
 fn node_style_extension(styled_nodes: BTreeMap<String, NodeStyle>) -> Map<String, Value> {

@@ -3,6 +3,7 @@ mod diagram;
 pub mod direction_policy;
 mod edge;
 pub mod geometry;
+pub mod grid_projection;
 pub mod measure;
 mod node;
 pub(crate) mod orthogonal_router;

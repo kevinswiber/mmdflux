@@ -6,6 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::graph::grid_projection::GridProjection;
 use crate::graph::{Direction, Shape};
 
 // ---------------------------------------------------------------------------
@@ -81,6 +82,8 @@ pub struct GraphGeometry {
     pub reversed_edges: Vec<usize>,
     /// Optional engine-specific metadata for migration-sensitive behavior.
     pub engine_hints: Option<EngineHints>,
+    /// Optional graph-owned replay metadata for projecting float geometry onto a discrete grid.
+    pub grid_projection: Option<GridProjection>,
     /// Edge indices rerouted by the layout engine (e.g., direction-override subgraph edges).
     /// Populated by engines that perform SVG-specific subgraph post-processing.
     /// Used by the SVG renderer to skip shape-clipping on explicitly routed edges.
@@ -387,6 +390,7 @@ mod tests {
         assert_eq!(geom.nodes.len(), 2);
         assert_eq!(geom.edges.len(), 1);
         assert!(geom.engine_hints.is_some());
+        assert!(geom.grid_projection.is_some());
         assert_eq!(geom.direction, Direction::TopDown);
     }
 
@@ -459,12 +463,15 @@ mod tests {
             Some(EngineHints::Layered(h)) => h,
             _ => panic!("expected layered hints"),
         };
+        let projection = geom.grid_projection.as_ref().expect("grid projection");
         let wp_ranks = &hints.edge_waypoints[&0];
         assert_eq!(wp_ranks.len(), 1);
         assert_eq!(wp_ranks[0].1, 1); // rank = 1
         let (lp, lr) = &hints.label_positions[&0];
         assert_eq!(lp.x, 50.0);
         assert_eq!(*lr, 1);
+        assert_eq!(projection.edge_waypoints[&0][0].1, 1);
+        assert_eq!(projection.label_positions[&0].1, 1);
     }
 
     #[test]
@@ -622,12 +629,14 @@ mod tests {
             bounds: FRect::new(0.0, 0.0, 0.0, 0.0),
             reversed_edges: Vec::new(),
             engine_hints: None,
+            grid_projection: None,
             rerouted_edges: HashSet::new(),
             enhanced_backward_routing: false,
         };
         assert!(geo.nodes.is_empty());
         assert!(geo.edges.is_empty());
         assert!(geo.engine_hints.is_none());
+        assert!(geo.grid_projection.is_none());
     }
 
     #[test]
