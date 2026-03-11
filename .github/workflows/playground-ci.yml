@@ -40,6 +40,9 @@ permissions:
   issues: write
   pull-requests: write
 
+env:
+  WASM_PACK_VERSION: 0.14.0
+
 jobs:
   playground:
     name: Test and Build Playground
@@ -59,7 +62,13 @@ jobs:
           shared-key: playground-ci
 
       - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v wasm-pack >/dev/null 2>&1 || [[ "$(wasm-pack --version | awk '{print $2}')" != "${WASM_PACK_VERSION}" ]]; then
+            cargo install wasm-pack --version "${WASM_PACK_VERSION}" --locked
+          fi
+          wasm-pack --version
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
