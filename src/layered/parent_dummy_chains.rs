@@ -4,6 +4,7 @@
 //! during normalization are associated with the correct compound ancestors,
 //! which affects ordering and border placement.
 
+use super::debug;
 use super::graph::LayoutGraph;
 
 #[derive(Clone, Copy, Debug)]
@@ -17,7 +18,7 @@ pub(crate) fn run(graph: &mut LayoutGraph) {
         return;
     }
 
-    let debug = std::env::var("MMDFLUX_DEBUG_DUMMY_PARENTS").is_ok_and(|v| v == "1");
+    let debug = debug::dummy_parents_enabled();
     let postorder = compute_postorder(graph);
 
     for chain in &graph.dummy_chains {

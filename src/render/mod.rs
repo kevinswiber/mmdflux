@@ -211,14 +211,7 @@ impl RenderOptions {
 /// let ascii = render(&diagram, &RenderOptions::default());
 /// ```
 pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
-    if matches!(options.output_format, OutputFormat::Svg) {
-        return render_svg(diagram, options);
-    }
-
-    // Engine → text adapter → text renderer.
-    let mut config = layout_config_for_diagram(diagram, options);
-    config.ranker = options.ranker;
-
+    // All formats go through the graph-family pipeline: engine → solve → format emitter.
     let engine = crate::diagrams::flowchart::engine::FluxLayeredEngine::text();
     let engine_config = layered_engine_config_for_render(diagram, options);
     let request_config = RenderConfig {
@@ -231,15 +224,12 @@ pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
     let result = engine
         .solve(diagram, &engine_config, &request)
         .expect("engine solve failed in render()");
-    let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
-    let routed = crate::diagrams::flowchart::routing::route_graph_geometry(
-        diagram,
-        &result.geometry,
-        edge_routing,
-    );
-    let layout =
-        geometry_to_text_layout_with_routed(diagram, &result.geometry, Some(&routed), &config);
-    render_text_from_layout(diagram, &layout, options)
+
+    if matches!(options.output_format, OutputFormat::Svg) {
+        crate::formats::svg::render_svg_with_options(diagram, &result, options)
+    } else {
+        crate::formats::text::render_text_with_options(diagram, &result, options)
+    }
 }
 
 fn layered_engine_config_for_render(

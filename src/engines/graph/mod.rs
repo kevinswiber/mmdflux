@@ -6,6 +6,9 @@
 pub mod cose;
 #[cfg(feature = "engine-elk")]
 pub mod elk;
+pub mod layered;
 mod registry;
+mod solve;
 
 pub use registry::GraphEngineRegistry;
+pub(crate) use solve::solve_graph_family;

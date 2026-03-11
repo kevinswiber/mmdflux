@@ -598,7 +598,7 @@ fn add_subgraph_constraints(graph: &LayoutGraph, cg: &mut ConstraintGraph, sorte
 
 /// Check if order debug tracing is enabled via MMDFLUX_DEBUG_ORDER=1.
 fn debug_order() -> bool {
-    std::env::var("MMDFLUX_DEBUG_ORDER").is_ok_and(|v| v == "1")
+    super::debug::order_enabled()
 }
 
 /// Dump per-rank node names and order values.

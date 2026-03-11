@@ -6,11 +6,12 @@
 
 use std::collections::HashMap;
 
+use super::debug;
 use super::graph::{BorderType, LayoutGraph};
 use super::types::{NodeId, Rect};
 
 fn debug_border_nodes(lg: &LayoutGraph) {
-    if !std::env::var("MMDFLUX_DEBUG_BORDER_NODES").is_ok_and(|v| v == "1") {
+    if !debug::border_nodes_enabled() {
         return;
     }
 
@@ -133,7 +134,7 @@ pub fn add_segments(lg: &mut LayoutGraph) {
 pub fn remove_nodes(lg: &mut LayoutGraph) -> HashMap<String, Rect> {
     debug_border_nodes(lg);
 
-    let debug_bounds = std::env::var("MMDFLUX_DEBUG_SUBGRAPH_BOUNDS").is_ok_and(|v| v == "1");
+    let debug_bounds = debug::subgraph_bounds_enabled();
 
     let mut bounds = HashMap::new();
 

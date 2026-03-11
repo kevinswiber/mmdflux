@@ -14,8 +14,8 @@ use crate::diagram::{
     GeometryLevel, GraphEngine, GraphSolveRequest, GraphSolveResult, OutputFormat, RenderConfig,
     RenderError, RouteOwnership, RoutingStyle,
 };
-use crate::diagrams::flowchart::geometry::RoutedGraphGeometry;
 use crate::graph::Diagram;
+use crate::graph::geometry::RoutedGraphGeometry;
 use crate::render::SvgOptions;
 
 /// Measurement mode controls whether layout uses text-grid character

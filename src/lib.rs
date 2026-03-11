@@ -39,6 +39,7 @@
 pub mod diagram;
 pub mod diagrams;
 pub mod engines;
+pub mod formats;
 pub mod graph;
 pub mod layered;
 pub mod lint;

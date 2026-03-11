@@ -9,7 +9,7 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 use crate::diagram::{EngineConfig, RenderError};
-use crate::diagrams::flowchart::geometry::{
+use crate::graph::geometry::{
     FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode, SubgraphGeometry,
 };
 use crate::graph::{Diagram, Direction, Shape};

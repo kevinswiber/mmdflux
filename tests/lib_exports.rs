@@ -66,3 +66,29 @@ fn core_types_accessible() {
     diagram.add_node(Node::new("B"));
     diagram.add_edge(Edge::new("A", "B"));
 }
+
+#[test]
+fn legacy_layered_module_is_only_a_compatibility_facade_during_breakup() {
+    let mut graph = mmdflux::layered::DiGraph::new();
+    graph.add_node("A", (10.0, 10.0));
+    graph.add_node("B", (10.0, 10.0));
+    graph.add_edge("A", "B");
+
+    let _ = mmdflux::layered::Ranker::NetworkSimplex;
+    let result = mmdflux::engines::graph::layered::run_layered_layout(
+        &graph,
+        &mmdflux::layered::LayoutConfig::default(),
+        |_, dims| *dims,
+    );
+
+    assert!(
+        result
+            .nodes
+            .contains_key(&mmdflux::layered::NodeId::from("A"))
+    );
+    assert!(
+        result
+            .nodes
+            .contains_key(&mmdflux::layered::NodeId::from("B"))
+    );
+}

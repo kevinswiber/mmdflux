@@ -10,9 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::diagram::{EngineAlgorithmId, GeometryLevel, PathSimplification, RenderError};
-use crate::diagrams::flowchart::geometry::{
-    EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry,
-};
+use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry};
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
 use crate::style::NodeStyle;
 

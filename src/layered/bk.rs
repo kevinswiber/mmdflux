@@ -485,7 +485,7 @@ pub fn find_type2_conflicts(graph: &LayoutGraph) -> ConflictSet {
         return conflicts;
     }
 
-    if std::env::var("MMDFLUX_DEBUG_CONFLICTS").is_ok_and(|v| v == "1") {
+    if super::debug::conflicts_enabled() {
         debug_dump_layer_matrix(graph, &layers);
     }
 
@@ -609,7 +609,7 @@ pub fn find_all_conflicts(graph: &LayoutGraph) -> ConflictSet {
     let type1 = find_type1_conflicts(graph);
     let type2 = find_type2_conflicts(graph);
 
-    if std::env::var("MMDFLUX_DEBUG_CONFLICTS").is_ok_and(|v| v == "1") {
+    if super::debug::conflicts_enabled() {
         debug_log_conflicts(graph, &type1, &type2);
     }
 
@@ -696,7 +696,7 @@ fn vertical_alignment_with_layering(
         return alignment;
     }
 
-    let bk_trace = std::env::var("MMDFLUX_DEBUG_BK_TRACE").is_ok_and(|v| v == "1");
+    let bk_trace = super::debug::bk_trace_enabled();
 
     let mut pos: HashMap<NodeIndex, isize> = HashMap::new();
     for layer in layers {
@@ -1277,7 +1277,7 @@ pub fn position_x(graph: &LayoutGraph, config: &BKConfig) -> HashMap<NodeIndex, 
     if graph.node_ids.is_empty() {
         return HashMap::new();
     }
-    let bk_trace = std::env::var("MMDFLUX_DEBUG_BK_TRACE").is_ok_and(|v| v == "1");
+    let bk_trace = super::debug::bk_trace_enabled();
 
     // Step 1: Find all conflicts
     let conflicts = find_all_conflicts(graph);
@@ -1313,7 +1313,7 @@ pub fn position_x(graph: &LayoutGraph, config: &BKConfig) -> HashMap<NodeIndex, 
 }
 
 fn debug_dump_border_blocks(graph: &LayoutGraph, conflicts: &ConflictSet) {
-    if !std::env::var("MMDFLUX_DEBUG_BORDER_BLOCKS").is_ok_and(|v| v == "1") {
+    if !super::debug::border_blocks_enabled() {
         return;
     }
 

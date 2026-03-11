@@ -8,10 +8,10 @@
 //! This is a key part of the Sugiyama framework that enables edges to
 //! fan out naturally from nodes rather than overlapping at the center.
 
-use crate::diagrams::flowchart::geometry::{FPoint, FRect};
 use crate::diagrams::flowchart::render::text_routing_core::classify_face_float as shared_classify_face_float;
 use crate::diagrams::flowchart::render::text_shape::NodeBounds;
 use crate::graph::Shape;
+use crate::graph::geometry::{FPoint, FRect};
 
 /// Minimum gap between adjacent attachment points on a face.
 /// Prevents arrow characters from visually colliding on narrow faces.

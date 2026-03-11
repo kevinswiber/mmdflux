@@ -710,9 +710,9 @@ pub struct GraphSolveResult {
     /// Which engine+algorithm produced this result.
     pub engine_id: EngineAlgorithmId,
     /// Positioned node and edge geometry.
-    pub geometry: crate::diagrams::flowchart::geometry::GraphGeometry,
+    pub geometry: crate::graph::geometry::GraphGeometry,
     /// Routed edge paths (present when engine routes natively and routed level requested).
-    pub routed: Option<crate::diagrams::flowchart::geometry::RoutedGraphGeometry>,
+    pub routed: Option<crate::graph::geometry::RoutedGraphGeometry>,
 }
 
 /// Unified graph engine trait combining layout and optional routing.
