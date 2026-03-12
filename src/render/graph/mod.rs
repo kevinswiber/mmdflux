@@ -9,23 +9,26 @@
 //!   `render_svg_from_geometry`
 //! - low-level text replay helpers used by advanced tests and MMDS replay
 //!   paths that need to rebuild text-grid state explicitly
+//!
+//! Internally, graph render routing is split into render-owned grid routing
+//! helpers under `grid_routing` and graph-owned float/policy helpers exposed
+//! through `crate::graph::routing`.
 
+pub(crate) mod grid_routing;
 pub(crate) mod svg;
 pub(crate) mod svg_metrics;
 pub(crate) mod text_adapter;
 pub(crate) mod text_edge;
 pub(crate) mod text_layout;
-pub(crate) mod text_router;
-pub(crate) mod text_routing_core;
 pub(crate) mod text_shape;
 pub(crate) mod text_subgraph;
 pub(crate) mod text_types;
 
+pub use self::grid_routing::router::{RoutedEdge, Segment, route_all_edges};
 use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
 // Low-level text replay helpers for advanced callers.
 pub use self::text_adapter::geometry_to_text_layout_with_routed;
 pub use self::text_edge::render_all_edges_with_labels;
-pub use self::text_router::{RoutedEdge, Segment, route_all_edges};
 pub use self::text_shape::{NodeBounds, render_node};
 pub use self::text_types::Layout;
 use self::text_types::SubgraphBounds;

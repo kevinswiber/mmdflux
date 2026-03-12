@@ -1,23 +1,23 @@
 use std::fs;
 use std::path::Path;
 
-use super::super::text_layout::{GridLayoutConfig, GridPos};
-use super::super::text_types::SubgraphBounds;
-use super::*;
 use crate::diagrams::flowchart::compile_to_graph;
 use crate::engines::graph::EngineConfig;
 use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
 use crate::format::OutputFormat;
 use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::geometry::{FPoint, FRect};
-use crate::graph::routing::{EdgeRouting, route_graph_geometry};
-use crate::graph::{Diagram, Node};
-use crate::render::graph::text_adapter::geometry_to_text_layout_with_routed;
-use crate::render::graph::text_routing_core::{
-    Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
+use crate::graph::routing::{
+    EdgeRouting, Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
     classify_face_float, edge_faces, fan_in_overflow_face_for_slot, fan_in_primary_face_capacity,
-    plan_attachments, point_on_face_float, resolve_overflow_backward_channel_conflict,
+    point_on_face_float, resolve_overflow_backward_channel_conflict, route_graph_geometry,
 };
+use crate::graph::{Diagram, Direction, Edge, Node};
+use crate::render::graph::grid_routing::core::plan_attachments;
+use crate::render::graph::grid_routing::router::*;
+use crate::render::graph::text_adapter::geometry_to_text_layout_with_routed;
+use crate::render::graph::text_layout::{GridLayoutConfig, GridPos};
+use crate::render::graph::text_types::SubgraphBounds;
 use crate::render::intersect::NodeFace;
 use crate::runtime::test_support_tests::compute_layout;
 

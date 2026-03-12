@@ -16,7 +16,7 @@ pub use crate::graph::direction_policy::{
     build_override_node_map, effective_edge_direction as effective_edge_direction_svg,
 };
 use crate::graph::geometry::FRect;
-use crate::graph::routing_core::{
+use crate::graph::routing::{
     AttachmentCandidate, AttachmentSide, Face, build_orthogonal_path_float,
     edge_faces as shared_edge_faces, plan_attachment_candidates,
     point_on_face_float as shared_point_on_face_float,

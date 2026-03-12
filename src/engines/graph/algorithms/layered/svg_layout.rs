@@ -13,8 +13,9 @@ use crate::engines::graph::algorithms::layered::{
 };
 use crate::graph::geometry::{GraphGeometry, RoutedEdgeGeometry};
 use crate::graph::measure::{SvgTextMetrics, svg_node_dimensions};
-use crate::graph::orthogonal_router::{OrthogonalRoutingOptions, route_edges_orthogonal};
-use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+use crate::graph::routing::{
+    EdgeRouting, OrthogonalRoutingOptions, route_edges_orthogonal, route_graph_geometry,
+};
 use crate::graph::{Diagram, Direction, Stroke};
 
 pub(crate) fn build_svg_layout_with_flags(

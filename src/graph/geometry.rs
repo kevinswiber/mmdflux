@@ -260,8 +260,8 @@ pub struct RoutedSelfEdge {
 
 /// Which face of a node boundary an edge port attaches to.
 ///
-/// Separate from `text_routing_core::Face` to avoid coupling the
-/// geometry IR to the text rendering module.
+/// Separate from `graph::routing::Face` so the geometry IR does not depend on
+/// routing-policy internals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PortFace {
     Top,

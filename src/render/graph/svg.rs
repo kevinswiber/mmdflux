@@ -6,12 +6,12 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
 use super::svg_metrics::SvgTextMetrics;
-use super::text_routing_core::{
-    build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
-};
 use crate::graph::direction_policy::{build_override_node_map, effective_edge_direction};
 use crate::graph::geometry::{EngineHints, FPoint, FRect, GraphGeometry};
-use crate::graph::routing::{EdgeRouting, compute_end_label_positions};
+use crate::graph::routing::{
+    EdgeRouting, build_orthogonal_path_float, compute_end_label_positions, hexagon_vertices,
+    intersect_convex_polygon,
+};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke};
 use crate::render::graph::SvgRenderOptions;
 use crate::{CornerStyle, Curve, PathSimplification};

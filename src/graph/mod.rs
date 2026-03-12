@@ -14,9 +14,7 @@ pub mod geometry;
 pub mod grid_projection;
 pub mod measure;
 mod node;
-pub(crate) mod orthogonal_router;
 pub(crate) mod routing;
-pub(crate) mod routing_core;
 
 pub use diagram::*;
 pub use edge::*;

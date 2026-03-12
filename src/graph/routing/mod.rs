@@ -7,11 +7,28 @@
 //! - `EngineProvided`: Use engine-provided paths directly.
 //! - `OrthogonalRoute`: Produce axis-aligned (right-angle) edge paths.
 
-use super::direction_policy::effective_edge_direction;
-use super::orthogonal_router::{
-    OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal, snap_path_to_grid,
+mod float_core;
+mod orthogonal;
+mod policy;
+
+pub(crate) use self::float_core::{
+    LARGE_HORIZONTAL_OFFSET_THRESHOLD, build_orthogonal_path_float, classify_face_float,
+    compute_port_attachments_from_geometry, hexagon_vertices, intersect_convex_polygon,
+    point_on_face_float,
 };
-use super::routing_core::compute_port_attachments_from_geometry;
+pub(crate) use self::orthogonal::{OrthogonalRoutingOptions, route_edges_orthogonal};
+use self::orthogonal::{build_path_from_hints, snap_path_to_grid};
+pub(crate) use self::policy::{
+    AttachmentCandidate, AttachmentPlan, AttachmentSide, Face, edge_faces,
+    plan_attachment_candidates,
+};
+#[cfg(test)]
+#[allow(unused_imports)]
+pub(crate) use self::policy::{
+    OverflowSide, canonical_backward_channel_face, fan_in_overflow_face_for_slot,
+    fan_in_primary_face_capacity, resolve_overflow_backward_channel_conflict,
+};
+use super::direction_policy::effective_edge_direction;
 use crate::graph::geometry::*;
 use crate::graph::{Diagram, Direction};
 

@@ -4,14 +4,14 @@
 
 use std::collections::HashMap;
 
-use super::text_layout::{Layout, SelfEdgeDrawData, SubgraphBounds};
-use super::text_routing_core::{
+use super::core::{
     Face as SharedFace,
     LARGE_HORIZONTAL_OFFSET_THRESHOLD as SHARED_LARGE_HORIZONTAL_OFFSET_THRESHOLD,
     edge_faces as shared_edge_faces, plan_attachments as shared_plan_attachments,
 };
-use super::text_shape::NodeBounds;
 use crate::graph::{Arrow, Direction, Edge, Shape, Stroke};
+use crate::render::graph::text_layout::{Layout, SelfEdgeDrawData, SubgraphBounds};
+use crate::render::graph::text_shape::NodeBounds;
 use crate::render::intersect::{
     NodeFace, calculate_attachment_points, classify_face, spread_points_on_face,
 };
@@ -3379,5 +3379,5 @@ pub fn route_all_edges(
 }
 
 #[cfg(test)]
-#[path = "text_router_tests.rs"]
-mod tests;
+#[path = "router_tests.rs"]
+mod router_tests;

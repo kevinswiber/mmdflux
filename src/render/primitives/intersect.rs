@@ -10,7 +10,7 @@
 
 use crate::graph::Shape;
 use crate::graph::geometry::{FPoint, FRect};
-use crate::graph::routing_core::{
+use crate::graph::routing::{
     Face as RoutingFace, classify_face_float as shared_classify_face_float,
 };
 use crate::render::graph::text_shape::NodeBounds;

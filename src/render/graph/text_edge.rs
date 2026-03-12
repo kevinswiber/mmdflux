@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use super::text_router::{AttachDirection, Point, RoutedEdge, Segment};
+use super::grid_routing::router::{AttachDirection, Point, RoutedEdge, Segment};
 use crate::graph::{Arrow, Direction, Stroke};
 use crate::render::primitives::canvas::{Canvas, Connections};
 use crate::render::primitives::chars::CharSet;
@@ -1241,8 +1241,8 @@ fn draw_label_direct(
 
 #[cfg(test)]
 mod tests {
+    use super::super::grid_routing::router::route_edge;
     use super::super::text_layout::GridLayoutConfig;
-    use super::super::text_router::route_edge;
     use super::*;
     use crate::graph::{Diagram, Edge, Node};
     use crate::runtime::test_support_tests::{compute_layout, render_text_diagram};

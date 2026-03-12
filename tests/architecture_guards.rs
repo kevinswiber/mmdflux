@@ -387,15 +387,44 @@ fn removed_transitional_module_roots_stay_gone() {
         "render::graph should not keep a layout-building compatibility shim"
     );
     for relative_path in [
-        "src/graph/routing.rs",
+        "src/graph/routing/mod.rs",
+        "src/graph/routing/policy.rs",
+        "src/graph/routing/float_core.rs",
+        "src/graph/routing/orthogonal.rs",
         "src/graph/direction_policy.rs",
         "src/graph/measure.rs",
-        "src/graph/routing_core.rs",
     ] {
         let path = repo_root.join(relative_path);
         assert!(
             path.exists(),
             "{} should exist under graph/",
+            path.display()
+        );
+    }
+
+    for relative_path in [
+        "src/graph/routing.rs",
+        "src/graph/routing_core.rs",
+        "src/graph/orthogonal_router.rs",
+        "src/render/graph/text_routing_core.rs",
+    ] {
+        let path = repo_root.join(relative_path);
+        assert!(
+            !path.exists(),
+            "{} should stay removed after the routing split",
+            path.display()
+        );
+    }
+
+    for relative_path in [
+        "src/render/graph/grid_routing/mod.rs",
+        "src/render/graph/grid_routing/core.rs",
+        "src/render/graph/grid_routing/router.rs",
+    ] {
+        let path = repo_root.join(relative_path);
+        assert!(
+            path.exists(),
+            "{} should exist under render::graph grid routing",
             path.display()
         );
     }
@@ -616,7 +645,8 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
         "pub struct SvgOptions",
         "mod backward_policy;",
         "mod route_policy;",
-        "mod routing;",
+        "pub(crate) mod text_router;",
+        "pub(crate) mod text_routing_core;",
     ] {
         assert!(
             !content.contains(forbidden),
@@ -629,6 +659,7 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
         "pub struct TextRenderOptions",
         "pub fn render_svg_from_geometry(",
         "pub fn render_text_from_geometry(",
+        "pub(crate) mod grid_routing;",
     ] {
         assert!(
             content.contains(required),
@@ -766,4 +797,19 @@ fn render_does_not_import_engine_adapters_or_layered_config() {
         ],
         "render/ should remain engine-result and layered-config agnostic",
     );
+}
+
+#[test]
+fn float_render_consumers_do_not_depend_on_render_grid_routing() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let svg = std::fs::read_to_string(repo_root.join("src/render/graph/svg.rs")).unwrap();
+    let intersect =
+        std::fs::read_to_string(repo_root.join("src/render/primitives/intersect.rs")).unwrap();
+
+    for content in [&svg, &intersect] {
+        assert!(
+            !content.contains("crate::render::graph::grid_routing::"),
+            "float render helpers should not depend on render-owned grid routing internals"
+        );
+    }
 }
