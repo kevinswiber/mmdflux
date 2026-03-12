@@ -1972,7 +1972,7 @@ mod tests {
     use crate::engines::graph::algorithms::layered::{
         self, Direction as LayeredDirection, LayoutConfig as LayeredConfig,
     };
-    use crate::testing::text_adapter::compute_layout;
+    use crate::runtime::test_support_tests::{compute_layout, render_text_diagram};
 
     fn test_node_bounds(x: usize, y: usize, width: usize, height: usize) -> NodeBounds {
         NodeBounds {
@@ -2651,12 +2651,11 @@ mod tests {
     fn test_nested_borders_inner_visible() {
         use crate::diagrams::flowchart::compile_to_graph;
         use crate::frontends::mermaid::parse_flowchart;
-        use crate::testing::{RenderOptions, render};
 
         let input = "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB --> C\nend\nend\nA --> B\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_diagram(&diagram);
         assert!(
             output.contains("Outer"),
             "Output should contain 'Outer' title"
@@ -3550,16 +3549,12 @@ mod tests {
     fn cross_boundary_edge_no_panic() {
         use crate::diagrams::flowchart::compile_to_graph;
         use crate::frontends::mermaid::parse_flowchart;
-        use crate::testing::{RenderOptions, render};
 
         let input =
             "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA --> B\nend\nC --> A\nB --> D\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let options = RenderOptions::default();
-
-        // Full render pipeline should not panic
-        let output = render(&diagram, &options);
+        let output = render_text_diagram(&diagram);
         assert!(output.contains("A"));
         assert!(output.contains("B"));
         assert!(output.contains("C"));

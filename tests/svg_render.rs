@@ -800,10 +800,12 @@ fn style_segment_monitor_report_for_svg(
 
     for fixture in fixtures {
         let diagram = load_flowchart_fixture_diagram(fixture);
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-        options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-        options.path_simplification = PathSimplification::None;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
 
         for line in svg.lines().map(str::trim) {
@@ -1125,10 +1127,12 @@ fn render_flux_svg_with_style(
     curve: Curve,
 ) -> String {
     debug_assert_eq!(routing_style, routing_style_for(edge_routing));
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(routing_style_for(edge_routing));
-    options.curve = Some(curve);
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(routing_style_for(edge_routing)),
+        curve: Some(curve),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     render_svg(diagram, &options)
 }
 
@@ -1268,10 +1272,12 @@ fn render_fixture_svg(
     style: StyleTuple,
 ) -> String {
     let (_, curve) = style;
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(routing_style_for(edge_routing));
-    options.curve = Some(curve);
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(routing_style_for(edge_routing)),
+        curve: Some(curve),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     render_svg(diagram, &options)
 }
 
@@ -1347,10 +1353,12 @@ fn render_svg_basic_flowchart_has_svg_root() {
 #[test]
 fn svg_direct_route_straight_uses_source_and_target_ports() {
     let diagram = load_flowchart_fixture_diagram("chain.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Direct);
-    options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Direct),
+        curve: Some(Curve::Linear(CornerStyle::Sharp)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let edge = diagram
@@ -1391,10 +1399,12 @@ fn svg_direct_route_straight_uses_source_and_target_ports() {
 #[test]
 fn svg_direct_route_double_skip_uses_avoidance_path_for_long_skip_edges() {
     let diagram = load_flowchart_fixture_diagram("double_skip.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Direct);
-    options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Direct),
+        curve: Some(Curve::Linear(CornerStyle::Sharp)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let skip_edge_index = edge_index(&diagram, "A", "D");
@@ -1408,10 +1418,12 @@ fn svg_direct_route_double_skip_uses_avoidance_path_for_long_skip_edges() {
 #[test]
 fn svg_straight_direct_route_double_skip_avoids_tiny_lateral_shim() {
     let diagram = load_flowchart_fixture_diagram("double_skip.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Direct);
-    options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Direct),
+        curve: Some(Curve::Linear(CornerStyle::Sharp)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let skip_edge_index = edge_index(&diagram, "A", "D");
@@ -1437,10 +1449,12 @@ fn svg_curved_step_avoids_unrelated_node_interiors_for_double_skip_and_compat_in
 
     for (fixture_name, edge_specs) in cases {
         let diagram = load_flowchart_fixture_diagram(fixture_name);
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-        options.curve = Some(Curve::Basis);
-        options.path_simplification = PathSimplification::Lossless;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Basis),
+            path_simplification: PathSimplification::Lossless,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
 
         for (from, to, blocked_label) in edge_specs {
@@ -1478,10 +1492,12 @@ fn render_basis_style_fixture_svg(
     style: BasisStyleCase,
     path_simplification: PathSimplification,
 ) -> String {
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(routing_style_for(style.edge_routing));
-    options.curve = Some(Curve::Basis);
-    options.path_simplification = path_simplification;
+    let options = RenderConfig {
+        routing_style: Some(routing_style_for(style.edge_routing)),
+        curve: Some(Curve::Basis),
+        path_simplification,
+        ..Default::default()
+    };
     render_svg(diagram, &options)
 }
 
@@ -1664,10 +1680,12 @@ fn routing_overlap_skip_and_backward_orthogonal_paths_avoid_unrelated_node_inter
 #[test]
 fn svg_basis_decision_paths_fit_within_viewbox_after_translate() {
     let diagram = load_flowchart_fixture_diagram("decision.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Basis);
-    options.path_simplification = PathSimplification::Lossless;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Basis),
+        path_simplification: PathSimplification::Lossless,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let (vx, vy, vw, vh) = parse_svg_viewbox(&svg).expect("decision SVG should have a viewBox");
@@ -1696,10 +1714,12 @@ fn svg_basis_backward_in_subgraph_endpoints_attach_on_border_not_inside() {
         let diagram = load_flowchart_fixture_diagram(fixture_name);
         let edge_idx = edge_index(&diagram, "B", "A");
 
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-        options.curve = Some(Curve::Basis);
-        options.path_simplification = PathSimplification::Lossless;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Basis),
+            path_simplification: PathSimplification::Lossless,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
         let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
 
@@ -1728,10 +1748,12 @@ fn svg_basis_backward_in_subgraph_endpoints_attach_on_border_not_inside() {
 #[test]
 fn svg_curved_step_td_departures_do_not_initially_curl_upward() {
     let diagram = load_flowchart_fixture_diagram("compat_invisible_edge.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Basis);
-    options.path_simplification = PathSimplification::Lossless;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Basis),
+        path_simplification: PathSimplification::Lossless,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     for (from, to) in [("A", "B"), ("A", "C")] {
@@ -1754,9 +1776,11 @@ fn svg_orthogonal_mode_renders_axis_aligned_path_commands() {
     let flowchart = parse_flowchart(input).unwrap();
     let diagram = compile_to_graph(&flowchart);
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     assert!(!svg.contains("NaN"));
@@ -1790,10 +1814,12 @@ fn svg_lossless_path_simplification_sits_between_none_and_lossy_for_orthogonal_r
     let diagram = compile_to_graph(&flowchart);
 
     let render_with = |path_simplification: PathSimplification| {
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-        options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-        options.path_simplification = path_simplification;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Rounded)),
+            path_simplification,
+            ..Default::default()
+        };
         render_svg(&diagram, &options)
     };
 
@@ -1832,9 +1858,11 @@ fn routed_svg_defaults_to_none_path_simplification() {
         .expect("fixture should contain edge Bmid -> F")
         .index;
 
-    let mut default_options = RenderConfig::default();
-    default_options.routing_style = Some(RoutingStyle::Orthogonal);
-    default_options.curve = Some(Curve::Linear(CornerStyle::Rounded));
+    let default_options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        ..Default::default()
+    };
     let default_svg = render_svg(&diagram, &default_options);
     let default_points = edge_path_for_svg_order(&diagram, &default_svg, edge_index);
 
@@ -1874,10 +1902,12 @@ const SVG_LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT: f64 = 2.0;
 #[test]
 fn svg_orthogonal_orthogonal_route_labeled_edges_labels_remain_attached_to_active_segments() {
     let diagram = load_flowchart_fixture_diagram("labeled_edges.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let failures = svg_label_drift_failures(
@@ -1896,10 +1926,12 @@ fn svg_orthogonal_orthogonal_route_labeled_edges_labels_remain_attached_to_activ
 fn svg_orthogonal_orthogonal_route_inline_label_flowchart_labels_remain_attached_to_active_segments()
  {
     let diagram = load_flowchart_fixture_diagram("inline_label_flowchart.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let failures = svg_label_drift_failures(
@@ -1917,10 +1949,12 @@ fn svg_orthogonal_orthogonal_route_inline_label_flowchart_labels_remain_attached
 #[test]
 fn svg_orthogonal_orthogonal_route_inline_label_flowchart_avoids_known_node_intrusions() {
     let diagram = load_flowchart_fixture_diagram("inline_label_flowchart.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let cache_to_validate = edge_index(&diagram, "cache", "validate");
@@ -2067,10 +2101,12 @@ fn path_simplification_monotonicity_holds_none_lossless_lossy() {
         .index;
 
     let render_for = |path_simplification: PathSimplification| {
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-        options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-        options.path_simplification = path_simplification;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Rounded)),
+            path_simplification,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
         edge_path_for_svg_order(&diagram, &svg, edge_index).len()
     };
@@ -2102,10 +2138,12 @@ fn svg_orthogonal_orthogonal_route_preserves_clear_terminal_stem_into_arrowhead(
         .expect("fixture should contain edge Bmid -> F")
         .index;
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
     assert!(
@@ -2175,12 +2213,14 @@ fn svg_orthogonal_orthogonal_route_does_not_add_short_staircase_jogs_after_adjus
         .expect("orthogonal routed edge should exist");
     let routed_segments = routed_edge.path.len().saturating_sub(1);
 
-    let mut options = RenderConfig::default();
     // Sharp renders straight-line segments without arc corners, so segment
     // counts are directly comparable to routed waypoints.
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Sharp)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
     let svg_segments = points.len().saturating_sub(1);
@@ -2205,10 +2245,12 @@ fn svg_orthogonal_orthogonal_route_multiple_cycles_avoids_tiny_terminal_staircas
         edge_index(&diagram, "C", "B"),
     ];
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in edges {
@@ -2243,10 +2285,12 @@ fn svg_orthogonal_orthogonal_route_double_skip_avoids_tiny_leading_lateral_jog()
     let diagram = load_flowchart_fixture_diagram("double_skip.mmd");
     let edge_idx = edge_index(&diagram, "A", "C");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
     assert!(
@@ -2280,10 +2324,12 @@ fn svg_orthogonal_orthogonal_route_decision_diamond_outbound_prefers_horizontal_
         edge_index(&diagram, "B", "D"),
     ];
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in edges {
@@ -2326,10 +2372,12 @@ fn svg_orthogonal_orthogonal_route_hexagon_outbound_departure_insets_from_bottom
         .rect;
     let source_bottom = source_rect.y + source_rect.height;
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in edges {
@@ -2365,10 +2413,12 @@ fn svg_orthogonal_orthogonal_route_nested_subgraph_edge_avoids_large_lateral_det
         edge_index(&diagram, "Server1", "Monitoring"),
     ];
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in edges {
@@ -2389,10 +2439,12 @@ fn svg_curved_orthogonal_route_ampersand_avoids_tiny_terminal_hook_before_arrow(
         edge_index(&diagram, "B", "C"),
     ];
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Basis);
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Basis),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     for edge_idx in merge_in_edges {
@@ -2425,11 +2477,12 @@ fn svg_non_orth_orthogonal_route_backward_edges_terminal_tangent_points_toward_t
         let target_center = node_center_for_id(&diagram, to);
 
         for style in styles {
-            let mut options = RenderConfig::default();
-            options.routing_style = Some(RoutingStyle::Orthogonal);
-
-            options.curve = Some(style.1);
-            options.path_simplification = PathSimplification::None;
+            let options = RenderConfig {
+                routing_style: Some(RoutingStyle::Orthogonal),
+                curve: Some(style.1),
+                path_simplification: PathSimplification::None,
+                ..Default::default()
+            };
             let svg = render_svg(&diagram, &options);
             let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
 
@@ -2466,10 +2519,12 @@ fn svg_straight_orthogonal_route_avoids_primary_axis_backtrack_for_bmid_to_f() {
         .expect("fixture should contain edge Bmid -> F")
         .index;
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Sharp)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
 
@@ -2496,10 +2551,12 @@ fn svg_curved_orthogonal_route_avoids_primary_axis_backtrack_for_bmid_to_f() {
         .expect("fixture should contain edge Bmid -> F")
         .index;
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Basis);
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Basis),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
 
@@ -2526,10 +2583,12 @@ fn svg_rounded_orthogonal_route_avoids_primary_axis_backtrack_for_bmid_to_f() {
         .expect("fixture should contain edge Bmid -> F")
         .index;
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
 
@@ -2578,11 +2637,12 @@ fn svg_non_orth_orthogonal_route_keeps_endpoint_pulled_back_for_visible_arrow_ti
     let styles = [SHARP, ROUNDED, SMOOTH];
 
     for style in styles {
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-
-        options.curve = Some(style.1);
-        options.path_simplification = PathSimplification::None;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(style.1),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
         let points = edge_path_for_svg_order(&diagram, &svg, edge_index);
         let end = points
@@ -2618,11 +2678,12 @@ fn svg_non_orth_orthogonal_route_fan_in_lr_terminal_arrowheads_do_not_end_inside
     let styles = [SHARP, ROUNDED, SMOOTH];
 
     for style in styles {
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-
-        options.curve = Some(style.1);
-        options.path_simplification = PathSimplification::None;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(style.1),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
         let (tx, ty, tw, th) =
             node_rect_for_label(&svg, "Target").expect("target rect should exist");
@@ -2664,11 +2725,12 @@ fn svg_non_orth_orthogonal_route_backward_edges_keep_terminal_arrowheads_visible
         let edge_idx = edge_index(&diagram, from, to);
 
         for style in styles {
-            let mut options = RenderConfig::default();
-            options.routing_style = Some(RoutingStyle::Orthogonal);
-
-            options.curve = Some(style.1);
-            options.path_simplification = PathSimplification::None;
+            let options = RenderConfig {
+                routing_style: Some(RoutingStyle::Orthogonal),
+                curve: Some(style.1),
+                path_simplification: PathSimplification::None,
+                ..Default::default()
+            };
             let svg = render_svg(&diagram, &options);
             let (tx, ty, tw, th) = node_rect_for_label(&svg, target_label)
                 .unwrap_or_else(|| panic!("target rect should exist for {target_label}"));
@@ -2698,11 +2760,12 @@ fn svg_non_orth_orthogonal_route_backward_in_subgraph_avoids_tiny_terminal_tail_
     let styles = [SHARP, ROUNDED, SMOOTH];
 
     for style in styles {
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-
-        options.curve = Some(style.1);
-        options.path_simplification = PathSimplification::None;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(style.1),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
         let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
         assert!(
@@ -2737,10 +2800,12 @@ fn svg_orthogonal_orthogonal_route_complex_backward_edge_keeps_arrowhead_visible
     let diagram = load_flowchart_fixture_diagram("complex.mmd");
     let edge_idx = edge_index(&diagram, "E", "A");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let (tx, ty, tw, th) =
         node_rect_for_label(&svg, "Input").expect("target rect should exist for Input");
@@ -2763,10 +2828,12 @@ fn svg_orthogonal_orthogonal_route_complex_backward_edge_terminal_tangent_points
     let diagram = load_flowchart_fixture_diagram("complex.mmd");
     let edge_idx = edge_index(&diagram, "E", "A");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let rect = node_rect_for_label(&svg, "Input").expect("target rect should exist for Input");
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
@@ -2808,10 +2875,12 @@ fn svg_orthogonal_route_complex_top_diamond_loop_avoids_single_edge_micro_jogs()
     const MIN_SEGMENT_LEN: f64 = 5.75;
 
     let diagram = load_flowchart_fixture_diagram("complex.mmd");
-    let mut straight_options = RenderConfig::default();
-    straight_options.routing_style = Some(RoutingStyle::Orthogonal);
-    straight_options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-    straight_options.path_simplification = PathSimplification::None;
+    let straight_options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Sharp)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let straight_svg = render_svg(&diagram, &straight_options);
 
     for (from, to) in [("C", "E"), ("E", "A")] {
@@ -2828,10 +2897,12 @@ fn svg_orthogonal_route_complex_top_diamond_loop_avoids_single_edge_micro_jogs()
         );
     }
 
-    let mut orth_options = RenderConfig::default();
-    orth_options.routing_style = Some(RoutingStyle::Orthogonal);
-    orth_options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    orth_options.path_simplification = PathSimplification::None;
+    let orth_options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let orth_svg = render_svg(&diagram, &orth_options);
     let backward_idx = edge_index(&diagram, "E", "A");
     let backward_points = edge_path_for_svg_order(&diagram, &orth_svg, backward_idx);
@@ -2850,11 +2921,12 @@ fn svg_non_orth_orthogonal_route_complex_backward_edge_avoids_center_biased_inpu
     let styles = [SHARP, ROUNDED, SMOOTH];
 
     for style in styles {
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-
-        options.curve = Some(style.1);
-        options.path_simplification = PathSimplification::None;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(style.1),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
 
         let rect = node_rect_for_label(&svg, "Input").expect("target rect should exist for Input");
@@ -2926,10 +2998,12 @@ fn svg_orthogonal_route_ci_pipeline_lr_diamond_exits_depart_vertically_first() {
 #[test]
 fn svg_straight_orthogonal_route_ci_pipeline_diamond_exits_avoid_extra_elbow_jogs() {
     let diagram = load_flowchart_fixture_diagram("ci_pipeline.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Sharp)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     for (from, to) in [("Deploy", "Staging"), ("Deploy", "Prod")] {
@@ -3039,10 +3113,12 @@ fn svg_orthogonal_criss_cross_step_preserves_center_corridor_detour() {
 #[test]
 fn svg_orthogonal_orthogonal_route_label_spacing_keeps_td_departure_stems_from_source() {
     let diagram = load_flowchart_fixture_diagram("label_spacing.mmd");
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     for (from, to) in [("A", "B"), ("A", "C")] {
@@ -3078,11 +3154,12 @@ fn svg_non_orth_orthogonal_route_fan_in_backward_channel_conflict_keeps_backward
     let mut rect = None;
 
     for style in styles {
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-
-        options.curve = Some(style.1);
-        options.path_simplification = PathSimplification::None;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(style.1),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
         let (tx, ty, tw, th) = match rect {
             Some(rect) => rect,
@@ -3118,10 +3195,12 @@ fn svg_curved_orthogonal_route_fan_in_backward_channel_conflict_avoids_tiny_term
     let diagram = load_flowchart_fixture_diagram("fan_in_backward_channel_conflict.mmd");
     let edge_idx = edge_index(&diagram, "Loop", "B");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Basis);
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Basis),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
 
@@ -3146,11 +3225,12 @@ fn svg_non_orth_orthogonal_route_fan_in_backward_channel_conflict_preserves_lowe
 
     let mut rect = None;
     for style in styles {
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-
-        options.curve = Some(style.1);
-        options.path_simplification = PathSimplification::None;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(style.1),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
         let (_tx, ty, _tw, th) = match rect {
             Some(rect) => rect,
@@ -3183,10 +3263,12 @@ fn svg_orthogonal_orthogonal_route_fan_in_backward_channel_conflict_avoids_termi
     let diagram = load_flowchart_fixture_diagram("fan_in_backward_channel_conflict.mmd");
     let edge_idx = edge_index(&diagram, "Loop", "B");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
 
@@ -3201,10 +3283,12 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_avoids_source_elbow_ax
     let diagram = load_flowchart_fixture_diagram("decision.mmd");
     let edge_idx = edge_index(&diagram, "D", "A");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
 
@@ -3222,10 +3306,12 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_uses_right_face_to_avo
     let diagram = load_flowchart_fixture_diagram("decision.mmd");
     let edge_idx = edge_index(&diagram, "D", "A");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
     let start_rect =
@@ -3270,10 +3356,12 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_preserves_routed_termi
     );
     let routed_terminal_support = routed_edge.path[routed_edge.path.len() - 2];
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Linear(CornerStyle::Rounded));
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
     let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
     assert!(
@@ -3300,10 +3388,12 @@ fn svg_straight_fan_in_backward_channel_interaction_fixture_matrix_matches_docum
 
     for (fixture_name, target_id, target_label, min_side_faces) in fan_in_cases {
         let diagram = load_flowchart_fixture_diagram(fixture_name);
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-        options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-        options.path_simplification = PathSimplification::None;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
         let rect = node_rect_for_label(&svg, target_label)
             .unwrap_or_else(|| panic!("missing target rect for {target_label} in {fixture_name}"));
@@ -3411,10 +3501,12 @@ fn svg_straight_fan_in_backward_channel_interaction_fixture_matrix_matches_docum
     ) in backward_channel_cases
     {
         let diagram = load_flowchart_fixture_diagram(fixture_name);
-        let mut options = RenderConfig::default();
-        options.routing_style = Some(RoutingStyle::Orthogonal);
-        options.curve = Some(Curve::Linear(CornerStyle::Sharp));
-        options.path_simplification = PathSimplification::None;
+        let options = RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        };
         let svg = render_svg(&diagram, &options);
         let source_rect = node_rect_for_label(&svg, source_label)
             .unwrap_or_else(|| panic!("missing source rect for {source_label} in {fixture_name}"));
@@ -3441,9 +3533,11 @@ fn svg_orthogonal_route_five_fan_in_keeps_e_terminal_not_left_of_d() {
     let d_edge = edge_index(&diagram, "D", "F");
     let e_edge = edge_index(&diagram, "E", "F");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Basis);
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Basis),
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let d_points = edge_path_for_svg_order(&diagram, &svg, d_edge);
@@ -3465,10 +3559,12 @@ fn svg_curved_orthogonal_route_five_fan_in_keeps_mirrored_pairs_visually_symmetr
     let a_edge = edge_index(&diagram, "A", "F");
     let e_edge = edge_index(&diagram, "E", "F");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Basis);
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Basis),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let b_points = edge_path_for_svg_order(&diagram, &svg, b_edge);
@@ -3501,10 +3597,12 @@ fn svg_curved_orthogonal_route_git_workflow_backward_edge_keeps_terminal_support
     let diagram = load_flowchart_fixture_diagram("git_workflow.mmd");
     let backward_edge = edge_index(&diagram, "Remote", "Working");
 
-    let mut options = RenderConfig::default();
-    options.routing_style = Some(RoutingStyle::Orthogonal);
-    options.curve = Some(Curve::Basis);
-    options.path_simplification = PathSimplification::None;
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Basis),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
     let svg = render_svg(&diagram, &options);
 
     let points = edge_path_for_svg_order(&diagram, &svg, backward_edge);
@@ -3580,9 +3678,6 @@ fn svg_straight_orthogonal_route_self_loop_tail_does_not_collapse_upward_before_
 #[test]
 fn orthogonal_route_diamond_boundary_clipping_matches_shape_boundary() {
     let diagram = load_flowchart_fixture_diagram("decision.mmd");
-
-    let mut options = RenderConfig::default();
-    options.path_simplification = PathSimplification::None;
 
     let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
     let config = EngineConfig::Layered(

@@ -18,7 +18,7 @@ use crate::render::graph::text_routing_core::{
     plan_attachments, point_on_face_float, resolve_overflow_backward_channel_conflict,
 };
 use crate::render::intersect::NodeFace;
-use crate::testing::text_adapter::compute_layout;
+use crate::runtime::test_support_tests::compute_layout;
 
 fn simple_td_diagram() -> Diagram {
     let mut diagram = Diagram::new(Direction::TopDown);

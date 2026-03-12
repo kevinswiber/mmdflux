@@ -1245,8 +1245,7 @@ mod tests {
     use super::super::text_router::route_edge;
     use super::*;
     use crate::graph::{Diagram, Edge, Node};
-    use crate::testing::text_adapter::compute_layout;
-    use crate::testing::{RenderOptions, render};
+    use crate::runtime::test_support_tests::{compute_layout, render_text_diagram};
 
     fn simple_diagram() -> Diagram {
         let mut diagram = Diagram::new(Direction::TopDown);
@@ -1430,7 +1429,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("End"));
         diagram.add_edge(Edge::new("A", "B").with_label("Yes"));
 
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_diagram(&diagram);
         // Should contain the label
         assert!(output.contains("Yes"));
     }
@@ -1442,7 +1441,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("B"));
         diagram.add_edge(Edge::new("A", "B").with_label("yes\nno"));
 
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_diagram(&diagram);
         let lines: Vec<&str> = output.lines().collect();
 
         let yes_line = lines
@@ -1488,16 +1487,13 @@ mod tests {
 
     #[test]
     fn test_label_rendered_at_precomputed_position() {
-        let output = render(
-            &{
-                let mut d = Diagram::new(Direction::TopDown);
-                d.add_node(Node::new("A").with_label("A"));
-                d.add_node(Node::new("B").with_label("B"));
-                d.add_edge(Edge::new("A", "B").with_label("yes"));
-                d
-            },
-            &RenderOptions::default(),
-        );
+        let output = render_text_diagram(&{
+            let mut d = Diagram::new(Direction::TopDown);
+            d.add_node(Node::new("A").with_label("A"));
+            d.add_node(Node::new("B").with_label("B"));
+            d.add_edge(Edge::new("A", "B").with_label("yes"));
+            d
+        });
 
         assert!(output.contains("yes"), "Label 'yes' should be rendered");
 
@@ -1521,18 +1517,15 @@ mod tests {
         // Build a LR diagram where nodes are wide enough that
         // a precomputed label position could land on a node boundary.
         // After rendering, verify the label text doesn't collide with node cells.
-        let output = render(
-            &{
-                let mut d = Diagram::new(Direction::LeftRight);
-                d.add_node(Node::new("A").with_label("Working Dir"));
-                d.add_node(Node::new("B").with_label("Staging Area"));
-                d.add_node(Node::new("C").with_label("Local Repo"));
-                d.add_edge(Edge::new("A", "B").with_label("git add"));
-                d.add_edge(Edge::new("B", "C").with_label("git commit"));
-                d
-            },
-            &RenderOptions::default(),
-        );
+        let output = render_text_diagram(&{
+            let mut d = Diagram::new(Direction::LeftRight);
+            d.add_node(Node::new("A").with_label("Working Dir"));
+            d.add_node(Node::new("B").with_label("Staging Area"));
+            d.add_node(Node::new("C").with_label("Local Repo"));
+            d.add_edge(Edge::new("A", "B").with_label("git add"));
+            d.add_edge(Edge::new("B", "C").with_label("git commit"));
+            d
+        });
 
         // Both labels should be fully visible (not clipped by node boundaries)
         assert!(
@@ -1950,7 +1943,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("B"));
         diagram.add_edge(Edge::new("A", "B").with_arrows(Arrow::None, Arrow::Cross));
 
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_diagram(&diagram);
         assert!(
             output.contains('x'),
             "Output should contain 'x' for cross arrow:\n{output}"
@@ -1968,7 +1961,7 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("B"));
         diagram.add_edge(Edge::new("A", "B").with_arrows(Arrow::None, Arrow::Circle));
 
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_diagram(&diagram);
         assert!(
             output.contains('o'),
             "Output should contain 'o' for circle arrow:\n{output}"
@@ -2099,7 +2092,7 @@ mod tests {
         use crate::frontends::mermaid::parse_flowchart;
         let flowchart = parse_flowchart("graph TD\n    A --> B\n    B -->|retry| A").unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_diagram(&diagram);
 
         assert!(
             output.contains("retry"),

@@ -621,8 +621,10 @@ pub fn align_cross_boundary_siblings(diagram: &Diagram, layout: &mut LayoutResul
 mod tests {
     use super::*;
     use crate::diagrams::flowchart::compile_to_graph;
+    use crate::engines::graph::EdgeRouting;
+    use crate::engines::graph::algorithms::layered::svg_layout::build_svg_layout_with_flags;
     use crate::frontends::mermaid::parse_flowchart;
-    use crate::testing::{RenderOptions, render_svg};
+    use crate::graph::measure::SvgTextMetrics;
 
     #[test]
     fn test_build_node_directions_svg_basic() {
@@ -865,45 +867,43 @@ mod tests {
     #[test]
     fn test_reroute_spreads_shared_face_attachment_points() {
         // Two cross-boundary edges entering the same node A from its top face.
-        // Check that the SVG output has different x positions for C→A and D→A edges.
+        // Check that the engine-produced paths end at different x positions.
         let input = "graph TD\nsubgraph s1\ndirection LR\nA --> B\nend\nC --> A\nD --> A\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let options = RenderOptions::default();
-        let svg = render_svg(&diagram, &options);
-
-        // Parse out edge paths — look for paths ending near A's top
-        // The two edges should have different endpoint x coordinates.
-        // We verify by checking the SVG contains no duplicate endpoints.
-        let paths: Vec<&str> = svg
-            .lines()
-            .filter(|l| l.trim().starts_with("<path d=\"M"))
-            .collect();
-
-        // At least 3 edges: A→B (internal), C→A, D→A
-        assert!(
-            paths.len() >= 3,
-            "expected at least 3 edges, got {}",
-            paths.len()
+        let metrics = SvgTextMetrics::new(16.0, 15.0, 15.0);
+        let geometry = build_svg_layout_with_flags(
+            &diagram,
+            &Default::default(),
+            &metrics,
+            EdgeRouting::EngineProvided,
+            false,
+            None,
         );
 
-        // Collect final L coordinates from each path (the last "L" segment)
-        let mut endpoints: Vec<String> = Vec::new();
-        for path in &paths {
-            // Extract last "Lx,y" from the path
-            if let Some(last_l) = path.rfind(" L") {
-                let after = &path[last_l + 2..];
-                if let Some(end) = after.find('"') {
-                    endpoints.push(after[..end].to_string());
+        let endpoints: Vec<_> = geometry
+            .edges
+            .iter()
+            .filter_map(|edge| {
+                let diagram_edge = diagram.edges.get(edge.index)?;
+                if diagram_edge.to != "A" {
+                    return None;
                 }
-            }
-        }
+                edge.layout_path_hint
+                    .as_ref()
+                    .and_then(|path| path.last())
+                    .copied()
+            })
+            .collect();
 
-        // Check that no two endpoints are identical (the spreading should make them unique)
-        for (i, a) in endpoints.iter().enumerate() {
-            for b in endpoints.iter().skip(i + 1) {
-                assert_ne!(a, b, "endpoints should not overlap: {}", a);
-            }
-        }
+        assert_eq!(
+            endpoints.len(),
+            2,
+            "expected exactly two rerouted endpoints into A"
+        );
+        assert!(
+            (endpoints[0].x - endpoints[1].x).abs() > 0.01,
+            "shared-face endpoints should be spread apart: {endpoints:?}"
+        );
     }
 }

@@ -28,20 +28,6 @@ type DrawPath = Vec<(usize, usize)>;
 type DrawPathPair = (DrawPath, DrawPath);
 type IndexedDrawPathPair = (usize, DrawPath, usize, DrawPath);
 
-/// Convert engine-produced `GraphGeometry` (with text-scale node dimensions)
-/// to the integer-coordinate `Layout` struct consumed by the text renderer.
-///
-/// All phases (B-N) are implemented inline, reading directly from
-/// `GraphGeometry`. Direction-override subgraphs are handled by
-/// Phase M (sublayout reconciliation).
-pub fn geometry_to_text_layout(
-    diagram: &Diagram,
-    geometry: &GraphGeometry,
-    config: &GridLayoutConfig,
-) -> Layout {
-    geometry_to_text_layout_with_routed(diagram, geometry, None, config)
-}
-
 /// Convert engine-produced `GraphGeometry` (with optional routed edge paths)
 /// to the integer-coordinate `Layout` consumed by the text renderer.
 pub fn geometry_to_text_layout_with_routed(

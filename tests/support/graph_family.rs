@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub use mmdflux::engines::graph::algorithms::layered::MeasurementMode;
 pub use mmdflux::engines::graph::contracts::EngineConfig;
 use mmdflux::graph::geometry::GraphGeometry;

@@ -119,6 +119,22 @@ fn assert_no_production_imports(dir: &Path, forbidden: &[&str], message: &str) {
     }
 }
 
+fn assert_no_full_source_imports(dir: &Path, forbidden: &[&str], message: &str) {
+    let mut files = Vec::new();
+    collect_rust_files(dir, &mut files);
+
+    for path in files {
+        let content = std::fs::read_to_string(&path).unwrap();
+        for needle in forbidden {
+            assert!(
+                !content.contains(needle),
+                "{message}: forbidden import `{needle}` found in {}",
+                path.display()
+            );
+        }
+    }
+}
+
 fn parse_pub_modules_from_lib_rs() -> BTreeSet<String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
     let content = std::fs::read_to_string(&path).unwrap();
@@ -561,6 +577,7 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
 
     for forbidden in [
         "pub fn render(",
+        "pub fn compute_text_layout(",
         "pub struct RenderOptions",
         "pub struct SvgOptions",
     ] {
@@ -581,6 +598,16 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
             "render::graph should expose the render-only geometry API: {required}"
         );
     }
+}
+
+#[test]
+fn source_tests_do_not_import_crate_testing() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert_no_full_source_imports(
+        &repo_root.join("src"),
+        &["crate::testing"],
+        "source-owned test code should not depend on the hidden root-level testing shim",
+    );
 }
 
 #[test]

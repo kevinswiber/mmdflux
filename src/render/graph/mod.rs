@@ -161,44 +161,6 @@ impl From<&RenderConfig> for TextRenderOptions {
     }
 }
 
-/// Compute a discrete text-grid layout directly from a graph-family diagram.
-///
-/// This is a render-owned convenience helper for low-level callers that want
-/// the integer `Layout` replay surface without going through full text output.
-pub fn compute_text_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {
-    use crate::engines::graph::algorithms::layered::{
-        Direction as LayeredDirection, LayoutConfig as LayeredConfig, Ranker,
-    };
-    use crate::engines::graph::flux::FluxLayeredEngine;
-    use crate::engines::graph::{EngineConfig, GraphEngine, GraphSolveRequest, OutputFormat};
-    use crate::graph::grid_projection::GridRanker;
-
-    let engine = FluxLayeredEngine::text();
-    let engine_config = EngineConfig::Layered(LayeredConfig {
-        direction: match diagram.direction {
-            Direction::TopDown => LayeredDirection::TopBottom,
-            Direction::BottomTop => LayeredDirection::BottomTop,
-            Direction::LeftRight => LayeredDirection::LeftRight,
-            Direction::RightLeft => LayeredDirection::RightLeft,
-        },
-        node_sep: config.node_sep,
-        edge_sep: config.edge_sep,
-        rank_sep: config.rank_sep,
-        margin: config.margin,
-        acyclic: true,
-        ranker: match config.ranker.unwrap_or_default() {
-            GridRanker::NetworkSimplex => Ranker::NetworkSimplex,
-            GridRanker::LongestPath => Ranker::LongestPath,
-        },
-        ..Default::default()
-    });
-    let request = GraphSolveRequest::from_config(&RenderConfig::default(), OutputFormat::Text);
-    let result = engine
-        .solve(diagram, &engine_config, &request)
-        .expect("engine solve failed");
-    text_adapter::geometry_to_text_layout(diagram, &result.geometry, config)
-}
-
 /// Render SVG directly from precomputed graph geometry.
 pub fn render_svg_from_geometry(
     diagram: &Diagram,
@@ -571,14 +533,14 @@ fn branching_label_info(diagram: &Diagram) -> (bool, usize, usize) {
 mod tests {
     use crate::diagrams::flowchart::compile_to_graph;
     use crate::frontends::mermaid::parse_flowchart;
-    use crate::testing::{RenderOptions, render};
+    use crate::runtime::test_support_tests::render_text_diagram;
 
     #[test]
     fn test_render_with_subgraph_produces_borders() {
         let input = "graph TD\nsubgraph sg1[Group]\nA --> B\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_diagram(&diagram);
 
         assert!(
             output.contains('┌') || output.contains('+'),
@@ -599,7 +561,7 @@ mod tests {
         let input = "graph TD\nA --> B\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_diagram(&diagram);
 
         assert!(
             output.contains('A'),

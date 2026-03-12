@@ -6,11 +6,245 @@ use super::flux::{
 };
 use super::mermaid::MermaidLayeredEngine;
 use super::{
-    EdgeRouting, EngineAlgorithmId, EngineConfig, GeometryLevel, GraphEngine, GraphSolveRequest,
-    GraphSolveResult, OutputFormat, PathSimplification, RoutingStyle,
+    EdgeRouting, EngineAlgorithmId, EngineConfig, GeometryLevel, GraphEngine, GraphEngineRegistry,
+    GraphSolveRequest, GraphSolveResult, OutputFormat, PathSimplification, RouteOwnership,
+    RoutingStyle,
 };
 use crate::graph::Diagram;
 use crate::graph::measure::SvgTextMetrics;
+
+fn build_simple_diagram() -> Diagram {
+    let flowchart = crate::frontends::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();
+    crate::diagrams::flowchart::compile_to_graph(&flowchart)
+}
+
+#[test]
+fn solve_request_fields_round_trip() {
+    let req = GraphSolveRequest {
+        output_format: OutputFormat::Text,
+        geometry_level: GeometryLevel::Layout,
+        path_simplification: PathSimplification::None,
+        routing_style: None,
+    };
+    assert_eq!(req.output_format, OutputFormat::Text);
+    assert_eq!(req.geometry_level, GeometryLevel::Layout);
+    assert_eq!(req.path_simplification, PathSimplification::None);
+}
+
+#[test]
+fn solve_request_from_config_derives_fields() {
+    let config = crate::RenderConfig {
+        geometry_level: GeometryLevel::Routed,
+        ..crate::RenderConfig::default()
+    };
+    let req = GraphSolveRequest::from_config(&config, OutputFormat::Svg);
+    assert_eq!(req.output_format, OutputFormat::Svg);
+    assert_eq!(req.geometry_level, GeometryLevel::Routed);
+    assert_eq!(req.path_simplification, PathSimplification::Lossless);
+    assert_eq!(req.routing_style, None);
+}
+
+#[test]
+fn solve_request_from_config_keeps_path_simplification_independent_of_style() {
+    let config = crate::RenderConfig {
+        geometry_level: GeometryLevel::Routed,
+        edge_preset: Some(crate::EdgePreset::Straight),
+        routing_style: Some(RoutingStyle::Direct),
+        path_simplification: PathSimplification::Lossless,
+        ..crate::RenderConfig::default()
+    };
+    let req = GraphSolveRequest::from_config(&config, OutputFormat::Svg);
+    assert_eq!(req.output_format, OutputFormat::Svg);
+    assert_eq!(req.geometry_level, GeometryLevel::Routed);
+    assert_eq!(req.path_simplification, PathSimplification::Lossless);
+    assert_eq!(req.routing_style, Some(RoutingStyle::Direct));
+}
+
+#[test]
+fn flux_layered_engine_id() {
+    let engine = FluxLayeredEngine::text();
+    assert_eq!(
+        engine.id(),
+        EngineAlgorithmId::new(crate::EngineId::Flux, crate::AlgorithmId::Layered)
+    );
+}
+
+#[test]
+fn flux_layered_capabilities_are_native() {
+    let engine = FluxLayeredEngine::text();
+    let caps = engine.capabilities();
+    assert_eq!(caps.route_ownership, RouteOwnership::Native);
+    assert!(caps.supports_subgraphs);
+}
+
+#[test]
+fn flux_layered_solve_layout_level_has_no_routed_geometry() {
+    let diagram = build_simple_diagram();
+    let engine = FluxLayeredEngine::text();
+    let request = GraphSolveRequest {
+        output_format: OutputFormat::Text,
+        geometry_level: GeometryLevel::Layout,
+        path_simplification: PathSimplification::None,
+        routing_style: None,
+    };
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
+    let result = engine.solve(&diagram, &config, &request).unwrap();
+
+    assert_eq!(result.engine_id.engine(), crate::EngineId::Flux);
+    assert!(!result.geometry.nodes.is_empty());
+    assert!(
+        result.routed.is_none(),
+        "layout level should not include routed geometry"
+    );
+}
+
+#[test]
+fn flux_layered_solve_routed_level_has_routed_geometry() {
+    let diagram = build_simple_diagram();
+    let engine = FluxLayeredEngine::text();
+    let request = GraphSolveRequest {
+        output_format: OutputFormat::Text,
+        geometry_level: GeometryLevel::Routed,
+        path_simplification: PathSimplification::None,
+        routing_style: None,
+    };
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
+    let result = engine.solve(&diagram, &config, &request).unwrap();
+
+    assert!(
+        result.routed.is_some(),
+        "routed level should produce routed geometry"
+    );
+    let routed = result.routed.unwrap();
+    assert!(!routed.edges.is_empty());
+}
+
+#[test]
+fn mermaid_layered_engine_id() {
+    let engine = MermaidLayeredEngine::new();
+    assert_eq!(
+        engine.id(),
+        EngineAlgorithmId::new(crate::EngineId::Mermaid, crate::AlgorithmId::Layered)
+    );
+}
+
+#[test]
+fn mermaid_layered_capabilities_are_hint_driven() {
+    let engine = MermaidLayeredEngine::new();
+    let caps = engine.capabilities();
+    assert_eq!(caps.route_ownership, RouteOwnership::HintDriven);
+    assert!(caps.supports_subgraphs);
+}
+
+#[test]
+fn mermaid_layered_solve_layout_level_has_no_routed_geometry() {
+    let diagram = build_simple_diagram();
+    let engine = MermaidLayeredEngine::new();
+    let request = GraphSolveRequest {
+        output_format: OutputFormat::Mmds,
+        geometry_level: GeometryLevel::Layout,
+        path_simplification: PathSimplification::None,
+        routing_style: None,
+    };
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
+    let result = engine.solve(&diagram, &config, &request).unwrap();
+
+    assert!(
+        result.routed.is_none(),
+        "layout level should not include routed geometry"
+    );
+    assert!(!result.geometry.nodes.is_empty());
+}
+
+#[test]
+fn mermaid_layered_layout_matches_flux_layered_layout() {
+    let diagram = build_simple_diagram();
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
+    let layout_req = GraphSolveRequest {
+        output_format: OutputFormat::Mmds,
+        geometry_level: GeometryLevel::Layout,
+        path_simplification: PathSimplification::None,
+        routing_style: None,
+    };
+
+    let flux = FluxLayeredEngine::text()
+        .solve(&diagram, &config, &layout_req)
+        .unwrap();
+    let mermaid = MermaidLayeredEngine::new()
+        .solve(&diagram, &config, &layout_req)
+        .unwrap();
+
+    assert_eq!(flux.geometry.nodes.len(), mermaid.geometry.nodes.len());
+    for (id, flux_node) in &flux.geometry.nodes {
+        let mermaid_node = mermaid.geometry.nodes.get(id).unwrap();
+        assert_eq!(
+            flux_node.rect.x, mermaid_node.rect.x,
+            "node {id} x mismatch"
+        );
+    }
+
+    let flux_b = flux.geometry.nodes.get("B").unwrap();
+    let mermaid_b = mermaid.geometry.nodes.get("B").unwrap();
+    assert!(
+        flux_b.rect.y <= mermaid_b.rect.y,
+        "Flux should be at least as compact as Mermaid: flux B.y={} mermaid B.y={}",
+        flux_b.rect.y,
+        mermaid_b.rect.y,
+    );
+}
+
+#[test]
+fn mermaid_layered_solve_routed_level_has_routed_geometry() {
+    let diagram = build_simple_diagram();
+    let engine = MermaidLayeredEngine::new();
+    let request = GraphSolveRequest {
+        output_format: OutputFormat::Mmds,
+        geometry_level: GeometryLevel::Routed,
+        path_simplification: PathSimplification::None,
+        routing_style: None,
+    };
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
+    let result = engine.solve(&diagram, &config, &request).unwrap();
+
+    assert!(
+        result.routed.is_some(),
+        "routed level should produce routed geometry"
+    );
+}
+
+#[test]
+fn registry_resolves_flux_layered() {
+    let registry = GraphEngineRegistry::default();
+    let id = EngineAlgorithmId::parse("flux-layered").unwrap();
+    let engine = registry.get_solver(id);
+    assert!(engine.is_some(), "flux-layered should be registered");
+    assert_eq!(engine.unwrap().id().to_string(), "flux-layered");
+}
+
+#[test]
+fn registry_resolves_mermaid_layered() {
+    let registry = GraphEngineRegistry::default();
+    let id = EngineAlgorithmId::parse("mermaid-layered").unwrap();
+    let engine = registry.get_solver(id);
+    assert!(engine.is_some(), "mermaid-layered should be registered");
+    assert_eq!(engine.unwrap().id().to_string(), "mermaid-layered");
+}
+
+#[cfg(not(feature = "engine-elk"))]
+#[test]
+fn registry_does_not_have_elk_solver_without_feature() {
+    let registry = GraphEngineRegistry::default();
+    let id = EngineAlgorithmId::parse("elk-layered").unwrap();
+    assert!(
+        registry.get_solver(id).is_none(),
+        "elk-layered should not be registered without engine-elk feature"
+    );
+}
 
 #[test]
 fn run_layered_layout_simple_graph() {

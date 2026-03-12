@@ -36,8 +36,6 @@ pub mod render;
 pub mod request;
 pub(crate) mod runtime;
 pub mod style;
-#[doc(hidden)]
-pub mod testing;
 
 // Re-export commonly used types for convenience
 pub use config::{
