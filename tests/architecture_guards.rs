@@ -790,14 +790,24 @@ fn render_svg_source_does_not_define_layout_builders() {
 
 #[test]
 fn graph_grid_sources_use_graph_owned_projection_types_and_direct_mmds_replay() {
-    let grid_layout = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/graph/grid/layout.rs");
-    let grid_derive = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/graph/grid/derive.rs");
-    let mmds_render_input =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/frontends/mmds/render_input.rs");
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let grid_layout = repo_root.join("src/graph/grid/layout.rs");
+    let grid_derive_dir = repo_root.join("src/graph/grid/derive");
+    let mmds_render_input = repo_root.join("src/frontends/mmds/render_input.rs");
 
-    let grid_layout = std::fs::read_to_string(&grid_layout).unwrap();
-    let grid_derive = std::fs::read_to_string(&grid_derive).unwrap();
-    let mmds_render_input = std::fs::read_to_string(&mmds_render_input).unwrap();
+    let mut contents = vec![
+        std::fs::read_to_string(&grid_layout).unwrap(),
+        std::fs::read_to_string(&mmds_render_input).unwrap(),
+    ];
+    let mut derive_files = Vec::new();
+    collect_rust_files(&grid_derive_dir, &mut derive_files);
+    assert!(
+        !derive_files.is_empty(),
+        "expected to scan graph::grid::derive sources"
+    );
+    for path in derive_files {
+        contents.push(std::fs::read_to_string(&path).unwrap());
+    }
 
     for forbidden in [
         "crate::engines::graph::algorithms::layered::GridLayoutConfig",
@@ -806,9 +816,7 @@ fn graph_grid_sources_use_graph_owned_projection_types_and_direct_mmds_replay() 
         "crate::runtime::facade::render_graph(",
     ] {
         assert!(
-            !grid_layout.contains(forbidden)
-                && !grid_derive.contains(forbidden)
-                && !mmds_render_input.contains(forbidden),
+            contents.iter().all(|content| !content.contains(forbidden)),
             "graph::grid derivation and direct MMDS replay should not rely on layered-owned bridge types or runtime solve fallback: {forbidden}"
         );
     }

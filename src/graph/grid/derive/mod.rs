@@ -7,17 +7,34 @@
 //! `GraphGeometry` and its graph-owned grid projection data. Direction-override subgraphs
 //! are handled by Phase M (sublayout reconciliation).
 
+mod override_sublayouts;
+mod quantize;
+mod subgraph_bounds;
+#[cfg(test)]
+mod tests;
+mod waypoints;
+
 use std::collections::{HashMap, HashSet};
 
-use super::GridLayoutConfig;
-use super::helpers::{
-    align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
-    compute_grid_positions, compute_grid_scale_factors, compute_layer_starts,
-    ensure_external_edge_spacing, ensure_subgraph_contains_members, expand_parent_subgraph_bounds,
-    nudge_colliding_waypoints, rank_gap_repair, reconcile_sublayouts_draw,
-    resolve_sibling_overlaps_draw, shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps,
-    subgraph_bounds_to_draw, transform_label_positions_direct, transform_waypoints_direct,
+use override_sublayouts::{
+    align_cross_boundary_siblings_draw, reconcile_sublayouts_draw, resolve_sibling_overlaps_draw,
 };
+use quantize::{
+    collision_repair, compute_grid_positions, compute_grid_scale_factors, compute_layer_starts,
+    rank_gap_repair,
+};
+#[cfg(test)]
+use subgraph_bounds::build_children_map;
+use subgraph_bounds::{
+    ensure_external_edge_spacing, ensure_subgraph_contains_members, expand_parent_subgraph_bounds,
+    shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps, subgraph_bounds_to_draw,
+};
+use waypoints::{
+    clip_waypoints_to_subgraph, nudge_colliding_waypoints, transform_label_positions_direct,
+    transform_waypoints_direct,
+};
+
+use super::GridLayoutConfig;
 use super::layout::{
     CoordTransform, GridLayout, NodeBounds, RawCenter, SelfEdgeDrawData, TransformContext,
 };
