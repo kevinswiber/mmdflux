@@ -5,12 +5,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::super::backward_policy::{
-    can_apply_td_bt_backward_hint_parity, prefer_backward_side_channel,
-};
 use super::super::direction_policy::{
     build_override_node_map, cross_boundary_edge_direction, effective_edge_direction,
 };
+use super::backward_policy::{can_apply_td_bt_backward_hint_parity, prefer_backward_side_channel};
 use super::float_core::{
     build_orthogonal_path_float, intersect_shape_boundary_float,
     normalize_orthogonal_route_contracts,

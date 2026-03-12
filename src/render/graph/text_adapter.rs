@@ -11,6 +11,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use super::grid_routing::backward::{BACKWARD_ROUTE_GAP, is_backward_edge as position_is_backward};
 use super::text_layout::{
     CoordTransform, GridLayoutConfig, Layout, RawCenter, SelfEdgeDrawData, TransformContext,
     align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
@@ -245,7 +246,6 @@ pub fn geometry_to_text_layout_with_routed(
     //    is_backward_edge() detects them by position and routes them to the right/bottom,
     //    requiring the same extra canvas margin as cycle-reversed backward edges.
     let has_backward_edges = !geometry.reversed_edges.is_empty() || {
-        use super::grid_routing::router::is_backward_edge as position_is_backward;
         diagram.edges.iter().any(|edge| {
             match (node_bounds.get(&edge.from), node_bounds.get(&edge.to)) {
                 (Some(from_b), Some(to_b)) => position_is_backward(from_b, to_b, diagram.direction),
@@ -254,7 +254,7 @@ pub fn geometry_to_text_layout_with_routed(
         })
     };
     let backward_margin = if has_backward_edges {
-        super::grid_routing::router::BACKWARD_ROUTE_GAP + 2
+        BACKWARD_ROUTE_GAP + 2
     } else {
         0
     };
@@ -362,7 +362,7 @@ pub fn geometry_to_text_layout_with_routed(
         for edge in &diagram.edges {
             if let (Some(from_b), Some(to_b)) =
                 (node_bounds.get(&edge.from), node_bounds.get(&edge.to))
-                && super::grid_routing::router::is_backward_edge(from_b, to_b, diagram.direction)
+                && position_is_backward(from_b, to_b, diagram.direction)
                 && edge_waypoints
                     .get(&edge.index)
                     .is_some_and(|wps| wps.len() >= BACKWARD_WAYPOINT_STRIP_THRESHOLD)

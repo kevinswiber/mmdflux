@@ -13,12 +13,12 @@ use crate::graph::routing::{
     point_on_face_float, resolve_overflow_backward_channel_conflict, route_graph_geometry,
 };
 use crate::graph::{Diagram, Direction, Edge, Node};
-use crate::render::graph::grid_routing::core::plan_attachments;
+use crate::render::graph::grid_routing::attachments::plan_attachments;
 use crate::render::graph::grid_routing::router::*;
 use crate::render::graph::text_adapter::geometry_to_text_layout_with_routed;
 use crate::render::graph::text_layout::{GridLayoutConfig, GridPos};
+use crate::render::graph::text_replay::NodeFace;
 use crate::render::graph::text_types::SubgraphBounds;
-use crate::render::intersect::NodeFace;
 use crate::runtime::test_support_tests::compute_layout;
 
 fn simple_td_diagram() -> Diagram {

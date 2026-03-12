@@ -3,7 +3,9 @@ use crate::engines::graph::contracts::{EngineConfig, GraphEngine, GraphSolveRequ
 use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::graph::Diagram;
 use crate::graph_family_pipeline::render_graph;
-use crate::render::graph::{GridLayoutConfig, Layout, geometry_to_text_layout_with_routed};
+use crate::render::graph::text_replay::{
+    GridLayoutConfig, Layout, geometry_to_text_layout_with_routed,
+};
 use crate::{OutputFormat, RenderConfig};
 
 pub(crate) fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {

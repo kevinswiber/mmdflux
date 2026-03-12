@@ -5,7 +5,7 @@ use mmdflux::engines::graph::contracts::{EngineConfig, GraphEngine, GraphSolveRe
 use mmdflux::engines::graph::flux::FluxLayeredEngine;
 use mmdflux::graph::grid_projection::GridRanker;
 #[allow(unused_imports)]
-pub use mmdflux::render::graph::{
+pub use mmdflux::render::graph::text_replay::{
     GridLayoutConfig, Layout, NodeBounds, RoutedEdge, Segment, geometry_to_text_layout_with_routed,
     render_all_edges_with_labels, render_node, route_all_edges,
 };

@@ -4,19 +4,26 @@
 
 use std::collections::HashMap;
 
-use super::core::{
+use super::attachments::{
     Face as SharedFace,
     LARGE_HORIZONTAL_OFFSET_THRESHOLD as SHARED_LARGE_HORIZONTAL_OFFSET_THRESHOLD,
     edge_faces as shared_edge_faces, plan_attachments as shared_plan_attachments,
 };
+use super::backward::{
+    compact_lr_backward_attachments, generate_backward_waypoints,
+    generate_corridor_backward_waypoints, is_backward_edge,
+    should_prefer_shared_backward_route_for_text,
+};
+use super::bounds::{
+    NodeContainingSubgraphMap, bounds_for_node_id, build_node_containing_subgraph_map,
+    containing_subgraph_id, node_inside_subgraph, resolve_edge_bounds, subgraph_edge_face,
+};
 use crate::graph::{Arrow, Direction, Edge, Shape, Stroke};
 use crate::render::graph::text_layout::{Layout, SelfEdgeDrawData, SubgraphBounds};
-use crate::render::graph::text_shape::NodeBounds;
-use crate::render::intersect::{
+use crate::render::graph::text_replay::intersect::{
     NodeFace, calculate_attachment_points, classify_face, spread_points_on_face,
 };
-
-type NodeContainingSubgraphMap<'a> = HashMap<&'a str, &'a str>;
+use crate::render::graph::text_shape::NodeBounds;
 
 /// Grouped endpoint parameters for edge routing functions.
 struct EdgeEndpoints {
@@ -62,130 +69,6 @@ pub(crate) struct RouteEdgeResult {
     pub(crate) routed: RoutedEdge,
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) probe: TextRouteProbe,
-}
-
-fn subgraph_edge_face(bounds: &NodeBounds, other: &NodeBounds, direction: Direction) -> NodeFace {
-    let bounds_right = bounds.x + bounds.width.saturating_sub(1);
-    let bounds_bottom = bounds.y + bounds.height.saturating_sub(1);
-    let other_right = other.x + other.width.saturating_sub(1);
-    let other_bottom = other.y + other.height.saturating_sub(1);
-
-    match direction {
-        Direction::TopDown | Direction::BottomTop => {
-            if other_bottom < bounds.y {
-                return NodeFace::Top;
-            }
-            if other.y > bounds_bottom {
-                return NodeFace::Bottom;
-            }
-            if other_right < bounds.x {
-                return NodeFace::Left;
-            }
-            if other.x > bounds_right {
-                return NodeFace::Right;
-            }
-        }
-        Direction::LeftRight | Direction::RightLeft => {
-            if other_right < bounds.x {
-                return NodeFace::Left;
-            }
-            if other.x > bounds_right {
-                return NodeFace::Right;
-            }
-            if other_bottom < bounds.y {
-                return NodeFace::Top;
-            }
-            if other.y > bounds_bottom {
-                return NodeFace::Bottom;
-            }
-        }
-    }
-
-    classify_face(
-        bounds,
-        (other.center_x(), other.center_y()),
-        Shape::Rectangle,
-    )
-}
-
-fn subgraph_bounds_as_node(bounds: &SubgraphBounds) -> NodeBounds {
-    NodeBounds {
-        x: bounds.x,
-        y: bounds.y,
-        width: bounds.width,
-        height: bounds.height,
-        layout_center_x: None,
-        layout_center_y: None,
-    }
-}
-
-fn resolve_edge_bounds(layout: &Layout, edge: &Edge) -> Option<(NodeBounds, NodeBounds)> {
-    let from_bounds = if let Some(sg_id) = edge.from_subgraph.as_ref() {
-        layout
-            .subgraph_bounds
-            .get(sg_id)
-            .map(subgraph_bounds_as_node)?
-    } else {
-        *layout.get_bounds(&edge.from)?
-    };
-    let to_bounds = if let Some(sg_id) = edge.to_subgraph.as_ref() {
-        layout
-            .subgraph_bounds
-            .get(sg_id)
-            .map(subgraph_bounds_as_node)?
-    } else {
-        *layout.get_bounds(&edge.to)?
-    };
-    Some((from_bounds, to_bounds))
-}
-
-fn bounds_for_node_id(layout: &Layout, node_id: &str) -> Option<NodeBounds> {
-    if let Some(bounds) = layout.get_bounds(node_id) {
-        return Some(*bounds);
-    }
-    layout
-        .subgraph_bounds
-        .get(node_id)
-        .map(subgraph_bounds_as_node)
-}
-
-fn node_inside_subgraph(bounds: &NodeBounds, sg: &SubgraphBounds) -> bool {
-    let node_right = bounds.x + bounds.width;
-    let node_bottom = bounds.y + bounds.height;
-    let sg_right = sg.x + sg.width;
-    let sg_bottom = sg.y + sg.height;
-    bounds.x >= sg.x && bounds.y >= sg.y && node_right <= sg_right && node_bottom <= sg_bottom
-}
-
-fn containing_subgraph_id_uncached<'a>(layout: &'a Layout, node_id: &str) -> Option<&'a str> {
-    let bounds = layout.node_bounds.get(node_id)?;
-    layout
-        .subgraph_bounds
-        .iter()
-        .filter(|(_, sg)| node_inside_subgraph(bounds, sg))
-        .max_by_key(|(_, sg)| (sg.depth, usize::MAX - (sg.width * sg.height)))
-        .map(|(id, _)| id.as_str())
-}
-
-fn containing_subgraph_id<'a>(
-    layout: &'a Layout,
-    node_id: &str,
-    node_containing_subgraph: Option<&NodeContainingSubgraphMap<'a>>,
-) -> Option<&'a str> {
-    node_containing_subgraph
-        .and_then(|map| map.get(node_id).copied())
-        .or_else(|| containing_subgraph_id_uncached(layout, node_id))
-}
-
-fn build_node_containing_subgraph_map<'a>(layout: &'a Layout) -> NodeContainingSubgraphMap<'a> {
-    layout
-        .node_bounds
-        .keys()
-        .filter_map(|node_id| {
-            containing_subgraph_id_uncached(layout, node_id.as_str())
-                .map(|subgraph_id| (node_id.as_str(), subgraph_id))
-        })
-        .collect()
 }
 
 /// A point on the canvas.
@@ -340,235 +223,6 @@ fn attachment_directions(diagram_direction: Direction) -> (AttachDirection, Atta
     }
 }
 
-/// Check if an edge is a backward edge (goes against the layout direction).
-///
-/// In a normal layout, edges flow in the diagram direction (e.g., top to bottom for TD).
-/// A backward edge goes against this flow, typically creating a cycle.
-pub fn is_backward_edge(
-    from_bounds: &NodeBounds,
-    to_bounds: &NodeBounds,
-    direction: Direction,
-) -> bool {
-    // Backward means target is "before" source in the flow direction
-    match direction {
-        Direction::TopDown => to_bounds.y < from_bounds.y,
-        Direction::BottomTop => to_bounds.y > from_bounds.y,
-        Direction::LeftRight => to_bounds.x < from_bounds.x,
-        Direction::RightLeft => to_bounds.x > from_bounds.x,
-    }
-}
-
-/// Gap between node boundary and synthetic backward-edge waypoint path (in cells).
-pub const BACKWARD_ROUTE_GAP: usize = 2;
-
-/// Generate synthetic waypoints for a single-rank-span backward edge.
-///
-/// Routes around the right side (TD/BT) or bottom side (LR/RL) of the nodes
-/// when no layout-assigned waypoints exist.
-///
-/// Returns empty vec for forward edges or same-position nodes.
-pub fn generate_backward_waypoints(
-    src_bounds: &NodeBounds,
-    tgt_bounds: &NodeBounds,
-    direction: Direction,
-) -> Vec<(usize, usize)> {
-    if !is_backward_edge(src_bounds, tgt_bounds, direction) {
-        return vec![];
-    }
-
-    match direction {
-        Direction::TopDown | Direction::BottomTop => {
-            // Route to the right of both nodes
-            let right_edge = (src_bounds.x + src_bounds.width).max(tgt_bounds.x + tgt_bounds.width);
-            let route_x = right_edge + BACKWARD_ROUTE_GAP;
-            vec![
-                (route_x, src_bounds.center_y()),
-                (route_x, tgt_bounds.center_y()),
-            ]
-        }
-        Direction::LeftRight => {
-            // Route below both nodes; backward edge flows right-to-left
-            let bottom_edge =
-                (src_bounds.y + src_bounds.height).max(tgt_bounds.y + tgt_bounds.height);
-            let route_y = bottom_edge + BACKWARD_ROUTE_GAP;
-            let right_edge = (src_bounds.x + src_bounds.width).max(tgt_bounds.x + tgt_bounds.width);
-            vec![
-                (src_bounds.x.saturating_sub(1), route_y),
-                (right_edge + BACKWARD_ROUTE_GAP, route_y),
-            ]
-        }
-        Direction::RightLeft => {
-            // Route below both nodes; backward edge flows left-to-right
-            let bottom_edge =
-                (src_bounds.y + src_bounds.height).max(tgt_bounds.y + tgt_bounds.height);
-            let route_y = bottom_edge + BACKWARD_ROUTE_GAP;
-            let left_edge = src_bounds.x.min(tgt_bounds.x);
-            vec![
-                (src_bounds.x + src_bounds.width, route_y),
-                (left_edge.saturating_sub(BACKWARD_ROUTE_GAP), route_y),
-            ]
-        }
-    }
-}
-
-fn compact_lr_backward_attachments(
-    edge: &Edge,
-    layout: &Layout,
-    src_bounds: &NodeBounds,
-    tgt_bounds: &NodeBounds,
-    direction: Direction,
-) -> Option<((usize, usize), (usize, usize))> {
-    if !matches!(direction, Direction::LeftRight | Direction::RightLeft)
-        || !is_backward_edge(src_bounds, tgt_bounds, direction)
-        || edge.from_subgraph.is_some()
-        || edge.to_subgraph.is_some()
-    {
-        return None;
-    }
-
-    let overlap_top = src_bounds.y.max(tgt_bounds.y);
-    let overlap_bottom = (src_bounds.y + src_bounds.height.saturating_sub(1))
-        .min(tgt_bounds.y + tgt_bounds.height.saturating_sub(1));
-    if overlap_top > overlap_bottom {
-        return None;
-    }
-
-    // Bias toward the bottom-most shared row so the compact backward lane stays
-    // visibly separated from the forward centerline, which typically uses the
-    // nodes' middle row in LR/RL layouts.
-    let lane_y = overlap_bottom;
-    let (src_attach, tgt_attach) = match direction {
-        Direction::LeftRight => (
-            (src_bounds.x, lane_y),
-            (tgt_bounds.x + tgt_bounds.width.saturating_sub(1), lane_y),
-        ),
-        Direction::RightLeft => (
-            (src_bounds.x + src_bounds.width.saturating_sub(1), lane_y),
-            (tgt_bounds.x, lane_y),
-        ),
-        _ => unreachable!(),
-    };
-
-    let corridor_x_min = src_attach.0.min(tgt_attach.0);
-    let corridor_x_max = src_attach.0.max(tgt_attach.0);
-    for (node_id, bounds) in &layout.node_bounds {
-        if node_id == &edge.from || node_id == &edge.to {
-            continue;
-        }
-
-        let node_bottom = bounds.y + bounds.height.saturating_sub(1);
-        let node_right = bounds.x + bounds.width.saturating_sub(1);
-        let overlaps_lane = bounds.y <= lane_y && lane_y <= node_bottom;
-        let overlaps_corridor = bounds.x <= corridor_x_max && corridor_x_min <= node_right;
-        if overlaps_lane && overlaps_corridor {
-            return None;
-        }
-    }
-
-    for sg in layout.subgraph_bounds.values() {
-        let source_inside = node_inside_subgraph(src_bounds, sg);
-        let target_inside = node_inside_subgraph(tgt_bounds, sg);
-        if source_inside && target_inside {
-            continue;
-        }
-
-        let left = sg.x;
-        let right = sg.x + sg.width.saturating_sub(1);
-        let top = sg.y;
-        let bottom = sg.y + sg.height.saturating_sub(1);
-
-        let overlaps_horizontal_border = (lane_y == top || lane_y == bottom)
-            && ranges_overlap(corridor_x_min, corridor_x_max, left, right);
-        let overlaps_vertical_border = lane_y >= top
-            && lane_y <= bottom
-            && (corridor_x_min <= left && left <= corridor_x_max
-                || corridor_x_min <= right && right <= corridor_x_max);
-
-        if overlaps_horizontal_border || overlaps_vertical_border {
-            return None;
-        }
-    }
-
-    Some((src_attach, tgt_attach))
-}
-
-/// Generate backward channel waypoints that clear all intermediate nodes.
-///
-/// Unlike `generate_backward_waypoints` which only considers source and target,
-/// this checks ALL nodes in the corridor between source and target to ensure
-/// the channel lane clears them all. Used when the orthogonal router identified
-/// a corridor-obstructed backward edge (signalled by a routed draw path).
-fn generate_corridor_backward_waypoints(
-    edge: &Edge,
-    layout: &Layout,
-    src_bounds: &NodeBounds,
-    tgt_bounds: &NodeBounds,
-    direction: Direction,
-) -> Vec<(usize, usize)> {
-    match direction {
-        Direction::TopDown | Direction::BottomTop => {
-            let y_min = src_bounds.y.min(tgt_bounds.y);
-            let y_max = (src_bounds.y + src_bounds.height).max(tgt_bounds.y + tgt_bounds.height);
-
-            // Find the rightmost edge of any node in the vertical corridor
-            let mut right_edge =
-                (src_bounds.x + src_bounds.width).max(tgt_bounds.x + tgt_bounds.width);
-            for (node_id, bounds) in &layout.node_bounds {
-                if node_id == &edge.from || node_id == &edge.to {
-                    continue;
-                }
-                let node_bottom = bounds.y + bounds.height;
-                if bounds.y < y_max && node_bottom > y_min {
-                    right_edge = right_edge.max(bounds.x + bounds.width);
-                }
-            }
-
-            let route_x = right_edge + BACKWARD_ROUTE_GAP;
-            vec![
-                (route_x, src_bounds.center_y()),
-                (route_x, tgt_bounds.center_y()),
-            ]
-        }
-        Direction::LeftRight | Direction::RightLeft => {
-            let x_min = src_bounds.x.min(tgt_bounds.x);
-            let x_max = (src_bounds.x + src_bounds.width).max(tgt_bounds.x + tgt_bounds.width);
-
-            // Find the bottommost edge of any node in the horizontal corridor
-            let mut bottom_edge =
-                (src_bounds.y + src_bounds.height).max(tgt_bounds.y + tgt_bounds.height);
-            for (node_id, bounds) in &layout.node_bounds {
-                if node_id == &edge.from || node_id == &edge.to {
-                    continue;
-                }
-                let node_right = bounds.x + bounds.width;
-                if bounds.x < x_max && node_right > x_min {
-                    bottom_edge = bottom_edge.max(bounds.y + bounds.height);
-                }
-            }
-
-            let route_y = bottom_edge + BACKWARD_ROUTE_GAP;
-            match direction {
-                Direction::LeftRight => {
-                    let right_edge =
-                        (src_bounds.x + src_bounds.width).max(tgt_bounds.x + tgt_bounds.width);
-                    vec![
-                        (src_bounds.x.saturating_sub(1), route_y),
-                        (right_edge + BACKWARD_ROUTE_GAP, route_y),
-                    ]
-                }
-                Direction::RightLeft => {
-                    let left_edge = src_bounds.x.min(tgt_bounds.x);
-                    vec![
-                        (src_bounds.x + src_bounds.width, route_y),
-                        (left_edge.saturating_sub(BACKWARD_ROUTE_GAP), route_y),
-                    ]
-                }
-                _ => unreachable!(),
-            }
-        }
-    }
-}
-
 fn should_use_routed_draw_path(
     edge: &Edge,
     layout: &Layout,
@@ -609,18 +263,6 @@ fn should_use_routed_draw_path(
         to_bounds,
         direction,
     )
-}
-
-fn should_prefer_shared_backward_route_for_text(
-    draw_path: &[(usize, usize)],
-    direction: Direction,
-) -> bool {
-    match direction {
-        Direction::LeftRight | Direction::RightLeft => {
-            draw_path.len() >= 6 && waypoints_from_draw_path(draw_path).len() >= 4
-        }
-        Direction::TopDown | Direction::BottomTop => true,
-    }
 }
 
 fn should_prefer_shared_forward_route_for_text(

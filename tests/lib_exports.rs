@@ -225,6 +225,20 @@ fn low_level_graph_engine_api_is_accessible_from_explicit_namespace() {
 }
 
 #[test]
+fn low_level_text_replay_api_is_accessible_from_explicit_namespace() {
+    let _ = mmdflux::render::graph::text_replay::GridLayoutConfig::default();
+}
+
+#[test]
+fn routed_svg_api_is_accessible() {
+    let _f: fn(
+        &mmdflux::Diagram,
+        &mmdflux::graph::geometry::RoutedGraphGeometry,
+        &mmdflux::render::graph::SvgRenderOptions,
+    ) -> String = mmdflux::render::graph::render_svg_from_routed_geometry;
+}
+
+#[test]
 fn render_only_geometry_api_works() {
     let mut diagram = Diagram::new(Direction::LeftRight);
     diagram.add_node(Node::new("A").with_shape(Shape::Rectangle));

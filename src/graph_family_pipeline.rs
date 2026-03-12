@@ -12,8 +12,8 @@ use crate::errors::RenderError;
 use crate::format::OutputFormat;
 use crate::graph::Diagram;
 use crate::render::graph::{
-    SvgRenderOptions, TextRenderOptions, edge_routing_from_style,
-    render_svg_from_geometry_with_routing, render_text_from_geometry,
+    SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
+    render_text_from_geometry,
 };
 
 /// Render a graph-family diagram through the shared pipeline.
@@ -49,13 +49,11 @@ pub(crate) fn render_graph(
         ),
         OutputFormat::Svg => {
             let options: SvgRenderOptions = config.into();
-            let edge_routing = edge_routing_from_style(options.routing_style);
-            Ok(render_svg_from_geometry_with_routing(
-                diagram,
-                &result.geometry,
-                &options,
-                edge_routing,
-            ))
+            Ok(if let Some(routed) = result.routed.as_ref() {
+                render_svg_from_routed_geometry(diagram, routed, &options)
+            } else {
+                render_svg_from_geometry(diagram, &result.geometry, &options)
+            })
         }
         OutputFormat::Text | OutputFormat::Ascii => {
             let mut options: TextRenderOptions = config.into();

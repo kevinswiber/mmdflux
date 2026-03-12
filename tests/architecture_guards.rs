@@ -425,7 +425,9 @@ fn removed_transitional_module_roots_stay_gone() {
 
     for relative_path in [
         "src/render/graph/grid_routing/mod.rs",
-        "src/render/graph/grid_routing/core.rs",
+        "src/render/graph/grid_routing/attachments.rs",
+        "src/render/graph/grid_routing/backward.rs",
+        "src/render/graph/grid_routing/bounds.rs",
         "src/render/graph/grid_routing/router.rs",
     ] {
         let path = repo_root.join(relative_path);
@@ -796,6 +798,82 @@ fn graph_family_instances_do_not_import_runtime() {
 }
 
 #[test]
+fn graph_root_does_not_own_backward_policy_module() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert!(!repo_root.join("src/graph/backward_policy.rs").exists());
+    assert!(
+        repo_root
+            .join("src/graph/routing/backward_policy.rs")
+            .exists()
+    );
+}
+
+#[test]
+fn graph_surface_does_not_export_preview_only_helpers() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/graph/mod.rs");
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(!content.contains("snap_path_to_grid_preview"));
+}
+
+#[test]
+fn grid_routing_uses_explicit_helper_modules() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert!(
+        !repo_root
+            .join("src/render/graph/grid_routing/core.rs")
+            .exists()
+    );
+    for required in [
+        "src/render/graph/grid_routing/attachments.rs",
+        "src/render/graph/grid_routing/bounds.rs",
+        "src/render/graph/grid_routing/backward.rs",
+    ] {
+        assert!(repo_root.join(required).exists(), "missing {required}");
+    }
+}
+
+#[test]
+fn render_graph_facade_exposes_text_replay_and_routed_svg_entrypoint() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/mod.rs");
+    let content = std::fs::read_to_string(path).unwrap();
+
+    for required in [
+        "pub mod text_replay;",
+        "pub fn render_svg_from_routed_geometry(",
+    ] {
+        assert!(
+            content.contains(required),
+            "render::graph should keep explicit low-level and routed-svg APIs: {required}"
+        );
+    }
+
+    for forbidden in [
+        "pub use self::grid_routing::router::{RoutedEdge, Segment, route_all_edges};",
+        "pub use self::text_adapter::geometry_to_text_layout_with_routed;",
+        "pub use self::text_edge::render_all_edges_with_labels;",
+        "pub use self::text_shape::{NodeBounds, render_node};",
+        "pub use self::text_types::Layout;",
+        "pub use crate::graph::grid_projection::GridLayoutConfig;",
+    ] {
+        assert!(
+            !content.contains(forbidden),
+            "render::graph should keep low-level text replay helpers out of the facade root: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn render_root_does_not_reexport_intersect() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/mod.rs");
+    let content = std::fs::read_to_string(path).unwrap();
+
+    assert!(
+        !content.contains("pub use primitives::intersect"),
+        "render root should not re-export low-level text replay intersection helpers"
+    );
+}
+
+#[test]
 fn sequence_renderer_does_not_import_diagrams_sequence() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/diagram/sequence/text.rs");
     let content = std::fs::read_to_string(path).unwrap();
@@ -842,7 +920,8 @@ fn float_render_consumers_do_not_depend_on_render_grid_routing() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let svg = std::fs::read_to_string(repo_root.join("src/render/graph/svg.rs")).unwrap();
     let intersect =
-        std::fs::read_to_string(repo_root.join("src/render/primitives/intersect.rs")).unwrap();
+        std::fs::read_to_string(repo_root.join("src/render/graph/text_replay/intersect.rs"))
+            .unwrap();
 
     for content in [&svg, &intersect] {
         assert!(

@@ -4,11 +4,8 @@
 //! callers that already have `GraphGeometry` or `RoutedGraphGeometry`.
 //! Solve orchestration remains owned by the runtime facade and graph engines.
 //!
-//! The public surface has two tiers:
-//! - geometry emitters such as `render_text_from_geometry` and
-//!   `render_svg_from_geometry`
-//! - low-level text replay helpers used by advanced tests and MMDS replay
-//!   paths that need to rebuild text-grid state explicitly
+//! Low-level text-grid replay helpers live under
+//! [`crate::render::graph::text_replay`].
 //!
 //! Internally, graph render routing is split into render-owned grid routing
 //! helpers under `grid_routing` and graph-owned float/policy helpers exposed
@@ -20,20 +17,15 @@ pub(crate) mod svg_metrics;
 pub(crate) mod text_adapter;
 pub(crate) mod text_edge;
 pub(crate) mod text_layout;
+pub mod text_replay;
 pub(crate) mod text_shape;
 pub(crate) mod text_subgraph;
 pub(crate) mod text_types;
 
-pub use self::grid_routing::router::{RoutedEdge, Segment, route_all_edges};
 use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
-// Low-level text replay helpers for advanced callers.
-pub use self::text_adapter::geometry_to_text_layout_with_routed;
-pub use self::text_edge::render_all_edges_with_labels;
-pub use self::text_shape::{NodeBounds, render_node};
-pub use self::text_types::Layout;
 use self::text_types::SubgraphBounds;
-use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
-pub use crate::graph::grid_projection::GridLayoutConfig;
+use crate::graph::direction_policy::build_node_directions;
+use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Diagram, Direction};
 use crate::render::primitives::canvas::{Cell, Connections};
@@ -182,6 +174,19 @@ pub fn render_svg_from_geometry(
     )
 }
 
+/// Render SVG directly from precomputed routed graph geometry.
+///
+/// Routed geometry owns the edge path topology, so SVG emission uses the
+/// provided routed paths directly instead of generating routes from style.
+pub fn render_svg_from_routed_geometry(
+    diagram: &Diagram,
+    routed: &RoutedGraphGeometry,
+    options: &SvgRenderOptions,
+) -> String {
+    let geometry = geometry_for_routed_svg(diagram, routed);
+    render_svg_from_geometry_with_routing(diagram, &geometry, options, EdgeRouting::EngineProvided)
+}
+
 pub(crate) fn render_svg_from_geometry_with_routing(
     diagram: &Diagram,
     geometry: &GraphGeometry,
@@ -189,6 +194,51 @@ pub(crate) fn render_svg_from_geometry_with_routing(
     edge_routing: EdgeRouting,
 ) -> String {
     svg::render_svg_from_geometry(diagram, options, geometry, edge_routing)
+}
+
+fn geometry_for_routed_svg(diagram: &Diagram, routed: &RoutedGraphGeometry) -> GraphGeometry {
+    GraphGeometry {
+        nodes: routed.nodes.clone(),
+        edges: routed
+            .edges
+            .iter()
+            .map(|edge| LayoutEdge {
+                index: edge.index,
+                from: edge.from.clone(),
+                to: edge.to.clone(),
+                waypoints: vec![],
+                label_position: edge.label_position,
+                label_side: edge.label_side,
+                from_subgraph: edge.from_subgraph.clone(),
+                to_subgraph: edge.to_subgraph.clone(),
+                layout_path_hint: Some(edge.path.clone()),
+                preserve_orthogonal_topology: edge.preserve_orthogonal_topology,
+            })
+            .collect(),
+        subgraphs: routed.subgraphs.clone(),
+        self_edges: routed
+            .self_edges
+            .iter()
+            .map(|edge| SelfEdgeGeometry {
+                node_id: edge.node_id.clone(),
+                edge_index: edge.edge_index,
+                points: edge.path.clone(),
+            })
+            .collect(),
+        direction: routed.direction,
+        node_directions: build_node_directions(diagram),
+        bounds: routed.bounds,
+        reversed_edges: routed
+            .edges
+            .iter()
+            .filter(|edge| edge.is_backward)
+            .map(|edge| edge.index)
+            .collect(),
+        engine_hints: None,
+        grid_projection: None,
+        rerouted_edges: std::collections::HashSet::new(),
+        enhanced_backward_routing: false,
+    }
 }
 
 /// Render text or ASCII directly from precomputed graph geometry.
@@ -298,7 +348,7 @@ pub fn render_text_from_geometry(
 /// ```
 pub(crate) fn render_text_from_layout(
     diagram: &Diagram,
-    layout: &Layout,
+    layout: &text_types::Layout,
     options: &TextRenderOptions,
 ) -> String {
     let charset = match options.output_format {
@@ -317,12 +367,13 @@ pub(crate) fn render_text_from_layout(
     for node_id in node_keys {
         let node = &diagram.nodes[node_id];
         if let Some(&(x, y)) = layout.draw_positions.get(node_id) {
-            render_node(&mut canvas, node, x, y, &charset, diagram.direction);
+            text_shape::render_node(&mut canvas, node, x, y, &charset, diagram.direction);
         }
     }
 
-    let routed_edges = route_all_edges(&diagram.edges, layout, diagram.direction);
-    render_all_edges_with_labels(
+    let routed_edges =
+        grid_routing::router::route_all_edges(&diagram.edges, layout, diagram.direction);
+    text_edge::render_all_edges_with_labels(
         &mut canvas,
         &routed_edges,
         &charset,
@@ -347,8 +398,8 @@ pub(crate) fn render_text_from_layout(
 pub(crate) fn layout_config_for_diagram(
     diagram: &Diagram,
     options: &TextRenderOptions,
-) -> GridLayoutConfig {
-    let mut config = GridLayoutConfig::default();
+) -> crate::graph::grid_projection::GridLayoutConfig {
+    let mut config = crate::graph::grid_projection::GridLayoutConfig::default();
 
     let max_label_len = diagram
         .edges
@@ -408,7 +459,7 @@ pub(crate) fn layout_config_for_diagram(
 fn apply_subgraph_border_junctions(
     canvas: &mut Canvas,
     subgraph_bounds: &std::collections::HashMap<String, SubgraphBounds>,
-    routed_edges: &[RoutedEdge],
+    routed_edges: &[text_replay::RoutedEdge],
     charset: &CharSet,
 ) {
     if subgraph_bounds.is_empty() || routed_edges.is_empty() {
@@ -437,7 +488,7 @@ fn apply_subgraph_border_junctions(
         for routed in routed_edges {
             for segment in &routed.segments {
                 match *segment {
-                    Segment::Vertical { x, y_start, y_end } => {
+                    text_replay::Segment::Vertical { x, y_start, y_end } => {
                         let (y_min, y_max) = if y_start <= y_end {
                             (y_start, y_end)
                         } else {
@@ -460,7 +511,7 @@ fn apply_subgraph_border_junctions(
                             }
                         }
                     }
-                    Segment::Horizontal { y, x_start, x_end } => {
+                    text_replay::Segment::Horizontal { y, x_start, x_end } => {
                         let (x_min, x_max) = if x_start <= x_end {
                             (x_start, x_end)
                         } else {

@@ -6,7 +6,6 @@
 //! float-space solves and text-grid replay without coupling those concerns to
 //! a higher-level render or engine namespace.
 
-pub(crate) mod backward_policy;
 mod diagram;
 pub mod direction_policy;
 mod edge;
@@ -19,4 +18,4 @@ pub(crate) mod routing;
 pub use diagram::*;
 pub use edge::*;
 pub use node::*;
-pub use routing::{EdgeRouting, route_graph_geometry, snap_path_to_grid_preview};
+pub use routing::{EdgeRouting, route_graph_geometry};

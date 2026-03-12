@@ -6,11 +6,10 @@ use super::hydrate::{
 use crate::config::{GeometryLevel, RenderConfig};
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
-use crate::graph::routing::EdgeRouting;
 use crate::mmds::{MmdsOutput, generate_mermaid_from_mmds, parse_mmds_input};
 use crate::render::graph::{
-    SvgRenderOptions, TextRenderOptions, render_svg_from_geometry,
-    render_svg_from_geometry_with_routing, render_text_from_geometry,
+    SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
+    render_text_from_geometry,
 };
 
 /// Render MMDS input through the frontend path.
@@ -95,12 +94,11 @@ pub fn render_output(
         OutputFormat::Svg => {
             let options: SvgRenderOptions = config.into();
             if payload.geometry_level == "routed" {
-                Ok(render_svg_from_geometry_with_routing(
-                    &diagram,
-                    &geometry,
-                    &options,
-                    EdgeRouting::EngineProvided,
-                ))
+                let routed =
+                    hydrate_routed_geometry_from_output(payload).map_err(|error| RenderError {
+                        message: error.to_string(),
+                    })?;
+                Ok(render_svg_from_routed_geometry(&diagram, &routed, &options))
             } else {
                 Ok(render_svg_from_geometry(&diagram, &geometry, &options))
             }

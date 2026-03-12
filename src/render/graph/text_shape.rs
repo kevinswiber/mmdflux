@@ -2,7 +2,7 @@
 
 use crate::graph::measure::text_node_dimensions;
 use crate::graph::{Direction, Node, Shape};
-use crate::render::intersect::NodeFace;
+use crate::render::graph::text_replay::intersect::NodeFace;
 use crate::render::primitives::canvas::{Canvas, CellStyle};
 use crate::render::primitives::chars::CharSet;
 

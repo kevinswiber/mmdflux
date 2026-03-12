@@ -1,4 +1,4 @@
-//! Shared backward-edge routing policy helpers.
+//! Shared backward-edge routing policy helpers for `graph::routing`.
 //!
 //! Keeps backward channel/parity gates centralized so text and orthogonal
 //! routing paths can reuse the same decision rules.
