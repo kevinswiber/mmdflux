@@ -1,8 +1,8 @@
 //! Mermaid-compatible graph engine adapters.
 //!
 //! This engine borrows the shared layered algorithm from Flux, but applies
-//! Mermaid.js and dagre-compatible policy differences so SVG and MMDS output
-//! match Mermaid behavior more closely.
+//! Mermaid.js and dagre-compatible policy differences so proportional
+//! float-geometry solves match Mermaid behavior more closely.
 
 use std::collections::HashMap;
 
@@ -12,14 +12,14 @@ use crate::config::{
 };
 use crate::engines::graph::algorithms::layered::{
     LayoutConfig, MeasurementMode, build_float_layout_with_flags, layout_config_from_layered,
-    run_layered_layout,
 };
-use crate::engines::graph::{EngineConfig, GraphEngine, GraphSolveRequest, GraphSolveResult};
+use crate::engines::graph::{
+    EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
+};
 use crate::errors::RenderError;
-use crate::format::{OutputFormat, RoutingStyle};
+use crate::format::RoutingStyle;
 use crate::graph::Diagram;
 use crate::graph::geometry::RoutedGraphGeometry;
-use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 
 /// Mermaid dagre default for isolated subgraphs without explicit direction:
@@ -102,9 +102,7 @@ fn apply_mermaid_subgraph_direction_policy(diagram: &Diagram) -> Option<Diagram>
 }
 
 /// Mermaid-layered engine: shared layered layout with Mermaid-compatible policy.
-pub struct MermaidLayeredEngine {
-    mode: MeasurementMode,
-}
+pub struct MermaidLayeredEngine;
 
 impl Default for MermaidLayeredEngine {
     fn default() -> Self {
@@ -113,19 +111,9 @@ impl Default for MermaidLayeredEngine {
 }
 
 impl MermaidLayeredEngine {
-    /// Create with default proportional measurement mode.
-    ///
-    /// This adapter only supports SVG/MMDS output, so it defaults to
-    /// proportional measurement and rejects text-family outputs.
+    /// Create the Mermaid-compatible graph engine adapter.
     pub fn new() -> Self {
-        Self {
-            mode: MeasurementMode::Proportional(default_proportional_text_metrics()),
-        }
-    }
-
-    /// Create with the specified measurement mode.
-    pub fn with_mode(mode: MeasurementMode) -> Self {
-        Self { mode }
+        Self
     }
 }
 
@@ -148,84 +136,52 @@ impl GraphEngine for MermaidLayeredEngine {
         config: &EngineConfig,
         request: &GraphSolveRequest,
     ) -> Result<GraphSolveResult, RenderError> {
-        if matches!(
-            request.output_format,
-            OutputFormat::Text | OutputFormat::Ascii
-        ) {
+        if matches!(request.measurement_mode, MeasurementMode::Grid) {
             return Err(RenderError {
-                message: "mermaid-layered does not support text output; use flux-layered instead"
-                    .to_string(),
+                message:
+                    "mermaid-layered does not support grid measurement solves; use flux-layered instead"
+                        .to_string(),
             });
         }
 
         let compat_diagram = apply_mermaid_subgraph_direction_policy(diagram);
         let diagram = compat_diagram.as_ref().unwrap_or(diagram);
 
-        let mode = match request.output_format {
-            OutputFormat::Svg | OutputFormat::Mmds => match &self.mode {
-                MeasurementMode::Proportional(_) => self.mode.clone(),
-                MeasurementMode::Grid => {
-                    MeasurementMode::Proportional(default_proportional_text_metrics())
-                }
-            },
-            _ => self.mode.clone(),
-        };
+        let mode = request.measurement_mode.clone();
 
-        if matches!(
-            request.output_format,
-            OutputFormat::Svg | OutputFormat::Mmds
-        ) {
-            let MeasurementMode::Proportional(ref metrics) = mode else {
-                return Err(RenderError {
-                    message: "internal: SVG output requires proportional measurement mode"
-                        .to_string(),
-                });
-            };
-            let EngineConfig::Layered(ref layered_cfg) = *config;
-            let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
-            layout_config.cluster_rank_sep = 0.0;
-            let mermaid_flags = LayoutConfig {
-                always_compound_ordering: true,
-                ..Default::default()
-            };
-            let geometry = build_float_layout_with_flags(
-                diagram,
-                &layout_config,
-                metrics,
-                EdgeRouting::PolylineRoute,
-                true,
-                Some(&mermaid_flags),
-            );
-            let routed: Option<RoutedGraphGeometry> = if matches!(
-                (request.output_format, request.geometry_level),
-                (OutputFormat::Mmds, GeometryLevel::Routed)
-            ) {
-                Some(route_graph_geometry(
-                    diagram,
-                    &geometry,
-                    EdgeRouting::PolylineRoute,
-                ))
-            } else {
-                None
-            };
-            return Ok(GraphSolveResult {
-                engine_id: self.id(),
-                geometry,
-                routed,
+        let MeasurementMode::Proportional(ref metrics) = mode else {
+            return Err(RenderError {
+                message: "internal: Mermaid float geometry requires proportional measurement mode"
+                    .to_string(),
             });
-        }
-
-        let geometry = run_layered_layout(&mode, diagram, config)?;
-        let routed: Option<RoutedGraphGeometry> =
-            if matches!(request.geometry_level, GeometryLevel::Routed) {
-                Some(route_graph_geometry(
-                    diagram,
-                    &geometry,
-                    EdgeRouting::PolylineRoute,
-                ))
-            } else {
-                None
-            };
+        };
+        let EngineConfig::Layered(ref layered_cfg) = *config;
+        let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
+        layout_config.cluster_rank_sep = 0.0;
+        let mermaid_flags = LayoutConfig {
+            always_compound_ordering: true,
+            ..Default::default()
+        };
+        let geometry = build_float_layout_with_flags(
+            diagram,
+            &layout_config,
+            metrics,
+            EdgeRouting::PolylineRoute,
+            true,
+            Some(&mermaid_flags),
+        );
+        let routed: Option<RoutedGraphGeometry> = if matches!(
+            (request.geometry_contract, request.geometry_level),
+            (GraphGeometryContract::Canonical, GeometryLevel::Routed)
+        ) {
+            Some(route_graph_geometry(
+                diagram,
+                &geometry,
+                EdgeRouting::PolylineRoute,
+            ))
+        } else {
+            None
+        };
 
         Ok(GraphSolveResult {
             engine_id: self.id(),

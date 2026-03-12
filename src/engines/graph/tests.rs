@@ -5,9 +5,12 @@ use super::flux::{
     FluxLayeredEngine, adapt_flux_profile_for_reversed_chain_crowding, flux_layout_profile,
 };
 use super::mermaid::MermaidLayeredEngine;
-use super::{EngineConfig, GraphEngine, GraphEngineRegistry, GraphSolveRequest, GraphSolveResult};
-use crate::config::{EngineAlgorithmId, GeometryLevel, PathSimplification, RouteOwnership};
-use crate::format::{OutputFormat, RoutingStyle};
+use super::{
+    EngineConfig, GraphEngine, GraphEngineRegistry, GraphGeometryContract, GraphSolveRequest,
+    GraphSolveResult,
+};
+use crate::config::{EngineAlgorithmId, GeometryLevel, RouteOwnership};
+use crate::format::RoutingStyle;
 use crate::graph::Diagram;
 use crate::graph::measure::ProportionalTextMetrics;
 use crate::graph::routing::EdgeRouting;
@@ -19,44 +22,72 @@ fn build_simple_diagram() -> Diagram {
 
 #[test]
 fn solve_request_fields_round_trip() {
-    let req = GraphSolveRequest {
-        output_format: OutputFormat::Text,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
-    assert_eq!(req.output_format, OutputFormat::Text);
+    let req = GraphSolveRequest::new(
+        MeasurementMode::Grid,
+        GraphGeometryContract::Canonical,
+        GeometryLevel::Layout,
+        None,
+    );
+    assert!(matches!(req.measurement_mode, MeasurementMode::Grid));
+    assert_eq!(req.geometry_contract, GraphGeometryContract::Canonical);
     assert_eq!(req.geometry_level, GeometryLevel::Layout);
-    assert_eq!(req.path_simplification, PathSimplification::None);
 }
 
 #[test]
-fn solve_request_from_config_derives_fields() {
-    let config = crate::RenderConfig {
-        geometry_level: GeometryLevel::Routed,
-        ..crate::RenderConfig::default()
-    };
-    let req = GraphSolveRequest::from_config(&config, OutputFormat::Svg);
-    assert_eq!(req.output_format, OutputFormat::Svg);
+fn solve_request_new_preserves_visual_proportional_fields() {
+    let req = GraphSolveRequest::new(
+        MeasurementMode::Proportional(ProportionalTextMetrics::new(16.0, 12.0, 10.0)),
+        GraphGeometryContract::Visual,
+        GeometryLevel::Routed,
+        None,
+    );
+    assert!(matches!(
+        req.measurement_mode,
+        MeasurementMode::Proportional(_)
+    ));
+    assert_eq!(req.geometry_contract, GraphGeometryContract::Visual);
     assert_eq!(req.geometry_level, GeometryLevel::Routed);
-    assert_eq!(req.path_simplification, PathSimplification::Lossless);
     assert_eq!(req.routing_style, None);
 }
 
 #[test]
-fn solve_request_from_config_keeps_path_simplification_independent_of_style() {
-    let config = crate::RenderConfig {
-        geometry_level: GeometryLevel::Routed,
-        edge_preset: Some(crate::EdgePreset::Straight),
-        routing_style: Some(RoutingStyle::Direct),
-        path_simplification: PathSimplification::Lossless,
-        ..crate::RenderConfig::default()
-    };
-    let req = GraphSolveRequest::from_config(&config, OutputFormat::Svg);
-    assert_eq!(req.output_format, OutputFormat::Svg);
+fn solve_request_new_keeps_routing_style_independent_of_geometry_contract() {
+    let req = GraphSolveRequest::new(
+        MeasurementMode::Proportional(ProportionalTextMetrics::new(16.0, 15.0, 15.0)),
+        GraphGeometryContract::Canonical,
+        GeometryLevel::Routed,
+        Some(RoutingStyle::Direct),
+    );
+    assert!(matches!(
+        req.measurement_mode,
+        MeasurementMode::Proportional(_)
+    ));
+    assert_eq!(req.geometry_contract, GraphGeometryContract::Canonical);
     assert_eq!(req.geometry_level, GeometryLevel::Routed);
-    assert_eq!(req.path_simplification, PathSimplification::Lossless);
     assert_eq!(req.routing_style, Some(RoutingStyle::Direct));
+}
+
+fn grid_request(level: GeometryLevel, routing_style: Option<RoutingStyle>) -> GraphSolveRequest {
+    GraphSolveRequest::new(
+        MeasurementMode::Grid,
+        GraphGeometryContract::Canonical,
+        level,
+        routing_style,
+    )
+}
+
+fn proportional_request(
+    metrics: ProportionalTextMetrics,
+    geometry_contract: GraphGeometryContract,
+    level: GeometryLevel,
+    routing_style: Option<RoutingStyle>,
+) -> GraphSolveRequest {
+    GraphSolveRequest::new(
+        MeasurementMode::Proportional(metrics),
+        geometry_contract,
+        level,
+        routing_style,
+    )
 }
 
 #[test]
@@ -80,12 +111,7 @@ fn flux_layered_capabilities_are_native() {
 fn flux_layered_solve_layout_level_has_no_routed_geometry() {
     let diagram = build_simple_diagram();
     let engine = FluxLayeredEngine::text();
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Text,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
+    let request = grid_request(GeometryLevel::Layout, None);
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let result = engine.solve(&diagram, &config, &request).unwrap();
@@ -102,12 +128,7 @@ fn flux_layered_solve_layout_level_has_no_routed_geometry() {
 fn flux_layered_solve_routed_level_has_routed_geometry() {
     let diagram = build_simple_diagram();
     let engine = FluxLayeredEngine::text();
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Text,
-        geometry_level: GeometryLevel::Routed,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
+    let request = grid_request(GeometryLevel::Routed, None);
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let result = engine.solve(&diagram, &config, &request).unwrap();
@@ -141,12 +162,12 @@ fn mermaid_layered_capabilities_are_hint_driven() {
 fn mermaid_layered_solve_layout_level_has_no_routed_geometry() {
     let diagram = build_simple_diagram();
     let engine = MermaidLayeredEngine::new();
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Mmds,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
+    let request = proportional_request(
+        ProportionalTextMetrics::new(16.0, 15.0, 15.0),
+        GraphGeometryContract::Canonical,
+        GeometryLevel::Layout,
+        None,
+    );
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let result = engine.solve(&diagram, &config, &request).unwrap();
@@ -163,12 +184,12 @@ fn mermaid_layered_layout_matches_flux_layered_layout() {
     let diagram = build_simple_diagram();
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
-    let layout_req = GraphSolveRequest {
-        output_format: OutputFormat::Mmds,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
+    let layout_req = proportional_request(
+        ProportionalTextMetrics::new(16.0, 15.0, 15.0),
+        GraphGeometryContract::Canonical,
+        GeometryLevel::Layout,
+        None,
+    );
 
     let flux = FluxLayeredEngine::text()
         .solve(&diagram, &config, &layout_req)
@@ -200,12 +221,12 @@ fn mermaid_layered_layout_matches_flux_layered_layout() {
 fn mermaid_layered_solve_routed_level_has_routed_geometry() {
     let diagram = build_simple_diagram();
     let engine = MermaidLayeredEngine::new();
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Mmds,
-        geometry_level: GeometryLevel::Routed,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
+    let request = proportional_request(
+        ProportionalTextMetrics::new(16.0, 15.0, 15.0),
+        GraphGeometryContract::Canonical,
+        GeometryLevel::Routed,
+        None,
+    );
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let result = engine.solve(&diagram, &config, &request).unwrap();
@@ -520,25 +541,28 @@ fn adaptive_reversed_chain_policy_preserves_crossing_minimize_ordering() {
     }
 }
 
-fn solve_svg(engine: &dyn GraphEngine, diagram: &Diagram) -> GraphSolveResult {
+fn solve_visual_proportional(engine: &dyn GraphEngine, diagram: &Diagram) -> GraphSolveResult {
     let config = EngineConfig::Layered(LayoutConfig::default());
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Svg,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: Some(RoutingStyle::Polyline),
-    };
+    let request = proportional_request(
+        ProportionalTextMetrics::new(16.0, 15.0, 15.0),
+        GraphGeometryContract::Visual,
+        GeometryLevel::Layout,
+        Some(RoutingStyle::Polyline),
+    );
     engine.solve(diagram, &config, &request).unwrap()
 }
 
-fn solve_mmds_layout(engine: &dyn GraphEngine, diagram: &Diagram) -> GraphSolveResult {
+fn solve_canonical_proportional_layout(
+    engine: &dyn GraphEngine,
+    diagram: &Diagram,
+) -> GraphSolveResult {
     let config = EngineConfig::Layered(LayoutConfig::default());
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Mmds,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: Some(RoutingStyle::Polyline),
-    };
+    let request = proportional_request(
+        ProportionalTextMetrics::new(16.0, 15.0, 15.0),
+        GraphGeometryContract::Canonical,
+        GeometryLevel::Layout,
+        Some(RoutingStyle::Polyline),
+    );
     engine.solve(diagram, &config, &request).unwrap()
 }
 
@@ -547,10 +571,9 @@ fn subgraph_direction_isolated_both_engines_respect_override() {
     let input = include_str!("../../../tests/fixtures/flowchart/subgraph_direction_isolated.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
 
-    let flux = FluxLayeredEngine::with_mode(MeasurementMode::Proportional(metrics.clone()));
-    let flux_result = solve_svg(&flux, &diagram);
+    let flux = FluxLayeredEngine::text();
+    let flux_result = solve_visual_proportional(&flux, &diagram);
     let a_flux = &flux_result.geometry.nodes["A"].rect;
     let b_flux = &flux_result.geometry.nodes["B"].rect;
     assert!(
@@ -566,8 +589,8 @@ fn subgraph_direction_isolated_both_engines_respect_override() {
         b_flux.x
     );
 
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics));
-    let mermaid_result = solve_svg(&mermaid, &diagram);
+    let mermaid = MermaidLayeredEngine::new();
+    let mermaid_result = solve_visual_proportional(&mermaid, &diagram);
     let a_mermaid = &mermaid_result.geometry.nodes["A"].rect;
     let b_mermaid = &mermaid_result.geometry.nodes["B"].rect;
     assert!(
@@ -590,10 +613,9 @@ fn subgraph_direction_cross_boundary_engines_diverge() {
         include_str!("../../../tests/fixtures/flowchart/subgraph_direction_cross_boundary.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
 
-    let flux = FluxLayeredEngine::with_mode(MeasurementMode::Proportional(metrics.clone()));
-    let flux_result = solve_svg(&flux, &diagram);
+    let flux = FluxLayeredEngine::text();
+    let flux_result = solve_visual_proportional(&flux, &diagram);
     let a_flux = &flux_result.geometry.nodes["A"].rect;
     let b_flux = &flux_result.geometry.nodes["B"].rect;
     let flux_x_spread = (a_flux.x - b_flux.x).abs();
@@ -608,8 +630,8 @@ fn subgraph_direction_cross_boundary_engines_diverge() {
         "flux: A-B X spread={flux_x_spread} should be large (LR sublayout)",
     );
 
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics));
-    let mermaid_result = solve_svg(&mermaid, &diagram);
+    let mermaid = MermaidLayeredEngine::new();
+    let mermaid_result = solve_visual_proportional(&mermaid, &diagram);
     let a_mermaid = &mermaid_result.geometry.nodes["A"].rect;
     let b_mermaid = &mermaid_result.geometry.nodes["B"].rect;
     assert!(
@@ -626,10 +648,9 @@ fn subgraph_direction_nested_mixed_isolation() {
         include_str!("../../../tests/fixtures/flowchart/subgraph_direction_nested_mixed.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
 
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics.clone()));
-    let mermaid_result = solve_svg(&mermaid, &diagram);
+    let mermaid = MermaidLayeredEngine::new();
+    let mermaid_result = solve_visual_proportional(&mermaid, &diagram);
     let a_mermaid = &mermaid_result.geometry.nodes["A"].rect;
     let b_mermaid = &mermaid_result.geometry.nodes["B"].rect;
     assert!(
@@ -639,8 +660,8 @@ fn subgraph_direction_nested_mixed_isolation() {
         a_mermaid.y
     );
 
-    let flux = FluxLayeredEngine::with_mode(MeasurementMode::Proportional(metrics));
-    let flux_result = solve_svg(&flux, &diagram);
+    let flux = FluxLayeredEngine::text();
+    let flux_result = solve_visual_proportional(&flux, &diagram);
     let a_flux = &flux_result.geometry.nodes["A"].rect;
     let b_flux = &flux_result.geometry.nodes["B"].rect;
     assert!(
@@ -656,10 +677,9 @@ fn mermaid_non_isolated_override_matches_parent_flow_in_svg_and_mmds() {
     let input = include_str!("../../../tests/fixtures/flowchart/direction_override.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics));
+    let mermaid = MermaidLayeredEngine::new();
 
-    let svg_result = solve_svg(&mermaid, &diagram);
+    let svg_result = solve_visual_proportional(&mermaid, &diagram);
     let start = svg_result.geometry.nodes["Start"].rect;
     let sg = svg_result.geometry.subgraphs["sg1"].rect;
     assert!(
@@ -680,7 +700,7 @@ fn mermaid_non_isolated_override_matches_parent_flow_in_svg_and_mmds() {
         c_svg.y
     );
 
-    let mmds_result = solve_mmds_layout(&mermaid, &diagram);
+    let mmds_result = solve_canonical_proportional_layout(&mermaid, &diagram);
     let a_mmds = mmds_result.geometry.nodes["A"].rect;
     let b_mmds = mmds_result.geometry.nodes["B"].rect;
     let c_mmds = mmds_result.geometry.nodes["C"].rect;
@@ -698,12 +718,14 @@ fn mermaid_default_direction_matches_nested_with_siblings_fixture() {
     let input = include_str!("../../../tests/fixtures/flowchart/nested_with_siblings.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics));
+    let mermaid = MermaidLayeredEngine::new();
 
     for (label, result) in [
-        ("svg", solve_svg(&mermaid, &diagram)),
-        ("mmds", solve_mmds_layout(&mermaid, &diagram)),
+        ("visual", solve_visual_proportional(&mermaid, &diagram)),
+        (
+            "canonical",
+            solve_canonical_proportional_layout(&mermaid, &diagram),
+        ),
     ] {
         let a = result.geometry.nodes["A"].rect;
         let b = result.geometry.nodes["B"].rect;
@@ -734,9 +756,8 @@ fn mermaid_subgraph_as_node_edge_uses_isolated_default_direction() {
     let input = include_str!("../../../tests/fixtures/flowchart/subgraph_as_node_edge.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics.clone()));
-    let svg_result = solve_svg(&mermaid, &diagram);
+    let mermaid = MermaidLayeredEngine::new();
+    let svg_result = solve_visual_proportional(&mermaid, &diagram);
 
     let api_svg = svg_result.geometry.nodes["API"].rect;
     let db_svg = svg_result.geometry.nodes["DB"].rect;
@@ -749,7 +770,7 @@ fn mermaid_subgraph_as_node_edge_uses_isolated_default_direction() {
         db_svg.y
     );
 
-    let mmds_result = solve_mmds_layout(&mermaid, &diagram);
+    let mmds_result = solve_canonical_proportional_layout(&mermaid, &diagram);
     let api_mmds = mmds_result.geometry.nodes["API"].rect;
     let db_mmds = mmds_result.geometry.nodes["DB"].rect;
     assert!(
@@ -767,9 +788,8 @@ fn mermaid_mmds_keeps_isolated_direction_override_layouted() {
     let input = include_str!("../../../tests/fixtures/flowchart/subgraph_direction_isolated.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics));
-    let mmds_result = solve_mmds_layout(&mermaid, &diagram);
+    let mermaid = MermaidLayeredEngine::new();
+    let mmds_result = solve_canonical_proportional_layout(&mermaid, &diagram);
 
     let a = mmds_result.geometry.nodes["A"].rect;
     let b = mmds_result.geometry.nodes["B"].rect;
@@ -795,9 +815,8 @@ fn mermaid_nested_subgraph_bounds_are_compact_after_policy_normalization() {
     let input = include_str!("../../../tests/fixtures/flowchart/nested_subgraph.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics));
-    let result = solve_svg(&mermaid, &diagram);
+    let mermaid = MermaidLayeredEngine::new();
+    let result = solve_visual_proportional(&mermaid, &diagram);
 
     let outer = result.geometry.subgraphs["outer"].rect;
     let inner = result.geometry.subgraphs["inner"].rect;
@@ -819,9 +838,8 @@ fn mermaid_multi_subgraph_direction_override_bottom_cluster_is_compact_and_cente
         include_str!("../../../tests/fixtures/flowchart/multi_subgraph_direction_override.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics));
-    let result = solve_svg(&mermaid, &diagram);
+    let mermaid = MermaidLayeredEngine::new();
+    let result = solve_visual_proportional(&mermaid, &diagram);
 
     let g = result.geometry.subgraphs["G"].rect;
     let e = result.geometry.nodes["E"].rect;
@@ -853,9 +871,8 @@ fn mermaid_nested_subgraph_edge_keeps_compact_subgraph_to_node_gap() {
     let input = include_str!("../../../tests/fixtures/flowchart/nested_subgraph_edge.mmd");
     let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
-    let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
-    let mermaid = MermaidLayeredEngine::with_mode(MeasurementMode::Proportional(metrics));
-    let result = solve_svg(&mermaid, &diagram);
+    let mermaid = MermaidLayeredEngine::new();
+    let result = solve_visual_proportional(&mermaid, &diagram);
 
     let cloud = result.geometry.subgraphs["cloud"].rect;
     let monitoring = result.geometry.nodes["Monitoring"].rect;

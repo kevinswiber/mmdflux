@@ -4,7 +4,6 @@ use std::path::Path;
 use crate::diagrams::flowchart::compile_to_graph;
 use crate::engines::graph::EngineConfig;
 use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-use crate::format::OutputFormat;
 use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::geometry::{FPoint, FRect};
 use crate::graph::routing::{
@@ -44,12 +43,8 @@ fn routed_text_layout_for_fixture(name: &str) -> (Diagram, Layout) {
     let diagram = compile_to_graph(&flowchart);
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
-    let geom = run_layered_layout(
-        &MeasurementMode::for_format(OutputFormat::Text, &crate::config::RenderConfig::default()),
-        &diagram,
-        &config,
-    )
-    .expect("layout should succeed");
+    let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
+        .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
     let layout = geometry_to_text_layout_with_routed(
         &diagram,

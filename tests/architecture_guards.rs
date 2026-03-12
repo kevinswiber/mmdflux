@@ -1018,6 +1018,38 @@ fn engines_do_not_import_render() {
 }
 
 #[test]
+fn engines_use_engine_owned_solve_profile_terms() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert_no_production_imports(
+        &repo_root.join("src/engines"),
+        &["crate::format::OutputFormat", "crate::config::RenderConfig"],
+        "engines/ should receive solve-profile instructions instead of format/config mapping",
+    );
+
+    let contracts =
+        std::fs::read_to_string(repo_root.join("src/engines/graph/contracts.rs")).unwrap();
+    for forbidden in [
+        "pub output_format:",
+        "pub path_simplification:",
+        "from_config(",
+    ] {
+        assert!(
+            !contracts.contains(forbidden),
+            "GraphSolveRequest should not expose legacy format/config request field or constructor: {forbidden}"
+        );
+    }
+
+    let measurement = std::fs::read_to_string(
+        repo_root.join("src/engines/graph/algorithms/layered/measurement.rs"),
+    )
+    .unwrap();
+    assert!(
+        !measurement.contains("for_format("),
+        "layered measurement should not map render formats inside engines"
+    );
+}
+
+#[test]
 fn render_does_not_import_engine_adapters_or_layered_config() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     assert_no_production_imports(

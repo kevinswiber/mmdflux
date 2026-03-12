@@ -12,18 +12,17 @@ use crate::engines::graph::algorithms::layered::{
     LabelDummyStrategy, LayoutConfig, MeasurementMode, build_float_layout_with_flags,
     layout_config_from_layered, run_layered_layout,
 };
-use crate::engines::graph::{EngineConfig, GraphEngine, GraphSolveRequest, GraphSolveResult};
+use crate::engines::graph::{
+    EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
+};
 use crate::errors::RenderError;
-use crate::format::{OutputFormat, RoutingStyle};
+use crate::format::RoutingStyle;
 use crate::graph::Diagram;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
-use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 
 /// Flux-layered engine: native graph-family layout plus native routing.
-pub struct FluxLayeredEngine {
-    mode: MeasurementMode,
-}
+pub struct FluxLayeredEngine;
 
 /// Select the internal Flux profile for the layered algorithm.
 ///
@@ -224,16 +223,9 @@ pub(crate) fn adapt_flux_profile_for_reversed_chain_crowding(
 }
 
 impl FluxLayeredEngine {
-    /// Create with grid measurement mode.
+    /// Create the Flux graph engine adapter.
     pub fn text() -> Self {
-        Self {
-            mode: MeasurementMode::Grid,
-        }
-    }
-
-    /// Create with the specified measurement mode.
-    pub fn with_mode(mode: MeasurementMode) -> Self {
-        Self { mode }
+        Self
     }
 }
 
@@ -260,23 +252,13 @@ impl GraphEngine for FluxLayeredEngine {
         config: &EngineConfig,
         request: &GraphSolveRequest,
     ) -> Result<GraphSolveResult, RenderError> {
-        let mode = match request.output_format {
-            OutputFormat::Svg | OutputFormat::Mmds => match &self.mode {
-                MeasurementMode::Proportional(_) => self.mode.clone(),
-                MeasurementMode::Grid => {
-                    MeasurementMode::Proportional(default_proportional_text_metrics())
-                }
-            },
-            _ => self.mode.clone(),
-        };
+        let mode = request.measurement_mode.clone();
 
         let EngineConfig::Layered(ref input_cfg) = *config;
         let edge_routing = self.id().edge_routing_for_style(request.routing_style);
         let enhanced_layout_cfg = flux_layout_profile(input_cfg, edge_routing);
-        let should_adapt_reversed_chain_crowding = matches!(
-            request.output_format,
-            OutputFormat::Svg | OutputFormat::Mmds
-        ) && diagram.nodes.len() >= 10;
+        let should_adapt_reversed_chain_crowding =
+            matches!(mode, MeasurementMode::Proportional(_)) && diagram.nodes.len() >= 10;
         let enhanced_layout_cfg = if should_adapt_reversed_chain_crowding {
             adapt_flux_profile_for_reversed_chain_crowding(
                 &mode,
@@ -290,10 +272,10 @@ impl GraphEngine for FluxLayeredEngine {
         let enhanced_config = EngineConfig::Layered(enhanced_layout_cfg);
         let config = &enhanced_config;
 
-        if matches!(request.output_format, OutputFormat::Svg) {
+        if matches!(request.geometry_contract, GraphGeometryContract::Visual) {
             let MeasurementMode::Proportional(ref metrics) = mode else {
                 return Err(RenderError {
-                    message: "internal: SVG output requires proportional measurement mode"
+                    message: "internal: visual geometry requires proportional measurement mode"
                         .to_string(),
                 });
             };

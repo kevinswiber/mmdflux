@@ -1,4 +1,5 @@
-//! Shared layout building infrastructure used by text, SVG, and engine pipelines.
+//! Shared layout building infrastructure used by grid replay, float geometry,
+//! and engine pipelines.
 //!
 //! Contains the `build_layered_layout()` entry point, sublayout computation for
 //! direction-override subgraphs, and the `layered_config_for_layout()` bridge

@@ -61,13 +61,16 @@ Guard tests should fail when the code drifts away from these rules.
    lives under `src/frontends/mmds/`. MMDS is not registered in the logical
    diagram registry.
 
-11. **engines do not know about diagram types** — Engine implementations
-    (`src/engines/`) solve generic graph layout problems and own layout building / measurement adapters.
-    They may use shared graph-family helpers, but they never reference flowchart,
-    class, sequence, or other logical diagram types, and they do not import
-    render-owned modules. Engine-side internals should describe float-space,
-    grid, and proportional measurement concepts directly rather than using
-    render-format names like `Svg` or `Text`.
+11. **engines do not know about diagram types or output formats** — Engine
+    implementations (`src/engines/`) solve generic graph layout problems and
+    own layout building / measurement adapters. They may use shared
+    graph-family helpers, but they never reference flowchart, class, sequence,
+    or other logical diagram types, and they do not import render-owned
+    modules. Engine solve requests stay in engine-owned vocabulary:
+    grid/proportional measurement plus canonical/visual geometry contracts.
+    Render-format mapping (`Text`, `Svg`, `Mmds`) happens above the engine
+    layer in graph-family orchestration, and path simplification remains a
+    downstream render/MMDS consumer concern.
 
 12. **flat top-level contract modules own the stable public contract** —
     Stable public config types, request/response types, diagnostics, and error

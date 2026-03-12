@@ -244,9 +244,11 @@ fn low_level_graph_engine_api_is_accessible_from_explicit_namespace() {
     let engine_id =
         mmdflux::EngineAlgorithmId::new(mmdflux::EngineId::Flux, mmdflux::AlgorithmId::Layered);
     let engine = registry.get_solver(engine_id).unwrap();
-    let request = mmdflux::engines::graph::contracts::GraphSolveRequest::from_config(
-        &RenderConfig::default(),
-        OutputFormat::Text,
+    let request = mmdflux::engines::graph::contracts::GraphSolveRequest::new(
+        mmdflux::engines::graph::algorithms::layered::MeasurementMode::Grid,
+        mmdflux::engines::graph::contracts::GraphGeometryContract::Canonical,
+        mmdflux::GeometryLevel::Layout,
+        None,
     );
     let config = mmdflux::engines::graph::contracts::EngineConfig::Layered(Default::default());
     let result = engine.solve(&diagram, &config, &request).unwrap();
@@ -258,6 +260,8 @@ fn low_level_graph_engine_api_is_accessible_from_explicit_namespace() {
 #[test]
 fn renamed_graph_measurement_and_layered_mode_api_are_accessible() {
     let metrics = mmdflux::graph::measure::default_proportional_text_metrics();
+    let _canonical = mmdflux::engines::graph::contracts::GraphGeometryContract::Canonical;
+    let _visual = mmdflux::engines::graph::contracts::GraphGeometryContract::Visual;
     let _mode = mmdflux::engines::graph::algorithms::layered::MeasurementMode::Proportional(
         metrics.clone(),
     );

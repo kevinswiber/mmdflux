@@ -18,7 +18,9 @@ use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,
     TextColorMode,
 };
-use support::graph_family::{EngineConfig, MeasurementMode, run_layered_layout};
+use support::graph_family::{
+    EngineConfig, MeasurementMode, default_proportional_mode, run_layered_layout,
+};
 use support::render::{render_diagram_with_config, render_diagram_with_text_options};
 use support::routing::{EdgeRouting, route_graph_geometry};
 use support::text_grid::{
@@ -3833,7 +3835,7 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
         let input = load_fixture(fixture);
         let flowchart = parse_flowchart(&input).expect("fixture should parse");
         let diagram = compile_to_graph(&flowchart);
-        let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
+        let mode = default_proportional_mode();
         let config = EngineConfig::Layered(
             mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
@@ -3981,7 +3983,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let input = load_fixture(fixture);
         let flowchart = parse_flowchart(&input).expect("fixture should parse");
         let diagram = compile_to_graph(&flowchart);
-        let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
+        let mode = default_proportional_mode();
         let config = EngineConfig::Layered(
             mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
         );

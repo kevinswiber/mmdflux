@@ -12,8 +12,9 @@ use std::path::Path;
 use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::graph::geometry::*;
-use mmdflux::{OutputFormat, RenderConfig};
-use support::graph_family::{EngineConfig, MeasurementMode, run_layered_layout};
+use support::graph_family::{
+    EngineConfig, MeasurementMode, default_proportional_mode, run_layered_layout,
+};
 use support::routing::{EdgeRouting, route_graph_geometry, snap_path_to_grid_preview};
 
 /// Flux-layered LayoutConfig with all enhancements enabled.
@@ -50,7 +51,7 @@ fn layout_fixture(name: &str) -> (mmdflux::Diagram, GraphGeometry) {
 fn layout_test_svg(input: &str) -> (mmdflux::Diagram, GraphGeometry) {
     let fc = parse_flowchart(input).unwrap();
     let diagram = compile_to_graph(&fc);
-    let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
+    let mode = default_proportional_mode();
     let config = flux_layout_config();
     let geom = run_layered_layout(&mode, &diagram, &config).unwrap();
     (diagram, geom)

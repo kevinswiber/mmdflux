@@ -1,7 +1,7 @@
 use mmdflux::engines::graph::algorithms::layered::{
     Direction as LayeredDirection, LayoutConfig as LayeredConfig, Ranker,
 };
-use mmdflux::engines::graph::contracts::{EngineConfig, GraphEngine, GraphSolveRequest};
+use mmdflux::engines::graph::contracts::{EngineConfig, GraphEngine};
 use mmdflux::engines::graph::flux::FluxLayeredEngine;
 use mmdflux::graph::grid_projection::GridRanker;
 #[allow(unused_imports)]
@@ -9,7 +9,9 @@ pub use mmdflux::render::graph::text_replay::{
     GridLayoutConfig, Layout, NodeBounds, RoutedEdge, Segment, geometry_to_text_layout_with_routed,
     render_all_edges_with_labels, render_node, route_all_edges,
 };
-use mmdflux::{Diagram, Direction, OutputFormat, RenderConfig};
+use mmdflux::{Diagram, Direction, GeometryLevel};
+
+use super::graph_family::default_grid_request;
 
 #[allow(dead_code)]
 fn layered_config_for_layout(diagram: &Diagram, config: &GridLayoutConfig) -> LayeredConfig {
@@ -41,7 +43,7 @@ fn layered_config_for_layout(diagram: &Diagram, config: &GridLayoutConfig) -> La
 #[allow(dead_code)]
 pub fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {
     let engine = FluxLayeredEngine::text();
-    let request = GraphSolveRequest::from_config(&RenderConfig::default(), OutputFormat::Text);
+    let request = default_grid_request(GeometryLevel::Layout, None);
     let result = engine
         .solve(
             diagram,

@@ -8,7 +8,9 @@ use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::graph::Stroke;
 use mmdflux::{CornerStyle, Curve, OutputFormat, PathSimplification, RenderConfig, RoutingStyle};
-use support::graph_family::{EngineConfig, MeasurementMode, run_layered_layout};
+use support::graph_family::{
+    EngineConfig, MeasurementMode, default_proportional_mode, run_layered_layout,
+};
 use support::render::render_svg_diagram_with_config;
 use support::routing::{EdgeRouting, route_graph_geometry};
 
@@ -1644,8 +1646,7 @@ fn routing_overlap_skip_and_backward_orthogonal_paths_avoid_unrelated_node_inter
 
     for (fixture, edge_specs) in cases {
         let diagram = load_flowchart_fixture_diagram(fixture);
-        let measurement_mode =
-            MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
+        let measurement_mode = default_proportional_mode();
         let config = EngineConfig::Layered(
             mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
@@ -2359,7 +2360,7 @@ fn svg_orthogonal_orthogonal_route_hexagon_outbound_departure_insets_from_bottom
         edge_index(&diagram, "A", "D"),
     ];
 
-    let measurement_mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
+    let measurement_mode = default_proportional_mode();
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
@@ -3331,7 +3332,7 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_preserves_routed_termi
     let diagram = load_flowchart_fixture_diagram("decision.mmd");
     let edge_idx = edge_index(&diagram, "D", "A");
 
-    let measurement_mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
+    let measurement_mode = default_proportional_mode();
     let config =
         EngineConfig::Layered(mmdflux::engines::graph::algorithms::layered::LayoutConfig {
             greedy_switch: true,
@@ -3679,7 +3680,7 @@ fn svg_straight_orthogonal_route_self_loop_tail_does_not_collapse_upward_before_
 fn orthogonal_route_diamond_boundary_clipping_matches_shape_boundary() {
     let diagram = load_flowchart_fixture_diagram("decision.mmd");
 
-    let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
+    let mode = default_proportional_mode();
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
@@ -4089,7 +4090,7 @@ fn assert_mmds_svg_endpoint_convergence(
 ) {
     // MMDS path (no SVG post-adjustment) — use flux-layered enhancements
     // to match the SVG path which goes through render_svg (flux-layered).
-    let mode = MeasurementMode::for_format(OutputFormat::Svg, &RenderConfig::default());
+    let mode = default_proportional_mode();
     let config =
         EngineConfig::Layered(mmdflux::engines::graph::algorithms::layered::LayoutConfig {
             greedy_switch: true,

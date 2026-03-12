@@ -2,7 +2,7 @@
 
 use mmdflux::diagrams::class::compiler::compile as compile_class_diagram;
 use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::engines::graph::contracts::{EngineConfig, GraphEngine, GraphSolveRequest};
+use mmdflux::engines::graph::contracts::{EngineConfig, GraphEngine};
 use mmdflux::engines::graph::flux::FluxLayeredEngine;
 use mmdflux::frontends::mermaid::class::parse_class_diagram;
 use mmdflux::frontends::mermaid::parse_flowchart;
@@ -13,6 +13,10 @@ use mmdflux::render::graph::{
 };
 use mmdflux::{
     Diagram, OutputFormat, RenderConfig, RenderError, TextColorMode, detect_diagram, render_diagram,
+};
+
+use super::graph_family::{
+    GraphGeometryContract, default_grid_request, default_proportional_request,
 };
 
 fn parse_graph_family_diagram(input: &str) -> Result<Option<Diagram>, RenderError> {
@@ -54,7 +58,28 @@ fn solve_diagram(
     config: &RenderConfig,
 ) -> Result<mmdflux::engines::graph::contracts::GraphSolveResult, RenderError> {
     let engine = FluxLayeredEngine::text();
-    let request = GraphSolveRequest::from_config(config, format);
+    let request = match format {
+        OutputFormat::Svg => default_proportional_request(
+            GraphGeometryContract::Visual,
+            config.geometry_level,
+            config
+                .routing_style
+                .or_else(|| config.edge_preset.map(|preset| preset.expand().0)),
+        ),
+        OutputFormat::Mmds => default_proportional_request(
+            GraphGeometryContract::Canonical,
+            config.geometry_level,
+            config
+                .routing_style
+                .or_else(|| config.edge_preset.map(|preset| preset.expand().0)),
+        ),
+        _ => default_grid_request(
+            config.geometry_level,
+            config
+                .routing_style
+                .or_else(|| config.edge_preset.map(|preset| preset.expand().0)),
+        ),
+    };
     engine.solve(
         diagram,
         &EngineConfig::Layered(config.layout.clone().into()),

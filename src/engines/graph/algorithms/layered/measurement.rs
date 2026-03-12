@@ -3,16 +3,13 @@ use super::layout_building::{
     build_layered_layout_with_config, compute_sublayouts, layered_config_for_layout,
 };
 use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds};
-use crate::config::RenderConfig;
 use crate::engines::graph::EngineConfig;
 use crate::errors::RenderError;
-use crate::format::OutputFormat;
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::grid_projection::{GridProjection, GridRanker, OverrideSubgraphProjection};
 use crate::graph::measure::{
-    DEFAULT_PROPORTIONAL_FONT_SIZE, DEFAULT_PROPORTIONAL_NODE_PADDING_X,
-    DEFAULT_PROPORTIONAL_NODE_PADDING_Y, ProportionalTextMetrics, grid_edge_label_dimensions,
-    grid_node_dimensions, proportional_node_dimensions,
+    ProportionalTextMetrics, grid_edge_label_dimensions, grid_node_dimensions,
+    proportional_node_dimensions,
 };
 use crate::graph::{Diagram, Direction, Edge, Node};
 
@@ -20,31 +17,10 @@ use crate::graph::{Diagram, Direction, Edge, Node};
 /// proportional float-space dimensions for node sizing.
 #[derive(Debug, Clone)]
 pub enum MeasurementMode {
-    /// Grid-cell dimensions for text/ascii replay.
+    /// Grid-cell dimensions for discrete grid replay.
     Grid,
-    /// Proportional dimensions for float-space geometry used by SVG/MMDS output.
+    /// Proportional dimensions for unitless float-space geometry.
     Proportional(ProportionalTextMetrics),
-}
-
-impl MeasurementMode {
-    /// Determine the measurement mode from the output format.
-    pub fn for_format(format: OutputFormat, config: &RenderConfig) -> Self {
-        match format {
-            OutputFormat::Mmds | OutputFormat::Svg => {
-                let font_size = DEFAULT_PROPORTIONAL_FONT_SIZE;
-                let node_padding_x = config
-                    .svg_node_padding_x
-                    .unwrap_or(DEFAULT_PROPORTIONAL_NODE_PADDING_X);
-                let node_padding_y = config
-                    .svg_node_padding_y
-                    .unwrap_or(DEFAULT_PROPORTIONAL_NODE_PADDING_Y);
-                let metrics =
-                    ProportionalTextMetrics::new(font_size, node_padding_x, node_padding_y);
-                MeasurementMode::Proportional(metrics)
-            }
-            _ => MeasurementMode::Grid,
-        }
-    }
 }
 
 /// Build a flowchart `GridLayoutConfig` from layered-engine settings.

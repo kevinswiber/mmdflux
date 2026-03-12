@@ -5,7 +5,10 @@
 //! contracts (not parser-specific or renderer-specific state).
 
 use mmdflux::config::{GeometryLevel, PathSimplification};
-use mmdflux::engines::graph::contracts::{EngineConfig, GraphSolveRequest, GraphSolveResult};
+use mmdflux::engines::graph::algorithms::layered::MeasurementMode;
+use mmdflux::engines::graph::contracts::{
+    EngineConfig, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
+};
 use mmdflux::engines::graph::registry::GraphEngineRegistry;
 use mmdflux::graph::{Diagram, EdgeRouting, route_graph_geometry};
 use mmdflux::mmds::to_mmds_json_typed;
@@ -50,7 +53,12 @@ fn graph_solve_result_fixture() -> (Diagram, GraphSolveResult) {
     let engine_id = EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered);
     let engine = registry.get_solver(engine_id).unwrap();
     let config = EngineConfig::Layered(Default::default());
-    let request = GraphSolveRequest::from_config(&Default::default(), OutputFormat::Text);
+    let request = GraphSolveRequest::new(
+        MeasurementMode::Grid,
+        GraphGeometryContract::Canonical,
+        GeometryLevel::Layout,
+        None,
+    );
     let result = engine.solve(&diagram, &config, &request).unwrap();
     (diagram, result)
 }

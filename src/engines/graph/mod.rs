@@ -22,6 +22,8 @@ mod solve;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use contracts::{EngineConfig, GraphEngine, GraphSolveRequest, GraphSolveResult};
+pub(crate) use contracts::{
+    EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
+};
 pub(crate) use registry::GraphEngineRegistry;
 pub(crate) use solve::solve_graph_family;

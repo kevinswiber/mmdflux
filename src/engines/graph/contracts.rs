@@ -6,11 +6,11 @@
 //! callers that manage graph-family solves directly.
 
 use crate::config::{
-    EngineAlgorithmCapabilities, EngineAlgorithmId, GeometryLevel, LayoutConfig,
-    PathSimplification, RenderConfig, RouteOwnership,
+    EngineAlgorithmCapabilities, EngineAlgorithmId, GeometryLevel, LayoutConfig, RouteOwnership,
 };
+use crate::engines::graph::algorithms::layered::MeasurementMode;
 use crate::errors::RenderError;
-use crate::format::{OutputFormat, RoutingStyle};
+use crate::format::RoutingStyle;
 use crate::graph::routing::EdgeRouting;
 
 impl EngineAlgorithmId {
@@ -45,26 +45,37 @@ impl From<LayoutConfig> for EngineConfig {
 /// Request parameters for a `GraphEngine::solve()` call.
 #[derive(Debug, Clone)]
 pub struct GraphSolveRequest {
-    /// Target output format (affects node measurement: grid vs proportional).
-    pub output_format: OutputFormat,
+    /// Measurement model used for node and edge label sizing.
+    pub measurement_mode: MeasurementMode,
+    /// Float-geometry contract requested by the caller.
+    pub geometry_contract: GraphGeometryContract,
     /// Geometry detail level requested by the caller.
     pub geometry_level: GeometryLevel,
-    /// Edge path simplification level for routed geometry.
-    pub path_simplification: PathSimplification,
     /// Routing style requested by the caller (after preset resolution).
     pub routing_style: Option<RoutingStyle>,
 }
 
+/// Float-geometry contract requested from the engine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GraphGeometryContract {
+    /// Plain float geometry for downstream routing/export.
+    Canonical,
+    /// Float geometry tuned for direct visual emission.
+    Visual,
+}
+
 impl GraphSolveRequest {
-    /// Build a solve request from a render config and output format.
-    pub fn from_config(config: &RenderConfig, output_format: OutputFormat) -> Self {
-        let routing_style = config
-            .routing_style
-            .or_else(|| config.edge_preset.map(|preset| preset.expand().0));
+    /// Build a solve request from explicit engine-owned solve instructions.
+    pub fn new(
+        measurement_mode: MeasurementMode,
+        geometry_contract: GraphGeometryContract,
+        geometry_level: GeometryLevel,
+        routing_style: Option<RoutingStyle>,
+    ) -> Self {
         Self {
-            output_format,
-            geometry_level: config.geometry_level,
-            path_simplification: config.path_simplification,
+            measurement_mode,
+            geometry_contract,
+            geometry_level,
             routing_style,
         }
     }
