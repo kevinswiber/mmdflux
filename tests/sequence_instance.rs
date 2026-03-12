@@ -17,7 +17,9 @@ fn sequence_instance_prepare_returns_timeline_payload() {
     instance
         .parse("sequenceDiagram\nparticipant A\nparticipant B\nA->>B: hello")
         .unwrap();
-    let prepared = instance.prepare(&RenderConfig::default()).unwrap();
+    let prepared = Box::new(instance)
+        .prepare(&RenderConfig::default())
+        .unwrap();
     let PreparedDiagram::Timeline(timeline) = prepared else {
         panic!("sequence prepare should yield timeline payload");
     };
@@ -35,7 +37,7 @@ fn sequence_instance_unknown_engine_rejected_at_parse_boundary() {
 fn sequence_instance_prepare_rejects_layout_engine_selection() {
     let mut instance = SequenceInstance::new();
     instance.parse("sequenceDiagram\nA->>B: hello").unwrap();
-    let result = instance.prepare(&RenderConfig {
+    let result = Box::new(instance).prepare(&RenderConfig {
         layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
         ..RenderConfig::default()
     });

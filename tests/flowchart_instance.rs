@@ -97,7 +97,7 @@ fn flowchart_instance_render_ascii() {
 #[test]
 fn flowchart_instance_prepare_before_parse_errors() {
     let instance = FlowchartInstance::new();
-    let result = instance.prepare(&RenderConfig::default());
+    let result = Box::new(instance).prepare(&RenderConfig::default());
     assert!(result.is_err());
 }
 
@@ -125,7 +125,9 @@ fn flowchart_instance_render_svg() {
 fn flowchart_instance_render_json() {
     let mut instance = FlowchartInstance::new();
     instance.parse("graph TD\nA[Start] --> B[End]").unwrap();
-    let output = instance.prepare(&RenderConfig::default()).unwrap();
+    let output = Box::new(instance)
+        .prepare(&RenderConfig::default())
+        .unwrap();
     let PreparedDiagram::Graph(graph) = output else {
         panic!("flowchart prepare should yield graph payload");
     };
@@ -163,7 +165,7 @@ fn test_show_ids_annotates_labels() {
         show_ids: true,
         ..Default::default()
     };
-    let prepared = instance.prepare(&config).unwrap();
+    let prepared = Box::new(instance).prepare(&config).unwrap();
     let PreparedDiagram::Graph(graph) = prepared else {
         panic!("flowchart prepare should yield graph payload");
     };
@@ -180,7 +182,7 @@ fn test_show_ids_bare_nodes_unchanged() {
         show_ids: true,
         ..Default::default()
     };
-    let prepared = instance.prepare(&config).unwrap();
+    let prepared = Box::new(instance).prepare(&config).unwrap();
     let PreparedDiagram::Graph(graph) = prepared else {
         panic!("flowchart prepare should yield graph payload");
     };
@@ -191,7 +193,9 @@ fn test_show_ids_bare_nodes_unchanged() {
 fn test_show_ids_false_no_annotation() {
     let mut instance = FlowchartInstance::new();
     instance.parse("graph TD\nA[Start] --> B[End]\n").unwrap();
-    let prepared = instance.prepare(&RenderConfig::default()).unwrap();
+    let prepared = Box::new(instance)
+        .prepare(&RenderConfig::default())
+        .unwrap();
     let PreparedDiagram::Graph(graph) = prepared else {
         panic!("flowchart prepare should yield graph payload");
     };

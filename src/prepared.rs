@@ -4,8 +4,6 @@
 //! preparation. Runtime owns the final dispatch from these payloads to
 //! family-specific renderers.
 
-use std::borrow::Cow;
-
 pub use crate::frontends::mermaid::info::Info;
 pub use crate::frontends::mermaid::packet::Packet;
 pub use crate::frontends::mermaid::pie::Pie;
@@ -14,44 +12,44 @@ pub use crate::timeline::sequence::model::SequenceModel;
 
 /// Prepared payload for graph-family diagrams.
 #[derive(Debug, Clone)]
-pub struct PreparedGraph<'a> {
+pub struct PreparedGraph {
     pub diagram_type: &'static str,
-    pub diagram: Cow<'a, Diagram>,
+    pub diagram: Diagram,
 }
 
 /// Prepared payload for timeline-family diagrams.
-#[derive(Debug, Clone, Copy)]
-pub struct PreparedTimeline<'a> {
-    pub model: &'a SequenceModel,
+#[derive(Debug, Clone)]
+pub struct PreparedTimeline {
+    pub model: SequenceModel,
 }
 
 /// Prepared payload for pie diagrams.
-#[derive(Debug, Clone, Copy)]
-pub struct PreparedPie<'a> {
-    pub pie: &'a Pie,
-    pub source: &'a str,
+#[derive(Debug, Clone)]
+pub struct PreparedPie {
+    pub pie: Pie,
+    pub source: String,
 }
 
 /// Prepared payload for packet diagrams.
-#[derive(Debug, Clone, Copy)]
-pub struct PreparedPacket<'a> {
-    pub packet: &'a Packet,
-    pub source: &'a str,
+#[derive(Debug, Clone)]
+pub struct PreparedPacket {
+    pub packet: Packet,
+    pub source: String,
 }
 
 /// Prepared diagram payload returned by the registry contract.
 #[derive(Debug, Clone)]
-pub enum PreparedDiagram<'a> {
+pub enum PreparedDiagram {
     /// Pre-rendered text payload used by tests and fallback adapters.
-    Text(Cow<'a, str>),
+    Text(String),
     /// Graph-family payload for flowchart and class diagrams.
-    Graph(PreparedGraph<'a>),
+    Graph(PreparedGraph),
     /// Timeline-family payload for sequence diagrams.
-    Timeline(PreparedTimeline<'a>),
+    Timeline(PreparedTimeline),
     /// Info diagrams render through their runtime-owned family renderer.
     Info,
     /// Pie diagrams carry parsed state plus source for current text rendering.
-    Pie(PreparedPie<'a>),
+    Pie(PreparedPie),
     /// Packet diagrams carry parsed state plus source for current text rendering.
-    Packet(PreparedPacket<'a>),
+    Packet(PreparedPacket),
 }

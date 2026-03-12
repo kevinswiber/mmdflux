@@ -64,9 +64,9 @@ impl DiagramInstance for PacketInstance {
         Ok(())
     }
 
-    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
-        let input = self.input.as_ref().ok_or("Not parsed")?;
-        let packet = self.packet.as_ref().ok_or("Not parsed")?;
+    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
+        let input = self.input.ok_or("Not parsed")?;
+        let packet = self.packet.ok_or("Not parsed")?;
 
         Ok(PreparedDiagram::Packet(PreparedPacket {
             packet,

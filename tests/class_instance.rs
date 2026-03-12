@@ -34,7 +34,9 @@ fn class_instance_prepare_graph_payload() {
     instance
         .parse("classDiagram\nclass A\nclass B\nA --> B")
         .unwrap();
-    let prepared = instance.prepare(&RenderConfig::default()).unwrap();
+    let prepared = Box::new(instance)
+        .prepare(&RenderConfig::default())
+        .unwrap();
     let PreparedDiagram::Graph(graph) = prepared else {
         panic!("class prepare should yield graph payload");
     };
@@ -71,7 +73,7 @@ fn class_instance_render_svg() {
 #[test]
 fn class_instance_prepare_before_parse_errors() {
     let instance = ClassInstance::new();
-    let result = instance.prepare(&RenderConfig::default());
+    let result = Box::new(instance).prepare(&RenderConfig::default());
     assert!(result.is_err());
 }
 

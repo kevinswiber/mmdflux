@@ -1,9 +1,7 @@
 //! Class diagram instance implementation.
 //!
 //! Parses class diagram syntax, compiles to `graph::Diagram` (graph-family IR),
-//! then prepares a graph-family payload for runtime dispatch.
-
-use std::borrow::Cow;
+//! then prepares an owned graph-family payload for runtime dispatch.
 
 use super::compiler;
 use crate::config::RenderConfig;
@@ -43,14 +41,14 @@ impl DiagramInstance for ClassInstance {
         Ok(())
     }
 
-    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
-        let diagram = self.diagram.as_ref().ok_or_else(|| RenderError {
+    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
+        let diagram = self.diagram.ok_or_else(|| RenderError {
             message: "No diagram parsed. Call parse() first.".to_string(),
         })?;
 
         Ok(PreparedDiagram::Graph(PreparedGraph {
             diagram_type: "class",
-            diagram: Cow::Borrowed(diagram),
+            diagram,
         }))
     }
 

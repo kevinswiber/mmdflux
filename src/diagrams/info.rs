@@ -58,7 +58,7 @@ impl DiagramInstance for InfoInstance {
         Ok(())
     }
 
-    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
+    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
         if !self.parsed {
             return Err("Not parsed".into());
         }

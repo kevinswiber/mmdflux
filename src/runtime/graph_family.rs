@@ -1,4 +1,4 @@
-//! Graph-family solve/render orchestration owned by runtime.
+//! Runtime rendering for prepared graph-family diagrams.
 
 use crate::config::{
     AlgorithmId, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification, RenderConfig,
@@ -20,7 +20,7 @@ use crate::render::graph::{
     render_text_from_geometry,
 };
 
-pub(in crate::runtime) fn render_graph(
+pub(in crate::runtime) fn render_graph_family(
     diagram_id: &str,
     diagram: &Diagram,
     format: OutputFormat,

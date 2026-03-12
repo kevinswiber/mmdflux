@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::fs;
 use std::path::Path;
 
@@ -32,11 +31,9 @@ impl DiagramInstance for MockDiagram {
         Ok(())
     }
 
-    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
+    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
         let content = self.parsed.as_deref().ok_or("Not parsed")?;
-        Ok(PreparedDiagram::Text(Cow::Owned(format!(
-            "[TEXT] {content}"
-        ))))
+        Ok(PreparedDiagram::Text(format!("[TEXT] {content}")))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
@@ -49,7 +46,7 @@ fn diagram_instance_parse_and_prepare() {
     let mut diagram = MockDiagram::new();
     diagram.parse("test input").unwrap();
 
-    let prepared = diagram.prepare(&RenderConfig::default()).unwrap();
+    let prepared = Box::new(diagram).prepare(&RenderConfig::default()).unwrap();
     assert!(matches!(
         prepared,
         PreparedDiagram::Text(text) if text == "[TEXT] test input"
@@ -61,7 +58,7 @@ fn diagram_instance_prepare_returns_a_prepared_payload() {
     let mut diagram = MockDiagram::new();
     diagram.parse("test input").unwrap();
 
-    let prepared = diagram.prepare(&RenderConfig::default()).unwrap();
+    let prepared = Box::new(diagram).prepare(&RenderConfig::default()).unwrap();
     assert!(matches!(prepared, PreparedDiagram::Text(_)));
 }
 
@@ -74,7 +71,7 @@ fn diagram_instance_trait_no_longer_exposes_render() {
     )
     .unwrap();
     assert!(!source.contains("fn render(&self"));
-    assert!(source.contains("fn prepare(&self"));
+    assert!(source.contains("fn prepare(self: Box<Self>"));
 }
 
 #[test]

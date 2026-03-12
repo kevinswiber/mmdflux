@@ -1,9 +1,7 @@
 //! Flowchart diagram instance implementation.
 //!
 //! Compiles Mermaid flowchart syntax to `graph::Diagram` (graph-family IR),
-//! then prepares a graph-family payload for runtime dispatch.
-
-use std::borrow::Cow;
+//! then prepares an owned graph-family payload for runtime dispatch.
 
 use super::compile_to_graph;
 use crate::config::RenderConfig;
@@ -43,16 +41,16 @@ impl DiagramInstance for FlowchartInstance {
         Ok(())
     }
 
-    fn prepare(&self, config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
-        let diagram = self.diagram.as_ref().ok_or_else(|| RenderError {
+    fn prepare(self: Box<Self>, config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
+        let diagram = self.diagram.ok_or_else(|| RenderError {
             message: "No diagram parsed. Call parse() first.".to_string(),
         })?;
 
         // Diagram-specific pre-processing: annotate node IDs if requested.
         let diagram = if config.show_ids {
-            Cow::Owned(annotate_node_ids(diagram))
+            annotate_node_ids(diagram)
         } else {
-            Cow::Borrowed(diagram)
+            diagram
         };
 
         Ok(PreparedDiagram::Graph(PreparedGraph {
@@ -66,14 +64,12 @@ impl DiagramInstance for FlowchartInstance {
     }
 }
 
-/// Create a copy of the diagram with node labels annotated as "ID: Label".
-/// Skips nodes where label == id (bare nodes).
-fn annotate_node_ids(diagram: &Diagram) -> Diagram {
-    let mut annotated = diagram.clone();
-    for node in annotated.nodes.values_mut() {
+/// Annotate node labels as "ID: Label", skipping bare nodes where label == id.
+fn annotate_node_ids(mut diagram: Diagram) -> Diagram {
+    for node in diagram.nodes.values_mut() {
         if node.label != node.id {
             node.label = format!("{}: {}", node.id, node.label);
         }
     }
-    annotated
+    diagram
 }

@@ -64,9 +64,9 @@ impl DiagramInstance for PieInstance {
         Ok(())
     }
 
-    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
-        let input = self.input.as_ref().ok_or("Not parsed")?;
-        let pie = self.pie.as_ref().ok_or("Not parsed")?;
+    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
+        let input = self.input.ok_or("Not parsed")?;
+        let pie = self.pie.ok_or("Not parsed")?;
 
         Ok(PreparedDiagram::Pie(PreparedPie { pie, source: input }))
     }

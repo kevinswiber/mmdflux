@@ -155,8 +155,8 @@ pub trait DiagramInstance: Send + Sync {
     /// Parse input text into the diagram model.
     fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
-    /// Prepare a family-local payload for runtime dispatch.
-    fn prepare(&self, config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError>;
+    /// Consume the parsed instance into a family-local payload for runtime dispatch.
+    fn prepare(self: Box<Self>, config: &RenderConfig) -> Result<PreparedDiagram, RenderError>;
 
     /// Check if this instance supports the given output format.
     fn supports_format(&self, format: OutputFormat) -> bool;

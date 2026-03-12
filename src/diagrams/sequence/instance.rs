@@ -37,8 +37,8 @@ impl DiagramInstance for SequenceInstance {
         Ok(())
     }
 
-    fn prepare(&self, config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
-        let model = self.model.as_ref().ok_or_else(|| RenderError {
+    fn prepare(self: Box<Self>, config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
+        let model = self.model.ok_or_else(|| RenderError {
             message: "No diagram parsed. Call parse() first.".to_string(),
         })?;
 
