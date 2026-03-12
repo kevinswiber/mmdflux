@@ -143,9 +143,13 @@ fn testing_shim_import_needles() -> [String; 2] {
     ]
 }
 
-fn parse_pub_modules_from_lib_rs() -> BTreeSet<String> {
+fn lib_rs_source() -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
-    let content = std::fs::read_to_string(&path).unwrap();
+    std::fs::read_to_string(&path).unwrap()
+}
+
+fn parse_pub_modules_from_lib_rs() -> BTreeSet<String> {
+    let content = lib_rs_source();
     let mut modules = BTreeSet::new();
     let mut hide_next_pub_mod = false;
 
@@ -179,8 +183,7 @@ fn parse_pub_modules_from_lib_rs() -> BTreeSet<String> {
 }
 
 fn parse_pub_use_re_exports_from_lib_rs() -> BTreeSet<String> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
-    let content = std::fs::read_to_string(&path).unwrap();
+    let content = lib_rs_source();
     let mut result = BTreeSet::new();
 
     let joined = content.replace('\n', " ");

@@ -26,9 +26,13 @@ use mmdflux::{
     },
 };
 
-fn public_exports_for_test() -> BTreeSet<String> {
+fn lib_rs_source() -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
-    let content = std::fs::read_to_string(&path).unwrap();
+    std::fs::read_to_string(&path).unwrap()
+}
+
+fn public_exports_for_test() -> BTreeSet<String> {
+    let content = lib_rs_source();
     let mut exports = BTreeSet::new();
 
     let joined = content.replace('\n', " ");
@@ -56,8 +60,7 @@ fn public_exports_for_test() -> BTreeSet<String> {
 }
 
 fn public_modules_for_test() -> BTreeSet<String> {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
-    let content = std::fs::read_to_string(&path).unwrap();
+    let content = lib_rs_source();
     let mut modules = BTreeSet::new();
 
     for line in content.lines() {
@@ -98,16 +101,31 @@ fn flat_public_contract_modules_are_accessible() {
 fn crate_root_exports_only_the_curated_render_and_validation_surface() {
     let exports = public_exports_for_test();
 
-    assert!(exports.contains("OutputFormat"));
-    assert!(exports.contains("RenderConfig"));
-    assert!(exports.contains("RenderError"));
-    assert!(exports.contains("RenderRequest"));
-    assert!(!exports.contains("DiagramType"));
-    assert!(!exports.contains("ParseError"));
-    assert!(!exports.contains("parse_flowchart"));
-    assert!(!exports.contains("detect_diagram_type"));
-    assert!(!exports.contains("compile_to_graph"));
-    assert!(!exports.contains("default_registry"));
+    for required in [
+        "OutputFormat",
+        "RenderConfig",
+        "RenderError",
+        "RenderRequest",
+    ] {
+        assert!(
+            exports.contains(required),
+            "{required} should remain in the crate-root export surface"
+        );
+    }
+
+    for forbidden in [
+        "DiagramType",
+        "ParseError",
+        "parse_flowchart",
+        "detect_diagram_type",
+        "compile_to_graph",
+        "default_registry",
+    ] {
+        assert!(
+            !exports.contains(forbidden),
+            "{forbidden} should stay out of the crate-root export surface"
+        );
+    }
 }
 
 #[test]
@@ -124,23 +142,37 @@ fn crate_root_does_not_export_hidden_testing_module() {
 fn engine_level_solve_types_are_not_crate_root_api() {
     let exports = public_exports_for_test();
 
-    assert!(!exports.contains("GraphEngine"));
-    assert!(!exports.contains("GraphSolveRequest"));
-    assert!(!exports.contains("GraphSolveResult"));
-    assert!(!exports.contains("EngineConfig"));
-    assert!(!exports.contains("EdgeRouting"));
+    for forbidden in [
+        "GraphEngine",
+        "GraphSolveRequest",
+        "GraphSolveResult",
+        "EngineConfig",
+        "EdgeRouting",
+    ] {
+        assert!(
+            !exports.contains(forbidden),
+            "{forbidden} should not be exported from the crate root"
+        );
+    }
 }
 
 #[test]
 fn implementor_traits_and_engine_capabilities_are_not_crate_root_api() {
     let exports = public_exports_for_test();
 
-    assert!(!exports.contains("DiagramModel"));
-    assert!(!exports.contains("DiagramParser"));
-    assert!(!exports.contains("DiagramRenderer"));
-    assert!(!exports.contains("EngineAlgorithmCapabilities"));
-    assert!(!exports.contains("RouteOwnership"));
-    assert!(!exports.contains("LayoutConfig"));
+    for forbidden in [
+        "DiagramModel",
+        "DiagramParser",
+        "DiagramRenderer",
+        "EngineAlgorithmCapabilities",
+        "RouteOwnership",
+        "LayoutConfig",
+    ] {
+        assert!(
+            !exports.contains(forbidden),
+            "{forbidden} should not be exported from the crate root"
+        );
+    }
 }
 
 #[test]
