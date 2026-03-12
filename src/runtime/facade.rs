@@ -97,7 +97,6 @@ fn render_mmds_from_solve_result(
         level,
         path_simplification,
         Some(result.engine_id),
-        crate::graph::routing::EdgeRouting::OrthogonalRoute,
     )
 }
 

@@ -4,13 +4,13 @@ use super::layout_building::{
 };
 use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds};
 use crate::engines::graph::{EngineConfig, OutputFormat, RenderConfig, RenderError};
-use crate::graph::Diagram;
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::grid_projection::{GridProjection, GridRanker, OverrideSubgraphProjection};
 use crate::graph::measure::{
     DEFAULT_FONT_SIZE, DEFAULT_SVG_NODE_PADDING_X, DEFAULT_SVG_NODE_PADDING_Y, SvgTextMetrics,
     svg_node_dimensions, text_edge_label_dimensions, text_node_dimensions,
 };
+use crate::graph::{Diagram, Direction, Edge, Node};
 
 /// Measurement mode controls whether layout uses text-grid character
 /// dimensions or SVG pixel dimensions for node sizing.
@@ -77,6 +77,17 @@ pub(crate) fn layout_config_from_layered(
     }
 }
 
+fn text_node_layout_dimensions(node: &Node, direction: Direction) -> (f64, f64) {
+    let (width, height) = text_node_dimensions(node, direction);
+    (width as f64, height as f64)
+}
+
+fn text_edge_label_layout_dimensions(edge: &Edge) -> Option<(f64, f64)> {
+    edge.label
+        .as_ref()
+        .map(|label| text_edge_label_dimensions(label))
+}
+
 fn override_subgraph_projections(
     diagram: &Diagram,
     layered_cfg: &super::LayoutConfig,
@@ -88,15 +99,8 @@ fn override_subgraph_projections(
     compute_sublayouts(
         diagram,
         &layered_config,
-        |node| {
-            let (w, h) = text_node_dimensions(node, direction);
-            (w as f64, h as f64)
-        },
-        |edge| {
-            edge.label
-                .as_ref()
-                .map(|label| text_edge_label_dimensions(label))
-        },
+        |node| text_node_layout_dimensions(node, direction),
+        text_edge_label_layout_dimensions,
         false,
     )
     .into_iter()
@@ -108,17 +112,7 @@ fn override_subgraph_projections(
                     .result
                     .nodes
                     .into_iter()
-                    .map(|(node_id, rect)| {
-                        (
-                            node_id.0,
-                            crate::graph::geometry::FRect::new(
-                                rect.x,
-                                rect.y,
-                                rect.width,
-                                rect.height,
-                            ),
-                        )
-                    })
+                    .map(|(node_id, rect)| (node_id.0, rect.into()))
                     .collect(),
             },
         )
@@ -155,15 +149,8 @@ pub fn run_layered_layout(
         MeasurementMode::Text => build_layered_layout_with_config(
             diagram,
             &lc,
-            |node| {
-                let (w, h) = text_node_dimensions(node, direction);
-                (w as f64, h as f64)
-            },
-            |edge| {
-                edge.label
-                    .as_ref()
-                    .map(|label| text_edge_label_dimensions(label))
-            },
+            |node| text_node_layout_dimensions(node, direction),
+            text_edge_label_layout_dimensions,
         ),
         MeasurementMode::Svg(metrics) => build_layered_layout_with_config(
             diagram,

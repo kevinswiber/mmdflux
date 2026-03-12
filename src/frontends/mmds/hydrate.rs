@@ -435,29 +435,7 @@ fn hydrate_grid_projection(output: &MmdsOutput) -> Option<GridProjection> {
         })
         .unwrap_or_default();
 
-    let override_subgraphs = projection
-        .get("override_subgraphs")
-        .and_then(Value::as_object)
-        .map(|entries| {
-            entries
-                .iter()
-                .map(|(subgraph_id, value)| {
-                    let nodes = value
-                        .as_object()
-                        .map(|node_entries| {
-                            node_entries
-                                .iter()
-                                .filter_map(|(node_id, node_value)| {
-                                    parse_rect_value(node_value).map(|rect| (node_id.clone(), rect))
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    (subgraph_id.clone(), OverrideSubgraphProjection { nodes })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let override_subgraphs = parse_override_subgraphs(projection.get("override_subgraphs"));
 
     Some(GridProjection {
         node_ranks,
@@ -486,6 +464,38 @@ fn parse_rect_value(value: &Value) -> Option<FRect> {
         object.get("width")?.as_f64()?,
         object.get("height")?.as_f64()?,
     ))
+}
+
+fn parse_rect_map(entries: Option<&Map<String, Value>>) -> HashMap<String, FRect> {
+    entries
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|(node_id, node_value)| {
+                    parse_rect_value(node_value).map(|rect| (node_id.clone(), rect))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn parse_override_subgraphs(value: Option<&Value>) -> HashMap<String, OverrideSubgraphProjection> {
+    value
+        .and_then(Value::as_object)
+        .map(|entries| {
+            entries
+                .iter()
+                .map(|(subgraph_id, value)| {
+                    (
+                        subgraph_id.clone(),
+                        OverrideSubgraphProjection {
+                            nodes: parse_rect_map(value.as_object()),
+                        },
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn build_positioned_nodes(

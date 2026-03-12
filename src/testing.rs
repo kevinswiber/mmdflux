@@ -417,22 +417,38 @@ pub mod render {
             }
         }
 
-        /// Hidden wrapper for the legacy direct render helper.
-        pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
+        fn solve_for_render(
+            diagram: &Diagram,
+            options: &RenderOptions,
+            output_format: OutputFormat,
+            routing_style: Option<RoutingStyle>,
+            error_context: &'static str,
+        ) -> crate::engines::graph::GraphSolveResult {
             let engine = FluxLayeredEngine::text();
             let engine_config = engine_config_for_render(diagram, options);
             let request_config = crate::RenderConfig {
-                routing_style: request_routing_style(options),
+                routing_style,
                 path_simplification: options.path_simplification,
                 ..crate::RenderConfig::default()
             };
             let request = crate::engines::graph::GraphSolveRequest::from_config(
                 &request_config,
-                options.output_format,
+                output_format,
             );
-            let result = engine
+            engine
                 .solve(diagram, &engine_config, &request)
-                .expect("engine solve failed in testing::render");
+                .expect(error_context)
+        }
+
+        /// Hidden wrapper for the legacy direct render helper.
+        pub fn render(diagram: &Diagram, options: &RenderOptions) -> String {
+            let result = solve_for_render(
+                diagram,
+                options,
+                options.output_format,
+                request_routing_style(options),
+                "engine solve failed in testing::render",
+            );
 
             match options.output_format {
                 OutputFormat::Svg => crate::render::graph::render_svg_from_geometry_with_routing(
@@ -458,20 +474,13 @@ pub mod render {
 
         /// Hidden wrapper for the legacy direct SVG helper.
         pub fn render_svg(diagram: &Diagram, options: &RenderOptions) -> String {
-            let engine = FluxLayeredEngine::text();
-            let engine_config = engine_config_for_render(diagram, options);
-            let request_config = crate::RenderConfig {
-                routing_style: request_routing_style(options).or(Some(options.svg.routing_style)),
-                path_simplification: options.path_simplification,
-                ..crate::RenderConfig::default()
-            };
-            let request = crate::engines::graph::GraphSolveRequest::from_config(
-                &request_config,
+            let result = solve_for_render(
+                diagram,
+                options,
                 OutputFormat::Svg,
+                request_routing_style(options).or(Some(options.svg.routing_style)),
+                "engine solve failed in testing::render_svg",
             );
-            let result = engine
-                .solve(diagram, &engine_config, &request)
-                .expect("engine solve failed in testing::render_svg");
             crate::render::graph::svg::render_svg_from_geometry(
                 diagram,
                 &svg_render_options(options),
@@ -642,7 +651,6 @@ pub mod render {
                         level,
                         path_simplification,
                         Some(internal.engine_id),
-                        crate::graph::routing::EdgeRouting::OrthogonalRoute,
                     )
                 }
             }

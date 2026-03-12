@@ -13,19 +13,7 @@ pub fn build_node_directions(diagram: &Diagram) -> HashMap<String, Direction> {
         node_directions.insert(node_id.clone(), diagram.direction);
     }
 
-    let mut dir_sg_ids: Vec<&String> = diagram
-        .subgraphs
-        .iter()
-        .filter(|(_, sg)| sg.dir.is_some())
-        .map(|(id, _)| id)
-        .collect();
-    dir_sg_ids.sort_by(|a, b| {
-        diagram
-            .subgraph_depth(a)
-            .cmp(&diagram.subgraph_depth(b))
-            .then_with(|| a.cmp(b))
-    });
-    for sg_id in dir_sg_ids {
+    for sg_id in override_subgraph_ids(diagram) {
         let sg = &diagram.subgraphs[sg_id];
         let override_dir = sg.dir.unwrap();
         for node_id in &sg.nodes {
@@ -97,19 +85,7 @@ pub fn cross_boundary_edge_direction(
 /// Build the override node map: node_id -> subgraph_id.
 pub fn build_override_node_map(diagram: &Diagram) -> HashMap<String, String> {
     let mut override_nodes = HashMap::new();
-    let mut sg_ids: Vec<&String> = diagram
-        .subgraphs
-        .iter()
-        .filter(|(_, sg)| sg.dir.is_some())
-        .map(|(id, _)| id)
-        .collect();
-    sg_ids.sort_by(|a, b| {
-        diagram
-            .subgraph_depth(a)
-            .cmp(&diagram.subgraph_depth(b))
-            .then_with(|| a.cmp(b))
-    });
-    for sg_id in sg_ids {
+    for sg_id in override_subgraph_ids(diagram) {
         let sg = &diagram.subgraphs[sg_id];
         for node_id in &sg.nodes {
             if !diagram.is_subgraph(node_id) {
@@ -118,6 +94,22 @@ pub fn build_override_node_map(diagram: &Diagram) -> HashMap<String, String> {
         }
     }
     override_nodes
+}
+
+fn override_subgraph_ids(diagram: &Diagram) -> Vec<&String> {
+    let mut subgraph_ids: Vec<_> = diagram
+        .subgraphs
+        .iter()
+        .filter(|(_, subgraph)| subgraph.dir.is_some())
+        .map(|(id, _)| id)
+        .collect();
+    subgraph_ids.sort_by(|a, b| {
+        diagram
+            .subgraph_depth(a)
+            .cmp(&diagram.subgraph_depth(b))
+            .then_with(|| a.cmp(b))
+    });
+    subgraph_ids
 }
 
 fn is_ancestor_sg(diagram: &Diagram, ancestor: &str, descendant: &str) -> bool {

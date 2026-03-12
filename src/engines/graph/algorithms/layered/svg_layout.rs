@@ -12,7 +12,7 @@ use crate::engines::graph::EdgeRouting;
 use crate::engines::graph::algorithms::layered::{
     GridLayoutConfig, LayoutConfig, LayoutResult, from_layered_layout,
 };
-use crate::graph::geometry::GraphGeometry;
+use crate::graph::geometry::{GraphGeometry, RoutedEdgeGeometry};
 use crate::graph::measure::{SvgTextMetrics, svg_node_dimensions};
 use crate::graph::orthogonal_router::{OrthogonalRoutingOptions, route_edges_orthogonal};
 use crate::graph::routing::route_graph_geometry;
@@ -133,15 +133,20 @@ pub(crate) fn build_svg_layout_with_flags(
         .unwrap_or(false);
     let mut geom = from_layered_layout(&layout, diagram);
     geom.enhanced_backward_routing = has_enhancements;
-    if matches!(edge_routing, EdgeRouting::DirectRoute) {
-        geom = inject_routed_paths(diagram, &geom, EdgeRouting::DirectRoute);
-        // Direct mode should use standard endpoint adjustment behavior.
-        rerouted_edges.clear();
-    } else if matches!(edge_routing, EdgeRouting::PolylineRoute) {
-        geom = inject_routed_paths(diagram, &geom, EdgeRouting::PolylineRoute);
-    } else if matches!(edge_routing, EdgeRouting::OrthogonalRoute) {
-        geom = inject_orthogonal_route_paths(diagram, &geom);
-        rerouted_edges.extend(geom.edges.iter().map(|e| e.index));
+    match edge_routing {
+        EdgeRouting::DirectRoute => {
+            geom = inject_routed_paths(diagram, &geom, EdgeRouting::DirectRoute);
+            // Direct mode should use standard endpoint adjustment behavior.
+            rerouted_edges.clear();
+        }
+        EdgeRouting::PolylineRoute => {
+            geom = inject_routed_paths(diagram, &geom, EdgeRouting::PolylineRoute);
+        }
+        EdgeRouting::OrthogonalRoute => {
+            geom = inject_orthogonal_route_paths(diagram, &geom);
+            rerouted_edges.extend(geom.edges.iter().map(|e| e.index));
+        }
+        EdgeRouting::EngineProvided => {}
     }
     geom.rerouted_edges = rerouted_edges;
     geom
@@ -154,27 +159,28 @@ fn inject_routed_paths(
 ) -> GraphGeometry {
     let routed = route_graph_geometry(diagram, geom, edge_routing);
     let mut updated = geom.clone();
-    for edge in routed.edges {
-        if let Some(layout_edge) = updated.edges.iter_mut().find(|e| e.index == edge.index) {
-            layout_edge.layout_path_hint = Some(edge.path);
-            layout_edge.label_position = edge.label_position;
-            layout_edge.preserve_orthogonal_topology = edge.preserve_orthogonal_topology;
-        }
-    }
+    apply_routed_edge_paths(&mut updated, routed.edges);
     updated
 }
 
 fn inject_orthogonal_route_paths(diagram: &Diagram, geom: &GraphGeometry) -> GraphGeometry {
     let routed = route_edges_orthogonal(diagram, geom, OrthogonalRoutingOptions::preview());
     let mut updated = geom.clone();
-    for edge in routed {
+    apply_routed_edge_paths(&mut updated, routed);
+    updated
+}
+
+fn apply_routed_edge_paths(
+    updated: &mut GraphGeometry,
+    routed_edges: impl IntoIterator<Item = RoutedEdgeGeometry>,
+) {
+    for edge in routed_edges {
         if let Some(layout_edge) = updated.edges.iter_mut().find(|e| e.index == edge.index) {
             layout_edge.layout_path_hint = Some(edge.path);
             layout_edge.label_position = edge.label_position;
             layout_edge.preserve_orthogonal_topology = edge.preserve_orthogonal_topology;
         }
     }
-    updated
 }
 
 fn apply_subgraph_svg_padding(

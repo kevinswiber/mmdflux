@@ -155,13 +155,12 @@ pub(crate) fn to_mmds_json_typed_with_routing(
     level: GeometryLevel,
     path_simplification: PathSimplification,
     engine_id: Option<EngineAlgorithmId>,
-    edge_routing: EdgeRouting,
 ) -> Result<String, RenderError> {
     let routed_owned;
     let routed = match (routed, level) {
         (Some(routed), _) => Some(routed),
         (None, GeometryLevel::Routed) => {
-            routed_owned = route_graph_geometry(diagram, geometry, edge_routing);
+            routed_owned = route_graph_geometry(diagram, geometry, EdgeRouting::OrthogonalRoute);
             Some(&routed_owned)
         }
         (None, GeometryLevel::Layout) => None,
@@ -440,8 +439,13 @@ fn ranked_point_value(point: crate::graph::geometry::FPoint, rank: i32) -> Value
 fn serialize_override_subgraph_projection(
     projection: &OverrideSubgraphProjection,
 ) -> Map<String, Value> {
-    projection
-        .nodes
+    serialize_rect_map(&projection.nodes)
+}
+
+fn serialize_rect_map(
+    rects: &std::collections::HashMap<String, crate::graph::geometry::FRect>,
+) -> Map<String, Value> {
+    rects
         .iter()
         .map(|(node_id, rect)| (node_id.clone(), rect_value(*rect)))
         .collect()
