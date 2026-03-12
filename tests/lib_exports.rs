@@ -206,6 +206,24 @@ fn builtin_registry_module_is_public_and_registry_default_registry_is_gone() {
 }
 
 #[test]
+fn crate_root_exports_registry_builtins_but_not_removed_advanced_helpers() {
+    let modules = public_modules_for_test();
+    let exports = public_exports_for_test();
+
+    assert!(
+        modules.contains("registry_builtins"),
+        "registry_builtins should remain an explicit top-level advanced API module"
+    );
+
+    for forbidden in ["snap_path_to_grid_preview", "intersect", "default_registry"] {
+        assert!(
+            !exports.contains(forbidden),
+            "{forbidden} should stay out of the crate-root export surface"
+        );
+    }
+}
+
+#[test]
 fn low_level_graph_engine_api_is_accessible_from_explicit_namespace() {
     let flowchart = mmdflux::frontends::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();
     let diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);

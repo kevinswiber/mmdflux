@@ -11,63 +11,72 @@ flowchart LR
     mod_format["format"]
     mod_frontends["frontends"]
     mod_graph["graph"]
+    mod_graph_family_pipeline["graph_family_pipeline"]
     mod_lint["lint"]
     mod_mmds["mmds"]
     mod_registry["registry"]
+    mod_registry_builtins["registry_builtins"]
     mod_render["render"]
     mod_request["request"]
     mod_runtime["runtime"]
     mod_style["style"]
-    mod_testing["testing"]
+    mod_timeline["timeline"]
     mod_config --> mod_engines
     mod_config --> mod_errors
     mod_config --> mod_format
     mod_diagnostics --> mod_frontends
-    mod_diagrams --> mod_engines
+    mod_diagrams --> mod_config
+    mod_diagrams --> mod_errors
+    mod_diagrams --> mod_family
+    mod_diagrams --> mod_format
     mod_diagrams --> mod_frontends
     mod_diagrams --> mod_graph
+    mod_diagrams --> mod_graph_family_pipeline
     mod_diagrams --> mod_registry
     mod_diagrams --> mod_render
-    mod_diagrams --> mod_runtime
     mod_diagrams --> mod_style
+    mod_diagrams --> mod_timeline
     mod_engines --> mod_config
     mod_engines --> mod_errors
-    mod_engines --> mod_family
     mod_engines --> mod_format
     mod_engines --> mod_graph
     mod_format --> mod_errors
-    mod_frontends --> mod_engines
+    mod_frontends --> mod_config
+    mod_frontends --> mod_errors
+    mod_frontends --> mod_format
     mod_frontends --> mod_graph
     mod_frontends --> mod_mmds
     mod_frontends --> mod_render
     mod_frontends --> mod_style
     mod_graph --> mod_style
+    mod_graph_family_pipeline --> mod_config
+    mod_graph_family_pipeline --> mod_engines
+    mod_graph_family_pipeline --> mod_errors
+    mod_graph_family_pipeline --> mod_format
+    mod_graph_family_pipeline --> mod_graph
+    mod_graph_family_pipeline --> mod_mmds
+    mod_graph_family_pipeline --> mod_render
     mod_lint --> mod_frontends
     mod_lint --> mod_style
-    mod_mmds --> mod_engines
+    mod_mmds --> mod_config
+    mod_mmds --> mod_errors
     mod_mmds --> mod_graph
     mod_mmds --> mod_style
-    mod_registry --> mod_diagrams
-    mod_registry --> mod_engines
-    mod_render --> mod_diagrams
+    mod_registry --> mod_config
+    mod_registry --> mod_errors
+    mod_registry --> mod_family
+    mod_registry --> mod_format
+    mod_registry_builtins --> mod_diagrams
+    mod_registry_builtins --> mod_registry
     mod_render --> mod_graph
+    mod_render --> mod_timeline
     mod_request --> mod_config
     mod_request --> mod_format
     mod_runtime --> mod_config
     mod_runtime --> mod_diagnostics
-    mod_runtime --> mod_engines
     mod_runtime --> mod_errors
     mod_runtime --> mod_format
     mod_runtime --> mod_frontends
-    mod_runtime --> mod_graph
     mod_runtime --> mod_lint
-    mod_runtime --> mod_mmds
-    mod_runtime --> mod_registry
-    mod_runtime --> mod_render
-    mod_testing --> mod_config
-    mod_testing --> mod_engines
-    mod_testing --> mod_errors
-    mod_testing --> mod_format
-    mod_testing --> mod_graph
-    mod_testing --> mod_mmds
-    mod_testing --> mod_render
+    mod_runtime --> mod_registry_builtins
+    mod_timeline --> mod_frontends

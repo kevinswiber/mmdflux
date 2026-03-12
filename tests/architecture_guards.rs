@@ -354,6 +354,19 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
             "dependency rules must mention: {required}"
         );
     }
+
+    for required in [
+        "registry_builtins",
+        "graph_family_pipeline",
+        "timeline::sequence",
+        "text_replay",
+        "render_svg_from_routed_geometry",
+    ] {
+        assert!(
+            rules.contains(required),
+            "dependency rules must mention the new boundary artifact: {required}"
+        );
+    }
 }
 
 #[test]
@@ -777,6 +790,62 @@ fn graph_does_not_import_render_or_layered_kernel() {
             "crate::engines::graph::algorithms::layered",
         ],
         "graph/ should remain render-agnostic and layered-kernel agnostic",
+    );
+}
+
+#[test]
+fn generated_dependency_maps_match_the_post_split_module_tree() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for relative in [
+        "docs/architecture/module-dependency-map.mmd",
+        "docs/architecture/module-dependency-map-c4.mmd",
+        "docs/architecture/module-dependency-scc-dag.mmd",
+    ] {
+        let content = std::fs::read_to_string(repo_root.join(relative)).unwrap();
+
+        for required in ["registry_builtins", "graph_family_pipeline", "timeline"] {
+            assert!(
+                content.contains(required),
+                "{relative} should mention the refreshed module tree entry: {required}"
+            );
+        }
+
+        for forbidden in ["testing", "mod_testing", "Component(mod_testing"] {
+            assert!(
+                !content.contains(forbidden),
+                "{relative} should not mention removed testing module artifacts: {forbidden}"
+            );
+        }
+    }
+}
+
+#[test]
+fn generated_dependency_maps_show_registry_builtins_owning_builtin_wiring() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let flat =
+        std::fs::read_to_string(repo_root.join("docs/architecture/module-dependency-map.mmd"))
+            .unwrap();
+    let c4 =
+        std::fs::read_to_string(repo_root.join("docs/architecture/module-dependency-map-c4.mmd"))
+            .unwrap();
+
+    assert!(
+        !flat.contains("mod_registry --> mod_diagrams"),
+        "registry should no longer depend on diagrams in the flat dependency map"
+    );
+    assert!(
+        flat.contains("mod_registry_builtins --> mod_diagrams"),
+        "registry_builtins should own builtin diagram wiring in the flat dependency map"
+    );
+
+    assert!(
+        !c4.contains("Rel(mod_registry, mod_diagrams, \"uses\")"),
+        "registry should no longer depend on diagrams in the C4 dependency map"
+    );
+    assert!(
+        c4.contains("Rel(mod_registry_builtins, mod_diagrams, \"uses\")"),
+        "registry_builtins should own builtin diagram wiring in the C4 dependency map"
     );
 }
 

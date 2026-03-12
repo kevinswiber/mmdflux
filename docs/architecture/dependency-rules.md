@@ -32,7 +32,10 @@ Guard tests should fail when the code drifts away from these rules.
 
 5. **render::graph owns geometry-based graph-family emitters** — Shared
    graph-family text and SVG emission lives under `src/render/graph/` and
-   consumes `GraphGeometry` or `RoutedGraphGeometry`. Render code does not
+   consumes `GraphGeometry` or `RoutedGraphGeometry`. High-level geometry
+   entrypoints stay at the `render::graph` root, low-level text-grid replay
+   helpers live under `render::graph::text_replay`, and routed SVG emission is
+   explicit through `render_svg_from_routed_geometry`. Render code does not
    take `GraphSolveResult` or instantiate engines.
 
 6. **runtime owns graph-family solve-result dispatch** — `src/runtime/`
@@ -72,23 +75,30 @@ Guard tests should fail when the code drifts away from these rules.
 
 13. **runtime/ is orchestration only** — The runtime layer detects input
     frontends, resolves logical diagram types, manages the registry, and wires
-    the pipeline. It does not own parsing grammars, layout algorithms, or
-    renderer implementations.
+    the pipeline. Graph-family runtime dispatch shares crate-private
+    orchestration through `graph_family_pipeline`; runtime itself does not own
+    parsing grammars, layout algorithms, or renderer implementations.
 
-14. **registry is advanced infrastructure** — `src/registry.rs` remains public
-    for power-user flows, but it is not the default onboarding path. The
-    default public story is crate-root facade first.
+14. **registry is contract-only infrastructure** — `src/registry.rs` defines
+    reusable registry contracts (`DiagramRegistry`, `DiagramDefinition`,
+    `DiagramInstance`) and does not import concrete diagram modules. Built-in
+    diagram wiring lives in the separate public `registry_builtins` namespace.
+
+15. **timeline::sequence owns shared sequence runtime types** — Shared
+    sequence-family model and layout types live under `src/timeline/sequence/`
+    so the final text renderer can depend on a neutral timeline namespace
+    instead of importing `diagrams::sequence`.
 
 ## Adapter Rules
 
-15. **web main.ts is composition only** — The web playground's `main.ts` is a
+16. **web main.ts is composition only** — The web playground's `main.ts` is a
     composition root that wires stores, services, and controllers. It does not
     contain application logic, state management, or rendering orchestration.
 
-16. **wasm adapter is a thin boundary** — `crates/mmdflux-wasm` deserializes JS
+17. **wasm adapter is a thin boundary** — `crates/mmdflux-wasm` deserializes JS
     requests, calls the Rust facade, and serializes responses. It does not
     duplicate config parsing, registry logic, or format selection.
 
-17. **CLI adapter is a thin boundary** — `src/main.rs` maps CLI flags to the
+18. **CLI adapter is a thin boundary** — `src/main.rs` maps CLI flags to the
     Rust facade contract and formats output. It does not contain business logic
     beyond argument mapping.
