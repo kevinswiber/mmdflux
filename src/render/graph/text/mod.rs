@@ -1,16 +1,21 @@
-//! Low-level text canvas drawing for graph-family rendering.
+//! Low-level text drawing for graph-family rendering.
 //!
 //! This module owns the render-side step that consumes graph-owned grid
 //! geometry and paints it onto a character canvas.
 
-pub use super::text_edge::render_all_edges_with_labels;
-pub use super::text_shape::render_node;
-use super::{TextRenderOptions, text_edge, text_shape, text_subgraph};
+mod edge;
+mod shape;
+mod subgraph;
+
+pub use edge::render_all_edges_with_labels;
+pub use shape::render_node;
+
+use super::TextRenderOptions;
 use crate::OutputFormat;
 use crate::graph::Diagram;
 use crate::graph::grid::{GridLayout, RoutedEdge, Segment, SubgraphBounds, route_all_edges};
-use crate::render::primitives::canvas::{Cell, Connections};
-use crate::render::{Canvas, CharSet};
+use crate::render::text::canvas::{Cell, Connections};
+use crate::render::text::{Canvas, CharSet};
 
 /// Render text output from a derived grid layout.
 pub fn render_text_from_grid_layout(
@@ -26,7 +31,7 @@ pub fn render_text_from_grid_layout(
     let mut canvas = Canvas::new(layout.width, layout.height);
 
     if !layout.subgraph_bounds.is_empty() {
-        text_subgraph::render_subgraph_borders(&mut canvas, &layout.subgraph_bounds, &charset);
+        subgraph::render_subgraph_borders(&mut canvas, &layout.subgraph_bounds, &charset);
     }
 
     let mut node_keys: Vec<&String> = diagram.nodes.keys().collect();
@@ -34,12 +39,12 @@ pub fn render_text_from_grid_layout(
     for node_id in node_keys {
         let node = &diagram.nodes[node_id];
         if let Some(&(x, y)) = layout.draw_positions.get(node_id) {
-            text_shape::render_node(&mut canvas, node, x, y, &charset, diagram.direction);
+            shape::render_node(&mut canvas, node, x, y, &charset, diagram.direction);
         }
     }
 
     let routed_edges = route_all_edges(&diagram.edges, layout, diagram.direction);
-    text_edge::render_all_edges_with_labels(
+    edge::render_all_edges_with_labels(
         &mut canvas,
         &routed_edges,
         &charset,

@@ -1,4 +1,4 @@
-//! Canvas for ASCII rendering with cell-based drawing.
+//! Canvas for text rendering with cell-based drawing.
 
 use std::fmt;
 
@@ -744,7 +744,7 @@ mod tests {
 
     #[test]
     fn edge_does_not_overwrite_title_text() {
-        use crate::render::primitives::chars::CharSet;
+        use crate::render::text::chars::CharSet;
         let charset = CharSet::unicode();
         let mut canvas = Canvas::new(20, 5);
 
@@ -784,7 +784,7 @@ mod tests {
 
     #[test]
     fn edge_can_merge_with_non_title_border_segment() {
-        use crate::render::primitives::chars::CharSet;
+        use crate::render::text::chars::CharSet;
         let charset = CharSet::unicode();
         let mut canvas = Canvas::new(20, 5);
 

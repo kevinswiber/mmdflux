@@ -1,10 +1,10 @@
-//! Node shape rendering.
+//! Node and glyph drawing for graph text output.
 
 use crate::graph::grid::NodeBounds;
 use crate::graph::measure::grid_node_dimensions;
 use crate::graph::{Direction, Node, Shape};
-use crate::render::primitives::canvas::{Canvas, CellStyle};
-use crate::render::primitives::chars::CharSet;
+use crate::render::text::canvas::{Canvas, CellStyle};
+use crate::render::text::chars::CharSet;
 
 /// Corner style for text node boxes.
 ///

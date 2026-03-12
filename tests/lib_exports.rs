@@ -259,14 +259,22 @@ fn graph_grid_exposes_grid_routing_surface() {
 }
 
 #[test]
-fn render_graph_text_canvas_exposes_text_drawing_helpers() {
-    use mmdflux::render::graph::text_canvas::{
+fn render_graph_text_namespace_exposes_text_drawing_helpers() {
+    use mmdflux::render::graph::text::{
         render_all_edges_with_labels, render_node, render_text_from_grid_layout,
     };
 
     let _ = render_node;
     let _ = render_all_edges_with_labels;
     let _ = render_text_from_grid_layout;
+}
+
+#[test]
+fn render_text_namespace_exposes_shared_canvas_and_charset() {
+    use mmdflux::render::text::{Canvas, CharSet};
+
+    let _ = Canvas::new(4, 2);
+    let _ = CharSet::unicode();
 }
 
 #[test]

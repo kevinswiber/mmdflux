@@ -6,8 +6,8 @@ use crate::errors::RenderError;
 use crate::format::OutputFormat;
 use crate::frontends::mermaid::sequence::parse_sequence;
 use crate::registry::DiagramInstance;
-use crate::render::CharSet;
 use crate::render::diagram::sequence;
+use crate::render::text::CharSet;
 use crate::timeline::sequence::layout;
 use crate::timeline::sequence::model::SequenceModel;
 

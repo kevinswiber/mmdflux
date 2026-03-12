@@ -4,17 +4,14 @@
 //! callers that already have `GraphGeometry` or `RoutedGraphGeometry`.
 //! Solve orchestration remains owned by the runtime facade and graph engines.
 //!
-//! Low-level text drawing lives under [`crate::render::graph::text_canvas`].
+//! Low-level text drawing lives under [`crate::render::graph::text`].
 //!
 //! Internally, graph render emission consumes graph-owned float and grid
 //! geometry helpers exposed through `crate::graph`.
 
 pub(crate) mod svg;
 pub(crate) mod svg_metrics;
-pub mod text_canvas;
-pub(crate) mod text_edge;
-pub(crate) mod text_shape;
-pub(crate) mod text_subgraph;
+pub mod text;
 
 use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE};
 use crate::graph::direction_policy::build_node_directions;
@@ -258,7 +255,7 @@ pub fn render_text_from_geometry(
         Some(routed),
         &config,
     );
-    text_canvas::render_text_from_grid_layout(diagram, &layout, options)
+    text::render_text_from_grid_layout(diagram, &layout, options)
 }
 
 /// Render a diagram to the configured output format.

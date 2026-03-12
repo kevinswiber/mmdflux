@@ -10,7 +10,7 @@ pub use mmdflux::graph::grid::{
     geometry_to_grid_layout_with_routed, route_all_edges,
 };
 #[allow(unused_imports)]
-pub use mmdflux::render::graph::text_canvas::{render_all_edges_with_labels, render_node};
+pub use mmdflux::render::graph::text::{render_all_edges_with_labels, render_node};
 use mmdflux::{Diagram, Direction, GeometryLevel};
 
 use super::graph_family::default_grid_request;

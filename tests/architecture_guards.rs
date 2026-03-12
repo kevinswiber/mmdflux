@@ -360,7 +360,7 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
         "graph::grid",
         "graph_family_pipeline",
         "timeline::sequence",
-        "render::graph::text_canvas",
+        "render::graph::text",
         "render_svg_from_routed_geometry",
     ] {
         assert!(
@@ -1027,14 +1027,11 @@ fn graph_grid_uses_explicit_routing_helper_modules() {
 }
 
 #[test]
-fn render_graph_facade_exposes_text_canvas_and_routed_svg_entrypoint() {
+fn render_graph_facade_exposes_text_namespace_and_routed_svg_entrypoint() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/mod.rs");
     let content = std::fs::read_to_string(path).unwrap();
 
-    for required in [
-        "pub mod text_canvas;",
-        "pub fn render_svg_from_routed_geometry(",
-    ] {
+    for required in ["pub mod text;", "pub fn render_svg_from_routed_geometry("] {
         assert!(
             content.contains(required),
             "render::graph should keep explicit low-level and routed-svg APIs: {required}"
@@ -1045,8 +1042,10 @@ fn render_graph_facade_exposes_text_canvas_and_routed_svg_entrypoint() {
         "pub mod text_replay;",
         "pub use self::grid_routing::router::{RoutedEdge, Segment, route_all_edges};",
         "pub use self::text_adapter::geometry_to_text_layout_with_routed;",
-        "pub use self::text_edge::render_all_edges_with_labels;",
-        "pub use self::text_shape::{NodeBounds, render_node};",
+        "pub mod text_canvas;",
+        "pub(crate) mod text_edge;",
+        "pub(crate) mod text_shape;",
+        "pub(crate) mod text_subgraph;",
         "pub use self::text_types::Layout;",
         "pub use crate::graph::grid_projection::GridLayoutConfig;",
     ] {
@@ -1062,6 +1061,14 @@ fn render_root_does_not_reexport_intersect() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/mod.rs");
     let content = std::fs::read_to_string(path).unwrap();
 
+    assert!(
+        content.contains("pub mod text;"),
+        "render root should expose the shared text namespace"
+    );
+    assert!(
+        !content.contains("pub mod primitives;"),
+        "render root should stop exposing the vague primitives bucket"
+    );
     assert!(
         !content.contains("pub use primitives::intersect"),
         "render root should not re-export low-level text replay intersection helpers"

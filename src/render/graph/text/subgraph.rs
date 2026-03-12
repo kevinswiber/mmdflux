@@ -1,10 +1,10 @@
-//! Subgraph border rendering.
+//! Subgraph border drawing for graph text output.
 
 use std::collections::HashMap;
 
 use crate::graph::grid::SubgraphBounds;
-use crate::render::primitives::canvas::Canvas;
-use crate::render::primitives::chars::CharSet;
+use crate::render::text::canvas::Canvas;
+use crate::render::text::chars::CharSet;
 
 /// Render subgraph border rectangles on the canvas.
 ///

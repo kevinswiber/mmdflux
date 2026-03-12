@@ -3,8 +3,8 @@
 //! Renders a `SequenceLayout` onto a shared `Canvas` using box-drawing
 //! characters from `CharSet`. Supports both Unicode and ASCII output.
 
-use crate::render::primitives::canvas::Canvas;
-use crate::render::primitives::chars::CharSet;
+use crate::render::text::canvas::Canvas;
+use crate::render::text::chars::CharSet;
 use crate::timeline::sequence::layout::{
     ParticipantLayout, RowLayout, SELF_MSG_WIDTH, SequenceLayout,
 };

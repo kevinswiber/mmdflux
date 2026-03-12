@@ -1,11 +1,11 @@
-//! Edge rendering on the canvas.
+//! Edge drawing for graph text output.
 
 use std::collections::HashMap;
 
 use crate::graph::grid::{AttachDirection, Point, RoutedEdge, Segment};
 use crate::graph::{Arrow, Direction, Stroke};
-use crate::render::primitives::canvas::{Canvas, Connections};
-use crate::render::primitives::chars::CharSet;
+use crate::render::text::canvas::{Canvas, Connections};
+use crate::render::text::chars::CharSet;
 
 /// Calculate the label position at the midpoint of a routed path.
 ///

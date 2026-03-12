@@ -35,7 +35,7 @@ Guard tests should fail when the code drifts away from these rules.
    consumes `GraphGeometry`, `RoutedGraphGeometry`, or graph-owned
    `graph::grid` layouts. High-level geometry entrypoints stay at the
    `render::graph` root, low-level text drawing lives under
-   `render::graph::text_canvas`, and routed SVG emission is explicit through
+   `render::graph::text`, and routed SVG emission is explicit through
    `render_svg_from_routed_geometry`. Render code does not take
    `GraphSolveResult` or instantiate engines.
 
