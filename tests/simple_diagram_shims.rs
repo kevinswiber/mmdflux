@@ -1,6 +1,10 @@
 use mmdflux::diagrams::{info, packet, pie};
 use mmdflux::registry::DiagramInstance;
-use mmdflux::{OutputFormat, RenderConfig};
+use mmdflux::{OutputFormat, RenderConfig, render_diagram};
+
+fn render_simple(input: &str) -> String {
+    render_diagram(input, OutputFormat::Text, &RenderConfig::default()).unwrap()
+}
 
 #[test]
 fn pie_definition_exists() {
@@ -33,11 +37,7 @@ fn pie_detector_first_word_only() {
 
 #[test]
 fn pie_instance_renders() {
-    let mut instance = pie::PieInstance::new();
-    instance.parse("pie\n\"A\": 50\n\"B\": 50").unwrap();
-    let output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
+    let output = render_simple("pie\n\"A\": 50\n\"B\": 50");
     assert!(!output.is_empty());
 }
 
@@ -71,11 +71,7 @@ fn info_detector_first_word_only() {
 
 #[test]
 fn info_instance_renders() {
-    let mut instance = info::InfoInstance::new();
-    instance.parse("info").unwrap();
-    let output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
+    let output = render_simple("info");
     assert!(output.contains("mmdflux"));
 }
 
@@ -107,11 +103,7 @@ fn packet_detector_case_insensitive() {
 
 #[test]
 fn packet_instance_renders() {
-    let mut instance = packet::PacketInstance::new();
-    instance.parse("packet-beta\n0-15: \"Header\"").unwrap();
-    let output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
+    let output = render_simple("packet-beta\n0-15: \"Header\"");
     assert!(!output.is_empty());
 }
 

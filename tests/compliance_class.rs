@@ -56,12 +56,7 @@ fn render_class_text(fixture: &str) -> String {
     let path = class_fixture_dir().join(fixture);
     let input = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read fixture {fixture}: {e}"));
-    let mut instance = ClassInstance::new();
-    instance
-        .parse(&input)
-        .expect("Failed to parse class fixture");
-    instance
-        .render(OutputFormat::Text, &RenderConfig::default())
+    mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
         .expect("Failed to render class fixture")
 }
 

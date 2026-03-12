@@ -337,6 +337,8 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
         "frontends own input formats",
         "diagrams do not parse source text directly",
         "diagrams do not render",
+        "prepare()",
+        "PreparedDiagram",
         "render/ owns output production",
         "render::graph owns geometry-based graph-family emitters",
         "runtime owns graph-family solve-result dispatch",
@@ -357,6 +359,7 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
 
     for required in [
         "registry_builtins",
+        "prepared",
         "graph::grid",
         "timeline::sequence",
         "render::graph::text",
@@ -367,6 +370,11 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
             "dependency rules must mention the new boundary artifact: {required}"
         );
     }
+
+    assert!(
+        !rules.contains("graph_family_pipeline"),
+        "dependency rules must not mention the deleted graph_family_pipeline shim"
+    );
 }
 
 #[test]
@@ -907,7 +915,7 @@ fn graph_and_engine_sources_do_not_restore_render_format_internal_names() {
 }
 
 #[test]
-fn generated_dependency_maps_match_the_post_split_module_tree() {
+fn generated_dependency_maps_no_longer_reference_graph_family_pipeline() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
 
     for relative in [
@@ -917,12 +925,17 @@ fn generated_dependency_maps_match_the_post_split_module_tree() {
     ] {
         let content = std::fs::read_to_string(repo_root.join(relative)).unwrap();
 
-        for required in ["registry_builtins", "graph_family_pipeline", "timeline"] {
+        for required in ["prepared", "registry_builtins", "timeline"] {
             assert!(
                 content.contains(required),
                 "{relative} should mention the refreshed module tree entry: {required}"
             );
         }
+
+        assert!(
+            !content.contains("graph_family_pipeline"),
+            "{relative} should not mention the deleted graph_family_pipeline shim"
+        );
 
         for forbidden in ["testing", "mod_testing", "Component(mod_testing"] {
             assert!(
@@ -987,6 +1000,16 @@ fn graph_family_instances_do_not_import_runtime_or_render() {
             path.display()
         );
     }
+}
+
+#[test]
+fn diagrams_do_not_import_render_or_engines() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert_no_production_imports(
+        &repo_root.join("src/diagrams"),
+        &["crate::render::", "crate::engines::"],
+        "diagrams should stop at parse/compile/prepare",
+    );
 }
 
 #[test]

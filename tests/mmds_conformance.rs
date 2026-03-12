@@ -15,11 +15,9 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{GraphGeometry, LayoutEdge};
 use mmdflux::graph::{Diagram, Subgraph};
-use mmdflux::registry::DiagramInstance;
 use mmdflux::{OutputFormat, RenderConfig};
 use support::graph_family::{EngineConfig, MeasurementMode, run_layered_layout};
 use support::render::{render_diagram_with_config, render_svg_diagram_with_config};
@@ -432,11 +430,8 @@ fn run_flowchart_conformance(name: &str) -> ConformanceReport {
 
     // MMDS roundtrip: parse → build → layout → JSON → hydrate → Diagram
     let roundtrip_diagram = {
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).unwrap();
-        let json = instance
-            .render(OutputFormat::Mmds, &RenderConfig::default())
-            .unwrap();
+        let json =
+            mmdflux::render_diagram(&input, OutputFormat::Mmds, &RenderConfig::default()).unwrap();
         from_mmds_str(&json).unwrap()
     };
 
@@ -450,7 +445,7 @@ fn run_flowchart_conformance(name: &str) -> ConformanceReport {
 
 /// Run a full conformance case for a class diagram fixture.
 fn run_class_conformance(name: &str) -> ConformanceReport {
-    use mmdflux::diagrams::class::{ClassInstance, compiler};
+    use mmdflux::diagrams::class::compiler;
     use mmdflux::frontends::mermaid::class::parse_class_diagram;
 
     let input = fixture_input("class", name);
@@ -463,11 +458,8 @@ fn run_class_conformance(name: &str) -> ConformanceReport {
 
     // MMDS roundtrip: parse → compile → layout → JSON → hydrate → Diagram
     let roundtrip_diagram = {
-        let mut instance = ClassInstance::new();
-        instance.parse(&input).unwrap();
-        let json = instance
-            .render(OutputFormat::Mmds, &RenderConfig::default())
-            .unwrap();
+        let json =
+            mmdflux::render_diagram(&input, OutputFormat::Mmds, &RenderConfig::default()).unwrap();
         from_mmds_str(&json).unwrap()
     };
 

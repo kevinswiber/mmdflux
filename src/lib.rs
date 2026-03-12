@@ -15,9 +15,10 @@
 //!
 //! # Advanced API
 //!
-//! Low-level parsing, compilation, MMDS hydration, and render-only geometry
-//! emission remain available through explicit namespaces such as `frontends`,
-//! `diagrams`, `render`, `registry`, and `registry_builtins`.
+//! Low-level parsing, compilation, prepared-family payloads, MMDS hydration,
+//! and render-only geometry emission remain available through explicit
+//! namespaces such as `frontends`, `diagrams`, `prepared`, `render`,
+//! `registry`, and `registry_builtins`.
 
 pub mod config;
 pub mod diagnostics;

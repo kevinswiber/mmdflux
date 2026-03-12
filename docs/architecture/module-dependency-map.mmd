@@ -11,9 +11,9 @@ flowchart LR
     mod_format["format"]
     mod_frontends["frontends"]
     mod_graph["graph"]
-    mod_graph_family_pipeline["graph_family_pipeline"]
     mod_lint["lint"]
     mod_mmds["mmds"]
+    mod_prepared["prepared"]
     mod_registry["registry"]
     mod_registry_builtins["registry_builtins"]
     mod_render["render"]
@@ -31,9 +31,8 @@ flowchart LR
     mod_diagrams --> mod_format
     mod_diagrams --> mod_frontends
     mod_diagrams --> mod_graph
-    mod_diagrams --> mod_graph_family_pipeline
+    mod_diagrams --> mod_prepared
     mod_diagrams --> mod_registry
-    mod_diagrams --> mod_render
     mod_diagrams --> mod_style
     mod_diagrams --> mod_timeline
     mod_engines --> mod_config
@@ -49,23 +48,20 @@ flowchart LR
     mod_frontends --> mod_render
     mod_frontends --> mod_style
     mod_graph --> mod_style
-    mod_graph_family_pipeline --> mod_config
-    mod_graph_family_pipeline --> mod_engines
-    mod_graph_family_pipeline --> mod_errors
-    mod_graph_family_pipeline --> mod_format
-    mod_graph_family_pipeline --> mod_graph
-    mod_graph_family_pipeline --> mod_mmds
-    mod_graph_family_pipeline --> mod_render
     mod_lint --> mod_frontends
     mod_lint --> mod_style
     mod_mmds --> mod_config
     mod_mmds --> mod_errors
     mod_mmds --> mod_graph
     mod_mmds --> mod_style
+    mod_prepared --> mod_frontends
+    mod_prepared --> mod_graph
+    mod_prepared --> mod_timeline
     mod_registry --> mod_config
     mod_registry --> mod_errors
     mod_registry --> mod_family
     mod_registry --> mod_format
+    mod_registry --> mod_prepared
     mod_registry_builtins --> mod_diagrams
     mod_registry_builtins --> mod_registry
     mod_render --> mod_graph
@@ -74,9 +70,15 @@ flowchart LR
     mod_request --> mod_format
     mod_runtime --> mod_config
     mod_runtime --> mod_diagnostics
+    mod_runtime --> mod_engines
     mod_runtime --> mod_errors
     mod_runtime --> mod_format
     mod_runtime --> mod_frontends
+    mod_runtime --> mod_graph
     mod_runtime --> mod_lint
+    mod_runtime --> mod_mmds
+    mod_runtime --> mod_prepared
     mod_runtime --> mod_registry_builtins
+    mod_runtime --> mod_render
+    mod_runtime --> mod_timeline
     mod_timeline --> mod_frontends

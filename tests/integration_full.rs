@@ -9,30 +9,15 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::registry_builtins::default_registry;
-use mmdflux::{OutputFormat, RenderConfig, generate_mermaid_from_mmds_str};
+use mmdflux::{OutputFormat, RenderConfig, generate_mermaid_from_mmds_str, render_diagram};
 use support::render::render_svg_with_config;
 
 fn render_with_registry(input: &str, format: OutputFormat) -> String {
-    let registry = default_registry();
-    let diagram_id = registry.detect(input).expect("should detect diagram type");
-    let mut instance = registry
-        .create(diagram_id)
-        .expect("should create diagram instance");
-    instance.parse(input).expect("should parse");
-    instance
-        .render(format, &RenderConfig::default())
-        .expect("should render")
+    render_diagram(input, format, &RenderConfig::default()).expect("should render")
 }
 
 fn render_flowchart_svg(input: &str) -> String {
-    let registry = default_registry();
-    let mut instance = registry
-        .create("flowchart")
-        .expect("should create flowchart instance");
-    instance.parse(input).expect("should parse flowchart");
-    instance
-        .render(OutputFormat::Svg, &RenderConfig::default())
-        .expect("should render svg")
+    render_diagram(input, OutputFormat::Svg, &RenderConfig::default()).expect("should render svg")
 }
 
 fn render_flowchart_svg_fixture(name: &str) -> String {
@@ -108,17 +93,12 @@ fn all_diagram_types_render_text() {
         ),
     ];
 
-    for (id, input, expected) in cases {
-        let registry = default_registry();
-        let mut instance = registry.create(id).expect("should create");
-        instance.parse(input).expect("should parse");
-        let output = instance
-            .render(OutputFormat::Text, &RenderConfig::default())
-            .expect("should render text");
+    for (_id, input, expected) in cases {
+        let output = render_with_registry(input, OutputFormat::Text);
         assert!(
             output.contains(expected),
-            "{} output missing expected content",
-            id
+            "output missing expected content for {}",
+            input
         );
     }
 }
@@ -126,28 +106,16 @@ fn all_diagram_types_render_text() {
 #[test]
 fn flowchart_renders_all_formats() {
     let input = "graph TD\nA[Start]-->B[End]";
-    let registry = default_registry();
-    let mut instance = registry
-        .create("flowchart")
-        .expect("should create flowchart");
-    instance.parse(input).expect("should parse flowchart");
-
-    let text = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .expect("should render text");
+    let text = render_with_registry(input, OutputFormat::Text);
     assert!(text.contains("Start"));
     assert!(text.contains("End"));
     assert!(text.contains('│'));
 
-    let ascii = instance
-        .render(OutputFormat::Ascii, &RenderConfig::default())
-        .expect("should render ascii");
+    let ascii = render_with_registry(input, OutputFormat::Ascii);
     assert!(ascii.contains("Start"));
     assert!(!ascii.contains('│'));
 
-    let svg = instance
-        .render(OutputFormat::Svg, &RenderConfig::default())
-        .expect("should render svg");
+    let svg = render_with_registry(input, OutputFormat::Svg);
     assert!(svg.starts_with("<svg"));
     assert!(svg.contains("Start"));
     assert!(svg.contains("</svg>"));

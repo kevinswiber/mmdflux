@@ -12,7 +12,6 @@ use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
-use mmdflux::registry_builtins::default_registry;
 use mmdflux::render::{Canvas, CharSet};
 use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,
@@ -3134,37 +3133,24 @@ fn test_step_topology_preserves_fan_stem_room_and_lane_compaction() {
 #[test]
 fn test_svg_orthogonal_route_differs_from_mermaid_polyline_for_cycle_fixture() {
     let input = load_fixture("simple_cycle.mmd");
-    let registry = default_registry();
-
-    let mut mermaid_polyline = registry
-        .create("flowchart")
-        .expect("flowchart instance should exist");
-    mermaid_polyline
-        .parse(&input)
-        .expect("fixture should parse");
-    let mermaid_polyline_output = mermaid_polyline
-        .render(
-            OutputFormat::Svg,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
-                ..RenderConfig::default()
-            },
-        )
-        .expect("mermaid-layered render should succeed");
-
-    let mut orthogonal = registry
-        .create("flowchart")
-        .expect("flowchart instance should exist");
-    orthogonal.parse(&input).expect("fixture should parse");
-    let orthogonal_output = orthogonal
-        .render(
-            OutputFormat::Svg,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                ..RenderConfig::default()
-            },
-        )
-        .expect("flux-layered render should succeed");
+    let mermaid_polyline_output = mmdflux::render_diagram(
+        &input,
+        OutputFormat::Svg,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
+            ..RenderConfig::default()
+        },
+    )
+    .expect("mermaid-layered render should succeed");
+    let orthogonal_output = mmdflux::render_diagram(
+        &input,
+        OutputFormat::Svg,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+            ..RenderConfig::default()
+        },
+    )
+    .expect("flux-layered render should succeed");
 
     assert_ne!(
         mermaid_polyline_output, orthogonal_output,
@@ -3592,20 +3578,15 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_policy_
 
     let render_with_registry = |fixture_name: &str, format: OutputFormat| {
         let input = load_fixture(fixture_name);
-        let registry = default_registry();
-        let mut instance = registry
-            .create("flowchart")
-            .expect("flowchart instance should exist");
-        instance.parse(&input).expect("fixture should parse");
-        instance
-            .render(
-                format,
-                &RenderConfig {
-                    layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                    ..RenderConfig::default()
-                },
-            )
-            .expect("render should succeed")
+        mmdflux::render_diagram(
+            &input,
+            format,
+            &RenderConfig {
+                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+                ..RenderConfig::default()
+            },
+        )
+        .expect("render should succeed")
     };
 
     let fan_in_cases = [
@@ -3791,20 +3772,15 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
     }
 
     let render_text_with_engine = |input: &str, engine: &str| {
-        let registry = default_registry();
-        let mut instance = registry
-            .create("flowchart")
-            .expect("flowchart instance should exist");
-        instance.parse(input).expect("fixture should parse");
-        instance
-            .render(
-                OutputFormat::Text,
-                &RenderConfig {
-                    layout_engine: EngineAlgorithmId::parse(engine).ok(),
-                    ..RenderConfig::default()
-                },
-            )
-            .expect("text render should succeed")
+        mmdflux::render_diagram(
+            input,
+            OutputFormat::Text,
+            &RenderConfig {
+                layout_engine: EngineAlgorithmId::parse(engine).ok(),
+                ..RenderConfig::default()
+            },
+        )
+        .expect("text render should succeed")
     };
 
     // (fixture, from, to, expected_source_face, full_target_face, orthogonal_target_face)
@@ -3962,20 +3938,15 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
     }
 
     let render_text_with_engine = |input: &str, engine: &str| {
-        let registry = default_registry();
-        let mut instance = registry
-            .create("flowchart")
-            .expect("flowchart instance should exist");
-        instance.parse(input).expect("fixture should parse");
-        instance
-            .render(
-                OutputFormat::Text,
-                &RenderConfig {
-                    layout_engine: EngineAlgorithmId::parse(engine).ok(),
-                    ..RenderConfig::default()
-                },
-            )
-            .expect("text render should succeed")
+        mmdflux::render_diagram(
+            input,
+            OutputFormat::Text,
+            &RenderConfig {
+                layout_engine: EngineAlgorithmId::parse(engine).ok(),
+                ..RenderConfig::default()
+            },
+        )
+        .expect("text render should succeed")
     };
 
     {
@@ -4154,21 +4125,16 @@ fn polyline_route_rollback_is_stable_for_text_and_svg() {
     let input = load_fixture("simple_cycle.mmd");
 
     let render_svg = || {
-        let registry = default_registry();
-        let mut instance = registry
-            .create("flowchart")
-            .expect("flowchart instance should exist");
-        instance.parse(&input).expect("fixture should parse");
-        instance
-            .render(
-                OutputFormat::Svg,
-                &RenderConfig {
-                    layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
-                    edge_preset: Some(EdgePreset::Polyline),
-                    ..RenderConfig::default()
-                },
-            )
-            .expect("render should succeed")
+        mmdflux::render_diagram(
+            &input,
+            OutputFormat::Svg,
+            &RenderConfig {
+                layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
+                edge_preset: Some(EdgePreset::Polyline),
+                ..RenderConfig::default()
+            },
+        )
+        .expect("render should succeed")
     };
 
     let baseline_svg = render_svg();
@@ -4185,21 +4151,16 @@ fn text_label_revalidation_fixtures_match_between_orthogonal_route_and_polyline_
 
     for fixture in fixtures {
         let input = load_fixture(fixture);
-        let registry = default_registry();
-        let mut instance = registry
-            .create("flowchart")
-            .expect("flowchart instance should exist");
-        instance.parse(&input).expect("fixture should parse");
         // Verify flux-layered text renders successfully for label fixtures.
-        let _text = instance
-            .render(
-                OutputFormat::Text,
-                &RenderConfig {
-                    layout_engine: EngineAlgorithmId::parse("flux-layered").ok(),
-                    ..RenderConfig::default()
-                },
-            )
-            .expect("text render should succeed");
+        let _text = mmdflux::render_diagram(
+            &input,
+            OutputFormat::Text,
+            &RenderConfig {
+                layout_engine: EngineAlgorithmId::parse("flux-layered").ok(),
+                ..RenderConfig::default()
+            },
+        )
+        .expect("text render should succeed");
     }
 }
 
@@ -4210,14 +4171,9 @@ fn top_level_render_matches_flowchart_instance_for_subgraph_direction_mixed() {
 
     let top_level = render_text_diagram(&diagram);
 
-    let registry = default_registry();
-    let mut instance = registry
-        .create("flowchart")
-        .expect("flowchart instance should exist");
-    instance.parse(&input).expect("fixture should parse");
-    let instance_output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .expect("instance render should succeed");
+    let instance_output =
+        mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+            .expect("instance render should succeed");
 
     assert_eq!(
         top_level, instance_output,
@@ -4231,13 +4187,7 @@ fn flowchart_instance_render_is_stable_for_subgraph_direction_mixed() {
     let mut baseline: Option<String> = None;
 
     for _ in 0..6 {
-        let registry = default_registry();
-        let mut instance = registry
-            .create("flowchart")
-            .expect("flowchart instance should exist");
-        instance.parse(&input).expect("fixture should parse");
-        let output = instance
-            .render(OutputFormat::Text, &RenderConfig::default())
+        let output = mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
             .expect("instance render should succeed");
 
         if let Some(expected) = baseline.as_ref() {

@@ -1,13 +1,11 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::frontends::mmds::{
     MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str, hydrate_graph_geometry_from_mmds,
     hydrate_routed_geometry_from_mmds,
 };
 use mmdflux::graph::{Arrow, Stroke};
-use mmdflux::registry::DiagramInstance;
 use mmdflux::{Direction, OutputFormat, RenderConfig, Shape};
 
 fn fixture(name: &str) -> String {
@@ -170,11 +168,12 @@ fn layout_geometry_level_builds_graph_geometry_without_edge_paths() {
 
 #[test]
 fn hydration_restores_grid_projection_from_generated_mmds() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-    let json = instance
-        .render(OutputFormat::Mmds, &RenderConfig::default())
-        .unwrap();
+    let json = mmdflux::render_diagram(
+        "graph TD\nA-->B",
+        OutputFormat::Mmds,
+        &RenderConfig::default(),
+    )
+    .unwrap();
 
     let geom = hydrate_graph_geometry_from_mmds(&json).expect("layout geometry should hydrate");
     let projection = geom

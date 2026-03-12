@@ -3,7 +3,7 @@
 mod support;
 
 use mmdflux::registry_builtins::default_registry;
-use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig};
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, render_diagram};
 use support::render::{render_ascii_with_config, render_text_with_config};
 
 /// Helper to compare direct vs registry rendering paths.
@@ -31,8 +31,7 @@ fn compare_outputs(input: &str, ascii: bool) {
         .expect("Registry path create failed");
     instance.parse(input).expect("Registry path parse failed");
 
-    let new_output = instance
-        .render(output_format, &RenderConfig::default())
+    let new_output = render_diagram(input, output_format, &RenderConfig::default())
         .expect("Registry path render failed");
 
     assert_eq!(
@@ -106,29 +105,23 @@ fn regression_self_edge() {
 // Engine selection via registry path
 #[test]
 fn regression_engine_selection_via_registry() {
-    let registry = default_registry();
     let input = "graph TD\nA-->B";
 
-    let mut instance = registry.create("flowchart").unwrap();
-    instance.parse(input).unwrap();
+    let default_out = render_diagram(input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+    let layered_out = render_diagram(
+        input,
+        OutputFormat::Text,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
-    // Default (None) and explicit "layered" should produce identical output
-    let default_out = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
-    let layered_out = instance
-        .render(
-            OutputFormat::Text,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                ..Default::default()
-            },
-        )
-        .unwrap();
     assert_eq!(default_out, layered_out);
 
-    // Unknown engine should error
-    let err = instance.render(
+    let err = render_diagram(
+        input,
         OutputFormat::Text,
         &RenderConfig {
             layout_engine: Some(EngineAlgorithmId::parse("elk-layered").unwrap()),
@@ -194,22 +187,17 @@ fn layered_stability_engine_selection_consistent() {
     for path in &fixtures {
         let input = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
 
-        let registry = default_registry();
-        let mut instance = registry.create("flowchart").unwrap();
-        instance.parse(&input).unwrap();
-
-        let default_out = instance
-            .render(OutputFormat::Text, &RenderConfig::default())
-            .unwrap();
-        let layered_out = instance
-            .render(
-                OutputFormat::Text,
-                &RenderConfig {
-                    layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+        let default_out =
+            render_diagram(&input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+        let layered_out = render_diagram(
+            &input,
+            OutputFormat::Text,
+            &RenderConfig {
+                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
         assert_eq!(
             default_out, layered_out,
@@ -244,17 +232,19 @@ fn cross_family_flowchart_unchanged_after_class_support() {
     assert_eq!(registry.detect("classDiagram\nclass A"), Some("class"));
 
     // Both render independently
-    let mut fc_instance = registry.create("flowchart").unwrap();
-    fc_instance.parse("graph TD\nA-->B").unwrap();
-    let fc_out = fc_instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
+    let fc_out = render_diagram(
+        "graph TD\nA-->B",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
 
-    let mut cl_instance = registry.create("class").unwrap();
-    cl_instance.parse("classDiagram\nA --> B").unwrap();
-    let cl_out = cl_instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
+    let cl_out = render_diagram(
+        "classDiagram\nA --> B",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
 
     // Both produce non-empty output with the expected nodes
     assert!(fc_out.contains('A'));
@@ -278,26 +268,22 @@ fn cross_family_class_does_not_steal_flowchart_detection() {
 
 #[test]
 fn class_engine_selection_default_matches_explicit_layered() {
-    let registry = default_registry();
-    let mut instance = registry.create("class").unwrap();
-    instance
-        .parse("classDiagram\nclass A\nclass B\nA --> B")
-        .unwrap();
+    let default_out = render_diagram(
+        "classDiagram\nclass A\nclass B\nA --> B",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
+    let layered_out = render_diagram(
+        "classDiagram\nclass A\nclass B\nA --> B",
+        OutputFormat::Text,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
-    let default_out = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
-    let layered_out = instance
-        .render(
-            OutputFormat::Text,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-    // Class doesn't use engine selection path yet, but output should still be stable
     assert_eq!(default_out, layered_out);
 }
 

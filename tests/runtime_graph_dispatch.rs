@@ -1,7 +1,7 @@
 //! Runtime-owned graph dispatch boundary tests.
 //!
 //! Verifies that flowchart and class diagrams share the same graph-family
-//! solve/render contract, and that text/SVG/MMDS renderers consume
+//! prepare/solve/render contract, and that text/SVG/MMDS renderers consume
 //! graph-family contracts (not parser-specific or renderer-specific state).
 
 use std::path::Path;

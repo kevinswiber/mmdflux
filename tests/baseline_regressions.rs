@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use mmdflux::registry_builtins::default_registry;
-use mmdflux::{OutputFormat, RenderConfig};
+use mmdflux::{OutputFormat, RenderConfig, render_diagram};
 
 #[derive(serde::Deserialize)]
 struct BaselineManifest {
@@ -73,14 +73,7 @@ fn render_fixture(fixture_path: &str, format: OutputFormat) -> String {
     let input =
         std::fs::read_to_string(&full_path).unwrap_or_else(|e| panic!("fixture missing: {e}"));
 
-    let registry = default_registry();
-    let diagram_id = registry
-        .detect(&input)
-        .unwrap_or_else(|| panic!("could not detect diagram type for {fixture_path}"));
-    let mut instance = registry.create(diagram_id).unwrap();
-    instance.parse(&input).unwrap();
-    instance
-        .render(format, &RenderConfig::default())
+    render_diagram(&input, format, &RenderConfig::default())
         .unwrap_or_else(|e| panic!("render failed for {fixture_path}: {e}"))
 }
 

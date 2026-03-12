@@ -45,12 +45,7 @@ fn render_sequence_text(fixture: &str) -> String {
     let path = sequence_fixture_dir().join(fixture);
     let input = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read fixture {fixture}: {e}"));
-    let mut instance = SequenceInstance::new();
-    instance
-        .parse(&input)
-        .expect("Failed to parse sequence fixture");
-    instance
-        .render(OutputFormat::Text, &RenderConfig::default())
+    mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
         .expect("Failed to render sequence fixture")
 }
 
@@ -118,10 +113,7 @@ fn sequence_all_fixtures_render_ascii() {
     for fixture in list_sequence_fixtures() {
         let path = sequence_fixture_dir().join(&fixture);
         let input = fs::read_to_string(&path).unwrap();
-        let mut instance = SequenceInstance::new();
-        instance.parse(&input).expect("parse failed");
-        let output = instance
-            .render(OutputFormat::Ascii, &RenderConfig::default())
+        let output = mmdflux::render_diagram(&input, OutputFormat::Ascii, &RenderConfig::default())
             .expect("render failed");
         assert!(
             !output.is_empty(),
@@ -132,11 +124,11 @@ fn sequence_all_fixtures_render_ascii() {
 
 #[test]
 fn sequence_svg_not_supported() {
-    let mut instance = SequenceInstance::new();
-    instance
-        .parse("sequenceDiagram\nA->>B: hi")
-        .expect("parse ok");
-    let result = instance.render(OutputFormat::Svg, &RenderConfig::default());
+    let result = mmdflux::render_diagram(
+        "sequenceDiagram\nA->>B: hi",
+        OutputFormat::Svg,
+        &RenderConfig::default(),
+    );
     assert!(result.is_err());
 }
 

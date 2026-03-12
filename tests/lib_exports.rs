@@ -126,6 +126,20 @@ fn lib_exports_expose_the_prepared_module() {
 }
 
 #[test]
+fn crate_root_public_modules_expose_prepared_but_keep_runtime_internal() {
+    let modules = public_modules_for_test();
+
+    assert!(
+        modules.contains("prepared"),
+        "prepared should remain an explicit public module"
+    );
+    assert!(
+        !modules.contains("runtime"),
+        "runtime dispatch should stay crate-private"
+    );
+}
+
+#[test]
 fn crate_root_exports_only_the_curated_render_and_validation_surface() {
     let exports = public_exports_for_test();
 

@@ -1,8 +1,6 @@
 //! Engine registry tests: typed engine IDs, parsing, availability, and registry lookup.
 
 use mmdflux::config::{EngineAlgorithmCapabilities, RouteOwnership};
-use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::registry::DiagramInstance;
 use mmdflux::{
     AlgorithmId, CornerStyle, Curve, EdgePreset, EngineAlgorithmId, EngineId, OutputFormat,
     RenderConfig, RenderError, RoutingStyle,
@@ -14,16 +12,12 @@ use mmdflux::{
 
 /// Helper: parse + render with a specific engine algorithm ID string.
 fn render_with_engine(input: &str, engine: &str) -> Result<String, RenderError> {
-    let mut instance = FlowchartInstance::new();
-    instance
-        .parse(input)
-        .expect("parse should succeed in test helper");
     let engine = EngineAlgorithmId::parse(engine)?;
     let config = RenderConfig {
         layout_engine: Some(engine),
         ..Default::default()
     };
-    instance.render(OutputFormat::Text, &config)
+    mmdflux::render_diagram(input, OutputFormat::Text, &config)
 }
 
 #[test]
@@ -77,27 +71,24 @@ fn cose_bilkent_rejected_at_parse_boundary() {
 #[test]
 fn flux_vs_mermaid_svg_output_may_diverge_for_cycle() {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/simple_cycle.mmd").unwrap();
-    let mut instance = FlowchartInstance::new();
-    instance.parse(&input).unwrap();
-
-    let flux_out = instance
-        .render(
-            OutputFormat::Svg,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                ..RenderConfig::default()
-            },
-        )
-        .unwrap();
-    let mermaid_out = instance
-        .render(
-            OutputFormat::Svg,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
-                ..RenderConfig::default()
-            },
-        )
-        .unwrap();
+    let flux_out = mmdflux::render_diagram(
+        &input,
+        OutputFormat::Svg,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+            ..RenderConfig::default()
+        },
+    )
+    .unwrap();
+    let mermaid_out = mmdflux::render_diagram(
+        &input,
+        OutputFormat::Svg,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
+            ..RenderConfig::default()
+        },
+    )
+    .unwrap();
 
     // SVG paths will differ because routing topology changes — document, don't assert equal
     let _ = (flux_out, mermaid_out); // classification: SVG-divergent
@@ -354,8 +345,6 @@ fn render_with_engine_routing(
     routing: Option<RoutingStyle>,
     preset: Option<EdgePreset>,
 ) -> Result<String, RenderError> {
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).expect("parse should succeed");
     let engine_id = EngineAlgorithmId::parse(engine)?;
     let config = RenderConfig {
         layout_engine: Some(engine_id),
@@ -363,7 +352,7 @@ fn render_with_engine_routing(
         edge_preset: preset,
         ..Default::default()
     };
-    instance.render(OutputFormat::Svg, &config)
+    mmdflux::render_diagram(input, OutputFormat::Svg, &config)
 }
 
 #[test]
@@ -636,17 +625,13 @@ fn flux_polyline_routing_differs_from_mermaid_layered_for_cycle() {
 fn render_cycle_mmds_with_styles(routing: RoutingStyle, curve: Curve) -> String {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/simple_cycle.mmd")
         .expect("simple_cycle.mmd should exist");
-    let mut instance = FlowchartInstance::new();
-    instance.parse(&input).expect("parse should succeed");
     let config = RenderConfig {
         routing_style: Some(routing),
         curve: Some(curve),
         geometry_level: mmdflux::GeometryLevel::Layout,
         ..Default::default()
     };
-    instance
-        .render(OutputFormat::Mmds, &config)
-        .expect("render should succeed")
+    mmdflux::render_diagram(&input, OutputFormat::Mmds, &config).expect("render should succeed")
 }
 
 #[test]

@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use mmdflux::registry_builtins::default_registry;
-use mmdflux::{OutputFormat, RenderConfig};
+use mmdflux::{OutputFormat, RenderConfig, render_diagram};
 
 #[derive(serde::Deserialize)]
 struct BaselineManifest {
@@ -50,15 +50,12 @@ fn capture_all_baselines() {
         let input = std::fs::read_to_string(&full_path)
             .unwrap_or_else(|e| panic!("Missing fixture {fixture_path}: {e}"));
 
-        let diagram_id = registry
+        registry
             .detect(&input)
             .unwrap_or_else(|| panic!("Cannot detect {fixture_path}"));
-        let mut instance = registry.create(diagram_id).unwrap();
-        instance.parse(&input).unwrap();
 
         if contract.text {
-            let output = instance
-                .render(OutputFormat::Text, &RenderConfig::default())
+            let output = render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
                 .unwrap_or_else(|e| panic!("Text render failed for {fixture_path}: {e}"));
 
             let out_path = manifest_dir.join(
@@ -72,8 +69,7 @@ fn capture_all_baselines() {
         }
 
         if contract.svg {
-            let output = instance
-                .render(OutputFormat::Svg, &RenderConfig::default())
+            let output = render_diagram(&input, OutputFormat::Svg, &RenderConfig::default())
                 .unwrap_or_else(|e| panic!("SVG render failed for {fixture_path}: {e}"));
 
             let out_path = manifest_dir.join(
@@ -87,8 +83,7 @@ fn capture_all_baselines() {
         }
 
         if contract.mmds {
-            let output = instance
-                .render(OutputFormat::Mmds, &RenderConfig::default())
+            let output = render_diagram(&input, OutputFormat::Mmds, &RenderConfig::default())
                 .unwrap_or_else(|e| panic!("MMDS render failed for {fixture_path}: {e}"));
 
             let out_path = manifest_dir.join(

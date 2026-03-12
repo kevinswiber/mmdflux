@@ -6,6 +6,7 @@ contributors:
 
 - `frontends/` own source ingestion
 - `diagrams/` own compilation and instance behavior
+- `prepared/` owns the prepared-diagram payload contract
 - `graph/` owns graph-family IR, float-space geometry, and shared policy/measurement helpers
 - `render/` owns output production
 - `mmds/` owns the MMDS contract and output helpers
@@ -23,8 +24,10 @@ Guard tests should fail when the code drifts away from these rules.
    logical family IR or family-local runtime models.
 
 3. **diagrams do not render** — `src/diagrams/` stop at detection, parse
-   delegation, compilation, and instance orchestration. Output production lives
-   under `src/render/`, not under diagram modules.
+   delegation, compilation, and `prepare()` orchestration. Diagram instances
+   hand runtime a `prepared::PreparedDiagram` payload instead of calling
+   renderers directly. Output production lives under `src/render/`, not under
+   diagram modules.
 
 4. **render/ owns output production** — All rendering code lives under
    `src/render/`. There is no top-level `formats/` ownership boundary and no
@@ -82,10 +85,10 @@ Guard tests should fail when the code drifts away from these rules.
     namespaces are either advanced APIs or internal helpers.
 
 13. **runtime/ is orchestration only** — The runtime layer detects input
-    frontends, resolves logical diagram types, manages the registry, and wires
-    the pipeline. Graph-family runtime dispatch lives under `src/runtime/`;
-    runtime itself does not own parsing grammars, layout algorithms, or
-    renderer implementations.
+    frontends, resolves logical diagram types, manages the registry, consumes
+    prepared diagram payloads, and wires the pipeline. Graph-family runtime
+    dispatch lives under `src/runtime/`; runtime itself does not own parsing
+    grammars, layout algorithms, or renderer implementations.
 
 14. **registry is contract-only infrastructure** — `src/registry.rs` defines
     reusable registry contracts (`DiagramRegistry`, `DiagramDefinition`,

@@ -6,10 +6,8 @@
 
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::frontends::mmds::{evaluate_mmds_profiles, parse_mmds_input, render_input};
 use mmdflux::mmds::{MmdsOutput, SUPPORTED_MMDS_PROFILES};
-use mmdflux::registry::DiagramInstance;
 use mmdflux::{
     EngineAlgorithmId, GeometryLevel, OutputFormat, PathSimplification, RenderConfig, TextColorMode,
 };
@@ -74,36 +72,30 @@ fn flowchart_fixture(name: &str) -> String {
 }
 
 fn render_json(input: &str) -> String {
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
-    instance
-        .render(OutputFormat::Mmds, &RenderConfig::default())
-        .unwrap()
+    render_json_with_config(input, &RenderConfig::default())
 }
 
 fn render_json_with_level(input: &str, level: GeometryLevel) -> String {
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
     let config = RenderConfig {
         geometry_level: level,
         ..RenderConfig::default()
     };
-    instance.render(OutputFormat::Mmds, &config).unwrap()
+    render_json_with_config(input, &config)
 }
 
 fn render_routed_mmds_with_engine(input: &str, engine: &str) -> String {
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
-    instance
-        .render(
-            OutputFormat::Mmds,
-            &RenderConfig {
-                geometry_level: GeometryLevel::Routed,
-                layout_engine: EngineAlgorithmId::parse(engine).ok(),
-                ..RenderConfig::default()
-            },
-        )
-        .unwrap()
+    render_json_with_config(
+        input,
+        &RenderConfig {
+            geometry_level: GeometryLevel::Routed,
+            layout_engine: EngineAlgorithmId::parse(engine).ok(),
+            ..RenderConfig::default()
+        },
+    )
+}
+
+fn render_json_with_config(input: &str, config: &RenderConfig) -> String {
+    mmdflux::render_diagram(input, OutputFormat::Mmds, config).unwrap()
 }
 
 fn render_mmds_input(input: &str, format: OutputFormat, config: RenderConfig) -> String {
@@ -387,19 +379,15 @@ fn mmds_layout_node_shapes() {
 fn mmds_lossless_path_simplification_sits_between_none_and_lossy() {
     let input = flowchart_fixture("multi_subgraph_direction_override.mmd");
     let render_for = |path_simplification: PathSimplification| {
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).unwrap();
-        instance
-            .render(
-                OutputFormat::Mmds,
-                &RenderConfig {
-                    geometry_level: GeometryLevel::Routed,
-                    path_simplification,
-                    layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                    ..RenderConfig::default()
-                },
-            )
-            .unwrap()
+        render_json_with_config(
+            &input,
+            &RenderConfig {
+                geometry_level: GeometryLevel::Routed,
+                path_simplification,
+                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+                ..RenderConfig::default()
+            },
+        )
     };
 
     let full = render_for(PathSimplification::None);
@@ -447,8 +435,6 @@ fn mmds_lossless_path_simplification_sits_between_none_and_lossy() {
 fn routed_mmds_defaults_to_lossless_path_simplification() {
     let input = flowchart_fixture("multi_subgraph_direction_override.mmd");
     let render_for = |path_simplification: Option<PathSimplification>| {
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).unwrap();
         let mut config = RenderConfig {
             geometry_level: GeometryLevel::Routed,
             layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
@@ -457,7 +443,7 @@ fn routed_mmds_defaults_to_lossless_path_simplification() {
         if let Some(path_simplification) = path_simplification {
             config.path_simplification = path_simplification;
         }
-        instance.render(OutputFormat::Mmds, &config).unwrap()
+        render_json_with_config(&input, &config)
     };
     let edge_len = |json: &str| {
         let output: MmdsOutput = serde_json::from_str(json).unwrap();
@@ -503,19 +489,15 @@ fn routed_mmds_defaults_to_lossless_path_simplification() {
 fn path_simplification_monotonicity_holds_none_lossless_lossy() {
     let input = flowchart_fixture("multi_subgraph_direction_override.mmd");
     let render_for = |path_simplification: PathSimplification| {
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).unwrap();
-        instance
-            .render(
-                OutputFormat::Mmds,
-                &RenderConfig {
-                    geometry_level: GeometryLevel::Routed,
-                    path_simplification,
-                    layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                    ..RenderConfig::default()
-                },
-            )
-            .unwrap()
+        render_json_with_config(
+            &input,
+            &RenderConfig {
+                geometry_level: GeometryLevel::Routed,
+                path_simplification,
+                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+                ..RenderConfig::default()
+            },
+        )
     };
     let edge_len = |json: &str| {
         let output: MmdsOutput = serde_json::from_str(json).unwrap();
@@ -878,13 +860,8 @@ fn mmds_direction_variants() {
 
 #[test]
 fn mmds_class_diagram_produces_json() {
-    use mmdflux::diagrams::class::ClassInstance;
-
-    let mut instance = ClassInstance::new();
-    instance.parse("classDiagram\nA --> B").unwrap();
-
     let config = RenderConfig::default();
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_json_with_config("classDiagram\nA --> B", &config);
     let parsed: MmdsOutput = serde_json::from_str(&output).unwrap();
 
     assert_eq!(parsed.version, 1);
@@ -895,16 +872,11 @@ fn mmds_class_diagram_produces_json() {
 
 #[test]
 fn mmds_class_diagram_routed_level() {
-    use mmdflux::diagrams::class::ClassInstance;
-
-    let mut instance = ClassInstance::new();
-    instance.parse("classDiagram\nA --> B").unwrap();
-
     let config = RenderConfig {
         geometry_level: GeometryLevel::Routed,
         ..RenderConfig::default()
     };
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_json_with_config("classDiagram\nA --> B", &config);
     let parsed: MmdsOutput = serde_json::from_str(&output).unwrap();
 
     assert_eq!(parsed.geometry_level, "routed");
@@ -1124,14 +1096,11 @@ fn mmds_layout_excludes_port_metadata() {
 #[test]
 fn mmds_routed_output_includes_engine_metadata() {
     let input = "graph TD\nA-->B";
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
-
     let config = RenderConfig {
         geometry_level: GeometryLevel::Routed,
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_json_with_config(input, &config);
     let json: serde_json::Value = serde_json::from_str(&output).unwrap();
 
     assert_eq!(json["metadata"]["engine"], "flux-layered");
@@ -1140,14 +1109,11 @@ fn mmds_routed_output_includes_engine_metadata() {
 #[test]
 fn mmds_layout_output_omits_edge_paths_regardless_of_engine() {
     let input = "graph TD\nA-->B";
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
-
     let config = RenderConfig {
         geometry_level: GeometryLevel::Layout,
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_json_with_config(input, &config);
     let json: serde_json::Value = serde_json::from_str(&output).unwrap();
 
     // Layout level should not have edge paths

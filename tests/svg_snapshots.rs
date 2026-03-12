@@ -3,9 +3,7 @@ mod support;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::diagrams::flowchart::FlowchartInstance;
 use mmdflux::frontends::mmds::render_input;
-use mmdflux::registry::DiagramInstance;
 use mmdflux::{
     CornerStyle, Curve, EngineAlgorithmId, OutputFormat, PathSimplification, RenderConfig,
     RoutingStyle,
@@ -63,15 +61,12 @@ fn render_svg_fixture_with_curve(name: &str, routing: RoutingStyle, curve: Curve
 
 fn render_svg_fixture_with_engine(name: &str, engine: &str) -> String {
     let input = load_fixture(name);
-    let mut instance = FlowchartInstance::new();
-    instance.parse(&input).expect("Failed to parse fixture");
     let config = RenderConfig {
         path_simplification: PathSimplification::None,
         layout_engine: Some(EngineAlgorithmId::parse(engine).unwrap()),
         ..RenderConfig::default()
     };
-    instance
-        .render(OutputFormat::Svg, &config)
+    mmdflux::render_diagram(&input, OutputFormat::Svg, &config)
         .expect("Failed to render SVG fixture")
 }
 

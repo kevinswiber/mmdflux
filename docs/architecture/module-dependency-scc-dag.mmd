@@ -10,12 +10,12 @@ flowchart LR
     scc_12["lint"]
     scc_13["registry_builtins"]
     scc_11["diagrams"]
-    scc_9["graph_family_pipeline"]
+    scc_10["registry"]
+    scc_8["family"]
+    scc_9["prepared"]
     scc_6["cycle (3 modules)<br/>frontends, render, timeline"]
     scc_5["mmds"]
-    scc_10["registry"]
     scc_4["cycle (2 modules)<br/>config, engines"]
-    scc_8["family"]
     scc_1["format"]
     scc_0["errors"]
     scc_3["graph"]
@@ -24,9 +24,12 @@ flowchart LR
     scc_14 --> scc_4
     scc_15 --> scc_0
     scc_15 --> scc_1
+    scc_15 --> scc_3
     scc_15 --> scc_4
+    scc_15 --> scc_5
     scc_15 --> scc_6
     scc_15 --> scc_7
+    scc_15 --> scc_9
     scc_15 --> scc_12
     scc_15 --> scc_13
     scc_7 --> scc_6
@@ -43,11 +46,12 @@ flowchart LR
     scc_11 --> scc_8
     scc_11 --> scc_9
     scc_11 --> scc_10
-    scc_9 --> scc_0
-    scc_9 --> scc_1
+    scc_10 --> scc_0
+    scc_10 --> scc_1
+    scc_10 --> scc_4
+    scc_10 --> scc_8
+    scc_10 --> scc_9
     scc_9 --> scc_3
-    scc_9 --> scc_4
-    scc_9 --> scc_5
     scc_9 --> scc_6
     scc_6 --> scc_0
     scc_6 --> scc_1
@@ -59,10 +63,6 @@ flowchart LR
     scc_5 --> scc_2
     scc_5 --> scc_3
     scc_5 --> scc_4
-    scc_10 --> scc_0
-    scc_10 --> scc_1
-    scc_10 --> scc_4
-    scc_10 --> scc_8
     scc_4 --> scc_0
     scc_4 --> scc_1
     scc_4 --> scc_3

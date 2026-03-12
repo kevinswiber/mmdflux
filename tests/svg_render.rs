@@ -1149,25 +1149,21 @@ fn render_flux_engine_svg_for_fixture_with_style(
         .join("flowchart")
         .join(fixture_name);
     let input = fs::read_to_string(fixture).expect("fixture should load");
-    let mut instance = mmdflux::registry_builtins::default_registry()
-        .create("flowchart")
-        .expect("flowchart instance should be available");
-    instance.parse(&input).expect("fixture should parse");
-    instance
-        .render(
-            OutputFormat::Svg,
-            &RenderConfig {
-                layout_engine: Some(
-                    mmdflux::EngineAlgorithmId::parse("flux-layered")
-                        .expect("flux-layered id should parse"),
-                ),
-                routing_style: Some(routing_style),
-                curve: Some(curve),
-                path_simplification: PathSimplification::None,
-                ..RenderConfig::default()
-            },
-        )
-        .expect("flux-layered SVG render should succeed")
+    mmdflux::render_diagram(
+        &input,
+        OutputFormat::Svg,
+        &RenderConfig {
+            layout_engine: Some(
+                mmdflux::EngineAlgorithmId::parse("flux-layered")
+                    .expect("flux-layered id should parse"),
+            ),
+            routing_style: Some(routing_style),
+            curve: Some(curve),
+            path_simplification: PathSimplification::None,
+            ..RenderConfig::default()
+        },
+    )
+    .expect("flux-layered SVG render should succeed")
 }
 
 fn svg_node_centers_by_id(diagram: &mmdflux::Diagram, svg: &str) -> HashMap<String, (f64, f64)> {
