@@ -13,18 +13,13 @@ use crate::timeline::sequence::model::SequenceModel;
 ///
 /// Parses sequence diagram syntax, compiles to `SequenceModel`, then
 /// renders through the timeline-family pipeline (layout + text renderer).
-pub struct SequenceInstance {}
+#[derive(Default)]
+pub struct SequenceInstance;
 
 impl SequenceInstance {
     /// Create a new sequence diagram instance.
     pub fn new() -> Self {
-        Self {}
-    }
-}
-
-impl Default for SequenceInstance {
-    fn default() -> Self {
-        Self::new()
+        Self
     }
 }
 

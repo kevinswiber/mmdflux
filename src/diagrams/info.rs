@@ -34,18 +34,13 @@ pub fn definition() -> DiagramDefinition {
 }
 
 /// Info diagram instance.
+#[derive(Default)]
 pub struct InfoInstance;
 
 impl InfoInstance {
     /// Create a new info diagram instance.
     pub fn new() -> Self {
         Self
-    }
-}
-
-impl Default for InfoInstance {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

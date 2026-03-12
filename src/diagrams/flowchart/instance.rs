@@ -16,18 +16,13 @@ use crate::registry::{DiagramInstance, ParsedDiagram};
 ///
 /// Compiles flowchart syntax to `graph::Diagram`, then prepares a
 /// graph-family payload for runtime dispatch.
+#[derive(Default)]
 pub struct FlowchartInstance;
 
 impl FlowchartInstance {
     /// Create a new flowchart instance.
     pub fn new() -> Self {
         Self
-    }
-}
-
-impl Default for FlowchartInstance {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

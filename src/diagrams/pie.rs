@@ -36,18 +36,13 @@ pub fn definition() -> DiagramDefinition {
 }
 
 /// Pie diagram instance.
+#[derive(Default)]
 pub struct PieInstance;
 
 impl PieInstance {
     /// Create a new pie diagram instance.
     pub fn new() -> Self {
         Self
-    }
-}
-
-impl Default for PieInstance {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

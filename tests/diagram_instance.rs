@@ -79,12 +79,15 @@ fn diagram_instance_trait_is_phase_split() {
             .join("registry.rs"),
     )
     .unwrap();
+    let diagram_instance_block = source
+        .split("pub trait ParsedDiagram")
+        .next()
+        .expect("DiagramInstance trait should precede ParsedDiagram");
+
     assert!(!source.contains("fn render(&self"));
     assert!(source.contains("fn parse(\n        self: Box<Self>,"));
     assert!(source.contains("pub trait ParsedDiagram"));
-    assert!(!source.contains(
-        "pub trait DiagramInstance: Send + Sync {\n    /// Parse input text into the diagram model."
-    ));
+    assert!(!diagram_instance_block.contains("fn prepare("));
 }
 
 #[test]

@@ -36,18 +36,13 @@ pub fn definition() -> DiagramDefinition {
 }
 
 /// Packet diagram instance.
+#[derive(Default)]
 pub struct PacketInstance;
 
 impl PacketInstance {
     /// Create a new packet diagram instance.
     pub fn new() -> Self {
         Self
-    }
-}
-
-impl Default for PacketInstance {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
