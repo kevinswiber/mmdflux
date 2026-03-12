@@ -135,6 +135,14 @@ fn assert_no_full_source_imports(dir: &Path, forbidden: &[&str], message: &str) 
     }
 }
 
+fn testing_shim_import_needles() -> [String; 2] {
+    let hidden_module = "testing";
+    [
+        format!("crate::{hidden_module}"),
+        format!("mmdflux::{hidden_module}"),
+    ]
+}
+
 fn parse_pub_modules_from_lib_rs() -> BTreeSet<String> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
     let content = std::fs::read_to_string(&path).unwrap();
@@ -601,12 +609,33 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
 }
 
 #[test]
-fn source_tests_do_not_import_crate_testing() {
+fn repository_has_no_testing_shim_imports() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let needles = testing_shim_import_needles();
+    let forbidden = [needles[0].as_str(), needles[1].as_str()];
+
     assert_no_full_source_imports(
         &repo_root.join("src"),
-        &["crate::testing"],
-        "source-owned test code should not depend on the hidden root-level testing shim",
+        &forbidden,
+        "source code must not depend on the removed root-level testing shim",
+    );
+    assert_no_full_source_imports(
+        &repo_root.join("tests"),
+        &forbidden,
+        "integration tests must not depend on the removed root-level testing shim",
+    );
+}
+
+#[test]
+fn module_dependency_map_does_not_reference_testing() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("docs/architecture/module-dependency-scc-dag.mmd");
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    assert!(
+        !content.contains("testing"),
+        "module dependency map should be regenerated after shim removal: {}",
+        path.display()
     );
 }
 

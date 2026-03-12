@@ -55,6 +55,24 @@ fn public_exports_for_test() -> BTreeSet<String> {
     exports
 }
 
+fn public_modules_for_test() -> BTreeSet<String> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
+    let content = std::fs::read_to_string(&path).unwrap();
+    let mut modules = BTreeSet::new();
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if let Some(module) = trimmed
+            .strip_prefix("pub mod ")
+            .and_then(|rest| rest.strip_suffix(';'))
+        {
+            modules.insert(module.to_string());
+        }
+    }
+
+    modules
+}
+
 #[test]
 fn all_exports_accessible() {
     // This test passes if it compiles
@@ -90,6 +108,16 @@ fn crate_root_exports_only_the_curated_render_and_validation_surface() {
     assert!(!exports.contains("detect_diagram_type"));
     assert!(!exports.contains("compile_to_graph"));
     assert!(!exports.contains("default_registry"));
+}
+
+#[test]
+fn crate_root_does_not_export_hidden_testing_module() {
+    let modules = public_modules_for_test();
+
+    assert!(
+        !modules.contains("testing"),
+        "src/lib.rs must not reintroduce a public testing module"
+    );
 }
 
 #[test]
