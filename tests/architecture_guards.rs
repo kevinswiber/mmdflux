@@ -585,13 +585,16 @@ fn mmds_split_is_directory_based_and_explicit() {
         !repo_root.join("src/mmds.rs").exists(),
         "legacy flat mmds.rs module should be removed"
     );
+    assert!(
+        !repo_root.join("src/mmds/contract.rs").exists(),
+        "MMDS contract helpers should now live in src/mmds/mod.rs"
+    );
 
     for relative_path in [
         "src/frontends/mmds/detect.rs",
         "src/frontends/mmds/parse.rs",
         "src/frontends/mmds/hydrate.rs",
         "src/frontends/mmds/render_input.rs",
-        "src/mmds/contract.rs",
         "src/mmds/mermaid.rs",
         "src/mmds/output.rs",
     ] {
@@ -827,7 +830,7 @@ fn graph_grid_sources_use_graph_owned_projection_types_and_direct_mmds_replay() 
         "crate::engines::graph::algorithms::layered::GridLayoutConfig",
         "crate::engines::graph::algorithms::layered::Rect",
         "unreachable!(\"text adapter requires layered engine hints\")",
-        "crate::runtime::facade::render_graph(",
+        "crate::runtime::",
     ] {
         assert!(
             contents.iter().all(|content| !content.contains(forbidden)),

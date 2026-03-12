@@ -54,5 +54,5 @@ pub use mmds::{MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid
 pub use request::RenderRequest;
 // Runtime facade re-exports — curated entrypoints for adapters (CLI, WASM).
 pub use runtime::config_input::{RuntimeConfigInput, apply_svg_surface_defaults};
-pub use runtime::facade::{detect_diagram, render_diagram, validate_diagram};
+pub use runtime::{detect_diagram, render_diagram, validate_diagram};
 pub use style::{ColorToken, NodeStyle};
