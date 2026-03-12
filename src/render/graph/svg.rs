@@ -1740,12 +1740,7 @@ fn render_edge_labels(
     metrics: &SvgTextMetrics,
     scale: f64,
 ) {
-    // Pre-build label position lookup from GraphGeometry edges.
-    let label_positions: HashMap<usize, Point> = geom
-        .edges
-        .iter()
-        .filter_map(|e| e.label_position.map(|p| (e.index, p)))
-        .collect();
+    let label_positions = precomputed_label_positions(geom);
 
     writer.start_group("edgeLabels");
 
@@ -2639,12 +2634,7 @@ fn compute_svg_bounds(
         }
     }
 
-    // Pre-build label position lookup from GraphGeometry edges.
-    let label_positions: HashMap<usize, Point> = geom
-        .edges
-        .iter()
-        .filter_map(|e| e.label_position.map(|p| (e.index, p)))
-        .collect();
+    let label_positions = precomputed_label_positions(geom);
 
     for edge in diagram.edges.iter() {
         if edge.stroke == Stroke::Invisible {
@@ -4694,6 +4684,13 @@ fn fallback_label_position(
     }
 
     None
+}
+
+fn precomputed_label_positions(geom: &GraphGeometry) -> HashMap<usize, Point> {
+    geom.edges
+        .iter()
+        .filter_map(|edge| edge.label_position.map(|point| (edge.index, point)))
+        .collect()
 }
 
 fn fmt_f64(value: f64) -> String {

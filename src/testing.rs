@@ -634,27 +634,15 @@ pub mod render {
                     path_simplification: PathSimplification,
                 ) -> Result<String, RenderError> {
                     let internal: crate::engines::graph::GraphSolveResult = result.into();
-                    let routed_owned;
-                    let routed_ref = match internal.routed.as_ref() {
-                        Some(routed) => Some(routed),
-                        None if matches!(level, GeometryLevel::Routed) => {
-                            routed_owned = crate::graph::routing::route_graph_geometry(
-                                diagram,
-                                &internal.geometry,
-                                crate::graph::routing::EdgeRouting::OrthogonalRoute,
-                            );
-                            Some(&routed_owned)
-                        }
-                        None => None,
-                    };
-                    crate::mmds::to_mmds_json_typed(
+                    crate::mmds::to_mmds_json_typed_with_routing(
                         diagram_type,
                         diagram,
                         &internal.geometry,
-                        routed_ref,
+                        internal.routed.as_ref(),
                         level,
                         path_simplification,
                         Some(internal.engine_id),
+                        crate::graph::routing::EdgeRouting::OrthogonalRoute,
                     )
                 }
             }

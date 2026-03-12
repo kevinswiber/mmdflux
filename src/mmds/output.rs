@@ -12,6 +12,7 @@ use serde_json::{Map, Number, Value};
 use crate::engines::graph::{EngineAlgorithmId, GeometryLevel, PathSimplification, RenderError};
 use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry};
 use crate::graph::grid_projection::{GridProjection, OverrideSubgraphProjection};
+use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
 use crate::style::NodeStyle;
 
@@ -144,6 +145,37 @@ pub fn to_mmds_json_typed(
             }
         }
     }
+}
+
+pub(crate) fn to_mmds_json_typed_with_routing(
+    diagram_type: &str,
+    diagram: &Diagram,
+    geometry: &GraphGeometry,
+    routed: Option<&RoutedGraphGeometry>,
+    level: GeometryLevel,
+    path_simplification: PathSimplification,
+    engine_id: Option<EngineAlgorithmId>,
+    edge_routing: EdgeRouting,
+) -> Result<String, RenderError> {
+    let routed_owned;
+    let routed = match (routed, level) {
+        (Some(routed), _) => Some(routed),
+        (None, GeometryLevel::Routed) => {
+            routed_owned = route_graph_geometry(diagram, geometry, edge_routing);
+            Some(&routed_owned)
+        }
+        (None, GeometryLevel::Layout) => None,
+    };
+
+    to_mmds_json_typed(
+        diagram_type,
+        diagram,
+        geometry,
+        routed,
+        level,
+        path_simplification,
+        engine_id,
+    )
 }
 
 fn serialize_mmds_output(output: &MmdsOutput) -> String {

@@ -188,21 +188,21 @@ pub fn render_text_from_geometry(
     routed: Option<&RoutedGraphGeometry>,
     options: &TextRenderOptions,
 ) -> String {
-    let routed_geometry = match routed {
-        Some(routed) => routed.clone(),
-        None => routing::route_graph_geometry(
-            diagram,
-            geometry,
-            edge_routing_from_style(options.routing_style),
-        ),
+    let routed_owned;
+    let routed = match routed {
+        Some(routed) => routed,
+        None => {
+            routed_owned = routing::route_graph_geometry(
+                diagram,
+                geometry,
+                edge_routing_from_style(options.routing_style),
+            );
+            &routed_owned
+        }
     };
     let config = layout_config_for_diagram(diagram, options);
-    let layout = text_adapter::geometry_to_text_layout_with_routed(
-        diagram,
-        geometry,
-        Some(&routed_geometry),
-        &config,
-    );
+    let layout =
+        text_adapter::geometry_to_text_layout_with_routed(diagram, geometry, Some(routed), &config);
     render_text_from_layout(diagram, &layout, options)
 }
 
