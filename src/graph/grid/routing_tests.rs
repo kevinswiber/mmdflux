@@ -5,7 +5,10 @@ use super::super::attachments::plan_attachments;
 use super::*;
 use crate::diagrams::flowchart::compile_to_graph;
 use crate::engines::graph::EngineConfig;
+use crate::engines::graph::algorithms::layered::layout_building::layered_config_for_layout;
 use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
+use crate::engines::graph::contracts::{GraphEngine, GraphGeometryContract, GraphSolveRequest};
+use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::geometry::{FPoint, FRect};
 use crate::graph::grid::{
@@ -18,7 +21,6 @@ use crate::graph::routing::{
     point_on_face_float, resolve_overflow_backward_channel_conflict, route_graph_geometry,
 };
 use crate::graph::{Diagram, Direction, Edge, Node};
-use crate::runtime::test_support_tests::compute_layout;
 
 fn simple_td_diagram() -> Diagram {
     let mut diagram = Diagram::new(Direction::TopDown);
@@ -61,6 +63,25 @@ fn text_layout_for_fixture(name: &str) -> (Diagram, GridLayout) {
     let diagram = compile_to_graph(&flowchart);
     let layout = compute_layout(&diagram, &GridLayoutConfig::default());
     (diagram, layout)
+}
+
+fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> GridLayout {
+    let engine = FluxLayeredEngine::text();
+    let request = GraphSolveRequest::new(
+        MeasurementMode::Grid,
+        GraphGeometryContract::Canonical,
+        crate::GeometryLevel::Layout,
+        None,
+    );
+    let result = engine
+        .solve(
+            diagram,
+            &EngineConfig::Layered(layered_config_for_layout(diagram, config)),
+            &request,
+        )
+        .expect("grid routing test layout solve failed");
+
+    geometry_to_grid_layout_with_routed(diagram, &result.geometry, result.routed.as_ref(), config)
 }
 
 #[test]

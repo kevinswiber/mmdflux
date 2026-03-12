@@ -434,8 +434,41 @@ fn branching_label_info(diagram: &Diagram) -> (bool, usize, usize) {
 #[cfg(test)]
 mod tests {
     use crate::diagrams::flowchart::compile_to_graph;
+    use crate::engines::graph::algorithms::layered::MeasurementMode;
+    use crate::engines::graph::algorithms::layered::layout_building::layered_config_for_layout;
+    use crate::engines::graph::contracts::{
+        EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
+    };
+    use crate::engines::graph::flux::FluxLayeredEngine;
     use crate::frontends::mermaid::parse_flowchart;
-    use crate::runtime::test_support_tests::render_text_diagram;
+    use crate::graph::Diagram;
+
+    fn render_text_diagram(diagram: &Diagram) -> String {
+        let engine = FluxLayeredEngine::text();
+        let request = GraphSolveRequest::new(
+            MeasurementMode::Grid,
+            GraphGeometryContract::Canonical,
+            crate::GeometryLevel::Layout,
+            None,
+        );
+        let result = engine
+            .solve(
+                diagram,
+                &EngineConfig::Layered(layered_config_for_layout(
+                    diagram,
+                    &crate::graph::grid::GridLayoutConfig::default(),
+                )),
+                &request,
+            )
+            .expect("render::graph test layout solve failed");
+
+        super::render_text_from_geometry(
+            diagram,
+            &result.geometry,
+            result.routed.as_ref(),
+            &super::TextRenderOptions::default(),
+        )
+    }
 
     #[test]
     fn test_render_with_subgraph_produces_borders() {

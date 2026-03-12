@@ -978,6 +978,30 @@ fn graph_family_instances_do_not_import_runtime() {
 }
 
 #[test]
+fn graph_and_render_sources_do_not_import_runtime_test_support_shim() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for dir in [repo_root.join("src/graph"), repo_root.join("src/render")] {
+        assert_no_full_source_imports(
+            &dir,
+            &["crate::runtime::test_support_tests"],
+            "graph/ and render/ tests should localize helpers instead of importing runtime test shims",
+        );
+    }
+
+    assert!(
+        !repo_root.join("src/runtime/test_support_tests.rs").exists(),
+        "runtime test shim should stay removed once graph/render tests localize their helpers",
+    );
+
+    let runtime_mod = std::fs::read_to_string(repo_root.join("src/runtime/mod.rs")).unwrap();
+    assert!(
+        !runtime_mod.contains("test_support_tests"),
+        "runtime::mod should not expose a cross-layer test support shim",
+    );
+}
+
+#[test]
 fn graph_root_does_not_own_backward_policy_module() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     assert!(!repo_root.join("src/graph/backward_policy.rs").exists());

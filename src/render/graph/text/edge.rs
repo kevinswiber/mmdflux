@@ -1242,9 +1242,17 @@ fn draw_label_direct(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::grid::{GridLayoutConfig, route_edge};
+    use crate::engines::graph::algorithms::layered::MeasurementMode;
+    use crate::engines::graph::algorithms::layered::layout_building::layered_config_for_layout;
+    use crate::engines::graph::contracts::{
+        EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
+    };
+    use crate::engines::graph::flux::FluxLayeredEngine;
+    use crate::graph::grid::{
+        GridLayout, GridLayoutConfig, geometry_to_grid_layout_with_routed, route_edge,
+    };
     use crate::graph::{Diagram, Edge, Node};
-    use crate::runtime::test_support_tests::{compute_layout, render_text_diagram};
+    use crate::render::graph::TextRenderOptions;
 
     fn simple_diagram() -> Diagram {
         let mut diagram = Diagram::new(Direction::TopDown);
@@ -1252,6 +1260,35 @@ mod tests {
         diagram.add_node(Node::new("B").with_label("End"));
         diagram.add_edge(Edge::new("A", "B"));
         diagram
+    }
+
+    fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> GridLayout {
+        let engine = FluxLayeredEngine::text();
+        let request = GraphSolveRequest::new(
+            MeasurementMode::Grid,
+            GraphGeometryContract::Canonical,
+            crate::GeometryLevel::Layout,
+            None,
+        );
+        let result = engine
+            .solve(
+                diagram,
+                &EngineConfig::Layered(layered_config_for_layout(diagram, config)),
+                &request,
+            )
+            .expect("text edge test layout solve failed");
+
+        geometry_to_grid_layout_with_routed(
+            diagram,
+            &result.geometry,
+            result.routed.as_ref(),
+            config,
+        )
+    }
+
+    fn render_text_diagram(diagram: &Diagram) -> String {
+        let layout = compute_layout(diagram, &GridLayoutConfig::default());
+        super::super::render_text_from_grid_layout(diagram, &layout, &TextRenderOptions::default())
     }
 
     #[test]
