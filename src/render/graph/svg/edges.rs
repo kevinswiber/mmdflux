@@ -3157,3 +3157,73 @@ pub(super) fn polygon_points(points: &[(f64, f64)]) -> String {
     }
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        Point, path_from_points_curved, path_from_points_rounded, simplify_orthogonal_points,
+    };
+    use crate::graph::Direction;
+
+    #[test]
+    fn path_from_points_curved_emits_cubic_commands_for_multi_point_path() {
+        let path = path_from_points_curved(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0)]);
+
+        assert!(path.starts_with("M0.00,0.00"));
+        assert!(path.contains('C'));
+        assert!(path.ends_with("L10.00,10.00"));
+    }
+
+    #[test]
+    fn path_from_points_rounded_emits_quadratic_corner_commands() {
+        let path = path_from_points_rounded(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0)], 4.0);
+
+        assert!(path.starts_with("M0.00,0.00"));
+        assert!(path.contains('Q'));
+        assert!(path.ends_with("L10.00,10.00"));
+    }
+
+    #[test]
+    fn simplify_orthogonal_points_collapses_to_single_elbow_when_allowed() {
+        let points = vec![
+            Point { x: 0.0, y: 0.0 },
+            Point { x: 0.0, y: 1.0 },
+            Point { x: 0.0, y: 2.0 },
+            Point { x: 1.0, y: 2.0 },
+            Point { x: 1.0, y: 3.0 },
+            Point { x: 2.0, y: 3.0 },
+        ];
+
+        assert_eq!(
+            simplify_orthogonal_points(&points, Direction::TopDown, false),
+            vec![
+                Point { x: 0.0, y: 0.0 },
+                Point { x: 0.0, y: 3.0 },
+                Point { x: 2.0, y: 3.0 },
+            ]
+        );
+    }
+
+    #[test]
+    fn simplify_orthogonal_points_preserves_compacted_topology_when_requested() {
+        let points = vec![
+            Point { x: 0.0, y: 0.0 },
+            Point { x: 0.0, y: 1.0 },
+            Point { x: 0.0, y: 2.0 },
+            Point { x: 1.0, y: 2.0 },
+            Point { x: 1.0, y: 3.0 },
+            Point { x: 2.0, y: 3.0 },
+        ];
+
+        assert_eq!(
+            simplify_orthogonal_points(&points, Direction::TopDown, true),
+            vec![
+                Point { x: 0.0, y: 0.0 },
+                Point { x: 0.0, y: 2.0 },
+                Point { x: 1.0, y: 2.0 },
+                Point { x: 1.0, y: 3.0 },
+                Point { x: 2.0, y: 3.0 },
+            ]
+        );
+    }
+}

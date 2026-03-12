@@ -1313,32 +1313,6 @@ fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
 }
 
 #[test]
-fn svg_curve_basis_emits_curved_commands() {
-    let diagram = load_flowchart_fixture_diagram("simple_cycle.mmd");
-    let edge_idx = edge_index(&diagram, "C", "A");
-    let svg = render_fixture_svg(&diagram, EdgeRouting::OrthogonalRoute, SMOOTH);
-    let d = edge_path_d_for_svg_order(&diagram, &svg, edge_idx);
-
-    assert!(
-        d.contains('C'),
-        "basis curve should emit cubic commands for curved edge rendering: d={d}"
-    );
-}
-
-#[test]
-fn svg_curve_linear_rounded_uses_rounded_corner_pathing() {
-    let diagram = load_flowchart_fixture_diagram("simple_cycle.mmd");
-    let edge_idx = edge_index(&diagram, "C", "A");
-    let svg = render_fixture_svg(&diagram, EdgeRouting::OrthogonalRoute, ROUNDED);
-    let d = edge_path_d_for_svg_order(&diagram, &svg, edge_idx);
-
-    assert!(
-        d.contains('Q'),
-        "linear-rounded curve should emit rounded corner commands for pathing: d={d}"
-    );
-}
-
-#[test]
 fn render_svg_basic_flowchart_has_svg_root() {
     let input = "graph TD\nA[Start] --> B[End]\n";
     let flowchart = parse_flowchart(input).unwrap();

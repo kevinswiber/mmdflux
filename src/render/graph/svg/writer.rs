@@ -228,3 +228,23 @@ impl SvgWriter {
         self.buf
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{escape_text, fmt_f64};
+
+    #[test]
+    fn fmt_f64_snaps_tiny_values_to_zero() {
+        assert_eq!(fmt_f64(0.004), "0.00");
+        assert_eq!(fmt_f64(-0.004), "0.00");
+        assert_eq!(fmt_f64(12.345), "12.35");
+    }
+
+    #[test]
+    fn escape_text_escapes_xml_significant_characters() {
+        assert_eq!(
+            escape_text("<tag attr=\"a&b\">it's</tag>"),
+            "&lt;tag attr=&quot;a&amp;b&quot;&gt;it&apos;s&lt;/tag&gt;"
+        );
+    }
+}

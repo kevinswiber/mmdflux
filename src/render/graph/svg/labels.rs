@@ -240,3 +240,41 @@ pub(super) fn precomputed_label_positions(geom: &GraphGeometry) -> HashMap<usize
         .filter_map(|edge| edge.label_position.map(|point| (edge.index, point)))
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Point, revalidate_svg_label_anchor, svg_path_midpoint};
+
+    #[test]
+    fn revalidate_svg_label_anchor_keeps_nearby_anchor() {
+        let candidate = Point { x: 5.0, y: 1.0 };
+        let path = [Point { x: 0.0, y: 0.0 }, Point { x: 10.0, y: 0.0 }];
+
+        assert_eq!(
+            revalidate_svg_label_anchor(candidate, Some(&path)),
+            candidate
+        );
+    }
+
+    #[test]
+    fn revalidate_svg_label_anchor_falls_back_to_path_midpoint_when_drifted() {
+        let candidate = Point { x: 50.0, y: 25.0 };
+        let path = [Point { x: 0.0, y: 0.0 }, Point { x: 10.0, y: 0.0 }];
+
+        assert_eq!(
+            revalidate_svg_label_anchor(candidate, Some(&path)),
+            Point { x: 5.0, y: 0.0 }
+        );
+    }
+
+    #[test]
+    fn svg_path_midpoint_handles_multi_segment_paths_by_distance() {
+        let path = [
+            Point { x: 0.0, y: 0.0 },
+            Point { x: 6.0, y: 0.0 },
+            Point { x: 6.0, y: 6.0 },
+        ];
+
+        assert_eq!(svg_path_midpoint(&path), Some(Point { x: 6.0, y: 0.0 }));
+    }
+}

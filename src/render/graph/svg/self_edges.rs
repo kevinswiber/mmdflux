@@ -126,3 +126,48 @@ fn adjust_self_edge_points(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Point, Rect, adjust_self_edge_points};
+    use crate::graph::Direction;
+
+    #[test]
+    fn adjust_self_edge_points_top_down_loops_to_the_right() {
+        let rect = Rect {
+            x: 10.0,
+            y: 20.0,
+            width: 30.0,
+            height: 40.0,
+        };
+        let points = [Point { x: 45.0, y: 25.0 }, Point { x: 52.0, y: 60.0 }];
+
+        let adjusted = adjust_self_edge_points(&rect, &points, Direction::TopDown, 8.0);
+
+        assert_eq!(adjusted.len(), 4);
+        assert_eq!(adjusted[0], Point { x: 40.0, y: 20.0 });
+        assert_eq!(adjusted[1].x, adjusted[2].x);
+        assert!(adjusted[1].x >= 52.0);
+        assert_eq!(adjusted[3], Point { x: 40.0, y: 60.0 });
+    }
+
+    #[test]
+    fn adjust_self_edge_points_left_right_loops_below_the_node() {
+        let rect = Rect {
+            x: 10.0,
+            y: 20.0,
+            width: 30.0,
+            height: 40.0,
+        };
+        let points = [Point { x: 42.0, y: 58.0 }, Point { x: 15.0, y: 70.0 }];
+
+        let adjusted = adjust_self_edge_points(&rect, &points, Direction::LeftRight, 6.0);
+
+        assert_eq!(adjusted.len(), 4);
+        assert_eq!(adjusted[0], Point { x: 40.0, y: 60.0 });
+        assert_eq!(adjusted[1].x, 40.0);
+        assert!(adjusted[1].y >= 70.0);
+        assert_eq!(adjusted[2].y, adjusted[1].y);
+        assert_eq!(adjusted[3], Point { x: 10.0, y: 60.0 });
+    }
+}
