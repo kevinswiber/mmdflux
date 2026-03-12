@@ -66,6 +66,18 @@ fn diagram_instance_prepare_returns_a_prepared_payload() {
 }
 
 #[test]
+fn diagram_instance_trait_no_longer_exposes_render() {
+    let source = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("registry.rs"),
+    )
+    .unwrap();
+    assert!(!source.contains("fn render(&self"));
+    assert!(source.contains("fn prepare(&self"));
+}
+
+#[test]
 fn diagram_instance_supports_format() {
     let diagram = MockDiagram::new();
     assert!(diagram.supports_format(OutputFormat::Text));

@@ -358,7 +358,6 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
     for required in [
         "registry_builtins",
         "graph::grid",
-        "graph_family_pipeline",
         "timeline::sequence",
         "render::graph::text",
         "render_svg_from_routed_geometry",
@@ -964,7 +963,7 @@ fn generated_dependency_maps_show_registry_builtins_owning_builtin_wiring() {
 }
 
 #[test]
-fn graph_family_instances_do_not_import_runtime() {
+fn graph_family_instances_do_not_import_runtime_or_render() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
 
     for path in [
@@ -975,6 +974,16 @@ fn graph_family_instances_do_not_import_runtime() {
         assert!(
             !content.contains("crate::runtime"),
             "graph-family instance should not import runtime: {}",
+            path.display()
+        );
+        assert!(
+            !content.contains("crate::render::"),
+            "graph-family instance should not import render: {}",
+            path.display()
+        );
+        assert!(
+            !content.contains("crate::engines::"),
+            "graph-family instance should not import engines: {}",
             path.display()
         );
     }
@@ -1124,10 +1133,11 @@ fn sequence_renderer_does_not_import_diagrams_sequence() {
 }
 
 #[test]
-fn sequence_instance_does_not_import_render_sequence_text_directly() {
+fn sequence_instance_does_not_import_runtime_or_render() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/diagrams/sequence/instance.rs");
     let content = std::fs::read_to_string(path).unwrap();
-    assert!(!content.contains("crate::render::diagram::sequence::text"));
+    assert!(!content.contains("crate::runtime"));
+    assert!(!content.contains("crate::render::"));
 }
 
 #[test]

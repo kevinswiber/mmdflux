@@ -52,6 +52,29 @@ fn resolve_pie_to_chart_family() {
     assert_eq!(handle.family(), DiagramFamily::Chart);
 }
 
+#[test]
+fn runtime_dispatch_renders_simple_diagrams_from_prepared_payloads() {
+    let info =
+        mmdflux::render_diagram("info", OutputFormat::Text, &RenderConfig::default()).unwrap();
+    assert!(info.contains("mmdflux"));
+
+    let pie = mmdflux::render_diagram(
+        "pie\n\"Apples\": 50\n\"Oranges\": 50",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
+    assert!(pie.contains("[Pie Chart]"));
+
+    let packet = mmdflux::render_diagram(
+        "packet-beta\n0-7: \"Header\"",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
+    assert!(packet.contains("[Packet Diagram]"));
+}
+
 // ---------------------------------------------------------------------------
 // Graph-family shared facade: flowchart and class use the same runtime path
 // ---------------------------------------------------------------------------
@@ -128,7 +151,7 @@ fn graph_family_facade_renders_class_mmds() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn timeline_family_renders_without_graph_engine() {
+fn runtime_dispatch_renders_sequence_without_diagrams_importing_render() {
     let output = mmdflux::render_diagram(
         "sequenceDiagram\nAlice->>Bob: Hello",
         OutputFormat::Text,
