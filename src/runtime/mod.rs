@@ -50,12 +50,8 @@ pub fn render_diagram(
         message: "unknown diagram type".to_string(),
     })?;
 
-    let mut instance = registry.create(diagram_id).ok_or_else(|| RenderError {
+    let instance = registry.create(diagram_id).ok_or_else(|| RenderError {
         message: format!("no implementation for diagram type: {diagram_id}"),
-    })?;
-
-    instance.parse(input).map_err(|error| RenderError {
-        message: format!("parse error: {error}"),
     })?;
 
     if !instance.supports_format(format) {
@@ -64,7 +60,11 @@ pub fn render_diagram(
         });
     }
 
-    let prepared = instance.prepare(config)?;
+    let parsed = instance.parse(input).map_err(|error| RenderError {
+        message: format!("parse error: {error}"),
+    })?;
+
+    let prepared = parsed.prepare(config)?;
     prepared::render_prepared(prepared, format, config)
 }
 
@@ -101,7 +101,7 @@ pub fn validate_diagram(input: &str) -> String {
         }
     };
 
-    let mut instance = match registry.create(diagram_id) {
+    let instance = match registry.create(diagram_id) {
         Some(inst) => inst,
         None => {
             return serde_json::json!({
@@ -115,7 +115,7 @@ pub fn validate_diagram(input: &str) -> String {
     };
 
     match instance.parse(input) {
-        Ok(()) => {
+        Ok(_) => {
             let mut warnings: Vec<ParseDiagnostic> = collect_unsupported_warnings(input)
                 .into_iter()
                 .chain(collect_subgraph_warnings(input))

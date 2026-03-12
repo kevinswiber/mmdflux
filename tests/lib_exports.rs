@@ -20,7 +20,7 @@ use mmdflux::{
     },
     prepared::PreparedDiagram,
     // Registry
-    registry::DiagramInstance,
+    registry::{DiagramInstance, ParsedDiagram},
     // Render-only geometry API
     render::graph::{
         SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_text_from_geometry,
@@ -107,6 +107,7 @@ fn all_exports_accessible() {
     let _ = RenderError::from("surface");
     let _ = RenderRequest::new("graph TD\nA-->B", OutputFormat::Text);
     let _: Box<dyn DiagramInstance> = Box::new(flowchart::FlowchartInstance::new());
+    let _ = std::any::type_name::<Box<dyn ParsedDiagram>>();
 }
 
 #[test]
@@ -219,9 +220,12 @@ fn registry_api_works() {
     let diagram_id = registry.detect(input).unwrap();
     assert_eq!(diagram_id, "flowchart");
 
-    let mut instance = registry.create(diagram_id).unwrap();
-    instance.parse(input).unwrap();
-    let prepared = instance.prepare(&RenderConfig::default()).unwrap();
+    let instance = registry.create(diagram_id).unwrap();
+    let prepared = instance
+        .parse(input)
+        .unwrap()
+        .prepare(&RenderConfig::default())
+        .unwrap();
     assert!(matches!(prepared, PreparedDiagram::Graph(_)));
 }
 

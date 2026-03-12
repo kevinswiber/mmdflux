@@ -37,7 +37,7 @@ pub fn definition() -> DiagramDefinition {
         id: "flowchart",
         family: DiagramFamily::Graph,
         detector: detect as DiagramDetector,
-        factory: || Box::new(FlowchartInstance::default()),
+        factory: || Box::new(FlowchartInstance::new()),
         supported_formats: SUPPORTED_FORMATS,
     }
 }

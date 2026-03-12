@@ -13,11 +13,9 @@ fn render_sequence(
 
 #[test]
 fn sequence_instance_prepare_returns_timeline_payload() {
-    let mut instance = SequenceInstance::new();
-    instance
+    let prepared = Box::new(SequenceInstance::new())
         .parse("sequenceDiagram\nparticipant A\nparticipant B\nA->>B: hello")
-        .unwrap();
-    let prepared = Box::new(instance)
+        .unwrap()
         .prepare(&RenderConfig::default())
         .unwrap();
     let PreparedDiagram::Timeline(timeline) = prepared else {
@@ -35,12 +33,13 @@ fn sequence_instance_unknown_engine_rejected_at_parse_boundary() {
 
 #[test]
 fn sequence_instance_prepare_rejects_layout_engine_selection() {
-    let mut instance = SequenceInstance::new();
-    instance.parse("sequenceDiagram\nA->>B: hello").unwrap();
-    let result = Box::new(instance).prepare(&RenderConfig {
-        layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-        ..RenderConfig::default()
-    });
+    let result = Box::new(SequenceInstance::new())
+        .parse("sequenceDiagram\nA->>B: hello")
+        .unwrap()
+        .prepare(&RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+            ..RenderConfig::default()
+        });
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(

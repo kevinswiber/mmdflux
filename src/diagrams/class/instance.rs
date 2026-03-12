@@ -10,21 +10,18 @@ use crate::format::OutputFormat;
 use crate::frontends::mermaid::class::parse_class_diagram;
 use crate::graph::Diagram;
 use crate::prepared::{PreparedDiagram, PreparedGraph};
-use crate::registry::DiagramInstance;
+use crate::registry::{DiagramInstance, ParsedDiagram};
 
 /// Class diagram instance.
 ///
 /// Compiles class diagram syntax to `graph::Diagram`, then prepares a
 /// graph-family payload for runtime dispatch.
-pub struct ClassInstance {
-    /// Compiled graph-family IR.
-    diagram: Option<Diagram>,
-}
+pub struct ClassInstance;
 
 impl ClassInstance {
     /// Create a new class diagram instance.
     pub fn new() -> Self {
-        Self { diagram: None }
+        Self
     }
 }
 
@@ -35,24 +32,30 @@ impl Default for ClassInstance {
 }
 
 impl DiagramInstance for ClassInstance {
-    fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn parse(
+        self: Box<Self>,
+        input: &str,
+    ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
         let model = parse_class_diagram(input)?;
-        self.diagram = Some(compiler::compile(&model));
-        Ok(())
-    }
-
-    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
-        let diagram = self.diagram.ok_or_else(|| RenderError {
-            message: "No diagram parsed. Call parse() first.".to_string(),
-        })?;
-
-        Ok(PreparedDiagram::Graph(PreparedGraph {
-            diagram_type: "class",
-            diagram,
+        Ok(Box::new(ParsedClass {
+            diagram: compiler::compile(&model),
         }))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
         super::SUPPORTED_FORMATS.contains(&format)
+    }
+}
+
+struct ParsedClass {
+    diagram: Diagram,
+}
+
+impl ParsedDiagram for ParsedClass {
+    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
+        Ok(PreparedDiagram::Graph(PreparedGraph {
+            diagram_type: "class",
+            diagram: self.diagram,
+        }))
     }
 }

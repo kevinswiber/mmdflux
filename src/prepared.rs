@@ -1,4 +1,4 @@
-//! Prepared-diagram contract returned by [`crate::registry::DiagramInstance::prepare`].
+//! Prepared-diagram contract returned by [`crate::registry::ParsedDiagram::prepare`].
 //!
 //! Diagram modules stop at parsing, compilation, and config-sensitive
 //! preparation. Runtime owns the final dispatch from these payloads to

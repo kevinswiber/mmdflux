@@ -2,7 +2,7 @@
 //!
 //! The registry holds diagram definitions and provides:
 //! - Type detection from input text
-//! - Factory creation of diagram instances
+//! - Factory creation of unparsed diagram instances
 //! - Format support queries
 
 use std::collections::HashMap;
@@ -18,13 +18,13 @@ use crate::prepared::PreparedDiagram;
 /// Returns `true` if the input text matches this diagram type.
 pub type DiagramDetector = fn(&str) -> bool;
 
-/// Factory for creating diagram instances.
+/// Factory for creating unparsed diagram instances.
 pub type DiagramFactory = fn() -> Box<dyn DiagramInstance>;
 
 /// Diagram definition for registration.
 ///
 /// Each diagram type provides a definition that describes how to
-/// detect, create, and render that diagram type.
+/// detect, create, and parse that diagram type.
 pub struct DiagramDefinition {
     /// Unique identifier (e.g., "flowchart", "pie").
     pub id: &'static str,
@@ -92,7 +92,7 @@ impl DiagramRegistry {
         self.detection_order.iter().copied()
     }
 
-    /// Create a new diagram instance by ID.
+    /// Create a new unparsed diagram instance by ID.
     ///
     /// Returns `None` if no diagram with the given ID is registered.
     #[must_use]
@@ -147,17 +147,25 @@ impl ResolvedDiagram<'_> {
     }
 }
 
-/// Instance of a parsed diagram.
+/// Unparsed diagram instance.
 ///
 /// Each diagram type implements this trait to provide parsing and
-/// config-sensitive preparation. Runtime owns final rendering dispatch.
+/// format support queries before a parsed handle exists.
 pub trait DiagramInstance: Send + Sync {
-    /// Parse input text into the diagram model.
-    fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
-
-    /// Consume the parsed instance into a family-local payload for runtime dispatch.
-    fn prepare(self: Box<Self>, config: &RenderConfig) -> Result<PreparedDiagram, RenderError>;
+    /// Parse input text into a typed parsed-diagram handle.
+    fn parse(
+        self: Box<Self>,
+        input: &str,
+    ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>>;
 
     /// Check if this instance supports the given output format.
     fn supports_format(&self, format: OutputFormat) -> bool;
+}
+
+/// Parsed diagram handle produced by [`DiagramInstance::parse`].
+///
+/// Parsed diagrams can only advance forward into prepared runtime payloads.
+pub trait ParsedDiagram: Send + Sync {
+    /// Consume the parsed diagram into a family-local payload for runtime dispatch.
+    fn prepare(self: Box<Self>, config: &RenderConfig) -> Result<PreparedDiagram, RenderError>;
 }

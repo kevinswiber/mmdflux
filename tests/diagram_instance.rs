@@ -3,11 +3,13 @@ use std::path::Path;
 
 use mmdflux::frontends::mmds::SUPPORTED_OUTPUT_FORMATS as MMDS_FRONTEND_SUPPORTED_FORMATS;
 use mmdflux::prepared::PreparedDiagram;
-use mmdflux::registry::{DiagramDefinition, DiagramInstance, DiagramRegistry};
+use mmdflux::registry::{DiagramDefinition, DiagramInstance, DiagramRegistry, ParsedDiagram};
 use mmdflux::{DiagramFamily, GeometryLevel, OutputFormat, RenderConfig, RenderError};
 
-struct MockDiagram {
-    parsed: Option<String>,
+struct MockDiagram;
+
+struct MockParsedDiagram {
+    content: String,
 }
 
 fn mmds_fixture(name: &str) -> String {
@@ -21,19 +23,18 @@ fn mmds_fixture(name: &str) -> String {
 
 impl MockDiagram {
     fn new() -> Self {
-        Self { parsed: None }
+        Self
     }
 }
 
 impl DiagramInstance for MockDiagram {
-    fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.parsed = Some(input.to_string());
-        Ok(())
-    }
-
-    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
-        let content = self.parsed.as_deref().ok_or("Not parsed")?;
-        Ok(PreparedDiagram::Text(format!("[TEXT] {content}")))
+    fn parse(
+        self: Box<Self>,
+        input: &str,
+    ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(Box::new(MockParsedDiagram {
+            content: input.to_string(),
+        }))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
@@ -41,12 +42,19 @@ impl DiagramInstance for MockDiagram {
     }
 }
 
+impl ParsedDiagram for MockParsedDiagram {
+    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
+        Ok(PreparedDiagram::Text(format!("[TEXT] {}", self.content)))
+    }
+}
+
 #[test]
 fn diagram_instance_parse_and_prepare() {
-    let mut diagram = MockDiagram::new();
-    diagram.parse("test input").unwrap();
-
-    let prepared = Box::new(diagram).prepare(&RenderConfig::default()).unwrap();
+    let prepared = Box::new(MockDiagram::new())
+        .parse("test input")
+        .unwrap()
+        .prepare(&RenderConfig::default())
+        .unwrap();
     assert!(matches!(
         prepared,
         PreparedDiagram::Text(text) if text == "[TEXT] test input"
@@ -55,15 +63,16 @@ fn diagram_instance_parse_and_prepare() {
 
 #[test]
 fn diagram_instance_prepare_returns_a_prepared_payload() {
-    let mut diagram = MockDiagram::new();
-    diagram.parse("test input").unwrap();
-
-    let prepared = Box::new(diagram).prepare(&RenderConfig::default()).unwrap();
+    let prepared = Box::new(MockDiagram::new())
+        .parse("test input")
+        .unwrap()
+        .prepare(&RenderConfig::default())
+        .unwrap();
     assert!(matches!(prepared, PreparedDiagram::Text(_)));
 }
 
 #[test]
-fn diagram_instance_trait_no_longer_exposes_render() {
+fn diagram_instance_trait_is_phase_split() {
     let source = fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("src")
@@ -71,7 +80,11 @@ fn diagram_instance_trait_no_longer_exposes_render() {
     )
     .unwrap();
     assert!(!source.contains("fn render(&self"));
-    assert!(source.contains("fn prepare(self: Box<Self>"));
+    assert!(source.contains("fn parse(\n        self: Box<Self>,"));
+    assert!(source.contains("pub trait ParsedDiagram"));
+    assert!(!source.contains(
+        "pub trait DiagramInstance: Send + Sync {\n    /// Parse input text into the diagram model."
+    ));
 }
 
 #[test]
@@ -94,9 +107,12 @@ fn registry_create_returns_instance() {
         supported_formats: &[OutputFormat::Text, OutputFormat::Ascii],
     });
 
-    let mut instance = registry.create("mock").expect("should create instance");
-    instance.parse("hello").unwrap();
-    let prepared = instance.prepare(&RenderConfig::default()).unwrap();
+    let instance = registry.create("mock").expect("should create instance");
+    let prepared = instance
+        .parse("hello")
+        .unwrap()
+        .prepare(&RenderConfig::default())
+        .unwrap();
     assert!(matches!(
         prepared,
         PreparedDiagram::Text(text) if text == "[TEXT] hello"

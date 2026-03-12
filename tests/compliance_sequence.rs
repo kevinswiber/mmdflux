@@ -89,9 +89,8 @@ fn sequence_all_fixtures_parse() {
     for fixture in list_sequence_fixtures() {
         let path = sequence_fixture_dir().join(&fixture);
         let input = fs::read_to_string(&path).unwrap();
-        let mut instance = SequenceInstance::new();
         assert!(
-            instance.parse(&input).is_ok(),
+            Box::new(SequenceInstance::new()).parse(&input).is_ok(),
             "Failed to parse sequence fixture: {fixture}"
         );
     }

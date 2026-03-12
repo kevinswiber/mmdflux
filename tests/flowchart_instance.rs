@@ -58,15 +58,13 @@ fn min_segment_len(points: &[(f64, f64)]) -> f64 {
 
 #[test]
 fn flowchart_instance_parse_simple() {
-    let mut instance = FlowchartInstance::new();
-    let result = instance.parse("graph TD\nA-->B");
+    let result = Box::new(FlowchartInstance::new()).parse("graph TD\nA-->B");
     assert!(result.is_ok());
 }
 
 #[test]
 fn flowchart_instance_parse_error_on_invalid() {
-    let mut instance = FlowchartInstance::new();
-    let result = instance.parse("not a valid diagram }{{}");
+    let result = Box::new(FlowchartInstance::new()).parse("not a valid diagram }{{}");
     assert!(result.is_err());
 }
 
@@ -95,13 +93,6 @@ fn flowchart_instance_render_ascii() {
 }
 
 #[test]
-fn flowchart_instance_prepare_before_parse_errors() {
-    let instance = FlowchartInstance::new();
-    let result = Box::new(instance).prepare(&RenderConfig::default());
-    assert!(result.is_err());
-}
-
-#[test]
 fn flowchart_instance_supports_text_and_ascii() {
     let instance = FlowchartInstance::new();
     assert!(instance.supports_format(OutputFormat::Text));
@@ -123,9 +114,9 @@ fn flowchart_instance_render_svg() {
 
 #[test]
 fn flowchart_instance_render_json() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA[Start] --> B[End]").unwrap();
-    let output = Box::new(instance)
+    let output = Box::new(FlowchartInstance::new())
+        .parse("graph TD\nA[Start] --> B[End]")
+        .unwrap()
         .prepare(&RenderConfig::default())
         .unwrap();
     let PreparedDiagram::Graph(graph) = output else {
@@ -158,14 +149,15 @@ fn flowchart_instance_render_json_uses_defaults_omission() {
 
 #[test]
 fn test_show_ids_annotates_labels() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA[Start] --> B[End]\n").unwrap();
-
     let config = RenderConfig {
         show_ids: true,
         ..Default::default()
     };
-    let prepared = Box::new(instance).prepare(&config).unwrap();
+    let prepared = Box::new(FlowchartInstance::new())
+        .parse("graph TD\nA[Start] --> B[End]\n")
+        .unwrap()
+        .prepare(&config)
+        .unwrap();
     let PreparedDiagram::Graph(graph) = prepared else {
         panic!("flowchart prepare should yield graph payload");
     };
@@ -175,14 +167,15 @@ fn test_show_ids_annotates_labels() {
 
 #[test]
 fn test_show_ids_bare_nodes_unchanged() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA --> B\n").unwrap();
-
     let config = RenderConfig {
         show_ids: true,
         ..Default::default()
     };
-    let prepared = Box::new(instance).prepare(&config).unwrap();
+    let prepared = Box::new(FlowchartInstance::new())
+        .parse("graph TD\nA --> B\n")
+        .unwrap()
+        .prepare(&config)
+        .unwrap();
     let PreparedDiagram::Graph(graph) = prepared else {
         panic!("flowchart prepare should yield graph payload");
     };
@@ -191,9 +184,9 @@ fn test_show_ids_bare_nodes_unchanged() {
 
 #[test]
 fn test_show_ids_false_no_annotation() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA[Start] --> B[End]\n").unwrap();
-    let prepared = Box::new(instance)
+    let prepared = Box::new(FlowchartInstance::new())
+        .parse("graph TD\nA[Start] --> B[End]\n")
+        .unwrap()
         .prepare(&RenderConfig::default())
         .unwrap();
     let PreparedDiagram::Graph(graph) = prepared else {

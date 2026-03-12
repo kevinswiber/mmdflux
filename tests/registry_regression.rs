@@ -26,7 +26,7 @@ fn compare_outputs(input: &str, ascii: bool) {
     let diagram_id = registry.detect(input).expect("Registry path detect failed");
     assert_eq!(diagram_id, "flowchart");
 
-    let mut instance = registry
+    let instance = registry
         .create(diagram_id)
         .expect("Registry path create failed");
     instance.parse(input).expect("Registry path parse failed");

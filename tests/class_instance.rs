@@ -16,25 +16,21 @@ fn render_class(
 
 #[test]
 fn class_instance_parse_simple() {
-    let mut instance = ClassInstance::new();
-    let result = instance.parse("classDiagram\nclass User");
+    let result = Box::new(ClassInstance::new()).parse("classDiagram\nclass User");
     assert!(result.is_ok());
 }
 
 #[test]
 fn class_instance_parse_error_on_invalid() {
-    let mut instance = ClassInstance::new();
-    let result = instance.parse("not a class diagram");
+    let result = Box::new(ClassInstance::new()).parse("not a class diagram");
     assert!(result.is_err());
 }
 
 #[test]
 fn class_instance_prepare_graph_payload() {
-    let mut instance = ClassInstance::new();
-    instance
+    let prepared = Box::new(ClassInstance::new())
         .parse("classDiagram\nclass A\nclass B\nA --> B")
-        .unwrap();
-    let prepared = Box::new(instance)
+        .unwrap()
         .prepare(&RenderConfig::default())
         .unwrap();
     let PreparedDiagram::Graph(graph) = prepared else {
@@ -68,13 +64,6 @@ fn class_instance_render_svg() {
     .unwrap();
     assert!(out.starts_with("<svg"));
     assert!(out.contains("<text"));
-}
-
-#[test]
-fn class_instance_prepare_before_parse_errors() {
-    let instance = ClassInstance::new();
-    let result = Box::new(instance).prepare(&RenderConfig::default());
-    assert!(result.is_err());
 }
 
 #[test]
@@ -149,11 +138,12 @@ Triangle --> Rectangle";
 #[test]
 fn class_instance_via_registry() {
     let registry = mmdflux::registry_builtins::default_registry();
-    let mut instance = registry.create("class").unwrap();
-    instance
+    let instance = registry.create("class").unwrap();
+    let prepared = instance
         .parse("classDiagram\nclass User\nclass Order\nUser --> Order")
+        .unwrap()
+        .prepare(&RenderConfig::default())
         .unwrap();
-    let prepared = instance.prepare(&RenderConfig::default()).unwrap();
     assert!(matches!(prepared, PreparedDiagram::Graph(_)));
 }
 

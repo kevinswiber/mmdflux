@@ -10,21 +10,18 @@ use crate::format::OutputFormat;
 use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::Diagram;
 use crate::prepared::{PreparedDiagram, PreparedGraph};
-use crate::registry::DiagramInstance;
+use crate::registry::{DiagramInstance, ParsedDiagram};
 
 /// Flowchart diagram instance.
 ///
 /// Compiles flowchart syntax to `graph::Diagram`, then prepares a
 /// graph-family payload for runtime dispatch.
-pub struct FlowchartInstance {
-    /// Compiled graph-family IR.
-    diagram: Option<Diagram>,
-}
+pub struct FlowchartInstance;
 
 impl FlowchartInstance {
     /// Create a new flowchart instance.
     pub fn new() -> Self {
-        Self { diagram: None }
+        Self
     }
 }
 
@@ -35,32 +32,38 @@ impl Default for FlowchartInstance {
 }
 
 impl DiagramInstance for FlowchartInstance {
-    fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn parse(
+        self: Box<Self>,
+        input: &str,
+    ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
         let flowchart = parse_flowchart(input)?;
-        self.diagram = Some(compile_to_graph(&flowchart));
-        Ok(())
+        Ok(Box::new(ParsedFlowchart {
+            diagram: compile_to_graph(&flowchart),
+        }))
     }
 
-    fn prepare(self: Box<Self>, config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
-        let diagram = self.diagram.ok_or_else(|| RenderError {
-            message: "No diagram parsed. Call parse() first.".to_string(),
-        })?;
+    fn supports_format(&self, format: OutputFormat) -> bool {
+        super::SUPPORTED_FORMATS.contains(&format)
+    }
+}
 
+struct ParsedFlowchart {
+    diagram: Diagram,
+}
+
+impl ParsedDiagram for ParsedFlowchart {
+    fn prepare(self: Box<Self>, config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
         // Diagram-specific pre-processing: annotate node IDs if requested.
         let diagram = if config.show_ids {
-            annotate_node_ids(diagram)
+            annotate_node_ids(self.diagram)
         } else {
-            diagram
+            self.diagram
         };
 
         Ok(PreparedDiagram::Graph(PreparedGraph {
             diagram_type: "flowchart",
             diagram,
         }))
-    }
-
-    fn supports_format(&self, format: OutputFormat) -> bool {
-        super::SUPPORTED_FORMATS.contains(&format)
     }
 }
 

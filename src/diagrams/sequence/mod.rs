@@ -26,7 +26,7 @@ pub fn definition() -> DiagramDefinition {
         id: "sequence",
         family: DiagramFamily::Timeline,
         detector: detect as DiagramDetector,
-        factory: || Box::new(SequenceInstance::default()),
+        factory: || Box::new(SequenceInstance::new()),
         supported_formats: SUPPORTED_FORMATS,
     }
 }

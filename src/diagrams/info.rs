@@ -7,7 +7,7 @@ use crate::errors::RenderError;
 use crate::family::DiagramFamily;
 use crate::format::OutputFormat;
 use crate::prepared::PreparedDiagram;
-use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
+use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance, ParsedDiagram};
 
 pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];
 
@@ -28,20 +28,18 @@ pub fn definition() -> DiagramDefinition {
         id: "info",
         family: DiagramFamily::Chart,
         detector: detect as DiagramDetector,
-        factory: || Box::new(InfoInstance::default()),
+        factory: || Box::new(InfoInstance::new()),
         supported_formats: SUPPORTED_FORMATS,
     }
 }
 
 /// Info diagram instance.
-pub struct InfoInstance {
-    parsed: bool,
-}
+pub struct InfoInstance;
 
 impl InfoInstance {
     /// Create a new info diagram instance.
     pub fn new() -> Self {
-        Self { parsed: false }
+        Self
     }
 }
 
@@ -52,21 +50,23 @@ impl Default for InfoInstance {
 }
 
 impl DiagramInstance for InfoInstance {
-    fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn parse(
+        self: Box<Self>,
+        input: &str,
+    ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
         crate::frontends::mermaid::parse_info(input)?;
-        self.parsed = true;
-        Ok(())
-    }
-
-    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
-        if !self.parsed {
-            return Err("Not parsed".into());
-        }
-
-        Ok(PreparedDiagram::Info)
+        Ok(Box::new(ParsedInfo))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
         SUPPORTED_FORMATS.contains(&format)
+    }
+}
+
+struct ParsedInfo;
+
+impl ParsedDiagram for ParsedInfo {
+    fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
+        Ok(PreparedDiagram::Info)
     }
 }

@@ -157,9 +157,8 @@ fn class_all_fixtures_parse() {
     for fixture in list_class_fixtures() {
         let path = class_fixture_dir().join(&fixture);
         let input = fs::read_to_string(&path).unwrap();
-        let mut instance = ClassInstance::new();
         assert!(
-            instance.parse(&input).is_ok(),
+            Box::new(ClassInstance::new()).parse(&input).is_ok(),
             "Failed to parse class fixture: {fixture}"
         );
     }

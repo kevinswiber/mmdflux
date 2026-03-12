@@ -32,7 +32,7 @@ pub fn definition() -> DiagramDefinition {
         id: "class",
         family: DiagramFamily::Graph,
         detector: detect as DiagramDetector,
-        factory: || Box::new(ClassInstance::default()),
+        factory: || Box::new(ClassInstance::new()),
         supported_formats: SUPPORTED_FORMATS,
     }
 }
