@@ -1,7 +1,7 @@
 //! Graph-family geometry IR contracts.
 //!
 //! Two-layer float-coordinate geometry produced by layout engines and
-//! consumed by routing and rendering. Engine-agnostic core with optional
+//! consumed by routing and downstream output stages. Engine-agnostic core with optional
 //! engine-specific hint channels.
 
 use std::collections::{HashMap, HashSet};
@@ -92,8 +92,8 @@ pub struct GraphGeometry {
     /// Optional graph-owned replay metadata for projecting float geometry onto a discrete grid.
     pub grid_projection: Option<GridProjection>,
     /// Edge indices rerouted by the layout engine (e.g., direction-override subgraph edges).
-    /// Populated by engines that perform SVG-specific subgraph post-processing.
-    /// Used by the SVG renderer to skip shape-clipping on explicitly routed edges.
+    /// Populated by engines that perform float-space subgraph post-processing.
+    /// Used by downstream emitters to preserve explicit endpoint geometry.
     pub rerouted_edges: HashSet<usize>,
     /// Whether enhanced backward edge routing should be applied.
     /// Set by engines that use layout quality enhancements (e.g., flux-layered).
@@ -175,8 +175,8 @@ pub enum EngineHints {
 
 /// Layered-layout-specific metadata needed during migration.
 ///
-/// Preserves rank-annotated data from the layered layout that the text pipeline
-/// needs for grid-snap coordinate transformation. Other engines won't populate this.
+/// Preserves rank-annotated data from the layered layout that grid replay
+/// needs for coordinate transformation. Other engines won't populate this.
 #[derive(Debug, Clone)]
 pub struct LayeredHints {
     /// Per-node rank assignments (node_id → rank).
@@ -193,12 +193,12 @@ pub struct LayeredHints {
 }
 
 // ---------------------------------------------------------------------------
-// Layer 2: RoutedGraphGeometry (routing output → renderer input)
+// Layer 2: RoutedGraphGeometry (routing output → downstream emitter input)
 // ---------------------------------------------------------------------------
 
 /// Graph geometry with fully-routed edge paths.
 ///
-/// Produced by the routing stage, consumed by renderers.
+/// Produced by the routing stage, consumed by downstream emitters.
 #[derive(Debug, Clone)]
 pub struct RoutedGraphGeometry {
     /// Same positioned nodes as input.

@@ -1,4 +1,4 @@
-//! SVG edge routing for direction-override subgraphs.
+//! Float-space edge routing for direction-override subgraphs.
 //!
 //! After sublayout reconciliation repositions nodes inside direction-override
 //! subgraphs, the layout's pre-computed Bézier paths are stale. This module computes
@@ -8,12 +8,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::engines::graph::algorithms::layered::{LayoutResult, NodeId, Point, Rect};
-// Re-export shared routing policy functions under their SVG-specific names
-// for backward compatibility with callers in svg.rs.
-pub use crate::graph::direction_policy::build_node_directions as build_node_directions_svg;
-use crate::graph::direction_policy::cross_boundary_edge_direction;
-pub use crate::graph::direction_policy::{
-    build_override_node_map, effective_edge_direction as effective_edge_direction_svg,
+#[cfg(test)]
+use crate::graph::direction_policy::build_node_directions;
+use crate::graph::direction_policy::{
+    build_override_node_map, cross_boundary_edge_direction, effective_edge_direction,
 };
 use crate::graph::geometry::FRect;
 use crate::graph::routing::{
@@ -58,7 +56,11 @@ fn entry_point(rect: &Rect, direction: Direction) -> Point {
 ///
 /// Computes a straight or L-shaped path using the effective direction.
 #[cfg(test)]
-pub fn route_svg_edge_direct(from_rect: &Rect, to_rect: &Rect, direction: Direction) -> Vec<Point> {
+pub fn route_float_edge_direct(
+    from_rect: &Rect,
+    to_rect: &Rect,
+    direction: Direction,
+) -> Vec<Point> {
     let start = exit_point(from_rect, direction);
     let end = entry_point(to_rect, direction);
     build_orthogonal_path_float(start.into(), end.into(), direction, &[])
@@ -72,7 +74,7 @@ pub fn route_svg_edge_direct(from_rect: &Rect, to_rect: &Rect, direction: Direct
 /// `from_port` and `to_port` are fractions (0.0–1.0) along the face,
 /// where 0.5 is the center.  This allows multiple edges sharing a face
 /// to attach at different positions, preventing overlap.
-fn route_svg_edge_ported(
+fn route_float_edge_ported(
     from_rect: &Rect,
     to_rect: &Rect,
     direction: Direction,
@@ -87,11 +89,11 @@ fn route_svg_edge_ported(
         .collect()
 }
 
-fn svg_spread_fraction_from_plan(fraction: f64, group_size: usize) -> f64 {
+fn float_spread_fraction_from_plan(fraction: f64, group_size: usize) -> f64 {
     if group_size <= 1 {
         0.5
     } else {
-        let margin = 0.25; // keep away from corners, matching prior SVG behavior
+        let margin = 0.25; // keep away from corners, matching prior float-space behavior
         margin + (1.0 - 2.0 * margin) * fraction
     }
 }
@@ -104,14 +106,14 @@ fn svg_spread_fraction_from_plan(fraction: f64, group_size: usize) -> f64 {
 /// along the flow direction — so paths swing outward rather than cutting
 /// through the interior of the diagram.
 #[cfg(test)]
-pub fn route_svg_edge_with_boundary(
+pub fn route_float_edge_with_boundary(
     from_rect: &Rect,
     to_rect: &Rect,
     _sg_rect: &Rect,
     _from_is_inside: bool,
     outside_direction: Direction,
 ) -> Vec<Point> {
-    route_svg_edge_direct(from_rect, to_rect, outside_direction)
+    route_float_edge_direct(from_rect, to_rect, outside_direction)
 }
 
 /// Statistics about rerouted edges for debugging.
@@ -179,7 +181,7 @@ pub fn reroute_override_edges(
             }
             (Some(sg_a), Some(sg_b)) if sg_a == sg_b => {
                 stats.internal += 1;
-                let dir = effective_edge_direction_svg(
+                let dir = effective_edge_direction(
                     node_directions,
                     &edge.from,
                     &edge.to,
@@ -259,13 +261,13 @@ pub fn reroute_override_edges(
     for (pi, pr) in pending.iter().enumerate() {
         if let Some(edge_plan) = attachment_plan.edge(pi) {
             if let Some(source) = edge_plan.source {
-                from_fractions[pi] = svg_spread_fraction_from_plan(
+                from_fractions[pi] = float_spread_fraction_from_plan(
                     source.fraction,
                     attachment_plan.group_size(&pr.from_id, source.face),
                 );
             }
             if let Some(target) = edge_plan.target {
-                to_fractions[pi] = svg_spread_fraction_from_plan(
+                to_fractions[pi] = float_spread_fraction_from_plan(
                     target.fraction,
                     attachment_plan.group_size(&pr.to_id, target.face),
                 );
@@ -279,7 +281,7 @@ pub fn reroute_override_edges(
             layout.nodes.get(&NodeId(pr.from_id.clone())),
             layout.nodes.get(&NodeId(pr.to_id.clone())),
         ) {
-            layout.edges[pr.layout_pos].points = route_svg_edge_ported(
+            layout.edges[pr.layout_pos].points = route_float_edge_ported(
                 from_rect,
                 to_rect,
                 pr.direction,
@@ -299,7 +301,7 @@ pub fn reroute_override_edges(
 /// another in a nested BT subgraph), their gap along the effective edge direction
 /// can be very small because the sublayouts optimise for different axes.  This
 /// function pushes the shallower (less-constrained) node away to create at least
-/// `min_gap` pixels of space.
+/// `min_gap` units of float-space clearance.
 ///
 /// Must run **before** `reroute_override_edges` so that rerouted paths use the
 /// corrected node positions.
@@ -521,7 +523,7 @@ pub fn reroute_subgraph_node_edges(diagram: &Diagram, layout: &mut LayoutResult)
         let to_rect = get_rect(layout, &pr.to_id);
         if let (Some(fr), Some(tr)) = (from_rect, to_rect) {
             layout.edges[pr.layout_pos].points =
-                route_svg_edge_ported(fr, tr, pr.direction, from_fractions[pi], to_fractions[pi]);
+                route_float_edge_ported(fr, tr, pr.direction, from_fractions[pi], to_fractions[pi]);
             rerouted.insert(pr.edge_index);
         }
     }
@@ -539,8 +541,8 @@ fn get_rect<'a>(layout: &'a LayoutResult, id: &str) -> Option<&'a Rect> {
 
 /// After sublayout reconciliation and overlap resolution, align direct sibling
 /// nodes with their cross-boundary edge targets on the cross-axis of the parent
-/// direction in layout float coordinates.  This is the SVG-pipeline equivalent of
-/// `align_cross_boundary_siblings_draw` in the text pipeline.
+/// direction in layout float coordinates. This mirrors
+/// `align_cross_boundary_siblings_draw` in the grid replay pipeline.
 pub fn align_cross_boundary_siblings(diagram: &Diagram, layout: &mut LayoutResult) {
     for (sg_id, sg) in &diagram.subgraphs {
         let Some(sub_dir) = sg.dir else { continue };
@@ -621,17 +623,17 @@ pub fn align_cross_boundary_siblings(diagram: &Diagram, layout: &mut LayoutResul
 mod tests {
     use super::*;
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::engines::graph::algorithms::layered::svg_layout::build_svg_layout_with_flags;
+    use crate::engines::graph::algorithms::layered::float_layout::build_float_layout_with_flags;
     use crate::frontends::mermaid::parse_flowchart;
-    use crate::graph::measure::SvgTextMetrics;
+    use crate::graph::measure::ProportionalTextMetrics;
     use crate::graph::routing::EdgeRouting;
 
     #[test]
-    fn test_build_node_directions_svg_basic() {
+    fn test_build_node_directions_basic() {
         let input = "graph TD\nsubgraph sg1\ndirection LR\nA --> B\nend\nC --> D\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let dirs = build_node_directions_svg(&diagram);
+        let dirs = build_node_directions(&diagram);
 
         assert_eq!(dirs.get("A").copied(), Some(Direction::LeftRight));
         assert_eq!(dirs.get("B").copied(), Some(Direction::LeftRight));
@@ -640,11 +642,11 @@ mod tests {
     }
 
     #[test]
-    fn test_build_node_directions_svg_nested_deepest_wins() {
+    fn test_build_node_directions_nested_deepest_wins() {
         let input = "graph TD\nsubgraph outer\ndirection LR\nsubgraph inner\ndirection BT\nA --> B\nend\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let dirs = build_node_directions_svg(&diagram);
+        let dirs = build_node_directions(&diagram);
 
         // Deepest override wins
         assert_eq!(dirs.get("A").copied(), Some(Direction::BottomTop));
@@ -652,25 +654,25 @@ mod tests {
     }
 
     #[test]
-    fn test_effective_edge_direction_svg_same_override() {
+    fn test_effective_edge_direction_same_override() {
         let mut dirs = HashMap::new();
         dirs.insert("A".to_string(), Direction::LeftRight);
         dirs.insert("B".to_string(), Direction::LeftRight);
         dirs.insert("C".to_string(), Direction::TopDown);
 
         assert_eq!(
-            effective_edge_direction_svg(&dirs, "A", "B", Direction::TopDown),
+            effective_edge_direction(&dirs, "A", "B", Direction::TopDown),
             Direction::LeftRight,
         );
         // Cross-boundary: falls back to root
         assert_eq!(
-            effective_edge_direction_svg(&dirs, "A", "C", Direction::TopDown),
+            effective_edge_direction(&dirs, "A", "C", Direction::TopDown),
             Direction::TopDown,
         );
     }
 
     #[test]
-    fn test_route_svg_edge_direct_aligned_td() {
+    fn test_route_float_edge_direct_aligned_td() {
         let from = Rect {
             x: 90.0,
             y: 10.0,
@@ -683,7 +685,7 @@ mod tests {
             width: 20.0,
             height: 20.0,
         };
-        let points = route_svg_edge_direct(&from, &to, Direction::TopDown);
+        let points = route_float_edge_direct(&from, &to, Direction::TopDown);
         assert_eq!(points.len(), 2);
         assert!((points[0].x - 100.0).abs() < 0.01);
         assert!((points[0].y - 30.0).abs() < 0.01);
@@ -692,7 +694,7 @@ mod tests {
     }
 
     #[test]
-    fn test_route_svg_edge_direct_aligned_lr() {
+    fn test_route_float_edge_direct_aligned_lr() {
         let from = Rect {
             x: 10.0,
             y: 90.0,
@@ -705,7 +707,7 @@ mod tests {
             width: 20.0,
             height: 20.0,
         };
-        let points = route_svg_edge_direct(&from, &to, Direction::LeftRight);
+        let points = route_float_edge_direct(&from, &to, Direction::LeftRight);
         assert_eq!(points.len(), 2);
         assert!((points[0].x - 30.0).abs() < 0.01);
         assert!((points[0].y - 100.0).abs() < 0.01);
@@ -714,7 +716,7 @@ mod tests {
     }
 
     #[test]
-    fn test_route_svg_edge_direct_offset_needs_elbow() {
+    fn test_route_float_edge_direct_offset_needs_elbow() {
         let from = Rect {
             x: 10.0,
             y: 10.0,
@@ -727,13 +729,13 @@ mod tests {
             width: 20.0,
             height: 20.0,
         };
-        let points = route_svg_edge_direct(&from, &to, Direction::TopDown);
+        let points = route_float_edge_direct(&from, &to, Direction::TopDown);
         // Offset: needs elbow
         assert!(points.len() >= 3);
     }
 
     #[test]
-    fn test_route_svg_edge_with_boundary_exit() {
+    fn test_route_float_edge_with_boundary_exit() {
         let from = Rect {
             x: 40.0,
             y: 40.0,
@@ -752,7 +754,7 @@ mod tests {
             width: 100.0,
             height: 100.0,
         };
-        let points = route_svg_edge_with_boundary(&from, &to, &sg, true, Direction::TopDown);
+        let points = route_float_edge_with_boundary(&from, &to, &sg, true, Direction::TopDown);
         assert!(!points.is_empty());
         // No NaN
         for p in &points {
@@ -761,7 +763,7 @@ mod tests {
     }
 
     #[test]
-    fn test_route_svg_edge_ported_center_matches_direct() {
+    fn test_route_float_edge_ported_center_matches_direct() {
         let from = Rect {
             x: 10.0,
             y: 10.0,
@@ -774,8 +776,8 @@ mod tests {
             width: 40.0,
             height: 20.0,
         };
-        let direct = route_svg_edge_direct(&from, &to, Direction::TopDown);
-        let ported = route_svg_edge_ported(&from, &to, Direction::TopDown, 0.5, 0.5);
+        let direct = route_float_edge_direct(&from, &to, Direction::TopDown);
+        let ported = route_float_edge_ported(&from, &to, Direction::TopDown, 0.5, 0.5);
         assert_eq!(direct.len(), ported.len());
         for (d, p) in direct.iter().zip(ported.iter()) {
             assert!((d.x - p.x).abs() < 0.01, "x mismatch: {} vs {}", d.x, p.x);
@@ -784,7 +786,7 @@ mod tests {
     }
 
     #[test]
-    fn test_route_svg_edge_ported_spread_endpoints() {
+    fn test_route_float_edge_ported_spread_endpoints() {
         let from = Rect {
             x: 100.0,
             y: 10.0,
@@ -798,8 +800,8 @@ mod tests {
             height: 40.0,
         };
         // Two edges entering `to` from top face at different ports
-        let left = route_svg_edge_ported(&from, &to, Direction::TopDown, 0.5, 0.25);
-        let right = route_svg_edge_ported(&from, &to, Direction::TopDown, 0.5, 0.75);
+        let left = route_float_edge_ported(&from, &to, Direction::TopDown, 0.5, 0.25);
+        let right = route_float_edge_ported(&from, &to, Direction::TopDown, 0.5, 0.75);
 
         // Both share the same from-exit (center of bottom face: x=130)
         assert!((left[0].x - 130.0).abs() < 0.01);
@@ -871,8 +873,8 @@ mod tests {
         let input = "graph TD\nsubgraph s1\ndirection LR\nA --> B\nend\nC --> A\nD --> A\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
-        let metrics = SvgTextMetrics::new(16.0, 15.0, 15.0);
-        let geometry = build_svg_layout_with_flags(
+        let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
+        let geometry = build_float_layout_with_flags(
             &diagram,
             &Default::default(),
             &metrics,

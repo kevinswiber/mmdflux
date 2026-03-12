@@ -1294,7 +1294,7 @@ fn node_center_for_id(diagram: &mmdflux::Diagram, node_id: &str) -> (f64, f64) {
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
-    let geom = run_layered_layout(&MeasurementMode::Text, diagram, &config)
+    let geom = run_layered_layout(&MeasurementMode::Grid, diagram, &config)
         .expect("layout should succeed for center lookup");
     let node = geom
         .nodes
@@ -2203,7 +2203,7 @@ fn svg_orthogonal_orthogonal_route_does_not_add_short_staircase_jogs_after_adjus
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
-    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+    let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
     let routed_edge = routed

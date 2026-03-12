@@ -5,6 +5,8 @@ pub(crate) mod adapter;
 pub(crate) mod bk;
 pub(crate) mod border;
 pub mod debug;
+pub(crate) mod float_layout;
+pub(crate) mod float_router;
 pub(crate) mod graph;
 mod grid_layout_config;
 pub(crate) mod layout_building;
@@ -21,17 +23,15 @@ pub(crate) mod rank;
 #[cfg(test)]
 mod regression_tests;
 pub mod support;
-pub(crate) mod svg_layout;
-pub(crate) mod svg_router;
 pub mod types;
 
 pub(crate) use adapter::from_layered_layout;
+pub(crate) use float_layout::build_float_layout_with_flags;
 pub use graph::DiGraph;
 pub use grid_layout_config::GridLayoutConfig;
 pub(crate) use measurement::layout_config_from_layered;
 pub use measurement::{MeasurementMode, run_layered_layout};
 pub use pipeline::{layout, layout_with_labels};
-pub(crate) use svg_layout::build_svg_layout_with_flags;
 pub use types::{
     Direction, EdgeLayout, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Ranker,
     Rect, SelfEdge, SelfEdgeLayout,

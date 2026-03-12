@@ -5,7 +5,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
-use super::svg_metrics::SvgTextMetrics;
+use super::svg_metrics::ProportionalTextMetrics;
 use crate::graph::direction_policy::{build_override_node_map, effective_edge_direction};
 use crate::graph::geometry::{EngineHints, FPoint, FRect, GraphGeometry};
 use crate::graph::routing::{
@@ -56,7 +56,8 @@ impl<'a> ResolvedSvgNodeStyle<'a> {
 
 /// Render SVG directly from precomputed graph geometry.
 ///
-/// This is used by runtime-selected engines that already produce `GraphGeometry`.
+/// This is used by callers that already have `GraphGeometry`, including the
+/// runtime facade and low-level replay paths.
 pub(crate) fn render_svg_from_geometry(
     diagram: &Diagram,
     options: &SvgRenderOptions,
@@ -64,7 +65,7 @@ pub(crate) fn render_svg_from_geometry(
     edge_routing: EdgeRouting,
 ) -> String {
     // Merge mode-derived rerouted edges with any engine-provided rerouted edges
-    // (e.g., direction-override subgraph edges set by build_svg_layout).
+    // (e.g., direction-override subgraph edges set by build_float_layout).
     let mut rerouted_edges = rerouted_edge_indexes_for_mode(geom, edge_routing);
     if !matches!(edge_routing, EdgeRouting::DirectRoute) {
         rerouted_edges.extend(geom.rerouted_edges.iter().copied());
@@ -106,7 +107,7 @@ fn render_svg_with_geometry_context(
     edge_routing: EdgeRouting,
 ) -> String {
     let scale = options.scale;
-    let metrics = SvgTextMetrics::new(
+    let metrics = ProportionalTextMetrics::new(
         options.font_size,
         options.node_padding_x,
         options.node_padding_y,
@@ -309,7 +310,7 @@ fn render_subgraphs(
     writer: &mut SvgWriter,
     diagram: &Diagram,
     geom: &GraphGeometry,
-    metrics: &SvgTextMetrics,
+    metrics: &ProportionalTextMetrics,
     scale: f64,
 ) {
     if geom.subgraphs.is_empty() {
@@ -1736,7 +1737,7 @@ fn render_edge_labels(
     self_edge_paths: &HashMap<usize, Vec<Point>>,
     rendered_edge_paths: &HashMap<usize, Vec<Point>>,
     override_nodes: &HashMap<String, String>,
-    metrics: &SvgTextMetrics,
+    metrics: &ProportionalTextMetrics,
     scale: f64,
 ) {
     let label_positions = precomputed_label_positions(geom);
@@ -1841,7 +1842,7 @@ fn render_nodes(
     writer: &mut SvgWriter,
     diagram: &Diagram,
     geom: &GraphGeometry,
-    metrics: &SvgTextMetrics,
+    metrics: &ProportionalTextMetrics,
     scale: f64,
 ) {
     writer.start_group("nodes");
@@ -1907,7 +1908,7 @@ fn render_node_label(
     text: &str,
     rect: &Rect,
     style: ResolvedSvgNodeStyle<'_>,
-    metrics: &SvgTextMetrics,
+    metrics: &ProportionalTextMetrics,
     scale: f64,
 ) {
     let lines: Vec<&str> = text.split('\n').collect();
@@ -2504,7 +2505,7 @@ fn render_text_centered(
     y: f64,
     text: &str,
     color: &str,
-    metrics: &SvgTextMetrics,
+    metrics: &ProportionalTextMetrics,
     scale: f64,
 ) {
     let lines: Vec<&str> = text.split('\n').collect();
@@ -2577,7 +2578,7 @@ impl SvgBounds {
 fn compute_svg_bounds(
     diagram: &Diagram,
     geom: &GraphGeometry,
-    metrics: &SvgTextMetrics,
+    metrics: &ProportionalTextMetrics,
     self_edge_paths: &HashMap<usize, Vec<Point>>,
     rendered_edge_paths: &HashMap<usize, Vec<Point>>,
 ) -> SvgBounds {
@@ -4538,7 +4539,7 @@ fn scale_rect(rect: &Rect, scale: f64) -> Rect {
 fn compute_self_edge_paths(
     diagram: &Diagram,
     geom: &GraphGeometry,
-    metrics: &SvgTextMetrics,
+    metrics: &ProportionalTextMetrics,
 ) -> HashMap<usize, Vec<Point>> {
     let pad = metrics.node_padding_x.max(metrics.node_padding_y).max(4.0);
     let mut paths = HashMap::new();

@@ -1,5 +1,6 @@
-//! Engine-owned SVG layout construction for graph-family diagrams.
+//! Engine-owned float-space layout construction for graph-family diagrams.
 
+use super::float_router;
 use super::layout_building::{
     build_layered_layout_with_config, compute_sublayouts, layered_config_for_layout,
 };
@@ -7,21 +8,21 @@ use super::layout_subgraph_ops::{
     center_override_subgraphs, expand_parent_bounds, reconcile_sublayouts,
     resolve_sublayout_overlaps,
 };
-use super::svg_router;
 use crate::engines::graph::algorithms::layered::{
     GridLayoutConfig, LayoutConfig, LayoutResult, from_layered_layout,
 };
+use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, RoutedEdgeGeometry};
-use crate::graph::measure::{SvgTextMetrics, svg_node_dimensions};
+use crate::graph::measure::{ProportionalTextMetrics, proportional_node_dimensions};
 use crate::graph::routing::{
     EdgeRouting, OrthogonalRoutingOptions, route_edges_orthogonal, route_graph_geometry,
 };
 use crate::graph::{Diagram, Direction, Stroke};
 
-pub(crate) fn build_svg_layout_with_flags(
+pub(crate) fn build_float_layout_with_flags(
     diagram: &Diagram,
     config: &GridLayoutConfig,
-    metrics: &SvgTextMetrics,
+    metrics: &ProportionalTextMetrics,
     edge_routing: EdgeRouting,
     skip_non_isolated_overrides: bool,
     engine_flags: Option<&LayoutConfig>,
@@ -41,7 +42,7 @@ pub(crate) fn build_svg_layout_with_flags(
     let mut layout = build_layered_layout_with_config(
         diagram,
         &layered_config,
-        |node| svg_node_dimensions(metrics, node, direction),
+        |node| proportional_node_dimensions(metrics, node, direction),
         |edge| {
             edge.label
                 .as_ref()
@@ -51,7 +52,7 @@ pub(crate) fn build_svg_layout_with_flags(
     let sublayouts = compute_sublayouts(
         diagram,
         &layered_config,
-        |node| svg_node_dimensions(metrics, node, direction),
+        |node| proportional_node_dimensions(metrics, node, direction),
         |edge| {
             edge.label
                 .as_ref()
@@ -88,17 +89,17 @@ pub(crate) fn build_svg_layout_with_flags(
     // Align sibling nodes with their cross-boundary edge targets on the
     // cross-axis of the parent direction.  Must run after reconciliation
     // and overlap resolution but before edge rerouting.
-    svg_router::align_cross_boundary_siblings(diagram, &mut layout);
+    float_router::align_cross_boundary_siblings(diagram, &mut layout);
     expand_parent_bounds(diagram, &mut layout, child_margin, title_margin);
 
     // Reroute edges affected by direction-override subgraphs.
     // This must happen after reconciliation moves nodes but before padding,
     // so routes use the reconciled node positions.
-    let node_directions = svg_router::build_node_directions_svg(diagram);
+    let node_directions = build_node_directions(diagram);
 
     // Push cross-boundary edge endpoints apart before rerouting so that the
     // fresh orthogonal paths have enough room for a visible edge stem.
-    svg_router::ensure_cross_boundary_edge_spacing(
+    float_router::ensure_cross_boundary_edge_spacing(
         diagram,
         &mut layout,
         &node_directions,
@@ -106,10 +107,10 @@ pub(crate) fn build_svg_layout_with_flags(
     );
 
     let (_stats, rerouted_edges) =
-        svg_router::reroute_override_edges(diagram, &mut layout, &node_directions);
+        float_router::reroute_override_edges(diagram, &mut layout, &node_directions);
 
     // Add padding to subgraph bounds for breathing room around nodes.
-    apply_subgraph_svg_padding(
+    apply_subgraph_float_padding(
         diagram,
         &mut layout,
         metrics.node_padding_x,
@@ -123,7 +124,7 @@ pub(crate) fn build_svg_layout_with_flags(
     // Reroute subgraph-as-node edges with fresh orthogonal paths computed from
     // padded subgraph bounds.  Must run after padding so endpoints land on the
     // visible subgraph border.
-    let sg_node_rerouted = svg_router::reroute_subgraph_node_edges(diagram, &mut layout);
+    let sg_node_rerouted = float_router::reroute_subgraph_node_edges(diagram, &mut layout);
     let mut rerouted_edges = rerouted_edges;
     rerouted_edges.extend(sg_node_rerouted);
 
@@ -183,7 +184,7 @@ fn apply_routed_edge_paths(
     }
 }
 
-fn apply_subgraph_svg_padding(
+fn apply_subgraph_float_padding(
     diagram: &Diagram,
     layout: &mut LayoutResult,
     pad_x: f64,
@@ -229,7 +230,7 @@ fn apply_subgraph_svg_padding(
 
 /// Push external nodes away from subgraph borders for subgraph-as-node edges.
 ///
-/// After `apply_subgraph_svg_padding` expands subgraph bounds, the gap between
+/// After `apply_subgraph_float_padding` expands subgraph bounds, the gap between
 /// external nodes and the visible subgraph border can be much smaller than a
 /// normal inter-rank edge.  This function ensures those gaps are at least
 /// `min_gap`, matching the visual weight of normal edges.

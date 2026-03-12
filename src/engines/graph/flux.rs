@@ -9,7 +9,7 @@ use crate::config::{
     RouteOwnership,
 };
 use crate::engines::graph::algorithms::layered::{
-    LabelDummyStrategy, LayoutConfig, MeasurementMode, build_svg_layout_with_flags,
+    LabelDummyStrategy, LayoutConfig, MeasurementMode, build_float_layout_with_flags,
     layout_config_from_layered, run_layered_layout,
 };
 use crate::engines::graph::{EngineConfig, GraphEngine, GraphSolveRequest, GraphSolveResult};
@@ -17,7 +17,7 @@ use crate::errors::RenderError;
 use crate::format::{OutputFormat, RoutingStyle};
 use crate::graph::Diagram;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
-use crate::graph::measure::default_svg_text_metrics;
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 
 /// Flux-layered engine: native graph-family layout plus native routing.
@@ -224,10 +224,10 @@ pub(crate) fn adapt_flux_profile_for_reversed_chain_crowding(
 }
 
 impl FluxLayeredEngine {
-    /// Create with text-grid measurement mode.
+    /// Create with grid measurement mode.
     pub fn text() -> Self {
         Self {
-            mode: MeasurementMode::Text,
+            mode: MeasurementMode::Grid,
         }
     }
 
@@ -262,8 +262,10 @@ impl GraphEngine for FluxLayeredEngine {
     ) -> Result<GraphSolveResult, RenderError> {
         let mode = match request.output_format {
             OutputFormat::Svg | OutputFormat::Mmds => match &self.mode {
-                MeasurementMode::Svg(_) => self.mode.clone(),
-                MeasurementMode::Text => MeasurementMode::Svg(default_svg_text_metrics()),
+                MeasurementMode::Proportional(_) => self.mode.clone(),
+                MeasurementMode::Grid => {
+                    MeasurementMode::Proportional(default_proportional_text_metrics())
+                }
             },
             _ => self.mode.clone(),
         };
@@ -289,15 +291,16 @@ impl GraphEngine for FluxLayeredEngine {
         let config = &enhanced_config;
 
         if matches!(request.output_format, OutputFormat::Svg) {
-            let MeasurementMode::Svg(ref metrics) = mode else {
+            let MeasurementMode::Proportional(ref metrics) = mode else {
                 return Err(RenderError {
-                    message: "internal: SVG output requires SVG measurement mode".to_string(),
+                    message: "internal: SVG output requires proportional measurement mode"
+                        .to_string(),
                 });
             };
             let EngineConfig::Layered(ref layered_cfg) = *config;
             let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
             layout_config.cluster_rank_sep = 0.0;
-            let geometry = build_svg_layout_with_flags(
+            let geometry = build_float_layout_with_flags(
                 diagram,
                 &layout_config,
                 metrics,

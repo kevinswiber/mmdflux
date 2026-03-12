@@ -32,7 +32,7 @@ fn layout_test(input: &str) -> (mmdflux::Diagram, GraphGeometry) {
     let fc = parse_flowchart(input).unwrap();
     let diagram = compile_to_graph(&fc);
     let config = flux_layout_config();
-    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
+    let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config).unwrap();
     (diagram, geom)
 }
 

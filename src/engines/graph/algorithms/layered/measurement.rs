@@ -10,19 +10,20 @@ use crate::format::OutputFormat;
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::grid_projection::{GridProjection, GridRanker, OverrideSubgraphProjection};
 use crate::graph::measure::{
-    DEFAULT_FONT_SIZE, DEFAULT_SVG_NODE_PADDING_X, DEFAULT_SVG_NODE_PADDING_Y, SvgTextMetrics,
-    svg_node_dimensions, text_edge_label_dimensions, text_node_dimensions,
+    DEFAULT_PROPORTIONAL_FONT_SIZE, DEFAULT_PROPORTIONAL_NODE_PADDING_X,
+    DEFAULT_PROPORTIONAL_NODE_PADDING_Y, ProportionalTextMetrics, grid_edge_label_dimensions,
+    grid_node_dimensions, proportional_node_dimensions,
 };
 use crate::graph::{Diagram, Direction, Edge, Node};
 
-/// Measurement mode controls whether layout uses text-grid character
-/// dimensions or SVG pixel dimensions for node sizing.
+/// Measurement mode controls whether layout uses grid-cell dimensions or
+/// proportional float-space dimensions for node sizing.
 #[derive(Debug, Clone)]
 pub enum MeasurementMode {
-    /// Text-grid character dimensions (for text/ascii rendering).
-    Text,
-    /// SVG pixel dimensions (for MMDS and SVG output).
-    Svg(SvgTextMetrics),
+    /// Grid-cell dimensions for text/ascii replay.
+    Grid,
+    /// Proportional dimensions for float-space geometry used by SVG/MMDS output.
+    Proportional(ProportionalTextMetrics),
 }
 
 impl MeasurementMode {
@@ -30,17 +31,18 @@ impl MeasurementMode {
     pub fn for_format(format: OutputFormat, config: &RenderConfig) -> Self {
         match format {
             OutputFormat::Mmds | OutputFormat::Svg => {
-                let font_size = DEFAULT_FONT_SIZE;
+                let font_size = DEFAULT_PROPORTIONAL_FONT_SIZE;
                 let node_padding_x = config
                     .svg_node_padding_x
-                    .unwrap_or(DEFAULT_SVG_NODE_PADDING_X);
+                    .unwrap_or(DEFAULT_PROPORTIONAL_NODE_PADDING_X);
                 let node_padding_y = config
                     .svg_node_padding_y
-                    .unwrap_or(DEFAULT_SVG_NODE_PADDING_Y);
-                let metrics = SvgTextMetrics::new(font_size, node_padding_x, node_padding_y);
-                MeasurementMode::Svg(metrics)
+                    .unwrap_or(DEFAULT_PROPORTIONAL_NODE_PADDING_Y);
+                let metrics =
+                    ProportionalTextMetrics::new(font_size, node_padding_x, node_padding_y);
+                MeasurementMode::Proportional(metrics)
             }
-            _ => MeasurementMode::Text,
+            _ => MeasurementMode::Grid,
         }
     }
 }
@@ -80,30 +82,30 @@ pub(crate) fn layout_config_from_layered(
     }
 }
 
-fn text_node_layout_dimensions(node: &Node, direction: Direction) -> (f64, f64) {
-    let (width, height) = text_node_dimensions(node, direction);
+fn grid_node_layout_dimensions(node: &Node, direction: Direction) -> (f64, f64) {
+    let (width, height) = grid_node_dimensions(node, direction);
     (width as f64, height as f64)
 }
 
-fn text_edge_label_layout_dimensions(edge: &Edge) -> Option<(f64, f64)> {
+fn grid_edge_label_layout_dimensions(edge: &Edge) -> Option<(f64, f64)> {
     edge.label
         .as_ref()
-        .map(|label| text_edge_label_dimensions(label))
+        .map(|label| grid_edge_label_dimensions(label))
 }
 
 fn override_subgraph_projections(
     diagram: &Diagram,
     layered_cfg: &super::LayoutConfig,
 ) -> std::collections::HashMap<String, OverrideSubgraphProjection> {
-    let text_config = layout_config_from_layered(layered_cfg, diagram);
-    let layered_config = layered_config_for_layout(diagram, &text_config);
+    let grid_config = layout_config_from_layered(layered_cfg, diagram);
+    let layered_config = layered_config_for_layout(diagram, &grid_config);
     let direction = diagram.direction;
 
     compute_sublayouts(
         diagram,
         &layered_config,
-        |node| text_node_layout_dimensions(node, direction),
-        text_edge_label_layout_dimensions,
+        |node| grid_node_layout_dimensions(node, direction),
+        grid_edge_label_layout_dimensions,
         false,
     )
     .into_iter()
@@ -136,8 +138,8 @@ pub fn run_layered_layout(
 
     let EngineConfig::Layered(layered_cfg) = config;
     let override_subgraphs = override_subgraph_projections(diagram, layered_cfg);
-    let text_config = layout_config_from_layered(layered_cfg, diagram);
-    let mut lc = layered_config_for_layout(diagram, &text_config);
+    let grid_config = layout_config_from_layered(layered_cfg, diagram);
+    let mut lc = layered_config_for_layout(diagram, &grid_config);
     lc.greedy_switch = layered_cfg.greedy_switch;
     lc.model_order_tiebreak = layered_cfg.model_order_tiebreak;
     lc.variable_rank_spacing = layered_cfg.variable_rank_spacing;
@@ -149,16 +151,16 @@ pub fn run_layered_layout(
 
     let direction = diagram.direction;
     let mut result = match mode {
-        MeasurementMode::Text => build_layered_layout_with_config(
+        MeasurementMode::Grid => build_layered_layout_with_config(
             diagram,
             &lc,
-            |node| text_node_layout_dimensions(node, direction),
-            text_edge_label_layout_dimensions,
+            |node| grid_node_layout_dimensions(node, direction),
+            grid_edge_label_layout_dimensions,
         ),
-        MeasurementMode::Svg(metrics) => build_layered_layout_with_config(
+        MeasurementMode::Proportional(metrics) => build_layered_layout_with_config(
             diagram,
             &lc,
-            |node| svg_node_dimensions(metrics, node, direction),
+            |node| proportional_node_dimensions(metrics, node, direction),
             |edge| {
                 edge.label
                     .as_ref()

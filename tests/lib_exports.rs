@@ -256,6 +256,25 @@ fn low_level_graph_engine_api_is_accessible_from_explicit_namespace() {
 }
 
 #[test]
+fn renamed_graph_measurement_and_layered_mode_api_are_accessible() {
+    let metrics = mmdflux::graph::measure::default_proportional_text_metrics();
+    let _mode = mmdflux::engines::graph::algorithms::layered::MeasurementMode::Proportional(
+        metrics.clone(),
+    );
+    let _grid = mmdflux::engines::graph::algorithms::layered::MeasurementMode::Grid;
+    let _node_dims = mmdflux::graph::measure::grid_node_dimensions(
+        &Node::new("A").with_label("A"),
+        Direction::TopDown,
+    );
+    let _label_dims = mmdflux::graph::measure::grid_edge_label_dimensions("edge");
+    let _float_dims = mmdflux::graph::measure::proportional_node_dimensions(
+        &metrics,
+        &Node::new("B").with_label("B"),
+        Direction::TopDown,
+    );
+}
+
+#[test]
 fn low_level_text_replay_api_is_accessible_from_explicit_namespace() {
     let _ = mmdflux::render::graph::text_replay::GridLayoutConfig::default();
 }

@@ -1,20 +1,22 @@
 //! Shared graph-family measurement primitives.
+//!
+//! Graph-owned measurement stays renderer-agnostic: engines use grid
+//! measurement for discrete replay layouts and proportional measurement for
+//! float-space geometry.
 
 use crate::graph::{Direction, Node, Shape};
 
-/// Mermaid default font family for SVG output.
-pub const DEFAULT_FONT_FAMILY: &str = "\"trebuchet ms\", verdana, arial, sans-serif";
-/// Default font size (px) for SVG output.
-pub const DEFAULT_FONT_SIZE: f64 = 16.0;
-/// Default horizontal node padding for SVG output.
-pub const DEFAULT_SVG_NODE_PADDING_X: f64 = 15.0;
-/// Default vertical node padding for SVG output.
-pub const DEFAULT_SVG_NODE_PADDING_Y: f64 = 15.0;
+/// Default font size used for proportional measurement.
+pub const DEFAULT_PROPORTIONAL_FONT_SIZE: f64 = 16.0;
+/// Default horizontal node padding used for proportional measurement.
+pub const DEFAULT_PROPORTIONAL_NODE_PADDING_X: f64 = 15.0;
+/// Default vertical node padding used for proportional measurement.
+pub const DEFAULT_PROPORTIONAL_NODE_PADDING_Y: f64 = 15.0;
 /// Scale factor applied to approximate Mermaid's measured text widths.
 const TEXT_WIDTH_SCALE: f64 = 1.16;
 
 #[derive(Debug, Clone)]
-pub struct SvgTextMetrics {
+pub struct ProportionalTextMetrics {
     pub font_size: f64,
     pub line_height: f64,
     pub node_padding_x: f64,
@@ -23,7 +25,7 @@ pub struct SvgTextMetrics {
     pub label_padding_y: f64,
 }
 
-impl SvgTextMetrics {
+impl ProportionalTextMetrics {
     pub fn new(font_size: f64, node_padding_x: f64, node_padding_y: f64) -> Self {
         Self {
             font_size,
@@ -73,17 +75,17 @@ impl SvgTextMetrics {
     }
 }
 
-/// Default SVG text metrics used by engine-side SVG/MMDS layout flows.
-pub fn default_svg_text_metrics() -> SvgTextMetrics {
-    SvgTextMetrics::new(
-        DEFAULT_FONT_SIZE,
-        DEFAULT_SVG_NODE_PADDING_X,
-        DEFAULT_SVG_NODE_PADDING_Y,
+/// Default proportional metrics used by engine-side float/MMDS layout flows.
+pub fn default_proportional_text_metrics() -> ProportionalTextMetrics {
+    ProportionalTextMetrics::new(
+        DEFAULT_PROPORTIONAL_FONT_SIZE,
+        DEFAULT_PROPORTIONAL_NODE_PADDING_X,
+        DEFAULT_PROPORTIONAL_NODE_PADDING_Y,
     )
 }
 
-/// Calculate the dimensions needed to render a node in the text renderer.
-pub fn text_node_dimensions(node: &Node, direction: Direction) -> (usize, usize) {
+/// Calculate the grid dimensions needed to replay a node in the grid surface.
+pub fn grid_node_dimensions(node: &Node, direction: Direction) -> (usize, usize) {
     let lines: Vec<&str> = node.label.split('\n').collect();
     let max_line_len = lines
         .iter()
@@ -103,8 +105,8 @@ pub fn text_node_dimensions(node: &Node, direction: Direction) -> (usize, usize)
     (w, h)
 }
 
-/// Text edge-label dimensions used by layered measurement and text layout.
-pub fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
+/// Grid edge-label dimensions used by layered measurement and grid replay.
+pub fn grid_edge_label_dimensions(label: &str) -> (f64, f64) {
     let lines: Vec<&str> = label.split('\n').collect();
     let width = lines
         .iter()
@@ -115,9 +117,9 @@ pub fn text_edge_label_dimensions(label: &str) -> (f64, f64) {
     (width as f64 + 2.0, height as f64)
 }
 
-/// SVG node dimensions used during layered measurement and SVG layout.
-pub fn svg_node_dimensions(
-    metrics: &SvgTextMetrics,
+/// Proportional node dimensions used during layered measurement and float layout.
+pub fn proportional_node_dimensions(
+    metrics: &ProportionalTextMetrics,
     node: &Node,
     direction: Direction,
 ) -> (f64, f64) {
@@ -233,7 +235,7 @@ mod tests {
 
     #[test]
     fn measure_text_uses_proportional_heuristic() {
-        let metrics = SvgTextMetrics::new(16.0, 8.0, 6.4);
+        let metrics = ProportionalTextMetrics::new(16.0, 8.0, 6.4);
         let (w, h) = metrics.measure_text_with_padding("ABC", 0.0, 0.0);
 
         assert!(w > 16.0);
@@ -241,9 +243,9 @@ mod tests {
     }
 
     #[test]
-    fn text_node_dimensions_match_text_box_model() {
+    fn grid_node_dimensions_match_grid_box_model() {
         let node = Node::new("A").with_label("Hello");
-        let (w, h) = text_node_dimensions(&node, Direction::TopDown);
+        let (w, h) = grid_node_dimensions(&node, Direction::TopDown);
         assert_eq!((w, h), (9, 3));
     }
 }

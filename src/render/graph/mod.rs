@@ -22,7 +22,7 @@ pub(crate) mod text_shape;
 pub(crate) mod text_subgraph;
 pub(crate) mod text_types;
 
-use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
+use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE};
 use self::text_types::SubgraphBounds;
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
@@ -71,7 +71,7 @@ pub struct SvgRenderOptions {
 
 impl Default for SvgRenderOptions {
     fn default() -> Self {
-        let font_size = DEFAULT_FONT_SIZE;
+        let font_size = DEFAULT_PROPORTIONAL_FONT_SIZE;
         Self {
             scale: 1.0,
             font_family: DEFAULT_FONT_FAMILY.to_string(),

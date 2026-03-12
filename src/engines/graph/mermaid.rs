@@ -11,7 +11,7 @@ use crate::config::{
     RouteOwnership,
 };
 use crate::engines::graph::algorithms::layered::{
-    LayoutConfig, MeasurementMode, build_svg_layout_with_flags, layout_config_from_layered,
+    LayoutConfig, MeasurementMode, build_float_layout_with_flags, layout_config_from_layered,
     run_layered_layout,
 };
 use crate::engines::graph::{EngineConfig, GraphEngine, GraphSolveRequest, GraphSolveResult};
@@ -19,7 +19,7 @@ use crate::errors::RenderError;
 use crate::format::{OutputFormat, RoutingStyle};
 use crate::graph::Diagram;
 use crate::graph::geometry::RoutedGraphGeometry;
-use crate::graph::measure::default_svg_text_metrics;
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 
 /// Mermaid dagre default for isolated subgraphs without explicit direction:
@@ -113,13 +113,13 @@ impl Default for MermaidLayeredEngine {
 }
 
 impl MermaidLayeredEngine {
-    /// Create with default SVG measurement mode.
+    /// Create with default proportional measurement mode.
     ///
-    /// Mermaid renders to SVG, so this adapter defaults to SVG/MMDS-friendly
-    /// measurement and rejects text-family outputs.
+    /// This adapter only supports SVG/MMDS output, so it defaults to
+    /// proportional measurement and rejects text-family outputs.
     pub fn new() -> Self {
         Self {
-            mode: MeasurementMode::Svg(default_svg_text_metrics()),
+            mode: MeasurementMode::Proportional(default_proportional_text_metrics()),
         }
     }
 
@@ -163,8 +163,10 @@ impl GraphEngine for MermaidLayeredEngine {
 
         let mode = match request.output_format {
             OutputFormat::Svg | OutputFormat::Mmds => match &self.mode {
-                MeasurementMode::Svg(_) => self.mode.clone(),
-                MeasurementMode::Text => MeasurementMode::Svg(default_svg_text_metrics()),
+                MeasurementMode::Proportional(_) => self.mode.clone(),
+                MeasurementMode::Grid => {
+                    MeasurementMode::Proportional(default_proportional_text_metrics())
+                }
             },
             _ => self.mode.clone(),
         };
@@ -173,9 +175,10 @@ impl GraphEngine for MermaidLayeredEngine {
             request.output_format,
             OutputFormat::Svg | OutputFormat::Mmds
         ) {
-            let MeasurementMode::Svg(ref metrics) = mode else {
+            let MeasurementMode::Proportional(ref metrics) = mode else {
                 return Err(RenderError {
-                    message: "internal: SVG output requires SVG measurement mode".to_string(),
+                    message: "internal: SVG output requires proportional measurement mode"
+                        .to_string(),
                 });
             };
             let EngineConfig::Layered(ref layered_cfg) = *config;
@@ -185,7 +188,7 @@ impl GraphEngine for MermaidLayeredEngine {
                 always_compound_ordering: true,
                 ..Default::default()
             };
-            let geometry = build_svg_layout_with_flags(
+            let geometry = build_float_layout_with_flags(
                 diagram,
                 &layout_config,
                 metrics,

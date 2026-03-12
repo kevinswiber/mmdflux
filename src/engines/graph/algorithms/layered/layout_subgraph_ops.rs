@@ -2,8 +2,8 @@
 //!
 //! These functions reconcile direction-override sublayouts, center external
 //! nodes around subgraph bounds, expand parent bounds, and resolve overlaps —
-//! all in the layout engine's float coordinate space.  They are consumed by
-//! the SVG pipeline (`svg.rs`) and the engine solve path (`engine.rs`).
+//! all in the layout engine's float coordinate space. They are consumed by
+//! the layered engine's float-layout and measurement paths.
 
 use std::collections::{HashMap, HashSet};
 
@@ -11,7 +11,7 @@ use super::layout_building::SubLayoutResult;
 use crate::engines::graph::algorithms::layered::{self, Rect};
 use crate::graph::{Diagram, Direction};
 
-/// Reconcile direction-override sub-layouts into a LayoutResult (SVG pipeline).
+/// Reconcile direction-override sub-layouts into a float-layout result.
 ///
 /// This updates node positions, internal edge paths, label positions, and subgraph bounds
 /// for subgraphs that override direction.
@@ -597,8 +597,8 @@ pub(crate) fn center_override_subgraphs(diagram: &Diagram, layout: &mut layered:
 /// union of its current bounds and all member content.
 ///
 /// `child_margin` adds space between parent and child subgraph borders.
-/// In SVG this should match the subgraph padding so borders don't overlap;
-/// in the text pipeline pass 0.0 (draw-coordinate expansion handles padding).
+/// For padded float layouts this should usually match the subgraph padding;
+/// callers that only need containment can pass `0.0`.
 ///
 /// `title_margin` adds extra top space when the parent has a visible title,
 /// so the child border doesn't overlap the parent's title text.

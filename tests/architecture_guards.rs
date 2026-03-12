@@ -341,7 +341,7 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
         "render::graph owns geometry-based graph-family emitters",
         "runtime owns graph-family solve-result dispatch",
         "render::diagram owns family-local renderers",
-        "graph/ owns graph-family IR, routed geometry, and shared policy/measurement helpers",
+        "graph/ owns graph-family IR, float-space geometry, and shared policy/measurement helpers",
         "mmds/ is the MMDS contract and output namespace",
         "MMDS is a frontend, not a logical diagram type",
         "engines do not know about diagram types",
@@ -601,6 +601,26 @@ fn engine_taxonomy_uses_explicit_engine_and_algorithm_namespaces() {
             .join("src/engines/graph/layered_engine.rs")
             .exists()
     );
+    assert!(
+        repo_root
+            .join("src/engines/graph/algorithms/layered/float_layout.rs")
+            .exists()
+    );
+    assert!(
+        repo_root
+            .join("src/engines/graph/algorithms/layered/float_router.rs")
+            .exists()
+    );
+    assert!(
+        !repo_root
+            .join("src/engines/graph/algorithms/layered/svg_layout.rs")
+            .exists()
+    );
+    assert!(
+        !repo_root
+            .join("src/engines/graph/algorithms/layered/svg_router.rs")
+            .exists()
+    );
 }
 
 #[test]
@@ -743,7 +763,7 @@ fn render_svg_source_does_not_define_layout_builders() {
     let content = std::fs::read_to_string(&path).unwrap();
 
     for forbidden in [
-        "build_svg_layout_with_flags",
+        "build_float_layout_with_flags",
         "crate::engines::graph::algorithms::layered::LayoutConfig",
     ] {
         assert!(
@@ -790,6 +810,37 @@ fn graph_does_not_import_render_or_layered_kernel() {
             "crate::engines::graph::algorithms::layered",
         ],
         "graph/ should remain render-agnostic and layered-kernel agnostic",
+    );
+}
+
+#[test]
+fn graph_and_engine_sources_do_not_restore_render_format_internal_names() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    assert_no_full_source_imports(
+        &repo_root.join("src/graph"),
+        &[
+            "SvgTextMetrics",
+            "default_svg_text_metrics",
+            "svg_node_dimensions",
+            "text_node_dimensions",
+            "text_edge_label_dimensions",
+            "DEFAULT_FONT_FAMILY",
+        ],
+        "graph/ should use grid/proportional terminology for shared measurement",
+    );
+
+    assert_no_full_source_imports(
+        &repo_root.join("src/engines"),
+        &[
+            "MeasurementMode::Text",
+            "MeasurementMode::Svg",
+            "build_svg_layout_with_flags",
+            "build_node_directions_svg",
+            "effective_edge_direction_svg",
+            "route_svg_edge_",
+        ],
+        "engines/ should use float/grid/proportional terminology for internal layout helpers",
     );
 }
 

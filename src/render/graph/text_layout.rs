@@ -2099,7 +2099,7 @@ mod tests {
             |edge| {
                 edge.label
                     .as_ref()
-                    .map(|label| crate::graph::measure::text_edge_label_dimensions(label))
+                    .map(|label| crate::graph::measure::grid_edge_label_dimensions(label))
             },
         );
 

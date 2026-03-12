@@ -2,7 +2,7 @@
 //! struct consumed by the text renderer.
 //!
 //! This is the bridge between the engine pipeline (which produces float
-//! coordinates via `MeasurementMode::Text`) and text rendering (which
+//! coordinates via `MeasurementMode::Grid`) and text rendering (which
 //! operates on character-grid integer coordinates).
 //!
 //! All phases (B-N) are implemented inline, reading directly from

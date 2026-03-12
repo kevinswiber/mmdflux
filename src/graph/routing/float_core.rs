@@ -527,10 +527,10 @@ fn segment_sign(delta: f64) -> i8 {
 /// from `approach` toward the node center.
 ///
 /// This is the single source of truth for endpoint geometry used by both the
-/// orthogonal router and SVG renderer.
+/// orthogonal router and downstream float-space consumers.
 ///
 /// Coordinate convention: `FRect` uses top-left origin `(rect.x, rect.y)`
-/// with `width`/`height` extending right and down, matching SVG's `layered::Rect`.
+/// with `width`/`height` extending right and down, matching the layered layout rect convention.
 pub(crate) fn intersect_shape_boundary_float(
     rect: FRect,
     shape: Shape,
@@ -588,7 +588,7 @@ fn intersect_rect_boundary(rect: FRect, approach: FPoint) -> FPoint {
     FPoint::new(cx + sx, cy + sy)
 }
 
-/// Indent fraction for hexagon flat top/bottom edges (matches SVG polygon).
+/// Indent fraction for hexagon flat top/bottom edges.
 pub(crate) const HEXAGON_INDENT_FACTOR: f64 = 0.2;
 
 /// Return the 6 vertices of a hexagon inscribed in `rect`.

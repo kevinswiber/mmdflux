@@ -876,7 +876,7 @@ mod tests {
         let config = EngineConfig::Layered(
             crate::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
-        let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config).unwrap();
+        let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config).unwrap();
         (diagram, geom)
     }
 

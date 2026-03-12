@@ -1,7 +1,7 @@
 //! Float-first orthogonal routing preview helpers.
 //!
 //! This module routes edges in float space first, then optionally applies a
-//! deterministic grid snap adapter for text-oriented consumption.
+//! deterministic grid snap adapter for grid replay.
 
 use std::collections::{HashMap, HashSet};
 
@@ -708,8 +708,8 @@ fn clamp_face_coordinate_with_corner_inset(value: f64, min: f64, max: f64, max_i
     if span <= POINT_EPS {
         (lo + hi) / 2.0
     } else {
-        // Scale inset with face span so text-sized nodes keep usable side lanes,
-        // while SVG-sized nodes still enforce a visibly distinct stem offset.
+        // Scale inset with face span so compact grid-like nodes keep usable side
+        // lanes, while larger proportional nodes still enforce a distinct stem offset.
         let inset = (span * 0.2).clamp(1.0, max_inset);
         if span <= inset * 2.0 {
             (lo + hi) / 2.0
@@ -1619,7 +1619,7 @@ fn has_backward_corridor_obstructions(
 /// **LR/RL:** source bottom face → channel lane → target bottom face
 ///
 /// This matches the non-orthogonal `build_backward_channel_path` approach and
-/// is already axis-aligned, so it works directly for step/smooth-step/curved-step rendering.
+/// is already axis-aligned, so downstream draw styles can consume it directly.
 fn build_backward_orthogonal_channel_path(
     edge: &crate::graph::geometry::LayoutEdge,
     geometry: &GraphGeometry,
@@ -3364,7 +3364,7 @@ fn enforce_backward_minimum_channel_floor(
 }
 
 /// After `snap_backward_endpoints_to_shape`, diamond/hexagon source endpoints
-/// may create diagonal segments.  When the SVG orthogonal renderer splits
+/// may create diagonal segments. When downstream orthogonal draw logic splits
 /// these into axis-aligned steps (vertical-first), the vertical leg can cut
 /// through an intermediate node.
 ///
@@ -4930,8 +4930,8 @@ fn snap_backward_endpoints_to_shape(
     {
         let approach = path[last - 1];
         let boundary = intersect_shape_boundary_float(to_rect, to_shape, approach);
-        // Add marker clearance: the SVG arrowhead marker has physical width
-        // (8px base), and on angled diamond/hexagon edges the marker body
+        // Add marker clearance: downstream arrow markers have physical width,
+        // and on angled diamond/hexagon edges the marker body
         // protrudes past the shape boundary. Push the endpoint outward along
         // the approach direction so the marker body clears the angled edge.
         let dx = approach.x - boundary.x;

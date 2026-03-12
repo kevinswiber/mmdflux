@@ -45,7 +45,7 @@ impl From<LayoutConfig> for EngineConfig {
 /// Request parameters for a `GraphEngine::solve()` call.
 #[derive(Debug, Clone)]
 pub struct GraphSolveRequest {
-    /// Target output format (affects node measurement: text-grid vs pixel).
+    /// Target output format (affects node measurement: grid vs proportional).
     pub output_format: OutputFormat,
     /// Geometry detail level requested by the caller.
     pub geometry_level: GeometryLevel,

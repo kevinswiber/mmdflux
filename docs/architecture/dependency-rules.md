@@ -6,7 +6,7 @@ contributors:
 
 - `frontends/` own source ingestion
 - `diagrams/` own compilation and instance behavior
-- `graph/` owns graph-family IR, routed geometry, and shared policy/measurement helpers
+- `graph/` owns graph-family IR, float-space geometry, and shared policy/measurement helpers
 - `render/` owns output production
 - `mmds/` owns the MMDS contract and output helpers
 
@@ -47,11 +47,11 @@ Guard tests should fail when the code drifts away from these rules.
    renderers that do not use the shared graph-family pipeline live under
    `src/render/diagram/`.
 
-8. **graph/ owns graph-family IR, routed geometry, and shared policy/measurement helpers** —
+8. **graph/ owns graph-family IR, float-space geometry, and shared policy/measurement helpers** —
    `src/graph/` contains reusable graph-family models, solved and routed
-   geometry, direction policy, and shared graph-family measurement/routing
-   helpers. Output emission does not live under `src/graph/`, but graph-family
-   routing and shared sizing/policy do.
+   geometry, direction policy, and shared graph-family grid/proportional
+   measurement and routing helpers. Output emission does not live under
+   `src/graph/`, but graph-family routing and shared sizing/policy do.
 
 9. **mmds/ is the MMDS contract and output namespace** — `src/mmds/` owns the
    typed MMDS envelope, profile vocabulary, Mermaid regeneration helpers, and
@@ -65,7 +65,9 @@ Guard tests should fail when the code drifts away from these rules.
     (`src/engines/`) solve generic graph layout problems and own layout building / measurement adapters.
     They may use shared graph-family helpers, but they never reference flowchart,
     class, sequence, or other logical diagram types, and they do not import
-    render-owned modules.
+    render-owned modules. Engine-side internals should describe float-space,
+    grid, and proportional measurement concepts directly rather than using
+    render-format names like `Svg` or `Text`.
 
 12. **flat top-level contract modules own the stable public contract** —
     Stable public config types, request/response types, diagnostics, and error

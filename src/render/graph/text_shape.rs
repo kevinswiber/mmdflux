@@ -1,6 +1,6 @@
 //! Node shape rendering.
 
-use crate::graph::measure::text_node_dimensions;
+use crate::graph::measure::grid_node_dimensions;
 use crate::graph::{Direction, Node, Shape};
 use crate::render::graph::text_replay::intersect::NodeFace;
 use crate::render::primitives::canvas::{Canvas, CellStyle};
@@ -236,7 +236,7 @@ pub fn categorize_shape(shape: Shape) -> ShapeCategory {
 /// ForkJoin bars are perpendicular to the flow direction: horizontal for TD/BT,
 /// vertical for LR/RL. When rendered vertically, width and height are swapped.
 pub fn node_dimensions(node: &Node, direction: Direction) -> (usize, usize) {
-    text_node_dimensions(node, direction)
+    grid_node_dimensions(node, direction)
 }
 
 #[derive(Debug, Clone, Copy, Default)]

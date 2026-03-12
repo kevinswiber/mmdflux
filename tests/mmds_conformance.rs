@@ -244,7 +244,7 @@ fn check_layout(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
 
-    let direct_geom = match run_layered_layout(&MeasurementMode::Text, direct, &engine_config) {
+    let direct_geom = match run_layered_layout(&MeasurementMode::Grid, direct, &engine_config) {
         Ok(geom) => geom,
         Err(e) => {
             return TierResult {
@@ -254,7 +254,7 @@ fn check_layout(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
         }
     };
 
-    let roundtrip_geom = match run_layered_layout(&MeasurementMode::Text, roundtrip, &engine_config)
+    let roundtrip_geom = match run_layered_layout(&MeasurementMode::Grid, roundtrip, &engine_config)
     {
         Ok(geom) => geom,
         Err(e) => {

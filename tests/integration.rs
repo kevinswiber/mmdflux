@@ -68,7 +68,7 @@ fn layout_fixture_with_routed(name: &str) -> (Diagram, Layout) {
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
-    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+    let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
     let layout = geometry_to_text_layout_with_routed(
@@ -190,7 +190,7 @@ fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
-    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+    let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
 }
@@ -201,7 +201,7 @@ fn route_input_orthogonal(input: &str) -> RoutedGraphGeometry {
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
-    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+    let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
 }
@@ -3053,7 +3053,7 @@ fn test_orthogonal_route_routed_geometry_is_axis_aligned_for_forward_edges() {
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
-    let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+    let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
@@ -4070,7 +4070,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let config = EngineConfig::Layered(
             mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
-        let geom = run_layered_layout(&MeasurementMode::Text, &diagram, &config)
+        let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
             .expect("layout should succeed");
 
         let source_rect = geom
