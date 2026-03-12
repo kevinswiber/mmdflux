@@ -359,7 +359,7 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
         "registry_builtins",
         "graph_family_pipeline",
         "timeline::sequence",
-        "text_replay",
+        "text_canvas",
         "render_svg_from_routed_geometry",
     ] {
         assert!(
@@ -994,12 +994,12 @@ fn graph_grid_uses_explicit_routing_helper_modules() {
 }
 
 #[test]
-fn render_graph_facade_exposes_text_replay_and_routed_svg_entrypoint() {
+fn render_graph_facade_exposes_text_canvas_and_routed_svg_entrypoint() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/mod.rs");
     let content = std::fs::read_to_string(path).unwrap();
 
     for required in [
-        "pub mod text_replay;",
+        "pub mod text_canvas;",
         "pub fn render_svg_from_routed_geometry(",
     ] {
         assert!(
@@ -1009,6 +1009,7 @@ fn render_graph_facade_exposes_text_replay_and_routed_svg_entrypoint() {
     }
 
     for forbidden in [
+        "pub mod text_replay;",
         "pub use self::grid_routing::router::{RoutedEdge, Segment, route_all_edges};",
         "pub use self::text_adapter::geometry_to_text_layout_with_routed;",
         "pub use self::text_edge::render_all_edges_with_labels;",

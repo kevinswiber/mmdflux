@@ -250,6 +250,17 @@ fn graph_grid_exposes_grid_routing_surface() {
 }
 
 #[test]
+fn render_graph_text_canvas_exposes_text_drawing_helpers() {
+    use mmdflux::render::graph::text_canvas::{
+        render_all_edges_with_labels, render_node, render_text_from_grid_layout,
+    };
+
+    let _ = render_node;
+    let _ = render_all_edges_with_labels;
+    let _ = render_text_from_grid_layout;
+}
+
+#[test]
 fn crate_root_exports_registry_builtins_but_not_removed_advanced_helpers() {
     let modules = public_modules_for_test();
     let exports = public_exports_for_test();
@@ -309,8 +320,12 @@ fn renamed_graph_measurement_and_layered_mode_api_are_accessible() {
 }
 
 #[test]
-fn low_level_text_replay_api_is_accessible_from_explicit_namespace() {
-    let _ = mmdflux::render::graph::text_replay::GridLayoutConfig::default();
+fn text_replay_module_is_removed() {
+    let render_graph_source = repo_file("src/render/graph/mod.rs");
+    assert!(
+        !render_graph_source.contains("pub mod text_replay;"),
+        "render::graph should stop exporting the mixed text_replay namespace"
+    );
 }
 
 #[test]

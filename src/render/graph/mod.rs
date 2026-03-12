@@ -4,27 +4,23 @@
 //! callers that already have `GraphGeometry` or `RoutedGraphGeometry`.
 //! Solve orchestration remains owned by the runtime facade and graph engines.
 //!
-//! Low-level text-grid replay helpers live under
-//! [`crate::render::graph::text_replay`].
+//! Low-level text drawing lives under [`crate::render::graph::text_canvas`].
 //!
 //! Internally, graph render emission consumes graph-owned float and grid
 //! geometry helpers exposed through `crate::graph`.
 
 pub(crate) mod svg;
 pub(crate) mod svg_metrics;
+pub mod text_canvas;
 pub(crate) mod text_edge;
-pub mod text_replay;
 pub(crate) mod text_shape;
 pub(crate) mod text_subgraph;
 
 use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
-use crate::graph::grid::{RoutedEdge, Segment, SubgraphBounds, route_all_edges};
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Diagram, Direction};
-use crate::render::primitives::canvas::{Cell, Connections};
-use crate::render::{Canvas, CharSet};
 use crate::{
     Curve, EdgePreset, EngineId, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
     TextColorMode,
@@ -262,7 +258,7 @@ pub fn render_text_from_geometry(
         Some(routed),
         &config,
     );
-    render_text_from_layout(diagram, &layout, options)
+    text_canvas::render_text_from_grid_layout(diagram, &layout, options)
 }
 
 /// Render a diagram to the configured output format.
@@ -345,54 +341,6 @@ pub fn render_text_from_geometry(
 ///
 /// let ascii = render_text_from_geometry(&diagram, &geometry, None, &TextRenderOptions::default());
 /// ```
-pub(crate) fn render_text_from_layout(
-    diagram: &Diagram,
-    layout: &crate::graph::grid::GridLayout,
-    options: &TextRenderOptions,
-) -> String {
-    let charset = match options.output_format {
-        OutputFormat::Ascii => CharSet::ascii(),
-        _ => CharSet::unicode(),
-    };
-
-    let mut canvas = Canvas::new(layout.width, layout.height);
-
-    if !layout.subgraph_bounds.is_empty() {
-        text_subgraph::render_subgraph_borders(&mut canvas, &layout.subgraph_bounds, &charset);
-    }
-
-    let mut node_keys: Vec<&String> = diagram.nodes.keys().collect();
-    node_keys.sort();
-    for node_id in node_keys {
-        let node = &diagram.nodes[node_id];
-        if let Some(&(x, y)) = layout.draw_positions.get(node_id) {
-            text_shape::render_node(&mut canvas, node, x, y, &charset, diagram.direction);
-        }
-    }
-
-    let routed_edges = route_all_edges(&diagram.edges, layout, diagram.direction);
-    text_edge::render_all_edges_with_labels(
-        &mut canvas,
-        &routed_edges,
-        &charset,
-        diagram.direction,
-        &layout.edge_label_positions,
-    );
-
-    apply_subgraph_border_junctions(
-        &mut canvas,
-        &layout.subgraph_bounds,
-        &routed_edges,
-        &charset,
-    );
-
-    if options.text_color_mode.uses_ansi() {
-        canvas.to_ansi_string()
-    } else {
-        canvas.to_string()
-    }
-}
-
 pub(crate) fn layout_config_for_diagram(
     diagram: &Diagram,
     options: &TextRenderOptions,
@@ -452,104 +400,6 @@ pub(crate) fn layout_config_for_diagram(
     }
 
     config
-}
-
-fn apply_subgraph_border_junctions(
-    canvas: &mut Canvas,
-    subgraph_bounds: &std::collections::HashMap<String, SubgraphBounds>,
-    routed_edges: &[RoutedEdge],
-    charset: &CharSet,
-) {
-    if subgraph_bounds.is_empty() || routed_edges.is_empty() {
-        return;
-    }
-
-    let should_skip_title_cell =
-        |cell: &Cell| cell.is_subgraph_title && cell.ch != charset.horizontal && cell.ch != ' ';
-    let conns_all = Connections {
-        up: true,
-        down: true,
-        left: true,
-        right: true,
-    };
-
-    for bounds in subgraph_bounds.values() {
-        if bounds.width < 2 || bounds.height < 2 {
-            continue;
-        }
-
-        let left = bounds.x;
-        let right = bounds.x.saturating_add(bounds.width.saturating_sub(1));
-        let top = bounds.y;
-        let bottom = bounds.y.saturating_add(bounds.height.saturating_sub(1));
-
-        for routed in routed_edges {
-            for segment in &routed.segments {
-                match *segment {
-                    Segment::Vertical { x, y_start, y_end } => {
-                        let (y_min, y_max) = if y_start <= y_end {
-                            (y_start, y_end)
-                        } else {
-                            (y_end, y_start)
-                        };
-                        if x > left && x < right {
-                            if y_min < top
-                                && top <= y_max
-                                && let Some(cell) = canvas.get(x, top)
-                                && !should_skip_title_cell(cell)
-                            {
-                                set_junction_cell(canvas, x, top, conns_all, charset);
-                            }
-                            if y_min <= bottom
-                                && bottom < y_max
-                                && let Some(cell) = canvas.get(x, bottom)
-                                && !should_skip_title_cell(cell)
-                            {
-                                set_junction_cell(canvas, x, bottom, conns_all, charset);
-                            }
-                        }
-                    }
-                    Segment::Horizontal { y, x_start, x_end } => {
-                        let (x_min, x_max) = if x_start <= x_end {
-                            (x_start, x_end)
-                        } else {
-                            (x_end, x_start)
-                        };
-                        if y > top && y < bottom {
-                            if x_min < left
-                                && left <= x_max
-                                && let Some(cell) = canvas.get(left, y)
-                                && !should_skip_title_cell(cell)
-                            {
-                                set_junction_cell(canvas, left, y, conns_all, charset);
-                            }
-                            if x_min <= right
-                                && right < x_max
-                                && let Some(cell) = canvas.get(right, y)
-                                && !should_skip_title_cell(cell)
-                            {
-                                set_junction_cell(canvas, right, y, conns_all, charset);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn set_junction_cell(
-    canvas: &mut Canvas,
-    x: usize,
-    y: usize,
-    conns: Connections,
-    charset: &CharSet,
-) {
-    if let Some(cell) = canvas.get_mut(x, y) {
-        cell.ch = charset.junction(conns);
-        cell.connections = conns;
-        cell.is_edge = true;
-    }
 }
 
 fn branching_label_info(diagram: &Diagram) -> (bool, usize, usize) {

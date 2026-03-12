@@ -33,8 +33,8 @@ Guard tests should fail when the code drifts away from these rules.
 5. **render::graph owns geometry-based graph-family emitters** — Shared
    graph-family text and SVG emission lives under `src/render/graph/` and
    consumes `GraphGeometry` or `RoutedGraphGeometry`. High-level geometry
-   entrypoints stay at the `render::graph` root, low-level text-grid replay
-   helpers live under `render::graph::text_replay`, and routed SVG emission is
+   entrypoints stay at the `render::graph` root, low-level text drawing lives
+   under `render::graph::text_canvas`, and routed SVG emission is
    explicit through `render_svg_from_routed_geometry`. Render code does not
    take `GraphSolveResult` or instantiate engines.
 
