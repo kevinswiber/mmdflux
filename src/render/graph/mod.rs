@@ -3,6 +3,12 @@
 //! `render::graph` exposes narrow, geometry-based rendering entrypoints for
 //! callers that already have `GraphGeometry` or `RoutedGraphGeometry`.
 //! Solve orchestration remains owned by the runtime facade and graph engines.
+//!
+//! The public surface has two tiers:
+//! - geometry emitters such as `render_text_from_geometry` and
+//!   `render_svg_from_geometry`
+//! - low-level text replay helpers used by advanced tests and MMDS replay
+//!   paths that need to rebuild text-grid state explicitly
 
 pub(crate) mod svg;
 pub(crate) mod svg_metrics;
@@ -16,6 +22,7 @@ pub(crate) mod text_subgraph;
 pub(crate) mod text_types;
 
 use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
+// Low-level text replay helpers for advanced callers.
 pub use self::text_adapter::geometry_to_text_layout_with_routed;
 pub use self::text_edge::render_all_edges_with_labels;
 pub use self::text_router::{RoutedEdge, Segment, route_all_edges};

@@ -2,6 +2,9 @@
 //!
 //! Maps engine IDs to concrete engine adapters for the graph family.
 //! All graph-family engines operate on `Diagram` → `GraphGeometry`.
+//! Low-level callers can use this registry together with
+//! [`crate::engines::graph::contracts`] to select engines and drive solves
+//! without going through the runtime facade.
 
 use std::collections::HashMap;
 

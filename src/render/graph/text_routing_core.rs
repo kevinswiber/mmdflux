@@ -1,6 +1,10 @@
 #![allow(dead_code)]
 
 //! Shared routing primitives used by text and SVG routing paths.
+//!
+//! Counterpart to `graph::routing_core`: this file intentionally mirrors the
+//! float-space routing policy with text-grid types instead of pushing both
+//! paths through a generic shared abstraction.
 
 use std::collections::HashMap;
 

@@ -1,4 +1,9 @@
 //! Graph-owned float routing primitives shared by engine and render code.
+//!
+//! Counterpart to `render::graph::text_routing_core`: the two files
+//! intentionally mirror routing policy with different coordinate systems
+//! instead of forcing a shared generic abstraction across float-space and
+//! text-grid routing.
 
 use std::collections::HashMap;
 

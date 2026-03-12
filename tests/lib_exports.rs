@@ -193,6 +193,25 @@ fn registry_api_works() {
 }
 
 #[test]
+fn low_level_graph_engine_api_is_accessible_from_explicit_namespace() {
+    let flowchart = mmdflux::frontends::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();
+    let diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
+    let registry = mmdflux::engines::graph::registry::GraphEngineRegistry::default();
+    let engine_id =
+        mmdflux::EngineAlgorithmId::new(mmdflux::EngineId::Flux, mmdflux::AlgorithmId::Layered);
+    let engine = registry.get_solver(engine_id).unwrap();
+    let request = mmdflux::engines::graph::contracts::GraphSolveRequest::from_config(
+        &RenderConfig::default(),
+        OutputFormat::Text,
+    );
+    let config = mmdflux::engines::graph::contracts::EngineConfig::Layered(Default::default());
+    let result = engine.solve(&diagram, &config, &request).unwrap();
+
+    assert_eq!(result.engine_id, engine_id);
+    assert!(!result.geometry.nodes.is_empty());
+}
+
+#[test]
 fn render_only_geometry_api_works() {
     let mut diagram = Diagram::new(Direction::LeftRight);
     diagram.add_node(Node::new("A").with_shape(Shape::Rectangle));

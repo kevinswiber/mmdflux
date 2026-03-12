@@ -582,6 +582,29 @@ fn engine_graph_root_does_not_flatten_contracts_barrel() {
 }
 
 #[test]
+fn engine_graph_low_level_modules_are_explicit_public_api() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/engines/graph/mod.rs");
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    for required in ["pub mod contracts;", "pub mod registry;"] {
+        assert!(
+            content.contains(required),
+            "engines::graph should keep the low-level engine module public: {required}"
+        );
+    }
+
+    for forbidden in [
+        "#[doc(hidden)]\npub mod contracts;",
+        "#[doc(hidden)]\npub mod registry;",
+    ] {
+        assert!(
+            !content.contains(forbidden),
+            "engines::graph low-level modules should not be hidden: {forbidden}"
+        );
+    }
+}
+
+#[test]
 fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/mod.rs");
     let content = std::fs::read_to_string(&path).unwrap();

@@ -1,8 +1,9 @@
-//! Internal diagram contracts shared across families and engines.
+//! Low-level graph-family engine contracts.
 //!
 //! Consumer-facing config, format, family, and error definitions live in the
 //! crate's flat top-level public contract modules. This module keeps the
-//! engine-side solve contracts and provides a focused engine import surface.
+//! engine-side solve contracts and provides a focused import surface for
+//! callers that manage graph-family solves directly.
 
 use crate::config::{
     EngineAlgorithmCapabilities, EngineAlgorithmId, GeometryLevel, LayoutConfig,
