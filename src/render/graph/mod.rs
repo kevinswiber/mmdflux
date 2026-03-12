@@ -10,10 +10,9 @@
 //! geometry helpers exposed through `crate::graph`.
 
 pub(crate) mod svg;
-pub(crate) mod svg_metrics;
 pub mod text;
 
-use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE};
+use self::svg::{DEFAULT_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
 use crate::graph::routing::{self, EdgeRouting};

@@ -774,7 +774,7 @@ fn module_dependency_map_does_not_reference_testing() {
 
 #[test]
 fn render_svg_source_does_not_define_layout_builders() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/svg.rs");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/svg/mod.rs");
     let content = std::fs::read_to_string(&path).unwrap();
 
     for forbidden in [
@@ -784,6 +784,20 @@ fn render_svg_source_does_not_define_layout_builders() {
         assert!(
             !content.contains(forbidden),
             "render::graph::svg should not define or import solve/build responsibilities: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn render_svg_legacy_flat_modules_stay_removed() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for removed in ["src/render/graph/svg.rs", "src/render/graph/svg_metrics.rs"] {
+        let path = repo_root.join(removed);
+        assert!(
+            !path.exists(),
+            "legacy flat SVG render module should stay removed: {}",
+            path.display()
         );
     }
 }
@@ -1152,7 +1166,7 @@ fn render_does_not_import_engine_adapters_or_layered_config() {
 #[test]
 fn float_render_consumers_do_not_depend_on_render_grid_routing() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let svg = std::fs::read_to_string(repo_root.join("src/render/graph/svg.rs")).unwrap();
+    let svg = std::fs::read_to_string(repo_root.join("src/render/graph/svg/mod.rs")).unwrap();
 
     assert!(
         !svg.contains("crate::render::graph::grid_routing::"),
