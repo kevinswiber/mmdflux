@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 use crate::engines::graph::algorithms::layered::{
     self, Direction as LayeredDirection, GridLayoutConfig, LayoutConfig as LayeredConfig, Ranker,
 };
-use crate::graph::grid_projection::GridRanker;
+use crate::graph::grid::GridRanker;
 use crate::graph::{Diagram, Direction, Edge, Node, Stroke};
 
 /// Convert a graph-level Direction to a layered Direction.

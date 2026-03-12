@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
+use crate::graph::grid::{GridLayout, NodeBounds, SubgraphBounds};
 use crate::graph::{Direction, Edge, Shape};
-use crate::render::graph::text_layout::{Layout, SubgraphBounds};
 use crate::render::graph::text_replay::intersect::{NodeFace, classify_face};
-use crate::render::graph::text_shape::NodeBounds;
 
 pub(crate) type NodeContainingSubgraphMap<'a> = HashMap<&'a str, &'a str>;
 
@@ -67,7 +66,7 @@ pub(crate) fn subgraph_bounds_as_node(bounds: &SubgraphBounds) -> NodeBounds {
 }
 
 pub(crate) fn resolve_edge_bounds(
-    layout: &Layout,
+    layout: &GridLayout,
     edge: &Edge,
 ) -> Option<(NodeBounds, NodeBounds)> {
     let from_bounds = if let Some(sg_id) = edge.from_subgraph.as_ref() {
@@ -89,7 +88,7 @@ pub(crate) fn resolve_edge_bounds(
     Some((from_bounds, to_bounds))
 }
 
-pub(crate) fn bounds_for_node_id(layout: &Layout, node_id: &str) -> Option<NodeBounds> {
+pub(crate) fn bounds_for_node_id(layout: &GridLayout, node_id: &str) -> Option<NodeBounds> {
     if let Some(bounds) = layout.get_bounds(node_id) {
         return Some(*bounds);
     }
@@ -108,7 +107,7 @@ pub(crate) fn node_inside_subgraph(bounds: &NodeBounds, sg: &SubgraphBounds) -> 
 }
 
 pub(crate) fn containing_subgraph_id_uncached<'a>(
-    layout: &'a Layout,
+    layout: &'a GridLayout,
     node_id: &str,
 ) -> Option<&'a str> {
     let bounds = layout.node_bounds.get(node_id)?;
@@ -121,7 +120,7 @@ pub(crate) fn containing_subgraph_id_uncached<'a>(
 }
 
 pub(crate) fn containing_subgraph_id<'a>(
-    layout: &'a Layout,
+    layout: &'a GridLayout,
     node_id: &str,
     node_containing_subgraph: Option<&NodeContainingSubgraphMap<'a>>,
 ) -> Option<&'a str> {
@@ -131,7 +130,7 @@ pub(crate) fn containing_subgraph_id<'a>(
 }
 
 pub(crate) fn build_node_containing_subgraph_map<'a>(
-    layout: &'a Layout,
+    layout: &'a GridLayout,
 ) -> NodeContainingSubgraphMap<'a> {
     layout
         .node_bounds

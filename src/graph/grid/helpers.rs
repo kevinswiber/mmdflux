@@ -1,16 +1,15 @@
-//! Layout computation for graph-family text rendering.
+//! Grid-space helper functions for derived graph geometry.
 //!
-//! Translates layout float coordinates into ASCII character-grid positions using
+//! These helpers translate float coordinates into integer grid positions using
 //! uniform scale factors, collision repair, and waypoint transformation.
 
 use std::collections::{HashMap, HashSet};
 
-use super::text_shape::{NodeBounds, node_dimensions};
-pub(crate) use super::text_types::{CoordTransform, RawCenter, TransformContext};
-// Re-export text types from their canonical location.
-pub use super::text_types::{GridLayoutConfig, GridPos, Layout, SelfEdgeDrawData, SubgraphBounds};
+use super::GridLayoutConfig;
+use super::layout::{CoordTransform, GridPos, NodeBounds, SubgraphBounds, TransformContext};
 use crate::graph::geometry::{FPoint, FRect};
-use crate::graph::grid_projection::OverrideSubgraphProjection;
+use crate::graph::grid::OverrideSubgraphProjection;
+use crate::graph::measure::grid_node_dimensions;
 use crate::graph::{Diagram, Direction, Edge};
 
 /// Reconcile direction-override sub-layout positions in draw coordinates.
@@ -77,12 +76,12 @@ pub(crate) fn reconcile_sublayouts_draw(
                 diagram
                     .nodes
                     .get(id)
-                    .map(|n| (id.clone(), node_dimensions(n, sub_dir)))
+                    .map(|n| (id.clone(), grid_node_dimensions(n, sub_dir)))
             })
             .collect();
 
         let sub_rank_sep = config.rank_sep + config.cluster_rank_sep;
-        let (sub_scale_x, sub_scale_y) = compute_ascii_scale_factors(
+        let (sub_scale_x, sub_scale_y) = compute_grid_scale_factors(
             &sub_node_dims,
             sub_rank_sep,
             config.node_sep,
@@ -623,7 +622,7 @@ pub(crate) fn compute_grid_positions(layers: &[Vec<String>]) -> HashMap<String, 
 /// For horizontal layouts (LR/RL):
 ///   - scale_x (primary) = (max_w + h_spacing) / (max_w + rank_sep)
 ///   - scale_y (cross)   = (avg_h + v_spacing) / (avg_h + node_sep)
-pub(crate) fn compute_ascii_scale_factors(
+pub(crate) fn compute_grid_scale_factors(
     node_dims: &HashMap<String, (usize, usize)>,
     rank_sep: f64,
     node_sep: f64,
@@ -1795,7 +1794,7 @@ pub(crate) fn transform_waypoints_direct(
                 .map(|(fp, rank)| {
                     let rank_idx = *rank as usize;
                     let layer_pos = layer_starts.get(rank_idx).copied().unwrap_or(0);
-                    let (scaled_x, scaled_y) = ctx.to_ascii(fp.x, fp.y);
+                    let (scaled_x, scaled_y) = ctx.to_grid(fp.x, fp.y);
 
                     if is_vertical {
                         (scaled_x.min(canvas_width.saturating_sub(1)), layer_pos)
@@ -1832,7 +1831,7 @@ pub(crate) fn transform_label_positions_direct(
         if edges.get(*edge_idx).is_some() {
             let rank_idx = *rank as usize;
             let layer_pos = layer_starts.get(rank_idx).copied().unwrap_or(0);
-            let (scaled_x, scaled_y) = ctx.to_ascii(fp.x, fp.y);
+            let (scaled_x, scaled_y) = ctx.to_grid(fp.x, fp.y);
 
             let pos = if is_vertical {
                 (scaled_x.min(canvas_width.saturating_sub(1)), layer_pos)
@@ -2030,7 +2029,7 @@ mod tests {
         dims.insert("B".into(), (7, 3));
         dims.insert("C".into(), (11, 3));
 
-        let (sx, sy) = compute_ascii_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
+        let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
 
         let expected_sy = 6.0 / 53.0;
         let expected_sx = 13.0 / 59.0;
@@ -2053,7 +2052,7 @@ mod tests {
         dims.insert("A".into(), (9, 3));
         dims.insert("B".into(), (9, 3));
 
-        let (sx, sy) = compute_ascii_scale_factors(&dims, 50.0, 6.0, 3, 4, false, false);
+        let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 6.0, 3, 4, false, false);
 
         let expected_sx = 13.0 / 59.0;
         let expected_sy = 6.0 / 9.0;
@@ -2072,7 +2071,7 @@ mod tests {
         let mut dims = HashMap::new();
         dims.insert("X".into(), (5, 3));
 
-        let (sx, sy) = compute_ascii_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
+        let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
         assert!(sx > 0.0, "sx should be positive, got {sx}");
         assert!(sy > 0.0, "sy should be positive, got {sy}");
         assert!(sx.is_finite());
@@ -2115,8 +2114,8 @@ mod tests {
         dims.insert("A".into(), (9, 3));
         dims.insert("B".into(), (7, 3));
 
-        let (_, sy_normal) = compute_ascii_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
-        let (_, sy_doubled) = compute_ascii_scale_factors(&dims, 50.0, 50.0, 3, 4, true, true);
+        let (_, sy_normal) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
+        let (_, sy_doubled) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, true);
 
         // Doubled-rank scale should be exactly half of normal scale
         let expected_sy = sy_normal / 2.0;
@@ -2137,7 +2136,7 @@ mod tests {
     #[test]
     fn scale_factors_empty_nodes() {
         let dims: HashMap<String, (usize, usize)> = HashMap::new();
-        let (sx, sy) = compute_ascii_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
+        let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
         assert!(sx.is_finite());
         assert!(sy.is_finite());
     }
@@ -2957,7 +2956,7 @@ mod tests {
     }
 
     // =========================================================================
-    // to_ascii_rect() Tests (Plan 0028, Task 1.1)
+    // to_grid_rect() Tests (Plan 0028, Task 1.1)
     // =========================================================================
 
     #[test]
@@ -2979,7 +2978,7 @@ mod tests {
             width: 40.0,
             height: 20.0,
         };
-        let (_x, _y, w, h) = ctx.to_ascii_rect(&rect);
+        let (_x, _y, w, h) = ctx.to_grid_rect(&rect);
         assert!(w > 0, "width should be positive, got {w}");
         assert!(h > 0, "height should be positive, got {h}");
     }
@@ -3009,8 +3008,8 @@ mod tests {
             width: 40.0,
             height: 20.0,
         };
-        let (x1, y1, _, _) = ctx.to_ascii_rect(&rect1);
-        let (x2, y2, _, _) = ctx.to_ascii_rect(&rect2);
+        let (x1, y1, _, _) = ctx.to_grid_rect(&rect1);
+        let (x2, y2, _, _) = ctx.to_grid_rect(&rect2);
         assert!(x2 > x1, "rect2 should be further right: x2={x2} vs x1={x1}");
         assert!(y2 > y1, "rect2 should be further down: y2={y2} vs y1={y1}");
     }
@@ -3039,8 +3038,8 @@ mod tests {
             width: 60.0,
             height: 30.0,
         };
-        let (_, _, w1, h1) = ctx.to_ascii_rect(&small);
-        let (_, _, w2, h2) = ctx.to_ascii_rect(&large);
+        let (_, _, w1, h1) = ctx.to_grid_rect(&small);
+        let (_, _, w2, h2) = ctx.to_grid_rect(&large);
         assert!(
             w2 > w1,
             "larger rect should have larger width: w2={w2} vs w1={w1}"
@@ -3123,7 +3122,7 @@ mod tests {
         assert_subgraph_contains_members(&layout, "sg2", &["C", "D"]);
     }
 
-    fn assert_subgraph_contains_members(layout: &Layout, sg_id: &str, members: &[&str]) {
+    fn assert_subgraph_contains_members(layout: &GridLayout, sg_id: &str, members: &[&str]) {
         let sg = &layout.subgraph_bounds[sg_id];
         let sg_right = sg.x + sg.width;
         let sg_bottom = sg.y + sg.height;
@@ -3215,7 +3214,7 @@ mod tests {
             if !diagram.is_subgraph(node_id)
                 && let Some(node) = diagram.nodes.get(node_id)
             {
-                let (w, h) = node_dimensions(node, sub_dir);
+                let (w, h) = grid_node_dimensions(node, sub_dir);
                 sub_graph.add_node(node_id.as_str(), (w as f64, h as f64));
             }
         }

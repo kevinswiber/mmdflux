@@ -6,12 +6,10 @@ use crate::engines::graph::contracts::{
 };
 use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::graph::Diagram;
+use crate::graph::grid::{GridLayout, GridLayoutConfig, geometry_to_grid_layout_with_routed};
 use crate::graph_family_pipeline::render_graph;
-use crate::render::graph::text_replay::{
-    GridLayoutConfig, Layout, geometry_to_text_layout_with_routed,
-};
 
-pub(crate) fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {
+pub(crate) fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> GridLayout {
     let engine = FluxLayeredEngine::text();
     let request = GraphSolveRequest::new(
         MeasurementMode::Grid,
@@ -27,7 +25,7 @@ pub(crate) fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> La
         )
         .expect("runtime test layout solve failed");
 
-    geometry_to_text_layout_with_routed(diagram, &result.geometry, result.routed.as_ref(), config)
+    geometry_to_grid_layout_with_routed(diagram, &result.geometry, result.routed.as_ref(), config)
 }
 
 pub(crate) fn render_text_diagram(diagram: &Diagram) -> String {

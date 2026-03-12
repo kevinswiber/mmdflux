@@ -6,7 +6,7 @@ use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds
 use crate::engines::graph::EngineConfig;
 use crate::errors::RenderError;
 use crate::graph::geometry::GraphGeometry;
-use crate::graph::grid_projection::{GridProjection, GridRanker, OverrideSubgraphProjection};
+use crate::graph::grid::{GridProjection, GridRanker, OverrideSubgraphProjection};
 use crate::graph::measure::{
     ProportionalTextMetrics, grid_edge_label_dimensions, grid_node_dimensions,
     proportional_node_dimensions,

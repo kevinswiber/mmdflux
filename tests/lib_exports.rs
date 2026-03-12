@@ -220,6 +220,27 @@ fn builtin_registry_module_is_public_and_registry_default_registry_is_gone() {
 }
 
 #[test]
+fn graph_grid_module_exposes_grid_projection_contracts() {
+    use mmdflux::graph::grid::{GridLayoutConfig, GridProjection, GridRanker};
+
+    let _ = GridLayoutConfig::default();
+    let _ = GridProjection::default();
+    let _ = GridRanker::default();
+}
+
+#[test]
+fn graph_grid_exposes_grid_layout_surface() {
+    use mmdflux::graph::grid::{
+        GridLayout, GridLayoutConfig, NodeBounds, geometry_to_grid_layout_with_routed,
+    };
+
+    let _ = GridLayoutConfig::default();
+    let _ = std::any::type_name::<GridLayout>();
+    let _ = std::any::type_name::<NodeBounds>();
+    let _ = geometry_to_grid_layout_with_routed;
+}
+
+#[test]
 fn crate_root_exports_registry_builtins_but_not_removed_advanced_helpers() {
     let modules = public_modules_for_test();
     let exports = public_exports_for_test();

@@ -7,7 +7,7 @@ use crate::graph::geometry::{
     EdgeLabelSide, EngineHints, FPoint, FRect, GraphGeometry, LayeredHints, LayoutEdge,
     PositionedNode, SelfEdgeGeometry, SubgraphGeometry,
 };
-use crate::graph::grid_projection::GridProjection;
+use crate::graph::grid::GridProjection;
 
 impl From<FPoint> for Point {
     fn from(p: FPoint) -> Self {

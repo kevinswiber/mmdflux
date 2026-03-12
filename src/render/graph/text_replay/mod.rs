@@ -11,8 +11,8 @@ pub use self::intersect::{
     intersect_node, intersect_rect, spread_points_on_face,
 };
 pub use super::grid_routing::router::{RoutedEdge, Segment, route_all_edges};
-pub use super::text_adapter::geometry_to_text_layout_with_routed;
 pub use super::text_edge::render_all_edges_with_labels;
-pub use super::text_shape::{NodeBounds, render_node};
-pub use super::text_types::Layout;
-pub use crate::graph::grid_projection::GridLayoutConfig;
+pub use super::text_shape::render_node;
+pub use crate::graph::grid::{
+    GridLayout, GridLayoutConfig, NodeBounds, geometry_to_grid_layout_with_routed,
+};

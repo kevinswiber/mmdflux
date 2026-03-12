@@ -1242,8 +1242,8 @@ fn draw_label_direct(
 #[cfg(test)]
 mod tests {
     use super::super::grid_routing::router::route_edge;
-    use super::super::text_layout::GridLayoutConfig;
     use super::*;
+    use crate::graph::grid::GridLayoutConfig;
     use crate::graph::{Diagram, Edge, Node};
     use crate::runtime::test_support_tests::{compute_layout, render_text_diagram};
 

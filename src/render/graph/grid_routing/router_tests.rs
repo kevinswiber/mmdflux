@@ -6,6 +6,9 @@ use crate::engines::graph::EngineConfig;
 use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
 use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::geometry::{FPoint, FRect};
+use crate::graph::grid::{
+    GridLayout, GridLayoutConfig, GridPos, SubgraphBounds, geometry_to_grid_layout_with_routed,
+};
 use crate::graph::routing::{
     EdgeRouting, Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
     classify_face_float, edge_faces, fan_in_overflow_face_for_slot, fan_in_primary_face_capacity,
@@ -14,10 +17,7 @@ use crate::graph::routing::{
 use crate::graph::{Diagram, Direction, Edge, Node};
 use crate::render::graph::grid_routing::attachments::plan_attachments;
 use crate::render::graph::grid_routing::router::*;
-use crate::render::graph::text_adapter::geometry_to_text_layout_with_routed;
-use crate::render::graph::text_layout::{GridLayoutConfig, GridPos};
 use crate::render::graph::text_replay::NodeFace;
-use crate::render::graph::text_types::SubgraphBounds;
 use crate::runtime::test_support_tests::compute_layout;
 
 fn simple_td_diagram() -> Diagram {
@@ -37,7 +37,7 @@ fn load_flowchart_fixture(name: &str) -> String {
     fs::read_to_string(path).expect("fixture should load")
 }
 
-fn routed_text_layout_for_fixture(name: &str) -> (Diagram, Layout) {
+fn routed_text_layout_for_fixture(name: &str) -> (Diagram, GridLayout) {
     let input = load_flowchart_fixture(name);
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
     let diagram = compile_to_graph(&flowchart);
@@ -46,7 +46,7 @@ fn routed_text_layout_for_fixture(name: &str) -> (Diagram, Layout) {
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
-    let layout = geometry_to_text_layout_with_routed(
+    let layout = geometry_to_grid_layout_with_routed(
         &diagram,
         &geom,
         Some(&routed),
@@ -55,7 +55,7 @@ fn routed_text_layout_for_fixture(name: &str) -> (Diagram, Layout) {
     (diagram, layout)
 }
 
-fn text_layout_for_fixture(name: &str) -> (Diagram, Layout) {
+fn text_layout_for_fixture(name: &str) -> (Diagram, GridLayout) {
     let input = load_flowchart_fixture(name);
     let flowchart = parse_flowchart(&input).expect("fixture should parse");
     let diagram = compile_to_graph(&flowchart);
@@ -204,7 +204,7 @@ fn make_bounds_sized(x: usize, y: usize, width: usize, height: usize) -> NodeBou
 fn minimal_layout(
     bounds: &[(&str, NodeBounds)],
     routed_paths: &[(usize, Vec<(usize, usize)>)],
-) -> Layout {
+) -> GridLayout {
     let node_bounds: std::collections::HashMap<String, NodeBounds> = bounds
         .iter()
         .map(|(id, bounds)| ((*id).to_string(), *bounds))
@@ -235,7 +235,7 @@ fn minimal_layout(
         .map(|(edge_idx, points)| (*edge_idx, points.clone()))
         .collect();
 
-    Layout {
+    GridLayout {
         grid_positions,
         draw_positions,
         node_bounds,

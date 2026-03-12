@@ -10,10 +10,10 @@
 
 use crate::graph::Shape;
 use crate::graph::geometry::{FPoint, FRect};
+use crate::graph::grid::NodeBounds;
 use crate::graph::routing::{
     Face as RoutingFace, classify_face_float as shared_classify_face_float,
 };
-use crate::render::graph::text_shape::NodeBounds;
 
 /// Minimum gap between adjacent attachment points on a face.
 /// Prevents arrow characters from visually colliding on narrow faces.

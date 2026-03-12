@@ -12,7 +12,7 @@ use crate::graph::geometry::{
     FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode, RoutedGraphGeometry,
     SelfEdgeGeometry, SubgraphGeometry,
 };
-use crate::graph::grid_projection::{GridProjection, OverrideSubgraphProjection};
+use crate::graph::grid::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
 use crate::mmds::{

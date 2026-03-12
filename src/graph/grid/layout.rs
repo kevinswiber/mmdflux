@@ -1,16 +1,66 @@
-//! Text-specific types for the graph-family text rendering pipeline.
+//! Grid-space types for the graph-family derived geometry pipeline.
 //!
-//! These types describe the integer character-grid coordinate system used by
-//! the text renderer. They are produced by the text adapter (which converts
-//! engine float coordinates to draw coordinates) and consumed by the text
-//! edge, shape, subgraph, and router modules.
+//! These types describe the integer-coordinate geometry derived from
+//! float-space graph geometry. Downstream renderers consume this grid-space
+//! layout to produce text or other discrete outputs.
 
 use std::collections::{HashMap, HashSet};
 
-use super::text_shape::NodeBounds;
+use super::GridLayoutConfig;
 use crate::graph::geometry::FRect;
-pub use crate::graph::grid_projection::GridLayoutConfig;
 use crate::graph::{Direction, Shape};
+
+/// Bounding box for a node in grid coordinates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NodeBounds {
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
+    /// Layout-derived center x, avoids integer division rounding.
+    pub layout_center_x: Option<usize>,
+    /// Layout-derived center y, avoids integer division rounding.
+    pub layout_center_y: Option<usize>,
+}
+
+impl NodeBounds {
+    /// Get the center x coordinate.
+    /// Uses the stored layout center if available, otherwise falls back to integer division.
+    pub fn center_x(&self) -> usize {
+        self.layout_center_x.unwrap_or(self.x + self.width / 2)
+    }
+
+    /// Get the center y coordinate.
+    /// Uses the stored layout center if available, otherwise falls back to integer division.
+    pub fn center_y(&self) -> usize {
+        self.layout_center_y.unwrap_or(self.y + self.height / 2)
+    }
+
+    /// Check if a point (x, y) falls inside this bounding box.
+    pub fn contains(&self, x: usize, y: usize) -> bool {
+        x >= self.x && x < self.x + self.width && y >= self.y && y < self.y + self.height
+    }
+
+    /// Get the top attachment point (center of top edge).
+    pub fn top(&self) -> (usize, usize) {
+        (self.center_x(), self.y)
+    }
+
+    /// Get the bottom attachment point (center of bottom edge).
+    pub fn bottom(&self) -> (usize, usize) {
+        (self.center_x(), self.y + self.height - 1)
+    }
+
+    /// Get the left attachment point (center of left edge).
+    pub fn left(&self) -> (usize, usize) {
+        (self.x, self.center_y())
+    }
+
+    /// Get the right attachment point (center of right edge).
+    pub fn right(&self) -> (usize, usize) {
+        (self.x + self.width - 1, self.center_y())
+    }
+}
 
 /// Bounding box for a subgraph border in draw coordinates.
 #[derive(Debug, Clone)]
@@ -77,9 +127,9 @@ impl CoordTransform<'_> {
     }
 }
 
-/// Layout result containing node positions and canvas dimensions.
+/// Grid-space layout result containing node positions and canvas dimensions.
 #[derive(Debug)]
-pub struct Layout {
+pub struct GridLayout {
     /// Node positions in grid coordinates.
     pub grid_positions: HashMap<String, GridPos>,
     /// Node positions in draw coordinates (x, y pixels/chars).
@@ -132,7 +182,7 @@ pub struct Layout {
     pub node_directions: HashMap<String, Direction>,
 }
 
-impl Layout {
+impl GridLayout {
     /// Get the bounding box for a node.
     pub fn get_bounds(&self, node_id: &str) -> Option<&NodeBounds> {
         self.node_bounds.get(node_id)
@@ -204,16 +254,16 @@ pub(crate) struct TransformContext {
 }
 
 impl TransformContext {
-    /// Transform a layout top-left-based Rect to draw coordinates (x, y, width, height).
+    /// Transform a layout top-left-based rect to grid coordinates (x, y, width, height).
     #[allow(dead_code)]
     ///
     /// Transforms the top-left and bottom-right corners independently using
-    /// `to_ascii()`, then computes the draw rect between them. This ensures
+    /// `to_grid()`, then computes the grid rect between them. This ensures
     /// the transformed rect faithfully represents the layout bounding box in
-    /// draw space.
-    pub(crate) fn to_ascii_rect(&self, rect: &FRect) -> (usize, usize, usize, usize) {
-        let (x1, y1) = self.to_ascii(rect.x, rect.y);
-        let (x2, y2) = self.to_ascii(rect.x + rect.width, rect.y + rect.height);
+    /// grid space.
+    pub(crate) fn to_grid_rect(&self, rect: &FRect) -> (usize, usize, usize, usize) {
+        let (x1, y1) = self.to_grid(rect.x, rect.y);
+        let (x2, y2) = self.to_grid(rect.x + rect.width, rect.y + rect.height);
         let draw_x = x1.min(x2);
         let draw_y = y1.min(y2);
         let draw_w = x1.max(x2) - draw_x;
@@ -221,8 +271,8 @@ impl TransformContext {
         (draw_x, draw_y, draw_w.max(1), draw_h.max(1))
     }
 
-    /// Transform a layout (x, y) coordinate to ASCII draw coordinates.
-    pub(crate) fn to_ascii(&self, layout_x: f64, layout_y: f64) -> (usize, usize) {
+    /// Transform a layout (x, y) coordinate to grid coordinates.
+    pub(crate) fn to_grid(&self, layout_x: f64, layout_y: f64) -> (usize, usize) {
         let x = ((layout_x - self.layout_min_x) * self.scale_x).round() as usize
             + self.overhang_x
             + self.padding

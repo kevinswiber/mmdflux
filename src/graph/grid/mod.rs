@@ -1,11 +1,18 @@
-//! Shared graph-family grid projection contracts.
+//! Shared graph-family derived grid geometry contracts.
 //!
-//! These types sit between engine-owned layout results and render-owned grid
-//! emission. They are graph-owned so text replay can happen directly from
-//! hydrated geometry without depending on engine hint enums or layered-owned
-//! config names.
+//! These types sit between engine-owned float-space solves and downstream
+//! grid-space replay. They are graph-owned so callers can derive and hydrate
+//! grid geometry without depending on engine-private enums or render-owned
+//! namespaces.
+
+mod derive;
+pub(crate) mod helpers;
+mod layout;
 
 use std::collections::HashMap;
+
+pub use derive::geometry_to_grid_layout_with_routed;
+pub use layout::{GridLayout, GridPos, NodeBounds, SelfEdgeDrawData, SubgraphBounds};
 
 use crate::graph::geometry::{FPoint, FRect};
 
@@ -17,10 +24,10 @@ pub enum GridRanker {
     LongestPath,
 }
 
-/// Configuration for discrete grid layout computation.
+/// Configuration for derived grid layout computation.
 ///
-/// Controls integer character-grid spacing, padding, and the underlying
-/// layout-derived parameters used by the grid projection pipeline.
+/// Controls integer-grid spacing, padding, and the underlying layout-derived
+/// parameters used by the grid replay pipeline.
 #[derive(Debug, Clone)]
 pub struct GridLayoutConfig {
     /// Horizontal spacing between nodes.
@@ -65,7 +72,7 @@ impl Default for GridLayoutConfig {
     }
 }
 
-/// Graph-owned projection data needed to replay float geometry onto a discrete grid.
+/// Graph-owned projection data needed to replay float geometry onto a derived grid.
 #[derive(Debug, Clone, Default)]
 pub struct GridProjection {
     /// Per-node rank assignments (node_id -> rank).

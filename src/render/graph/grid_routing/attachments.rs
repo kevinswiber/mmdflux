@@ -5,13 +5,13 @@
 
 use super::backward::is_backward_edge;
 use super::bounds::{resolve_edge_bounds, subgraph_edge_face};
+use crate::graph::grid::GridLayout;
 use crate::graph::routing::{AttachmentCandidate, AttachmentPlan, AttachmentSide};
 pub(crate) use crate::graph::routing::{
     Face, LARGE_HORIZONTAL_OFFSET_THRESHOLD, edge_faces, plan_attachment_candidates,
     prefer_backward_side_channel,
 };
 use crate::graph::{Direction, Edge, Shape, Stroke};
-use crate::render::graph::text_layout::Layout;
 use crate::render::graph::text_replay::intersect::{NodeFace, classify_face};
 
 impl Face {
@@ -39,7 +39,7 @@ impl Face {
 /// Build a deterministic per-edge attachment-fraction plan from text layout bounds.
 pub(crate) fn plan_attachments(
     edges: &[Edge],
-    layout: &Layout,
+    layout: &GridLayout,
     fallback_direction: Direction,
 ) -> AttachmentPlan {
     let mut candidates: Vec<AttachmentCandidate> = Vec::with_capacity(edges.len() * 2);

@@ -3,11 +3,13 @@ use mmdflux::engines::graph::algorithms::layered::{
 };
 use mmdflux::engines::graph::contracts::{EngineConfig, GraphEngine};
 use mmdflux::engines::graph::flux::FluxLayeredEngine;
-use mmdflux::graph::grid_projection::GridRanker;
+use mmdflux::graph::grid::GridRanker;
+pub use mmdflux::graph::grid::{
+    GridLayout, GridLayoutConfig, NodeBounds, geometry_to_grid_layout_with_routed,
+};
 #[allow(unused_imports)]
 pub use mmdflux::render::graph::text_replay::{
-    GridLayoutConfig, Layout, NodeBounds, RoutedEdge, Segment, geometry_to_text_layout_with_routed,
-    render_all_edges_with_labels, render_node, route_all_edges,
+    RoutedEdge, Segment, render_all_edges_with_labels, render_node, route_all_edges,
 };
 use mmdflux::{Diagram, Direction, GeometryLevel};
 
@@ -41,7 +43,7 @@ fn layered_config_for_layout(diagram: &Diagram, config: &GridLayoutConfig) -> La
 }
 
 #[allow(dead_code)]
-pub fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {
+pub fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> GridLayout {
     let engine = FluxLayeredEngine::text();
     let request = default_grid_request(GeometryLevel::Layout, None);
     let result = engine
@@ -52,5 +54,5 @@ pub fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {
         )
         .expect("graph-family text-grid test solve failed");
 
-    geometry_to_text_layout_with_routed(diagram, &result.geometry, result.routed.as_ref(), config)
+    geometry_to_grid_layout_with_routed(diagram, &result.geometry, result.routed.as_ref(), config)
 }

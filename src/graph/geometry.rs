@@ -6,7 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::graph::grid_projection::GridProjection;
+use crate::graph::grid::GridProjection;
 use crate::graph::{Direction, Shape};
 
 // ---------------------------------------------------------------------------

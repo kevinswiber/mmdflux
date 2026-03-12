@@ -18,12 +18,14 @@ use super::bounds::{
     NodeContainingSubgraphMap, bounds_for_node_id, build_node_containing_subgraph_map,
     containing_subgraph_id, node_inside_subgraph, resolve_edge_bounds, subgraph_edge_face,
 };
+use crate::graph::grid::{GridLayout, NodeBounds, SelfEdgeDrawData, SubgraphBounds};
 use crate::graph::{Arrow, Direction, Edge, Shape, Stroke};
-use crate::render::graph::text_layout::{Layout, SelfEdgeDrawData, SubgraphBounds};
 use crate::render::graph::text_replay::intersect::{
     NodeFace, calculate_attachment_points, classify_face, spread_points_on_face,
 };
-use crate::render::graph::text_shape::NodeBounds;
+use crate::render::graph::text_shape::{face_extent, face_fixed_coord};
+
+type Layout = GridLayout;
 
 /// Grouped endpoint parameters for edge routing functions.
 struct EdgeEndpoints {
@@ -1985,8 +1987,8 @@ fn resolve_attachment_points(
 
 /// Clamp a waypoint to a node face, returning a point on that face.
 fn clamp_to_face(bounds: &NodeBounds, face: NodeFace, waypoint: (usize, usize)) -> (usize, usize) {
-    let (min, max) = bounds.face_extent(&face);
-    let fixed = bounds.face_fixed_coord(&face);
+    let (min, max) = face_extent(bounds, &face);
+    let fixed = face_fixed_coord(bounds, &face);
     match face {
         NodeFace::Top | NodeFace::Bottom => (waypoint.0.clamp(min, max), fixed),
         NodeFace::Left | NodeFace::Right => (fixed, waypoint.1.clamp(min, max)),
@@ -2886,8 +2888,8 @@ fn point_on_face_grid(
 
     let points = spread_points_on_face(
         face,
-        bounds.face_fixed_coord(&face),
-        bounds.face_extent(&face),
+        face_fixed_coord(bounds, &face),
+        face_extent(bounds, &face),
         group_size,
     );
     if group_size == 1 {

@@ -12,7 +12,7 @@ use serde_json::{Map, Number, Value};
 use crate::config::{EngineAlgorithmId, GeometryLevel, PathSimplification};
 use crate::errors::RenderError;
 use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry};
-use crate::graph::grid_projection::{GridProjection, OverrideSubgraphProjection};
+use crate::graph::grid::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
 use crate::style::NodeStyle;

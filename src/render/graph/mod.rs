@@ -14,18 +14,15 @@
 pub(crate) mod grid_routing;
 pub(crate) mod svg;
 pub(crate) mod svg_metrics;
-pub(crate) mod text_adapter;
 pub(crate) mod text_edge;
-pub(crate) mod text_layout;
 pub mod text_replay;
 pub(crate) mod text_shape;
 pub(crate) mod text_subgraph;
-pub(crate) mod text_types;
 
 use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE};
-use self::text_types::SubgraphBounds;
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
+use crate::graph::grid::SubgraphBounds;
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Diagram, Direction};
 use crate::render::primitives::canvas::{Cell, Connections};
@@ -261,8 +258,12 @@ pub fn render_text_from_geometry(
         }
     };
     let config = layout_config_for_diagram(diagram, options);
-    let layout =
-        text_adapter::geometry_to_text_layout_with_routed(diagram, geometry, Some(routed), &config);
+    let layout = crate::graph::grid::geometry_to_grid_layout_with_routed(
+        diagram,
+        geometry,
+        Some(routed),
+        &config,
+    );
     render_text_from_layout(diagram, &layout, options)
 }
 
@@ -348,7 +349,7 @@ pub fn render_text_from_geometry(
 /// ```
 pub(crate) fn render_text_from_layout(
     diagram: &Diagram,
-    layout: &text_types::Layout,
+    layout: &crate::graph::grid::GridLayout,
     options: &TextRenderOptions,
 ) -> String {
     let charset = match options.output_format {
@@ -398,8 +399,8 @@ pub(crate) fn render_text_from_layout(
 pub(crate) fn layout_config_for_diagram(
     diagram: &Diagram,
     options: &TextRenderOptions,
-) -> crate::graph::grid_projection::GridLayoutConfig {
-    let mut config = crate::graph::grid_projection::GridLayoutConfig::default();
+) -> crate::graph::grid::GridLayoutConfig {
+    let mut config = crate::graph::grid::GridLayoutConfig::default();
 
     let max_label_len = diagram
         .edges

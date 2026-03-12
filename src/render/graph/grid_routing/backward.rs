@@ -1,7 +1,6 @@
+use crate::graph::grid::{GridLayout, NodeBounds};
 use crate::graph::{Direction, Edge};
 use crate::render::graph::grid_routing::bounds::node_inside_subgraph;
-use crate::render::graph::text_layout::Layout;
-use crate::render::graph::text_shape::NodeBounds;
 
 /// Gap between node boundary and synthetic backward-edge waypoint path (in cells).
 pub const BACKWARD_ROUTE_GAP: usize = 2;
@@ -64,7 +63,7 @@ pub fn generate_backward_waypoints(
 
 pub(crate) fn compact_lr_backward_attachments(
     edge: &Edge,
-    layout: &Layout,
+    layout: &GridLayout,
     src_bounds: &NodeBounds,
     tgt_bounds: &NodeBounds,
     direction: Direction,
@@ -143,7 +142,7 @@ pub(crate) fn compact_lr_backward_attachments(
 /// Generate backward channel waypoints that clear all intermediate nodes.
 pub(crate) fn generate_corridor_backward_waypoints(
     edge: &Edge,
-    layout: &Layout,
+    layout: &GridLayout,
     src_bounds: &NodeBounds,
     tgt_bounds: &NodeBounds,
     direction: Direction,

@@ -774,15 +774,14 @@ fn render_svg_source_does_not_define_layout_builders() {
 }
 
 #[test]
-fn render_text_sources_use_graph_owned_projection_types_and_direct_mmds_replay() {
-    let text_types = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/text_types.rs");
-    let text_adapter =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/text_adapter.rs");
+fn graph_grid_sources_use_graph_owned_projection_types_and_direct_mmds_replay() {
+    let grid_layout = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/graph/grid/layout.rs");
+    let grid_derive = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/graph/grid/derive.rs");
     let mmds_render_input =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("src/frontends/mmds/render_input.rs");
 
-    let text_types = std::fs::read_to_string(&text_types).unwrap();
-    let text_adapter = std::fs::read_to_string(&text_adapter).unwrap();
+    let grid_layout = std::fs::read_to_string(&grid_layout).unwrap();
+    let grid_derive = std::fs::read_to_string(&grid_derive).unwrap();
     let mmds_render_input = std::fs::read_to_string(&mmds_render_input).unwrap();
 
     for forbidden in [
@@ -792,10 +791,10 @@ fn render_text_sources_use_graph_owned_projection_types_and_direct_mmds_replay()
         "crate::runtime::facade::render_graph(",
     ] {
         assert!(
-            !text_types.contains(forbidden)
-                && !text_adapter.contains(forbidden)
+            !grid_layout.contains(forbidden)
+                && !grid_derive.contains(forbidden)
                 && !mmds_render_input.contains(forbidden),
-            "render text replay should not rely on layered-owned bridge types or runtime solve fallback: {forbidden}"
+            "graph::grid derivation and direct MMDS replay should not rely on layered-owned bridge types or runtime solve fallback: {forbidden}"
         );
     }
 }
@@ -933,6 +932,21 @@ fn graph_surface_does_not_export_preview_only_helpers() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/graph/mod.rs");
     let content = std::fs::read_to_string(path).unwrap();
     assert!(!content.contains("snap_path_to_grid_preview"));
+}
+
+#[test]
+fn graph_module_uses_grid_namespace_not_grid_projection_module() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/graph/mod.rs");
+    let content = std::fs::read_to_string(path).unwrap();
+
+    assert!(
+        content.contains("pub mod grid;"),
+        "src/graph/mod.rs should export the new graph::grid namespace"
+    );
+    assert!(
+        !content.contains("pub mod grid_projection;"),
+        "src/graph/mod.rs should stop exporting graph::grid_projection"
+    );
 }
 
 #[test]

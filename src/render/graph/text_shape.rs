@@ -1,96 +1,11 @@
 //! Node shape rendering.
 
+use crate::graph::grid::NodeBounds;
 use crate::graph::measure::grid_node_dimensions;
 use crate::graph::{Direction, Node, Shape};
 use crate::render::graph::text_replay::intersect::NodeFace;
 use crate::render::primitives::canvas::{Canvas, CellStyle};
 use crate::render::primitives::chars::CharSet;
-
-/// Bounding box for a rendered node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NodeBounds {
-    pub x: usize,
-    pub y: usize,
-    pub width: usize,
-    pub height: usize,
-    /// Layout-derived center x, avoids integer division rounding.
-    pub layout_center_x: Option<usize>,
-    /// Layout-derived center y, avoids integer division rounding.
-    pub layout_center_y: Option<usize>,
-}
-
-impl NodeBounds {
-    /// Get the center x coordinate.
-    /// Uses the stored layout center if available, otherwise falls back to integer division.
-    pub fn center_x(&self) -> usize {
-        self.layout_center_x.unwrap_or(self.x + self.width / 2)
-    }
-
-    /// Get the center y coordinate.
-    /// Uses the stored layout center if available, otherwise falls back to integer division.
-    pub fn center_y(&self) -> usize {
-        self.layout_center_y.unwrap_or(self.y + self.height / 2)
-    }
-
-    /// Check if a point (x, y) falls inside this bounding box.
-    pub fn contains(&self, x: usize, y: usize) -> bool {
-        x >= self.x && x < self.x + self.width && y >= self.y && y < self.y + self.height
-    }
-
-    /// Get the top attachment point (center of top edge).
-    pub fn top(&self) -> (usize, usize) {
-        (self.center_x(), self.y)
-    }
-
-    /// Get the bottom attachment point (center of bottom edge).
-    pub fn bottom(&self) -> (usize, usize) {
-        (self.center_x(), self.y + self.height - 1)
-    }
-
-    /// Get the left attachment point (center of left edge).
-    pub fn left(&self) -> (usize, usize) {
-        (self.x, self.center_y())
-    }
-
-    /// Get the right attachment point (center of right edge).
-    pub fn right(&self) -> (usize, usize) {
-        (self.x + self.width - 1, self.center_y())
-    }
-
-    /// Returns the usable range (start, end) along a face for edge attachment.
-    /// For Top/Bottom: x-range excluding corner cells (border characters).
-    /// For Left/Right: y-range (full height).
-    pub fn face_extent(&self, face: &NodeFace) -> (usize, usize) {
-        match face {
-            NodeFace::Top | NodeFace::Bottom => {
-                // Exclude corner columns (first and last chars are corner/bracket chars)
-                let start = self.x + 1;
-                let end = (self.x + self.width).saturating_sub(2);
-                (start, end.max(start))
-            }
-            NodeFace::Left | NodeFace::Right => {
-                // Include full height — corner rows are valid attachment points
-                // for horizontal edges entering/exiting side faces. This ensures
-                // multiple edges on a side face can be spread apart even on
-                // minimum-height (3-cell) nodes.
-                let start = self.y;
-                let end = self.y + self.height.saturating_sub(1);
-                (start, end.max(start))
-            }
-        }
-    }
-
-    /// Returns the fixed coordinate for a face.
-    /// Top/Bottom: the y-coordinate of that edge. Left/Right: the x-coordinate.
-    pub fn face_fixed_coord(&self, face: &NodeFace) -> usize {
-        match face {
-            NodeFace::Top => self.y,
-            NodeFace::Bottom => self.y + self.height.saturating_sub(1),
-            NodeFace::Left => self.x,
-            NodeFace::Right => self.x + self.width.saturating_sub(1),
-        }
-    }
-}
 
 /// Corner style for text node boxes.
 ///
@@ -237,6 +152,35 @@ pub fn categorize_shape(shape: Shape) -> ShapeCategory {
 /// vertical for LR/RL. When rendered vertically, width and height are swapped.
 pub fn node_dimensions(node: &Node, direction: Direction) -> (usize, usize) {
     grid_node_dimensions(node, direction)
+}
+
+/// Returns the usable range (start, end) along a face for edge attachment.
+/// For Top/Bottom: x-range excluding corner cells (border characters).
+/// For Left/Right: y-range (full height).
+pub(crate) fn face_extent(bounds: &NodeBounds, face: &NodeFace) -> (usize, usize) {
+    match face {
+        NodeFace::Top | NodeFace::Bottom => {
+            let start = bounds.x + 1;
+            let end = (bounds.x + bounds.width).saturating_sub(2);
+            (start, end.max(start))
+        }
+        NodeFace::Left | NodeFace::Right => {
+            let start = bounds.y;
+            let end = bounds.y + bounds.height.saturating_sub(1);
+            (start, end.max(start))
+        }
+    }
+}
+
+/// Returns the fixed coordinate for a face.
+/// Top/Bottom: the y-coordinate of that edge. Left/Right: the x-coordinate.
+pub(crate) fn face_fixed_coord(bounds: &NodeBounds, face: &NodeFace) -> usize {
+    match face {
+        NodeFace::Top => bounds.y,
+        NodeFace::Bottom => bounds.y + bounds.height.saturating_sub(1),
+        NodeFace::Left => bounds.x,
+        NodeFace::Right => bounds.x + bounds.width.saturating_sub(1),
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -1011,8 +955,8 @@ mod tests {
             layout_center_y: None,
         };
         // Top/Bottom: exclude corners => x+1 to x+width-2 = 6 to 13
-        assert_eq!(bounds.face_extent(&NodeFace::Top), (6, 13));
-        assert_eq!(bounds.face_extent(&NodeFace::Bottom), (6, 13));
+        assert_eq!(face_extent(&bounds, &NodeFace::Top), (6, 13));
+        assert_eq!(face_extent(&bounds, &NodeFace::Bottom), (6, 13));
     }
 
     #[test]
@@ -1026,8 +970,8 @@ mod tests {
             layout_center_y: None,
         };
         // Left/Right: full height => 10 to 12
-        assert_eq!(bounds.face_extent(&NodeFace::Left), (10, 12));
-        assert_eq!(bounds.face_extent(&NodeFace::Right), (10, 12));
+        assert_eq!(face_extent(&bounds, &NodeFace::Left), (10, 12));
+        assert_eq!(face_extent(&bounds, &NodeFace::Right), (10, 12));
     }
 
     #[test]
@@ -1041,7 +985,7 @@ mod tests {
             layout_center_y: None,
         };
         // width=2: start=1, end=max(0,1)=1 => (1, 1)
-        assert_eq!(bounds.face_extent(&NodeFace::Top), (1, 1));
+        assert_eq!(face_extent(&bounds, &NodeFace::Top), (1, 1));
     }
 
     #[test]
@@ -1054,10 +998,10 @@ mod tests {
             layout_center_x: None,
             layout_center_y: None,
         };
-        assert_eq!(bounds.face_fixed_coord(&NodeFace::Top), 10);
-        assert_eq!(bounds.face_fixed_coord(&NodeFace::Bottom), 12);
-        assert_eq!(bounds.face_fixed_coord(&NodeFace::Left), 5);
-        assert_eq!(bounds.face_fixed_coord(&NodeFace::Right), 14);
+        assert_eq!(face_fixed_coord(&bounds, &NodeFace::Top), 10);
+        assert_eq!(face_fixed_coord(&bounds, &NodeFace::Bottom), 12);
+        assert_eq!(face_fixed_coord(&bounds, &NodeFace::Left), 5);
+        assert_eq!(face_fixed_coord(&bounds, &NodeFace::Right), 14);
     }
 
     #[test]

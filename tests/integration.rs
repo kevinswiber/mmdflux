@@ -24,8 +24,8 @@ use support::graph_family::{
 use support::render::{render_diagram_with_config, render_diagram_with_text_options};
 use support::routing::{EdgeRouting, route_graph_geometry};
 use support::text_grid::{
-    GridLayoutConfig, Layout, NodeBounds, RoutedEdge, Segment, compute_layout,
-    geometry_to_text_layout_with_routed, render_all_edges_with_labels, render_node,
+    GridLayout, GridLayoutConfig, NodeBounds, RoutedEdge, Segment, compute_layout,
+    geometry_to_grid_layout_with_routed, render_all_edges_with_labels, render_node,
     route_all_edges,
 };
 
@@ -59,13 +59,13 @@ fn parse_and_build(name: &str) -> Diagram {
 }
 
 /// Parse, build, and compute layout for a fixture file.
-fn layout_fixture(name: &str) -> (Diagram, Layout) {
+fn layout_fixture(name: &str) -> (Diagram, GridLayout) {
     let diagram = parse_and_build(name);
     let layout = compute_layout(&diagram, &GridLayoutConfig::default());
     (diagram, layout)
 }
 
-fn layout_fixture_with_routed(name: &str) -> (Diagram, Layout) {
+fn layout_fixture_with_routed(name: &str) -> (Diagram, GridLayout) {
     let diagram = parse_and_build(name);
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
@@ -73,7 +73,7 @@ fn layout_fixture_with_routed(name: &str) -> (Diagram, Layout) {
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
-    let layout = geometry_to_text_layout_with_routed(
+    let layout = geometry_to_grid_layout_with_routed(
         &diagram,
         &geom,
         Some(&routed),
@@ -249,7 +249,7 @@ fn segment_intersects_bounds(segment: Segment, bounds: &NodeBounds) -> bool {
     }
 }
 
-fn unrelated_node_intrusions(routed: &[RoutedEdge], layout: &Layout) -> Vec<String> {
+fn unrelated_node_intrusions(routed: &[RoutedEdge], layout: &GridLayout) -> Vec<String> {
     let mut intrusions = Vec::new();
 
     for edge in routed {
@@ -4287,7 +4287,7 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
 
     fn render_label_center(
         diagram: &Diagram,
-        layout: &Layout,
+        layout: &GridLayout,
         routed_edges: &[RoutedEdge],
         label: &str,
         label_positions: &HashMap<usize, (usize, usize)>,

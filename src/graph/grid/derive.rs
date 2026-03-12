@@ -1,9 +1,7 @@
-//! Text adapter: converts engine `GraphGeometry` to the integer `Layout`
-//! struct consumed by the text renderer.
+//! Derived grid layout builder for graph-family geometry.
 //!
 //! This is the bridge between the engine pipeline (which produces float
-//! coordinates via `MeasurementMode::Grid`) and text rendering (which
-//! operates on character-grid integer coordinates).
+//! coordinates via `MeasurementMode::Grid`) and downstream grid-space replay.
 //!
 //! All phases (B-N) are implemented inline, reading directly from
 //! `GraphGeometry` and its graph-owned grid projection data. Direction-override subgraphs
@@ -11,32 +9,49 @@
 
 use std::collections::{HashMap, HashSet};
 
-use super::grid_routing::backward::{BACKWARD_ROUTE_GAP, is_backward_edge as position_is_backward};
-use super::text_layout::{
-    CoordTransform, GridLayoutConfig, Layout, RawCenter, SelfEdgeDrawData, TransformContext,
+use super::GridLayoutConfig;
+use super::helpers::{
     align_cross_boundary_siblings_draw, clip_waypoints_to_subgraph, collision_repair,
-    compute_ascii_scale_factors, compute_grid_positions, compute_layer_starts,
+    compute_grid_positions, compute_grid_scale_factors, compute_layer_starts,
     ensure_external_edge_spacing, ensure_subgraph_contains_members, expand_parent_subgraph_bounds,
     nudge_colliding_waypoints, rank_gap_repair, reconcile_sublayouts_draw,
     resolve_sibling_overlaps_draw, shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps,
     subgraph_bounds_to_draw, transform_label_positions_direct, transform_waypoints_direct,
 };
-use super::text_shape::{NodeBounds, node_dimensions};
+use super::layout::{
+    CoordTransform, GridLayout, NodeBounds, RawCenter, SelfEdgeDrawData, TransformContext,
+};
 use crate::graph::geometry::{FRect, GraphGeometry, RoutedGraphGeometry};
+use crate::graph::measure::grid_node_dimensions;
 use crate::graph::{Diagram, Direction, Edge, Shape};
 
 type DrawPath = Vec<(usize, usize)>;
 type DrawPathPair = (DrawPath, DrawPath);
 type IndexedDrawPathPair = (usize, DrawPath, usize, DrawPath);
 
+const BACKWARD_ROUTE_GAP: usize = 2;
+
+fn is_backward_edge(
+    from_bounds: &NodeBounds,
+    to_bounds: &NodeBounds,
+    direction: Direction,
+) -> bool {
+    match direction {
+        Direction::TopDown => to_bounds.y < from_bounds.y,
+        Direction::BottomTop => to_bounds.y > from_bounds.y,
+        Direction::LeftRight => to_bounds.x < from_bounds.x,
+        Direction::RightLeft => to_bounds.x > from_bounds.x,
+    }
+}
+
 /// Convert engine-produced `GraphGeometry` (with optional routed edge paths)
-/// to the integer-coordinate `Layout` consumed by the text renderer.
-pub fn geometry_to_text_layout_with_routed(
+/// to an integer-coordinate `GridLayout`.
+pub fn geometry_to_grid_layout_with_routed(
     diagram: &Diagram,
     geometry: &GraphGeometry,
     routed: Option<&RoutedGraphGeometry>,
     config: &GridLayoutConfig,
-) -> Layout {
+) -> GridLayout {
     let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomTop);
     let direction = diagram.direction;
 
@@ -98,12 +113,12 @@ pub fn geometry_to_text_layout_with_routed(
     let node_dims: HashMap<String, (usize, usize)> = diagram
         .nodes
         .iter()
-        .map(|(id, node)| (id.clone(), node_dimensions(node, direction)))
+        .map(|(id, node)| (id.clone(), grid_node_dimensions(node, direction)))
         .collect();
 
     // --- Phase D: Scale layout coordinates to ASCII ---
     let ranks_doubled_for_scale = false;
-    let (scale_x, scale_y) = compute_ascii_scale_factors(
+    let (scale_x, scale_y) = compute_grid_scale_factors(
         &node_dims,
         config.rank_sep,
         config.node_sep,
@@ -242,13 +257,14 @@ pub fn geometry_to_text_layout_with_routed(
     // 2. Position-based visual backward edges: edges that go against the layout direction
     //    due to cross-graph rank constraints (e.g. a long cross-edge forces a node to a
     //    higher rank, making its shorter outgoing edges appear to go "upward"). These are
-    //    not cycles so the DFS does not mark them in reversed_edges, yet the text router's
+    //    not cycles so the DFS does not mark them in reversed_edges, yet the downstream
+    //    grid router's
     //    is_backward_edge() detects them by position and routes them to the right/bottom,
     //    requiring the same extra canvas margin as cycle-reversed backward edges.
     let has_backward_edges = !geometry.reversed_edges.is_empty() || {
         diagram.edges.iter().any(|edge| {
             match (node_bounds.get(&edge.from), node_bounds.get(&edge.to)) {
-                (Some(from_b), Some(to_b)) => position_is_backward(from_b, to_b, diagram.direction),
+                (Some(from_b), Some(to_b)) => is_backward_edge(from_b, to_b, diagram.direction),
                 _ => false,
             }
         })
@@ -319,7 +335,7 @@ pub fn geometry_to_text_layout_with_routed(
             }
             let mut converted: DrawPath = Vec::with_capacity(edge.path.len());
             for point in &edge.path {
-                converted.push(ctx.to_ascii(point.x, point.y));
+                converted.push(ctx.to_grid(point.x, point.y));
             }
             converted.dedup();
             if converted.len() >= 2 {
@@ -362,7 +378,7 @@ pub fn geometry_to_text_layout_with_routed(
         for edge in &diagram.edges {
             if let (Some(from_b), Some(to_b)) =
                 (node_bounds.get(&edge.from), node_bounds.get(&edge.to))
-                && position_is_backward(from_b, to_b, diagram.direction)
+                && is_backward_edge(from_b, to_b, diagram.direction)
                 && edge_waypoints
                     .get(&edge.index)
                     .is_some_and(|wps| wps.len() >= BACKWARD_WAYPOINT_STRIP_THRESHOLD)
@@ -606,7 +622,7 @@ pub fn geometry_to_text_layout_with_routed(
                         if stale {
                             // Keep the richer routed draw path even when the
                             // clipped normalization waypoints are stale. The
-                            // downstream text router now repairs/filters those
+                            // downstream grid routing now repairs/filters those
                             // draw paths instead of dropping back to a direct
                             // centerline route for cross-subgraph edges.
                             edge_waypoints.remove(&key);
@@ -642,7 +658,7 @@ pub fn geometry_to_text_layout_with_routed(
 
     let node_directions = geometry.node_directions.clone();
 
-    Layout {
+    GridLayout {
         grid_positions,
         draw_positions,
         node_bounds,
