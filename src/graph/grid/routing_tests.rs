@@ -1,13 +1,16 @@
 use std::fs;
 use std::path::Path;
 
+use super::super::attachments::plan_attachments;
+use super::*;
 use crate::diagrams::flowchart::compile_to_graph;
 use crate::engines::graph::EngineConfig;
 use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
 use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::geometry::{FPoint, FRect};
 use crate::graph::grid::{
-    GridLayout, GridLayoutConfig, GridPos, SubgraphBounds, geometry_to_grid_layout_with_routed,
+    GridLayout, GridLayoutConfig, GridPos, NodeFace, SubgraphBounds,
+    geometry_to_grid_layout_with_routed,
 };
 use crate::graph::routing::{
     EdgeRouting, Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
@@ -15,9 +18,6 @@ use crate::graph::routing::{
     point_on_face_float, resolve_overflow_backward_channel_conflict, route_graph_geometry,
 };
 use crate::graph::{Diagram, Direction, Edge, Node};
-use crate::render::graph::grid_routing::attachments::plan_attachments;
-use crate::render::graph::grid_routing::router::*;
-use crate::render::graph::text_replay::NodeFace;
 use crate::runtime::test_support_tests::compute_layout;
 
 fn simple_td_diagram() -> Diagram {

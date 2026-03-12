@@ -1,6 +1,8 @@
-//! Edge routing between nodes.
+//! Grid-space edge routing between derived node bounds.
 //!
-//! Computes paths for edges, avoiding node boundaries.
+//! This module owns orthogonal edge routing over integer-coordinate grid
+//! geometry. It consumes `GridLayout` and related grid-space helpers without
+//! depending on render-owned text drawing modules.
 
 use std::collections::HashMap;
 
@@ -18,12 +20,12 @@ use super::bounds::{
     NodeContainingSubgraphMap, bounds_for_node_id, build_node_containing_subgraph_map,
     containing_subgraph_id, node_inside_subgraph, resolve_edge_bounds, subgraph_edge_face,
 };
-use crate::graph::grid::{GridLayout, NodeBounds, SelfEdgeDrawData, SubgraphBounds};
-use crate::graph::{Arrow, Direction, Edge, Shape, Stroke};
-use crate::render::graph::text_replay::intersect::{
-    NodeFace, calculate_attachment_points, classify_face, spread_points_on_face,
+use super::intersect::{
+    NodeFace, calculate_attachment_points, classify_face, face_extent, face_fixed_coord,
+    spread_points_on_face,
 };
-use crate::render::graph::text_shape::{face_extent, face_fixed_coord};
+use super::{GridLayout, NodeBounds, SelfEdgeDrawData, SubgraphBounds};
+use crate::graph::{Arrow, Direction, Edge, Shape, Stroke};
 
 type Layout = GridLayout;
 
@@ -3023,5 +3025,5 @@ pub fn route_all_edges(
 }
 
 #[cfg(test)]
-#[path = "router_tests.rs"]
-mod router_tests;
+#[path = "routing_tests.rs"]
+mod routing_tests;

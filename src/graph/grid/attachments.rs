@@ -1,18 +1,15 @@
-//! Grid-routing attachment helpers owned by the render text pipeline.
-//!
-//! This module adapts shared graph-owned routing policy to render-owned
-//! `Layout` / `NodeBounds` / `SubgraphBounds` draw-state.
+//! Grid-routing attachment helpers for derived grid geometry.
 
+use super::GridLayout;
 use super::backward::is_backward_edge;
 use super::bounds::{resolve_edge_bounds, subgraph_edge_face};
-use crate::graph::grid::GridLayout;
+use super::intersect::{NodeFace, classify_face};
 use crate::graph::routing::{AttachmentCandidate, AttachmentPlan, AttachmentSide};
 pub(crate) use crate::graph::routing::{
     Face, LARGE_HORIZONTAL_OFFSET_THRESHOLD, edge_faces, plan_attachment_candidates,
     prefer_backward_side_channel,
 };
 use crate::graph::{Direction, Edge, Shape, Stroke};
-use crate::render::graph::text_replay::intersect::{NodeFace, classify_face};
 
 impl Face {
     /// Convert shared routing-policy face to the text router face type.

@@ -1,16 +1,12 @@
-//! Edge-node intersection calculation.
+//! Grid-space node-face and intersection helpers.
 //!
-//! This module implements dynamic edge attachment points based on the approach
-//! angle of an edge. Instead of always attaching edges at fixed center points,
-//! we calculate where a line from an external point would intersect the node's
-//! boundary.
-//!
-//! This is a key part of the Sugiyama framework that enables edges to
-//! fan out naturally from nodes rather than overlapping at the center.
+//! These helpers operate on derived integer-coordinate node bounds. Grid
+//! routing uses them to classify approach faces, spread attachment points, and
+//! compute boundary intersections without depending on render-owned modules.
 
+use super::NodeBounds;
 use crate::graph::Shape;
 use crate::graph::geometry::{FPoint, FRect};
-use crate::graph::grid::NodeBounds;
 use crate::graph::routing::{
     Face as RoutingFace, classify_face_float as shared_classify_face_float,
 };
@@ -26,6 +22,32 @@ pub enum NodeFace {
     Bottom,
     Left,
     Right,
+}
+
+/// Returns the usable range (start, end) along a node face for edge attachment.
+pub fn face_extent(bounds: &NodeBounds, face: &NodeFace) -> (usize, usize) {
+    match face {
+        NodeFace::Top | NodeFace::Bottom => {
+            let start = bounds.x + 1;
+            let end = (bounds.x + bounds.width).saturating_sub(2);
+            (start, end.max(start))
+        }
+        NodeFace::Left | NodeFace::Right => {
+            let start = bounds.y;
+            let end = bounds.y + bounds.height.saturating_sub(1);
+            (start, end.max(start))
+        }
+    }
+}
+
+/// Returns the fixed coordinate for a node face.
+pub fn face_fixed_coord(bounds: &NodeBounds, face: &NodeFace) -> usize {
+    match face {
+        NodeFace::Top => bounds.y,
+        NodeFace::Bottom => bounds.y + bounds.height.saturating_sub(1),
+        NodeFace::Left => bounds.x,
+        NodeFace::Right => bounds.x + bounds.width.saturating_sub(1),
+    }
 }
 
 /// Classify which face of a node a line from `approach_point` to the node center

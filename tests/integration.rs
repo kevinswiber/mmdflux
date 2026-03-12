@@ -4398,7 +4398,7 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
 
 #[test]
 fn classify_face_matches_expected_common_approaches() {
-    use mmdflux::render::graph::text_replay::{NodeFace, classify_face};
+    use mmdflux::graph::grid::{NodeFace, classify_face};
 
     let bounds = NodeBounds {
         x: 10,

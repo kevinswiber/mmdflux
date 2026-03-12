@@ -1971,6 +1971,7 @@ mod tests {
     use crate::engines::graph::algorithms::layered::{
         self, Direction as LayeredDirection, LayoutConfig as LayeredConfig,
     };
+    use crate::graph::grid::GridLayout;
     use crate::runtime::test_support_tests::{compute_layout, render_text_diagram};
 
     fn test_node_bounds(x: usize, y: usize, width: usize, height: usize) -> NodeBounds {

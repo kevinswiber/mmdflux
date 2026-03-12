@@ -437,6 +437,21 @@ fn removed_transitional_module_roots_stay_gone() {
     }
 
     for relative_path in [
+        "src/graph/grid/attachments.rs",
+        "src/graph/grid/backward.rs",
+        "src/graph/grid/bounds.rs",
+        "src/graph/grid/intersect.rs",
+        "src/graph/grid/routing.rs",
+    ] {
+        let path = repo_root.join(relative_path);
+        assert!(
+            path.exists(),
+            "{} should exist under graph::grid",
+            path.display()
+        );
+    }
+
+    for relative_path in [
         "src/render/graph/grid_routing/mod.rs",
         "src/render/graph/grid_routing/attachments.rs",
         "src/render/graph/grid_routing/backward.rs",
@@ -445,8 +460,8 @@ fn removed_transitional_module_roots_stay_gone() {
     ] {
         let path = repo_root.join(relative_path);
         assert!(
-            path.exists(),
-            "{} should exist under render::graph grid routing",
+            !path.exists(),
+            "{} should stay removed once grid routing is graph-owned",
             path.display()
         );
     }
@@ -701,7 +716,6 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
         "pub struct TextRenderOptions",
         "pub fn render_svg_from_geometry(",
         "pub fn render_text_from_geometry(",
-        "pub(crate) mod grid_routing;",
     ] {
         assert!(
             content.contains(required),
@@ -950,7 +964,18 @@ fn graph_module_uses_grid_namespace_not_grid_projection_module() {
 }
 
 #[test]
-fn grid_routing_uses_explicit_helper_modules() {
+fn graph_grid_namespace_does_not_import_render() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    assert_no_production_imports(
+        &repo_root.join("src/graph/grid"),
+        &["crate::render::"],
+        "graph::grid should remain render-agnostic",
+    );
+}
+
+#[test]
+fn graph_grid_uses_explicit_routing_helper_modules() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     assert!(
         !repo_root
@@ -958,9 +983,11 @@ fn grid_routing_uses_explicit_helper_modules() {
             .exists()
     );
     for required in [
-        "src/render/graph/grid_routing/attachments.rs",
-        "src/render/graph/grid_routing/bounds.rs",
-        "src/render/graph/grid_routing/backward.rs",
+        "src/graph/grid/attachments.rs",
+        "src/graph/grid/bounds.rs",
+        "src/graph/grid/backward.rs",
+        "src/graph/grid/intersect.rs",
+        "src/graph/grid/routing.rs",
     ] {
         assert!(repo_root.join(required).exists(), "missing {required}");
     }
@@ -1085,14 +1112,9 @@ fn render_does_not_import_engine_adapters_or_layered_config() {
 fn float_render_consumers_do_not_depend_on_render_grid_routing() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let svg = std::fs::read_to_string(repo_root.join("src/render/graph/svg.rs")).unwrap();
-    let intersect =
-        std::fs::read_to_string(repo_root.join("src/render/graph/text_replay/intersect.rs"))
-            .unwrap();
 
-    for content in [&svg, &intersect] {
-        assert!(
-            !content.contains("crate::render::graph::grid_routing::"),
-            "float render helpers should not depend on render-owned grid routing internals"
-        );
-    }
+    assert!(
+        !svg.contains("crate::render::graph::grid_routing::"),
+        "float render helpers should not depend on render-owned grid routing internals"
+    );
 }

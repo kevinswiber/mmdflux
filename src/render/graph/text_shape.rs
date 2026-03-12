@@ -3,7 +3,6 @@
 use crate::graph::grid::NodeBounds;
 use crate::graph::measure::grid_node_dimensions;
 use crate::graph::{Direction, Node, Shape};
-use crate::render::graph::text_replay::intersect::NodeFace;
 use crate::render::primitives::canvas::{Canvas, CellStyle};
 use crate::render::primitives::chars::CharSet;
 
@@ -152,35 +151,6 @@ pub fn categorize_shape(shape: Shape) -> ShapeCategory {
 /// vertical for LR/RL. When rendered vertically, width and height are swapped.
 pub fn node_dimensions(node: &Node, direction: Direction) -> (usize, usize) {
     grid_node_dimensions(node, direction)
-}
-
-/// Returns the usable range (start, end) along a face for edge attachment.
-/// For Top/Bottom: x-range excluding corner cells (border characters).
-/// For Left/Right: y-range (full height).
-pub(crate) fn face_extent(bounds: &NodeBounds, face: &NodeFace) -> (usize, usize) {
-    match face {
-        NodeFace::Top | NodeFace::Bottom => {
-            let start = bounds.x + 1;
-            let end = (bounds.x + bounds.width).saturating_sub(2);
-            (start, end.max(start))
-        }
-        NodeFace::Left | NodeFace::Right => {
-            let start = bounds.y;
-            let end = bounds.y + bounds.height.saturating_sub(1);
-            (start, end.max(start))
-        }
-    }
-}
-
-/// Returns the fixed coordinate for a face.
-/// Top/Bottom: the y-coordinate of that edge. Left/Right: the x-coordinate.
-pub(crate) fn face_fixed_coord(bounds: &NodeBounds, face: &NodeFace) -> usize {
-    match face {
-        NodeFace::Top => bounds.y,
-        NodeFace::Bottom => bounds.y + bounds.height.saturating_sub(1),
-        NodeFace::Left => bounds.x,
-        NodeFace::Right => bounds.x + bounds.width.saturating_sub(1),
-    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -636,6 +606,7 @@ fn render_diamond(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::grid::{NodeFace, face_extent, face_fixed_coord};
 
     #[test]
     fn test_node_dimensions_rectangle() {

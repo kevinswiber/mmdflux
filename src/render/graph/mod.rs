@@ -7,11 +7,9 @@
 //! Low-level text-grid replay helpers live under
 //! [`crate::render::graph::text_replay`].
 //!
-//! Internally, graph render routing is split into render-owned grid routing
-//! helpers under `grid_routing` and graph-owned float/policy helpers exposed
-//! through `crate::graph::routing`.
+//! Internally, graph render emission consumes graph-owned float and grid
+//! geometry helpers exposed through `crate::graph`.
 
-pub(crate) mod grid_routing;
 pub(crate) mod svg;
 pub(crate) mod svg_metrics;
 pub(crate) mod text_edge;
@@ -22,7 +20,7 @@ pub(crate) mod text_subgraph;
 use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
-use crate::graph::grid::SubgraphBounds;
+use crate::graph::grid::{RoutedEdge, Segment, SubgraphBounds, route_all_edges};
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Diagram, Direction};
 use crate::render::primitives::canvas::{Cell, Connections};
@@ -372,8 +370,7 @@ pub(crate) fn render_text_from_layout(
         }
     }
 
-    let routed_edges =
-        grid_routing::router::route_all_edges(&diagram.edges, layout, diagram.direction);
+    let routed_edges = route_all_edges(&diagram.edges, layout, diagram.direction);
     text_edge::render_all_edges_with_labels(
         &mut canvas,
         &routed_edges,
@@ -460,7 +457,7 @@ pub(crate) fn layout_config_for_diagram(
 fn apply_subgraph_border_junctions(
     canvas: &mut Canvas,
     subgraph_bounds: &std::collections::HashMap<String, SubgraphBounds>,
-    routed_edges: &[text_replay::RoutedEdge],
+    routed_edges: &[RoutedEdge],
     charset: &CharSet,
 ) {
     if subgraph_bounds.is_empty() || routed_edges.is_empty() {
@@ -489,7 +486,7 @@ fn apply_subgraph_border_junctions(
         for routed in routed_edges {
             for segment in &routed.segments {
                 match *segment {
-                    text_replay::Segment::Vertical { x, y_start, y_end } => {
+                    Segment::Vertical { x, y_start, y_end } => {
                         let (y_min, y_max) = if y_start <= y_end {
                             (y_start, y_end)
                         } else {
@@ -512,7 +509,7 @@ fn apply_subgraph_border_junctions(
                             }
                         }
                     }
-                    text_replay::Segment::Horizontal { y, x_start, x_end } => {
+                    Segment::Horizontal { y, x_start, x_end } => {
                         let (x_min, x_max) = if x_start <= x_end {
                             (x_start, x_end)
                         } else {

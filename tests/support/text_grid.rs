@@ -4,13 +4,13 @@ use mmdflux::engines::graph::algorithms::layered::{
 use mmdflux::engines::graph::contracts::{EngineConfig, GraphEngine};
 use mmdflux::engines::graph::flux::FluxLayeredEngine;
 use mmdflux::graph::grid::GridRanker;
+#[allow(unused_imports)]
 pub use mmdflux::graph::grid::{
-    GridLayout, GridLayoutConfig, NodeBounds, geometry_to_grid_layout_with_routed,
+    GridLayout, GridLayoutConfig, NodeBounds, RoutedEdge, Segment,
+    geometry_to_grid_layout_with_routed, route_all_edges,
 };
 #[allow(unused_imports)]
-pub use mmdflux::render::graph::text_replay::{
-    RoutedEdge, Segment, render_all_edges_with_labels, render_node, route_all_edges,
-};
+pub use mmdflux::render::graph::text_replay::{render_all_edges_with_labels, render_node};
 use mmdflux::{Diagram, Direction, GeometryLevel};
 
 use super::graph_family::default_grid_request;

@@ -5,14 +5,26 @@
 //! grid geometry without depending on engine-private enums or render-owned
 //! namespaces.
 
+mod attachments;
+mod backward;
+mod bounds;
 mod derive;
 pub(crate) mod helpers;
+mod intersect;
 mod layout;
+mod routing;
 
 use std::collections::HashMap;
 
 pub use derive::geometry_to_grid_layout_with_routed;
+pub use intersect::{
+    FloatPoint, NodeFace, calculate_attachment_points, classify_face, face_extent,
+    face_fixed_coord, intersect_diamond, intersect_node, intersect_rect, spread_points_on_face,
+};
 pub use layout::{GridLayout, GridPos, NodeBounds, SelfEdgeDrawData, SubgraphBounds};
+#[cfg(test)]
+pub(crate) use routing::route_edge;
+pub use routing::{AttachDirection, Point, RoutedEdge, Segment, route_all_edges};
 
 use crate::graph::geometry::{FPoint, FRect};
 

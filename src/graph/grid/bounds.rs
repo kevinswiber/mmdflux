@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::graph::grid::{GridLayout, NodeBounds, SubgraphBounds};
+use super::intersect::{NodeFace, classify_face};
+use super::{GridLayout, NodeBounds, SubgraphBounds};
 use crate::graph::{Direction, Edge, Shape};
-use crate::render::graph::text_replay::intersect::{NodeFace, classify_face};
 
 pub(crate) type NodeContainingSubgraphMap<'a> = HashMap<&'a str, &'a str>;
 

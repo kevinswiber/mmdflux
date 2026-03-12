@@ -241,6 +241,15 @@ fn graph_grid_exposes_grid_layout_surface() {
 }
 
 #[test]
+fn graph_grid_exposes_grid_routing_surface() {
+    use mmdflux::graph::grid::{RoutedEdge, Segment, route_all_edges};
+
+    let _ = std::any::type_name::<RoutedEdge>();
+    let _ = std::any::type_name::<Segment>();
+    let _ = route_all_edges;
+}
+
+#[test]
 fn crate_root_exports_registry_builtins_but_not_removed_advanced_helpers() {
     let modules = public_modules_for_test();
     let exports = public_exports_for_test();

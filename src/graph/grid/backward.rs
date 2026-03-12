@@ -1,6 +1,6 @@
-use crate::graph::grid::{GridLayout, NodeBounds};
+use super::bounds::node_inside_subgraph;
+use super::{GridLayout, NodeBounds};
 use crate::graph::{Direction, Edge};
-use crate::render::graph::grid_routing::bounds::node_inside_subgraph;
 
 /// Gap between node boundary and synthetic backward-edge waypoint path (in cells).
 pub const BACKWARD_ROUTE_GAP: usize = 2;
