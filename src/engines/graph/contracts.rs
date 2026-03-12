@@ -4,14 +4,12 @@
 //! crate's flat top-level public contract modules. This module keeps the
 //! engine-side solve contracts and provides a focused engine import surface.
 
-use crate::config::LayoutConfig;
-pub use crate::config::{
-    AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineId, GeometryLevel,
-    PathSimplification, RenderConfig, RouteOwnership, TextColorMode,
+use crate::config::{
+    EngineAlgorithmCapabilities, EngineAlgorithmId, GeometryLevel, LayoutConfig,
+    PathSimplification, RenderConfig, RouteOwnership,
 };
-pub use crate::errors::RenderError;
-pub use crate::family::DiagramFamily;
-pub use crate::format::{CornerStyle, Curve, EdgePreset, OutputFormat, RoutingStyle};
+use crate::errors::RenderError;
+use crate::format::{OutputFormat, RoutingStyle};
 use crate::graph::routing::EdgeRouting;
 
 impl EngineAlgorithmId {

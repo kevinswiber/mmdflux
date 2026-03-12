@@ -3,7 +3,10 @@
 //! Packet diagrams display network packet layouts.
 //! Currently renders as a simple text table.
 
-use crate::engines::graph::{DiagramFamily, OutputFormat, RenderConfig, RenderError};
+use crate::config::RenderConfig;
+use crate::errors::RenderError;
+use crate::family::DiagramFamily;
+use crate::format::OutputFormat;
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
 pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];

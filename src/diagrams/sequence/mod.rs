@@ -10,7 +10,8 @@ pub mod model;
 
 pub use instance::SequenceInstance;
 
-use crate::engines::graph::{DiagramFamily, OutputFormat};
+use crate::family::DiagramFamily;
+use crate::format::OutputFormat;
 use crate::registry::{DiagramDefinition, DiagramDetector};
 
 pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];

@@ -4,19 +4,21 @@
 //! algorithm kernel, then applies Flux-specific profile selection and native
 //! routing behavior.
 
+use crate::config::{
+    AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineId, GeometryLevel,
+    RouteOwnership,
+};
 use crate::engines::graph::algorithms::layered::{
     LabelDummyStrategy, LayoutConfig, MeasurementMode, build_svg_layout_with_flags,
     layout_config_from_layered, run_layered_layout,
 };
-use crate::engines::graph::{
-    AlgorithmId, EdgeRouting, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineConfig,
-    EngineId, GeometryLevel, GraphEngine, GraphSolveRequest, GraphSolveResult, OutputFormat,
-    RenderError, RouteOwnership, RoutingStyle,
-};
+use crate::engines::graph::{EngineConfig, GraphEngine, GraphSolveRequest, GraphSolveResult};
+use crate::errors::RenderError;
+use crate::format::{OutputFormat, RoutingStyle};
 use crate::graph::Diagram;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::measure::default_svg_text_metrics;
-use crate::graph::routing::route_graph_geometry;
+use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 
 /// Flux-layered engine: native graph-family layout plus native routing.
 pub struct FluxLayeredEngine {

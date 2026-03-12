@@ -9,7 +9,8 @@ mod instance;
 pub use compiler::compile_to_graph;
 pub use instance::FlowchartInstance;
 
-use crate::engines::graph::{DiagramFamily, OutputFormat};
+use crate::family::DiagramFamily;
+use crate::format::OutputFormat;
 use crate::registry::{DiagramDefinition, DiagramDetector};
 
 pub const SUPPORTED_FORMATS: &[OutputFormat] = &[

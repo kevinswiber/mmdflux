@@ -5,12 +5,13 @@ use super::super::text_layout::{GridLayoutConfig, GridPos};
 use super::super::text_types::SubgraphBounds;
 use super::*;
 use crate::diagrams::flowchart::compile_to_graph;
+use crate::engines::graph::EngineConfig;
 use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-use crate::engines::graph::{EdgeRouting, EngineConfig, OutputFormat};
+use crate::format::OutputFormat;
 use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::geometry::{FPoint, FRect};
+use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{Diagram, Node};
-use crate::render::graph::routing::route_graph_geometry;
 use crate::render::graph::text_adapter::geometry_to_text_layout_with_routed;
 use crate::render::graph::text_routing_core::{
     Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
@@ -44,10 +45,7 @@ fn routed_text_layout_for_fixture(name: &str) -> (Diagram, Layout) {
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(
-        &MeasurementMode::for_format(
-            OutputFormat::Text,
-            &crate::engines::graph::RenderConfig::default(),
-        ),
+        &MeasurementMode::for_format(OutputFormat::Text, &crate::config::RenderConfig::default()),
         &diagram,
         &config,
     )

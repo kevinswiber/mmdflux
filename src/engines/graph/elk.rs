@@ -8,7 +8,8 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-use crate::engines::graph::{EngineConfig, RenderError};
+use crate::engines::graph::EngineConfig;
+use crate::errors::RenderError;
 use crate::graph::geometry::{
     FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode, SubgraphGeometry,
 };

@@ -9,11 +9,13 @@
 //! - [`validate_diagram`] — parse and return structured diagnostics as JSON.
 //! - [`render_graph`] — (internal) graph-family engine+render pipeline.
 
-use crate::diagnostics::ParseDiagnostic;
-use crate::engines::graph::{
-    AlgorithmId, EngineAlgorithmId, EngineId, OutputFormat, RenderConfig, RenderError,
-    solve_graph_family,
+use crate::config::{
+    AlgorithmId, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification, RenderConfig,
 };
+use crate::diagnostics::ParseDiagnostic;
+use crate::engines::graph::{GraphSolveResult, solve_graph_family};
+use crate::errors::RenderError;
+use crate::format::OutputFormat;
 use crate::frontends::mermaid::{
     DiagramType, ParseError, ParseOptions, detect_diagram_type, parse_flowchart_with_options,
 };
@@ -85,9 +87,9 @@ pub(crate) fn render_graph(
 fn render_mmds_from_solve_result(
     diagram_type: &str,
     diagram: &Diagram,
-    result: &crate::engines::graph::GraphSolveResult,
-    level: crate::engines::graph::GeometryLevel,
-    path_simplification: crate::engines::graph::PathSimplification,
+    result: &GraphSolveResult,
+    level: GeometryLevel,
+    path_simplification: PathSimplification,
 ) -> Result<String, RenderError> {
     crate::mmds::to_mmds_json_typed_with_routing(
         diagram_type,

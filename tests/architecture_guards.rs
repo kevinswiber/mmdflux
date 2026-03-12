@@ -576,8 +576,8 @@ fn engine_graph_root_does_not_flatten_contracts_barrel() {
     let content = std::fs::read_to_string(&path).unwrap();
 
     assert!(
-        !content.contains("pub use contracts::*"),
-        "engines::graph should not expose a public contracts barrel"
+        !content.contains("use contracts::*"),
+        "engines::graph should not flatten the contracts barrel"
     );
 }
 
@@ -591,6 +591,9 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
         "pub fn compute_text_layout(",
         "pub struct RenderOptions",
         "pub struct SvgOptions",
+        "mod backward_policy;",
+        "mod route_policy;",
+        "mod routing;",
     ] {
         assert!(
             !content.contains(forbidden),
@@ -607,6 +610,22 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
         assert!(
             content.contains(required),
             "render::graph should expose the render-only geometry API: {required}"
+        );
+    }
+}
+
+#[test]
+fn render_graph_does_not_restore_transitional_graph_shims() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for path in [
+        "src/render/graph/backward_policy.rs",
+        "src/render/graph/route_policy.rs",
+        "src/render/graph/routing.rs",
+    ] {
+        assert!(
+            !repo_root.join(path).exists(),
+            "render::graph should not restore the deleted transitional shim: {path}"
         );
     }
 }

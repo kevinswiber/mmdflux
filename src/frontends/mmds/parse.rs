@@ -1,5 +1,5 @@
 use super::detect::resolve_logical_diagram_id;
-use crate::engines::graph::RenderError;
+use crate::errors::RenderError;
 use crate::mmds::{
     MmdsOutput, MmdsParseError, MmdsProfileNegotiation, evaluate_mmds_profiles_for_output,
     parse_mmds_input,

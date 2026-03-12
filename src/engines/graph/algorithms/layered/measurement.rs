@@ -3,7 +3,10 @@ use super::layout_building::{
     build_layered_layout_with_config, compute_sublayouts, layered_config_for_layout,
 };
 use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds};
-use crate::engines::graph::{EngineConfig, OutputFormat, RenderConfig, RenderError};
+use crate::config::RenderConfig;
+use crate::engines::graph::EngineConfig;
+use crate::errors::RenderError;
+use crate::format::OutputFormat;
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::grid_projection::{GridProjection, GridRanker, OverrideSubgraphProjection};
 use crate::graph::measure::{

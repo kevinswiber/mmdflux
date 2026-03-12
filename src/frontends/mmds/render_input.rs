@@ -3,7 +3,9 @@ use super::hydrate::{
     from_mmds_output, hydrate_graph_geometry_from_output_with_diagram,
     hydrate_routed_geometry_from_output,
 };
-use crate::engines::graph::{GeometryLevel, OutputFormat, RenderConfig, RenderError};
+use crate::config::{GeometryLevel, RenderConfig};
+use crate::errors::RenderError;
+use crate::format::OutputFormat;
 use crate::graph::routing::EdgeRouting;
 use crate::mmds::{MmdsOutput, generate_mermaid_from_mmds, parse_mmds_input};
 use crate::render::graph::{

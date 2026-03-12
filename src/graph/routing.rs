@@ -845,7 +845,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::engines::graph::EdgeRouting;
+    use crate::graph::routing::EdgeRouting;
 
     fn simple_geometry() -> (Diagram, GraphGeometry) {
         let mut diagram = Diagram::new(crate::graph::Direction::TopDown);

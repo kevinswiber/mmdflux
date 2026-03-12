@@ -6,7 +6,7 @@
 //! - `algorithms::layered` is the shared layered-layout kernel
 //!
 //! Low-level callers should use the fully qualified module paths instead
-//! of relying on root-module re-exports.
+//! of relying on root-module re-exports for config, format, or error types.
 
 pub mod algorithms;
 #[doc(hidden)]
@@ -21,8 +21,6 @@ mod solve;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use contracts::*;
+pub(crate) use contracts::{EngineConfig, GraphEngine, GraphSolveRequest, GraphSolveResult};
 pub(crate) use registry::GraphEngineRegistry;
 pub(crate) use solve::solve_graph_family;
-
-pub(crate) use crate::graph::routing::EdgeRouting;

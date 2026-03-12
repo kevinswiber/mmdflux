@@ -5,14 +5,13 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
-use super::route_policy::effective_edge_direction;
 use super::svg_metrics::SvgTextMetrics;
 use super::text_routing_core::{
     build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
 };
-use crate::graph::direction_policy::build_override_node_map;
+use crate::graph::direction_policy::{build_override_node_map, effective_edge_direction};
 use crate::graph::geometry::{EngineHints, FPoint, FRect, GraphGeometry};
-use crate::graph::routing::EdgeRouting;
+use crate::graph::routing::{EdgeRouting, compute_end_label_positions};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke};
 use crate::render::graph::SvgRenderOptions;
 use crate::{CornerStyle, Curve, PathSimplification};
@@ -1810,8 +1809,7 @@ fn render_edge_labels(
         if path.len() < 2 {
             continue;
         }
-        let (head_pos, tail_pos) =
-            crate::render::graph::routing::compute_end_label_positions(&path);
+        let (head_pos, tail_pos) = compute_end_label_positions(&path);
         if let (Some(label), Some(pos)) = (&edge.head_label, head_pos) {
             render_text_centered(
                 writer,

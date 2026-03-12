@@ -2,7 +2,9 @@
 
 use super::model::SequenceModel;
 use super::{compiler, layout};
-use crate::engines::graph::{OutputFormat, RenderConfig, RenderError};
+use crate::config::RenderConfig;
+use crate::errors::RenderError;
+use crate::format::OutputFormat;
 use crate::frontends::mermaid::sequence::parse_sequence;
 use crate::registry::DiagramInstance;
 use crate::render::CharSet;

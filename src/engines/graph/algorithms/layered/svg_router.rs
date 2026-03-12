@@ -621,10 +621,10 @@ pub fn align_cross_boundary_siblings(diagram: &Diagram, layout: &mut LayoutResul
 mod tests {
     use super::*;
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::engines::graph::EdgeRouting;
     use crate::engines::graph::algorithms::layered::svg_layout::build_svg_layout_with_flags;
     use crate::frontends::mermaid::parse_flowchart;
     use crate::graph::measure::SvgTextMetrics;
+    use crate::graph::routing::EdgeRouting;
 
     #[test]
     fn test_build_node_directions_svg_basic() {

@@ -5,13 +5,12 @@ use super::flux::{
     FluxLayeredEngine, adapt_flux_profile_for_reversed_chain_crowding, flux_layout_profile,
 };
 use super::mermaid::MermaidLayeredEngine;
-use super::{
-    EdgeRouting, EngineAlgorithmId, EngineConfig, GeometryLevel, GraphEngine, GraphEngineRegistry,
-    GraphSolveRequest, GraphSolveResult, OutputFormat, PathSimplification, RouteOwnership,
-    RoutingStyle,
-};
+use super::{EngineConfig, GraphEngine, GraphEngineRegistry, GraphSolveRequest, GraphSolveResult};
+use crate::config::{EngineAlgorithmId, GeometryLevel, PathSimplification, RouteOwnership};
+use crate::format::{OutputFormat, RoutingStyle};
 use crate::graph::Diagram;
 use crate::graph::measure::SvgTextMetrics;
+use crate::graph::routing::EdgeRouting;
 
 fn build_simple_diagram() -> Diagram {
     let flowchart = crate::frontends::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();

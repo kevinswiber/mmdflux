@@ -1,4 +1,5 @@
-use crate::engines::graph::{OutputFormat, RenderError};
+use crate::errors::RenderError;
+use crate::format::OutputFormat;
 use crate::mmds::{MmdsOutput, MmdsParseError, parse_mmds_input};
 
 pub const SUPPORTED_OUTPUT_FORMATS: &[OutputFormat] = &[

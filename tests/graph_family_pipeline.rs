@@ -4,9 +4,8 @@
 //! pipeline contract, and that text/SVG/MMDS renderers consume graph-family
 //! contracts (not parser-specific or renderer-specific state).
 
-use mmdflux::engines::graph::contracts::{
-    EngineConfig, GeometryLevel, GraphSolveRequest, GraphSolveResult, PathSimplification,
-};
+use mmdflux::config::{GeometryLevel, PathSimplification};
+use mmdflux::engines::graph::contracts::{EngineConfig, GraphSolveRequest, GraphSolveResult};
 use mmdflux::engines::graph::registry::GraphEngineRegistry;
 use mmdflux::graph::{Diagram, EdgeRouting, route_graph_geometry};
 use mmdflux::mmds::to_mmds_json_typed;

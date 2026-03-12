@@ -4,7 +4,9 @@
 //! then delegates rendering to the shared graph-family facade.
 
 use super::compile_to_graph;
-use crate::engines::graph::{OutputFormat, RenderConfig, RenderError};
+use crate::config::RenderConfig;
+use crate::errors::RenderError;
+use crate::format::OutputFormat;
 use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::Diagram;
 use crate::registry::DiagramInstance;

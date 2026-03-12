@@ -5,9 +5,10 @@
 
 use std::collections::HashMap;
 
+use crate::config::{AlgorithmId, EngineAlgorithmId, EngineId};
+use crate::engines::graph::GraphEngine;
 use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::engines::graph::mermaid::MermaidLayeredEngine;
-use crate::engines::graph::{EngineAlgorithmId, GraphEngine};
 
 /// Concrete trait object type for graph solvers.
 type BoxedGraphSolver = Box<dyn GraphEngine>;
@@ -33,8 +34,6 @@ impl GraphEngineRegistry {
 
 impl Default for GraphEngineRegistry {
     fn default() -> Self {
-        use crate::engines::graph::{AlgorithmId, EngineId};
-
         let mut registry = Self {
             solvers: HashMap::new(),
         };
@@ -56,7 +55,6 @@ impl Default for GraphEngineRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engines::graph::{AlgorithmId, EngineId};
 
     #[test]
     fn default_registry_has_flux_layered_solver() {

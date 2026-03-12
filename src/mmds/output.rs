@@ -9,7 +9,8 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Number, Value};
 
-use crate::engines::graph::{EngineAlgorithmId, GeometryLevel, PathSimplification, RenderError};
+use crate::config::{EngineAlgorithmId, GeometryLevel, PathSimplification};
+use crate::errors::RenderError;
 use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry};
 use crate::graph::grid_projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
@@ -864,12 +865,12 @@ fn is_default_minlen(value: &i32) -> bool {
 mod tests {
     use super::*;
     use crate::diagrams::flowchart::compile_to_graph;
+    use crate::engines::graph::EngineConfig;
+    use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
     use crate::frontends::mermaid::parse_flowchart;
+    use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 
     fn layout_geometry(input: &str) -> (Diagram, GraphGeometry) {
-        use crate::engines::graph::EngineConfig;
-        use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-
         let fc = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&fc);
         let config = EngineConfig::Layered(
@@ -880,8 +881,6 @@ mod tests {
     }
 
     fn routed_geometry(diagram: &Diagram, geometry: &GraphGeometry) -> RoutedGraphGeometry {
-        use crate::engines::graph::EdgeRouting;
-        use crate::render::graph::routing::route_graph_geometry;
         route_graph_geometry(diagram, geometry, EdgeRouting::PolylineRoute)
     }
 
