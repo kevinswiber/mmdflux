@@ -1,7 +1,9 @@
 //! Flowchart diagram instance implementation.
 //!
 //! Compiles Mermaid flowchart syntax to `graph::Diagram` (graph-family IR),
-//! then delegates rendering to the shared graph-family pipeline.
+//! then prepares a graph-family payload for runtime dispatch.
+
+use std::borrow::Cow;
 
 use super::compile_to_graph;
 use crate::config::RenderConfig;
@@ -9,12 +11,13 @@ use crate::errors::RenderError;
 use crate::format::OutputFormat;
 use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::Diagram;
+use crate::prepared::{PreparedDiagram, PreparedGraph};
 use crate::registry::DiagramInstance;
 
 /// Flowchart diagram instance.
 ///
-/// Compiles flowchart syntax to `graph::Diagram`, then renders through
-/// the shared graph-family pipeline.
+/// Compiles flowchart syntax to `graph::Diagram`, then prepares a
+/// graph-family payload for runtime dispatch.
 pub struct FlowchartInstance {
     /// Compiled graph-family IR.
     diagram: Option<Diagram>,
@@ -40,22 +43,22 @@ impl DiagramInstance for FlowchartInstance {
         Ok(())
     }
 
-    fn render(&self, format: OutputFormat, config: &RenderConfig) -> Result<String, RenderError> {
+    fn prepare(&self, config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
         let diagram = self.diagram.as_ref().ok_or_else(|| RenderError {
             message: "No diagram parsed. Call parse() first.".to_string(),
         })?;
 
         // Diagram-specific pre-processing: annotate node IDs if requested.
-        let annotated;
         let diagram = if config.show_ids {
-            annotated = annotate_node_ids(diagram);
-            &annotated
+            Cow::Owned(annotate_node_ids(diagram))
         } else {
-            diagram
+            Cow::Borrowed(diagram)
         };
 
-        // Delegate to the shared graph-family pipeline.
-        crate::graph_family_pipeline::render_graph("flowchart", diagram, format, config)
+        Ok(PreparedDiagram::Graph(PreparedGraph {
+            diagram_type: "flowchart",
+            diagram,
+        }))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {

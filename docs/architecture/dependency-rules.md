@@ -83,9 +83,9 @@ Guard tests should fail when the code drifts away from these rules.
 
 13. **runtime/ is orchestration only** — The runtime layer detects input
     frontends, resolves logical diagram types, manages the registry, and wires
-    the pipeline. Graph-family runtime dispatch shares crate-private
-    orchestration through `graph_family_pipeline`; runtime itself does not own
-    parsing grammars, layout algorithms, or renderer implementations.
+    the pipeline. Graph-family runtime dispatch lives under `src/runtime/`;
+    runtime itself does not own parsing grammars, layout algorithms, or
+    renderer implementations.
 
 14. **registry is contract-only infrastructure** — `src/registry.rs` defines
     reusable registry contracts (`DiagramRegistry`, `DiagramDefinition`,

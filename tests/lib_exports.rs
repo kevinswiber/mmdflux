@@ -18,6 +18,7 @@ use mmdflux::{
     graph::geometry::{
         EngineHints, FRect, GraphGeometry, LayeredHints, LayoutEdge, PositionedNode,
     },
+    prepared::PreparedDiagram,
     // Registry
     registry::DiagramInstance,
     // Render-only geometry API
@@ -120,6 +121,11 @@ fn flat_public_contract_modules_are_accessible() {
 }
 
 #[test]
+fn lib_exports_expose_the_prepared_module() {
+    let _ = mmdflux::prepared::PreparedDiagram::Info;
+}
+
+#[test]
 fn crate_root_exports_only_the_curated_render_and_validation_surface() {
     let exports = public_exports_for_test();
 
@@ -201,11 +207,8 @@ fn registry_api_works() {
 
     let mut instance = registry.create(diagram_id).unwrap();
     instance.parse(input).unwrap();
-    let output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
-    assert!(output.contains('A'));
-    assert!(output.contains('B'));
+    let prepared = instance.prepare(&RenderConfig::default()).unwrap();
+    assert!(matches!(prepared, PreparedDiagram::Graph(_)));
 }
 
 #[test]

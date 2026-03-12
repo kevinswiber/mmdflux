@@ -5,6 +5,9 @@
 
 pub mod config_input;
 
+mod dispatch;
+mod graph_dispatch;
+
 use crate::config::RenderConfig;
 use crate::diagnostics::ParseDiagnostic;
 use crate::errors::RenderError;
@@ -61,7 +64,8 @@ pub fn render_diagram(
         });
     }
 
-    instance.render(format, config)
+    let prepared = instance.prepare(config)?;
+    dispatch::dispatch_prepared(prepared, format, config)
 }
 
 /// Validate Mermaid input and return structured diagnostics as JSON.

@@ -7,6 +7,8 @@ use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::family::DiagramFamily;
 use crate::format::OutputFormat;
+use crate::frontends::mermaid::packet::Packet;
+use crate::prepared::{PreparedDiagram, PreparedPacket};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
 pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];
@@ -36,12 +38,16 @@ pub fn definition() -> DiagramDefinition {
 /// Packet diagram instance.
 pub struct PacketInstance {
     input: Option<String>,
+    packet: Option<Packet>,
 }
 
 impl PacketInstance {
     /// Create a new packet diagram instance.
     pub fn new() -> Self {
-        Self { input: None }
+        Self {
+            input: None,
+            packet: None,
+        }
     }
 }
 
@@ -53,15 +59,19 @@ impl Default for PacketInstance {
 
 impl DiagramInstance for PacketInstance {
     fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        crate::frontends::mermaid::parse_packet(input)?;
+        self.packet = Some(crate::frontends::mermaid::parse_packet(input)?);
         self.input = Some(input.to_string());
         Ok(())
     }
 
-    fn render(&self, _format: OutputFormat, _config: &RenderConfig) -> Result<String, RenderError> {
+    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
         let input = self.input.as_ref().ok_or("Not parsed")?;
+        let packet = self.packet.as_ref().ok_or("Not parsed")?;
 
-        Ok(crate::render::diagram::packet::render(input))
+        Ok(PreparedDiagram::Packet(PreparedPacket {
+            packet,
+            source: input,
+        }))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {

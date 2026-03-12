@@ -1,7 +1,9 @@
 //! Class diagram instance implementation.
 //!
 //! Parses class diagram syntax, compiles to `graph::Diagram` (graph-family IR),
-//! then delegates rendering to the shared graph-family pipeline.
+//! then prepares a graph-family payload for runtime dispatch.
+
+use std::borrow::Cow;
 
 use super::compiler;
 use crate::config::RenderConfig;
@@ -9,12 +11,13 @@ use crate::errors::RenderError;
 use crate::format::OutputFormat;
 use crate::frontends::mermaid::class::parse_class_diagram;
 use crate::graph::Diagram;
+use crate::prepared::{PreparedDiagram, PreparedGraph};
 use crate::registry::DiagramInstance;
 
 /// Class diagram instance.
 ///
-/// Compiles class diagram syntax to `graph::Diagram`, then renders through
-/// the shared graph-family pipeline.
+/// Compiles class diagram syntax to `graph::Diagram`, then prepares a
+/// graph-family payload for runtime dispatch.
 pub struct ClassInstance {
     /// Compiled graph-family IR.
     diagram: Option<Diagram>,
@@ -40,13 +43,15 @@ impl DiagramInstance for ClassInstance {
         Ok(())
     }
 
-    fn render(&self, format: OutputFormat, config: &RenderConfig) -> Result<String, RenderError> {
+    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
         let diagram = self.diagram.as_ref().ok_or_else(|| RenderError {
             message: "No diagram parsed. Call parse() first.".to_string(),
         })?;
 
-        // Delegate to the shared graph-family pipeline.
-        crate::graph_family_pipeline::render_graph("class", diagram, format, config)
+        Ok(PreparedDiagram::Graph(PreparedGraph {
+            diagram_type: "class",
+            diagram: Cow::Borrowed(diagram),
+        }))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {

@@ -6,6 +6,7 @@ use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::family::DiagramFamily;
 use crate::format::OutputFormat;
+use crate::prepared::PreparedDiagram;
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
 pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];
@@ -57,12 +58,12 @@ impl DiagramInstance for InfoInstance {
         Ok(())
     }
 
-    fn render(&self, _format: OutputFormat, _config: &RenderConfig) -> Result<String, RenderError> {
+    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
         if !self.parsed {
             return Err("Not parsed".into());
         }
 
-        Ok(crate::render::diagram::info::render())
+        Ok(PreparedDiagram::Info)
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {

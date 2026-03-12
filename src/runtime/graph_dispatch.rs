@@ -1,8 +1,4 @@
-//! Shared graph-family solve/render pipeline.
-//!
-//! Graph-family diagram instances compile to [`crate::graph::Diagram`] and
-//! delegate to this module for engine resolution, layout solve, and final
-//! format dispatch. Runtime adapters call the same path.
+//! Graph-family solve/render orchestration owned by runtime.
 
 use crate::config::{
     AlgorithmId, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification, RenderConfig,
@@ -24,19 +20,12 @@ use crate::render::graph::{
     render_text_from_geometry,
 };
 
-/// Render a graph-family diagram through the shared pipeline.
-///
-/// Handles engine resolution, layout solve, and format dispatch for all
-/// graph-family diagram types. Diagram-specific pre-processing (for example
-/// flowchart node-id annotation) should be applied before calling this
-/// function.
-pub(crate) fn render_graph(
+pub(in crate::runtime) fn render_graph(
     diagram_id: &str,
     diagram: &Diagram,
     format: OutputFormat,
     config: &RenderConfig,
 ) -> Result<String, RenderError> {
-    // Resolve engine (default: flux-layered).
     let engine_id = config
         .layout_engine
         .unwrap_or_else(|| EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered));
@@ -45,11 +34,8 @@ pub(crate) fn render_graph(
     let request = graph_solve_request_for(format, config);
     let engine_config = EngineConfig::Layered(config.layout.clone().into());
     let engine_id = resolve_graph_engine_for_request(engine_id, &request);
-
-    // Solve layout through the engine registry.
     let result = solve_graph_family(diagram, engine_id, &engine_config, &request)?;
 
-    // Dispatch to format-owned emitters.
     match format {
         OutputFormat::Mmds => render_mmds_from_solve_result(
             diagram_id,

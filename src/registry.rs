@@ -11,6 +11,7 @@ use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::family::DiagramFamily;
 use crate::format::OutputFormat;
+use crate::prepared::PreparedDiagram;
 
 /// Detector function type.
 ///
@@ -148,13 +149,14 @@ impl ResolvedDiagram<'_> {
 
 /// Instance of a parsed diagram.
 ///
-/// Each diagram type implements this trait to provide parsing and rendering.
+/// Each diagram type implements this trait to provide parsing and
+/// config-sensitive preparation. Runtime owns final rendering dispatch.
 pub trait DiagramInstance: Send + Sync {
     /// Parse input text into the diagram model.
     fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
-    /// Render the diagram to the specified format.
-    fn render(&self, format: OutputFormat, config: &RenderConfig) -> Result<String, RenderError>;
+    /// Prepare a family-local payload for runtime dispatch.
+    fn prepare(&self, config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError>;
 
     /// Check if this instance supports the given output format.
     fn supports_format(&self, format: OutputFormat) -> bool;

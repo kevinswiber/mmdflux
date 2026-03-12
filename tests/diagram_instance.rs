@@ -1,7 +1,9 @@
+use std::borrow::Cow;
 use std::fs;
 use std::path::Path;
 
 use mmdflux::frontends::mmds::SUPPORTED_OUTPUT_FORMATS as MMDS_FRONTEND_SUPPORTED_FORMATS;
+use mmdflux::prepared::PreparedDiagram;
 use mmdflux::registry::{DiagramDefinition, DiagramInstance, DiagramRegistry};
 use mmdflux::{DiagramFamily, GeometryLevel, OutputFormat, RenderConfig, RenderError};
 
@@ -30,15 +32,11 @@ impl DiagramInstance for MockDiagram {
         Ok(())
     }
 
-    fn render(&self, format: OutputFormat, _config: &RenderConfig) -> Result<String, RenderError> {
-        let content = self.parsed.as_ref().ok_or("Not parsed")?;
-        match format {
-            OutputFormat::Text => Ok(format!("[TEXT] {}", content)),
-            OutputFormat::Ascii => Ok(format!("[ASCII] {}", content)),
-            OutputFormat::Svg | OutputFormat::Mmds | OutputFormat::Mermaid => {
-                Err("Not supported".into())
-            }
-        }
+    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
+        let content = self.parsed.as_deref().ok_or("Not parsed")?;
+        Ok(PreparedDiagram::Text(Cow::Owned(format!(
+            "[TEXT] {content}"
+        ))))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
@@ -47,14 +45,24 @@ impl DiagramInstance for MockDiagram {
 }
 
 #[test]
-fn diagram_instance_parse_and_render() {
+fn diagram_instance_parse_and_prepare() {
     let mut diagram = MockDiagram::new();
     diagram.parse("test input").unwrap();
 
-    let output = diagram
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
-    assert_eq!(output, "[TEXT] test input");
+    let prepared = diagram.prepare(&RenderConfig::default()).unwrap();
+    assert!(matches!(
+        prepared,
+        PreparedDiagram::Text(text) if text == "[TEXT] test input"
+    ));
+}
+
+#[test]
+fn diagram_instance_prepare_returns_a_prepared_payload() {
+    let mut diagram = MockDiagram::new();
+    diagram.parse("test input").unwrap();
+
+    let prepared = diagram.prepare(&RenderConfig::default()).unwrap();
+    assert!(matches!(prepared, PreparedDiagram::Text(_)));
 }
 
 #[test]
@@ -63,14 +71,6 @@ fn diagram_instance_supports_format() {
     assert!(diagram.supports_format(OutputFormat::Text));
     assert!(diagram.supports_format(OutputFormat::Ascii));
     assert!(!diagram.supports_format(OutputFormat::Svg));
-}
-
-#[test]
-fn diagram_instance_unsupported_format_errors() {
-    let mut diagram = MockDiagram::new();
-    diagram.parse("test").unwrap();
-    let result = diagram.render(OutputFormat::Svg, &RenderConfig::default());
-    assert!(result.is_err());
 }
 
 #[test]
@@ -87,10 +87,11 @@ fn registry_create_returns_instance() {
 
     let mut instance = registry.create("mock").expect("should create instance");
     instance.parse("hello").unwrap();
-    let output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
-    assert_eq!(output, "[TEXT] hello");
+    let prepared = instance.prepare(&RenderConfig::default()).unwrap();
+    assert!(matches!(
+        prepared,
+        PreparedDiagram::Text(text) if text == "[TEXT] hello"
+    ));
 }
 
 #[test]

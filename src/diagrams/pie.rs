@@ -7,6 +7,8 @@ use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::family::DiagramFamily;
 use crate::format::OutputFormat;
+use crate::frontends::mermaid::pie::Pie;
+use crate::prepared::{PreparedDiagram, PreparedPie};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance};
 
 pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputFormat::Ascii];
@@ -36,12 +38,16 @@ pub fn definition() -> DiagramDefinition {
 /// Pie diagram instance.
 pub struct PieInstance {
     input: Option<String>,
+    pie: Option<Pie>,
 }
 
 impl PieInstance {
     /// Create a new pie diagram instance.
     pub fn new() -> Self {
-        Self { input: None }
+        Self {
+            input: None,
+            pie: None,
+        }
     }
 }
 
@@ -53,15 +59,16 @@ impl Default for PieInstance {
 
 impl DiagramInstance for PieInstance {
     fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        crate::frontends::mermaid::parse_pie(input)?;
+        self.pie = Some(crate::frontends::mermaid::parse_pie(input)?);
         self.input = Some(input.to_string());
         Ok(())
     }
 
-    fn render(&self, _format: OutputFormat, _config: &RenderConfig) -> Result<String, RenderError> {
+    fn prepare(&self, _config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
         let input = self.input.as_ref().ok_or("Not parsed")?;
+        let pie = self.pie.as_ref().ok_or("Not parsed")?;
 
-        Ok(crate::render::diagram::pie::render(input))
+        Ok(PreparedDiagram::Pie(PreparedPie { pie, source: input }))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {

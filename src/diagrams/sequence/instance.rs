@@ -5,10 +5,8 @@ use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
 use crate::frontends::mermaid::sequence::parse_sequence;
+use crate::prepared::{PreparedDiagram, PreparedTimeline};
 use crate::registry::DiagramInstance;
-use crate::render::diagram::sequence;
-use crate::render::text::CharSet;
-use crate::timeline::sequence::layout;
 use crate::timeline::sequence::model::SequenceModel;
 
 /// Sequence diagram instance.
@@ -39,7 +37,7 @@ impl DiagramInstance for SequenceInstance {
         Ok(())
     }
 
-    fn render(&self, format: OutputFormat, config: &RenderConfig) -> Result<String, RenderError> {
+    fn prepare(&self, config: &RenderConfig) -> Result<PreparedDiagram<'_>, RenderError> {
         let model = self.model.as_ref().ok_or_else(|| RenderError {
             message: "No diagram parsed. Call parse() first.".to_string(),
         })?;
@@ -51,25 +49,7 @@ impl DiagramInstance for SequenceInstance {
             });
         }
 
-        if !self.supports_format(format) {
-            return Err(RenderError {
-                message: format!(
-                    "sequence diagrams do not support {} output",
-                    match format {
-                        OutputFormat::Svg => "svg",
-                        _ => "unknown",
-                    }
-                ),
-            });
-        }
-
-        let seq_layout = layout::layout(model);
-        let charset = match format {
-            OutputFormat::Ascii => CharSet::ascii(),
-            _ => CharSet::unicode(),
-        };
-
-        Ok(sequence::render(&seq_layout, &charset))
+        Ok(PreparedDiagram::Timeline(PreparedTimeline { model }))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {

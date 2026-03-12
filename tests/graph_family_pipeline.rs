@@ -1,8 +1,10 @@
-//! Graph-family pipeline boundary tests.
+//! Runtime-owned graph dispatch boundary tests.
 //!
 //! Verifies that flowchart and class diagrams share the same graph-family
-//! pipeline contract, and that text/SVG/MMDS renderers consume graph-family
-//! contracts (not parser-specific or renderer-specific state).
+//! solve/render contract, and that text/SVG/MMDS renderers consume
+//! graph-family contracts (not parser-specific or renderer-specific state).
+
+use std::path::Path;
 
 use mmdflux::config::{GeometryLevel, PathSimplification};
 use mmdflux::engines::graph::algorithms::layered::MeasurementMode;
@@ -42,6 +44,11 @@ fn compile_graph_fixture(path: &str) -> (Diagram, DiagramFamily) {
         _ => panic!("unexpected diagram type: {id}"),
     };
     (diagram, family)
+}
+
+fn repo_file(path: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
 
 /// Produce a GraphSolveResult fixture from a simple flowchart.
@@ -125,45 +132,49 @@ fn mmds_renderer_consumes_graph_solve_result() {
 }
 
 // ---------------------------------------------------------------------------
-// Contract: graph-family pipeline runs end-to-end through shared path
+// Contract: runtime-owned graph dispatch runs end-to-end through shared path
 // ---------------------------------------------------------------------------
 
 #[test]
-fn graph_family_pipeline_end_to_end() {
+fn graph_runtime_dispatch_end_to_end() {
     // Both flowchart and class should produce valid output through
-    // the graph-family pipeline (engine → geometry → routing → format).
+    // the graph-family runtime path (engine → geometry → routing → format).
     for path in &[
         "tests/fixtures/flowchart/simple.mmd",
         "tests/fixtures/class/simple.mmd",
     ] {
         let input = std::fs::read_to_string(path).unwrap();
-        let registry = default_registry();
-        let id = registry.detect(&input).unwrap();
-        let mut instance = registry.create(id).unwrap();
-        instance.parse(&input).unwrap();
 
         // Text output
-        let text = instance
-            .render(OutputFormat::Text, &Default::default())
-            .unwrap();
+        let text =
+            mmdflux::render_diagram(&input, OutputFormat::Text, &Default::default()).unwrap();
         assert!(!text.is_empty(), "{path}: text output should not be empty");
 
         // SVG output
-        let svg = instance
-            .render(OutputFormat::Svg, &Default::default())
-            .unwrap();
+        let svg = mmdflux::render_diagram(&input, OutputFormat::Svg, &Default::default()).unwrap();
         assert!(
             svg.contains("<svg"),
             "{path}: SVG output should contain <svg"
         );
 
         // MMDS output
-        let mmds = instance
-            .render(OutputFormat::Mmds, &Default::default())
-            .unwrap();
+        let mmds =
+            mmdflux::render_diagram(&input, OutputFormat::Mmds, &Default::default()).unwrap();
         assert!(
             mmds.contains("\"nodes\""),
             "{path}: MMDS output should contain nodes"
         );
     }
+}
+
+#[test]
+fn architecture_docs_no_longer_reference_graph_family_pipeline() {
+    let docs = repo_file("docs/architecture/dependency-rules.md");
+    assert!(!docs.contains("graph_family_pipeline"));
+}
+
+#[test]
+fn crate_root_no_longer_declares_graph_family_pipeline_shim() {
+    let lib_rs = repo_file("src/lib.rs");
+    assert!(!lib_rs.contains("mod graph_family_pipeline;"));
 }
