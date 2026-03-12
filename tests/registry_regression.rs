@@ -1,26 +1,25 @@
 //! Parity checks between the direct render API and registry instance API.
 
-use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::frontends::mermaid::parse_flowchart;
+mod support;
+
 use mmdflux::registry::default_registry;
-use mmdflux::testing::{RenderOptions, render};
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig};
+use support::render::{render_ascii_with_config, render_text_with_config};
 
 /// Helper to compare direct vs registry rendering paths.
 fn compare_outputs(input: &str, ascii: bool) {
     // Direct API path
-    let flowchart = parse_flowchart(input).expect("Direct path parse failed");
-    let diagram = compile_to_graph(&flowchart);
     let output_format = if ascii {
         OutputFormat::Ascii
     } else {
         OutputFormat::Text
     };
-    let old_options = RenderOptions {
-        output_format,
-        ..Default::default()
+    let direct_output = if ascii {
+        render_ascii_with_config(input, &RenderConfig::default())
+    } else {
+        render_text_with_config(input, &RenderConfig::default())
     };
-    let old_output = render(&diagram, &old_options);
+    let direct_output = direct_output.expect("Direct path render failed");
 
     // Registry API path
     let registry = default_registry();
@@ -37,9 +36,9 @@ fn compare_outputs(input: &str, ascii: bool) {
         .expect("Registry path render failed");
 
     assert_eq!(
-        old_output, new_output,
-        "Output mismatch for input:\n{}\n\nOld:\n{}\n\nNew:\n{}",
-        input, old_output, new_output
+        direct_output, new_output,
+        "Output mismatch for input:\n{}\n\nDirect:\n{}\n\nRegistry:\n{}",
+        input, direct_output, new_output
     );
 }
 

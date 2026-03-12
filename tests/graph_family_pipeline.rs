@@ -4,9 +4,16 @@
 //! pipeline contract, and that text/SVG/MMDS renderers consume graph-family
 //! contracts (not parser-specific or renderer-specific state).
 
-use mmdflux::graph::Diagram;
+use mmdflux::engines::graph::contracts::{
+    EngineConfig, GeometryLevel, GraphSolveRequest, GraphSolveResult, PathSimplification,
+};
+use mmdflux::engines::graph::registry::GraphEngineRegistry;
+use mmdflux::graph::{Diagram, EdgeRouting, route_graph_geometry};
+use mmdflux::mmds::to_mmds_json_typed;
 use mmdflux::registry::default_registry;
-use mmdflux::testing::{EngineConfig, GraphEngineRegistry, GraphSolveRequest, GraphSolveResult};
+use mmdflux::render::graph::{
+    SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_text_from_geometry,
+};
 use mmdflux::{AlgorithmId, DiagramFamily, EngineAlgorithmId, EngineId, OutputFormat};
 
 // ---------------------------------------------------------------------------
@@ -69,7 +76,12 @@ fn flowchart_and_class_compile_to_the_same_graph_family_contract() {
 #[test]
 fn text_renderer_consumes_graph_solve_result() {
     let (diagram, result) = graph_solve_result_fixture();
-    let text = mmdflux::testing::backends::text::render_text(&diagram, &result);
+    let text = render_text_from_geometry(
+        &diagram,
+        &result.geometry,
+        result.routed.as_ref(),
+        &TextRenderOptions::default(),
+    );
     assert!(
         text.contains("Start"),
         "text output should contain node labels"
@@ -79,14 +91,26 @@ fn text_renderer_consumes_graph_solve_result() {
 #[test]
 fn svg_renderer_consumes_graph_solve_result() {
     let (diagram, result) = graph_solve_result_fixture();
-    let svg = mmdflux::testing::backends::svg::render_svg(&diagram, &result);
+    let svg = render_svg_from_geometry(&diagram, &result.geometry, &SvgRenderOptions::default());
     assert!(svg.contains("<svg"), "SVG output should start with <svg");
 }
 
 #[test]
 fn mmds_renderer_consumes_graph_solve_result() {
     let (diagram, result) = graph_solve_result_fixture();
-    let json = mmdflux::testing::backends::mmds::render_mmds("flowchart", &diagram, &result);
+    let routed = result.routed.as_ref().cloned().unwrap_or_else(|| {
+        route_graph_geometry(&diagram, &result.geometry, EdgeRouting::OrthogonalRoute)
+    });
+    let json = to_mmds_json_typed(
+        "flowchart",
+        &diagram,
+        &result.geometry,
+        Some(&routed),
+        GeometryLevel::Routed,
+        PathSimplification::default(),
+        Some(result.engine_id),
+    )
+    .expect("MMDS render should succeed");
     assert!(
         json.contains("\"nodes\""),
         "MMDS output should contain nodes key"

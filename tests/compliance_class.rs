@@ -4,13 +4,15 @@
 //! Generate snapshots: `GENERATE_CLASS_TEXT_SNAPSHOTS=1 cargo test --test compliance_class`
 //! Generate SVG:       `GENERATE_CLASS_SVG_SNAPSHOTS=1 cargo test --test compliance_class`
 
+mod support;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use mmdflux::diagrams::class::ClassInstance;
 use mmdflux::registry::DiagramInstance;
-use mmdflux::testing::{RenderOptions, render_svg};
 use mmdflux::{OutputFormat, RenderConfig};
+use support::render::render_svg_with_config;
 
 fn class_fixture_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -67,10 +69,8 @@ fn render_class_svg(fixture: &str) -> String {
     let path = class_fixture_dir().join(fixture);
     let input = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read fixture {fixture}: {e}"));
-    let model =
-        mmdflux::frontends::mermaid::class::parse_class_diagram(&input).expect("Failed to parse");
-    let diagram = mmdflux::diagrams::class::compiler::compile(&model);
-    render_svg(&diagram, &RenderOptions::default_svg())
+    render_svg_with_config(&input, &RenderConfig::default())
+        .expect("Failed to render class fixture as SVG")
 }
 
 fn assert_class_text_snapshot(fixture: &str) {

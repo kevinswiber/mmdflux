@@ -19,11 +19,14 @@ pub(crate) mod text_subgraph;
 pub(crate) mod text_types;
 
 use self::svg_metrics::{DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE};
-use self::text_edge::render_all_edges_with_labels;
-use self::text_router::{RoutedEdge, Segment, route_all_edges};
-use self::text_shape::render_node;
-use self::text_types::{GridLayoutConfig, Layout, SubgraphBounds};
+pub use self::text_adapter::geometry_to_text_layout_with_routed;
+pub use self::text_edge::render_all_edges_with_labels;
+pub use self::text_router::{RoutedEdge, Segment, route_all_edges};
+pub use self::text_shape::{NodeBounds, render_node};
+pub use self::text_types::Layout;
+use self::text_types::SubgraphBounds;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
+pub use crate::graph::grid_projection::GridLayoutConfig;
 use crate::graph::routing::EdgeRouting;
 use crate::graph::{Diagram, Direction};
 use crate::render::primitives::canvas::{Cell, Connections};
@@ -156,6 +159,44 @@ impl From<&RenderConfig> for TextRenderOptions {
             path_simplification: config.path_simplification,
         }
     }
+}
+
+/// Compute a discrete text-grid layout directly from a graph-family diagram.
+///
+/// This is a render-owned convenience helper for low-level callers that want
+/// the integer `Layout` replay surface without going through full text output.
+pub fn compute_text_layout(diagram: &Diagram, config: &GridLayoutConfig) -> Layout {
+    use crate::engines::graph::algorithms::layered::{
+        Direction as LayeredDirection, LayoutConfig as LayeredConfig, Ranker,
+    };
+    use crate::engines::graph::flux::FluxLayeredEngine;
+    use crate::engines::graph::{EngineConfig, GraphEngine, GraphSolveRequest, OutputFormat};
+    use crate::graph::grid_projection::GridRanker;
+
+    let engine = FluxLayeredEngine::text();
+    let engine_config = EngineConfig::Layered(LayeredConfig {
+        direction: match diagram.direction {
+            Direction::TopDown => LayeredDirection::TopBottom,
+            Direction::BottomTop => LayeredDirection::BottomTop,
+            Direction::LeftRight => LayeredDirection::LeftRight,
+            Direction::RightLeft => LayeredDirection::RightLeft,
+        },
+        node_sep: config.node_sep,
+        edge_sep: config.edge_sep,
+        rank_sep: config.rank_sep,
+        margin: config.margin,
+        acyclic: true,
+        ranker: match config.ranker.unwrap_or_default() {
+            GridRanker::NetworkSimplex => Ranker::NetworkSimplex,
+            GridRanker::LongestPath => Ranker::LongestPath,
+        },
+        ..Default::default()
+    });
+    let request = GraphSolveRequest::from_config(&RenderConfig::default(), OutputFormat::Text);
+    let result = engine
+        .solve(diagram, &engine_config, &request)
+        .expect("engine solve failed");
+    text_adapter::geometry_to_text_layout(diagram, &result.geometry, config)
 }
 
 /// Render SVG directly from precomputed graph geometry.

@@ -3,15 +3,14 @@
 //! These tests validate that registry detection, parsing, and rendering work
 //! together across diagram types and output formats.
 
+mod support;
+
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::frontends::mermaid::parse_flowchart;
-use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::registry::default_registry;
-use mmdflux::testing::{RenderOptions, render_svg};
 use mmdflux::{OutputFormat, RenderConfig, generate_mermaid_from_mmds_str};
+use support::render::render_svg_with_config;
 
 fn render_with_registry(input: &str, format: OutputFormat) -> String {
     let registry = default_registry();
@@ -44,9 +43,8 @@ fn render_flowchart_svg_fixture(name: &str) -> String {
         .join(name);
     let input = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
-    let flowchart = parse_flowchart(&input).expect("flowchart fixture should parse");
-    let diagram = compile_to_graph(&flowchart);
-    render_svg(&diagram, &RenderOptions::default_svg())
+    render_svg_with_config(&input, &RenderConfig::default())
+        .expect("flowchart fixture should render through supported SVG path")
 }
 
 fn render_mmds_svg_fixture(name: &str) -> String {
@@ -57,8 +55,8 @@ fn render_mmds_svg_fixture(name: &str) -> String {
         .join(name);
     let payload = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("failed to read MMDS fixture {}: {e}", path.display()));
-    let diagram = from_mmds_str(&payload).expect("MMDS fixture should hydrate");
-    render_svg(&diagram, &RenderOptions::default_svg())
+    render_svg_with_config(&payload, &RenderConfig::default())
+        .expect("MMDS fixture should render through supported SVG path")
 }
 
 fn assert_direct_vs_mmds_svg_parity(case: &str) {

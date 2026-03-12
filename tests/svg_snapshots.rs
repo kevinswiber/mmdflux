@@ -1,15 +1,16 @@
+mod support;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::diagrams::flowchart::{FlowchartInstance, compile_to_graph};
-use mmdflux::frontends::mermaid::parse_flowchart;
-use mmdflux::frontends::mmds::{from_mmds_str, render_input};
+use mmdflux::diagrams::flowchart::FlowchartInstance;
+use mmdflux::frontends::mmds::render_input;
 use mmdflux::registry::DiagramInstance;
-use mmdflux::testing::{RenderOptions, render_svg};
 use mmdflux::{
     CornerStyle, Curve, EngineAlgorithmId, OutputFormat, PathSimplification, RenderConfig,
     RoutingStyle,
 };
+use support::render::render_svg_with_config;
 
 fn list_fixtures() -> Vec<String> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -42,22 +43,22 @@ fn load_fixture(name: &str) -> String {
 
 fn render_svg_fixture(name: &str) -> String {
     let input = load_fixture(name);
-    let flowchart = parse_flowchart(&input).expect("Failed to parse fixture");
-    let diagram = compile_to_graph(&flowchart);
-    let mut options = RenderOptions::default_svg();
-    options.path_simplification = PathSimplification::None;
-    render_svg(&diagram, &options)
+    let config = RenderConfig {
+        path_simplification: PathSimplification::None,
+        ..RenderConfig::default()
+    };
+    render_svg_with_config(&input, &config).expect("Failed to render SVG fixture")
 }
 
 fn render_svg_fixture_with_curve(name: &str, routing: RoutingStyle, curve: Curve) -> String {
     let input = load_fixture(name);
-    let flowchart = parse_flowchart(&input).expect("Failed to parse fixture");
-    let diagram = compile_to_graph(&flowchart);
-    let mut options = RenderOptions::default_svg();
-    options.svg.routing_style = routing;
-    options.svg.curve = curve;
-    options.path_simplification = PathSimplification::None;
-    render_svg(&diagram, &options)
+    let config = RenderConfig {
+        routing_style: Some(routing),
+        curve: Some(curve),
+        path_simplification: PathSimplification::None,
+        ..RenderConfig::default()
+    };
+    render_svg_with_config(&input, &config).expect("Failed to render SVG fixture")
 }
 
 fn render_svg_fixture_with_engine(name: &str, engine: &str) -> String {
@@ -82,10 +83,11 @@ fn render_svg_mmds_fixture(name: &str) -> String {
         .join(name);
     let payload = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read MMDS fixture {}: {e}", path.display()));
-    let diagram = from_mmds_str(&payload).expect("MMDS fixture should hydrate");
-    let mut options = RenderOptions::default_svg();
-    options.path_simplification = PathSimplification::None;
-    render_svg(&diagram, &options)
+    let config = RenderConfig {
+        path_simplification: PathSimplification::None,
+        ..RenderConfig::default()
+    };
+    render_svg_with_config(&payload, &config).expect("MMDS fixture should render as SVG")
 }
 
 fn render_svg_positioned_mmds_fixture(name: &str) -> String {

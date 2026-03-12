@@ -13,3 +13,4 @@ pub(crate) mod routing_core;
 pub use diagram::*;
 pub use edge::*;
 pub use node::*;
+pub use routing::{EdgeRouting, route_graph_geometry, snap_path_to_grid_preview};

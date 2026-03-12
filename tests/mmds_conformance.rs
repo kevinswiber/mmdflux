@@ -9,6 +9,8 @@
 //! - **Layout**: geometry-level equivalence (node positions, edge topology)
 //! - **Visual**: rendered text output equivalence
 
+mod support;
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -18,8 +20,9 @@ use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{GraphGeometry, LayoutEdge};
 use mmdflux::graph::{Diagram, Subgraph};
 use mmdflux::registry::DiagramInstance;
-use mmdflux::testing::{EngineConfig, MeasurementMode, RenderOptions, render, run_layered_layout};
 use mmdflux::{OutputFormat, RenderConfig};
+use support::graph_family::{EngineConfig, MeasurementMode, run_layered_layout};
+use support::render::{render_diagram_with_config, render_svg_diagram_with_config};
 
 // ---------------------------------------------------------------------------
 // Conformance report model
@@ -196,17 +199,21 @@ fn check_visual(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
     let mut mismatches = Vec::new();
 
     // Text comparison
-    let text_options = RenderOptions::default();
-    let direct_text = render(direct, &text_options);
-    let roundtrip_text = render(roundtrip, &text_options);
+    let direct_text =
+        render_diagram_with_config(direct, OutputFormat::Text, &RenderConfig::default())
+            .expect("direct text render should succeed");
+    let roundtrip_text =
+        render_diagram_with_config(roundtrip, OutputFormat::Text, &RenderConfig::default())
+            .expect("roundtrip text render should succeed");
     if direct_text != roundtrip_text {
         mismatches.push("text output differs".to_string());
     }
 
     // SVG comparison
-    let svg_options = RenderOptions::default_svg();
-    let direct_svg = render(direct, &svg_options);
-    let roundtrip_svg = render(roundtrip, &svg_options);
+    let direct_svg = render_svg_diagram_with_config(direct, &RenderConfig::default())
+        .expect("direct SVG render should succeed");
+    let roundtrip_svg = render_svg_diagram_with_config(roundtrip, &RenderConfig::default())
+        .expect("roundtrip SVG render should succeed");
     if direct_svg != roundtrip_svg {
         mismatches.push("svg output differs".to_string());
     }

@@ -3,6 +3,8 @@
 //! Verifies that `route_graph_geometry` produces correct `RoutedGraphGeometry`
 //! from engine-produced `GraphGeometry`.
 
+mod support;
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -10,9 +12,9 @@ use std::path::Path;
 use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::graph::geometry::*;
-use mmdflux::testing::routing::{route_graph_geometry, snap_path_to_grid_preview};
-use mmdflux::testing::{EdgeRouting, EngineConfig, MeasurementMode, run_layered_layout};
 use mmdflux::{OutputFormat, RenderConfig};
+use support::graph_family::{EngineConfig, MeasurementMode, run_layered_layout};
+use support::routing::{EdgeRouting, route_graph_geometry, snap_path_to_grid_preview};
 
 /// Flux-layered LayoutConfig with all enhancements enabled.
 fn flux_layout_config() -> EngineConfig {

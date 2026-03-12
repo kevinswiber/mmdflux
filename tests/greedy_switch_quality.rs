@@ -1,12 +1,13 @@
 //! Quality measurement for greedy switch validation.
 //! Records crossing-related quality metrics across all flowchart fixtures.
 
+mod support;
+
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::frontends::mermaid::parse_flowchart;
-use mmdflux::testing::{RenderOptions, render};
+use mmdflux::RenderConfig;
+use support::render::render_text_with_config;
 
 fn load_fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -40,10 +41,8 @@ fn all_fixtures_render_successfully() {
     );
     for name in &names {
         let input = load_fixture(name);
-        let flowchart =
-            parse_flowchart(&input).unwrap_or_else(|e| panic!("Failed to parse {}: {}", name, e));
-        let diagram = compile_to_graph(&flowchart);
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_with_config(&input, &RenderConfig::default())
+            .unwrap_or_else(|e| panic!("Failed to render {}: {}", name, e));
         assert!(!output.is_empty(), "Empty output for {}", name);
     }
 }

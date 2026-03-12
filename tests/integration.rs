@@ -2,6 +2,8 @@
 //!
 //! These tests verify the full parsing and rendering pipeline using fixture files.
 
+mod support;
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -12,18 +14,17 @@ use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::registry::default_registry;
 use mmdflux::render::{Canvas, CharSet};
-use mmdflux::testing::routing::route_graph_geometry;
-use mmdflux::testing::text_adapter::{compute_layout, geometry_to_text_layout_with_routed};
-use mmdflux::testing::text_edge::render_all_edges_with_labels;
-use mmdflux::testing::text_router::{RoutedEdge, Segment, route_all_edges};
-use mmdflux::testing::text_shape::{NodeBounds, render_node};
-use mmdflux::testing::text_types::{GridLayoutConfig, Layout};
-use mmdflux::testing::{
-    EdgeRouting, EngineConfig, MeasurementMode, RenderOptions, render, run_layered_layout,
-};
 use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,
     TextColorMode,
+};
+use support::graph_family::{EngineConfig, MeasurementMode, run_layered_layout};
+use support::render::{render_diagram_with_config, render_diagram_with_text_options};
+use support::routing::{EdgeRouting, route_graph_geometry};
+use support::text_grid::{
+    GridLayoutConfig, Layout, NodeBounds, RoutedEdge, Segment, compute_layout,
+    geometry_to_text_layout_with_routed, render_all_edges_with_labels, render_node,
+    route_all_edges,
 };
 
 /// Load a fixture file by name from `tests/fixtures/flowchart/`.
@@ -82,7 +83,21 @@ fn layout_fixture_with_routed(name: &str) -> (Diagram, Layout) {
 /// Parse, build, and render a fixture file.
 fn render_fixture(name: &str) -> String {
     let diagram = parse_and_build(name);
-    render(&diagram, &RenderOptions::default())
+    render_text_diagram(&diagram)
+}
+
+fn render_text_diagram(diagram: &Diagram) -> String {
+    render_diagram_with_config(diagram, OutputFormat::Text, &RenderConfig::default())
+        .expect("text render should succeed")
+}
+
+fn render_diagram_with_output(
+    diagram: &Diagram,
+    format: OutputFormat,
+    text_color_mode: TextColorMode,
+) -> String {
+    render_diagram_with_text_options(diagram, format, text_color_mode)
+        .expect("diagram render should succeed")
 }
 
 fn render_fixture_with_options(
@@ -91,21 +106,14 @@ fn render_fixture_with_options(
     text_color_mode: TextColorMode,
 ) -> String {
     let diagram = parse_and_build(name);
-    render(
-        &diagram,
-        &RenderOptions {
-            output_format: format,
-            text_color_mode,
-            ..Default::default()
-        },
-    )
+    render_diagram_with_output(&diagram, format, text_color_mode)
 }
 
 /// Parse, build, and render a Mermaid input string.
 fn render_input(input: &str) -> String {
     let flowchart = parse_flowchart(input).expect("Failed to parse input");
     let diagram = compile_to_graph(&flowchart);
-    render(&diagram, &RenderOptions::default())
+    render_text_diagram(&diagram)
 }
 
 /// Parse, build, and render a fixture file with ASCII-only output.
@@ -874,13 +882,8 @@ mod rendering {
     #[test]
     fn ascii_issue_21_backward_edge_does_not_clip_right_edge() {
         let diagram = parse_and_build(ISSUE_21_FIXTURE);
-        let output = render(
-            &diagram,
-            &RenderOptions {
-                output_format: OutputFormat::Ascii,
-                ..Default::default()
-            },
-        );
+        let output =
+            render_diagram_with_output(&diagram, OutputFormat::Ascii, TextColorMode::Plain);
 
         let clipped_lines: Vec<&str> = output
             .lines()
@@ -1374,7 +1377,7 @@ mod snapshots {
                 let input = fs::read_to_string(&path).unwrap();
                 let flowchart = parse_flowchart(&input).expect("Failed to parse");
                 let diagram = compile_to_graph(&flowchart);
-                let output = render(&diagram, &RenderOptions::default());
+                let output = render_text_diagram(&diagram);
                 let snapshot_path = snapshot_dir.join(format!("{}.txt", name));
                 if regenerate {
                     fs::write(snapshot_path, &output).unwrap();
@@ -2224,13 +2227,7 @@ fn test_self_loop_with_backward_edge() {
 #[test]
 fn test_self_loop_ascii_mode() {
     let diagram = parse_and_build("self_loop.mmd");
-    let output = render(
-        &diagram,
-        &RenderOptions {
-            output_format: OutputFormat::Ascii,
-            ..Default::default()
-        },
-    );
+    let output = render_diagram_with_output(&diagram, OutputFormat::Ascii, TextColorMode::Plain);
     // Should use ASCII characters, no Unicode box drawing
     assert!(!output.contains('┌'), "should not have Unicode box drawing");
     assert!(
@@ -2423,7 +2420,7 @@ fn test_invisible_edge_not_rendered() {
     diagram.add_edge(mmdflux::graph::Edge::new("A", "B")); // visible
     diagram.add_edge(mmdflux::graph::Edge::new("A", "C").with_stroke(Stroke::Invisible)); // invisible
 
-    let output = render(&diagram, &RenderOptions::default());
+    let output = render_text_diagram(&diagram);
 
     // All nodes should appear
     assert!(output.contains("A"), "Node A should appear");
@@ -2447,7 +2444,7 @@ fn test_invisible_edge_affects_layout() {
     diagram.add_node(mmdflux::graph::Node::new("B").with_label("B"));
     diagram.add_edge(mmdflux::graph::Edge::new("A", "B").with_stroke(Stroke::Invisible));
 
-    let output = render(&diagram, &RenderOptions::default());
+    let output = render_text_diagram(&diagram);
 
     // Both nodes should appear
     assert!(output.contains("A"), "Node A should appear");
@@ -2479,7 +2476,7 @@ fn test_same_rank_constraint_horizontal_alignment() {
     diagram.add_edge(mmdflux::graph::Edge::new("A", "C"));
     diagram.add_same_rank_constraint("A", "B");
 
-    let output = render(&diagram, &RenderOptions::default());
+    let output = render_text_diagram(&diagram);
 
     let lines: Vec<&str> = output.lines().collect();
     let a_line = lines.iter().position(|l| l.contains('A')).unwrap();
@@ -2497,7 +2494,7 @@ fn test_same_rank_no_visible_edge() {
     diagram.add_node(mmdflux::graph::Node::new("Y").with_label("Y"));
     diagram.add_same_rank_constraint("X", "Y");
 
-    let output = render(&diagram, &RenderOptions::default());
+    let output = render_text_diagram(&diagram);
 
     assert!(output.contains("X"));
     assert!(output.contains("Y"));
@@ -2520,7 +2517,7 @@ fn test_same_rank_lr_layout() {
     diagram.add_edge(mmdflux::graph::Edge::new("A", "C"));
     diagram.add_same_rank_constraint("A", "B");
 
-    let output = render(&diagram, &RenderOptions::default());
+    let output = render_text_diagram(&diagram);
 
     assert!(output.contains("A"));
     assert!(output.contains("B"));
@@ -2534,7 +2531,7 @@ fn test_minlen_2_forces_rank_gap() {
     diagram.add_node(mmdflux::graph::Node::new("B").with_label("B"));
     diagram.add_edge(mmdflux::graph::Edge::new("A", "B").with_minlen(2));
 
-    let output = render(&diagram, &RenderOptions::default());
+    let output = render_text_diagram(&diagram);
 
     let lines: Vec<&str> = output.lines().collect();
     let a_line = lines.iter().position(|l| l.contains('A')).unwrap();
@@ -2691,7 +2688,7 @@ mod multigraph {
             "Should have 3 edges between A and B"
         );
 
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_text_diagram(&diagram);
         assert!(output.contains('A'), "Node A should appear:\n{output}");
         assert!(output.contains('B'), "Node B should appear:\n{output}");
     }
@@ -4209,7 +4206,7 @@ fn top_level_render_matches_flowchart_instance_for_subgraph_direction_mixed() {
     let input = load_fixture("subgraph_direction_mixed.mmd");
     let diagram = parse_and_build("subgraph_direction_mixed.mmd");
 
-    let top_level = render(&diagram, &RenderOptions::default());
+    let top_level = render_text_diagram(&diagram);
 
     let registry = default_registry();
     let mut instance = registry
@@ -4426,7 +4423,7 @@ fn text_renders_head_label() {
     let flowchart = mmdflux::frontends::mermaid::parse_flowchart(input).unwrap();
     let mut diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
     diagram.edges[0].head_label = Some("*".to_string());
-    let output = render(&diagram, &RenderOptions::default());
+    let output = render_text_diagram(&diagram);
     assert!(
         output.contains('*'),
         "text output should contain head label '*', got:\n{output}"
@@ -4439,7 +4436,7 @@ fn text_renders_tail_label() {
     let flowchart = mmdflux::frontends::mermaid::parse_flowchart(input).unwrap();
     let mut diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
     diagram.edges[0].tail_label = Some("src".to_string());
-    let output = render(&diagram, &RenderOptions::default());
+    let output = render_text_diagram(&diagram);
     assert!(
         output.contains("src"),
         "text output should contain tail label 'src', got:\n{output}"
