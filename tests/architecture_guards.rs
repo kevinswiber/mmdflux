@@ -357,9 +357,10 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
 
     for required in [
         "registry_builtins",
+        "graph::grid",
         "graph_family_pipeline",
         "timeline::sequence",
-        "text_canvas",
+        "render::graph::text_canvas",
         "render_svg_from_routed_geometry",
     ] {
         assert!(
@@ -809,6 +810,30 @@ fn graph_grid_sources_use_graph_owned_projection_types_and_direct_mmds_replay() 
                 && !grid_derive.contains(forbidden)
                 && !mmds_render_input.contains(forbidden),
             "graph::grid derivation and direct MMDS replay should not rely on layered-owned bridge types or runtime solve fallback: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn layered_kernel_does_not_keep_grid_layout_config_alias() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let layered_mod = repo_root.join("src/engines/graph/algorithms/layered/mod.rs");
+    let layered_mod = std::fs::read_to_string(&layered_mod).unwrap();
+
+    assert!(
+        !repo_root
+            .join("src/engines/graph/algorithms/layered/grid_layout_config.rs")
+            .exists(),
+        "layered should not keep a compatibility alias file for graph-owned GridLayoutConfig"
+    );
+
+    for forbidden in [
+        "mod grid_layout_config;",
+        "pub use grid_layout_config::GridLayoutConfig;",
+    ] {
+        assert!(
+            !layered_mod.contains(forbidden),
+            "layered should not expose graph-owned GridLayoutConfig through a secondary namespace: {forbidden}"
         );
     }
 }

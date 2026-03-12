@@ -1,4 +1,3 @@
-use super::GridLayoutConfig;
 use super::layout_building::{
     build_layered_layout_with_config, compute_sublayouts, layered_config_for_layout,
 };
@@ -6,7 +5,9 @@ use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds
 use crate::engines::graph::EngineConfig;
 use crate::errors::RenderError;
 use crate::graph::geometry::GraphGeometry;
-use crate::graph::grid::{GridProjection, GridRanker, OverrideSubgraphProjection};
+use crate::graph::grid::{
+    GridLayoutConfig, GridProjection, GridRanker, OverrideSubgraphProjection,
+};
 use crate::graph::measure::{
     ProportionalTextMetrics, grid_edge_label_dimensions, grid_node_dimensions,
     proportional_node_dimensions,

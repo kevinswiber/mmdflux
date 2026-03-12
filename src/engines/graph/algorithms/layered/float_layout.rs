@@ -8,11 +8,10 @@ use super::layout_subgraph_ops::{
     center_override_subgraphs, expand_parent_bounds, reconcile_sublayouts,
     resolve_sublayout_overlaps,
 };
-use crate::engines::graph::algorithms::layered::{
-    GridLayoutConfig, LayoutConfig, LayoutResult, from_layered_layout,
-};
+use crate::engines::graph::algorithms::layered::{LayoutConfig, LayoutResult, from_layered_layout};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, RoutedEdgeGeometry};
+use crate::graph::grid::GridLayoutConfig;
 use crate::graph::measure::{ProportionalTextMetrics, proportional_node_dimensions};
 use crate::graph::routing::{
     EdgeRouting, OrthogonalRoutingOptions, route_edges_orthogonal, route_graph_geometry,

@@ -32,11 +32,12 @@ Guard tests should fail when the code drifts away from these rules.
 
 5. **render::graph owns geometry-based graph-family emitters** — Shared
    graph-family text and SVG emission lives under `src/render/graph/` and
-   consumes `GraphGeometry` or `RoutedGraphGeometry`. High-level geometry
-   entrypoints stay at the `render::graph` root, low-level text drawing lives
-   under `render::graph::text_canvas`, and routed SVG emission is
-   explicit through `render_svg_from_routed_geometry`. Render code does not
-   take `GraphSolveResult` or instantiate engines.
+   consumes `GraphGeometry`, `RoutedGraphGeometry`, or graph-owned
+   `graph::grid` layouts. High-level geometry entrypoints stay at the
+   `render::graph` root, low-level text drawing lives under
+   `render::graph::text_canvas`, and routed SVG emission is explicit through
+   `render_svg_from_routed_geometry`. Render code does not take
+   `GraphSolveResult` or instantiate engines.
 
 6. **runtime owns graph-family solve-result dispatch** — `src/runtime/`
    resolves graph-family output formats from engine solve results and owns the
@@ -50,8 +51,10 @@ Guard tests should fail when the code drifts away from these rules.
 8. **graph/ owns graph-family IR, float-space geometry, and shared policy/measurement helpers** —
    `src/graph/` contains reusable graph-family models, solved and routed
    geometry, direction policy, and shared graph-family grid/proportional
-   measurement and routing helpers. Output emission does not live under
-   `src/graph/`, but graph-family routing and shared sizing/policy do.
+   measurement and routing helpers. The graph-owned `graph::grid` namespace is
+   the derived grid-space layer for float-to-grid conversion, grid routing, and
+   replay geometry contracts. Output emission does not live under `src/graph/`,
+   but graph-family routing, derived grid geometry, and shared sizing/policy do.
 
 9. **mmds/ is the MMDS contract and output namespace** — `src/mmds/` owns the
    typed MMDS envelope, profile vocabulary, Mermaid regeneration helpers, and

@@ -229,6 +229,15 @@ fn graph_grid_module_exposes_grid_projection_contracts() {
 }
 
 #[test]
+fn layered_kernel_no_longer_reexports_graph_owned_grid_layout_config() {
+    let layered_source = repo_file("src/engines/graph/algorithms/layered/mod.rs");
+    assert!(
+        !layered_source.contains("pub use grid_layout_config::GridLayoutConfig;"),
+        "GridLayoutConfig should be owned only by mmdflux::graph::grid, not re-exported through layered"
+    );
+}
+
+#[test]
 fn graph_grid_exposes_grid_layout_surface() {
     use mmdflux::graph::grid::{
         GridLayout, GridLayoutConfig, NodeBounds, geometry_to_grid_layout_with_routed,
