@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use mmdflux::registry::default_registry;
+use mmdflux::registry_builtins::default_registry;
 use mmdflux::{OutputFormat, RenderConfig};
 
 #[derive(serde::Deserialize)]

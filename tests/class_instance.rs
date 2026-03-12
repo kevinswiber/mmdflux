@@ -143,7 +143,7 @@ Triangle --> Rectangle";
 
 #[test]
 fn class_instance_via_registry() {
-    let registry = mmdflux::registry::default_registry();
+    let registry = mmdflux::registry_builtins::default_registry();
     let mut instance = registry.create("class").unwrap();
     instance
         .parse("classDiagram\nclass User\nclass Order\nUser --> Order")

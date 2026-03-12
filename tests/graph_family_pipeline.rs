@@ -9,7 +9,7 @@ use mmdflux::engines::graph::contracts::{EngineConfig, GraphSolveRequest, GraphS
 use mmdflux::engines::graph::registry::GraphEngineRegistry;
 use mmdflux::graph::{Diagram, EdgeRouting, route_graph_geometry};
 use mmdflux::mmds::to_mmds_json_typed;
-use mmdflux::registry::default_registry;
+use mmdflux::registry_builtins::default_registry;
 use mmdflux::render::graph::{
     SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_text_from_geometry,
 };

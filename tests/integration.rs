@@ -12,7 +12,7 @@ use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
-use mmdflux::registry::default_registry;
+use mmdflux::registry_builtins::default_registry;
 use mmdflux::render::{Canvas, CharSet};
 use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,

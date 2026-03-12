@@ -6,8 +6,8 @@
 
 use std::collections::HashMap;
 
-use super::model::{MessageStyle, Participant, SequenceEvent, SequenceModel};
 use crate::frontends::mermaid::sequence::ast::{ArrowType, ParticipantKind, SequenceStatement};
+use crate::timeline::sequence::model::{MessageStyle, Participant, SequenceEvent, SequenceModel};
 
 /// Compile parsed sequence statements into a validated model.
 ///

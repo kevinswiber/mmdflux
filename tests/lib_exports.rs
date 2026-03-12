@@ -177,7 +177,7 @@ fn implementor_traits_and_engine_capabilities_are_not_crate_root_api() {
 
 #[test]
 fn registry_api_works() {
-    let registry = mmdflux::registry::default_registry();
+    let registry = mmdflux::registry_builtins::default_registry();
     let input = "graph TD\n    A-->B";
 
     let diagram_id = registry.detect(input).unwrap();
@@ -190,6 +190,19 @@ fn registry_api_works() {
         .unwrap();
     assert!(output.contains('A'));
     assert!(output.contains('B'));
+}
+
+#[test]
+fn builtin_registry_module_is_public_and_registry_default_registry_is_gone() {
+    let _ = mmdflux::registry_builtins::default_registry();
+
+    let registry_source =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/registry.rs"))
+            .unwrap();
+    assert!(
+        !registry_source.contains("pub fn default_registry("),
+        "src/registry.rs should stay contract-only"
+    );
 }
 
 #[test]

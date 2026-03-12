@@ -17,7 +17,7 @@
 //!
 //! Low-level parsing, compilation, MMDS hydration, and render-only geometry
 //! emission remain available through explicit namespaces such as `frontends`,
-//! `diagrams`, `render`, and `registry`.
+//! `diagrams`, `render`, `registry`, and `registry_builtins`.
 
 pub mod config;
 pub mod diagnostics;
@@ -29,13 +29,16 @@ pub mod family;
 pub mod format;
 pub mod frontends;
 pub mod graph;
+mod graph_family_pipeline;
 pub mod lint;
 pub mod mmds;
 pub mod registry;
+pub mod registry_builtins;
 pub mod render;
 pub mod request;
 pub(crate) mod runtime;
 pub mod style;
+mod timeline;
 
 // Re-export commonly used types for convenience
 pub use config::{

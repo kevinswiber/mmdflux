@@ -276,6 +276,13 @@ fn baseline_manifest_captures_locked_external_surfaces() {
 }
 
 #[test]
+fn registry_source_no_longer_imports_diagrams() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/registry.rs");
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(!content.contains("use crate::diagrams"));
+}
+
+#[test]
 fn baseline_manifest_rust_exports_are_complete() {
     let manifest = load_baseline_manifest();
 
@@ -769,6 +776,37 @@ fn graph_does_not_import_render_or_layered_kernel() {
         ],
         "graph/ should remain render-agnostic and layered-kernel agnostic",
     );
+}
+
+#[test]
+fn graph_family_instances_do_not_import_runtime() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for path in [
+        repo_root.join("src/diagrams/flowchart/instance.rs"),
+        repo_root.join("src/diagrams/class/instance.rs"),
+    ] {
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            !content.contains("crate::runtime"),
+            "graph-family instance should not import runtime: {}",
+            path.display()
+        );
+    }
+}
+
+#[test]
+fn sequence_renderer_does_not_import_diagrams_sequence() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/diagram/sequence/text.rs");
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(!content.contains("crate::diagrams::sequence"));
+}
+
+#[test]
+fn sequence_instance_does_not_import_render_sequence_text_directly() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/diagrams/sequence/instance.rs");
+    let content = std::fs::read_to_string(path).unwrap();
+    assert!(!content.contains("crate::render::diagram::sequence::text"));
 }
 
 #[test]

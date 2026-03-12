@@ -1,7 +1,7 @@
 //! Class diagram instance implementation.
 //!
 //! Parses class diagram syntax, compiles to `graph::Diagram` (graph-family IR),
-//! then delegates rendering to the shared graph-family facade.
+//! then delegates rendering to the shared graph-family pipeline.
 
 use super::compiler;
 use crate::config::RenderConfig;
@@ -14,7 +14,7 @@ use crate::registry::DiagramInstance;
 /// Class diagram instance.
 ///
 /// Compiles class diagram syntax to `graph::Diagram`, then renders through
-/// the shared graph-family pipeline via [`crate::runtime::facade`].
+/// the shared graph-family pipeline.
 pub struct ClassInstance {
     /// Compiled graph-family IR.
     diagram: Option<Diagram>,
@@ -46,7 +46,7 @@ impl DiagramInstance for ClassInstance {
         })?;
 
         // Delegate to the shared graph-family pipeline.
-        crate::runtime::facade::render_graph("class", diagram, format, config)
+        crate::graph_family_pipeline::render_graph("class", diagram, format, config)
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {

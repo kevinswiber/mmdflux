@@ -1147,7 +1147,7 @@ fn render_flux_engine_svg_for_fixture_with_style(
         .join("flowchart")
         .join(fixture_name);
     let input = fs::read_to_string(fixture).expect("fixture should load");
-    let mut instance = mmdflux::registry::default_registry()
+    let mut instance = mmdflux::registry_builtins::default_registry()
         .create("flowchart")
         .expect("flowchart instance should be available");
     instance.parse(&input).expect("fixture should parse");

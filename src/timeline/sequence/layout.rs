@@ -1,4 +1,4 @@
-//! Timeline layout engine for sequence diagrams.
+//! Shared timeline layout engine for sequence diagrams.
 //!
 //! Computes character-grid positions for participants, messages,
 //! and notes. Output is consumed by the text renderer.

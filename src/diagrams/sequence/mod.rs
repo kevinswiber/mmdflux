@@ -5,8 +5,6 @@
 
 pub mod compiler;
 mod instance;
-pub mod layout;
-pub mod model;
 
 pub use instance::SequenceInstance;
 

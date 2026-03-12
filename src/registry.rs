@@ -159,29 +159,3 @@ pub trait DiagramInstance: Send + Sync {
     /// Check if this instance supports the given output format.
     fn supports_format(&self, format: OutputFormat) -> bool;
 }
-
-/// Create the default registry with all built-in diagram types.
-///
-/// Registration order determines detection priority. Flowchart is
-/// registered first as the most common diagram type.
-pub fn default_registry() -> DiagramRegistry {
-    use crate::diagrams::{class, flowchart, info, packet, pie, sequence};
-
-    let mut registry = DiagramRegistry::new();
-
-    // Flowchart - most common, register first
-    registry.register(flowchart::definition());
-
-    // Graph-family diagrams
-    registry.register(class::definition());
-
-    // Timeline-family diagrams
-    registry.register(sequence::definition());
-
-    // Simple diagrams (shims)
-    registry.register(pie::definition());
-    registry.register(info::definition());
-    registry.register(packet::definition());
-
-    registry
-}

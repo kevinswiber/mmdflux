@@ -1,4 +1,4 @@
-//! Sequence diagram model.
+//! Shared sequence diagram model.
 //!
 //! The validated model used by the timeline layout engine. Produced by
 //! compiling the raw parsed AST statements.

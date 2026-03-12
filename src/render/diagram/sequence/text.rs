@@ -3,12 +3,12 @@
 //! Renders a `SequenceLayout` onto a shared `Canvas` using box-drawing
 //! characters from `CharSet`. Supports both Unicode and ASCII output.
 
-use crate::diagrams::sequence::layout::{
-    ParticipantLayout, RowLayout, SELF_MSG_WIDTH, SequenceLayout,
-};
-use crate::diagrams::sequence::model::MessageStyle;
 use crate::render::primitives::canvas::Canvas;
 use crate::render::primitives::chars::CharSet;
+use crate::timeline::sequence::layout::{
+    ParticipantLayout, RowLayout, SELF_MSG_WIDTH, SequenceLayout,
+};
+use crate::timeline::sequence::model::MessageStyle;
 
 /// Render a sequence layout to a string.
 pub fn render(layout: &SequenceLayout, charset: &CharSet) -> String {

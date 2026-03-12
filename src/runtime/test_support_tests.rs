@@ -1,8 +1,8 @@
-use super::facade::render_graph;
 use crate::engines::graph::algorithms::layered::layout_building::layered_config_for_layout;
 use crate::engines::graph::contracts::{EngineConfig, GraphEngine, GraphSolveRequest};
 use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::graph::Diagram;
+use crate::graph_family_pipeline::render_graph;
 use crate::render::graph::{GridLayoutConfig, Layout, geometry_to_text_layout_with_routed};
 use crate::{OutputFormat, RenderConfig};
 

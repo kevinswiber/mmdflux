@@ -123,7 +123,7 @@ fn facade_render_matches_registry_direct_path() {
     let facade_result = render_diagram(input, OutputFormat::Text, &config).unwrap();
 
     // The same output must come from the direct registry path.
-    let registry = mmdflux::registry::default_registry();
+    let registry = mmdflux::registry_builtins::default_registry();
     let diagram_id = registry.detect(input).unwrap();
     let mut instance = registry.create(diagram_id).unwrap();
     instance.parse(input).unwrap();
