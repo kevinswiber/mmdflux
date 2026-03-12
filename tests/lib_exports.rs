@@ -27,7 +27,11 @@ use mmdflux::{
 };
 
 fn lib_rs_source() -> String {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs");
+    repo_file("src/lib.rs")
+}
+
+fn repo_file(relative_path: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(relative_path);
     std::fs::read_to_string(&path).unwrap()
 }
 
@@ -76,6 +80,24 @@ fn public_modules_for_test() -> BTreeSet<String> {
     modules
 }
 
+fn assert_exports_include(exports: &BTreeSet<String>, required: &[&str]) {
+    for name in required {
+        assert!(
+            exports.contains(*name),
+            "{name} should remain in the crate-root export surface"
+        );
+    }
+}
+
+fn assert_exports_exclude(exports: &BTreeSet<String>, forbidden: &[&str], context: &str) {
+    for name in forbidden {
+        assert!(
+            !exports.contains(*name),
+            "{name} should stay out of {context}"
+        );
+    }
+}
+
 #[test]
 fn all_exports_accessible() {
     // This test passes if it compiles
@@ -101,31 +123,27 @@ fn flat_public_contract_modules_are_accessible() {
 fn crate_root_exports_only_the_curated_render_and_validation_surface() {
     let exports = public_exports_for_test();
 
-    for required in [
-        "OutputFormat",
-        "RenderConfig",
-        "RenderError",
-        "RenderRequest",
-    ] {
-        assert!(
-            exports.contains(required),
-            "{required} should remain in the crate-root export surface"
-        );
-    }
-
-    for forbidden in [
-        "DiagramType",
-        "ParseError",
-        "parse_flowchart",
-        "detect_diagram_type",
-        "compile_to_graph",
-        "default_registry",
-    ] {
-        assert!(
-            !exports.contains(forbidden),
-            "{forbidden} should stay out of the crate-root export surface"
-        );
-    }
+    assert_exports_include(
+        &exports,
+        &[
+            "OutputFormat",
+            "RenderConfig",
+            "RenderError",
+            "RenderRequest",
+        ],
+    );
+    assert_exports_exclude(
+        &exports,
+        &[
+            "DiagramType",
+            "ParseError",
+            "parse_flowchart",
+            "detect_diagram_type",
+            "compile_to_graph",
+            "default_registry",
+        ],
+        "the crate-root export surface",
+    );
 }
 
 #[test]
@@ -142,37 +160,35 @@ fn crate_root_does_not_export_hidden_testing_module() {
 fn engine_level_solve_types_are_not_crate_root_api() {
     let exports = public_exports_for_test();
 
-    for forbidden in [
-        "GraphEngine",
-        "GraphSolveRequest",
-        "GraphSolveResult",
-        "EngineConfig",
-        "EdgeRouting",
-    ] {
-        assert!(
-            !exports.contains(forbidden),
-            "{forbidden} should not be exported from the crate root"
-        );
-    }
+    assert_exports_exclude(
+        &exports,
+        &[
+            "GraphEngine",
+            "GraphSolveRequest",
+            "GraphSolveResult",
+            "EngineConfig",
+            "EdgeRouting",
+        ],
+        "the crate root",
+    );
 }
 
 #[test]
 fn implementor_traits_and_engine_capabilities_are_not_crate_root_api() {
     let exports = public_exports_for_test();
 
-    for forbidden in [
-        "DiagramModel",
-        "DiagramParser",
-        "DiagramRenderer",
-        "EngineAlgorithmCapabilities",
-        "RouteOwnership",
-        "LayoutConfig",
-    ] {
-        assert!(
-            !exports.contains(forbidden),
-            "{forbidden} should not be exported from the crate root"
-        );
-    }
+    assert_exports_exclude(
+        &exports,
+        &[
+            "DiagramModel",
+            "DiagramParser",
+            "DiagramRenderer",
+            "EngineAlgorithmCapabilities",
+            "RouteOwnership",
+            "LayoutConfig",
+        ],
+        "the crate root",
+    );
 }
 
 #[test]
@@ -196,9 +212,7 @@ fn registry_api_works() {
 fn builtin_registry_module_is_public_and_registry_default_registry_is_gone() {
     let _ = mmdflux::registry_builtins::default_registry();
 
-    let registry_source =
-        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/registry.rs"))
-            .unwrap();
+    let registry_source = repo_file("src/registry.rs");
     assert!(
         !registry_source.contains("pub fn default_registry("),
         "src/registry.rs should stay contract-only"
@@ -215,12 +229,11 @@ fn crate_root_exports_registry_builtins_but_not_removed_advanced_helpers() {
         "registry_builtins should remain an explicit top-level advanced API module"
     );
 
-    for forbidden in ["snap_path_to_grid_preview", "intersect", "default_registry"] {
-        assert!(
-            !exports.contains(forbidden),
-            "{forbidden} should stay out of the crate-root export surface"
-        );
-    }
+    assert_exports_exclude(
+        &exports,
+        &["snap_path_to_grid_preview", "intersect", "default_registry"],
+        "the crate-root export surface",
+    );
 }
 
 #[test]

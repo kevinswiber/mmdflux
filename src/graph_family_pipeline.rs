@@ -49,11 +49,7 @@ pub(crate) fn render_graph(
         ),
         OutputFormat::Svg => {
             let options: SvgRenderOptions = config.into();
-            Ok(if let Some(routed) = result.routed.as_ref() {
-                render_svg_from_routed_geometry(diagram, routed, &options)
-            } else {
-                render_svg_from_geometry(diagram, &result.geometry, &options)
-            })
+            Ok(render_svg_from_solve_result(diagram, &result, &options))
         }
         OutputFormat::Text | OutputFormat::Ascii => {
             let mut options: TextRenderOptions = config.into();
@@ -68,6 +64,17 @@ pub(crate) fn render_graph(
         _ => Err(RenderError {
             message: format!("{format} output is not supported for {diagram_id} diagrams"),
         }),
+    }
+}
+
+fn render_svg_from_solve_result(
+    diagram: &Diagram,
+    result: &GraphSolveResult,
+    options: &SvgRenderOptions,
+) -> String {
+    match result.routed.as_ref() {
+        Some(routed) => render_svg_from_routed_geometry(diagram, routed, options),
+        None => render_svg_from_geometry(diagram, &result.geometry, options),
     }
 }
 

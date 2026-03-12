@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::detect::resolve_logical_diagram_id;
 use super::hydrate::{
     from_mmds_output, hydrate_graph_geometry_from_output_with_diagram,
@@ -18,9 +20,8 @@ pub fn render_input(
     format: OutputFormat,
     config: &RenderConfig,
 ) -> Result<String, RenderError> {
-    let payload = parse_mmds_input(input).map_err(|error| RenderError {
-        message: format!("parse error: {error}"),
-    })?;
+    let payload =
+        parse_mmds_input(input).map_err(|error| prefixed_display_error("parse error", error))?;
     render_output(&payload, format, config)
 }
 
@@ -31,6 +32,7 @@ pub fn render_output(
     config: &RenderConfig,
 ) -> Result<String, RenderError> {
     let diagram_id = resolve_logical_diagram_id(payload)?;
+    let has_routed_geometry = payload.geometry_level == "routed";
 
     if !matches!(payload.geometry_level.as_str(), "layout" | "routed") {
         return Err(RenderError {
@@ -42,48 +44,32 @@ pub fn render_output(
     }
 
     if matches!(format, OutputFormat::Mmds) {
-        let output = if payload.geometry_level == "routed"
-            && config.geometry_level == GeometryLevel::Layout
-        {
+        let output = if has_routed_geometry && config.geometry_level == GeometryLevel::Layout {
             strip_routed_fields(payload)
         } else {
             payload.clone()
         };
-        return serde_json::to_string_pretty(&output).map_err(|error| RenderError {
-            message: format!("MMDS serialization error: {error}"),
-        });
+        return serde_json::to_string_pretty(&output)
+            .map_err(|error| prefixed_display_error("MMDS serialization error", error));
     }
 
     if matches!(format, OutputFormat::Mermaid) {
-        return generate_mermaid_from_mmds(payload).map_err(|error| RenderError {
-            message: error.to_string(),
-        });
+        return generate_mermaid_from_mmds(payload).map_err(display_error);
     }
 
-    let diagram = from_mmds_output(payload).map_err(|error| RenderError {
-        message: error.to_string(),
-    })?;
+    let diagram = from_mmds_output(payload).map_err(display_error)?;
 
-    let geometry =
-        hydrate_graph_geometry_from_output_with_diagram(payload, &diagram).map_err(|error| {
-            RenderError {
-                message: error.to_string(),
-            }
-        })?;
+    let geometry = hydrate_graph_geometry_from_output_with_diagram(payload, &diagram)
+        .map_err(display_error)?;
+    let routed = has_routed_geometry
+        .then(|| hydrate_routed_geometry_from_output(payload))
+        .transpose()
+        .map_err(display_error)?;
 
     match format {
         OutputFormat::Text | OutputFormat::Ascii => {
             let mut options: TextRenderOptions = config.into();
             options.output_format = format;
-            let routed = if payload.geometry_level == "routed" {
-                Some(
-                    hydrate_routed_geometry_from_output(payload).map_err(|error| RenderError {
-                        message: error.to_string(),
-                    })?,
-                )
-            } else {
-                None
-            };
             Ok(render_text_from_geometry(
                 &diagram,
                 &geometry,
@@ -93,19 +79,26 @@ pub fn render_output(
         }
         OutputFormat::Svg => {
             let options: SvgRenderOptions = config.into();
-            if payload.geometry_level == "routed" {
-                let routed =
-                    hydrate_routed_geometry_from_output(payload).map_err(|error| RenderError {
-                        message: error.to_string(),
-                    })?;
-                Ok(render_svg_from_routed_geometry(&diagram, &routed, &options))
-            } else {
-                Ok(render_svg_from_geometry(&diagram, &geometry, &options))
-            }
+            Ok(match routed.as_ref() {
+                Some(routed) => render_svg_from_routed_geometry(&diagram, routed, &options),
+                None => render_svg_from_geometry(&diagram, &geometry, &options),
+            })
         }
         _ => Err(RenderError {
             message: format!("{format} output is not supported for {diagram_id} diagrams"),
         }),
+    }
+}
+
+fn display_error(error: impl Display) -> RenderError {
+    RenderError {
+        message: error.to_string(),
+    }
+}
+
+fn prefixed_display_error(prefix: &str, error: impl Display) -> RenderError {
+    RenderError {
+        message: format!("{prefix}: {error}"),
     }
 }
 
