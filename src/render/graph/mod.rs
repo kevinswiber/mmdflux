@@ -12,97 +12,20 @@
 pub(crate) mod svg;
 pub mod text;
 
-use self::svg::{DEFAULT_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE};
+pub use self::svg::SvgRenderOptions;
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Diagram, Direction};
 use crate::render::text::TextColorMode;
 use crate::simplification::PathSimplification;
-use crate::{Curve, EdgePreset, EngineId, OutputFormat, RenderConfig, RoutingStyle};
-
-/// Engine defaults for SVG style (routing + curve).
-///
-/// When no preset or explicit style is specified, these engine-specific defaults
-/// preserve the pre-Phase-7 rendering behaviour.
-fn engine_style_defaults(engine: Option<EngineId>) -> (RoutingStyle, Curve) {
-    match engine {
-        Some(EngineId::Mermaid) => (RoutingStyle::Polyline, Curve::Basis),
-        _ => (RoutingStyle::Orthogonal, Curve::Basis),
-    }
-}
+use crate::{OutputFormat, RenderConfig, RoutingStyle};
 
 pub(crate) fn edge_routing_from_style(routing_style: RoutingStyle) -> EdgeRouting {
     match routing_style {
         RoutingStyle::Direct => EdgeRouting::DirectRoute,
         RoutingStyle::Polyline => EdgeRouting::PolylineRoute,
         RoutingStyle::Orthogonal => EdgeRouting::OrthogonalRoute,
-    }
-}
-
-/// Public SVG render options for render-only geometry emission.
-#[derive(Debug, Clone)]
-pub struct SvgRenderOptions {
-    pub scale: f64,
-    pub font_family: String,
-    pub font_size: f64,
-    pub node_padding_x: f64,
-    pub node_padding_y: f64,
-    pub routing_style: RoutingStyle,
-    pub curve: Curve,
-    pub edge_radius: f64,
-    pub diagram_padding: f64,
-    pub path_simplification: PathSimplification,
-}
-
-impl Default for SvgRenderOptions {
-    fn default() -> Self {
-        let font_size = DEFAULT_PROPORTIONAL_FONT_SIZE;
-        Self {
-            scale: 1.0,
-            font_family: DEFAULT_FONT_FAMILY.to_string(),
-            font_size,
-            node_padding_x: 15.0,
-            node_padding_y: 15.0,
-            routing_style: RoutingStyle::Orthogonal,
-            curve: Curve::Basis,
-            edge_radius: 5.0,
-            diagram_padding: 8.0,
-            path_simplification: PathSimplification::default(),
-        }
-    }
-}
-
-impl From<&RenderConfig> for SvgRenderOptions {
-    fn from(config: &RenderConfig) -> Self {
-        let mut svg = Self::default();
-        if let Some(scale) = config.svg_scale {
-            svg.scale = scale;
-        }
-        if let Some(padding_x) = config.svg_node_padding_x {
-            svg.node_padding_x = padding_x;
-        }
-        if let Some(padding_y) = config.svg_node_padding_y {
-            svg.node_padding_y = padding_y;
-        }
-        if let Some(radius) = config.edge_radius {
-            svg.edge_radius = radius;
-        }
-        if let Some(padding) = config.svg_diagram_padding {
-            svg.diagram_padding = padding;
-        }
-
-        let engine_id = config.layout_engine.map(|id| id.engine());
-        let (def_routing, def_curve) = engine_style_defaults(engine_id);
-        let (preset_routing, preset_curve) = config
-            .edge_preset
-            .map(EdgePreset::expand)
-            .unwrap_or((def_routing, def_curve));
-
-        svg.routing_style = config.routing_style.unwrap_or(preset_routing);
-        svg.curve = config.curve.unwrap_or(preset_curve);
-        svg.path_simplification = config.path_simplification;
-        svg
     }
 }
 

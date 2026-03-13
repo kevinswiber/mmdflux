@@ -1,6 +1,6 @@
 //! Character sets for ASCII and Unicode box-drawing.
 
-use super::canvas::Connections;
+use super::connections::Connections;
 
 /// Character set for rendering.
 ///

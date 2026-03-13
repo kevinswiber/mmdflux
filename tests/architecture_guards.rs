@@ -772,7 +772,7 @@ fn render_graph_source_keeps_legacy_solve_and_render_types_non_public() {
     }
 
     for required in [
-        "pub struct SvgRenderOptions",
+        "pub use self::svg::SvgRenderOptions",
         "pub struct TextRenderOptions",
         "pub fn render_svg_from_geometry(",
         "pub fn render_text_from_geometry(",
