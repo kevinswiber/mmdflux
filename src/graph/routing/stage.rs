@@ -1,13 +1,27 @@
 //! Graph-family route execution and path shaping helpers.
 
+use super::float_core::compute_port_attachments_from_geometry;
 use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
-use super::orthogonal::build_path_from_hints;
+use super::orthogonal::{OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal};
 use crate::graph::direction_policy::effective_edge_direction;
 use crate::graph::geometry::{
     GraphGeometry, LayoutEdge, RoutedEdgeGeometry, RoutedGraphGeometry, RoutedSelfEdge,
 };
 use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Diagram, Direction};
+
+/// Graph-family routed-path ownership mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EdgeRouting {
+    /// Build a single direct path from source to target.
+    DirectRoute,
+    /// Build a polyline from layout hints.
+    PolylineRoute,
+    /// Use complete edge paths supplied by the solve stage.
+    EngineProvided,
+    /// Build an axis-aligned path.
+    OrthogonalRoute,
+}
 
 /// Route graph geometry to produce fully-routed edge paths.
 ///
@@ -16,18 +30,15 @@ use crate::graph::{Diagram, Direction};
 pub fn route_graph_geometry(
     diagram: &Diagram,
     geometry: &GraphGeometry,
-    edge_routing: super::EdgeRouting,
+    edge_routing: EdgeRouting,
 ) -> RoutedGraphGeometry {
     let port_attachments =
-        super::compute_port_attachments_from_geometry(&diagram.edges, geometry, diagram.direction);
+        compute_port_attachments_from_geometry(&diagram.edges, geometry, diagram.direction);
 
     let edges: Vec<RoutedEdgeGeometry> = match edge_routing {
-        super::EdgeRouting::OrthogonalRoute => {
-            let mut edges = super::route_edges_orthogonal(
-                diagram,
-                geometry,
-                super::OrthogonalRoutingOptions::preview(),
-            );
+        EdgeRouting::OrthogonalRoute => {
+            let mut edges =
+                route_edges_orthogonal(diagram, geometry, OrthogonalRoutingOptions::preview());
             for edge in &mut edges {
                 if let Some((sp, tp)) = port_attachments.get(&edge.index) {
                     edge.source_port = sp.clone();
@@ -36,9 +47,7 @@ pub fn route_graph_geometry(
             }
             edges
         }
-        super::EdgeRouting::DirectRoute
-        | super::EdgeRouting::EngineProvided
-        | super::EdgeRouting::PolylineRoute => {
+        EdgeRouting::DirectRoute | EdgeRouting::EngineProvided | EdgeRouting::PolylineRoute => {
             let backward_lane_indices: Vec<usize> = {
                 let mut counter = 0usize;
                 geometry
@@ -70,15 +79,15 @@ pub fn route_graph_geometry(
                         diagram.direction,
                     );
                     let path = match edge_routing {
-                        super::EdgeRouting::DirectRoute => {
+                        EdgeRouting::DirectRoute => {
                             build_direct_path(edge, geometry, edge_direction)
                         }
-                        super::EdgeRouting::EngineProvided => edge
+                        EdgeRouting::EngineProvided => edge
                             .layout_path_hint
                             .clone()
                             .unwrap_or_else(|| build_path_from_hints(edge, geometry)),
-                        super::EdgeRouting::PolylineRoute => build_path_from_hints(edge, geometry),
-                        super::EdgeRouting::OrthogonalRoute => unreachable!(),
+                        EdgeRouting::PolylineRoute => build_path_from_hints(edge, geometry),
+                        EdgeRouting::OrthogonalRoute => unreachable!(),
                     };
                     let is_backward = geometry.reversed_edges.contains(&edge.index);
                     let path = if !is_backward && path.len() >= 2 {

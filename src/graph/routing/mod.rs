@@ -15,29 +15,15 @@ mod preview;
 mod stage;
 
 pub(crate) use self::float_core::{
-    build_orthogonal_path_float, compute_port_attachments_from_geometry, hexagon_vertices,
-    intersect_convex_polygon,
+    build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
 };
-pub(crate) use self::labels::{compute_end_label_positions, compute_end_labels_for_edge};
+pub(crate) use self::labels::compute_end_label_positions;
 pub(crate) use self::orthogonal::{OrthogonalRoutingOptions, route_edges_orthogonal};
-pub use self::stage::route_graph_geometry;
+pub use self::stage::{EdgeRouting, route_graph_geometry};
 #[cfg(test)]
 use crate::graph::Diagram;
 #[cfg(test)]
 use crate::graph::geometry::*;
-
-/// Graph-family routed-path ownership mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EdgeRouting {
-    /// Build a single direct path from source to target.
-    DirectRoute,
-    /// Build a polyline from layout hints.
-    PolylineRoute,
-    /// Use complete edge paths supplied by the solve stage.
-    EngineProvided,
-    /// Build an axis-aligned path.
-    OrthogonalRoute,
-}
 
 #[cfg(test)]
 mod tests {

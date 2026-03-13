@@ -12,6 +12,7 @@ use super::float_core::{
     build_orthogonal_path_float, intersect_shape_boundary_float,
     normalize_orthogonal_route_contracts,
 };
+use super::labels::compute_end_labels_for_edge;
 use crate::graph::attachment::{
     Face, OverflowSide, can_apply_td_bt_backward_hint_parity, canonical_backward_channel_face,
     fan_in_overflow_face_for_slot, fan_in_primary_face_capacity, fan_in_primary_target_face,
@@ -145,7 +146,7 @@ pub(crate) fn route_edges_orthogonal(
             };
 
             let (head_label_position, tail_label_position) =
-                super::compute_end_labels_for_edge(diagram, edge.index, &path);
+                compute_end_labels_for_edge(diagram, edge.index, &path);
             RoutedEdgeGeometry {
                 index: edge.index,
                 from: edge.from.clone(),
@@ -222,12 +223,11 @@ fn resolve_forward_td_bt_criss_cross_overlaps(
                     routed[reroute_idx].path = new_path;
                     routed[reroute_idx].label_position =
                         revalidate_label_anchor(current_label_position, &routed[reroute_idx].path);
-                    let (head_label_position, tail_label_position) =
-                        super::compute_end_labels_for_edge(
-                            diagram,
-                            routed[reroute_idx].index,
-                            &routed[reroute_idx].path,
-                        );
+                    let (head_label_position, tail_label_position) = compute_end_labels_for_edge(
+                        diagram,
+                        routed[reroute_idx].index,
+                        &routed[reroute_idx].path,
+                    );
                     routed[reroute_idx].head_label_position = head_label_position;
                     routed[reroute_idx].tail_label_position = tail_label_position;
                     routed[i].preserve_orthogonal_topology = true;
