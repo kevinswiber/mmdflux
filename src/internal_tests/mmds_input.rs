@@ -3,7 +3,7 @@ use std::path::Path;
 
 use mmdflux::mmds::hydrate::{hydrate_graph_geometry_from_mmds, hydrate_routed_geometry_from_mmds};
 use mmdflux::mmds::{MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str};
-use mmdflux::{Direction, OutputFormat, RenderConfig, Shape};
+use mmdflux::{Direction, OutputFormat, RenderConfig};
 
 fn fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -16,15 +16,6 @@ fn fixture(name: &str) -> String {
 
 fn positioned_fixture(name: &str) -> String {
     fixture(&format!("positioned/{name}"))
-}
-
-#[test]
-fn hydration_applies_defaults_to_omitted_node_and_edge_fields() {
-    let payload = fixture("defaults-minimal.json");
-    let diagram = from_mmds_str(&payload).expect("valid hydration");
-
-    assert_eq!(diagram.nodes["A"].shape, Shape::Round);
-    assert_eq!(diagram.edges[0].minlen, 2);
 }
 
 #[test]

@@ -11,6 +11,8 @@ mod subgraph;
 pub(crate) use edge::render_all_edges_with_labels;
 #[cfg(test)]
 pub(crate) use shape::render_node;
+#[cfg(test)]
+mod regression_tests;
 
 use super::TextRenderOptions;
 use crate::OutputFormat;

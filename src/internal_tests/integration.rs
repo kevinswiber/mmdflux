@@ -1,6 +1,7 @@
-//! Integration tests for mmdflux.
+//! Transitional integration staging for tests not yet rehomed beside their owners.
 //!
-//! These tests verify the full parsing and rendering pipeline using fixture files.
+//! This file should shrink over the plan. Residual crate-central coverage belongs
+//! in `cross_pipeline.rs`; owner-local coverage should move out to its module.
 
 use std::collections::HashMap;
 use std::fs;
@@ -3363,22 +3364,6 @@ fn test_render_subgraph_direction_cross_boundary() {
 }
 
 #[test]
-fn runtime_entrypoint_dispatches_mmds_input_through_frontend() {
-    let input = load_mmds_fixture("minimal-layout.json");
-    let diagram_id = mmdflux::detect_diagram(&input).expect("runtime should resolve MMDS fixture");
-    assert_eq!(diagram_id, "flowchart");
-
-    let output = mmdflux::render_diagram(
-        &input,
-        OutputFormat::Text,
-        &mmdflux::RenderConfig::default(),
-    )
-    .expect("layout MMDS payload should render via runtime frontend dispatch");
-    assert!(output.contains("Start"));
-    assert!(output.contains("End"));
-}
-
-#[test]
 fn mmds_integration_fixture_matrix() {
     let cases = [
         ("layout-valid-flowchart.json", true),
@@ -4288,23 +4273,6 @@ fn text_label_revalidation_fixtures_match_between_orthogonal_route_and_polyline_
         )
         .expect("text render should succeed");
     }
-}
-
-#[test]
-fn top_level_render_matches_flowchart_instance_for_subgraph_direction_mixed() {
-    let input = load_fixture("subgraph_direction_mixed.mmd");
-    let diagram = parse_and_build("subgraph_direction_mixed.mmd");
-
-    let top_level = render_text_diagram(&diagram);
-
-    let instance_output =
-        mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
-            .expect("instance render should succeed");
-
-    assert_eq!(
-        top_level, instance_output,
-        "top-level render() should match the flowchart instance text pipeline for subgraph fixtures"
-    );
 }
 
 #[test]

@@ -1,5 +1,9 @@
-//! Crate-local test suites that intentionally exercise internal modules.
+//! Residual crate-local tests plus temporary rehome staging.
 
+// Intentional long-lived crate-central coverage.
+mod cross_pipeline;
+
+// Transitional staging while owner-local suites are still being rehomed.
 mod dagre_parity;
 mod integration;
 mod mmds_input;

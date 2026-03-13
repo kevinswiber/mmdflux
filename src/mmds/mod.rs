@@ -27,6 +27,9 @@ pub use parse::{parse_with_profiles, validate_input};
 pub use replay::{render_input, render_output};
 use serde_json::{Map, Value};
 
+#[cfg(test)]
+mod regression_tests;
+
 /// Parse-time error for MMDS input.
 #[derive(Debug, Clone)]
 pub struct MmdsParseError {

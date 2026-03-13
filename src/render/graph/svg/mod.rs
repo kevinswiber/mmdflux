@@ -236,6 +236,9 @@ fn render_svg_with_geometry_context(
 }
 
 #[cfg(test)]
+mod regression_tests;
+
+#[cfg(test)]
 mod tests {
     use super::SvgRenderOptions;
     use crate::{

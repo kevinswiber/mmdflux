@@ -1359,20 +1359,6 @@ fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
 }
 
 #[test]
-fn render_svg_basic_flowchart_has_svg_root() {
-    let input = "graph TD\nA[Start] --> B[End]\n";
-    let flowchart = parse_flowchart(input).unwrap();
-    let diagram = compile_to_graph(&flowchart);
-
-    let svg = render_svg(&diagram, &RenderConfig::default());
-
-    assert!(svg.starts_with("<svg"));
-    assert!(svg.contains("<text"));
-    assert!(svg.contains("Start"));
-    assert!(svg.contains("End"));
-}
-
-#[test]
 fn svg_direct_route_straight_uses_source_and_target_ports() {
     let diagram = load_flowchart_fixture_diagram("chain.mmd");
     let options = RenderConfig {

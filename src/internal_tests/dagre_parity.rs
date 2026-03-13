@@ -99,28 +99,6 @@ fn build_digraph_from_input(input: &InputGraph) -> DiGraph<(f64, f64)> {
     graph
 }
 
-fn simple_graph_input() -> DiGraph<(f64, f64)> {
-    let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
-    graph.add_node("A", (100.0, 50.0));
-    graph.add_node("B", (100.0, 50.0));
-    graph.add_edge("A", "B");
-    graph
-}
-
-#[test]
-fn graph_layered_pipeline_entrypoint_preserves_current_layout_contract() {
-    let graph = simple_graph_input();
-    let config = LayoutConfig::default();
-
-    let result =
-        mmdflux::engines::graph::algorithms::layered::layout(&graph, &config, |_, dims| *dims);
-
-    assert!(result.nodes.contains_key(
-        &mmdflux::engines::graph::algorithms::layered::NodeId::from("A")
-    ));
-    assert!(!result.edges.is_empty());
-}
-
 /// Border node info parsed from debug dump files.
 #[derive(Debug, Clone)]
 struct BorderNodeInfo {

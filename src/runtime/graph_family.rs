@@ -153,6 +153,9 @@ fn render_mmds_from_solve_result(
 }
 
 #[cfg(test)]
+mod regression_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::builtins::default_registry;

@@ -23,6 +23,10 @@ pub(crate) mod rank;
 pub(crate) mod rank_core;
 
 #[cfg(test)]
+mod dagre_parity_tests;
+#[cfg(test)]
+mod model_order_tests;
+#[cfg(test)]
 mod regression_tests;
 
 pub use graph::DiGraph;
