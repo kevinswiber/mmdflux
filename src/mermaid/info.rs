@@ -84,4 +84,54 @@ mod tests {
         let result = parse_info("not info\n");
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_parse_info_minimal_without_trailing_newline() {
+        let result = parse_info("info").unwrap();
+        assert!(!result.show_info);
+        assert!(result.title.is_none());
+    }
+
+    #[test]
+    fn test_parse_info_show_info_without_trailing_newline() {
+        let result = parse_info("info\nshowInfo").unwrap();
+        assert!(result.show_info);
+        assert!(result.title.is_none());
+    }
+
+    #[test]
+    fn test_parse_info_title_without_trailing_newline() {
+        let result = parse_info("info\ntitle My Info").unwrap();
+        assert_eq!(result.title.as_deref(), Some("My Info"));
+    }
+
+    #[test]
+    fn test_parse_info_leading_whitespace() {
+        let result = parse_info("\n  info\n");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_info_trailing_whitespace_on_keyword_line() {
+        let result = parse_info("info   \n");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_info_unsupported_keyword() {
+        let result = parse_info("info unsupported\n");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_info_empty_input() {
+        let result = parse_info("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_info_whitespace_only_input() {
+        let result = parse_info("   \n  \n");
+        assert!(result.is_err());
+    }
 }

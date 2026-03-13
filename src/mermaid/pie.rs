@@ -136,4 +136,56 @@ mod tests {
         let result = parse_pie("pie\n'ash': 100\n").unwrap();
         assert_eq!(result.sections[0].label, "ash");
     }
+
+    #[test]
+    fn test_parse_pie_title_with_show_data() {
+        let result =
+            parse_pie("pie showData title A 60/40 pie\n\"ash\": 60\n\"bat\": 40\n").unwrap();
+        assert!(result.show_data);
+        assert_eq!(result.title.as_deref(), Some("A 60/40 pie"));
+    }
+
+    #[test]
+    fn test_parse_pie_long_labels() {
+        let result = parse_pie(
+            "pie\n\"Time spent looking for movie\": 90\n\"Time spent watching it\": 10\n",
+        )
+        .unwrap();
+        assert_eq!(result.sections[0].label, "Time spent looking for movie");
+        assert_eq!(result.sections[1].label, "Time spent watching it");
+    }
+
+    #[test]
+    fn test_parse_pie_capitalized_labels() {
+        let result = parse_pie("pie\n\"FRIENDS\": 2\n\"FAMILY\": 3\n\"NOSE\": 45\n").unwrap();
+        assert_eq!(result.sections.len(), 3);
+        assert_eq!(result.sections[0].label, "FRIENDS");
+        assert_eq!(result.sections[1].label, "FAMILY");
+        assert_eq!(result.sections[2].label, "NOSE");
+    }
+
+    #[test]
+    fn test_parse_pie_integer_values() {
+        let result = parse_pie("pie\n\"a\": 10\n\"b\": 20\n").unwrap();
+        assert!((result.sections[0].value - 10.0).abs() < f64::EPSILON);
+        assert!((result.sections[1].value - 20.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_parse_pie_invalid_input() {
+        let result = parse_pie("not pie\n");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_pie_empty_input() {
+        let result = parse_pie("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_pie_with_no_sections() {
+        let result = parse_pie("pie\n").unwrap();
+        assert!(result.sections.is_empty());
+    }
 }

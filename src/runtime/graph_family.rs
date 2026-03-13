@@ -151,3 +151,75 @@ fn render_mmds_from_solve_result(
         Some(result.engine_id),
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::builtins::default_registry;
+    use crate::prepared::PreparedDiagram;
+
+    fn graph_fixture(input: &str) -> Diagram {
+        let prepared = default_registry()
+            .create("flowchart")
+            .expect("flowchart should be registered")
+            .parse(input)
+            .expect("fixture should parse")
+            .prepare(&RenderConfig::default())
+            .expect("fixture should prepare");
+        let PreparedDiagram::Graph(graph) = prepared else {
+            panic!("flowchart should prepare a graph payload");
+        };
+        graph.diagram
+    }
+
+    fn graph_solve_result_fixture() -> (Diagram, GraphSolveResult) {
+        let diagram = graph_fixture("graph TD\n    A[Start] --> B[End]\n");
+        let request = GraphSolveRequest::new(
+            MeasurementMode::Grid,
+            GraphGeometryContract::Canonical,
+            GeometryLevel::Layout,
+            None,
+        );
+        let result = solve_graph_family(
+            &diagram,
+            EngineAlgorithmId::FLUX_LAYERED,
+            &EngineConfig::Layered(Default::default()),
+            &request,
+        )
+        .expect("graph solve should succeed");
+        (diagram, result)
+    }
+
+    #[test]
+    fn text_renderer_consumes_graph_solve_result() {
+        let (diagram, result) = graph_solve_result_fixture();
+        let text = render_text_from_geometry(
+            &diagram,
+            &result.geometry,
+            result.routed.as_ref(),
+            &TextRenderOptions::default(),
+        );
+        assert!(text.contains("Start"));
+    }
+
+    #[test]
+    fn svg_renderer_consumes_graph_solve_result() {
+        let (diagram, result) = graph_solve_result_fixture();
+        let svg = render_svg_from_solve_result(&diagram, &result, &SvgRenderOptions::default());
+        assert!(svg.starts_with("<svg"));
+    }
+
+    #[test]
+    fn mmds_renderer_consumes_graph_solve_result() {
+        let (diagram, result) = graph_solve_result_fixture();
+        let json = render_mmds_from_solve_result(
+            "flowchart",
+            &diagram,
+            &result,
+            GeometryLevel::Routed,
+            PathSimplification::default(),
+        )
+        .expect("MMDS render should succeed");
+        assert!(json.contains("\"nodes\""));
+    }
+}
