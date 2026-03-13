@@ -2,6 +2,20 @@ use std::fs;
 use std::path::Path;
 
 use super::super::attachments::plan_attachments;
+use super::attachment_resolution::{
+    compute_attachment_plan as compute_attachment_plan_module,
+    resolve_attachment_points as resolve_attachment_points_module,
+};
+use super::draw_path::{
+    normalize_draw_path_points, repair_draw_path_segment_collisions, route_edge_from_draw_path,
+};
+use super::orthogonal::{
+    build_orthogonal_path as build_orthogonal_path_module,
+    compute_vertical_first_path as compute_vertical_first_path_module,
+};
+use super::path_selection::should_use_routed_draw_path;
+use super::route_variants::route_backward_with_synthetic_waypoints as route_backward_with_synthetic_waypoints_module;
+use super::self_edges::route_self_edge as route_self_edge_module;
 use super::*;
 use crate::diagrams::flowchart::compile_to_graph;
 use crate::engines::graph::EngineConfig;
@@ -276,6 +290,16 @@ fn minimal_layout(
     }
 }
 
+fn default_routing_overrides() -> RoutingOverrides {
+    RoutingOverrides {
+        src_attach: None,
+        tgt_attach: None,
+        src_face: None,
+        tgt_face: None,
+        src_first_vertical: false,
+    }
+}
+
 #[test]
 fn test_is_backward_edge_td_forward() {
     // In TD layout, source above target is forward
@@ -547,6 +571,52 @@ fn test_build_orthogonal_path_lr_direction() {
     assert!(matches!(segments[1], Segment::Vertical { .. }));
 }
 
+#[test]
+fn attachment_plan_stays_stable_for_shared_face_edges() {
+    let mut diagram = Diagram::new(Direction::TopDown);
+    diagram.add_node(Node::new("A").with_label("Start"));
+    diagram.add_node(Node::new("B").with_label("Left"));
+    diagram.add_node(Node::new("C").with_label("Right"));
+    diagram.add_edge(Edge::new("A", "B"));
+    diagram.add_edge(Edge::new("A", "C"));
+
+    let layout = compute_layout(&diagram, &GridLayoutConfig::default());
+    let plan = compute_attachment_plan_module(&diagram.edges, &layout, Direction::TopDown);
+
+    assert!(
+        !plan.is_empty(),
+        "shared-face routing should keep attachment overrides stable"
+    );
+}
+
+#[test]
+fn attachment_resolution_module_keeps_lr_consensus_y() {
+    let from = make_bounds_sized(0, 2, 10, 3);
+    let to = make_bounds_sized(20, 4, 10, 5);
+    let ep = EdgeEndpoints {
+        from_bounds: from,
+        from_shape: Shape::Rectangle,
+        to_bounds: to,
+        to_shape: Shape::Rectangle,
+    };
+
+    let (src, tgt) = resolve_attachment_points_module(None, None, &ep, &[], Direction::LeftRight);
+
+    assert_eq!(src.1, tgt.1);
+}
+
+#[test]
+fn orthogonal_builder_module_preserves_vertical_first_z_path() {
+    let start = Point::new(5, 5);
+    let end = Point::new(15, 15);
+    let vertical_first = compute_vertical_first_path_module(start, end);
+    let through_waypoints =
+        build_orthogonal_path_module(start, &[(10, 10)], end, Direction::TopDown);
+
+    assert!(matches!(vertical_first[0], Segment::Vertical { .. }));
+    assert!(matches!(through_waypoints[0], Segment::Vertical { .. }));
+}
+
 // Backward edge routing tests
 
 #[test]
@@ -667,6 +737,137 @@ fn route_edge_reports_rejection_reason_when_draw_path_hits_unrelated_node() {
     assert_eq!(
         result.probe.rejection_reason,
         Some(TextPathRejection::SegmentCollision)
+    );
+}
+
+#[test]
+fn route_variants_module_routes_backward_waypoints() {
+    let edge = Edge::new("B", "A");
+    let endpoints = EdgeEndpoints {
+        from_bounds: make_bounds_sized(20, 20, 10, 3),
+        from_shape: Shape::Rectangle,
+        to_bounds: make_bounds_sized(20, 0, 10, 3),
+        to_shape: Shape::Rectangle,
+    };
+
+    let routed = route_backward_with_synthetic_waypoints_module(
+        &edge,
+        &endpoints,
+        &[(35, 21), (35, 1)],
+        Direction::TopDown,
+        default_routing_overrides(),
+    )
+    .expect("synthetic backward waypoint route should succeed");
+
+    assert!(routed.is_backward);
+    assert!(!routed.segments.is_empty());
+}
+
+#[test]
+fn self_edge_module_preserves_top_down_loop_entry_direction() {
+    let edge = Edge::new("A", "A");
+    let self_edge = SelfEdgeDrawData {
+        node_id: "A".to_string(),
+        edge_index: 0,
+        points: vec![(10, 5), (14, 5), (14, 9), (10, 9), (10, 5)],
+    };
+
+    let routed = route_self_edge_module(&self_edge, &edge, Direction::TopDown);
+
+    assert!(routed.is_self_edge);
+    assert_eq!(routed.entry_direction, AttachDirection::Right);
+}
+
+#[test]
+fn path_selection_prefers_structured_forward_routed_draw_path() {
+    let mut diagram = Diagram::new(Direction::TopDown);
+    diagram.add_node(Node::new("A").with_label("Top"));
+    diagram.add_node(Node::new("B").with_label("Bottom"));
+    diagram.add_edge(Edge::new("A", "B"));
+
+    let source = make_bounds_sized(20, 0, 10, 3);
+    let target = make_bounds_sized(20, 20, 10, 3);
+    let draw_path = vec![(25, 2), (25, 6), (35, 6), (35, 16), (25, 16), (25, 20)];
+    let mut layout = minimal_layout(&[("A", source), ("B", target)], &[(0, draw_path)]);
+    layout
+        .edge_waypoints
+        .insert(diagram.edges[0].index, vec![(25, 6), (35, 16)]);
+
+    assert!(should_use_routed_draw_path(
+        &diagram.edges[0],
+        &layout,
+        &source,
+        &target,
+        diagram.direction,
+        None,
+    ));
+}
+
+#[test]
+fn draw_path_route_reports_segment_collision_from_helper_module() {
+    let mut diagram = Diagram::new(Direction::TopDown);
+    diagram.add_node(Node::new("A").with_label("Top"));
+    diagram.add_node(Node::new("B").with_label("Bottom"));
+    diagram.add_node(Node::new("C").with_label("Blocker"));
+    diagram.add_edge(Edge::new("A", "B"));
+    diagram.add_edge(Edge::new("B", "A"));
+
+    let source = make_bounds_sized(20, 20, 10, 3);
+    let target = make_bounds_sized(20, 0, 10, 3);
+    let blocker = make_bounds_sized(38, 10, 8, 4);
+    let draw_path = vec![(30, 21), (40, 21), (40, 1), (30, 1)];
+    let layout = minimal_layout(
+        &[("A", target), ("B", source), ("C", blocker)],
+        &[(diagram.edges[1].index, draw_path.clone())],
+    );
+    let endpoints = EdgeEndpoints {
+        from_bounds: source,
+        from_shape: Shape::Rectangle,
+        to_bounds: target,
+        to_shape: Shape::Rectangle,
+    };
+
+    let rejection = route_edge_from_draw_path(
+        &diagram.edges[1],
+        &layout,
+        &endpoints,
+        &draw_path,
+        Direction::TopDown,
+        default_routing_overrides(),
+    )
+    .expect_err("blocking draw path should reject instead of routing through blocker");
+
+    assert_eq!(rejection, TextPathRejection::SegmentCollision);
+}
+
+#[test]
+fn draw_path_collision_repair_detours_around_blocker() {
+    let mut diagram = Diagram::new(Direction::TopDown);
+    diagram.add_node(Node::new("A").with_label("Left"));
+    diagram.add_node(Node::new("B").with_label("Right"));
+    diagram.add_node(Node::new("C").with_label("Blocker"));
+    diagram.add_edge(Edge::new("A", "B"));
+
+    let source = make_bounds_sized(0, 4, 8, 3);
+    let target = make_bounds_sized(20, 4, 8, 3);
+    let blocker = make_bounds_sized(10, 4, 4, 3);
+    let layout = minimal_layout(&[("A", source), ("B", target), ("C", blocker)], &[]);
+    let repaired =
+        repair_draw_path_segment_collisions(&[(7, 5), (21, 5)], &layout, &diagram.edges[0]);
+
+    assert_eq!(repaired, vec![(7, 5), (7, 3), (21, 3), (21, 5)]);
+}
+
+#[test]
+fn draw_path_normalization_repairs_terminal_staircase() {
+    let normalized = normalize_draw_path_points(
+        &[(12, 0), (12, 2), (12, 5), (18, 5), (18, 8)],
+        Direction::TopDown,
+    );
+
+    assert_eq!(
+        normalized,
+        vec![(12, 0), (12, 2), (12, 4), (18, 4), (18, 8)]
     );
 }
 

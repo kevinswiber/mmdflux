@@ -451,7 +451,7 @@ fn removed_transitional_module_roots_stay_gone() {
         "src/graph/grid/backward.rs",
         "src/graph/grid/bounds.rs",
         "src/graph/grid/intersect.rs",
-        "src/graph/grid/routing.rs",
+        "src/graph/grid/routing/mod.rs",
     ] {
         let path = repo_root.join(relative_path);
         assert!(
@@ -903,6 +903,14 @@ fn svg_edges_splits_endpoint_basis_and_marker_helpers() {
 }
 
 #[test]
+fn graph_grid_routing_uses_directory_module_shell() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    assert!(!repo_root.join("src/graph/grid/routing.rs").exists());
+    assert!(repo_root.join("src/graph/grid/routing/mod.rs").exists());
+}
+
+#[test]
 fn graph_grid_sources_use_graph_owned_projection_types_and_direct_mmds_replay() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let grid_layout = repo_root.join("src/graph/grid/layout.rs");
@@ -1185,7 +1193,14 @@ fn graph_grid_uses_explicit_routing_helper_modules() {
         "src/graph/grid/bounds.rs",
         "src/graph/grid/backward.rs",
         "src/graph/grid/intersect.rs",
-        "src/graph/grid/routing.rs",
+        "src/graph/grid/routing/mod.rs",
+        "src/graph/grid/routing/types.rs",
+        "src/graph/grid/routing/attachment_resolution.rs",
+        "src/graph/grid/routing/orthogonal.rs",
+        "src/graph/grid/routing/route_variants.rs",
+        "src/graph/grid/routing/self_edges.rs",
+        "src/graph/grid/routing/draw_path.rs",
+        "src/graph/grid/routing/path_selection.rs",
     ] {
         assert!(repo_root.join(required).exists(), "missing {required}");
     }
