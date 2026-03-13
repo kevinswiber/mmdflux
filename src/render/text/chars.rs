@@ -8,6 +8,7 @@ use super::connections::Connections;
 #[derive(Debug, Clone)]
 pub struct CharSet {
     /// Whether this charset is ASCII-only.
+    #[allow(dead_code)]
     pub ascii_only: bool,
     // Straight lines
     pub horizontal: char,
@@ -214,6 +215,7 @@ impl CharSet {
     }
 
     /// Check if this charset is ASCII-only.
+    #[allow(dead_code)]
     pub fn is_ascii(&self) -> bool {
         self.ascii_only
     }

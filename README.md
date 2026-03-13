@@ -177,6 +177,27 @@ mmdflux --lint diagram.mmd
 - [MMDS specification](docs/mmds.md)
 - [Edge routing design](docs/edge-routing-heuristics.md)
 
+## Rust API Surface
+
+Most Rust integrations should stay on the high-level runtime facade:
+
+- `render_diagram`
+- `detect_diagram`
+- `validate_diagram`
+
+Pair those entrypoints with `RenderConfig` and `OutputFormat` unless you are
+building an adapter or tooling layer that needs explicit preparation control.
+
+The supported expert tier is smaller and adapter-focused:
+
+- `mmdflux::builtins::default_registry()` for the builtin diagram registry
+- `registry` and `prepared` for explicit detect/parse/prepare flows
+- `mmds` for MMDS parsing, replay, and Mermaid generation
+
+The rest of the crate tree (`diagrams`, `engines`, `graph`, `render`,
+`mermaid`, and `timeline`) consists of internal implementation modules and is
+not part of the supported expert contract.
+
 ## Rust Library Examples
 
 - [`examples/high_level_render.rs`](examples/high_level_render.rs) shows the

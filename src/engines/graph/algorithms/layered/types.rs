@@ -1,5 +1,7 @@
 //! Shared types for the layered layout module.
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 
 /// Unique identifier for a node.

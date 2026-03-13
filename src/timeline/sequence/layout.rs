@@ -35,6 +35,7 @@ pub struct ParticipantLayout {
     /// Display label.
     pub label: String,
     /// Participant or Actor.
+    #[allow(dead_code)]
     pub kind: ParticipantKind,
 }
 

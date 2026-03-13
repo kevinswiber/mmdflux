@@ -24,6 +24,7 @@ impl Connections {
     }
 
     /// Count how many directions are connected.
+    #[allow(dead_code)]
     pub fn count(&self) -> u8 {
         self.up as u8 + self.down as u8 + self.left as u8 + self.right as u8
     }

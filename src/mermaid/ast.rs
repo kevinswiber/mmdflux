@@ -1,5 +1,7 @@
 //! Abstract Syntax Tree types for parsed Mermaid flowcharts.
 
+#![allow(dead_code)]
+
 use crate::style::NodeStyle;
 
 /// Direction of the Mermaid flowchart layout.

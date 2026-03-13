@@ -1,5 +1,7 @@
 //! Graph representation for layout computation.
 
+#![allow(dead_code)]
+
 use std::collections::{BTreeSet, HashMap};
 
 use super::types::{DummyChain, DummyNode, NodeId, Point, SelfEdge};

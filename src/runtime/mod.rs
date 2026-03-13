@@ -116,22 +116,22 @@ pub fn validate_diagram(input: &str) -> String {
 
     match instance.parse(input) {
         Ok(_) => {
-            let mut warnings: Vec<ParseDiagnostic> = collect_unsupported_warnings(input)
+            if detect_diagram_type(input) == Some(DiagramType::Flowchart) {
+                let strict = ParseOptions { strict: true };
+                if let Err(strict_err) = parse_flowchart_with_options(input, &strict) {
+                    return serde_json::json!({
+                        "valid": false,
+                        "diagnostics": [ParseDiagnostic::from(&strict_err)]
+                    })
+                    .to_string();
+                }
+            }
+
+            let warnings: Vec<ParseDiagnostic> = collect_unsupported_warnings(input)
                 .into_iter()
                 .chain(collect_subgraph_warnings(input))
                 .map(|w| ParseDiagnostic::warning(w.line, w.column, w.message))
                 .collect();
-
-            if detect_diagram_type(input) == Some(DiagramType::Flowchart) {
-                let strict = ParseOptions { strict: true };
-                if let Err(strict_err) = parse_flowchart_with_options(input, &strict) {
-                    let mut diag = ParseDiagnostic::from(&strict_err);
-                    diag.severity = "warning".to_string();
-                    diag.message =
-                        format!("Strict parsing would reject this input: {}", diag.message);
-                    warnings.push(diag);
-                }
-            }
 
             if warnings.is_empty() {
                 serde_json::json!({ "valid": true }).to_string()

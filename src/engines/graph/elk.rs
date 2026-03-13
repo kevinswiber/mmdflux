@@ -4,6 +4,8 @@
 //! and parses the output back to `GraphGeometry`. Feature-gated behind
 //! `engine-elk`.
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::io::Write;
 use std::process::{Command, Stdio};

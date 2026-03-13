@@ -4,6 +4,8 @@
 //! float-space graph geometry. Downstream renderers consume this grid-space
 //! layout to produce text or other discrete outputs.
 
+#![allow(dead_code)]
+
 use std::collections::{HashMap, HashSet};
 
 use super::GridLayoutConfig;

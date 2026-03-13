@@ -991,6 +991,27 @@ fn readme_mentions_mmds() {
 }
 
 #[test]
+fn readme_describes_high_level_and_expert_rust_api_tiers() {
+    let readme = std::fs::read_to_string("README.md").unwrap();
+
+    for required in [
+        "render_diagram",
+        "detect_diagram",
+        "validate_diagram",
+        "builtins::default_registry()",
+        "`registry`",
+        "`prepared`",
+        "`mmds`",
+        "internal implementation modules",
+    ] {
+        assert!(
+            readme.contains(required),
+            "README should describe the narrowed Rust API tiers: {required}"
+        );
+    }
+}
+
+#[test]
 fn canonical_profile_examples_validate_against_schema() {
     for profile in ["profiles-svg-v1.json", "profiles-text-v1.json"] {
         let raw = mmds_profile_fixture_text(profile);
@@ -1033,6 +1054,27 @@ fn docs_cover_live_style_scope_and_wasm_color_config() {
     let readme = std::fs::read_to_string("README.md").unwrap();
     assert!(readme.contains("NO_COLOR=1 mmdflux --format text"));
     assert!(readme.contains("--color always"));
+}
+
+#[test]
+fn mmds_docs_point_to_fixture_backed_examples_and_rust_replay_example() {
+    let docs = std::fs::read_to_string("docs/mmds.md").unwrap();
+
+    for required in [
+        "examples/mmds_replay.rs",
+        "tests/fixtures/mmds/generation/basic-flow.json",
+        "tests/fixtures/mmds/positioned/routed-basic.json",
+    ] {
+        assert!(
+            docs.contains(required),
+            "MMDS docs should reference the current example/fixture path: {required}"
+        );
+    }
+
+    assert!(
+        !docs.contains("examples/mmds/"),
+        "MMDS docs should not reference the deleted examples/mmds directory"
+    );
 }
 
 // -----------------------------------------------------------------------

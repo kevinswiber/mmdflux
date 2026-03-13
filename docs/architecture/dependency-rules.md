@@ -8,11 +8,24 @@ contributors:
 - `mermaid/` owns Mermaid source ingestion
 - `diagrams/` own compilation and instance behavior
 - `prepared/` owns the prepared-diagram payload contract
+- `builtins/` owns default registry wiring for the supported expert tier
 - `graph/` owns graph-family IR, float-space geometry, and shared policy/measurement helpers
 - `render/` owns output production
 - `mmds/` owns the MMDS contract and output helpers
 
 Guard tests should fail when the code drifts away from these rules.
+
+## Public Contract Tiers
+
+- The high-level runtime facade is `render_diagram`, `detect_diagram`,
+  `validate_diagram`, plus the flat config/format/error types re-exported from
+  `lib.rs`.
+- The supported expert tier is `builtins`, `registry`, `prepared`, and
+  `mmds` for adapter-oriented workflows that need explicit preparation or MMDS
+  replay control.
+- `diagrams`, `engines`, `graph`, `render`, `mermaid`, and `timeline` are
+  internal implementation modules. They are intentionally documented here for
+  contributors, but they are not part of the supported expert contract.
 
 The repo also locks in three directory-module shell replacements for former
 mega-files. These shells are part of the steady-state layout and should not be
@@ -97,7 +110,8 @@ collapsed back into singleton roots:
     live in `src/config.rs`, `src/format.rs`, `src/errors.rs`,
     `src/diagnostics.rs`, and `src/family.rs`. Adapter orchestration
     entrypoints are curated runtime facade re-exports from `lib.rs`. Other
-    namespaces are either advanced APIs or internal helpers.
+    namespaces are either part of the supported expert tier or internal
+    implementation modules.
 
 13. **runtime/ is orchestration only** — The runtime layer detects input
     frontends, resolves logical diagram types, manages the registry, consumes

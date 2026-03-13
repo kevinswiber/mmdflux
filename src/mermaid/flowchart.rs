@@ -1,5 +1,7 @@
 //! Pest parser implementation for Mermaid flowcharts.
 
+#![allow(dead_code)]
+
 use pest::Parser;
 use pest_derive::Parser;
 

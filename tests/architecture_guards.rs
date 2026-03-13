@@ -382,6 +382,27 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
 }
 
 #[test]
+fn dependency_rules_distinguish_supported_tiers_from_internal_modules() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/architecture/dependency-rules.md");
+    let rules = std::fs::read_to_string(&path).unwrap();
+
+    for required in [
+        "high-level runtime facade",
+        "supported expert tier",
+        "builtins",
+        "registry",
+        "prepared",
+        "mmds",
+        "internal implementation modules",
+    ] {
+        assert!(
+            rules.contains(required),
+            "dependency rules should distinguish the public tiers from internal modules: {required}"
+        );
+    }
+}
+
+#[test]
 fn removed_transitional_module_roots_stay_gone() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
 

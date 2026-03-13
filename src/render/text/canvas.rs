@@ -144,6 +144,7 @@ impl Canvas {
     /// Set the full style metadata for a cell.
     ///
     /// Returns `false` if the position is out of bounds.
+    #[allow(dead_code)]
     pub fn set_style(&mut self, x: usize, y: usize, style: CellStyle) -> bool {
         if let Some(cell) = self.get_mut(x, y) {
             cell.style = (!style.is_empty()).then_some(style);
@@ -172,6 +173,7 @@ impl Canvas {
     /// Set a cell with full control over all properties.
     ///
     /// Returns `false` if the position is out of bounds.
+    #[allow(dead_code)]
     pub fn set_cell(&mut self, x: usize, y: usize, cell: Cell) -> bool {
         if y < self.height && x < self.width {
             self.cells[y][x] = cell;

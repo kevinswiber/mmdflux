@@ -2,6 +2,7 @@
 %% crate-root: src/lib.rs
 %% max-depth: 1
 flowchart LR
+    mod_builtins["builtins"]
     mod_config["config"]
     mod_diagnostics["diagnostics"]
     mod_diagrams["diagrams"]
@@ -16,12 +17,13 @@ flowchart LR
     mod_mmds["mmds"]
     mod_prepared["prepared"]
     mod_registry["registry"]
-    mod_builtins["builtins"]
     mod_render["render"]
     mod_runtime["runtime"]
     mod_simplification["simplification"]
     mod_style["style"]
     mod_timeline["timeline"]
+    mod_builtins --> mod_diagrams
+    mod_builtins --> mod_registry
     mod_config --> mod_engines
     mod_config --> mod_format
     mod_config --> mod_graph
@@ -67,14 +69,13 @@ flowchart LR
     mod_registry --> mod_family
     mod_registry --> mod_format
     mod_registry --> mod_prepared
-    mod_builtins --> mod_diagrams
-    mod_builtins --> mod_registry
     mod_render --> mod_errors
     mod_render --> mod_format
     mod_render --> mod_graph
     mod_render --> mod_mermaid
     mod_render --> mod_simplification
     mod_render --> mod_timeline
+    mod_runtime --> mod_builtins
     mod_runtime --> mod_config
     mod_runtime --> mod_diagnostics
     mod_runtime --> mod_engines
@@ -86,7 +87,6 @@ flowchart LR
     mod_runtime --> mod_mermaid
     mod_runtime --> mod_mmds
     mod_runtime --> mod_prepared
-    mod_runtime --> mod_builtins
     mod_runtime --> mod_render
     mod_runtime --> mod_simplification
     mod_runtime --> mod_timeline

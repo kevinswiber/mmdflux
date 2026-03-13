@@ -4,6 +4,8 @@
 //! consumed by routing and downstream output stages. Engine-agnostic core with optional
 //! engine-specific hint channels.
 
+#![allow(dead_code)]
+
 use std::collections::{HashMap, HashSet};
 
 use crate::errors::RenderError;

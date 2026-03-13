@@ -3,6 +3,8 @@
 //! Verifies that `route_graph_geometry` produces correct `RoutedGraphGeometry`
 //! from engine-produced `GraphGeometry`.
 
+#[allow(clippy::duplicate_mod)]
+#[path = "../support/mod.rs"]
 mod support;
 
 use std::collections::HashMap;

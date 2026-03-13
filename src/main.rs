@@ -10,26 +10,33 @@ use mmdflux::{
     PathSimplification, RenderConfig, RoutingStyle, TextColorMode, apply_svg_surface_defaults,
     detect_diagram, render_diagram, validate_diagram,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 const CURVE_CANONICAL_VALUES: &str = "basis, linear, linear-sharp, linear-rounded";
 const CURVE_ARG_HELP: &str = "SVG curve style (basis, linear, linear-sharp, or linear-rounded). \
      Overrides the curve component of --edge-preset when both are set.";
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct ValidationResult {
     valid: bool,
     #[serde(default)]
     diagnostics: Vec<ValidationDiagnostic>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct ValidationDiagnostic {
     #[serde(default)]
     severity: String,
     line: Option<usize>,
     column: Option<usize>,
     message: String,
+}
+
+#[derive(Debug, Serialize)]
+struct CliLintJson {
+    valid: bool,
+    errors: Vec<ValidationDiagnostic>,
+    warnings: Vec<ValidationDiagnostic>,
 }
 
 impl fmt::Display for ValidationDiagnostic {
@@ -304,7 +311,32 @@ fn main() -> io::Result<()> {
         })?;
 
         if matches!(format, OutputFormat::Mmds) {
-            println!("{json}");
+            let diagnostics = result
+                .diagnostics
+                .into_iter()
+                .map(|mut diag| {
+                    if diag.severity.is_empty() {
+                        diag.severity = if result.valid {
+                            "warning".to_string()
+                        } else {
+                            "error".to_string()
+                        };
+                    }
+                    diag
+                })
+                .collect::<Vec<_>>();
+            let (warnings, errors): (Vec<_>, Vec<_>) = diagnostics
+                .into_iter()
+                .partition(|diag| diag.severity.eq_ignore_ascii_case("warning"));
+            let lint_json = CliLintJson {
+                valid: result.valid,
+                errors,
+                warnings,
+            };
+            println!(
+                "{}",
+                serde_json::to_string(&lint_json).expect("lint JSON serialization should succeed")
+            );
         } else {
             for diag in &result.diagnostics {
                 eprintln!("{}", diag);

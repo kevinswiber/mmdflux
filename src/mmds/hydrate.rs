@@ -292,6 +292,7 @@ fn reconstruct_compound_membership(diagram: &mut Diagram) {
 }
 
 /// Hydrate graph geometry IR from MMDS JSON text.
+#[cfg(test)]
 pub(crate) fn hydrate_graph_geometry_from_mmds(
     input: &str,
 ) -> Result<GraphGeometry, MmdsHydrationError> {
@@ -302,6 +303,7 @@ pub(crate) fn hydrate_graph_geometry_from_mmds(
 }
 
 /// Hydrate graph geometry IR from parsed MMDS output.
+#[cfg(test)]
 pub(crate) fn hydrate_graph_geometry_from_output(
     output: &MmdsOutput,
 ) -> Result<GraphGeometry, MmdsHydrationError> {
@@ -319,6 +321,7 @@ pub(crate) fn hydrate_graph_geometry_from_output_with_diagram(
 }
 
 /// Hydrate routed geometry IR from MMDS JSON text.
+#[cfg(test)]
 pub(crate) fn hydrate_routed_geometry_from_mmds(
     input: &str,
 ) -> Result<RoutedGraphGeometry, MmdsHydrationError> {

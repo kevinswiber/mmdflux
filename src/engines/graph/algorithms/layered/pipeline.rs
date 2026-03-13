@@ -1,5 +1,7 @@
 //! Layered engine orchestration pipeline.
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 
 use super::debug::{debug_dump_layout_result, debug_dump_pipeline, skip_title_nodes};

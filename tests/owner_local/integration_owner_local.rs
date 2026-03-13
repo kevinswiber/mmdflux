@@ -2,6 +2,8 @@
 //!
 //! These tests verify the full parsing and rendering pipeline using fixture files.
 
+#[allow(clippy::duplicate_mod)]
+#[path = "../support/mod.rs"]
 mod support;
 
 use std::collections::HashMap;

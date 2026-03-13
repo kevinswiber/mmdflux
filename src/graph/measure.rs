@@ -4,6 +4,8 @@
 //! measurement for discrete replay layouts and proportional measurement for
 //! float-space geometry.
 
+#![allow(dead_code)]
+
 use crate::graph::{Direction, Node, Shape};
 
 /// Default font size used for proportional measurement.

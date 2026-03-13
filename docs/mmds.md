@@ -14,6 +14,26 @@ Locked cross-language contract fixtures live under `tests/fixtures/mmds/contract
 
 Any intentional MMDS contract change should update those locked fixtures and the related Rust/TypeScript assertions in the same change.
 
+## Supported Rust Entry Points
+
+Most Rust callers should produce MMDS through the high-level runtime facade:
+
+- `render_diagram(input, OutputFormat::Mmds, &RenderConfig::default())`
+- `mmdflux::mmds::render_input(...)` when the input may already be MMDS
+
+Adapter-oriented workflows can stay on the smaller supported expert tier:
+
+- `mmdflux::builtins::default_registry()` for builtin registry wiring
+- `mmdflux::registry` and `mmdflux::prepared` for explicit prepare flows
+- `mmdflux::mmds` for hydration, replay, profile negotiation, and Mermaid generation
+
+The current Rust replay example lives at `examples/mmds_replay.rs`.
+
+Fixture-backed payloads used throughout the Rust contract tests live at:
+
+- `tests/fixtures/mmds/generation/basic-flow.json`
+- `tests/fixtures/mmds/positioned/routed-basic.json`
+
 ## Input Status
 
 MMDS input support is active:
@@ -114,6 +134,10 @@ MMDS edges may include optional endpoint intent fields:
 When present, hydration preserves these into internal edge state and renderers can reproduce subgraph-as-endpoint behavior deterministically.
 
 When absent (older payloads), hydration falls back to node-only endpoint semantics (`source`/`target`), which remains valid but may diverge from direct Mermaid replay in subgraph-edge cases.
+
+The fixture-backed endpoint-intent cases above are exercised through the public
+runtime and replay paths in the test suite rather than an older removed helper
+directory.
 
 ## Geometry Levels
 

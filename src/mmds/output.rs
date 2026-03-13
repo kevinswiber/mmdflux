@@ -36,11 +36,13 @@ pub const SUPPORTED_MMDS_PROFILES: &[&str] = &[
 ///
 /// Uses `GraphGeometry` for node positions and `Diagram` for edge semantics.
 /// Edge paths are excluded at layout level.
+#[cfg(test)]
 pub(crate) fn to_mmds_layout(diagram: &Diagram, geometry: &GraphGeometry) -> String {
     to_mmds_layout_typed("flowchart", diagram, geometry)
 }
 
 /// Serialize a graph-family diagram to MMDS JSON at layout level with explicit type.
+#[cfg(test)]
 pub(crate) fn to_mmds_layout_typed(
     diagram_type: &str,
     diagram: &Diagram,
@@ -61,6 +63,7 @@ pub(crate) fn to_mmds_layout_typed(
 ///
 /// Includes everything from layout level plus routed edge paths and
 /// subgraph bounds.
+#[cfg(test)]
 pub(crate) fn to_mmds_routed(
     diagram: &Diagram,
     geometry: &GraphGeometry,
@@ -70,6 +73,7 @@ pub(crate) fn to_mmds_routed(
 }
 
 /// Serialize a graph-family diagram to MMDS JSON at routed level with explicit type.
+#[cfg(test)]
 pub(crate) fn to_mmds_routed_typed(
     diagram_type: &str,
     diagram: &Diagram,
@@ -88,6 +92,7 @@ pub(crate) fn to_mmds_routed_typed(
 }
 
 /// Serialize a diagram to MMDS JSON at the specified geometry level.
+#[cfg(test)]
 pub(crate) fn to_mmds_json(
     diagram: &Diagram,
     geometry: &GraphGeometry,

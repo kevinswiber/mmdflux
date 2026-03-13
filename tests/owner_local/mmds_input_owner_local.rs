@@ -1,9 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::mmds::hydrate::{
-    hydrate_graph_geometry_from_mmds, hydrate_routed_geometry_from_mmds,
-};
+use mmdflux::mmds::hydrate::{hydrate_graph_geometry_from_mmds, hydrate_routed_geometry_from_mmds};
 use mmdflux::mmds::{MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str};
 use mmdflux::{Direction, OutputFormat, RenderConfig, Shape};
 

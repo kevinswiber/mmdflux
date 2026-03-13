@@ -3,6 +3,8 @@
 //! Provides structured diagnostic output suitable for LLM repair loops
 //! and CI/CD integration.
 
+#![allow(dead_code)]
+
 use std::fmt;
 
 use serde::Serialize;

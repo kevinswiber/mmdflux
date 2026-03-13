@@ -80,6 +80,7 @@ pub trait GraphEngine: Send + Sync {
     fn id(&self) -> EngineAlgorithmId;
 
     /// Capabilities this engine+algorithm provides.
+    #[allow(dead_code)]
     fn capabilities(&self) -> EngineAlgorithmCapabilities {
         self.id().capabilities()
     }

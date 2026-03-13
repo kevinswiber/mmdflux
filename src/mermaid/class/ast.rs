@@ -1,5 +1,7 @@
 //! AST types for class diagrams.
 
+#![allow(dead_code)]
+
 /// Parsed class diagram model.
 #[derive(Debug, Clone)]
 pub struct ClassModel {

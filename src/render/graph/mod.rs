@@ -37,6 +37,7 @@ pub struct TextRenderOptions {
     pub routing_style: RoutingStyle,
     pub cluster_ranksep: Option<f64>,
     pub padding: Option<usize>,
+    #[allow(dead_code)]
     pub path_simplification: PathSimplification,
 }
 
