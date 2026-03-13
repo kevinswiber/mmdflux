@@ -2,21 +2,21 @@ use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::engines::graph::EngineConfig;
-use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-use mmdflux::engines::graph::contracts::{GraphEngine, GraphGeometryContract, GraphSolveRequest};
-use mmdflux::engines::graph::flux::FluxLayeredEngine;
-use mmdflux::graph::Stroke;
-use mmdflux::graph::measure::default_proportional_text_metrics;
-use mmdflux::graph::routing::{EdgeRouting, route_graph_geometry};
-use mmdflux::mermaid::parse_flowchart;
-use mmdflux::render::graph::{
+use crate::diagrams::flowchart::compile_to_graph;
+use crate::engines::graph::EngineConfig;
+use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
+use crate::engines::graph::contracts::{GraphEngine, GraphGeometryContract, GraphSolveRequest};
+use crate::engines::graph::flux::FluxLayeredEngine;
+use crate::graph::Stroke;
+use crate::graph::measure::default_proportional_text_metrics;
+use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+use crate::mermaid::parse_flowchart;
+use crate::render::graph::{
     SvgRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
 };
-use mmdflux::{CornerStyle, Curve, OutputFormat, PathSimplification, RenderConfig, RoutingStyle};
+use crate::{CornerStyle, Curve, OutputFormat, PathSimplification, RenderConfig, RoutingStyle};
 
-fn render_svg(diagram: &mmdflux::Diagram, config: &RenderConfig) -> String {
+fn render_svg(diagram: &crate::Diagram, config: &RenderConfig) -> String {
     let engine = FluxLayeredEngine::text();
     let request = GraphSolveRequest::new(
         MeasurementMode::Proportional(default_proportional_text_metrics()),
@@ -359,10 +359,7 @@ fn parse_svg_text_position_and_value(line: &str) -> Option<(f64, f64, String)> {
     Some((x, y, value))
 }
 
-fn extract_edge_label_positions(
-    svg: &str,
-    diagram: &mmdflux::Diagram,
-) -> Vec<(String, (f64, f64))> {
+fn extract_edge_label_positions(svg: &str, diagram: &crate::Diagram) -> Vec<(String, (f64, f64))> {
     let mut remaining: HashMap<String, usize> = HashMap::new();
     for edge in &diagram.edges {
         if let Some(label) = &edge.label {
@@ -417,11 +414,7 @@ fn distance_point_to_svg_path(point: (f64, f64), path: &[(f64, f64)]) -> f64 {
         .fold(f64::INFINITY, f64::min)
 }
 
-fn svg_label_drift_failures(
-    svg: &str,
-    diagram: &mmdflux::Diagram,
-    max_distance: f64,
-) -> Vec<String> {
+fn svg_label_drift_failures(svg: &str, diagram: &crate::Diagram, max_distance: f64) -> Vec<String> {
     let expected_labels = diagram
         .edges
         .iter()
@@ -776,17 +769,17 @@ fn has_tiny_lateral_direction_reversal(points: &[(f64, f64)], max_lateral: f64) 
     })
 }
 
-fn has_primary_axis_backtrack(points: &[(f64, f64)], direction: mmdflux::Direction) -> bool {
+fn has_primary_axis_backtrack(points: &[(f64, f64)], direction: crate::Direction) -> bool {
     const EPS: f64 = 0.001;
     if points.len() < 2 {
         return false;
     }
 
     match direction {
-        mmdflux::Direction::TopDown => points.windows(2).any(|seg| seg[1].1 < seg[0].1 - EPS),
-        mmdflux::Direction::BottomTop => points.windows(2).any(|seg| seg[1].1 > seg[0].1 + EPS),
-        mmdflux::Direction::LeftRight => points.windows(2).any(|seg| seg[1].0 < seg[0].0 - EPS),
-        mmdflux::Direction::RightLeft => points.windows(2).any(|seg| seg[1].0 > seg[0].0 + EPS),
+        crate::Direction::TopDown => points.windows(2).any(|seg| seg[1].1 < seg[0].1 - EPS),
+        crate::Direction::BottomTop => points.windows(2).any(|seg| seg[1].1 > seg[0].1 + EPS),
+        crate::Direction::LeftRight => points.windows(2).any(|seg| seg[1].0 < seg[0].0 - EPS),
+        crate::Direction::RightLeft => points.windows(2).any(|seg| seg[1].0 > seg[0].0 + EPS),
     }
 }
 
@@ -1135,7 +1128,7 @@ fn longest_vertical_segment_midpoint(path: &[(f64, f64)]) -> Option<f64> {
 }
 
 fn edge_path_for_svg_order(
-    diagram: &mmdflux::Diagram,
+    diagram: &crate::Diagram,
     svg: &str,
     edge_index: usize,
 ) -> Vec<(f64, f64)> {
@@ -1159,7 +1152,7 @@ fn edge_path_for_svg_order(
     )
 }
 
-fn edge_path_d_for_svg_order(diagram: &mmdflux::Diagram, svg: &str, edge_index: usize) -> String {
+fn edge_path_d_for_svg_order(diagram: &crate::Diagram, svg: &str, edge_index: usize) -> String {
     let mut visible_edge_indexes: Vec<usize> = diagram
         .edges
         .iter()
@@ -1179,7 +1172,7 @@ fn edge_path_d_for_svg_order(diagram: &mmdflux::Diagram, svg: &str, edge_index: 
 }
 
 fn render_flux_svg_with_style(
-    diagram: &mmdflux::Diagram,
+    diagram: &crate::Diagram,
     edge_routing: EdgeRouting,
     routing_style: RoutingStyle,
     curve: Curve,
@@ -1205,12 +1198,12 @@ fn render_flux_engine_svg_for_fixture_with_style(
         .join("flowchart")
         .join(fixture_name);
     let input = fs::read_to_string(fixture).expect("fixture should load");
-    mmdflux::render_diagram(
+    crate::render_diagram(
         &input,
         OutputFormat::Svg,
         &RenderConfig {
             layout_engine: Some(
-                mmdflux::EngineAlgorithmId::parse("flux-layered")
+                crate::EngineAlgorithmId::parse("flux-layered")
                     .expect("flux-layered id should parse"),
             ),
             routing_style: Some(routing_style),
@@ -1222,7 +1215,7 @@ fn render_flux_engine_svg_for_fixture_with_style(
     .expect("flux-layered SVG render should succeed")
 }
 
-fn svg_node_centers_by_id(diagram: &mmdflux::Diagram, svg: &str) -> HashMap<String, (f64, f64)> {
+fn svg_node_centers_by_id(diagram: &crate::Diagram, svg: &str) -> HashMap<String, (f64, f64)> {
     diagram
         .nodes
         .iter()
@@ -1299,7 +1292,7 @@ fn paths_have_strict_interior_crossing(path_a: &[(f64, f64)], path_b: &[(f64, f6
     })
 }
 
-fn load_flowchart_fixture_diagram(name: &str) -> mmdflux::Diagram {
+fn load_flowchart_fixture_diagram(name: &str) -> crate::Diagram {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
@@ -1321,7 +1314,7 @@ const ROUNDED: StyleTuple = (
 );
 
 fn render_fixture_svg(
-    diagram: &mmdflux::Diagram,
+    diagram: &crate::Diagram,
     edge_routing: EdgeRouting,
     style: StyleTuple,
 ) -> String {
@@ -1335,7 +1328,7 @@ fn render_fixture_svg(
     render_svg(diagram, &options)
 }
 
-fn edge_index(diagram: &mmdflux::Diagram, from: &str, to: &str) -> usize {
+fn edge_index(diagram: &crate::Diagram, from: &str, to: &str) -> usize {
     diagram
         .edges
         .iter()
@@ -1344,10 +1337,9 @@ fn edge_index(diagram: &mmdflux::Diagram, from: &str, to: &str) -> usize {
         .index
 }
 
-fn node_center_for_id(diagram: &mmdflux::Diagram, node_id: &str) -> (f64, f64) {
-    let config = EngineConfig::Layered(
-        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
-    );
+fn node_center_for_id(diagram: &crate::Diagram, node_id: &str) -> (f64, f64) {
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, diagram, &config)
         .expect("layout should succeed for center lookup");
     let node = geom
@@ -1361,13 +1353,12 @@ fn node_center_for_id(diagram: &mmdflux::Diagram, node_id: &str) -> (f64, f64) {
 }
 
 fn svg_node_rect_for_id(
-    diagram: &mmdflux::Diagram,
+    diagram: &crate::Diagram,
     svg: &str,
     node_id: &str,
 ) -> (f64, f64, f64, f64) {
-    let config = EngineConfig::Layered(
-        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
-    );
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&default_proportional_mode(), diagram, &config)
         .expect("layout should succeed for rect lookup");
     let node = geom
@@ -1573,7 +1564,7 @@ const CURVED_STEP_STYLE_PRESET: BasisStyleCase = BasisStyleCase {
 };
 
 fn render_basis_style_fixture_svg(
-    diagram: &mmdflux::Diagram,
+    diagram: &crate::Diagram,
     style: BasisStyleCase,
     path_simplification: PathSimplification,
 ) -> String {
@@ -1756,7 +1747,7 @@ fn routing_overlap_skip_and_backward_orthogonal_paths_avoid_unrelated_node_inter
         let diagram = load_flowchart_fixture_diagram(fixture);
         let measurement_mode = default_proportional_mode();
         let config = EngineConfig::Layered(
-            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+            crate::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
         let geometry = run_layered_layout(&measurement_mode, &diagram, &config)
             .expect("layout should succeed");
@@ -2309,9 +2300,8 @@ fn svg_orthogonal_orthogonal_route_does_not_add_short_staircase_jogs_after_adjus
         .expect("fixture should contain edge Bmid -> F")
         .index;
 
-    let config = EngineConfig::Layered(
-        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
-    );
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -2469,9 +2459,8 @@ fn svg_orthogonal_orthogonal_route_hexagon_outbound_departure_insets_from_bottom
     ];
 
     let measurement_mode = default_proportional_mode();
-    let config = EngineConfig::Layered(
-        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
-    );
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&measurement_mode, &diagram, &config)
         .expect("layout should succeed for hexagon_flow fixture");
     let source_rect = geom
@@ -3499,15 +3488,14 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_preserves_routed_termi
     let edge_idx = edge_index(&diagram, "D", "A");
 
     let measurement_mode = default_proportional_mode();
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::algorithms::layered::LayoutConfig {
-            greedy_switch: true,
-            model_order_tiebreak: true,
-            variable_rank_spacing: true,
-            track_reversed_chains: true,
-            per_edge_label_spacing: true,
-            ..mmdflux::engines::graph::algorithms::layered::LayoutConfig::default()
-        });
+    let config = EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig {
+        greedy_switch: true,
+        model_order_tiebreak: true,
+        variable_rank_spacing: true,
+        track_reversed_chains: true,
+        per_edge_label_spacing: true,
+        ..crate::engines::graph::algorithms::layered::LayoutConfig::default()
+    });
     let geom = run_layered_layout(&measurement_mode, &diagram, &config)
         .expect("layout should succeed for decision fixture");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -3847,9 +3835,8 @@ fn orthogonal_route_diamond_boundary_clipping_matches_shape_boundary() {
     let diagram = load_flowchart_fixture_diagram("decision.mmd");
 
     let mode = default_proportional_mode();
-    let config = EngineConfig::Layered(
-        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
-    );
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&mode, &diagram, &config).unwrap();
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
@@ -4236,7 +4223,7 @@ fn render_svg_direction_override_backward_edge() {
 fn render_svg_positioned_mmds_routed_basic_includes_paths_and_subgraph() {
     let input = std::fs::read_to_string("tests/fixtures/mmds/positioned/routed-basic.json")
         .expect("positioned fixture should exist");
-    let svg = mmdflux::mmds::render_input(&input, OutputFormat::Svg, &RenderConfig::default())
+    let svg = crate::mmds::render_input(&input, OutputFormat::Svg, &RenderConfig::default())
         .expect("routed MMDS should render SVG");
 
     assert!(svg.starts_with("<svg"));
@@ -4248,7 +4235,7 @@ fn render_svg_positioned_mmds_routed_basic_includes_paths_and_subgraph() {
 
 /// Assert MMDS and SVG endpoints agree within `tolerance` for a given edge.
 fn assert_mmds_svg_endpoint_convergence(
-    diagram: &mmdflux::Diagram,
+    diagram: &crate::Diagram,
     from: &str,
     to: &str,
     tolerance: f64,
@@ -4256,15 +4243,14 @@ fn assert_mmds_svg_endpoint_convergence(
     // MMDS path (no SVG post-adjustment) — use flux-layered enhancements
     // to match the SVG path which goes through render_svg (flux-layered).
     let mode = default_proportional_mode();
-    let config =
-        EngineConfig::Layered(mmdflux::engines::graph::algorithms::layered::LayoutConfig {
-            greedy_switch: true,
-            model_order_tiebreak: true,
-            variable_rank_spacing: true,
-            track_reversed_chains: true,
-            per_edge_label_spacing: true,
-            ..mmdflux::engines::graph::algorithms::layered::LayoutConfig::default()
-        });
+    let config = EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig {
+        greedy_switch: true,
+        model_order_tiebreak: true,
+        variable_rank_spacing: true,
+        track_reversed_chains: true,
+        per_edge_label_spacing: true,
+        ..crate::engines::graph::algorithms::layered::LayoutConfig::default()
+    });
     let geom = run_layered_layout(&mode, diagram, &config).unwrap();
     let routed = route_graph_geometry(diagram, &geom, EdgeRouting::OrthogonalRoute);
     let mmds_edge = routed

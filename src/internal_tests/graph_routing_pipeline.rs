@@ -7,14 +7,13 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::engines::graph::EngineConfig;
-use mmdflux::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-use mmdflux::graph::geometry::*;
-use mmdflux::graph::measure::default_proportional_text_metrics;
-use mmdflux::mermaid::parse_flowchart;
-
+use crate::diagrams::flowchart::compile_to_graph;
+use crate::engines::graph::EngineConfig;
+use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
+use crate::graph::geometry::*;
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+use crate::mermaid::parse_flowchart;
 
 fn snap_path_to_grid_preview(path: &[FPoint], scale_x: f64, scale_y: f64) -> Vec<FPoint> {
     let sx = if scale_x.abs() < f64::EPSILON {
@@ -35,17 +34,17 @@ fn snap_path_to_grid_preview(path: &[FPoint], scale_x: f64, scale_y: f64) -> Vec
 
 /// Flux-layered LayoutConfig with all enhancements enabled.
 fn flux_layout_config() -> EngineConfig {
-    EngineConfig::Layered(mmdflux::engines::graph::algorithms::layered::LayoutConfig {
+    EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig {
         greedy_switch: true,
         model_order_tiebreak: true,
         variable_rank_spacing: true,
         track_reversed_chains: true,
-        ..mmdflux::engines::graph::algorithms::layered::LayoutConfig::default()
+        ..crate::engines::graph::algorithms::layered::LayoutConfig::default()
     })
 }
 
 /// Parse input and produce (Diagram, GraphGeometry) via the layout engine.
-fn layout_test(input: &str) -> (mmdflux::Diagram, GraphGeometry) {
+fn layout_test(input: &str) -> (crate::Diagram, GraphGeometry) {
     let fc = parse_flowchart(input).unwrap();
     let diagram = compile_to_graph(&fc);
     let config = flux_layout_config();
@@ -53,7 +52,7 @@ fn layout_test(input: &str) -> (mmdflux::Diagram, GraphGeometry) {
     (diagram, geom)
 }
 
-fn layout_fixture(name: &str) -> (mmdflux::Diagram, GraphGeometry) {
+fn layout_fixture(name: &str) -> (crate::Diagram, GraphGeometry) {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
@@ -64,7 +63,7 @@ fn layout_fixture(name: &str) -> (mmdflux::Diagram, GraphGeometry) {
     layout_test(&input)
 }
 
-fn layout_test_svg(input: &str) -> (mmdflux::Diagram, GraphGeometry) {
+fn layout_test_svg(input: &str) -> (crate::Diagram, GraphGeometry) {
     let fc = parse_flowchart(input).unwrap();
     let diagram = compile_to_graph(&fc);
     let mode = default_proportional_mode();
@@ -77,7 +76,7 @@ fn default_proportional_mode() -> MeasurementMode {
     MeasurementMode::Proportional(default_proportional_text_metrics())
 }
 
-fn layout_fixture_svg(name: &str) -> (mmdflux::Diagram, GraphGeometry) {
+fn layout_fixture_svg(name: &str) -> (crate::Diagram, GraphGeometry) {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
@@ -157,7 +156,7 @@ fn style_segment_monitor_report_for_routed_geometry(
     fixtures: &[&str],
     min_segment_threshold: f64,
 ) -> RoutedStyleMonitorReport {
-    use mmdflux::graph::Stroke;
+    use crate::graph::Stroke;
 
     let mut scanned_styled_edges = 0usize;
     let mut violations = Vec::new();
@@ -205,7 +204,7 @@ fn style_segment_monitor_report_for_routed_geometry(
 }
 
 fn labeled_edge_label_drift_failures(
-    diagram: &mmdflux::Diagram,
+    diagram: &crate::Diagram,
     routed: &RoutedGraphGeometry,
     max_distance: f64,
 ) -> Vec<String> {
@@ -516,27 +515,27 @@ fn path_has_immediate_axial_turnback(path: &[FPoint]) -> bool {
     })
 }
 
-fn path_has_primary_axis_reversal(path: &[FPoint], direction: mmdflux::Direction) -> bool {
+fn path_has_primary_axis_reversal(path: &[FPoint], direction: crate::Direction) -> bool {
     path.windows(2).any(|segment| {
         let a = segment[0];
         let b = segment[1];
         match direction {
-            mmdflux::Direction::TopDown => {
+            crate::Direction::TopDown => {
                 (a.x - b.x).abs() <= ROUTE_EPS
                     && (a.y - b.y).abs() > ROUTE_EPS
                     && (b.y - a.y) < -ROUTE_EPS
             }
-            mmdflux::Direction::BottomTop => {
+            crate::Direction::BottomTop => {
                 (a.x - b.x).abs() <= ROUTE_EPS
                     && (a.y - b.y).abs() > ROUTE_EPS
                     && (b.y - a.y) > ROUTE_EPS
             }
-            mmdflux::Direction::LeftRight => {
+            crate::Direction::LeftRight => {
                 (a.y - b.y).abs() <= ROUTE_EPS
                     && (a.x - b.x).abs() > ROUTE_EPS
                     && (b.x - a.x) < -ROUTE_EPS
             }
-            mmdflux::Direction::RightLeft => {
+            crate::Direction::RightLeft => {
                 (a.y - b.y).abs() <= ROUTE_EPS
                     && (a.x - b.x).abs() > ROUTE_EPS
                     && (b.x - a.x) > ROUTE_EPS
@@ -546,11 +545,11 @@ fn path_has_primary_axis_reversal(path: &[FPoint], direction: mmdflux::Direction
 }
 
 fn effective_edge_direction_for_test(
-    node_directions: &std::collections::HashMap<String, mmdflux::Direction>,
+    node_directions: &std::collections::HashMap<String, crate::Direction>,
     from: &str,
     to: &str,
-    fallback: mmdflux::Direction,
-) -> mmdflux::Direction {
+    fallback: crate::Direction,
+) -> crate::Direction {
     let src_dir = node_directions.get(from).copied().unwrap_or(fallback);
     let tgt_dir = node_directions.get(to).copied().unwrap_or(fallback);
     if src_dir == tgt_dir {
@@ -699,7 +698,7 @@ fn stale_label_anchor_is_replaced_with_valid_route_anchor() {
 fn routed_geometry_preserves_direction() {
     let (diagram, geom) = layout_test("graph LR\nA-->B");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-    assert_eq!(routed.direction, mmdflux::Direction::LeftRight);
+    assert_eq!(routed.direction, crate::Direction::LeftRight);
 }
 
 #[test]
@@ -943,7 +942,7 @@ fn orthogonal_route_contracts_are_axis_aligned_and_non_degenerate() {
 #[test]
 fn orthogonal_route_contracts_preserve_terminal_support_segment() {
     let (diagram, geom) = layout_fixture("ampersand.mmd");
-    assert_eq!(geom.direction, mmdflux::Direction::TopDown);
+    assert_eq!(geom.direction, crate::Direction::TopDown);
 
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
     for edge in routed.edges.iter().filter(|edge| !edge.is_backward) {
@@ -1197,7 +1196,7 @@ fn orthogonal_route_http_request_backward_edge_preserves_client_side_face_attach
 #[test]
 fn orthogonal_route_contracts_keep_primary_axis_departure_stem_for_off_center_td_source_ports() {
     let (diagram, geom) = layout_fixture("compat_kitchen_sink.mmd");
-    assert_eq!(geom.direction, mmdflux::Direction::TopDown);
+    assert_eq!(geom.direction, crate::Direction::TopDown);
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     for (from, to) in [("check-1", "process-A"), ("check-1", "error-1")] {
@@ -1224,7 +1223,7 @@ fn orthogonal_route_contracts_keep_primary_axis_departure_stem_for_off_center_td
 
         let is_angular = matches!(
             source_node.shape,
-            mmdflux::graph::Shape::Diamond | mmdflux::graph::Shape::Hexagon
+            crate::graph::Shape::Diamond | crate::graph::Shape::Hexagon
         );
         if !is_angular {
             let min_off_center = 1.0;
@@ -1251,7 +1250,7 @@ fn orthogonal_route_contracts_keep_primary_axis_departure_stem_for_off_center_td
 #[test]
 fn orthogonal_route_contracts_keep_primary_stem_before_outward_td_fan_out_sweeps() {
     let (diagram, geom) = layout_fixture("fan_out.mmd");
-    assert_eq!(geom.direction, mmdflux::Direction::TopDown);
+    assert_eq!(geom.direction, crate::Direction::TopDown);
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     for (from, to) in [("A", "B"), ("A", "D")] {
@@ -1315,7 +1314,7 @@ fn orthogonal_route_contracts_keep_directional_source_exits_for_selected_fixture
         let (diagram, geom) = layout_fixture_svg(fixture);
         assert_eq!(
             geom.direction,
-            mmdflux::Direction::TopDown,
+            crate::Direction::TopDown,
             "fixture {fixture} should be TD for outward-first source contract"
         );
         let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -1358,10 +1357,8 @@ fn orthogonal_route_contracts_keep_directional_source_exits_for_selected_fixture
             let first_is_lateral_outward = first_dy.abs() <= ROUTE_EPS
                 && first_dx.abs() > ROUTE_EPS
                 && first_dx.signum() == source_offset.signum();
-            let angular_source = matches!(
-                source_shape,
-                mmdflux::Shape::Diamond | mmdflux::Shape::Hexagon
-            );
+            let angular_source =
+                matches!(source_shape, crate::Shape::Diamond | crate::Shape::Hexagon);
             if edge.path.len() >= 3 {
                 assert!(
                     first_is_primary || (angular_source && first_is_lateral_outward),
@@ -1381,7 +1378,7 @@ fn orthogonal_route_contracts_keep_directional_source_exits_for_selected_fixture
     let (diagram, geom) = layout_fixture_svg("git_workflow.mmd");
     assert_eq!(
         geom.direction,
-        mmdflux::Direction::LeftRight,
+        crate::Direction::LeftRight,
         "git_workflow fixture should be LR"
     );
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -1580,7 +1577,7 @@ fn shared_builder_prefers_terminal_segment_matching_layout_entry_axis() {
         let y_aligned = approx_eq(prev.y, end.y);
 
         match expected_direction {
-            mmdflux::Direction::TopDown | mmdflux::Direction::BottomTop => assert!(
+            crate::Direction::TopDown | crate::Direction::BottomTop => assert!(
                 x_aligned && !y_aligned,
                 "edge {} -> {} should enter on vertical terminal segment for {:?}, got {:?}",
                 edge.from,
@@ -1588,7 +1585,7 @@ fn shared_builder_prefers_terminal_segment_matching_layout_entry_axis() {
                 expected_direction,
                 edge.path
             ),
-            mmdflux::Direction::LeftRight | mmdflux::Direction::RightLeft => assert!(
+            crate::Direction::LeftRight | crate::Direction::RightLeft => assert!(
                 y_aligned && !x_aligned,
                 "edge {} -> {} should enter on horizontal terminal segment for {:?}, got {:?}",
                 edge.from,
@@ -1763,7 +1760,7 @@ fn orthogonal_route_contracts_keep_td_source_ports_normal_and_compact() {
         let (diagram, geom) = layout_fixture(fixture);
         assert_eq!(
             geom.direction,
-            mmdflux::Direction::TopDown,
+            crate::Direction::TopDown,
             "fixture {fixture} should be TD for source-support contract"
         );
         let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -1818,7 +1815,7 @@ fn orthogonal_route_decision_backward_debug_to_start_supports_td_top_bottom_pari
     let (diagram, geom) = layout_fixture_svg(fixture);
     assert_eq!(
         geom.direction,
-        mmdflux::Direction::TopDown,
+        crate::Direction::TopDown,
         "fixture {fixture} should be TD for backward entry-face parity"
     );
 
@@ -1913,7 +1910,7 @@ fn orthogonal_route_decision_backward_debug_to_start_keeps_vertical_source_stem_
     let (diagram, geom) = layout_fixture_svg(fixture);
     assert_eq!(
         geom.direction,
-        mmdflux::Direction::TopDown,
+        crate::Direction::TopDown,
         "fixture {fixture} should be TD for source-stem normalization checks"
     );
 
@@ -1956,7 +1953,7 @@ fn orthogonal_route_backward_in_subgraph_uses_compact_inline_terminal_return() {
     let (diagram, geom) = layout_fixture_svg(fixture);
     assert_eq!(
         geom.direction,
-        mmdflux::Direction::TopDown,
+        crate::Direction::TopDown,
         "fixture {fixture} should be TD for compact backward return-shape checks"
     );
 
@@ -2029,7 +2026,7 @@ fn orthogonal_route_complex_backward_more_data_to_input_supports_td_entry_parity
     let (diagram, geom) = layout_fixture_svg(fixture);
     assert_eq!(
         geom.direction,
-        mmdflux::Direction::TopDown,
+        crate::Direction::TopDown,
         "fixture {fixture} should be TD for backward target-entry parity"
     );
 
@@ -2099,7 +2096,7 @@ fn orthogonal_route_complex_backward_more_data_to_input_avoids_tiny_terminal_sta
     let (diagram, geom) = layout_fixture_svg(fixture);
     assert_eq!(
         geom.direction,
-        mmdflux::Direction::TopDown,
+        crate::Direction::TopDown,
         "fixture {fixture} should be TD for terminal staircase checks"
     );
 
@@ -2146,7 +2143,7 @@ fn orthogonal_route_td_backward_followup_edges_use_canonical_face_in_polyline() 
         let (diagram, geom) = layout_fixture_svg(fixture);
         assert_eq!(
             geom.direction,
-            mmdflux::Direction::TopDown,
+            crate::Direction::TopDown,
             "fixture {fixture} should be TD for backward-entry checks"
         );
 
@@ -2258,7 +2255,7 @@ fn orthogonal_route_git_workflow_backward_remote_to_working_preserves_min_lr_cha
     let (diagram, geom) = layout_fixture_svg(fixture);
     assert_eq!(
         geom.direction,
-        mmdflux::Direction::LeftRight,
+        crate::Direction::LeftRight,
         "fixture {fixture} should be LR for channel-spacing parity checks"
     );
 
@@ -2352,7 +2349,7 @@ fn orthogonal_route_git_workflow_backward_no_target_node_intrusion() {
     let (diagram, geom) = layout_fixture_svg(fixture);
     assert_eq!(
         geom.direction,
-        mmdflux::Direction::LeftRight,
+        crate::Direction::LeftRight,
         "fixture {fixture} should be LR for target-node intrusion checks"
     );
 
@@ -2928,7 +2925,7 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_face_po
 #[test]
 fn five_fan_in_lr_overflow_spills_to_cross_faces_and_spreads_target_ports() {
     let (diagram, geom) = layout_fixture_svg("five_fan_in_lr.mmd");
-    assert_eq!(geom.direction, mmdflux::Direction::LeftRight);
+    assert_eq!(geom.direction, crate::Direction::LeftRight);
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     let target_rect = geom
@@ -3036,7 +3033,7 @@ graph RL
     E[E] --> F
 "#;
     let (diagram, geom) = layout_test_svg(input);
-    assert_eq!(geom.direction, mmdflux::Direction::RightLeft);
+    assert_eq!(geom.direction, crate::Direction::RightLeft);
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     let target_rect = geom
@@ -3666,7 +3663,7 @@ fn minimum_parallel_clearance(path_a: &[FPoint], path_b: &[FPoint]) -> f64 {
 #[test]
 fn five_fan_out_lr_primary_face_channels_are_staggered_without_overlap() {
     let (diagram, geom) = layout_fixture_svg("five_fan_out_lr.mmd");
-    assert_eq!(geom.direction, mmdflux::Direction::LeftRight);
+    assert_eq!(geom.direction, crate::Direction::LeftRight);
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     let outbound: Vec<_> = routed
@@ -3828,7 +3825,7 @@ graph RL
       A --> F[Target E]
 "#;
     let (diagram, geom) = layout_test_svg(input);
-    assert_eq!(geom.direction, mmdflux::Direction::RightLeft);
+    assert_eq!(geom.direction, crate::Direction::RightLeft);
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     let outbound: Vec<_> = routed
@@ -3968,7 +3965,7 @@ graph LR
       A --> F[Target E]
 "#;
     let (diagram, geom) = layout_test_svg(input);
-    assert_eq!(geom.direction, mmdflux::Direction::LeftRight);
+    assert_eq!(geom.direction, crate::Direction::LeftRight);
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     let outbound: Vec<_> = routed
@@ -4285,7 +4282,7 @@ fn diamond_fan_out_source_endpoints_spread() {
 #[test]
 fn diamond_fan_out_td_lateral_edges_depart_horizontally_first() {
     let (diagram, geom) = layout_fixture_svg("diamond_fan_out.mmd");
-    assert_eq!(geom.direction, mmdflux::Direction::TopDown);
+    assert_eq!(geom.direction, crate::Direction::TopDown);
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     for to in ["B", "D"] {
@@ -4330,7 +4327,7 @@ fn diamond_fan_out_td_lateral_edges_depart_horizontally_first() {
 #[test]
 fn ci_pipeline_lr_diamond_exits_depart_vertically_first() {
     let (diagram, geom) = layout_fixture_svg("ci_pipeline.mmd");
-    assert_eq!(geom.direction, mmdflux::Direction::LeftRight);
+    assert_eq!(geom.direction, crate::Direction::LeftRight);
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
 
     for to in ["Staging", "Prod"] {

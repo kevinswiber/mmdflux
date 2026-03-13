@@ -8,31 +8,31 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::builtins::default_registry;
-use mmdflux::engines::graph::algorithms::layered::{
+use crate::builtins::default_registry;
+use crate::engines::graph::algorithms::layered::{
     Direction as LayeredDirection, LayoutConfig as LayeredConfig, MeasurementMode, Ranker,
     run_layered_layout,
 };
-use mmdflux::engines::graph::contracts::{
+use crate::engines::graph::contracts::{
     EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
 };
-use mmdflux::engines::graph::flux::FluxLayeredEngine;
-use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
-use mmdflux::graph::grid::{
+use crate::engines::graph::flux::FluxLayeredEngine;
+use crate::graph::geometry::{FPoint, RoutedGraphGeometry};
+use crate::graph::grid::{
     GridLayout, GridLayoutConfig, GridRanker, NodeBounds, RoutedEdge, Segment,
     geometry_to_grid_layout_with_routed, route_all_edges,
 };
-use mmdflux::graph::measure::default_proportional_text_metrics;
-use mmdflux::graph::routing::{EdgeRouting, route_graph_geometry};
-use mmdflux::mmds::from_mmds_str;
-use mmdflux::prepared::PreparedDiagram;
-use mmdflux::render::graph::text::{render_all_edges_with_labels, render_node};
-use mmdflux::render::graph::{
+use crate::graph::measure::default_proportional_text_metrics;
+use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+use crate::mmds::from_mmds_str;
+use crate::prepared::PreparedDiagram;
+use crate::render::graph::text::{render_all_edges_with_labels, render_node};
+use crate::render::graph::{
     SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
     render_text_from_geometry,
 };
-use mmdflux::render::text::{Canvas, CharSet};
-use mmdflux::{
+use crate::render::text::{Canvas, CharSet};
+use crate::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, GeometryLevel, OutputFormat, RenderConfig,
     RoutingStyle, Shape, TextColorMode,
 };
@@ -90,7 +90,7 @@ fn solve_diagram(
     diagram: &Diagram,
     format: OutputFormat,
     config: &RenderConfig,
-) -> Result<mmdflux::engines::graph::contracts::GraphSolveResult, mmdflux::RenderError> {
+) -> Result<crate::engines::graph::contracts::GraphSolveResult, crate::RenderError> {
     let engine = FluxLayeredEngine::text();
     let request = match format {
         OutputFormat::Svg => default_proportional_request(
@@ -125,7 +125,7 @@ fn render_diagram_with_config(
     diagram: &Diagram,
     format: OutputFormat,
     config: &RenderConfig,
-) -> Result<String, mmdflux::RenderError> {
+) -> Result<String, crate::RenderError> {
     let result = solve_diagram(diagram, format, config)?;
 
     match format {
@@ -147,7 +147,7 @@ fn render_diagram_with_config(
                 render_svg_from_geometry(diagram, &result.geometry, &options)
             })
         }
-        other => Err(mmdflux::errors::RenderError {
+        other => Err(crate::errors::RenderError {
             message: format!("cross-pipeline helper does not render {other} output"),
         }),
     }
@@ -157,7 +157,7 @@ fn render_diagram_with_text_options(
     diagram: &Diagram,
     format: OutputFormat,
     text_color_mode: TextColorMode,
-) -> Result<String, mmdflux::RenderError> {
+) -> Result<String, crate::RenderError> {
     render_diagram_with_config(
         diagram,
         format,
@@ -208,7 +208,7 @@ fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> GridLayout {
     geometry_to_grid_layout_with_routed(diagram, &result.geometry, result.routed.as_ref(), config)
 }
 
-fn parse_flowchart_via_registry(input: &str) -> Box<dyn mmdflux::registry::ParsedDiagram> {
+fn parse_flowchart_via_registry(input: &str) -> Box<dyn crate::registry::ParsedDiagram> {
     default_registry()
         .create("flowchart")
         .expect("flowchart should be registered")
@@ -291,7 +291,7 @@ fn top_level_render_matches_flowchart_instance_for_subgraph_direction_mixed() {
     let top_level = render_text_via_owner_pipeline("subgraph_direction_mixed.mmd");
 
     let instance_output =
-        mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+        crate::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
             .expect("instance render should succeed");
 
     assert_eq!(
@@ -319,9 +319,8 @@ fn criss_cross_text_keeps_vertical_terminal_arrowheads() {
 
 fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
     let diagram = parse_and_build(fixture);
-    let config = EngineConfig::Layered(
-        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
-    );
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
@@ -329,9 +328,8 @@ fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
 
 fn route_input_orthogonal(input: &str) -> RoutedGraphGeometry {
     let diagram = prepare_flowchart(input, &RenderConfig::default());
-    let config = EngineConfig::Layered(
-        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
-    );
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
@@ -592,7 +590,7 @@ mod label_edge_cases {
         const EPS: f64 = 0.5;
 
         fn point_on_target_face(
-            rect: mmdflux::graph::geometry::FRect,
+            rect: crate::graph::geometry::FRect,
             point: FPoint,
         ) -> &'static str {
             let left = rect.x;
@@ -624,7 +622,7 @@ mod label_edge_cases {
 
         let diagram = parse_and_build("multiple_cycles.mmd");
         let config = EngineConfig::Layered(
-            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+            crate::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
         let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
             .expect("layout should succeed");
@@ -1118,14 +1116,14 @@ fn test_bidirectional_arrows_both_ends() {
 
 #[test]
 fn test_invisible_edge_not_rendered() {
-    use mmdflux::graph::Stroke;
+    use crate::graph::Stroke;
 
     let mut diagram = Diagram::new(Direction::TopDown);
-    diagram.add_node(mmdflux::graph::Node::new("A").with_label("A"));
-    diagram.add_node(mmdflux::graph::Node::new("B").with_label("B"));
-    diagram.add_node(mmdflux::graph::Node::new("C").with_label("C"));
-    diagram.add_edge(mmdflux::graph::Edge::new("A", "B")); // visible
-    diagram.add_edge(mmdflux::graph::Edge::new("A", "C").with_stroke(Stroke::Invisible)); // invisible
+    diagram.add_node(crate::graph::Node::new("A").with_label("A"));
+    diagram.add_node(crate::graph::Node::new("B").with_label("B"));
+    diagram.add_node(crate::graph::Node::new("C").with_label("C"));
+    diagram.add_edge(crate::graph::Edge::new("A", "B")); // visible
+    diagram.add_edge(crate::graph::Edge::new("A", "C").with_stroke(Stroke::Invisible)); // invisible
 
     let output = render_text_diagram(&diagram);
 
@@ -1144,12 +1142,12 @@ fn test_invisible_edge_not_rendered() {
 
 #[test]
 fn test_invisible_edge_affects_layout() {
-    use mmdflux::graph::Stroke;
+    use crate::graph::Stroke;
 
     let mut diagram = Diagram::new(Direction::TopDown);
-    diagram.add_node(mmdflux::graph::Node::new("A").with_label("A"));
-    diagram.add_node(mmdflux::graph::Node::new("B").with_label("B"));
-    diagram.add_edge(mmdflux::graph::Edge::new("A", "B").with_stroke(Stroke::Invisible));
+    diagram.add_node(crate::graph::Node::new("A").with_label("A"));
+    diagram.add_node(crate::graph::Node::new("B").with_label("B"));
+    diagram.add_edge(crate::graph::Edge::new("A", "B").with_stroke(Stroke::Invisible));
 
     let output = render_text_diagram(&diagram);
 
@@ -1177,10 +1175,10 @@ fn test_invisible_edge_affects_layout() {
 #[test]
 fn test_same_rank_constraint_horizontal_alignment() {
     let mut diagram = Diagram::new(Direction::TopDown);
-    diagram.add_node(mmdflux::graph::Node::new("A").with_label("A"));
-    diagram.add_node(mmdflux::graph::Node::new("B").with_label("B"));
-    diagram.add_node(mmdflux::graph::Node::new("C").with_label("C"));
-    diagram.add_edge(mmdflux::graph::Edge::new("A", "C"));
+    diagram.add_node(crate::graph::Node::new("A").with_label("A"));
+    diagram.add_node(crate::graph::Node::new("B").with_label("B"));
+    diagram.add_node(crate::graph::Node::new("C").with_label("C"));
+    diagram.add_edge(crate::graph::Edge::new("A", "C"));
     diagram.add_same_rank_constraint("A", "B");
 
     let output = render_text_diagram(&diagram);
@@ -1197,8 +1195,8 @@ fn test_same_rank_constraint_horizontal_alignment() {
 #[test]
 fn test_same_rank_no_visible_edge() {
     let mut diagram = Diagram::new(Direction::TopDown);
-    diagram.add_node(mmdflux::graph::Node::new("X").with_label("X"));
-    diagram.add_node(mmdflux::graph::Node::new("Y").with_label("Y"));
+    diagram.add_node(crate::graph::Node::new("X").with_label("X"));
+    diagram.add_node(crate::graph::Node::new("Y").with_label("Y"));
     diagram.add_same_rank_constraint("X", "Y");
 
     let output = render_text_diagram(&diagram);
@@ -1218,10 +1216,10 @@ fn test_same_rank_no_visible_edge() {
 #[test]
 fn test_same_rank_lr_layout() {
     let mut diagram = Diagram::new(Direction::LeftRight);
-    diagram.add_node(mmdflux::graph::Node::new("A").with_label("A"));
-    diagram.add_node(mmdflux::graph::Node::new("B").with_label("B"));
-    diagram.add_node(mmdflux::graph::Node::new("C").with_label("C"));
-    diagram.add_edge(mmdflux::graph::Edge::new("A", "C"));
+    diagram.add_node(crate::graph::Node::new("A").with_label("A"));
+    diagram.add_node(crate::graph::Node::new("B").with_label("B"));
+    diagram.add_node(crate::graph::Node::new("C").with_label("C"));
+    diagram.add_edge(crate::graph::Edge::new("A", "C"));
     diagram.add_same_rank_constraint("A", "B");
 
     let output = render_text_diagram(&diagram);
@@ -1234,9 +1232,9 @@ fn test_same_rank_lr_layout() {
 #[test]
 fn test_minlen_2_forces_rank_gap() {
     let mut diagram = Diagram::new(Direction::TopDown);
-    diagram.add_node(mmdflux::graph::Node::new("A").with_label("A"));
-    diagram.add_node(mmdflux::graph::Node::new("B").with_label("B"));
-    diagram.add_edge(mmdflux::graph::Edge::new("A", "B").with_minlen(2));
+    diagram.add_node(crate::graph::Node::new("A").with_label("A"));
+    diagram.add_node(crate::graph::Node::new("B").with_label("B"));
+    diagram.add_edge(crate::graph::Edge::new("A", "B").with_minlen(2));
 
     let output = render_text_diagram(&diagram);
 
@@ -1755,9 +1753,8 @@ fn test_route_policy_effective_edge_direction_with_nested_override_fixture() {
 #[test]
 fn test_orthogonal_route_routed_geometry_is_axis_aligned_for_forward_edges() {
     let diagram = parse_and_build("simple.mmd");
-    let config = EngineConfig::Layered(
-        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
-    );
+    let config =
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
     let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
@@ -1852,7 +1849,7 @@ fn test_step_topology_preserves_fan_stem_room_and_lane_compaction() {
 #[test]
 fn test_svg_orthogonal_route_differs_from_mermaid_polyline_for_cycle_fixture() {
     let input = load_fixture("simple_cycle.mmd");
-    let mermaid_polyline_output = mmdflux::render_diagram(
+    let mermaid_polyline_output = crate::render_diagram(
         &input,
         OutputFormat::Svg,
         &RenderConfig {
@@ -1861,7 +1858,7 @@ fn test_svg_orthogonal_route_differs_from_mermaid_polyline_for_cycle_fixture() {
         },
     )
     .expect("mermaid-layered render should succeed");
-    let orthogonal_output = mmdflux::render_diagram(
+    let orthogonal_output = crate::render_diagram(
         &input,
         OutputFormat::Svg,
         &RenderConfig {
@@ -2262,7 +2259,7 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_policy_
         let mut visible_edge_indexes: Vec<usize> = diagram
             .edges
             .iter()
-            .filter(|edge| edge.stroke != mmdflux::graph::Stroke::Invisible)
+            .filter(|edge| edge.stroke != crate::graph::Stroke::Invisible)
             .map(|edge| edge.index)
             .collect();
         visible_edge_indexes.sort_unstable();
@@ -2281,7 +2278,7 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_policy_
 
     let render_with_registry = |fixture_name: &str, format: OutputFormat| {
         let input = load_fixture(fixture_name);
-        mmdflux::render_diagram(
+        crate::render_diagram(
             &input,
             format,
             &RenderConfig {
@@ -2443,8 +2440,8 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_policy_
 #[test]
 fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex() {
     fn point_face(
-        rect: mmdflux::graph::geometry::FRect,
-        point: mmdflux::graph::geometry::FPoint,
+        rect: crate::graph::geometry::FRect,
+        point: crate::graph::geometry::FPoint,
     ) -> &'static str {
         let eps = 0.5;
         let left = rect.x;
@@ -2475,7 +2472,7 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
     }
 
     let render_text_with_engine = |input: &str, engine: &str| {
-        mmdflux::render_diagram(
+        crate::render_diagram(
             input,
             OutputFormat::Text,
             &RenderConfig {
@@ -2515,7 +2512,7 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
         let diagram = prepare_flowchart(&input, &RenderConfig::default());
         let mode = default_proportional_mode();
         let config = EngineConfig::Layered(
-            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+            crate::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
         let geom = run_layered_layout(&mode, &diagram, &config).expect("layout should succeed");
 
@@ -2608,8 +2605,8 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
     const MAX_HTTP_RIGHT_CLEARANCE_SHRINK_FROM_FULL: f64 = 8.0;
 
     fn point_face(
-        rect: mmdflux::graph::geometry::FRect,
-        point: mmdflux::graph::geometry::FPoint,
+        rect: crate::graph::geometry::FRect,
+        point: crate::graph::geometry::FPoint,
     ) -> &'static str {
         let eps = 0.5;
         let left = rect.x;
@@ -2640,7 +2637,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
     }
 
     let render_text_with_engine = |input: &str, engine: &str| {
-        mmdflux::render_diagram(
+        crate::render_diagram(
             input,
             OutputFormat::Text,
             &RenderConfig {
@@ -2657,7 +2654,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let diagram = prepare_flowchart(&input, &RenderConfig::default());
         let mode = default_proportional_mode();
         let config = EngineConfig::Layered(
-            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+            crate::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
         let geom = run_layered_layout(&mode, &diagram, &config).expect("layout should succeed");
         assert_eq!(
@@ -2741,7 +2738,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
         let input = load_fixture(fixture);
         let diagram = prepare_flowchart(&input, &RenderConfig::default());
         let config = EngineConfig::Layered(
-            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+            crate::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
         let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
             .expect("layout should succeed");
@@ -2825,7 +2822,7 @@ fn polyline_route_rollback_is_stable_for_text_and_svg() {
     let input = load_fixture("simple_cycle.mmd");
 
     let render_svg = || {
-        mmdflux::render_diagram(
+        crate::render_diagram(
             &input,
             OutputFormat::Svg,
             &RenderConfig {
@@ -2852,7 +2849,7 @@ fn text_label_revalidation_fixtures_match_between_orthogonal_route_and_polyline_
     for fixture in fixtures {
         let input = load_fixture(fixture);
         // Verify flux-layered text renders successfully for label fixtures.
-        let _text = mmdflux::render_diagram(
+        let _text = crate::render_diagram(
             &input,
             OutputFormat::Text,
             &RenderConfig {
@@ -2870,7 +2867,7 @@ fn flowchart_instance_render_is_stable_for_subgraph_direction_mixed() {
     let mut baseline: Option<String> = None;
 
     for _ in 0..6 {
-        let output = mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+        let output = crate::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
             .expect("instance render should succeed");
 
         if let Some(expected) = baseline.as_ref() {
@@ -3031,7 +3028,7 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
 
 #[test]
 fn classify_face_matches_expected_common_approaches() {
-    use mmdflux::graph::grid::{NodeFace, classify_face};
+    use crate::graph::grid::{NodeFace, classify_face};
 
     let bounds = NodeBounds {
         x: 10,

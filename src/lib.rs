@@ -22,8 +22,6 @@
 //!
 //! The rest of the implementation tree stays internal to the crate.
 
-extern crate self as mmdflux;
-
 pub mod builtins;
 pub mod config;
 pub mod diagnostics;
