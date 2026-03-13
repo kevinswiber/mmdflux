@@ -1,4 +1,5 @@
-use super::{AttachDirection, Point, RoutedEdge, Segment, SelfEdgeDrawData};
+use super::super::layout::SelfEdgeDrawData;
+use super::types::{AttachDirection, Point, RoutedEdge, Segment};
 use crate::graph::{Direction, Edge};
 
 /// Route a self-edge as orthogonal segments from pre-computed draw-coordinate points.

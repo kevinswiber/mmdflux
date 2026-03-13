@@ -10,7 +10,8 @@ use super::super::intersect::{
     NodeFace, calculate_attachment_points, classify_face, face_extent, face_fixed_coord,
     spread_points_on_face,
 };
-use super::{AttachmentOverride, EdgeEndpoints, Layout, NodeBounds, Point};
+use super::super::layout::{GridLayout, NodeBounds};
+use super::types::{AttachmentOverride, EdgeEndpoints, Point};
 use crate::graph::{Direction, Edge, Stroke};
 
 /// Compute pre-assigned attachment points for edges that share a node face.
@@ -19,7 +20,7 @@ use crate::graph::{Direction, Edge, Stroke};
 /// use the default intersect_rect() calculation (no override).
 pub fn compute_attachment_plan(
     edges: &[Edge],
-    layout: &Layout,
+    layout: &GridLayout,
     direction: Direction,
 ) -> HashMap<usize, AttachmentOverride> {
     compute_attachment_plan_from_shared_planner(edges, layout, direction)
@@ -27,7 +28,7 @@ pub fn compute_attachment_plan(
 
 pub(super) fn compute_attachment_plan_from_shared_planner(
     edges: &[Edge],
-    layout: &Layout,
+    layout: &GridLayout,
     direction: Direction,
 ) -> HashMap<usize, AttachmentOverride> {
     let shared = shared_plan_attachments(edges, layout, direction);

@@ -1,15 +1,17 @@
 use super::super::backward::is_backward_edge;
 use super::super::bounds::{NodeContainingSubgraphMap, containing_subgraph_id};
-use super::{
-    EdgeEndpoints, Layout, NodeBounds, NodeFace, RoutedEdge, RoutingOverrides, Segment,
-    clamp_to_face, ensure_source_face_launch_support, infer_face_from_attachment, ranges_overlap,
-    route_edge_with_waypoints,
-};
+use super::super::intersect::NodeFace;
+use super::super::layout::{GridLayout, NodeBounds};
+use super::attachment_resolution::{clamp_to_face, infer_face_from_attachment};
+use super::orthogonal::ensure_source_face_launch_support;
+use super::probe::TextPathRejection;
+use super::route_variants::route_edge_with_waypoints;
+use super::types::{EdgeEndpoints, RoutedEdge, RoutingOverrides, Segment};
 use crate::graph::{Arrow, Direction, Edge};
 
 pub(super) fn route_inter_subgraph_edge_via_outer_lane(
     edge: &Edge,
-    layout: &Layout,
+    layout: &GridLayout,
     ep: &EdgeEndpoints,
     draw_path: &[(usize, usize)],
     direction: Direction,
@@ -103,14 +105,14 @@ pub(super) fn route_inter_subgraph_edge_via_outer_lane(
 
 pub(super) fn route_edge_from_draw_path(
     edge: &Edge,
-    layout: &Layout,
+    layout: &GridLayout,
     ep: &EdgeEndpoints,
     draw_path: &[(usize, usize)],
     direction: Direction,
     overrides: RoutingOverrides,
-) -> Result<RoutedEdge, super::TextPathRejection> {
+) -> Result<RoutedEdge, TextPathRejection> {
     if draw_path.len() < 3 {
-        return Err(super::TextPathRejection::TooShort);
+        return Err(TextPathRejection::TooShort);
     }
 
     let points = if layout.preserve_routed_path_topology.contains(&edge.index) {
@@ -121,12 +123,12 @@ pub(super) fn route_edge_from_draw_path(
         points
     };
     if points.len() < 3 {
-        return Err(super::TextPathRejection::TooShort);
+        return Err(TextPathRejection::TooShort);
     }
 
     let waypoints = waypoints_from_draw_path(&points);
     if waypoints.is_empty() {
-        return Err(super::TextPathRejection::NoWaypoints);
+        return Err(TextPathRejection::NoWaypoints);
     }
 
     let inferred_src_face = source_face_from_step(&points);
@@ -146,7 +148,7 @@ pub(super) fn route_edge_from_draw_path(
         || inferred_tgt_face
             .is_some_and(|face| !waypoint_is_outside_face(last_anchor, &ep.to_bounds, face))
     {
-        return Err(super::TextPathRejection::WaypointInsideFace);
+        return Err(TextPathRejection::WaypointInsideFace);
     }
 
     let prefer_planned_face_spread = layout.preserve_routed_path_topology.contains(&edge.index);
@@ -166,7 +168,7 @@ pub(super) fn route_edge_from_draw_path(
         src_first_vertical: overrides.src_first_vertical,
     };
     let mut routed = route_edge_with_waypoints(edge, ep, &waypoints, direction, routing)
-        .ok_or(super::TextPathRejection::FaceInference)?;
+        .ok_or(TextPathRejection::FaceInference)?;
     if prefer_planned_face_spread
         && edge.arrow_start == Arrow::None
         && points.len() <= 4
@@ -175,7 +177,7 @@ pub(super) fn route_edge_from_draw_path(
         ensure_source_face_launch_support(&mut routed.segments, routed.start, src_face);
     }
     if segments_collide_with_other_nodes(routed.segments.as_slice(), layout, edge) {
-        return Err(super::TextPathRejection::SegmentCollision);
+        return Err(TextPathRejection::SegmentCollision);
     }
 
     if std::env::var("MMDFLUX_DEBUG_ROUTE_SEGMENTS").is_ok_and(|value| value == "1") {
@@ -417,7 +419,11 @@ fn waypoint_is_outside_face(waypoint: (usize, usize), bounds: &NodeBounds, face:
     }
 }
 
-fn segments_collide_with_other_nodes(segments: &[Segment], layout: &Layout, edge: &Edge) -> bool {
+fn segments_collide_with_other_nodes(
+    segments: &[Segment],
+    layout: &GridLayout,
+    edge: &Edge,
+) -> bool {
     layout.node_bounds.iter().any(|(node_id, bounds)| {
         if node_id == &edge.from || node_id == &edge.to {
             return false;
@@ -450,9 +456,15 @@ fn segment_intersects_bounds(segment: Segment, bounds: &NodeBounds) -> bool {
     }
 }
 
+fn ranges_overlap(a1: usize, a2: usize, b1: usize, b2: usize) -> bool {
+    let (a_min, a_max) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
+    let (b_min, b_max) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
+    a_min <= b_max && b_min <= a_max
+}
+
 pub(super) fn repair_draw_path_segment_collisions(
     draw_path: &[(usize, usize)],
-    layout: &Layout,
+    layout: &GridLayout,
     edge: &Edge,
 ) -> Vec<(usize, usize)> {
     let mut repaired = draw_path.to_vec();

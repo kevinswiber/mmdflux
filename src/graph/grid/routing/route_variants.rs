@@ -1,12 +1,17 @@
 use super::super::backward::is_backward_edge;
 use super::super::bounds::subgraph_edge_face;
 use super::super::intersect::{NodeFace, calculate_attachment_points, classify_face};
-use super::{
-    AttachDirection, EdgeEndpoints, Point, RoutedEdge, RoutingOverrides, Segment,
+use super::attachment_resolution::{
+    clamp_to_boundary, clamp_to_face, edge_faces, infer_face_from_attachment, offset_for_face,
+    resolve_attachment_points,
+};
+use super::orthogonal::{
     add_connector_segment, build_orthogonal_path_for_direction,
-    build_orthogonal_path_with_waypoints, build_routed_edge, clamp_to_boundary, clamp_to_face,
-    edge_faces, ensure_terminal_face_support, entry_direction_from_segments,
-    infer_face_from_attachment, offset_for_face, resolve_attachment_points,
+    build_orthogonal_path_with_waypoints, ensure_terminal_face_support,
+    entry_direction_from_segments,
+};
+use super::types::{
+    AttachDirection, EdgeEndpoints, Point, RoutedEdge, RoutingOverrides, Segment, build_routed_edge,
 };
 use crate::graph::{Arrow, Direction, Edge};
 

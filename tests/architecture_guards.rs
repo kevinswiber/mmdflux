@@ -1196,13 +1196,38 @@ fn graph_grid_uses_explicit_routing_helper_modules() {
         "src/graph/grid/routing/mod.rs",
         "src/graph/grid/routing/types.rs",
         "src/graph/grid/routing/attachment_resolution.rs",
+        "src/graph/grid/routing/border_nudging.rs",
         "src/graph/grid/routing/orthogonal.rs",
+        "src/graph/grid/routing/probe.rs",
         "src/graph/grid/routing/route_variants.rs",
         "src/graph/grid/routing/self_edges.rs",
         "src/graph/grid/routing/draw_path.rs",
         "src/graph/grid/routing/path_selection.rs",
     ] {
         assert!(repo_root.join(required).exists(), "missing {required}");
+    }
+}
+
+#[test]
+fn graph_grid_routing_helpers_import_owned_modules_directly() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for helper in [
+        "src/graph/grid/routing/attachment_resolution.rs",
+        "src/graph/grid/routing/border_nudging.rs",
+        "src/graph/grid/routing/draw_path.rs",
+        "src/graph/grid/routing/orthogonal.rs",
+        "src/graph/grid/routing/path_selection.rs",
+        "src/graph/grid/routing/probe.rs",
+        "src/graph/grid/routing/route_variants.rs",
+        "src/graph/grid/routing/self_edges.rs",
+        "src/graph/grid/routing/types.rs",
+    ] {
+        let content = std::fs::read_to_string(repo_root.join(helper)).unwrap();
+        assert!(
+            !content.contains("use super::{"),
+            "{helper} should import sibling helpers or owning grid modules directly instead of the parent routing namespace",
+        );
     }
 }
 

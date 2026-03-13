@@ -12,6 +12,7 @@ use super::draw_path::{
 use super::orthogonal::{
     build_orthogonal_path as build_orthogonal_path_module,
     compute_vertical_first_path as compute_vertical_first_path_module,
+    polyline_points_from_segments,
 };
 use super::path_selection::should_use_routed_draw_path;
 use super::route_variants::route_backward_with_synthetic_waypoints as route_backward_with_synthetic_waypoints_module;
@@ -29,7 +30,7 @@ use crate::graph::attachment::{
     resolve_overflow_backward_channel_conflict,
 };
 use crate::graph::grid::{
-    GridLayout, GridLayoutConfig, GridPos, NodeFace, SubgraphBounds,
+    GridLayout, GridLayoutConfig, GridPos, NodeBounds, NodeFace, SelfEdgeDrawData, SubgraphBounds,
     geometry_to_grid_layout_with_routed,
 };
 use crate::graph::routing::{EdgeRouting, build_orthogonal_path_float, route_graph_geometry};
@@ -235,6 +236,12 @@ fn make_bounds_sized(x: usize, y: usize, width: usize, height: usize) -> NodeBou
         layout_center_x: None,
         layout_center_y: None,
     }
+}
+
+fn ranges_overlap(a1: usize, a2: usize, b1: usize, b2: usize) -> bool {
+    let (a_min, a_max) = if a1 <= a2 { (a1, a2) } else { (a2, a1) };
+    let (b_min, b_max) = if b1 <= b2 { (b1, b2) } else { (b2, b1) };
+    a_min <= b_max && b_min <= a_max
 }
 
 fn minimal_layout(
@@ -699,7 +706,7 @@ fn lr_backward_waypoints_prefer_waypoint_inferred_bottom_faces() {
     let waypoints = vec![(20, 7), (14, 7)];
 
     let (src_attach, tgt_attach) =
-        resolve_attachment_points(None, None, &endpoints, &waypoints, Direction::LeftRight);
+        resolve_attachment_points_module(None, None, &endpoints, &waypoints, Direction::LeftRight);
 
     assert_eq!(src_attach.1, from.y + from.height - 1);
     assert_eq!(tgt_attach.1, to.y + to.height - 1);
@@ -1496,7 +1503,7 @@ fn test_lr_attachment_consensus_y_same_height() {
         to_bounds: to,
         to_shape: Shape::Rectangle,
     };
-    let (src, tgt) = resolve_attachment_points(None, None, &ep, &[], Direction::LeftRight);
+    let (src, tgt) = resolve_attachment_points_module(None, None, &ep, &[], Direction::LeftRight);
     assert_eq!(
         src.1, tgt.1,
         "LR attachment points should have consensus y, got src.y={} tgt.y={}",
@@ -1514,7 +1521,7 @@ fn test_lr_attachment_consensus_y_different_height() {
         to_bounds: to,
         to_shape: Shape::Rectangle,
     };
-    let (src, tgt) = resolve_attachment_points(None, None, &ep, &[], Direction::LeftRight);
+    let (src, tgt) = resolve_attachment_points_module(None, None, &ep, &[], Direction::LeftRight);
     assert_eq!(
         src.1, tgt.1,
         "LR attachment points should have consensus y even with different heights, got src.y={} tgt.y={}",
@@ -1532,7 +1539,7 @@ fn test_rl_attachment_consensus_y() {
         to_bounds: to,
         to_shape: Shape::Rectangle,
     };
-    let (src, tgt) = resolve_attachment_points(None, None, &ep, &[], Direction::RightLeft);
+    let (src, tgt) = resolve_attachment_points_module(None, None, &ep, &[], Direction::RightLeft);
     assert_eq!(
         src.1, tgt.1,
         "RL attachment points should have consensus y, got src.y={} tgt.y={}",

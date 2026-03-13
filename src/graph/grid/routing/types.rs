@@ -1,4 +1,5 @@
-use super::{NodeBounds, NodeFace};
+use super::super::intersect::NodeFace;
+use super::super::layout::NodeBounds;
 use crate::graph::{Edge, Shape};
 
 /// Grouped endpoint parameters for edge routing functions.

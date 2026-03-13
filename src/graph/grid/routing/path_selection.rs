@@ -3,45 +3,16 @@ use super::super::backward::{
     should_prefer_shared_backward_route_for_text,
 };
 use super::super::bounds::{NodeContainingSubgraphMap, containing_subgraph_id};
+use super::super::layout::{GridLayout, NodeBounds};
+use super::border_nudging::nudge_routed_edge_clear_of_unrelated_subgraph_borders;
 use super::draw_path::{
     repair_draw_path_segment_collisions, route_edge_from_draw_path,
     route_inter_subgraph_edge_via_outer_lane, waypoints_from_draw_path,
 };
-use super::{
-    EdgeEndpoints, Layout, NodeBounds, RoutedEdge, RoutingOverrides,
-    nudge_routed_edge_clear_of_unrelated_subgraph_borders, route_backward_with_synthetic_waypoints,
-};
+use super::probe::{RouteEdgeResult, TextPathFamily, TextPathRejection, TextRouteProbe};
+use super::route_variants::route_backward_with_synthetic_waypoints;
+use super::types::{EdgeEndpoints, RoutedEdge, RoutingOverrides};
 use crate::graph::{Direction, Edge};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TextPathFamily {
-    SharedRoutedDrawPath,
-    WaypointFallback,
-    SyntheticBackward,
-    Direct,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TextPathRejection {
-    TooShort,
-    NoWaypoints,
-    FaceInference,
-    WaypointInsideFace,
-    SegmentCollision,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TextRouteProbe {
-    pub(crate) path_family: TextPathFamily,
-    pub(crate) rejection_reason: Option<TextPathRejection>,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct RouteEdgeResult {
-    pub(crate) routed: RoutedEdge,
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) probe: TextRouteProbe,
-}
 
 pub(super) struct SharedDrawPathAttempt {
     pub(super) routed: Option<RouteEdgeResult>,
@@ -50,7 +21,7 @@ pub(super) struct SharedDrawPathAttempt {
 
 pub(super) fn should_use_routed_draw_path(
     edge: &Edge,
-    layout: &Layout,
+    layout: &GridLayout,
     from_bounds: &NodeBounds,
     to_bounds: &NodeBounds,
     direction: Direction,
@@ -89,7 +60,7 @@ pub(super) fn should_use_routed_draw_path(
 
 fn should_prefer_shared_forward_route_for_text(
     edge: &Edge,
-    layout: &Layout,
+    layout: &GridLayout,
     draw_path: &[(usize, usize)],
     from_bounds: &NodeBounds,
     to_bounds: &NodeBounds,
@@ -116,7 +87,7 @@ fn should_prefer_shared_forward_route_for_text(
 
 pub(super) fn try_shared_draw_path<'a>(
     edge: &Edge,
-    layout: &Layout,
+    layout: &GridLayout,
     endpoints: &EdgeEndpoints,
     diagram_direction: Direction,
     overrides: RoutingOverrides,
@@ -265,7 +236,7 @@ pub(super) fn route_result(
     routed: RoutedEdge,
     path_family: TextPathFamily,
     rejection_reason: Option<TextPathRejection>,
-    layout: &Layout,
+    layout: &GridLayout,
     edge: &Edge,
     node_containing_subgraph: Option<&NodeContainingSubgraphMap<'_>>,
 ) -> RouteEdgeResult {

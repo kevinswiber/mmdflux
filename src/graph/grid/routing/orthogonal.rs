@@ -1,5 +1,6 @@
 use super::super::attachments::LARGE_HORIZONTAL_OFFSET_THRESHOLD as SHARED_LARGE_HORIZONTAL_OFFSET_THRESHOLD;
-use super::{AttachDirection, NodeFace, Point, Segment};
+use super::super::intersect::NodeFace;
+use super::types::{AttachDirection, Point, Segment};
 use crate::graph::Direction;
 
 pub(super) fn ensure_terminal_face_support(
