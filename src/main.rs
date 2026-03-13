@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 const CURVE_CANONICAL_VALUES: &str = "basis, linear, linear-sharp, linear-rounded";
 const CURVE_ARG_HELP: &str = "SVG curve style (basis, linear, linear-sharp, or linear-rounded). \
      Overrides the curve component of --edge-preset when both are set.";
+const SEVERITY_ERROR: &str = "error";
+const SEVERITY_WARNING: &str = "warning";
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ValidationResult {
@@ -42,29 +44,20 @@ struct CliLintJson {
 const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
 
 fn normalize_validation_result(result: ValidationResult) -> CliLintJson {
+    let default_severity = if result.valid {
+        SEVERITY_WARNING
+    } else {
+        SEVERITY_ERROR
+    };
     let diagnostics = result
         .diagnostics
         .into_iter()
-        .map(|mut diag| {
-            if diag.severity.is_empty() {
-                diag.severity = if result.valid {
-                    "warning".to_string()
-                } else {
-                    "error".to_string()
-                };
-            }
-
-            if diag.message.contains(STRICT_PARSE_WARNING_PREFIX) {
-                diag.severity = "error".to_string();
-            }
-
-            diag
-        })
+        .map(|diag| diag.normalized(default_severity))
         .collect::<Vec<_>>();
 
     let (warnings, errors): (Vec<_>, Vec<_>) = diagnostics
         .into_iter()
-        .partition(|diag| diag.severity.eq_ignore_ascii_case("warning"));
+        .partition(ValidationDiagnostic::is_warning);
 
     CliLintJson {
         valid: result.valid && errors.is_empty(),
@@ -73,23 +66,55 @@ fn normalize_validation_result(result: ValidationResult) -> CliLintJson {
     }
 }
 
-impl fmt::Display for ValidationDiagnostic {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let severity = if self.severity.is_empty() {
-            "error"
+impl ValidationDiagnostic {
+    fn normalized(mut self, default_severity: &str) -> Self {
+        if self.severity.is_empty() {
+            self.severity = default_severity.to_string();
+        }
+
+        if self.message.contains(STRICT_PARSE_WARNING_PREFIX) {
+            self.severity = SEVERITY_ERROR.to_string();
+        }
+
+        self
+    }
+
+    fn severity_label(&self) -> &str {
+        if self.severity.is_empty() {
+            SEVERITY_ERROR
         } else {
             self.severity.as_str()
-        };
+        }
+    }
+
+    fn is_warning(&self) -> bool {
+        self.severity_label().eq_ignore_ascii_case(SEVERITY_WARNING)
+    }
+}
+
+impl fmt::Display for ValidationDiagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match (self.line, self.column) {
             (Some(line), Some(column)) => {
                 write!(
                     f,
                     "{}: line {}, column {}: {}",
-                    severity, line, column, self.message
+                    self.severity_label(),
+                    line,
+                    column,
+                    self.message
                 )
             }
-            (Some(line), None) => write!(f, "{}: line {}: {}", severity, line, self.message),
-            _ => write!(f, "{}: {}", severity, self.message),
+            (Some(line), None) => {
+                write!(
+                    f,
+                    "{}: line {}: {}",
+                    self.severity_label(),
+                    line,
+                    self.message
+                )
+            }
+            _ => write!(f, "{}: {}", self.severity_label(), self.message),
         }
     }
 }

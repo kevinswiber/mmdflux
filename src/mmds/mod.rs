@@ -108,34 +108,32 @@ fn expand_defaults_in_value(value: &mut Value) -> Result<(), MmdsParseError> {
         MmdsParseError::new("MMDS parse error: top-level JSON value must be an object")
     })?;
 
-    let node_shape = default_string(
+    let node_shape = default_value(
         root,
         &["defaults", "node", "shape"],
         Value::String("rectangle".to_string()),
     );
-    let edge_stroke = default_string(
+    let edge_stroke = default_value(
         root,
         &["defaults", "edge", "stroke"],
         Value::String("solid".to_string()),
     );
-    let edge_arrow_start = default_string(
+    let edge_arrow_start = default_value(
         root,
         &["defaults", "edge", "arrow_start"],
         Value::String("none".to_string()),
     );
-    let edge_arrow_end = default_string(
+    let edge_arrow_end = default_value(
         root,
         &["defaults", "edge", "arrow_end"],
         Value::String("normal".to_string()),
     );
-    let edge_minlen = default_number(root, &["defaults", "edge", "minlen"], Value::from(1));
+    let edge_minlen = default_value(root, &["defaults", "edge", "minlen"], Value::from(1));
 
     if let Some(nodes) = root.get_mut("nodes").and_then(Value::as_array_mut) {
         for node in nodes {
             if let Some(node_obj) = node.as_object_mut() {
-                node_obj
-                    .entry("shape".to_string())
-                    .or_insert_with(|| node_shape.clone());
+                insert_default(node_obj, "shape", &node_shape);
             }
         }
     }
@@ -143,18 +141,10 @@ fn expand_defaults_in_value(value: &mut Value) -> Result<(), MmdsParseError> {
     if let Some(edges) = root.get_mut("edges").and_then(Value::as_array_mut) {
         for edge in edges {
             if let Some(edge_obj) = edge.as_object_mut() {
-                edge_obj
-                    .entry("stroke".to_string())
-                    .or_insert_with(|| edge_stroke.clone());
-                edge_obj
-                    .entry("arrow_start".to_string())
-                    .or_insert_with(|| edge_arrow_start.clone());
-                edge_obj
-                    .entry("arrow_end".to_string())
-                    .or_insert_with(|| edge_arrow_end.clone());
-                edge_obj
-                    .entry("minlen".to_string())
-                    .or_insert_with(|| edge_minlen.clone());
+                insert_default(edge_obj, "stroke", &edge_stroke);
+                insert_default(edge_obj, "arrow_start", &edge_arrow_start);
+                insert_default(edge_obj, "arrow_end", &edge_arrow_end);
+                insert_default(edge_obj, "minlen", &edge_minlen);
             }
         }
     }
@@ -162,12 +152,14 @@ fn expand_defaults_in_value(value: &mut Value) -> Result<(), MmdsParseError> {
     Ok(())
 }
 
-fn default_string(root: &Map<String, Value>, path: &[&str], fallback: Value) -> Value {
+fn default_value(root: &Map<String, Value>, path: &[&str], fallback: Value) -> Value {
     traverse_value(root, path).cloned().unwrap_or(fallback)
 }
 
-fn default_number(root: &Map<String, Value>, path: &[&str], fallback: Value) -> Value {
-    traverse_value(root, path).cloned().unwrap_or(fallback)
+fn insert_default(object: &mut Map<String, Value>, key: &str, default: &Value) {
+    object
+        .entry(key.to_string())
+        .or_insert_with(|| default.clone());
 }
 
 fn traverse_value<'a>(root: &'a Map<String, Value>, path: &[&str]) -> Option<&'a Value> {

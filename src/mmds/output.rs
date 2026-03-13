@@ -48,15 +48,14 @@ pub(crate) fn to_mmds_layout_typed(
     diagram: &Diagram,
     geometry: &GraphGeometry,
 ) -> String {
-    let output = build_mmds_output(
+    render_mmds_output(
         diagram_type,
         diagram,
         geometry,
         None,
         PathSimplification::None,
         None,
-    );
-    serialize_mmds_output(&output)
+    )
 }
 
 /// Serialize a graph-family diagram to MMDS JSON at routed level.
@@ -80,15 +79,14 @@ pub(crate) fn to_mmds_routed_typed(
     geometry: &GraphGeometry,
     routed: &RoutedGraphGeometry,
 ) -> String {
-    let output = build_mmds_output(
+    render_mmds_output(
         diagram_type,
         diagram,
         geometry,
         Some(routed),
         PathSimplification::None,
         None,
-    );
-    serialize_mmds_output(&output)
+    )
 }
 
 /// Serialize a diagram to MMDS JSON at the specified geometry level.
@@ -123,35 +121,29 @@ pub(crate) fn to_mmds_json_typed(
     engine_id: Option<EngineAlgorithmId>,
 ) -> Result<String, RenderError> {
     match level {
-        GeometryLevel::Layout => {
-            let output = build_mmds_output(
-                diagram_type,
-                diagram,
-                geometry,
-                None,
-                path_simplification,
-                engine_id,
-            );
-            Ok(serialize_mmds_output(&output))
-        }
-        GeometryLevel::Routed => {
-            if let Some(routed) = routed {
-                let output = build_mmds_output(
+        GeometryLevel::Layout => Ok(render_mmds_output(
+            diagram_type,
+            diagram,
+            geometry,
+            None,
+            path_simplification,
+            engine_id,
+        )),
+        GeometryLevel::Routed => routed
+            .ok_or_else(|| RenderError {
+                message: "routed MMDS output requested but routed geometry was not provided"
+                    .to_string(),
+            })
+            .map(|routed| {
+                render_mmds_output(
                     diagram_type,
                     diagram,
                     geometry,
                     Some(routed),
                     path_simplification,
                     engine_id,
-                );
-                Ok(serialize_mmds_output(&output))
-            } else {
-                Err(RenderError {
-                    message: "routed MMDS output requested but routed geometry was not provided"
-                        .to_string(),
-                })
-            }
-        }
+                )
+            }),
     }
 }
 
@@ -164,15 +156,9 @@ pub(crate) fn to_mmds_json_typed_with_routing(
     path_simplification: PathSimplification,
     engine_id: Option<EngineAlgorithmId>,
 ) -> Result<String, RenderError> {
-    let routed_owned;
-    let routed = match (routed, level) {
-        (Some(routed), _) => Some(routed),
-        (None, GeometryLevel::Routed) => {
-            routed_owned = route_graph_geometry(diagram, geometry, EdgeRouting::OrthogonalRoute);
-            Some(&routed_owned)
-        }
-        (None, GeometryLevel::Layout) => None,
-    };
+    let routed_owned = (routed.is_none() && matches!(level, GeometryLevel::Routed))
+        .then(|| route_graph_geometry(diagram, geometry, EdgeRouting::OrthogonalRoute));
+    let routed = routed.or(routed_owned.as_ref());
 
     to_mmds_json_typed(
         diagram_type,
@@ -183,6 +169,25 @@ pub(crate) fn to_mmds_json_typed_with_routing(
         path_simplification,
         engine_id,
     )
+}
+
+fn render_mmds_output(
+    diagram_type: &str,
+    diagram: &Diagram,
+    geometry: &GraphGeometry,
+    routed: Option<&RoutedGraphGeometry>,
+    path_simplification: PathSimplification,
+    engine_id: Option<EngineAlgorithmId>,
+) -> String {
+    let output = build_mmds_output(
+        diagram_type,
+        diagram,
+        geometry,
+        routed,
+        path_simplification,
+        engine_id,
+    );
+    serialize_mmds_output(&output)
 }
 
 fn serialize_mmds_output(output: &MmdsOutput) -> String {

@@ -19,6 +19,8 @@ use crate::mermaid::{
     DiagramType, ParseError, ParseOptions, detect_diagram_type, parse_flowchart_with_options,
 };
 
+const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
+
 /// Detect the diagram type from input text.
 ///
 /// Returns the diagram type identifier (e.g. `"flowchart"`, `"class"`,
@@ -77,14 +79,8 @@ pub fn render_diagram(
 pub fn validate_diagram(input: &str) -> String {
     if matches!(detect_input_frontend(input), Some(InputFrontend::Mmds)) {
         return match crate::mmds::validate_input(input) {
-            Ok(()) => serde_json::json!({ "valid": true }).to_string(),
-            Err(error) => serde_json::json!({
-                "valid": false,
-                "diagnostics": [{
-                    "message": error.message
-                }]
-            })
-            .to_string(),
+            Ok(()) => validation_success_json(Vec::new()),
+            Err(error) => validation_message_error_json(error.message),
         };
     }
 
@@ -92,75 +88,96 @@ pub fn validate_diagram(input: &str) -> String {
 
     let diagram_id = match registry.detect(input) {
         Some(id) => id,
-        None => {
-            return serde_json::json!({
-                "valid": false,
-                "diagnostics": [{"message": "unknown diagram type"}]
-            })
-            .to_string();
-        }
+        None => return validation_message_error_json("unknown diagram type"),
     };
 
     let instance = match registry.create(diagram_id) {
         Some(inst) => inst,
         None => {
-            return serde_json::json!({
-                "valid": false,
-                "diagnostics": [{
-                    "message": format!("no implementation for diagram type: {diagram_id}")
-                }]
-            })
-            .to_string();
+            return validation_message_error_json(format!(
+                "no implementation for diagram type: {diagram_id}"
+            ));
         }
     };
 
     match instance.parse(input) {
-        Ok(_) => {
-            let mut warnings: Vec<ParseDiagnostic> = collect_unsupported_warnings(input)
-                .into_iter()
-                .chain(collect_subgraph_warnings(input))
-                .map(|w| ParseDiagnostic::warning(w.line, w.column, w.message))
-                .collect();
+        Ok(_) => validation_success_json(collect_validation_warnings(input)),
+        Err(error) => validation_failure_json(parse_failure_diagnostic(error.as_ref())),
+    }
+}
 
-            if detect_diagram_type(input) == Some(DiagramType::Flowchart) {
-                let strict = ParseOptions { strict: true };
-                if let Err(strict_err) = parse_flowchart_with_options(input, &strict) {
-                    let mut diag = ParseDiagnostic::from(&strict_err);
-                    diag.severity = "warning".to_string();
-                    diag.message =
-                        format!("Strict parsing would reject this input: {}", diag.message);
-                    warnings.push(diag);
-                }
-            }
+fn validation_success_json(diagnostics: Vec<ParseDiagnostic>) -> String {
+    validation_json(true, diagnostics)
+}
 
-            if warnings.is_empty() {
-                serde_json::json!({ "valid": true }).to_string()
-            } else {
-                serde_json::json!({
-                    "valid": true,
-                    "diagnostics": warnings
-                })
-                .to_string()
-            }
-        }
-        Err(error) => {
-            let diagnostic = match error.downcast_ref::<ParseError>() {
-                Some(parse_error) => ParseDiagnostic::from(parse_error),
-                None => ParseDiagnostic {
-                    severity: "error".to_string(),
-                    line: None,
-                    column: None,
-                    end_line: None,
-                    end_column: None,
-                    message: error.to_string(),
-                },
-            };
+fn validation_failure_json(diagnostic: ParseDiagnostic) -> String {
+    validation_json(false, vec![diagnostic])
+}
 
-            serde_json::json!({
-                "valid": false,
-                "diagnostics": [diagnostic]
-            })
-            .to_string()
-        }
+fn validation_json(valid: bool, diagnostics: Vec<ParseDiagnostic>) -> String {
+    if diagnostics.is_empty() {
+        serde_json::json!({ "valid": valid }).to_string()
+    } else {
+        serde_json::json!({
+            "valid": valid,
+            "diagnostics": diagnostics
+        })
+        .to_string()
+    }
+}
+
+fn validation_message_error_json(message: impl Into<String>) -> String {
+    serde_json::json!({
+        "valid": false,
+        "diagnostics": [{
+            "message": message.into()
+        }]
+    })
+    .to_string()
+}
+
+fn collect_validation_warnings(input: &str) -> Vec<ParseDiagnostic> {
+    let mut warnings: Vec<_> = collect_unsupported_warnings(input)
+        .into_iter()
+        .chain(collect_subgraph_warnings(input))
+        .map(|warning| ParseDiagnostic::warning(warning.line, warning.column, warning.message))
+        .collect();
+
+    if let Some(strict_warning) = collect_strict_parse_warning(input) {
+        warnings.push(strict_warning);
+    }
+
+    warnings
+}
+
+fn collect_strict_parse_warning(input: &str) -> Option<ParseDiagnostic> {
+    if detect_diagram_type(input) != Some(DiagramType::Flowchart) {
+        return None;
+    }
+
+    let strict = ParseOptions { strict: true };
+    parse_flowchart_with_options(input, &strict)
+        .err()
+        .map(|error| strict_parse_warning(&error))
+}
+
+fn strict_parse_warning(error: &ParseError) -> ParseDiagnostic {
+    let mut diagnostic = ParseDiagnostic::from(error);
+    diagnostic.severity = "warning".to_string();
+    diagnostic.message = format!("{STRICT_PARSE_WARNING_PREFIX} {}", diagnostic.message);
+    diagnostic
+}
+
+fn parse_failure_diagnostic(error: &(dyn std::error::Error + 'static)) -> ParseDiagnostic {
+    match error.downcast_ref::<ParseError>() {
+        Some(parse_error) => ParseDiagnostic::from(parse_error),
+        None => ParseDiagnostic {
+            severity: "error".to_string(),
+            line: None,
+            column: None,
+            end_line: None,
+            end_column: None,
+            message: error.to_string(),
+        },
     }
 }
