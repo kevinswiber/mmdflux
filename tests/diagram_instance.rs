@@ -130,7 +130,7 @@ fn registry_create_unknown_returns_none() {
 
 #[test]
 fn diagram_definitions_and_instances_share_one_format_contract() {
-    let registry = mmdflux::registry_builtins::default_registry();
+    let registry = mmdflux::builtins::default_registry();
     let formats = [
         OutputFormat::Text,
         OutputFormat::Ascii,

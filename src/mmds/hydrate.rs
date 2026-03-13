@@ -22,9 +22,6 @@ use crate::mmds::{
 };
 use crate::style::{ColorToken, NodeStyle};
 
-/// Placeholder hydration entrypoint for future MMDS input work.
-pub fn stub_hydrate() {}
-
 /// Hydrate a graph `Diagram` from MMDS JSON text.
 pub fn from_mmds_str(input: &str) -> Result<Diagram, MmdsHydrationError> {
     let output = parse_mmds_input(input).map_err(|err| MmdsHydrationError::Parse {
@@ -295,7 +292,9 @@ fn reconstruct_compound_membership(diagram: &mut Diagram) {
 }
 
 /// Hydrate graph geometry IR from MMDS JSON text.
-pub fn hydrate_graph_geometry_from_mmds(input: &str) -> Result<GraphGeometry, MmdsHydrationError> {
+pub(crate) fn hydrate_graph_geometry_from_mmds(
+    input: &str,
+) -> Result<GraphGeometry, MmdsHydrationError> {
     let output = parse_mmds_input(input).map_err(|err| MmdsHydrationError::Parse {
         message: err.to_string(),
     })?;
@@ -303,7 +302,7 @@ pub fn hydrate_graph_geometry_from_mmds(input: &str) -> Result<GraphGeometry, Mm
 }
 
 /// Hydrate graph geometry IR from parsed MMDS output.
-pub fn hydrate_graph_geometry_from_output(
+pub(crate) fn hydrate_graph_geometry_from_output(
     output: &MmdsOutput,
 ) -> Result<GraphGeometry, MmdsHydrationError> {
     let (_, geometry) = hydrate_geometry_parts(output)?;
@@ -311,7 +310,7 @@ pub fn hydrate_graph_geometry_from_output(
 }
 
 /// Hydrate graph geometry IR from parsed MMDS output, using a pre-built diagram.
-pub fn hydrate_graph_geometry_from_output_with_diagram(
+pub(crate) fn hydrate_graph_geometry_from_output_with_diagram(
     output: &MmdsOutput,
     diagram: &Diagram,
 ) -> Result<GraphGeometry, MmdsHydrationError> {
@@ -320,7 +319,7 @@ pub fn hydrate_graph_geometry_from_output_with_diagram(
 }
 
 /// Hydrate routed geometry IR from MMDS JSON text.
-pub fn hydrate_routed_geometry_from_mmds(
+pub(crate) fn hydrate_routed_geometry_from_mmds(
     input: &str,
 ) -> Result<RoutedGraphGeometry, MmdsHydrationError> {
     let output = parse_mmds_input(input).map_err(|err| MmdsHydrationError::Parse {
@@ -330,7 +329,7 @@ pub fn hydrate_routed_geometry_from_mmds(
 }
 
 /// Hydrate routed geometry IR from parsed MMDS output.
-pub fn hydrate_routed_geometry_from_output(
+pub(crate) fn hydrate_routed_geometry_from_output(
     output: &MmdsOutput,
 ) -> Result<RoutedGraphGeometry, MmdsHydrationError> {
     let (diagram, geometry) = hydrate_geometry_parts(output)?;

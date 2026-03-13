@@ -8,6 +8,7 @@ pub mod config_input;
 mod graph_family;
 mod prepared;
 
+use crate::builtins::default_registry;
 use crate::config::RenderConfig;
 use crate::diagnostics::ParseDiagnostic;
 use crate::errors::RenderError;
@@ -17,7 +18,6 @@ use crate::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
 use crate::mermaid::{
     DiagramType, ParseError, ParseOptions, detect_diagram_type, parse_flowchart_with_options,
 };
-use crate::registry_builtins::default_registry;
 
 /// Detect the diagram type from input text.
 ///

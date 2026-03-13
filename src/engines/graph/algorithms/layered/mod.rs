@@ -32,7 +32,7 @@ pub(crate) use float_layout::build_float_layout_with_flags;
 pub use graph::DiGraph;
 pub(crate) use measurement::layout_config_from_layered;
 pub use measurement::{MeasurementMode, run_layered_layout};
-pub use pipeline::{layout, layout_with_labels};
+pub use pipeline::layout_with_labels;
 pub use types::{
     Direction, EdgeLayout, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Ranker,
     Rect, SelfEdge, SelfEdgeLayout,

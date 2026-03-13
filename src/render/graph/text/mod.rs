@@ -7,8 +7,6 @@ mod edge;
 mod shape;
 mod subgraph;
 
-pub use edge::render_all_edges_with_labels;
-pub use shape::render_node;
 
 use super::TextRenderOptions;
 use crate::OutputFormat;

@@ -22,4 +22,3 @@ pub use diagram::*;
 pub use edge::*;
 pub use geometry::GeometryLevel;
 pub use node::*;
-pub use routing::{EdgeRouting, route_graph_geometry};

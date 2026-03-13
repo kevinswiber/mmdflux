@@ -9,4 +9,3 @@ pub mod diagram;
 pub mod graph;
 pub mod text;
 
-pub use text::{Canvas, CharSet};

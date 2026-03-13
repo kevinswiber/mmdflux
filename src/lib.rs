@@ -13,30 +13,32 @@
 //! println!("{}", output);
 //! ```
 //!
-//! # Advanced API
+//! # Expert API
 //!
-//! Low-level parsing, compilation, prepared-family payloads, MMDS hydration,
-//! and render-only geometry emission remain available through explicit
-//! namespaces such as `mermaid`, `mmds`, `frontends`, `diagrams`,
-//! `prepared`, `render`, `registry`, and `registry_builtins`.
+//! The supported expert tier is organized around adapter workflows:
+//! - `builtins` for the default diagram registry
+//! - `registry` and `prepared` for explicit detect/parse/prepare flows
+//! - `mmds` for MMDS parsing, replay, hydration to `Diagram`, and Mermaid generation
+//!
+//! The rest of the implementation tree stays internal to the crate.
 
+pub mod builtins;
 pub mod config;
 pub mod diagnostics;
 // Core modules
-pub mod diagrams;
-pub mod engines;
+mod diagrams;
+mod engines;
 pub mod errors;
 pub mod family;
 pub mod format;
-pub mod frontends;
-pub mod graph;
-pub mod lint;
-pub mod mermaid;
+mod frontends;
+mod graph;
+mod lint;
+mod mermaid;
 pub mod mmds;
 pub mod prepared;
 pub mod registry;
-pub mod registry_builtins;
-pub mod render;
+mod render;
 pub(crate) mod runtime;
 pub mod simplification;
 pub mod style;

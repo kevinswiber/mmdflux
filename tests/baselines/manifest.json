@@ -16,7 +16,7 @@
       "mmds",
       "prepared",
       "registry",
-      "registry_builtins",
+      "builtins",
       "render",
       "simplification",
       "style"

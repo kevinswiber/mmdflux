@@ -358,7 +358,7 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
     }
 
     for required in [
-        "registry_builtins",
+        "builtins",
         "prepared",
         "graph::grid",
         "timeline::sequence",
@@ -1067,7 +1067,7 @@ fn generated_dependency_maps_no_longer_reference_graph_family_pipeline() {
     ] {
         let content = std::fs::read_to_string(repo_root.join(relative)).unwrap();
 
-        for required in ["prepared", "registry_builtins", "timeline"] {
+        for required in ["prepared", "builtins", "timeline"] {
             assert!(
                 content.contains(required),
                 "{relative} should mention the refreshed module tree entry: {required}"
@@ -1089,7 +1089,7 @@ fn generated_dependency_maps_no_longer_reference_graph_family_pipeline() {
 }
 
 #[test]
-fn generated_dependency_maps_show_registry_builtins_owning_builtin_wiring() {
+fn generated_dependency_maps_show_builtins_owning_builtin_wiring() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let flat =
         std::fs::read_to_string(repo_root.join("docs/architecture/module-dependency-map.mmd"))
@@ -1103,8 +1103,8 @@ fn generated_dependency_maps_show_registry_builtins_owning_builtin_wiring() {
         "registry should no longer depend on diagrams in the flat dependency map"
     );
     assert!(
-        flat.contains("mod_registry_builtins --> mod_diagrams"),
-        "registry_builtins should own builtin diagram wiring in the flat dependency map"
+        flat.contains("mod_builtins --> mod_diagrams"),
+        "builtins should own builtin diagram wiring in the flat dependency map"
     );
 
     assert!(
@@ -1112,8 +1112,8 @@ fn generated_dependency_maps_show_registry_builtins_owning_builtin_wiring() {
         "registry should no longer depend on diagrams in the C4 dependency map"
     );
     assert!(
-        c4.contains("Rel(mod_registry_builtins, mod_diagrams, \"uses\")"),
-        "registry_builtins should own builtin diagram wiring in the C4 dependency map"
+        c4.contains("Rel(mod_builtins, mod_diagrams, \"uses\")"),
+        "builtins should own builtin diagram wiring in the C4 dependency map"
     );
 }
 

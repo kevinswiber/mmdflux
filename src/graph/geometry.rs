@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::errors::RenderError;
 use crate::format::normalize_enum_token;
-pub use crate::graph::attachment::{EdgePort, PortFace};
+pub use crate::graph::attachment::EdgePort;
 use crate::graph::projection::GridProjection;
 pub use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Direction, Shape};

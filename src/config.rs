@@ -1,4 +1,5 @@
-use crate::engines::graph::{EngineAlgorithmId, LayoutConfig};
+use crate::engines::graph::EngineAlgorithmId;
+pub use crate::engines::graph::{LabelDummyStrategy, LayoutConfig, LayoutDirection, Ranker};
 use crate::format::{Curve, EdgePreset, RoutingStyle};
 use crate::graph::GeometryLevel;
 use crate::render::text::TextColorMode;

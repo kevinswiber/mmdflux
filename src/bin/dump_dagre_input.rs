@@ -1,10 +1,8 @@
 use std::{env, fs};
 
-use mmdflux::Direction;
-use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::engines::graph::algorithms::layered::LayoutConfig;
-use mmdflux::graph::measure::grid_node_dimensions;
-use mmdflux::mermaid::parse_flowchart;
+use mmdflux::config::LayoutConfig;
+use mmdflux::mmds::MmdsOutput;
+use mmdflux::{OutputFormat, RenderConfig, render_diagram};
 
 fn json_escape(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
@@ -34,17 +32,25 @@ fn main() {
         std::process::exit(1);
     });
 
-    let flowchart = parse_flowchart(&input).unwrap_or_else(|e| {
-        eprintln!("Failed to parse {}: {}", path, e);
+    let output = render_diagram(&input, OutputFormat::Mmds, &RenderConfig::default())
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to render {} as MMDS: {}", path, e);
+            std::process::exit(1);
+        });
+    let diagram: MmdsOutput = serde_json::from_str(&output).unwrap_or_else(|e| {
+        eprintln!("Failed to parse MMDS output for {}: {}", path, e);
         std::process::exit(1);
     });
-    let diagram = compile_to_graph(&flowchart);
 
-    let rankdir = match diagram.direction {
-        Direction::TopDown => "TB",
-        Direction::BottomTop => "BT",
-        Direction::LeftRight => "LR",
-        Direction::RightLeft => "RL",
+    let rankdir = match diagram.metadata.direction.as_str() {
+        "TD" => "TB",
+        "BT" => "BT",
+        "LR" => "LR",
+        "RL" => "RL",
+        other => {
+            eprintln!("Unsupported MMDS direction {} in {}", other, path);
+            std::process::exit(1);
+        }
     };
 
     // Match dagre defaults (Mermaid flowchart defaults).
@@ -54,7 +60,7 @@ fn main() {
     let mut ranksep = config.rank_sep;
     // Apply cluster rank_sep offset when subgraphs are present, matching
     // the engine pipeline which adds cluster_rank_sep for compound graphs.
-    if diagram.has_subgraphs() {
+    if !diagram.subgraphs.is_empty() {
         ranksep += 25.0;
     }
     let margin = config.margin;
@@ -69,20 +75,19 @@ fn main() {
     }
 
     let mut nodes: Vec<NodeEntry> = Vec::new();
-    for (id, node) in &diagram.nodes {
-        let (w, h) = grid_node_dimensions(node, diagram.direction);
+    for node in &diagram.nodes {
         nodes.push(NodeEntry {
-            id: id.clone(),
+            id: node.id.clone(),
             label: node.label.clone(),
-            width: w as f64,
-            height: h as f64,
+            width: node.size.width,
+            height: node.size.height,
             parent: node.parent.clone(),
             is_subgraph: false,
         });
     }
-    for (id, sg) in &diagram.subgraphs {
+    for sg in &diagram.subgraphs {
         nodes.push(NodeEntry {
-            id: id.clone(),
+            id: sg.id.clone(),
             label: sg.title.clone(),
             width: 0.0,
             height: 0.0,
@@ -103,11 +108,15 @@ fn main() {
         .edges
         .iter()
         .enumerate()
-        .map(|(idx, edge)| EdgeEntry {
-            from: edge.from.clone(),
-            to: edge.to.clone(),
+        .map(|(fallback_idx, edge)| EdgeEntry {
+            from: edge.source.clone(),
+            to: edge.target.clone(),
             label: edge.label.clone(),
-            index: idx,
+            index: edge
+                .id
+                .strip_prefix('e')
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(fallback_idx),
         })
         .collect();
 

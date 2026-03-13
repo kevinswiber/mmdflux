@@ -1,8 +1,8 @@
 //! MMDS interchange contract and output-generation namespace.
 //!
 //! This module owns the typed MMDS envelope, profile vocabulary, Mermaid
-//! regeneration helpers, hydration/replay helpers, and graph-family
-//! serialization to MMDS JSON.
+//! regeneration helpers, validation, replay helpers, and hydration to
+//! `Diagram` for adapter workflows.
 
 pub(crate) mod detect;
 pub(crate) mod hydrate;
@@ -18,11 +18,7 @@ pub use detect::{
     SUPPORTED_OUTPUT_FORMATS, detect_diagram_type, is_mmds_input, resolve_logical_diagram_id,
     supports_format,
 };
-pub use hydrate::{
-    MmdsHydrationError, from_mmds_output, from_mmds_str, hydrate_graph_geometry_from_mmds,
-    hydrate_graph_geometry_from_output, hydrate_graph_geometry_from_output_with_diagram,
-    hydrate_routed_geometry_from_mmds, hydrate_routed_geometry_from_output, stub_hydrate,
-};
+pub use hydrate::{MmdsHydrationError, from_mmds_output, from_mmds_str};
 pub use mermaid::{
     MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str,
 };

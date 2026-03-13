@@ -970,13 +970,11 @@ fn mmds_spec_doc_exists() {
 }
 
 #[test]
-fn mmds_examples_exist() {
-    assert!(Path::new("examples/mmds/react_flow.js").exists());
-    assert!(Path::new("examples/mmds/cytoscape.js").exists());
-    assert!(Path::new("examples/mmds/d3.js").exists());
-    assert!(Path::new("examples/mmds/svg_passthrough.js").exists());
-    assert!(Path::new("examples/mmds/profile-mmdflux-svg-v1.json").exists());
-    assert!(Path::new("examples/mmds/profile-mmdflux-text-v1.json").exists());
+fn rust_api_examples_exist() {
+    assert!(Path::new("examples/high_level_render.rs").exists());
+    assert!(Path::new("examples/registry_adapter.rs").exists());
+    assert!(Path::new("examples/mmds_replay.rs").exists());
+    assert!(!Path::new("examples/mmds").exists());
 }
 
 #[test]
@@ -988,8 +986,8 @@ fn readme_mentions_mmds() {
 #[test]
 fn canonical_profile_examples_validate_against_schema() {
     for path in [
-        "examples/mmds/profile-mmdflux-svg-v1.json",
-        "examples/mmds/profile-mmdflux-text-v1.json",
+        "tests/fixtures/mmds/profiles/profiles-svg-v1.json",
+        "tests/fixtures/mmds/profiles/profiles-text-v1.json",
     ] {
         let absolute = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
         let raw = std::fs::read_to_string(&absolute)

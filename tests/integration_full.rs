@@ -8,7 +8,7 @@ mod support;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::registry_builtins::default_registry;
+use mmdflux::builtins::default_registry;
 use mmdflux::{OutputFormat, RenderConfig, generate_mermaid_from_mmds_str, render_diagram};
 use support::render::render_svg_with_config;
 

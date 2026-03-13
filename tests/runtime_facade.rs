@@ -4,7 +4,7 @@
 //! and that graph-family rendering is dispatched through the shared runtime
 //! facade rather than duplicated in each diagram instance.
 
-use mmdflux::registry_builtins::default_registry;
+use mmdflux::builtins::default_registry;
 use mmdflux::{DiagramFamily, OutputFormat, RenderConfig};
 
 // ---------------------------------------------------------------------------

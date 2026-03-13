@@ -6,6 +6,7 @@
 
 use std::path::Path;
 
+use mmdflux::builtins::default_registry;
 use mmdflux::engines::graph::algorithms::layered::MeasurementMode;
 use mmdflux::engines::graph::contracts::{
     EngineConfig, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
@@ -13,7 +14,6 @@ use mmdflux::engines::graph::contracts::{
 use mmdflux::engines::graph::registry::GraphEngineRegistry;
 use mmdflux::graph::{Diagram, EdgeRouting, GeometryLevel, route_graph_geometry};
 use mmdflux::mmds::to_mmds_json_typed;
-use mmdflux::registry_builtins::default_registry;
 use mmdflux::render::graph::{
     SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_text_from_geometry,
 };

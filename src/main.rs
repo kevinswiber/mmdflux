@@ -1,19 +1,57 @@
 use std::ffi::OsStr;
 use std::io::{self, IsTerminal, Read};
 use std::path::PathBuf;
-use std::{env, fs};
+use std::{env, fmt, fs};
 
 use clap::{Parser, ValueEnum};
-use mmdflux::engines::graph::{LayoutConfig, Ranker};
+use mmdflux::config::{LayoutConfig, Ranker};
 use mmdflux::{
     ColorWhen, Curve, EdgePreset, EngineAlgorithmId, GeometryLevel, OutputFormat,
     PathSimplification, RenderConfig, RoutingStyle, TextColorMode, apply_svg_surface_defaults,
-    detect_diagram, render_diagram,
+    detect_diagram, render_diagram, validate_diagram,
 };
+use serde::Deserialize;
 
 const CURVE_CANONICAL_VALUES: &str = "basis, linear, linear-sharp, linear-rounded";
 const CURVE_ARG_HELP: &str = "SVG curve style (basis, linear, linear-sharp, or linear-rounded). \
      Overrides the curve component of --edge-preset when both are set.";
+
+#[derive(Debug, Deserialize)]
+struct ValidationResult {
+    valid: bool,
+    #[serde(default)]
+    diagnostics: Vec<ValidationDiagnostic>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ValidationDiagnostic {
+    #[serde(default)]
+    severity: String,
+    line: Option<usize>,
+    column: Option<usize>,
+    message: String,
+}
+
+impl fmt::Display for ValidationDiagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let severity = if self.severity.is_empty() {
+            "error"
+        } else {
+            self.severity.as_str()
+        };
+        match (self.line, self.column) {
+            (Some(line), Some(column)) => {
+                write!(
+                    f,
+                    "{}: line {}, column {}: {}",
+                    severity, line, column, self.message
+                )
+            }
+            (Some(line), None) => write!(f, "{}: line {}: {}", severity, line, self.message),
+            _ => write!(f, "{}: {}", severity, self.message),
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "mmdflux")]
@@ -257,20 +295,23 @@ fn main() -> io::Result<()> {
 
     // Lint mode: validate and exit
     if cli.lint {
-        let result = mmdflux::lint::lint(&input);
+        let json = validate_diagram(&input);
+        let result: ValidationResult = serde_json::from_str(&json).map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("failed to parse validation output: {error}"),
+            )
+        })?;
 
         if matches!(format, OutputFormat::Mmds) {
-            println!("{}", result.to_json());
+            println!("{json}");
         } else {
-            for diag in &result.errors {
-                eprintln!("{}", diag);
-            }
-            for diag in &result.warnings {
+            for diag in &result.diagnostics {
                 eprintln!("{}", diag);
             }
         }
 
-        std::process::exit(result.exit_code());
+        std::process::exit(if result.valid { 0 } else { 1 });
     }
 
     // Parse CLI style flags.

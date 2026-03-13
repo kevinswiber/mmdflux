@@ -177,6 +177,17 @@ mmdflux --lint diagram.mmd
 - [MMDS specification](docs/mmds.md)
 - [Edge routing design](docs/edge-routing-heuristics.md)
 
+## Rust Library Examples
+
+- [`examples/high_level_render.rs`](examples/high_level_render.rs) shows the
+  top-level `render_diagram` workflow.
+- [`examples/registry_adapter.rs`](examples/registry_adapter.rs) shows explicit
+  registry-driven detection and preparation with
+  `mmdflux::builtins::default_registry()`.
+- [`examples/mmds_replay.rs`](examples/mmds_replay.rs) shows MMDS profile
+  negotiation, replay, and Mermaid regeneration.
+- Verify the examples compile with `cargo test --examples`.
+
 ## Adapter Packages
 
 - `@mmds/excalidraw` — MMDS to Excalidraw `.excalidraw` JSON.

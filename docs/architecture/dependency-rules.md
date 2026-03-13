@@ -108,7 +108,7 @@ collapsed back into singleton roots:
 14. **registry is contract-only infrastructure** — `src/registry.rs` defines
     reusable registry contracts (`DiagramRegistry`, `DiagramDefinition`,
     `DiagramInstance`) and does not import concrete diagram modules. Built-in
-    diagram wiring lives in the separate public `registry_builtins` namespace.
+    diagram wiring lives in the separate public `builtins` namespace.
 
 15. **timeline::sequence owns shared sequence runtime types** — Shared
     sequence-family model and layout types live under `src/timeline/sequence/`

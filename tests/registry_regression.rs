@@ -2,7 +2,7 @@
 
 mod support;
 
-use mmdflux::registry_builtins::default_registry;
+use mmdflux::builtins::default_registry;
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, render_diagram};
 use support::render::{render_ascii_with_config, render_text_with_config};
 

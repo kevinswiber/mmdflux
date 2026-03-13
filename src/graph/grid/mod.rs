@@ -14,16 +14,12 @@ mod layout;
 mod routing;
 
 pub use derive::geometry_to_grid_layout_with_routed;
-pub use intersect::{
-    FloatPoint, NodeFace, calculate_attachment_points, classify_face, face_extent,
-    face_fixed_coord, intersect_diamond, intersect_node, intersect_rect, spread_points_on_face,
-};
-pub use layout::{GridLayout, GridPos, NodeBounds, SelfEdgeDrawData, SubgraphBounds};
+pub use layout::{GridLayout, GridPos, NodeBounds, SubgraphBounds};
 #[cfg(test)]
 pub(crate) use routing::route_edge;
 pub use routing::{AttachDirection, Point, RoutedEdge, Segment, route_all_edges};
 
-pub use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
+pub use crate::graph::projection::OverrideSubgraphProjection;
 
 /// Grid-layout rank assignment strategy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

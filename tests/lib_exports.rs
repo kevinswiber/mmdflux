@@ -1,29 +1,13 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::BTreeSet;
 use std::path::Path;
 
-use mmdflux::mermaid::{DiagramType, ParseError, detect_diagram_type};
-// Verify core expected items are accessible from crate root.
+use mmdflux::prepared::PreparedDiagram;
+use mmdflux::registry::{DiagramInstance, ParsedDiagram};
 use mmdflux::{
-    Diagram,
-    Direction,
-    Edge,
-    Node,
-    OutputFormat,
-    RenderConfig,
-    RenderError,
-    Shape,
-    // Diagrams
-    diagrams::flowchart,
-    graph::geometry::{
-        EngineHints, FRect, GraphGeometry, LayeredHints, LayoutEdge, PositionedNode,
-    },
-    prepared::PreparedDiagram,
-    // Registry
-    registry::{DiagramInstance, ParsedDiagram},
-    // Render-only geometry API
-    render::graph::{
-        SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_text_from_geometry,
-    },
+    ColorToken, ColorWhen, CornerStyle, Curve, Diagram, DiagramFamily, Direction, Edge, EdgePreset,
+    EngineAlgorithmId, EngineId, GeometryLevel, Node, NodeStyle, OutputFormat, ParseDiagnostic,
+    PathSimplification, RenderConfig, RenderError, RoutingStyle, RuntimeConfigInput, Shape,
+    TextColorMode,
 };
 
 fn lib_rs_source() -> String {
@@ -99,113 +83,137 @@ fn assert_exports_exclude(exports: &BTreeSet<String>, forbidden: &[&str], contex
 }
 
 #[test]
-fn all_exports_accessible() {
-    // This test passes if it compiles
-    let _ = OutputFormat::default();
-    let _ = RenderConfig::default();
-    let _ = RenderError::from("surface");
-    let _: Box<dyn DiagramInstance> = Box::new(flowchart::FlowchartInstance::new());
-    let _ = std::any::type_name::<Box<dyn ParsedDiagram>>();
-}
-
-#[test]
-fn flat_public_contract_modules_are_accessible() {
-    let _ = mmdflux::engines::graph::LayoutConfig::default();
-    let _ = mmdflux::engines::graph::Ranker::NetworkSimplex;
-    let _ = mmdflux::simplification::PathSimplification::default();
-    let _ = mmdflux::format::RoutingStyle::Polyline;
-    let _ = mmdflux::errors::RenderError::from("surface");
-    let _ = mmdflux::family::DiagramFamily::Graph;
-    let _ = mmdflux::diagnostics::ParseDiagnostic::warning(None, None, String::new());
-}
-
-#[test]
-fn lib_exports_expose_the_prepared_module() {
-    let _ = mmdflux::prepared::PreparedDiagram::Info;
-}
-
-#[test]
-fn crate_root_public_modules_expose_prepared_but_keep_runtime_internal() {
+fn crate_root_only_exports_supported_expert_modules() {
     let modules = public_modules_for_test();
 
-    assert!(
-        modules.contains("prepared"),
-        "prepared should remain an explicit public module"
-    );
-    assert!(
-        !modules.contains("runtime"),
-        "runtime dispatch should stay crate-private"
+    for required in [
+        "builtins",
+        "config",
+        "diagnostics",
+        "errors",
+        "family",
+        "format",
+        "mmds",
+        "prepared",
+        "registry",
+        "simplification",
+        "style",
+    ] {
+        assert!(
+            modules.contains(required),
+            "{required} should remain public"
+        );
+    }
+
+    for forbidden in [
+        "diagrams",
+        "engines",
+        "frontends",
+        "graph",
+        "lint",
+        "mermaid",
+        "render",
+        "runtime",
+    ] {
+        assert!(
+            !modules.contains(forbidden),
+            "{forbidden} should no longer be a public crate-root module"
+        );
+    }
+}
+
+#[test]
+fn crate_root_reexports_curated_runtime_and_value_types() {
+    let exports = public_exports_for_test();
+
+    assert_exports_include(
+        &exports,
+        &[
+            "RenderConfig",
+            "ParseDiagnostic",
+            "AlgorithmId",
+            "EngineAlgorithmId",
+            "EngineId",
+            "RenderError",
+            "DiagramFamily",
+            "CornerStyle",
+            "Curve",
+            "EdgePreset",
+            "OutputFormat",
+            "RoutingStyle",
+            "Diagram",
+            "Direction",
+            "Edge",
+            "GeometryLevel",
+            "Node",
+            "Shape",
+            "MmdsGenerationError",
+            "generate_mermaid_from_mmds",
+            "generate_mermaid_from_mmds_str",
+            "ColorWhen",
+            "TextColorMode",
+            "RuntimeConfigInput",
+            "apply_svg_surface_defaults",
+            "detect_diagram",
+            "render_diagram",
+            "validate_diagram",
+            "PathSimplification",
+            "ColorToken",
+            "NodeStyle",
+        ],
     );
 }
 
 #[test]
-fn crate_root_exports_only_the_curated_render_and_validation_surface() {
+fn crate_root_does_not_reexport_internal_modules_or_registry_constructor() {
     let exports = public_exports_for_test();
 
-    assert_exports_include(&exports, &["OutputFormat", "RenderConfig", "RenderError"]);
     assert_exports_exclude(
         &exports,
         &[
-            "DiagramType",
-            "ParseError",
+            "default_registry",
             "parse_flowchart",
             "detect_diagram_type",
             "compile_to_graph",
-            "default_registry",
-            "RenderRequest",
+            "to_mmds_json",
+            "to_mmds_layout",
+            "hydrate_graph_geometry_from_mmds",
+            "hydrate_routed_geometry_from_mmds",
         ],
         "the crate-root export surface",
     );
 }
 
 #[test]
-fn crate_root_does_not_export_hidden_testing_module() {
-    let modules = public_modules_for_test();
-
-    assert!(
-        !modules.contains("testing"),
-        "src/lib.rs must not reintroduce a public testing module"
-    );
-}
-
-#[test]
-fn engine_level_solve_types_are_not_crate_root_api() {
-    let exports = public_exports_for_test();
-
-    assert_exports_exclude(
-        &exports,
-        &[
-            "GraphEngine",
-            "GraphSolveRequest",
-            "GraphSolveResult",
-            "EngineConfig",
-            "EdgeRouting",
-        ],
-        "the crate root",
-    );
-}
-
-#[test]
-fn implementor_traits_and_engine_capabilities_are_not_crate_root_api() {
-    let exports = public_exports_for_test();
-
-    assert_exports_exclude(
-        &exports,
-        &[
-            "DiagramModel",
-            "DiagramParser",
-            "DiagramRenderer",
-            "EngineAlgorithmCapabilities",
-            "RouteOwnership",
-            "LayoutConfig",
-        ],
-        "the crate root",
-    );
+fn supported_root_exports_compile() {
+    let _ = OutputFormat::default();
+    let _ = RenderConfig::default();
+    let _ = RenderError::from("surface");
+    let _ = Diagram::new(Direction::TopDown);
+    let _ = Edge::new("A", "B");
+    let _ = Node::new("A").with_shape(Shape::Rectangle);
+    let _ = DiagramFamily::Graph;
+    let _ = GeometryLevel::Layout;
+    let _ = CornerStyle::Sharp;
+    let _ = Curve::Basis;
+    let _ = EdgePreset::Straight;
+    let _ = RoutingStyle::Direct;
+    let _ = EngineId::Flux;
+    let _ = EngineAlgorithmId::parse("flux-layered").unwrap();
+    let _ = ParseDiagnostic::warning(None, None, String::new());
+    let _ = PathSimplification::default();
+    let _ = ColorWhen::Auto;
+    let _ = TextColorMode::Plain;
+    let _ = ColorToken::parse("#fff").unwrap();
+    let _ = NodeStyle::default();
+    let _ = RuntimeConfigInput::default();
+    let _ = std::any::type_name::<Box<dyn DiagramInstance>>();
+    let _ = std::any::type_name::<Box<dyn ParsedDiagram>>();
 }
 
 #[test]
 fn registry_api_works() {
-    let registry = mmdflux::registry_builtins::default_registry();
+    let registry = mmdflux::builtins::default_registry();
     let input = "graph TD\n    A-->B";
 
     let diagram_id = registry.detect(input).unwrap();
@@ -222,7 +230,7 @@ fn registry_api_works() {
 
 #[test]
 fn builtin_registry_module_is_public_and_registry_default_registry_is_gone() {
-    let _ = mmdflux::registry_builtins::default_registry();
+    let _ = mmdflux::builtins::default_registry();
 
     let registry_source = repo_file("src/registry.rs");
     assert!(
@@ -232,310 +240,61 @@ fn builtin_registry_module_is_public_and_registry_default_registry_is_gone() {
 }
 
 #[test]
-fn graph_grid_module_exposes_grid_projection_contracts() {
-    use mmdflux::graph::grid::{GridLayoutConfig, GridProjection, GridRanker};
+fn mmds_module_keeps_supported_adapter_helpers_public() {
+    let _ = std::any::type_name::<mmdflux::mmds::MmdsOutput>();
+    let _ = std::any::type_name::<mmdflux::mmds::MmdsHydrationError>();
+    let _ = std::any::type_name::<mmdflux::mmds::MmdsGenerationError>();
 
-    let _ = GridLayoutConfig::default();
-    let _ = GridProjection::default();
-    let _ = GridRanker::default();
+    let _parse_with_profiles: fn(
+        &str,
+    ) -> Result<
+        (
+            mmdflux::mmds::MmdsOutput,
+            mmdflux::mmds::MmdsProfileNegotiation,
+        ),
+        mmdflux::mmds::MmdsParseError,
+    > = mmdflux::mmds::parse_with_profiles;
+    let _validate_input: fn(&str) -> Result<(), mmdflux::RenderError> =
+        mmdflux::mmds::validate_input;
+    let _from_mmds_str: fn(&str) -> Result<mmdflux::Diagram, mmdflux::mmds::MmdsHydrationError> =
+        mmdflux::mmds::from_mmds_str;
+    let _render_input: fn(
+        &str,
+        mmdflux::OutputFormat,
+        &mmdflux::RenderConfig,
+    ) -> Result<String, mmdflux::RenderError> = mmdflux::mmds::render_input;
+    let _render_output: fn(
+        &mmdflux::mmds::MmdsOutput,
+        mmdflux::OutputFormat,
+        &mmdflux::RenderConfig,
+    ) -> Result<String, mmdflux::RenderError> = mmdflux::mmds::render_output;
+    let _generate_mermaid_from_mmds_str: fn(
+        &str,
+    )
+        -> Result<String, mmdflux::mmds::MmdsGenerationError> =
+        mmdflux::mmds::generate_mermaid_from_mmds_str;
 }
 
 #[test]
-fn layered_kernel_no_longer_reexports_graph_owned_grid_layout_config() {
-    let layered_source = repo_file("src/engines/graph/algorithms/layered/mod.rs");
-    assert!(
-        !layered_source.contains("pub use grid_layout_config::GridLayoutConfig;"),
-        "GridLayoutConfig should be owned only by mmdflux::graph::grid, not re-exported through layered"
-    );
-}
+fn mmds_module_hides_geometry_coupled_helpers() {
+    let source = repo_file("src/mmds/mod.rs");
 
-#[test]
-fn graph_grid_exposes_grid_layout_surface() {
-    use mmdflux::graph::grid::{
-        GridLayout, GridLayoutConfig, NodeBounds, geometry_to_grid_layout_with_routed,
-    };
-
-    let _ = GridLayoutConfig::default();
-    let _ = std::any::type_name::<GridLayout>();
-    let _ = std::any::type_name::<NodeBounds>();
-    let _ = geometry_to_grid_layout_with_routed;
-}
-
-#[test]
-fn graph_grid_exposes_grid_routing_surface() {
-    use mmdflux::graph::grid::{RoutedEdge, Segment, route_all_edges};
-
-    let _ = std::any::type_name::<RoutedEdge>();
-    let _ = std::any::type_name::<Segment>();
-    let _ = route_all_edges;
-}
-
-#[test]
-fn render_graph_text_namespace_exposes_text_drawing_helpers() {
-    use mmdflux::render::graph::text::{
-        render_all_edges_with_labels, render_node, render_text_from_grid_layout,
-    };
-
-    let _ = render_node;
-    let _ = render_all_edges_with_labels;
-    let _ = render_text_from_grid_layout;
-}
-
-#[test]
-fn render_text_namespace_exposes_shared_canvas_and_charset() {
-    use mmdflux::render::text::{Canvas, CharSet, ColorWhen, TextColorMode};
-
-    let _ = Canvas::new(4, 2);
-    let _ = CharSet::unicode();
-    let _ = ColorWhen::Auto;
-    let _ = TextColorMode::Plain;
-}
-
-#[test]
-fn crate_root_exports_registry_builtins_but_not_removed_advanced_helpers() {
-    let modules = public_modules_for_test();
-    let exports = public_exports_for_test();
-
-    assert!(
-        modules.contains("registry_builtins"),
-        "registry_builtins should remain an explicit top-level advanced API module"
-    );
-
-    assert_exports_exclude(
-        &exports,
-        &["snap_path_to_grid_preview", "intersect", "default_registry"],
-        "the crate-root export surface",
-    );
-}
-
-#[test]
-fn low_level_graph_engine_api_is_accessible_from_explicit_namespace() {
-    let flowchart = mmdflux::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();
-    let diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
-    let registry = mmdflux::engines::graph::registry::GraphEngineRegistry::default();
-    let engine_id =
-        mmdflux::EngineAlgorithmId::new(mmdflux::EngineId::Flux, mmdflux::AlgorithmId::Layered);
-    let engine = registry.get_solver(engine_id).unwrap();
-    let request = mmdflux::engines::graph::contracts::GraphSolveRequest::new(
-        mmdflux::engines::graph::algorithms::layered::MeasurementMode::Grid,
-        mmdflux::engines::graph::contracts::GraphGeometryContract::Canonical,
-        mmdflux::GeometryLevel::Layout,
-        None,
-    );
-    let config = mmdflux::engines::graph::contracts::EngineConfig::Layered(Default::default());
-    let result = engine.solve(&diagram, &config, &request).unwrap();
-
-    assert_eq!(result.engine_id, engine_id);
-    assert!(!result.geometry.nodes.is_empty());
-}
-
-#[test]
-fn renamed_graph_measurement_and_layered_mode_api_are_accessible() {
-    let metrics = mmdflux::graph::measure::default_proportional_text_metrics();
-    let _canonical = mmdflux::engines::graph::contracts::GraphGeometryContract::Canonical;
-    let _visual = mmdflux::engines::graph::contracts::GraphGeometryContract::Visual;
-    let _mode = mmdflux::engines::graph::algorithms::layered::MeasurementMode::Proportional(
-        metrics.clone(),
-    );
-    let _grid = mmdflux::engines::graph::algorithms::layered::MeasurementMode::Grid;
-    let _node_dims = mmdflux::graph::measure::grid_node_dimensions(
-        &Node::new("A").with_label("A"),
-        Direction::TopDown,
-    );
-    let _label_dims = mmdflux::graph::measure::grid_edge_label_dimensions("edge");
-    let _float_dims = mmdflux::graph::measure::proportional_node_dimensions(
-        &metrics,
-        &Node::new("B").with_label("B"),
-        Direction::TopDown,
-    );
-}
-
-#[test]
-fn text_replay_module_is_removed() {
-    let render_graph_source = repo_file("src/render/graph/mod.rs");
-    assert!(
-        !render_graph_source.contains("pub mod text_replay;"),
-        "render::graph should stop exporting the mixed text_replay namespace"
-    );
-}
-
-#[test]
-fn routed_svg_api_is_accessible() {
-    let _f: fn(
-        &mmdflux::Diagram,
-        &mmdflux::graph::geometry::RoutedGraphGeometry,
-        &mmdflux::render::graph::SvgRenderOptions,
-    ) -> String = mmdflux::render::graph::render_svg_from_routed_geometry;
-}
-
-#[test]
-fn render_only_geometry_api_works() {
-    let mut diagram = Diagram::new(Direction::LeftRight);
-    diagram.add_node(Node::new("A").with_shape(Shape::Rectangle));
-    diagram.add_node(Node::new("B").with_shape(Shape::Rectangle));
-    diagram.add_edge(Edge::new("A", "B"));
-
-    let geometry = GraphGeometry {
-        nodes: HashMap::from([
-            (
-                "A".to_string(),
-                PositionedNode {
-                    id: "A".to_string(),
-                    rect: FRect::new(0.0, 0.0, 9.0, 3.0),
-                    shape: Shape::Rectangle,
-                    label: "A".to_string(),
-                    parent: None,
-                },
-            ),
-            (
-                "B".to_string(),
-                PositionedNode {
-                    id: "B".to_string(),
-                    rect: FRect::new(20.0, 0.0, 9.0, 3.0),
-                    shape: Shape::Rectangle,
-                    label: "B".to_string(),
-                    parent: None,
-                },
-            ),
-        ]),
-        edges: vec![LayoutEdge {
-            index: 0,
-            from: "A".to_string(),
-            to: "B".to_string(),
-            waypoints: vec![],
-            label_position: None,
-            label_side: None,
-            from_subgraph: None,
-            to_subgraph: None,
-            layout_path_hint: None,
-            preserve_orthogonal_topology: false,
-        }],
-        subgraphs: HashMap::new(),
-        self_edges: vec![],
-        direction: Direction::LeftRight,
-        node_directions: HashMap::from([
-            ("A".to_string(), Direction::LeftRight),
-            ("B".to_string(), Direction::LeftRight),
-        ]),
-        bounds: FRect::new(0.0, 0.0, 30.0, 6.0),
-        reversed_edges: vec![],
-        engine_hints: Some(EngineHints::Layered(LayeredHints {
-            node_ranks: HashMap::from([("A".to_string(), 0), ("B".to_string(), 1)]),
-            rank_to_position: HashMap::from([(0, (0.0, 3.0)), (1, (20.0, 23.0))]),
-            edge_waypoints: HashMap::new(),
-            label_positions: HashMap::new(),
-        })),
-        grid_projection: None,
-        rerouted_edges: HashSet::new(),
-        enhanced_backward_routing: false,
-    };
-
-    let text = render_text_from_geometry(&diagram, &geometry, None, &TextRenderOptions::default());
-    assert!(text.contains('A'));
-    assert!(text.contains('B'));
-
-    let svg = render_svg_from_geometry(&diagram, &geometry, &SvgRenderOptions::default());
-    assert!(svg.contains("<svg"));
-}
-
-#[test]
-fn render_text_geometry_api_does_not_require_engine_hints() {
-    let mut diagram = Diagram::new(Direction::LeftRight);
-    diagram.add_node(Node::new("A").with_shape(Shape::Rectangle));
-    diagram.add_node(Node::new("B").with_shape(Shape::Rectangle));
-    diagram.add_edge(Edge::new("A", "B"));
-
-    let geometry = GraphGeometry {
-        nodes: HashMap::from([
-            (
-                "A".to_string(),
-                PositionedNode {
-                    id: "A".to_string(),
-                    rect: FRect::new(0.0, 0.0, 9.0, 3.0),
-                    shape: Shape::Rectangle,
-                    label: "A".to_string(),
-                    parent: None,
-                },
-            ),
-            (
-                "B".to_string(),
-                PositionedNode {
-                    id: "B".to_string(),
-                    rect: FRect::new(20.0, 0.0, 9.0, 3.0),
-                    shape: Shape::Rectangle,
-                    label: "B".to_string(),
-                    parent: None,
-                },
-            ),
-        ]),
-        edges: vec![LayoutEdge {
-            index: 0,
-            from: "A".to_string(),
-            to: "B".to_string(),
-            waypoints: vec![],
-            label_position: None,
-            label_side: None,
-            from_subgraph: None,
-            to_subgraph: None,
-            layout_path_hint: None,
-            preserve_orthogonal_topology: false,
-        }],
-        subgraphs: HashMap::new(),
-        self_edges: vec![],
-        direction: Direction::LeftRight,
-        node_directions: HashMap::from([
-            ("A".to_string(), Direction::LeftRight),
-            ("B".to_string(), Direction::LeftRight),
-        ]),
-        bounds: FRect::new(0.0, 0.0, 30.0, 6.0),
-        reversed_edges: vec![],
-        engine_hints: None,
-        grid_projection: None,
-        rerouted_edges: HashSet::new(),
-        enhanced_backward_routing: false,
-    };
-
-    let text = render_text_from_geometry(&diagram, &geometry, None, &TextRenderOptions::default());
-    assert!(text.contains('A'));
-    assert!(text.contains('B'));
-}
-
-#[test]
-fn core_types_accessible() {
-    let _ = DiagramType::Flowchart;
-    let _ = detect_diagram_type("graph TD\nA-->B");
-    let _ = ParseError::UnexpectedEof;
-
-    let mut diagram = Diagram::new(Direction::TopDown);
-    diagram.add_node(Node::new("A").with_shape(Shape::Rectangle));
-    diagram.add_node(Node::new("B"));
-    diagram.add_edge(Edge::new("A", "B"));
-}
-
-#[test]
-fn layered_engine_boundary_lives_under_engines_graph() {
-    let mut graph = mmdflux::engines::graph::algorithms::layered::DiGraph::new();
-    graph.add_node("A", (10.0, 10.0));
-    graph.add_node("B", (10.0, 10.0));
-    graph.add_edge("A", "B");
-
-    let _ = mmdflux::engines::graph::algorithms::layered::Ranker::NetworkSimplex;
-    let result = mmdflux::engines::graph::algorithms::layered::layout(
-        &graph,
-        &mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
-        |_, dims| *dims,
-    );
-
-    assert!(result.nodes.contains_key(
-        &mmdflux::engines::graph::algorithms::layered::NodeId::from("A")
-    ));
-    assert!(result.nodes.contains_key(
-        &mmdflux::engines::graph::algorithms::layered::NodeId::from("B")
-    ));
-}
-
-#[test]
-fn engine_adapters_live_in_explicit_modules() {
-    let _ = mmdflux::engines::graph::flux::FluxLayeredEngine::text();
-    let _ = mmdflux::engines::graph::mermaid::MermaidLayeredEngine::new();
+    for forbidden in [
+        "to_mmds_layout",
+        "to_mmds_layout_typed",
+        "to_mmds_routed",
+        "to_mmds_routed_typed",
+        "to_mmds_json",
+        "to_mmds_json_typed",
+        "hydrate_graph_geometry_from_mmds",
+        "hydrate_graph_geometry_from_output",
+        "hydrate_graph_geometry_from_output_with_diagram",
+        "hydrate_routed_geometry_from_mmds",
+        "hydrate_routed_geometry_from_output",
+    ] {
+        assert!(
+            !source.contains(forbidden),
+            "{forbidden} should no longer be part of the public mmds surface"
+        );
+    }
 }

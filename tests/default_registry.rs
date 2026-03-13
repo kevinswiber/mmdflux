@@ -1,4 +1,4 @@
-use mmdflux::registry_builtins::default_registry;
+use mmdflux::builtins::default_registry;
 
 #[test]
 fn default_registry_detects_flowchart() {
