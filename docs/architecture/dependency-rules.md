@@ -14,6 +14,17 @@ contributors:
 
 Guard tests should fail when the code drifts away from these rules.
 
+The repo also locks in three directory-module shell replacements for former
+mega-files. These shells are part of the steady-state layout and should not be
+collapsed back into singleton roots:
+
+- `src/render/graph/svg/edges/mod.rs` is the directory-module shell replacing
+  the removed `src/render/graph/svg/edges.rs`
+- `src/graph/grid/routing/mod.rs` is the directory-module shell replacing the
+  removed `src/graph/grid/routing.rs`
+- `src/graph/routing/orthogonal/mod.rs` is the directory-module shell
+  replacing the removed `src/graph/routing/orthogonal.rs`
+
 ## Core Rules
 
 1. **frontends own input formats** — Source-format detection lives in

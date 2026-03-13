@@ -364,6 +364,10 @@ fn dependency_rules_file_exists_and_lists_current_ownership_boundaries() {
         "timeline::sequence",
         "render::graph::text",
         "render_svg_from_routed_geometry",
+        "directory-module shell",
+        "src/render/graph/svg/edges/mod.rs",
+        "src/graph/grid/routing/mod.rs",
+        "src/graph/routing/orthogonal/mod.rs",
     ] {
         assert!(
             rules.contains(required),
@@ -885,6 +889,32 @@ fn svg_edges_uses_directory_module_shell() {
 
     assert!(!repo_root.join("src/render/graph/svg/edges.rs").exists());
     assert!(repo_root.join("src/render/graph/svg/edges/mod.rs").exists());
+}
+
+#[test]
+fn remaining_mega_files_have_directory_module_replacements() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for (old, replacement) in [
+        (
+            "src/render/graph/svg/edges.rs",
+            "src/render/graph/svg/edges/mod.rs",
+        ),
+        ("src/graph/grid/routing.rs", "src/graph/grid/routing/mod.rs"),
+        (
+            "src/graph/routing/orthogonal.rs",
+            "src/graph/routing/orthogonal/mod.rs",
+        ),
+    ] {
+        assert!(
+            !repo_root.join(old).exists(),
+            "{old} should stay removed once the directory-module replacement lands"
+        );
+        assert!(
+            repo_root.join(replacement).exists(),
+            "{replacement} should remain the replacement shell for removed mega-file {old}"
+        );
+    }
 }
 
 #[test]
