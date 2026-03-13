@@ -52,7 +52,6 @@ impl DiagramInstance for PieInstance {
     ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Box::new(ParsedPie {
             pie: crate::mermaid::parse_pie(input)?,
-            source: input.to_string(),
         }))
     }
 
@@ -63,14 +62,10 @@ impl DiagramInstance for PieInstance {
 
 struct ParsedPie {
     pie: Pie,
-    source: String,
 }
 
 impl ParsedDiagram for ParsedPie {
     fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
-        Ok(PreparedDiagram::Pie(PreparedPie {
-            pie: self.pie,
-            source: self.source,
-        }))
+        Ok(PreparedDiagram::Pie(PreparedPie { pie: self.pie }))
     }
 }

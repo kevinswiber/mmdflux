@@ -27,14 +27,12 @@ pub struct PreparedTimeline {
 #[derive(Debug, Clone)]
 pub struct PreparedPie {
     pub pie: Pie,
-    pub source: String,
 }
 
 /// Prepared payload for packet diagrams.
 #[derive(Debug, Clone)]
 pub struct PreparedPacket {
     pub packet: Packet,
-    pub source: String,
 }
 
 /// Prepared diagram payload returned by the registry contract.
@@ -48,8 +46,8 @@ pub enum PreparedDiagram {
     Timeline(PreparedTimeline),
     /// Info diagrams render through their runtime-owned family renderer.
     Info,
-    /// Pie diagrams carry parsed state plus source for current text rendering.
+    /// Pie diagrams carry parsed state for chart-family rendering.
     Pie(PreparedPie),
-    /// Packet diagrams carry parsed state plus source for current text rendering.
+    /// Packet diagrams carry parsed state for table-family rendering.
     Packet(PreparedPacket),
 }

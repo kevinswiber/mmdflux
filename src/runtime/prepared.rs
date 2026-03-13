@@ -28,7 +28,7 @@ pub(in crate::runtime) fn render_prepared(
             Ok(sequence::render(&seq_layout, &charset))
         }
         PreparedDiagram::Info => Ok(info::render()),
-        PreparedDiagram::Pie(prepared_pie) => Ok(pie::render(&prepared_pie.source)),
-        PreparedDiagram::Packet(prepared_packet) => Ok(packet::render(&prepared_packet.source)),
+        PreparedDiagram::Pie(prepared_pie) => Ok(pie::render(&prepared_pie.pie)),
+        PreparedDiagram::Packet(prepared_packet) => Ok(packet::render(&prepared_packet.packet)),
     }
 }

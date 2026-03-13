@@ -52,7 +52,6 @@ impl DiagramInstance for PacketInstance {
     ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Box::new(ParsedPacket {
             packet: crate::mermaid::parse_packet(input)?,
-            source: input.to_string(),
         }))
     }
 
@@ -63,14 +62,12 @@ impl DiagramInstance for PacketInstance {
 
 struct ParsedPacket {
     packet: Packet,
-    source: String,
 }
 
 impl ParsedDiagram for ParsedPacket {
     fn prepare(self: Box<Self>, _config: &RenderConfig) -> Result<PreparedDiagram, RenderError> {
         Ok(PreparedDiagram::Packet(PreparedPacket {
             packet: self.packet,
-            source: self.source,
         }))
     }
 }
