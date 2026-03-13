@@ -6,7 +6,6 @@ mod cross_pipeline;
 // Transitional staging while owner-local suites are still being rehomed.
 mod dagre_parity;
 mod integration;
-mod mmds_input;
 mod model_order;
 mod routed_geometry;
 mod support;
