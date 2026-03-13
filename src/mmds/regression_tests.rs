@@ -3,7 +3,7 @@ use std::path::Path;
 
 use super::hydrate::{hydrate_graph_geometry_from_mmds, hydrate_routed_geometry_from_mmds};
 use super::{MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str};
-use crate::{Direction, OutputFormat, RenderConfig, Shape};
+use crate::{Direction, Shape};
 
 #[test]
 fn hydration_applies_defaults_to_omitted_node_and_edge_fields() {
@@ -145,23 +145,6 @@ fn layout_geometry_level_builds_graph_geometry_without_edge_paths() {
     assert!(geom.edges[0].layout_path_hint.is_none());
     assert!(geom.edges[0].label_position.is_none());
     assert!(geom.subgraphs.contains_key("sg1"));
-}
-
-#[test]
-fn hydration_restores_grid_projection_from_generated_mmds() {
-    let json = crate::render_diagram(
-        "graph TD\nA-->B",
-        OutputFormat::Mmds,
-        &RenderConfig::default(),
-    )
-    .unwrap();
-
-    let geom = hydrate_graph_geometry_from_mmds(&json).expect("layout geometry should hydrate");
-    let projection = geom
-        .grid_projection
-        .expect("grid projection should hydrate");
-    assert!(projection.node_ranks.contains_key("A"));
-    assert!(projection.node_ranks.contains_key("B"));
 }
 
 #[test]

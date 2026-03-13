@@ -14,8 +14,24 @@ use mmdflux::graph::geometry::*;
 use mmdflux::graph::measure::default_proportional_text_metrics;
 use mmdflux::mermaid::parse_flowchart;
 
-use super::orthogonal::path_utils::snap_path_to_grid as snap_path_to_grid_preview;
-use super::{EdgeRouting, route_graph_geometry};
+use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+
+fn snap_path_to_grid_preview(path: &[FPoint], scale_x: f64, scale_y: f64) -> Vec<FPoint> {
+    let sx = if scale_x.abs() < f64::EPSILON {
+        1.0
+    } else {
+        scale_x.abs()
+    };
+    let sy = if scale_y.abs() < f64::EPSILON {
+        1.0
+    } else {
+        scale_y.abs()
+    };
+
+    path.iter()
+        .map(|p| FPoint::new((p.x / sx).round() * sx, (p.y / sy).round() * sy))
+        .collect()
+}
 
 /// Flux-layered LayoutConfig with all enhancements enabled.
 fn flux_layout_config() -> EngineConfig {

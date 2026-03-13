@@ -22,8 +22,6 @@ pub use self::stage::{EdgeRouting, route_graph_geometry};
 use crate::graph::Diagram;
 #[cfg(test)]
 use crate::graph::geometry::*;
-#[cfg(test)]
-mod regression_tests;
 
 #[cfg(test)]
 mod tests {
