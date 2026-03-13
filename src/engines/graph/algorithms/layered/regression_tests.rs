@@ -14,6 +14,9 @@ use super::support::{
     make_space_for_labeled_edges, position_self_edges, select_label_sides, switch_label_dummies,
     translate_layout_result,
 };
+use super::types::{
+    DummyChain, DummyNode, DummyType, EdgeLabelInfo, LabelPos, LabelSide, WaypointWithRank,
+};
 use super::*;
 
 /// Test helper: run the layout pipeline up to rank assignment and count forward edges per gap.
@@ -513,8 +516,8 @@ fn make_space_for_labeled_edges_only_bumps_labeled() {
     lg.edge_minlens[2] = 2;
 
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(0, normalize::EdgeLabelInfo::new(50.0, 5.0));
-    edge_labels.insert(2, normalize::EdgeLabelInfo::new(50.0, 5.0));
+    edge_labels.insert(0, EdgeLabelInfo::new(50.0, 5.0));
+    edge_labels.insert(2, EdgeLabelInfo::new(50.0, 5.0));
 
     make_space_for_labeled_edges(&mut lg, &edge_labels);
 
@@ -529,8 +532,6 @@ fn make_space_for_labeled_edges_only_bumps_labeled() {
 /// Returns graph with A at rank 0, B at rank `span`, and `span-1` dummies between.
 /// The label dummy is at the midpoint rank.
 fn build_graph_with_long_labeled_edge(span: usize) -> LayoutGraph {
-    use normalize::{DummyChain, DummyNode};
-
     let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
     graph.add_node("A", (40.0, 20.0));
     graph.add_node("B", (40.0, 20.0));
@@ -554,7 +555,7 @@ fn build_graph_with_long_labeled_edge(span: usize) -> LayoutGraph {
         let (w, h) = if is_label { (30.0, 14.0) } else { (0.0, 0.0) };
 
         let dummy_node = if is_label {
-            DummyNode::edge_label(0, rank, w, h, normalize::LabelPos::Center)
+            DummyNode::edge_label(0, rank, w, h, LabelPos::Center)
         } else {
             DummyNode::edge(0, rank)
         };
@@ -632,13 +633,13 @@ fn switch_moves_label_to_wider_layer() {
     // Verify the old label dummy is now Edge type with 0x0 dimensions
     let old_label_id = &lg.dummy_chains[0].dummy_ids[2];
     let old_dummy = lg.dummy_nodes.get(old_label_id).unwrap();
-    assert_eq!(old_dummy.dummy_type, normalize::DummyType::Edge);
+    assert_eq!(old_dummy.dummy_type, DummyType::Edge);
     assert_eq!(lg.dimensions[lg.node_index[old_label_id]], (0.0, 0.0));
 
     // Verify the new label dummy is EdgeLabel type with label dimensions
     let new_label_id = &lg.dummy_chains[0].dummy_ids[3];
     let new_dummy = lg.dummy_nodes.get(new_label_id).unwrap();
-    assert_eq!(new_dummy.dummy_type, normalize::DummyType::EdgeLabel);
+    assert_eq!(new_dummy.dummy_type, DummyType::EdgeLabel);
     assert_eq!(lg.dimensions[lg.node_index[new_label_id]], (30.0, 14.0));
 }
 
@@ -698,7 +699,7 @@ fn select_label_sides_single_label_stays_center() {
     graph.add_edge("A", "C");
 
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(0, normalize::EdgeLabelInfo::new(30.0, 10.0));
+    edge_labels.insert(0, EdgeLabelInfo::new(30.0, 10.0));
 
     let config = LayoutConfig {
         per_edge_label_spacing: true,
@@ -723,7 +724,7 @@ fn select_label_sides_single_label_stays_center() {
         if dummy.is_label() {
             assert_eq!(
                 dummy.label_side,
-                normalize::LabelSide::Center,
+                LabelSide::Center,
                 "single label dummy should stay Center"
             );
         }
@@ -742,8 +743,8 @@ fn select_label_sides_two_parallel_labels_get_above_below() {
     graph.add_edge("B", "C");
 
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(0, normalize::EdgeLabelInfo::new(30.0, 10.0));
-    edge_labels.insert(1, normalize::EdgeLabelInfo::new(30.0, 10.0));
+    edge_labels.insert(0, EdgeLabelInfo::new(30.0, 10.0));
+    edge_labels.insert(1, EdgeLabelInfo::new(30.0, 10.0));
 
     let config = LayoutConfig {
         per_edge_label_spacing: true,
@@ -764,21 +765,21 @@ fn select_label_sides_two_parallel_labels_get_above_below() {
     select_label_sides(&mut lg);
 
     // Collect label dummy sides
-    let mut sides: Vec<normalize::LabelSide> = lg
+    let mut sides: Vec<LabelSide> = lg
         .dummy_nodes
         .values()
         .filter(|d| d.is_label())
         .map(|d| d.label_side)
         .collect();
     sides.sort_by_key(|s| match s {
-        normalize::LabelSide::Above => 0,
-        normalize::LabelSide::Center => 1,
-        normalize::LabelSide::Below => 2,
+        LabelSide::Above => 0,
+        LabelSide::Center => 1,
+        LabelSide::Below => 2,
     });
 
     assert_eq!(
         sides,
-        vec![normalize::LabelSide::Above, normalize::LabelSide::Below],
+        vec![LabelSide::Above, LabelSide::Below],
         "two label dummies in same layer should get Above and Below"
     );
 }
@@ -798,7 +799,7 @@ fn per_edge_spacing_unlabeled_edge_has_no_dummy() {
     graph.add_edge("B", "C"); // edge 1: unlabeled
 
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(0, normalize::EdgeLabelInfo::new(50.0, 5.0));
+    edge_labels.insert(0, EdgeLabelInfo::new(50.0, 5.0));
 
     // Per-edge mode: unlabeled edge should NOT get a dummy node
     let config_per_edge = LayoutConfig {
@@ -870,7 +871,7 @@ fn test_bk_allocates_space_for_label_dummy() {
 
     // Label on A->B with significant width
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(0, normalize::EdgeLabelInfo::new(50.0, 5.0));
+    edge_labels.insert(0, EdgeLabelInfo::new(50.0, 5.0));
 
     let config = LayoutConfig::default();
     let result = layout_with_labels(&graph, &config, |_, dims| *dims, &edge_labels);
@@ -903,7 +904,7 @@ fn test_denorm_extracts_label_position_between_nodes() {
     graph.add_edge("A", "B");
 
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(0, normalize::EdgeLabelInfo::new(50.0, 20.0));
+    edge_labels.insert(0, EdgeLabelInfo::new(50.0, 20.0));
 
     let config = LayoutConfig::default();
     let result = layout_with_labels(&graph, &config, |_, dims| *dims, &edge_labels);
@@ -932,7 +933,7 @@ fn test_layout_with_labels_short_edge_gets_label_position() {
     graph.add_edge("A", "B"); // Edge 0 - labeled
 
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(0, normalize::EdgeLabelInfo::new(50.0, 20.0));
+    edge_labels.insert(0, EdgeLabelInfo::new(50.0, 20.0));
 
     let config = LayoutConfig::default();
     let result = layout_with_labels(&graph, &config, |_, dims| *dims, &edge_labels);
@@ -956,7 +957,7 @@ fn test_layout_with_labels() {
     graph.add_edge("A", "C"); // Edge 2 - long edge with label
 
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(2, normalize::EdgeLabelInfo::new(50.0, 20.0));
+    edge_labels.insert(2, EdgeLabelInfo::new(50.0, 20.0));
 
     let config = LayoutConfig::default();
     let result = layout_with_labels(&graph, &config, |_, dims| *dims, &edge_labels);
@@ -991,8 +992,8 @@ fn parallel_labeled_edges_get_distinct_sides() {
     graph.add_edge("B", "C"); // Edge 1 - labeled "right"
 
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(0, normalize::EdgeLabelInfo::new(30.0, 14.0));
-    edge_labels.insert(1, normalize::EdgeLabelInfo::new(30.0, 14.0));
+    edge_labels.insert(0, EdgeLabelInfo::new(30.0, 14.0));
+    edge_labels.insert(1, EdgeLabelInfo::new(30.0, 14.0));
 
     let config = LayoutConfig {
         per_edge_label_spacing: true,
@@ -1441,8 +1442,6 @@ fn test_translate_layout_result_uses_nodes_not_edge_points() {
 
 #[test]
 fn test_translate_layout_result_shifts_all_fields() {
-    use super::normalize::WaypointWithRank;
-
     let mut result = LayoutResult {
         nodes: HashMap::from([(
             "A".into(),
@@ -1671,8 +1670,8 @@ fn test_layout_multi_edge_with_labels() {
     graph.add_edge("A", "B");
 
     let mut edge_labels = HashMap::new();
-    edge_labels.insert(0, normalize::EdgeLabelInfo::new(30.0, 10.0));
-    edge_labels.insert(1, normalize::EdgeLabelInfo::new(30.0, 10.0));
+    edge_labels.insert(0, EdgeLabelInfo::new(30.0, 10.0));
+    edge_labels.insert(1, EdgeLabelInfo::new(30.0, 10.0));
 
     let config = LayoutConfig::default();
     let result = layout_with_labels(&graph, &config, |_, dims| *dims, &edge_labels);

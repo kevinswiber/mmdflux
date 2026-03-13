@@ -3,9 +3,10 @@
 use std::collections::{HashMap, HashSet};
 
 use super::graph::LayoutGraph;
+use super::types::{DummyNode, DummyType, EdgeLabelInfo, LabelSide};
 use super::{
     Direction, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Rect, SelfEdge,
-    SelfEdgeLayout, normalize, rank,
+    SelfEdgeLayout, rank,
 };
 
 pub(crate) fn make_space_for_edge_labels(lg: &mut LayoutGraph) {
@@ -22,7 +23,7 @@ pub(crate) fn make_space_for_edge_labels(lg: &mut LayoutGraph) {
 /// when only a few edges have labels.
 pub(crate) fn make_space_for_labeled_edges(
     lg: &mut LayoutGraph,
-    edge_labels: &HashMap<usize, normalize::EdgeLabelInfo>,
+    edge_labels: &HashMap<usize, EdgeLabelInfo>,
 ) {
     for (edge_idx, minlen) in lg.edge_minlens.iter_mut().enumerate() {
         if edge_labels.contains_key(&edge_idx) {
@@ -84,12 +85,12 @@ pub(crate) fn switch_label_dummies(lg: &mut LayoutGraph, strategy: LabelDummyStr
                 let label_pos = label_dummy.label_pos;
 
                 if let Some(d) = lg.dummy_nodes.get_mut(&label_id) {
-                    d.dummy_type = normalize::DummyType::Edge;
+                    d.dummy_type = DummyType::Edge;
                     d.width = 0.0;
                     d.height = 0.0;
                 }
                 if let Some(d) = lg.dummy_nodes.get_mut(&target_id) {
-                    d.dummy_type = normalize::DummyType::EdgeLabel;
+                    d.dummy_type = DummyType::EdgeLabel;
                     d.width = label_w;
                     d.height = label_h;
                     d.label_pos = label_pos;
@@ -116,8 +117,6 @@ pub(crate) fn switch_label_dummies(lg: &mut LayoutGraph, strategy: LabelDummyStr
 ///
 /// Runs after `order::run()` which establishes the definitive node ordering.
 pub(crate) fn select_label_sides(lg: &mut LayoutGraph) {
-    use normalize::{DummyType, LabelSide};
-
     // Build layers from current ranks and ordering
     let layers = rank::by_rank_filtered(lg, |node| lg.ranks[node] >= 0);
     // Sort each layer by order
@@ -218,10 +217,8 @@ pub(crate) fn insert_self_edge_dummies(lg: &mut LayoutGraph) {
         lg.order.push(node_order + 1);
 
         // Register as dummy
-        lg.dummy_nodes.insert(
-            dummy_id,
-            normalize::DummyNode::edge(se.orig_edge_index, node_rank),
-        );
+        lg.dummy_nodes
+            .insert(dummy_id, DummyNode::edge(se.orig_edge_index, node_rank));
 
         lg.self_edges[i].dummy_index = Some(dummy_idx);
     }
@@ -643,7 +640,7 @@ pub(crate) fn compute_rank_sep_overrides(
 pub(crate) fn label_dummy_gap_ranks(lg: &LayoutGraph) -> HashSet<i32> {
     let mut gaps = HashSet::new();
     for (id, dummy) in &lg.dummy_nodes {
-        if dummy.dummy_type == normalize::DummyType::EdgeLabel
+        if dummy.dummy_type == DummyType::EdgeLabel
             && let Some(&idx) = lg.node_index.get(id)
         {
             let rank = lg.ranks[idx];

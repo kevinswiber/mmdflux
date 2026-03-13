@@ -1362,7 +1362,7 @@ fn debug_dump_border_blocks(graph: &LayoutGraph, conflicts: &ConflictSet) {
 mod tests {
     use super::*;
     use crate::engines::graph::algorithms::layered::graph::{BorderType, DiGraph};
-    use crate::engines::graph::algorithms::layered::normalize::{
+    use crate::engines::graph::algorithms::layered::types::{
         DummyNode, DummyType, LabelPos, LabelSide,
     };
     use crate::engines::graph::algorithms::layered::{LayoutConfig, order, rank};

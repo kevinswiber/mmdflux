@@ -7,7 +7,7 @@
 use std::collections::{BTreeSet, VecDeque};
 
 use super::graph::LayoutGraph;
-use super::rank;
+use super::rank_core;
 
 /// Compute slack for edge at `edge_idx`: rank(target) - rank(source) - minlen.
 /// A tight edge has slack = 0.
@@ -369,12 +369,12 @@ pub(crate) fn run(graph: &mut LayoutGraph) {
     let edge_count = graph.effective_edges().len();
     if n <= 1 || edge_count == 0 {
         // No optimization possible — just use longest-path
-        rank::longest_path(graph);
+        rank_core::longest_path(graph);
         return;
     }
 
     // Step 1: Get initial feasible ranking via longest-path
-    rank::longest_path(graph);
+    rank_core::longest_path(graph);
 
     // Step 2: Build feasible spanning tree of tight edges
     let mut tree = feasible_tree(graph);
@@ -401,7 +401,7 @@ pub(crate) fn run(graph: &mut LayoutGraph) {
     }
 
     // Normalize ranks to start at 0
-    rank::normalize(graph);
+    rank_core::normalize(graph);
 }
 
 /// Find a tree edge with negative cut value. Returns the child node of that edge.
@@ -566,6 +566,7 @@ fn update_ranks(tree: &SpanningTree, graph: &mut LayoutGraph) {
 mod tests {
     use super::*;
     use crate::engines::graph::algorithms::layered::graph::{DiGraph, LayoutGraph};
+    use crate::engines::graph::algorithms::layered::rank;
 
     fn make_chain_graph() -> LayoutGraph {
         let mut g: DiGraph<()> = DiGraph::new();

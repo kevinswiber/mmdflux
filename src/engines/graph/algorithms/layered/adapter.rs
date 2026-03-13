@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use super::types::LabelSide;
 use super::{LayoutResult, Point, Rect};
 use crate::graph::Diagram;
 use crate::graph::direction_policy::build_node_directions;
@@ -39,11 +40,11 @@ impl From<Rect> for FRect {
     }
 }
 
-fn map_label_side(side: super::normalize::LabelSide) -> EdgeLabelSide {
+fn map_label_side(side: LabelSide) -> EdgeLabelSide {
     match side {
-        super::normalize::LabelSide::Above => EdgeLabelSide::Above,
-        super::normalize::LabelSide::Below => EdgeLabelSide::Below,
-        super::normalize::LabelSide::Center => EdgeLabelSide::Center,
+        LabelSide::Above => EdgeLabelSide::Above,
+        LabelSide::Below => EdgeLabelSide::Below,
+        LabelSide::Center => EdgeLabelSide::Center,
     }
 }
 

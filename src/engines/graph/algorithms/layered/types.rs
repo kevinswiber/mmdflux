@@ -2,8 +2,6 @@
 
 use std::collections::HashMap;
 
-use super::normalize::WaypointWithRank;
-
 /// Unique identifier for a node.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct NodeId(pub String);
@@ -78,6 +76,16 @@ pub struct Point {
     pub y: f64,
 }
 
+/// A waypoint with its associated rank (layer) information.
+/// Used for coordinate transformation from layout space to draw space.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WaypointWithRank {
+    /// The position in the layout's coordinate system.
+    pub point: Point,
+    /// The rank (layer) this waypoint belongs to.
+    pub rank: i32,
+}
+
 /// A rectangle (bounding box).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Rect {
@@ -93,6 +101,165 @@ impl Rect {
             x: self.x + self.width / 2.0,
             y: self.y + self.height / 2.0,
         }
+    }
+}
+
+/// The type of dummy node inserted during normalization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DummyType {
+    /// Regular dummy node with zero dimensions.
+    /// Used to break long edges into single-rank segments.
+    Edge,
+    /// Dummy node that carries an edge label.
+    /// Has non-zero dimensions based on the label text.
+    EdgeLabel,
+}
+
+/// Label position relative to the edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelPos {
+    /// Label positioned to the left of the edge.
+    Left,
+    /// Label centered on the edge.
+    #[default]
+    Center,
+    /// Label positioned to the right of the edge.
+    Right,
+}
+
+/// Vertical placement of a label relative to the edge line.
+///
+/// `Above` and `Below` place the label on one side of the edge to avoid
+/// overlaps when parallel edges have labels. `Center` places the label
+/// centered on the edge (default, matching dagre behavior).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelSide {
+    /// Label above the edge line.
+    Above,
+    /// Label below the edge line.
+    Below,
+    /// Label centered on the edge line.
+    #[default]
+    Center,
+}
+
+/// Metadata for a dummy node inserted during normalization.
+#[derive(Debug, Clone)]
+pub struct DummyNode {
+    /// The type of this dummy node.
+    pub dummy_type: DummyType,
+    /// Index of the original edge this dummy belongs to.
+    pub edge_index: usize,
+    /// The rank (layer) this dummy occupies.
+    pub rank: i32,
+    /// Width of the dummy (0 for Edge, label width for EdgeLabel).
+    pub width: f64,
+    /// Height of the dummy (0 for Edge, label height for EdgeLabel).
+    pub height: f64,
+    /// Label position (only meaningful for EdgeLabel dummies).
+    pub label_pos: LabelPos,
+    /// Label side: above, below, or centered on the edge line.
+    pub label_side: LabelSide,
+}
+
+impl DummyNode {
+    /// Create a new regular edge dummy with zero dimensions.
+    pub fn edge(edge_index: usize, rank: i32) -> Self {
+        Self {
+            dummy_type: DummyType::Edge,
+            edge_index,
+            rank,
+            width: 0.0,
+            height: 0.0,
+            label_pos: LabelPos::default(),
+            label_side: LabelSide::default(),
+        }
+    }
+
+    /// Create a new edge label dummy with the given dimensions.
+    pub fn edge_label(
+        edge_index: usize,
+        rank: i32,
+        width: f64,
+        height: f64,
+        label_pos: LabelPos,
+    ) -> Self {
+        Self {
+            dummy_type: DummyType::EdgeLabel,
+            edge_index,
+            rank,
+            width,
+            height,
+            label_pos,
+            label_side: LabelSide::default(),
+        }
+    }
+
+    /// Returns true if this is a label-carrying dummy.
+    pub fn is_label(&self) -> bool {
+        self.dummy_type == DummyType::EdgeLabel
+    }
+}
+
+/// A chain of dummy nodes representing a normalized long edge.
+///
+/// The chain starts at the source node and ends at the target node,
+/// with dummy nodes at each intermediate rank.
+#[derive(Debug, Clone)]
+pub struct DummyChain {
+    /// Index of the original edge in the input graph.
+    pub edge_index: usize,
+    /// IDs of the dummy nodes in this chain, in order from source to target.
+    /// Does not include the original source/target nodes.
+    pub dummy_ids: Vec<NodeId>,
+    /// Index of the label dummy within dummy_ids (if any).
+    pub label_dummy_index: Option<usize>,
+}
+
+impl DummyChain {
+    /// Create a new empty dummy chain for an edge.
+    pub fn new(edge_index: usize) -> Self {
+        Self {
+            edge_index,
+            dummy_ids: Vec::new(),
+            label_dummy_index: None,
+        }
+    }
+
+    /// Returns true if this chain contains a label dummy.
+    pub fn has_label(&self) -> bool {
+        self.label_dummy_index.is_some()
+    }
+}
+
+/// Information about edge label dimensions, used during normalization.
+#[derive(Debug, Clone, Default)]
+pub struct EdgeLabelInfo {
+    /// Width of the label in layout units.
+    pub width: f64,
+    /// Height of the label in layout units.
+    pub height: f64,
+    /// Preferred position of the label.
+    pub label_pos: LabelPos,
+    /// Edge stroke thickness for label offset computation.
+    pub thickness: f64,
+}
+
+impl EdgeLabelInfo {
+    /// Create new edge label info with the given dimensions.
+    pub fn new(width: f64, height: f64) -> Self {
+        Self {
+            width,
+            height,
+            label_pos: LabelPos::default(),
+            thickness: 1.0,
+        }
+    }
+
+    /// Set the label position.
+    pub fn with_pos(mut self, pos: LabelPos) -> Self {
+        self.label_pos = pos;
+        self
     }
 }
 
@@ -230,7 +397,7 @@ pub struct LayoutResult {
 
     /// Label side assignments for edges with labels.
     /// Key: original edge index, Value: Above/Below/Center.
-    pub label_sides: HashMap<usize, super::normalize::LabelSide>,
+    pub label_sides: HashMap<usize, LabelSide>,
 
     /// Bounding boxes for subgraphs (compound nodes).
     /// Key: subgraph node ID string, Value: bounding rectangle.

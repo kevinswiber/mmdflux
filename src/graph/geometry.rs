@@ -256,7 +256,7 @@ mod tests {
     use crate::Diagram;
     use crate::engines::graph::algorithms::layered;
     use crate::engines::graph::algorithms::layered::adapter::from_layered_layout;
-    use crate::engines::graph::algorithms::layered::normalize::WaypointWithRank;
+    use crate::engines::graph::algorithms::layered::types::WaypointWithRank;
     use crate::engines::graph::algorithms::layered::{
         EdgeLayout, NodeId, Point, Rect, SelfEdgeLayout,
     };

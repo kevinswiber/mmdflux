@@ -21,6 +21,7 @@ pub(crate) mod parent_dummy_chains;
 pub mod pipeline;
 pub(crate) mod position;
 pub(crate) mod rank;
+mod rank_core;
 #[cfg(test)]
 mod regression_tests;
 pub mod support;

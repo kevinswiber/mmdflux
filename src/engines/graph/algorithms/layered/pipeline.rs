@@ -10,6 +10,7 @@ use super::support::{
     make_space_for_labeled_edges, position_self_edges, select_label_sides, switch_label_dummies,
     translate_layout_result,
 };
+use super::types::EdgeLabelInfo;
 use super::{
     DiGraph, EdgeLayout, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Rect,
     acyclic, border, nesting, normalize, order, parent_dummy_chains, position, rank,
@@ -45,7 +46,7 @@ pub fn layout_with_labels<N, F>(
     graph: &DiGraph<N>,
     config: &LayoutConfig,
     get_dimensions: F,
-    edge_labels: &HashMap<usize, normalize::EdgeLabelInfo>,
+    edge_labels: &HashMap<usize, EdgeLabelInfo>,
 ) -> LayoutResult
 where
     F: Fn(&NodeId, &N) -> (f64, f64),

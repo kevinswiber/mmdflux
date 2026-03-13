@@ -3,7 +3,8 @@
 use std::io::Write;
 
 use super::graph::{self, LayoutGraph};
-use super::{EdgeLayout, LayoutResult, NodeId, Rect, normalize};
+use super::types::DummyType;
+use super::{EdgeLayout, LayoutResult, NodeId, Rect};
 
 fn env_flag(name: &str) -> bool {
     std::env::var(name).is_ok_and(|value| value == "1")
@@ -97,8 +98,8 @@ pub(crate) fn debug_dump_pipeline(lg: &LayoutGraph, stage: &str) {
             .dummy_nodes
             .get(&lg.node_ids[idx])
             .map(|d| match d.dummy_type {
-                normalize::DummyType::Edge => "edge",
-                normalize::DummyType::EdgeLabel => "edge_label",
+                DummyType::Edge => "edge",
+                DummyType::EdgeLabel => "edge_label",
             });
         let dummy_edge = lg.dummy_nodes.get(&lg.node_ids[idx]).map(|d| d.edge_index);
         let border = lg.border_type.get(&idx).map(|b| match b {

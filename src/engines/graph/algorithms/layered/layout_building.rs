@@ -7,6 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::engines::graph::algorithms::layered::types::EdgeLabelInfo;
 use crate::engines::graph::algorithms::layered::{
     self, Direction as LayeredDirection, LayoutConfig as LayeredConfig, Ranker,
 };
@@ -99,7 +100,7 @@ where
 
         // Add internal edges only (both endpoints inside this subgraph)
         let sg_node_set: HashSet<&str> = sg.nodes.iter().map(|s| s.as_str()).collect();
-        let mut edge_labels: HashMap<usize, layered::normalize::EdgeLabelInfo> = HashMap::new();
+        let mut edge_labels: HashMap<usize, EdgeLabelInfo> = HashMap::new();
         let mut edge_index_map = Vec::new();
         for (edge_idx, edge) in diagram.edges.iter().enumerate() {
             if sg_node_set.contains(edge.from.as_str()) && sg_node_set.contains(edge.to.as_str()) {
@@ -107,8 +108,7 @@ where
                 edge_index_map.push(edge_idx);
                 sub_graph.add_edge(edge.from.as_str(), edge.to.as_str());
                 if let Some((label_width, label_height)) = edge_label_dims(edge) {
-                    let mut info =
-                        layered::normalize::EdgeLabelInfo::new(label_width, label_height);
+                    let mut info = EdgeLabelInfo::new(label_width, label_height);
                     info.thickness = match edge.stroke {
                         Stroke::Thick => 3.0,
                         _ => 1.0,
@@ -337,7 +337,7 @@ where
         set
     };
 
-    let mut edge_labels: HashMap<usize, layered::normalize::EdgeLabelInfo> = HashMap::new();
+    let mut edge_labels: HashMap<usize, EdgeLabelInfo> = HashMap::new();
     for (edge_idx, edge) in diagram.edges.iter().enumerate() {
         let weight = if edge.stroke == Stroke::Invisible {
             0.0
@@ -351,7 +351,7 @@ where
             dgraph.add_edge_full(edge.from.as_str(), edge.to.as_str(), weight, edge.minlen);
         }
         if let Some((label_width, label_height)) = edge_label_dims(edge) {
-            let mut info = layered::normalize::EdgeLabelInfo::new(label_width, label_height);
+            let mut info = EdgeLabelInfo::new(label_width, label_height);
             info.thickness = match edge.stroke {
                 Stroke::Thick => 3.0,
                 _ => 1.0,

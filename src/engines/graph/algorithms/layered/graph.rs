@@ -2,8 +2,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use super::normalize::{DummyChain, DummyNode};
-use super::types::{NodeId, Point, SelfEdge};
+use super::types::{DummyChain, DummyNode, NodeId, Point, SelfEdge};
 
 /// A directed graph for layout.
 ///
@@ -608,7 +607,7 @@ mod tests {
 
     #[test]
     fn test_layout_graph_dummy_tracking() {
-        use crate::engines::graph::algorithms::layered::normalize::{DummyNode, LabelPos};
+        use crate::engines::graph::algorithms::layered::types::{DummyNode, LabelPos};
 
         let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
         graph.add_node("A", (100.0, 50.0));
@@ -797,7 +796,7 @@ mod tests {
 
     #[test]
     fn test_layout_graph_is_dummy_index() {
-        use crate::engines::graph::algorithms::layered::normalize::DummyNode;
+        use crate::engines::graph::algorithms::layered::types::DummyNode;
 
         let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
         graph.add_node("A", (100.0, 50.0));
