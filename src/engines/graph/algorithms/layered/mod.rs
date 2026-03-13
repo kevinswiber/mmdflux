@@ -9,6 +9,8 @@ pub(crate) mod float_layout;
 pub(crate) mod float_router;
 pub(crate) mod graph;
 pub(crate) mod layout_building;
+#[cfg(test)]
+mod layout_building_tests;
 pub(crate) mod layout_subgraph_ops;
 mod measurement;
 pub(crate) mod nesting;

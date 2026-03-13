@@ -894,6 +894,7 @@ fn graph_grid_sources_use_graph_owned_projection_types_and_direct_mmds_replay() 
     }
 
     for forbidden in [
+        "crate::engines::graph::",
         "crate::engines::graph::algorithms::layered::GridLayoutConfig",
         "crate::engines::graph::algorithms::layered::Rect",
         "unreachable!(\"text adapter requires layered engine hints\")",
