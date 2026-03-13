@@ -8,10 +8,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::flowchart::compile_to_graph;
+use mmdflux::builtins::default_registry;
 use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
-use mmdflux::mermaid::parse_flowchart;
 use mmdflux::mmds::from_mmds_str;
+use mmdflux::prepared::PreparedDiagram;
 use mmdflux::render::{Canvas, CharSet};
 use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,
@@ -50,11 +50,28 @@ fn load_mmds_fixture(name: &str) -> String {
     fs::read_to_string(&path).unwrap_or_else(|e| panic!("Failed to read fixture {}: {}", name, e))
 }
 
+fn parse_flowchart_via_registry(input: &str) -> Box<dyn mmdflux::registry::ParsedDiagram> {
+    default_registry()
+        .create("flowchart")
+        .expect("flowchart should be registered")
+        .parse(input)
+        .unwrap_or_else(|e| panic!("Failed to parse flowchart input: {e}"))
+}
+
+fn prepare_flowchart(input: &str, config: &RenderConfig) -> Diagram {
+    let prepared = parse_flowchart_via_registry(input)
+        .prepare(config)
+        .unwrap_or_else(|e| panic!("Failed to prepare flowchart input: {e}"));
+    let PreparedDiagram::Graph(graph) = prepared else {
+        panic!("flowchart input should prepare a graph payload");
+    };
+    graph.diagram
+}
+
 /// Parse and build a diagram from a fixture file.
 fn parse_and_build(name: &str) -> Diagram {
     let input = load_fixture(name);
-    let flowchart = parse_flowchart(&input).expect("Failed to parse fixture");
-    compile_to_graph(&flowchart)
+    prepare_flowchart(&input, &RenderConfig::default())
 }
 
 /// Parse, build, and compute layout for a fixture file.
@@ -112,8 +129,7 @@ fn render_fixture_with_options(
 
 /// Parse, build, and render a Mermaid input string.
 fn render_input(input: &str) -> String {
-    let flowchart = parse_flowchart(input).expect("Failed to parse input");
-    let diagram = compile_to_graph(&flowchart);
+    let diagram = prepare_flowchart(input, &RenderConfig::default());
     render_text_diagram(&diagram)
 }
 
@@ -197,8 +213,7 @@ fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
 }
 
 fn route_input_orthogonal(input: &str) -> RoutedGraphGeometry {
-    let flowchart = parse_flowchart(input).expect("fixture input should parse");
-    let diagram = compile_to_graph(&flowchart);
+    let diagram = prepare_flowchart(input, &RenderConfig::default());
     let config = EngineConfig::Layered(
         mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
     );
@@ -1376,8 +1391,7 @@ mod snapshots {
             if path.extension().is_some_and(|e| e == "mmd") {
                 let name = path.file_stem().unwrap().to_str().unwrap();
                 let input = fs::read_to_string(&path).unwrap();
-                let flowchart = parse_flowchart(&input).expect("Failed to parse");
-                let diagram = compile_to_graph(&flowchart);
+                let diagram = prepare_flowchart(&input, &RenderConfig::default());
                 let output = render_text_diagram(&diagram);
                 let snapshot_path = snapshot_dir.join(format!("{}.txt", name));
                 if regenerate {
@@ -1439,8 +1453,7 @@ mod all_fixtures {
     fn all_fixtures_parse() {
         for fixture in FIXTURE_FILES {
             let input = load_fixture(fixture);
-            parse_flowchart(&input)
-                .unwrap_or_else(|e| panic!("Failed to parse {}: {:?}", fixture, e));
+            let _parsed = parse_flowchart_via_registry(&input);
         }
     }
 
@@ -2742,8 +2755,7 @@ mod multigraph {
     #[test]
     fn test_multi_edge_parse_preserves_both() {
         let input = load_fixture("multi_edge.mmd");
-        let flowchart = parse_flowchart(&input).unwrap();
-        let diagram = compile_to_graph(&flowchart);
+        let diagram = prepare_flowchart(&input, &RenderConfig::default());
         assert_eq!(
             diagram.edges.len(),
             2,
@@ -2784,8 +2796,7 @@ mod multigraph {
     #[test]
     fn test_multi_edge_different_styles() {
         let input = "graph TD\n    A --> B\n    A -.-> B\n    A ==> B";
-        let flowchart = parse_flowchart(input).unwrap();
-        let diagram = compile_to_graph(&flowchart);
+        let diagram = prepare_flowchart(input, &RenderConfig::default());
 
         assert_eq!(
             diagram.edges.len(),
@@ -3928,8 +3939,7 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
     ) in cases
     {
         let input = load_fixture(fixture);
-        let flowchart = parse_flowchart(&input).expect("fixture should parse");
-        let diagram = compile_to_graph(&flowchart);
+        let diagram = prepare_flowchart(&input, &RenderConfig::default());
         let mode = default_proportional_mode();
         let config = EngineConfig::Layered(
             mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
@@ -4071,8 +4081,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
     {
         let fixture = "git_workflow.mmd";
         let input = load_fixture(fixture);
-        let flowchart = parse_flowchart(&input).expect("fixture should parse");
-        let diagram = compile_to_graph(&flowchart);
+        let diagram = prepare_flowchart(&input, &RenderConfig::default());
         let mode = default_proportional_mode();
         let config = EngineConfig::Layered(
             mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
@@ -4157,8 +4166,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
     {
         let fixture = "http_request.mmd";
         let input = load_fixture(fixture);
-        let flowchart = parse_flowchart(&input).expect("fixture should parse");
-        let diagram = compile_to_graph(&flowchart);
+        let diagram = prepare_flowchart(&input, &RenderConfig::default());
         let config = EngineConfig::Layered(
             mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
@@ -4397,10 +4405,10 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
         (matches[0], output)
     }
 
-    let flowchart =
-        parse_flowchart("graph TD\nA[Very Wide Source Node] -->|cfg| B[Very Wide Target Node]\n")
-            .expect("fixture should parse");
-    let diagram = compile_to_graph(&flowchart);
+    let diagram = prepare_flowchart(
+        "graph TD\nA[Very Wide Source Node] -->|cfg| B[Very Wide Target Node]\n",
+        &RenderConfig::default(),
+    );
     let layout = compute_layout(&diagram, &GridLayoutConfig::default());
     let routed_edges = route_all_edges(&diagram.edges, &layout, diagram.direction);
 
@@ -4491,8 +4499,7 @@ fn classify_face_matches_expected_common_approaches() {
 #[test]
 fn text_renders_head_label() {
     let input = "graph TD\n  A --> B\n";
-    let flowchart = mmdflux::mermaid::parse_flowchart(input).unwrap();
-    let mut diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
+    let mut diagram = prepare_flowchart(input, &RenderConfig::default());
     diagram.edges[0].head_label = Some("*".to_string());
     let output = render_text_diagram(&diagram);
     assert!(
@@ -4504,8 +4511,7 @@ fn text_renders_head_label() {
 #[test]
 fn text_renders_tail_label() {
     let input = "graph TD\n  A --> B\n";
-    let flowchart = mmdflux::mermaid::parse_flowchart(input).unwrap();
-    let mut diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
+    let mut diagram = prepare_flowchart(input, &RenderConfig::default());
     diagram.edges[0].tail_label = Some("src".to_string());
     let output = render_text_diagram(&diagram);
     assert!(
