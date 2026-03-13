@@ -62,7 +62,6 @@ pub use runtime::{detect_diagram, render_diagram, validate_diagram};
 pub use simplification::PathSimplification;
 pub use style::{ColorToken, NodeStyle};
 
-// Residual crate-local tests stay narrowly scoped to cross-pipeline coverage
-// plus temporary staging while owner-local rehomes are still in flight.
+// Residual crate-local tests stay narrowly scoped to cross-pipeline coverage.
 #[cfg(test)]
 mod internal_tests;

@@ -1,7 +1,3 @@
-//! Residual crate-local tests plus temporary rehome staging.
+//! Residual crate-local tests that intentionally remain cross-pipeline.
 
-// Intentional long-lived crate-central coverage.
 mod cross_pipeline;
-
-mod integration;
-mod support;
