@@ -1,8 +1,7 @@
-use mmdflux::config::RenderConfig;
 use mmdflux::errors::RenderError;
 use mmdflux::format::OutputFormat;
 use mmdflux::{
-    RuntimeConfigInput, apply_svg_surface_defaults, detect_diagram, render_diagram,
+    RenderConfig, RuntimeConfigInput, apply_svg_surface_defaults, detect_diagram, render_diagram,
     validate_diagram,
 };
 use wasm_bindgen::prelude::*;
@@ -65,7 +64,7 @@ fn js_error(message: impl Into<String>) -> JsError {
 
 #[cfg(test)]
 mod tests {
-    use mmdflux::config::{
+    use mmdflux::{
         AlgorithmId, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification, TextColorMode,
     };
     use mmdflux::format::EdgePreset;
