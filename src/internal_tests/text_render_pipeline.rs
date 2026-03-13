@@ -394,6 +394,48 @@ mod owner_local_fixture_regressions {
     }
 
     #[test]
+    fn render_with_subgraph_produces_borders() {
+        let output = crate::render_diagram(
+            "graph TD\nsubgraph sg1[Group]\nA --> B\nend\n",
+            OutputFormat::Text,
+            &RenderConfig::default(),
+        )
+        .unwrap();
+
+        assert!(
+            output.contains('\u{250c}') || output.contains('+'),
+            "output should contain top-left corner: {output}"
+        );
+        assert!(
+            output.contains('\u{2518}') || output.contains('+'),
+            "output should contain bottom-right corner: {output}"
+        );
+        assert!(
+            output.contains("Group"),
+            "output should contain title: {output}"
+        );
+    }
+
+    #[test]
+    fn render_simple_diagram_unchanged() {
+        let output = crate::render_diagram(
+            "graph TD\nA --> B\n",
+            OutputFormat::Text,
+            &RenderConfig::default(),
+        )
+        .unwrap();
+
+        assert!(
+            output.contains('A'),
+            "output should contain node A: {output}"
+        );
+        assert!(
+            output.contains('B'),
+            "output should contain node B: {output}"
+        );
+    }
+
+    #[test]
     fn ascii_issue_21_backward_edge_does_not_clip_right_edge() {
         let output = render_flowchart_fixture_ascii("callgraph_feedback_cycle.mmd");
 

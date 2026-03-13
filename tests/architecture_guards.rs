@@ -95,6 +95,81 @@ fn strip_cfg_test_items(source: &str) -> String {
     kept
 }
 
+fn extract_cfg_test_items(source: &str) -> String {
+    let mut test_code = String::new();
+    let mut in_test_block = false;
+    let mut block_depth = 0usize;
+    let mut cfg_test_next = false;
+
+    for line in source.lines() {
+        let trimmed = line.trim();
+
+        if in_test_block {
+            test_code.push_str(line);
+            test_code.push('\n');
+            block_depth += trimmed.matches('{').count();
+            block_depth = block_depth.saturating_sub(trimmed.matches('}').count());
+            if block_depth == 0 {
+                in_test_block = false;
+            }
+            continue;
+        }
+
+        if cfg_test_next {
+            if trimmed.contains('{') {
+                in_test_block = true;
+                block_depth = trimmed.matches('{').count();
+                block_depth = block_depth.saturating_sub(trimmed.matches('}').count());
+                test_code.push_str(line);
+                test_code.push('\n');
+                if block_depth == 0 {
+                    in_test_block = false;
+                }
+            }
+            cfg_test_next = false;
+            continue;
+        }
+
+        if trimmed.starts_with("#[cfg(") && trimmed.contains("test") {
+            cfg_test_next = true;
+        }
+    }
+
+    test_code
+}
+
+fn assert_no_test_imports(dir: &Path, forbidden: &[&str], message: &str) {
+    let mut files = Vec::new();
+    collect_rust_files(dir, &mut files);
+
+    for path in files {
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("");
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        let test_source = if file_name == "tests.rs" || file_name.ends_with("_tests.rs") {
+            content
+        } else {
+            extract_cfg_test_items(&content)
+        };
+
+        if test_source.is_empty() {
+            continue;
+        }
+
+        for needle in forbidden {
+            assert!(
+                !test_source.contains(needle),
+                "{message}: forbidden import `{needle}` found in test code in {}",
+                path.display()
+            );
+        }
+    }
+}
+
 fn assert_no_production_imports(dir: &Path, forbidden: &[&str], message: &str) {
     let mut files = Vec::new();
     collect_rust_files(dir, &mut files);
@@ -1093,10 +1168,17 @@ fn layered_module_declares_internal_kernel_boundary() {
 #[test]
 fn layered_kernel_stays_graph_agnostic() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dir = repo_root.join("src/engines/graph/algorithms/layered/kernel");
+    let forbidden = &["crate::graph::"];
     assert_no_production_imports(
-        &repo_root.join("src/engines/graph/algorithms/layered/kernel"),
-        &["crate::graph::"],
+        &dir,
+        forbidden,
         "layered::kernel should stay graph-agnostic",
+    );
+    assert_no_test_imports(
+        &dir,
+        forbidden,
+        "layered::kernel tests should stay graph-agnostic",
     );
 }
 
@@ -1240,13 +1322,20 @@ fn layered_bridge_modules_import_kernel_explicitly() {
 #[test]
 fn graph_does_not_import_render_or_layered_kernel() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dir = repo_root.join("src/graph");
+    let forbidden: &[&str] = &[
+        "crate::render::",
+        "crate::engines::graph::algorithms::layered",
+    ];
     assert_no_production_imports(
-        &repo_root.join("src/graph"),
-        &[
-            "crate::render::",
-            "crate::engines::graph::algorithms::layered",
-        ],
+        &dir,
+        forbidden,
         "graph/ should remain render-agnostic and layered-kernel agnostic",
+    );
+    assert_no_test_imports(
+        &dir,
+        forbidden,
+        "graph/ tests should remain render-agnostic and layered-kernel agnostic",
     );
 }
 
@@ -1372,10 +1461,17 @@ fn graph_family_instances_do_not_import_runtime_or_render() {
 #[test]
 fn diagrams_do_not_import_render_or_engines() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dir = repo_root.join("src/diagrams");
+    let forbidden: &[&str] = &["crate::render::", "crate::engines::"];
     assert_no_production_imports(
-        &repo_root.join("src/diagrams"),
-        &["crate::render::", "crate::engines::"],
+        &dir,
+        forbidden,
         "diagrams should stop at parse/compile/prepare",
+    );
+    assert_no_test_imports(
+        &dir,
+        forbidden,
+        "diagram tests should stop at parse/compile/prepare",
     );
 }
 
@@ -1468,11 +1564,13 @@ fn graph_module_uses_grid_namespace_not_grid_projection_module() {
 #[test]
 fn graph_grid_namespace_does_not_import_render() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-
-    assert_no_production_imports(
-        &repo_root.join("src/graph/grid"),
-        &["crate::render::"],
-        "graph::grid should remain render-agnostic",
+    let dir = repo_root.join("src/graph/grid");
+    let forbidden: &[&str] = &["crate::render::"];
+    assert_no_production_imports(&dir, forbidden, "graph::grid should remain render-agnostic");
+    assert_no_test_imports(
+        &dir,
+        forbidden,
+        "graph::grid tests should remain render-agnostic",
     );
 }
 
@@ -1594,20 +1692,34 @@ fn sequence_instance_does_not_import_runtime_or_render() {
 #[test]
 fn engines_do_not_import_render() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dir = repo_root.join("src/engines");
+    let forbidden: &[&str] = &["crate::render::"];
     assert_no_production_imports(
-        &repo_root.join("src/engines"),
-        &["crate::render::"],
+        &dir,
+        forbidden,
         "engines/ should not import render-owned modules",
+    );
+    assert_no_test_imports(
+        &dir,
+        forbidden,
+        "engine tests should not import render-owned modules",
     );
 }
 
 #[test]
 fn engines_use_engine_owned_solve_profile_terms() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dir = repo_root.join("src/engines");
+    let forbidden: &[&str] = &["crate::format::OutputFormat", "crate::config::RenderConfig"];
     assert_no_production_imports(
-        &repo_root.join("src/engines"),
-        &["crate::format::OutputFormat", "crate::config::RenderConfig"],
+        &dir,
+        forbidden,
         "engines/ should receive solve-profile instructions instead of format/config mapping",
+    );
+    assert_no_test_imports(
+        &dir,
+        forbidden,
+        "engine tests should not import format/config mapping",
     );
 
     let contracts =
@@ -1636,18 +1748,25 @@ fn engines_use_engine_owned_solve_profile_terms() {
 #[test]
 fn render_does_not_import_engine_adapters_or_layered_config() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dir = repo_root.join("src/render");
+    let forbidden: &[&str] = &[
+        "crate::engines::graph::GraphSolveResult",
+        "crate::engines::graph::GraphSolveRequest",
+        "crate::engines::graph::EngineConfig",
+        "crate::engines::graph::solve_graph_family",
+        "crate::engines::graph::flux::FluxLayeredEngine",
+        "crate::engines::graph::mermaid::MermaidLayeredEngine",
+        "crate::engines::graph::algorithms::layered::",
+    ];
     assert_no_production_imports(
-        &repo_root.join("src/render"),
-        &[
-            "crate::engines::graph::GraphSolveResult",
-            "crate::engines::graph::GraphSolveRequest",
-            "crate::engines::graph::EngineConfig",
-            "crate::engines::graph::solve_graph_family",
-            "crate::engines::graph::flux::FluxLayeredEngine",
-            "crate::engines::graph::mermaid::MermaidLayeredEngine",
-            "crate::engines::graph::algorithms::layered::",
-        ],
+        &dir,
+        forbidden,
         "render/ should remain engine-result and layered-config agnostic",
+    );
+    assert_no_test_imports(
+        &dir,
+        forbidden,
+        "render tests should remain engine-result and layered-config agnostic",
     );
 }
 

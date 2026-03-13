@@ -38,15 +38,6 @@ fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> GridLayout {
     geometry_to_grid_layout_with_routed(diagram, &result.geometry, result.routed.as_ref(), config)
 }
 
-fn render_text_diagram(diagram: &Diagram) -> String {
-    let layout = compute_layout(diagram, &GridLayoutConfig::default());
-    crate::render::graph::text::render_text_from_grid_layout(
-        diagram,
-        &layout,
-        &crate::render::graph::TextRenderOptions::default(),
-    )
-}
-
 fn assert_subgraph_contains_members(layout: &GridLayout, sg_id: &str, members: &[&str]) {
     let sg = &layout.subgraph_bounds[sg_id];
     let sg_right = sg.x + sg.width;
@@ -247,15 +238,18 @@ fn test_nested_borders_inner_visible() {
     let diagram = compile_diagram(
         "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB --> C\nend\nend\nA --> B\n",
     );
-    let output = render_text_diagram(&diagram);
+    let layout = compute_layout(&diagram, &GridLayoutConfig::default());
+
     assert!(
-        output.contains("Outer"),
-        "Output should contain 'Outer' title"
+        layout.subgraph_bounds.contains_key("outer"),
+        "layout should contain outer subgraph bounds"
     );
     assert!(
-        output.contains("Inner"),
-        "Output should contain 'Inner' title"
+        layout.subgraph_bounds.contains_key("inner"),
+        "layout should contain inner subgraph bounds"
     );
+    assert_eq!(layout.subgraph_bounds["outer"].title, "Outer");
+    assert_eq!(layout.subgraph_bounds["inner"].title, "Inner");
 }
 
 #[test]
@@ -666,12 +660,14 @@ fn cross_boundary_edge_no_panic() {
     let diagram = compile_diagram(
         "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA --> B\nend\nC --> A\nB --> D\n",
     );
-    let output = render_text_diagram(&diagram);
-    assert!(output.contains("A"));
-    assert!(output.contains("B"));
-    assert!(output.contains("C"));
-    assert!(output.contains("D"));
-    assert!(output.contains("Horizontal"));
+    let layout = compute_layout(&diagram, &GridLayoutConfig::default());
+
+    assert!(layout.node_bounds.contains_key("A"));
+    assert!(layout.node_bounds.contains_key("B"));
+    assert!(layout.node_bounds.contains_key("C"));
+    assert!(layout.node_bounds.contains_key("D"));
+    assert!(layout.subgraph_bounds.contains_key("sg1"));
+    assert_eq!(layout.subgraph_bounds["sg1"].title, "Horizontal");
 }
 
 #[test]
