@@ -5,28 +5,11 @@
 //! engine-side solve contracts and provides a focused import surface for
 //! callers that manage graph-family solves directly.
 
-use crate::config::{
-    EngineAlgorithmCapabilities, EngineAlgorithmId, GeometryLevel, LayoutConfig, RouteOwnership,
-};
+use super::{EngineAlgorithmCapabilities, EngineAlgorithmId, LayoutConfig};
 use crate::engines::graph::algorithms::layered::MeasurementMode;
 use crate::errors::RenderError;
 use crate::format::RoutingStyle;
-use crate::graph::routing::EdgeRouting;
-
-impl EngineAlgorithmId {
-    /// Resolve the edge routing algorithm for a given routing style.
-    pub fn edge_routing_for_style(&self, routing_style: Option<RoutingStyle>) -> EdgeRouting {
-        match self.capabilities().route_ownership {
-            RouteOwnership::Native => match routing_style {
-                Some(RoutingStyle::Direct) => EdgeRouting::DirectRoute,
-                Some(RoutingStyle::Polyline) => EdgeRouting::PolylineRoute,
-                _ => EdgeRouting::OrthogonalRoute,
-            },
-            RouteOwnership::HintDriven => EdgeRouting::PolylineRoute,
-            RouteOwnership::EngineProvided => EdgeRouting::EngineProvided,
-        }
-    }
-}
+use crate::graph::GeometryLevel;
 
 /// Engine-specific configuration envelope.
 #[derive(Debug, Clone)]
@@ -97,7 +80,9 @@ pub trait GraphEngine: Send + Sync {
     fn id(&self) -> EngineAlgorithmId;
 
     /// Capabilities this engine+algorithm provides.
-    fn capabilities(&self) -> EngineAlgorithmCapabilities;
+    fn capabilities(&self) -> EngineAlgorithmCapabilities {
+        self.id().capabilities()
+    }
 
     /// Solve: layout and optionally route the diagram.
     fn solve(

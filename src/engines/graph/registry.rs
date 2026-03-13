@@ -8,10 +8,9 @@
 
 use std::collections::HashMap;
 
-use crate::config::{AlgorithmId, EngineAlgorithmId, EngineId};
-use crate::engines::graph::GraphEngine;
 use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::engines::graph::mermaid::MermaidLayeredEngine;
+use crate::engines::graph::{EngineAlgorithmId, GraphEngine};
 
 /// Concrete trait object type for graph solvers.
 type BoxedGraphSolver = Box<dyn GraphEngine>;
@@ -43,11 +42,11 @@ impl Default for GraphEngineRegistry {
 
         // Combined-ID solver registrations.
         registry.register_solver(
-            EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered),
+            EngineAlgorithmId::FLUX_LAYERED,
             Box::new(FluxLayeredEngine::text()),
         );
         registry.register_solver(
-            EngineAlgorithmId::new(EngineId::Mermaid, AlgorithmId::Layered),
+            EngineAlgorithmId::MERMAID_LAYERED,
             Box::new(MermaidLayeredEngine::new()),
         );
 
@@ -62,7 +61,7 @@ mod tests {
     #[test]
     fn default_registry_has_flux_layered_solver() {
         let registry = GraphEngineRegistry::default();
-        let id = EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered);
+        let id = EngineAlgorithmId::FLUX_LAYERED;
         let solver = registry.get_solver(id);
         assert!(solver.is_some());
         assert_eq!(solver.unwrap().id().to_string(), "flux-layered");
@@ -71,7 +70,7 @@ mod tests {
     #[test]
     fn default_registry_has_mermaid_layered_solver() {
         let registry = GraphEngineRegistry::default();
-        let id = EngineAlgorithmId::new(EngineId::Mermaid, AlgorithmId::Layered);
+        let id = EngineAlgorithmId::MERMAID_LAYERED;
         let solver = registry.get_solver(id);
         assert!(solver.is_some());
         assert_eq!(solver.unwrap().id().to_string(), "mermaid-layered");

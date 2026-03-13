@@ -112,8 +112,9 @@ fn all_exports_accessible() {
 
 #[test]
 fn flat_public_contract_modules_are_accessible() {
-    let _ = mmdflux::config::LayoutConfig::default();
-    let _ = mmdflux::config::Ranker::NetworkSimplex;
+    let _ = mmdflux::engines::graph::LayoutConfig::default();
+    let _ = mmdflux::engines::graph::Ranker::NetworkSimplex;
+    let _ = mmdflux::simplification::PathSimplification::default();
     let _ = mmdflux::format::RoutingStyle::Polyline;
     let _ = mmdflux::errors::RenderError::from("surface");
     let _ = mmdflux::request::RenderRequest::new("graph TD\nA-->B", OutputFormat::Text);
@@ -292,10 +293,12 @@ fn render_graph_text_namespace_exposes_text_drawing_helpers() {
 
 #[test]
 fn render_text_namespace_exposes_shared_canvas_and_charset() {
-    use mmdflux::render::text::{Canvas, CharSet};
+    use mmdflux::render::text::{Canvas, CharSet, ColorWhen, TextColorMode};
 
     let _ = Canvas::new(4, 2);
     let _ = CharSet::unicode();
+    let _ = ColorWhen::Auto;
+    let _ = TextColorMode::Plain;
 }
 
 #[test]

@@ -4,22 +4,18 @@
 //! algorithm kernel, then applies Flux-specific profile selection and native
 //! routing behavior.
 
-use crate::config::{
-    AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineId, GeometryLevel,
-    RouteOwnership,
-};
 use crate::engines::graph::algorithms::layered::{
     LabelDummyStrategy, LayoutConfig, MeasurementMode, build_float_layout_with_flags,
     layout_config_from_layered, run_layered_layout,
 };
 use crate::engines::graph::{
-    EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
+    EngineAlgorithmId, EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
+    GraphSolveResult,
 };
 use crate::errors::RenderError;
-use crate::format::RoutingStyle;
-use crate::graph::Diagram;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+use crate::graph::{Diagram, GeometryLevel};
 
 /// Flux-layered engine: native graph-family layout plus native routing.
 pub struct FluxLayeredEngine;
@@ -231,19 +227,7 @@ impl FluxLayeredEngine {
 
 impl GraphEngine for FluxLayeredEngine {
     fn id(&self) -> EngineAlgorithmId {
-        EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered)
-    }
-
-    fn capabilities(&self) -> EngineAlgorithmCapabilities {
-        EngineAlgorithmCapabilities {
-            route_ownership: RouteOwnership::Native,
-            supports_subgraphs: true,
-            supported_routing_styles: &[
-                RoutingStyle::Direct,
-                RoutingStyle::Polyline,
-                RoutingStyle::Orthogonal,
-            ],
-        }
+        EngineAlgorithmId::FLUX_LAYERED
     }
 
     fn solve(

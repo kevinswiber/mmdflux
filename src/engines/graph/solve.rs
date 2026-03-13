@@ -4,9 +4,8 @@
 //! through this function.  It resolves the concrete engine from the
 //! registry and delegates the solve.
 
-use crate::config::EngineAlgorithmId;
 use crate::engines::graph::{
-    EngineConfig, GraphEngineRegistry, GraphSolveRequest, GraphSolveResult,
+    EngineAlgorithmId, EngineConfig, GraphEngineRegistry, GraphSolveRequest, GraphSolveResult,
 };
 use crate::errors::RenderError;
 use crate::graph::Diagram;

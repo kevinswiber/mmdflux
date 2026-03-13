@@ -11,7 +11,8 @@ use crate::graph::routing::{
     EdgeRouting, build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
 };
 use crate::graph::{Arrow, Diagram, Direction, Edge, Shape, Stroke};
-use crate::{CornerStyle, Curve, PathSimplification};
+use crate::simplification::PathSimplification;
+use crate::{CornerStyle, Curve};
 
 #[allow(clippy::too_many_arguments)]
 pub(super) struct PreparedRenderedEdges {

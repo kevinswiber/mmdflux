@@ -6,21 +6,17 @@
 
 use std::collections::HashMap;
 
-use crate::config::{
-    AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineId, GeometryLevel,
-    RouteOwnership,
-};
 use crate::engines::graph::algorithms::layered::{
     LayoutConfig, MeasurementMode, build_float_layout_with_flags, layout_config_from_layered,
 };
 use crate::engines::graph::{
-    EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
+    EngineAlgorithmId, EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
+    GraphSolveResult,
 };
 use crate::errors::RenderError;
-use crate::format::RoutingStyle;
-use crate::graph::Diagram;
 use crate::graph::geometry::RoutedGraphGeometry;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+use crate::graph::{Diagram, GeometryLevel};
 
 /// Mermaid dagre default for isolated subgraphs without explicit direction:
 /// alternate axis from parent (horizontal <-> vertical).
@@ -119,15 +115,7 @@ impl MermaidLayeredEngine {
 
 impl GraphEngine for MermaidLayeredEngine {
     fn id(&self) -> EngineAlgorithmId {
-        EngineAlgorithmId::new(EngineId::Mermaid, AlgorithmId::Layered)
-    }
-
-    fn capabilities(&self) -> EngineAlgorithmCapabilities {
-        EngineAlgorithmCapabilities {
-            route_ownership: RouteOwnership::HintDriven,
-            supports_subgraphs: true,
-            supported_routing_styles: &[RoutingStyle::Polyline],
-        }
+        EngineAlgorithmId::MERMAID_LAYERED
     }
 
     fn solve(

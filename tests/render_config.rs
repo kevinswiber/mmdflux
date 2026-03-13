@@ -49,8 +49,8 @@ fn render_config_to_text_render_options_conversion() {
 }
 
 #[test]
-fn layout_config_accessible_from_flat_config_module() {
-    let _ = mmdflux::config::LayoutConfig::default();
+fn layout_config_accessible_from_graph_engine_module() {
+    let _ = mmdflux::engines::graph::LayoutConfig::default();
 }
 
 #[test]

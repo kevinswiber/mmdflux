@@ -6,14 +6,13 @@ use super::flux::{
 };
 use super::mermaid::MermaidLayeredEngine;
 use super::{
-    EngineConfig, GraphEngine, GraphEngineRegistry, GraphGeometryContract, GraphSolveRequest,
-    GraphSolveResult,
+    EngineAlgorithmId, EngineConfig, GraphEngine, GraphEngineRegistry, GraphGeometryContract,
+    GraphSolveRequest, GraphSolveResult, RouteOwnership,
 };
-use crate::config::{EngineAlgorithmId, GeometryLevel, RouteOwnership};
 use crate::format::RoutingStyle;
-use crate::graph::Diagram;
 use crate::graph::measure::ProportionalTextMetrics;
 use crate::graph::routing::EdgeRouting;
+use crate::graph::{Diagram, GeometryLevel};
 
 fn build_simple_diagram() -> Diagram {
     let flowchart = crate::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();

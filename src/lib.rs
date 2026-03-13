@@ -39,22 +39,23 @@ pub mod registry_builtins;
 pub mod render;
 pub mod request;
 pub(crate) mod runtime;
+pub mod simplification;
 pub mod style;
 mod timeline;
 
 // Re-export commonly used types for convenience
-pub use config::{
-    AlgorithmId, ColorWhen, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification,
-    RenderConfig, TextColorMode,
-};
+pub use config::RenderConfig;
 pub use diagnostics::ParseDiagnostic;
+pub use engines::graph::{AlgorithmId, EngineAlgorithmId, EngineId};
 pub use errors::RenderError;
 pub use family::DiagramFamily;
 pub use format::{CornerStyle, Curve, EdgePreset, OutputFormat, RoutingStyle};
-pub use graph::{Diagram, Direction, Edge, Node, Shape};
+pub use graph::{Diagram, Direction, Edge, GeometryLevel, Node, Shape};
 pub use mmds::{MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str};
+pub use render::text::{ColorWhen, TextColorMode};
 pub use request::RenderRequest;
 // Runtime facade re-exports — curated entrypoints for adapters (CLI, WASM).
 pub use runtime::config_input::{RuntimeConfigInput, apply_svg_surface_defaults};
 pub use runtime::{detect_diagram, render_diagram, validate_diagram};
+pub use simplification::PathSimplification;
 pub use style::{ColorToken, NodeStyle};

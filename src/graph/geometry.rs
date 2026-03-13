@@ -6,8 +6,50 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::errors::RenderError;
+use crate::format::normalize_enum_token;
 use crate::graph::grid::GridProjection;
 use crate::graph::{Direction, Shape};
+
+/// Requested graph-geometry detail level for downstream emitters and exports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GeometryLevel {
+    /// Node geometry + edge topology only (no edge paths).
+    #[default]
+    Layout,
+    /// Full geometry including routed edge paths.
+    Routed,
+}
+
+impl std::fmt::Display for GeometryLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GeometryLevel::Layout => write!(f, "layout"),
+            GeometryLevel::Routed => write!(f, "routed"),
+        }
+    }
+}
+
+impl GeometryLevel {
+    /// Parse a geometry level from user-provided text.
+    pub fn parse(s: &str) -> Result<Self, RenderError> {
+        match normalize_enum_token(s).as_str() {
+            "layout" => Ok(GeometryLevel::Layout),
+            "routed" => Ok(GeometryLevel::Routed),
+            _ => Err(RenderError {
+                message: format!("unknown geometry level: {s:?}"),
+            }),
+        }
+    }
+}
+
+impl std::str::FromStr for GeometryLevel {
+    type Err = RenderError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s)
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Float coordinate primitives

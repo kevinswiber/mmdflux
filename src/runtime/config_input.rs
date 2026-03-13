@@ -6,12 +6,13 @@
 
 use serde::Deserialize;
 
-use crate::config::{
-    AlgorithmId, ColorWhen, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification, Ranker,
-    RenderConfig,
-};
+use crate::config::RenderConfig;
+use crate::engines::graph::{EngineAlgorithmId, Ranker};
 use crate::errors::RenderError;
 use crate::format::{Curve, EdgePreset, OutputFormat, RoutingStyle, normalize_enum_token};
+use crate::graph::GeometryLevel;
+use crate::render::text::ColorWhen;
+use crate::simplification::PathSimplification;
 
 /// Serde-friendly render config accepted from JSON callers.
 ///
@@ -122,7 +123,7 @@ fn parse_ranker(value: &str) -> Result<Ranker, RenderError> {
 
 /// The default SVG layout engine (flux-layered).
 pub fn default_svg_engine() -> EngineAlgorithmId {
-    EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered)
+    EngineAlgorithmId::FLUX_LAYERED
 }
 
 /// Apply SVG surface defaults for flux-layered engine.

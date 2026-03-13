@@ -15,9 +15,11 @@ pub mod contracts;
 #[cfg(feature = "engine-elk")]
 pub mod elk;
 pub mod flux;
+mod layout;
 pub mod mermaid;
 /// Low-level graph-family engine registry for direct engine callers.
 pub mod registry;
+mod selection;
 mod solve;
 #[cfg(test)]
 mod tests;
@@ -25,5 +27,10 @@ mod tests;
 pub(crate) use contracts::{
     EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
 };
+pub use layout::{LabelDummyStrategy, LayoutConfig, LayoutDirection, Ranker};
 pub(crate) use registry::GraphEngineRegistry;
+pub use selection::{
+    AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmDescriptor, EngineAlgorithmId,
+    EngineId, RouteOwnership,
+};
 pub(crate) use solve::solve_graph_family;

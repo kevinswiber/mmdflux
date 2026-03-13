@@ -6,19 +6,20 @@
 
 use std::path::Path;
 
-use mmdflux::config::{GeometryLevel, PathSimplification};
 use mmdflux::engines::graph::algorithms::layered::MeasurementMode;
 use mmdflux::engines::graph::contracts::{
     EngineConfig, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
 };
 use mmdflux::engines::graph::registry::GraphEngineRegistry;
-use mmdflux::graph::{Diagram, EdgeRouting, route_graph_geometry};
+use mmdflux::graph::{Diagram, EdgeRouting, GeometryLevel, route_graph_geometry};
 use mmdflux::mmds::to_mmds_json_typed;
 use mmdflux::registry_builtins::default_registry;
 use mmdflux::render::graph::{
     SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_text_from_geometry,
 };
-use mmdflux::{AlgorithmId, DiagramFamily, EngineAlgorithmId, EngineId, OutputFormat};
+use mmdflux::{
+    AlgorithmId, DiagramFamily, EngineAlgorithmId, EngineId, OutputFormat, PathSimplification,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,6 +1,6 @@
 //! Engine registry tests: typed engine IDs, parsing, availability, and registry lookup.
 
-use mmdflux::config::{EngineAlgorithmCapabilities, RouteOwnership};
+use mmdflux::engines::graph::{EngineAlgorithmCapabilities, RouteOwnership};
 use mmdflux::{
     AlgorithmId, CornerStyle, Curve, EdgePreset, EngineAlgorithmId, EngineId, OutputFormat,
     RenderConfig, RenderError, RoutingStyle,

@@ -5,9 +5,10 @@ use super::hydrate::{
     from_mmds_output, hydrate_graph_geometry_from_output_with_diagram,
     hydrate_routed_geometry_from_output,
 };
-use crate::config::{GeometryLevel, RenderConfig};
+use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
+use crate::graph::GeometryLevel;
 use crate::mmds::{MmdsOutput, generate_mermaid_from_mmds, parse_mmds_input};
 use crate::render::graph::{
     SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,

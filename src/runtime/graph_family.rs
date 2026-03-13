@@ -1,24 +1,24 @@
 //! Runtime rendering for prepared graph-family diagrams.
 
-use crate::config::{
-    AlgorithmId, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification, RenderConfig,
-};
+use crate::config::RenderConfig;
 use crate::engines::graph::algorithms::layered::MeasurementMode;
 use crate::engines::graph::contracts::GraphGeometryContract;
 use crate::engines::graph::{
-    EngineConfig, GraphSolveRequest, GraphSolveResult, solve_graph_family,
+    EngineAlgorithmId, EngineConfig, EngineId, GraphSolveRequest, GraphSolveResult,
+    solve_graph_family,
 };
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
-use crate::graph::Diagram;
 use crate::graph::measure::{
     DEFAULT_PROPORTIONAL_FONT_SIZE, DEFAULT_PROPORTIONAL_NODE_PADDING_X,
     DEFAULT_PROPORTIONAL_NODE_PADDING_Y, ProportionalTextMetrics,
 };
+use crate::graph::{Diagram, GeometryLevel};
 use crate::render::graph::{
     SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
     render_text_from_geometry,
 };
+use crate::simplification::PathSimplification;
 
 pub(in crate::runtime) fn render_graph_family(
     diagram_id: &str,
@@ -28,9 +28,13 @@ pub(in crate::runtime) fn render_graph_family(
 ) -> Result<String, RenderError> {
     let engine_id = config
         .layout_engine
-        .unwrap_or_else(|| EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered));
+        .unwrap_or(EngineAlgorithmId::FLUX_LAYERED);
     engine_id.check_available()?;
-    engine_id.check_routing_style(config)?;
+    engine_id.check_routing_style(
+        config
+            .routing_style
+            .or_else(|| config.edge_preset.map(|preset| preset.expand().0)),
+    )?;
     let request = graph_solve_request_for(format, config);
     let engine_config = EngineConfig::Layered(config.layout.clone().into());
     let engine_id = resolve_graph_engine_for_request(engine_id, &request);

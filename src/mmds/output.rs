@@ -9,12 +9,13 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Number, Value};
 
-use crate::config::{EngineAlgorithmId, GeometryLevel, PathSimplification};
+use crate::engines::graph::EngineAlgorithmId;
 use crate::errors::RenderError;
 use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry};
 use crate::graph::grid::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
-use crate::graph::{Arrow, Diagram, Direction, Shape, Stroke};
+use crate::graph::{Arrow, Diagram, Direction, GeometryLevel, Shape, Stroke};
+use crate::simplification::PathSimplification;
 use crate::style::NodeStyle;
 
 pub const MMDS_CORE_PROFILE: &str = "mmds-core-v1";

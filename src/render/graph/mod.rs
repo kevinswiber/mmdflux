@@ -17,10 +17,9 @@ use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Diagram, Direction};
-use crate::{
-    Curve, EdgePreset, EngineId, OutputFormat, PathSimplification, RenderConfig, RoutingStyle,
-    TextColorMode,
-};
+use crate::render::text::TextColorMode;
+use crate::simplification::PathSimplification;
+use crate::{Curve, EdgePreset, EngineId, OutputFormat, RenderConfig, RoutingStyle};
 
 /// Engine defaults for SVG style (routing + curve).
 ///
