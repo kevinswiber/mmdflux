@@ -841,7 +841,7 @@ fn module_dependency_map_no_longer_has_frontends_render_timeline_cycle() {
         path.display()
     );
     assert!(
-        content.contains("largest-scc-size: 2"),
+        content.contains("largest-scc-size: 1"),
         "module dependency SCC DAG should record the reduced SCC size after the cycle split: {}",
         path.display()
     );

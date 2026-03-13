@@ -20,11 +20,14 @@ flowchart LR
     mod_render["render"]
     mod_request["request"]
     mod_runtime["runtime"]
+    mod_simplification["simplification"]
     mod_style["style"]
     mod_timeline["timeline"]
     mod_config --> mod_engines
-    mod_config --> mod_errors
     mod_config --> mod_format
+    mod_config --> mod_graph
+    mod_config --> mod_render
+    mod_config --> mod_simplification
     mod_diagnostics --> mod_mermaid
     mod_diagrams --> mod_config
     mod_diagrams --> mod_errors
@@ -36,23 +39,26 @@ flowchart LR
     mod_diagrams --> mod_registry
     mod_diagrams --> mod_style
     mod_diagrams --> mod_timeline
-    mod_engines --> mod_config
     mod_engines --> mod_errors
     mod_engines --> mod_format
     mod_engines --> mod_graph
     mod_format --> mod_errors
     mod_frontends --> mod_mermaid
     mod_frontends --> mod_mmds
+    mod_graph --> mod_errors
+    mod_graph --> mod_format
     mod_graph --> mod_style
     mod_lint --> mod_mermaid
     mod_lint --> mod_style
     mod_mermaid --> mod_style
     mod_mermaid --> mod_timeline
     mod_mmds --> mod_config
+    mod_mmds --> mod_engines
     mod_mmds --> mod_errors
     mod_mmds --> mod_format
     mod_mmds --> mod_graph
     mod_mmds --> mod_render
+    mod_mmds --> mod_simplification
     mod_mmds --> mod_style
     mod_prepared --> mod_graph
     mod_prepared --> mod_mermaid
@@ -64,7 +70,10 @@ flowchart LR
     mod_registry --> mod_prepared
     mod_registry_builtins --> mod_diagrams
     mod_registry_builtins --> mod_registry
+    mod_render --> mod_errors
+    mod_render --> mod_format
     mod_render --> mod_graph
+    mod_render --> mod_simplification
     mod_render --> mod_timeline
     mod_request --> mod_config
     mod_request --> mod_format
@@ -81,4 +90,7 @@ flowchart LR
     mod_runtime --> mod_prepared
     mod_runtime --> mod_registry_builtins
     mod_runtime --> mod_render
+    mod_runtime --> mod_simplification
     mod_runtime --> mod_timeline
+    mod_simplification --> mod_errors
+    mod_simplification --> mod_format
