@@ -14,7 +14,7 @@ use crate::render::graph::{
     render_text_from_geometry,
 };
 
-/// Render MMDS input through the frontend path.
+/// Render MMDS input through the MMDS replay path.
 pub fn render_input(
     input: &str,
     format: OutputFormat,
@@ -25,7 +25,7 @@ pub fn render_input(
     render_output(&payload, format, config)
 }
 
-/// Render a parsed MMDS payload through the frontend path.
+/// Render a parsed MMDS payload through the MMDS replay path.
 pub fn render_output(
     payload: &MmdsOutput,
     format: OutputFormat,

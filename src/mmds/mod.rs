@@ -1,11 +1,16 @@
 //! MMDS interchange contract and output-generation namespace.
 //!
-//! Input ingestion belongs to [`crate::frontends::mmds`]. This module owns the
-//! typed MMDS envelope, profile vocabulary, Mermaid regeneration helpers, and
-//! graph-family serialization to MMDS JSON.
+//! This module owns the typed MMDS envelope, profile vocabulary, Mermaid
+//! regeneration helpers, hydration/replay helpers, and graph-family
+//! serialization to MMDS JSON. [`crate::frontends::mmds`] remains the
+//! source-format compatibility namespace for frontend-oriented callers.
 
+pub(crate) mod detect;
+pub(crate) mod hydrate;
 mod mermaid;
 mod output;
+pub(crate) mod parse;
+pub(crate) mod replay;
 
 use std::error::Error;
 use std::fmt;

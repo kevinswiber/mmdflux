@@ -3,7 +3,14 @@
 //! The validated model used by the timeline layout engine. Produced by
 //! compiling the raw parsed AST statements.
 
-use crate::frontends::mermaid::sequence::ast::ParticipantKind;
+/// Participant type used by the sequence runtime model and layout engine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParticipantKind {
+    /// Box participant (default).
+    Participant,
+    /// Stick-figure actor.
+    Actor,
+}
 
 /// A participant in the sequence diagram.
 #[derive(Debug, Clone, PartialEq, Eq)]

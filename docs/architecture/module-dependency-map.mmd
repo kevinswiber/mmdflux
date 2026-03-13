@@ -40,19 +40,17 @@ flowchart LR
     mod_engines --> mod_format
     mod_engines --> mod_graph
     mod_format --> mod_errors
-    mod_frontends --> mod_config
-    mod_frontends --> mod_errors
-    mod_frontends --> mod_format
-    mod_frontends --> mod_graph
     mod_frontends --> mod_mmds
-    mod_frontends --> mod_render
     mod_frontends --> mod_style
+    mod_frontends --> mod_timeline
     mod_graph --> mod_style
     mod_lint --> mod_frontends
     mod_lint --> mod_style
     mod_mmds --> mod_config
     mod_mmds --> mod_errors
+    mod_mmds --> mod_format
     mod_mmds --> mod_graph
+    mod_mmds --> mod_render
     mod_mmds --> mod_style
     mod_prepared --> mod_frontends
     mod_prepared --> mod_graph
@@ -81,4 +79,3 @@ flowchart LR
     mod_runtime --> mod_registry_builtins
     mod_runtime --> mod_render
     mod_runtime --> mod_timeline
-    mod_timeline --> mod_frontends

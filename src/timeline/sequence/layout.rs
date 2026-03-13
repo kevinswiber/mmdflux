@@ -3,8 +3,7 @@
 //! Computes character-grid positions for participants, messages,
 //! and notes. Output is consumed by the text renderer.
 
-use super::model::{MessageStyle, Participant, SequenceEvent, SequenceModel};
-use crate::frontends::mermaid::sequence::ast::ParticipantKind;
+use super::model::{MessageStyle, Participant, ParticipantKind, SequenceEvent, SequenceModel};
 
 /// Minimum gap between participant centers (characters).
 const MIN_PARTICIPANT_GAP: usize = 20;

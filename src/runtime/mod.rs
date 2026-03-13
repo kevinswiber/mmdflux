@@ -26,7 +26,7 @@ use crate::registry_builtins::default_registry;
 pub fn detect_diagram(input: &str) -> Option<&'static str> {
     match detect_input_frontend(input)? {
         InputFrontend::Mermaid => default_registry().detect(input),
-        InputFrontend::Mmds => crate::frontends::mmds::detect_diagram_type(input).ok(),
+        InputFrontend::Mmds => crate::mmds::detect::detect_diagram_type(input).ok(),
     }
 }
 
@@ -41,7 +41,7 @@ pub fn render_diagram(
     config: &RenderConfig,
 ) -> Result<String, RenderError> {
     if matches!(detect_input_frontend(input), Some(InputFrontend::Mmds)) {
-        return crate::frontends::mmds::render_input(input, format, config);
+        return crate::mmds::replay::render_input(input, format, config);
     }
 
     let registry = default_registry();
@@ -76,7 +76,7 @@ pub fn render_diagram(
 /// - `{"valid": false, "diagnostics": [...]}` on error
 pub fn validate_diagram(input: &str) -> String {
     if matches!(detect_input_frontend(input), Some(InputFrontend::Mmds)) {
-        return match crate::frontends::mmds::validate_input(input) {
+        return match crate::mmds::parse::validate_input(input) {
             Ok(()) => serde_json::json!({ "valid": true }).to_string(),
             Err(error) => serde_json::json!({
                 "valid": false,

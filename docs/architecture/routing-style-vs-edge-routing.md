@@ -36,7 +36,7 @@ Classification:
 - `src/engines/graph/contracts.rs` defines execution modes and style-to-route selection.
 - `src/render/graph/routing.rs` executes route-building by mode.
 - `src/render/graph/svg/edges.rs` applies mode-specific post-processing.
-- `src/frontends/mmds/render_input.rs` and `src/frontends/mmds/hydrate.rs` select replay/runtime execution behavior.
+- `src/mmds/replay.rs` and `src/mmds/hydrate.rs` select replay/runtime execution behavior.
 
 Classification:
 - Runtime routing execution concern.

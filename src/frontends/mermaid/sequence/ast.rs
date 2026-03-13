@@ -2,15 +2,7 @@
 //!
 //! These represent the raw parsed syntax before validation/compilation
 //! into the `SequenceModel` used by the layout engine.
-
-/// Participant type.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ParticipantKind {
-    /// Box participant (default).
-    Participant,
-    /// Stick-figure actor.
-    Actor,
-}
+pub use crate::timeline::sequence::model::ParticipantKind;
 
 /// Arrow type for messages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

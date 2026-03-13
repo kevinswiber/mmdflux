@@ -598,15 +598,30 @@ fn mmds_split_is_directory_based_and_explicit() {
     );
 
     for relative_path in [
-        "src/frontends/mmds/detect.rs",
-        "src/frontends/mmds/parse.rs",
-        "src/frontends/mmds/hydrate.rs",
-        "src/frontends/mmds/render_input.rs",
+        "src/frontends/mmds/mod.rs",
+        "src/mmds/detect.rs",
+        "src/mmds/parse.rs",
+        "src/mmds/hydrate.rs",
+        "src/mmds/replay.rs",
         "src/mmds/mermaid.rs",
         "src/mmds/output.rs",
     ] {
         let path = repo_root.join(relative_path);
         assert!(path.exists(), "{} should exist", path.display());
+    }
+
+    for relative_path in [
+        "src/frontends/mmds/detect.rs",
+        "src/frontends/mmds/parse.rs",
+        "src/frontends/mmds/hydrate.rs",
+        "src/frontends/mmds/render_input.rs",
+    ] {
+        let path = repo_root.join(relative_path);
+        assert!(
+            !path.exists(),
+            "{} should be removed after moving MMDS implementation under src/mmds/",
+            path.display()
+        );
     }
 }
 
@@ -783,6 +798,24 @@ fn module_dependency_map_does_not_reference_testing() {
 }
 
 #[test]
+fn module_dependency_map_no_longer_has_frontends_render_timeline_cycle() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("docs/architecture/module-dependency-scc-dag.mmd");
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    assert!(
+        !content.contains("frontends, render, timeline"),
+        "module dependency SCC DAG should be regenerated after breaking the frontends/render/timeline cycle: {}",
+        path.display()
+    );
+    assert!(
+        content.contains("largest-scc-size: 2"),
+        "module dependency SCC DAG should record the reduced SCC size after the cycle split: {}",
+        path.display()
+    );
+}
+
+#[test]
 fn render_svg_source_does_not_define_layout_builders() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/render/graph/svg/mod.rs");
     let content = std::fs::read_to_string(&path).unwrap();
@@ -817,11 +850,11 @@ fn graph_grid_sources_use_graph_owned_projection_types_and_direct_mmds_replay() 
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let grid_layout = repo_root.join("src/graph/grid/layout.rs");
     let grid_derive_dir = repo_root.join("src/graph/grid/derive");
-    let mmds_render_input = repo_root.join("src/frontends/mmds/render_input.rs");
+    let mmds_replay = repo_root.join("src/mmds/replay.rs");
 
     let mut contents = vec![
         std::fs::read_to_string(&grid_layout).unwrap(),
-        std::fs::read_to_string(&mmds_render_input).unwrap(),
+        std::fs::read_to_string(&mmds_replay).unwrap(),
     ];
     let mut derive_files = Vec::new();
     collect_rust_files(&grid_derive_dir, &mut derive_files);
