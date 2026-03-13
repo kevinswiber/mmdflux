@@ -30,77 +30,106 @@ echo 'graph LR\nA-->B' | cargo run
 
 ## Architecture
 
-Pipeline: **Parser → Graph → Engine → Render**
+See `docs/architecture/dependency-rules.md` for the authoritative module ownership rules and public contract tiers.
+
+Pipeline: **Frontend → Diagrams → Engine → Render**
 
 ```
-Mermaid Text → Parser (pest PEG) → AST → Graph Builder → Diagram
-  → GraphEngine::solve() → GraphGeometry → Router → Renderer (Text/SVG/MMDS)
+Input Text → frontends.rs (detect frontend: Mermaid or MMDS)
+  → mermaid/ (parse to AST) → diagrams/ (compile to IR, prepare payload)
+  → runtime/ (orchestrate: registry → engine → render dispatch)
+  → engines/ (solve graph layout → GraphGeometry)
+  → render/ (emit Text/SVG/MMDS output)
 ```
+
+### Public Contract Tiers
+
+1. **Runtime facade**: `render_diagram`, `detect_diagram`, `validate_diagram` + flat config/format/error types re-exported from `lib.rs`
+2. **Supported expert tier**: `builtins`, `registry`, `prepared`, `mmds` for adapter-oriented workflows
+3. **Internal implementation**: `diagrams`, `engines`, `graph`, `render`, `mermaid`, `timeline` — documented for contributors but not part of the supported contract
 
 ### Module Structure
 
-**`src/parser/`** - Mermaid parsing
+**`src/frontends.rs`** — Source-format detection (Mermaid vs MMDS)
 
-- `grammar.pest` - PEG grammar definition (header, nodes, edges, connectors)
-- `ast.rs` - AST types: `ShapeSpec`, `Vertex`, `ConnectorSpec`, `EdgeSpec`, `Statement`
-- `flowchart.rs` - `parse_flowchart()` entry point, converts pest tree to AST
+**`src/mermaid/`** — Mermaid source ingestion (all diagram types)
 
-**`src/graph/`** - Graph data structures
+- `grammar.pest` — PEG grammar definition
+- `ast.rs` — Flowchart AST types (`ShapeSpec`, `Vertex`, `ConnectorSpec`, `EdgeSpec`, `Statement`)
+- `flowchart.rs` — `parse_flowchart()` entry point
+- `class.rs`, `sequence.rs`, `pie.rs`, `info.rs`, `packet.rs` — Per-type parsers
+- `error.rs` — `ParseError`, `ParseDiagnostic`
 
-- `diagram.rs` - `Diagram` struct (nodes HashMap, edges Vec, direction)
-- `node.rs` - `Node` with `Shape` enum (Rectangle, Round, Diamond, etc.)
-- `edge.rs` - `Edge` with `Stroke` (Solid, Dotted, Thick) and `Arrow` (Normal, None)
-- `builder.rs` - `build_diagram()` converts AST to Diagram
+**`src/graph/`** — Graph-family IR, float-space geometry, and shared helpers
 
-**`src/diagram.rs`** - Engine abstractions (`GraphEngine` trait, `EngineConfig`, `RenderConfig`, `GraphSolveRequest`/`Result`)
+- `diagram.rs` — `Diagram` struct (nodes, edges, subgraphs, direction)
+- `node.rs` — `Node` with `Shape` enum
+- `edge.rs` — `Edge` with `Stroke` and `Arrow`
+- `geometry.rs` — `GraphGeometry`, `RoutedGraphGeometry` (float-space layout results)
+- `grid/` — Float-to-grid conversion, grid routing, replay geometry contracts
+- `routing/` — Shared routing helpers (orthogonal routing, float routing)
+- `attachment.rs`, `direction_policy.rs`, `measure.rs`, `projection.rs`, `space.rs`
 
-**`src/diagrams/`** - Diagram type implementations
+**`src/diagrams/`** — Diagram type implementations (detect, parse delegation, compile, prepare)
 
-- `flowchart/` - Flowchart: engine (`FluxLayeredEngine` for all formats, `MermaidLayeredEngine` for SVG/MMDS only), geometry IR, routing, render modules
-- `class/` - Class diagrams: parser, compiler to `graph::Diagram`, renders through shared engine pipeline
-- `sequence/` - Sequence diagrams: independent timeline-family pipeline (parser→compiler→model→layout→text renderer)
-- `pie.rs`, `info.rs`, `packet.rs` - Simple diagram types
+- `flowchart/` — Flowchart: compiler to `graph::Diagram`, validation warnings
+- `class/` — Class diagrams: compiler to `graph::Diagram`
+- `sequence/` — Sequence diagrams: timeline-family pipeline (compiler → model → layout → text renderer)
+- `pie.rs`, `info.rs`, `packet.rs` — Simple diagram types
 
-**`src/diagrams/flowchart/render/`** - Flowchart rendering (text + SVG)
+Diagrams stop at `prepare()` — they produce a `PreparedDiagram` payload, not rendered output.
 
-Modules are prefixed by pipeline: `text_*` for character-grid rendering, `svg*` for SVG, unprefixed for shared.
+**`src/engines/`** — Engine adapters and layout algorithms
 
-- *Shared:* `layout_building.rs` (layered layout bridge), `layout_subgraph_ops.rs` (float-coord subgraph reconciliation), `orthogonal_router.rs`, `route_policy.rs`
-- *Text pipeline:* `text_types.rs` (Layout, GridLayoutConfig, SubgraphBounds, etc.), `text_layout.rs` (text-specific layout logic), `text_adapter.rs` (engine geometry → text Layout), `text_edge.rs`, `text_shape.rs`, `text_router.rs`, `text_subgraph.rs`, `text_routing_core.rs`
-- *SVG pipeline:* `svg.rs` (SVG rendering + layout), `svg_router.rs` (SVG edge routing), `svg_metrics.rs` (font metrics)
+- `graph/contracts.rs` — `GraphEngine` trait, `GraphSolveRequest`, `EngineConfig`
+- `graph/flux.rs` — `FluxLayeredEngine` (all formats)
+- `graph/mermaid.rs` — `MermaidLayeredEngine` (SVG/MMDS only)
+- `graph/elk.rs` — ELK subprocess adapter (behind `engine-elk` feature flag)
+- `graph/algorithms/layered/` — Sugiyama hierarchical layout (~95% dagre v0.8.5 parity)
+- `graph/algorithms/layered/kernel/` — Pure graph-agnostic layered engine (internal boundary)
+- `graph/registry.rs` — `GraphEngineRegistry` with `EngineAlgorithmId`
 
-**`src/layered/`** - Hierarchical graph layout (Sugiyama framework, ~95% dagre v0.8.5 parity)
+**`src/render/`** — Output production
 
-- `mod.rs` - `layout()` entry point, orchestrates the layout phases
-- `graph.rs` - `DiGraph` input graph, `LayoutGraph` internal representation
-- `acyclic.rs` - Cycle removal via DFS, tracks reversed edges
-- `rank.rs` - Layer assignment using longest-path or network simplex
-- `normalize.rs` - Long edge normalization (dummy nodes), edge label positioning
-- `order.rs` - Crossing reduction via barycenter heuristic
-- `position.rs` - Coordinate assignment using Brandes-Köpf algorithm
-- `bk.rs` - Brandes-Köpf horizontal coordinate assignment with vertical alignment
-- `types.rs` - `LayoutConfig`, `LayoutResult`, `Rect`, `Point`, `Direction`
+- `graph/` — Shared graph-family text and SVG emission from `GraphGeometry`
+- `graph/text/` — Text-pipeline edge/node/subgraph rendering
+- `graph/svg/` — SVG-pipeline rendering
+- `diagram/` — Family-local renderers (sequence text, pie text, packet text)
+- `text/` — Text utilities (`Canvas`, `CharSet`, color)
 
-**`src/render/`** - Top-level render orchestration
+**`src/runtime/`** — Pipeline orchestration
 
-- `mod.rs` - `render()` entry point, dispatches to text or SVG pipeline; re-exports key types
-- `canvas.rs` - 2D character grid with `strip_common_leading_whitespace()`
-- `chars.rs` - `CharSet` for box-drawing characters (Unicode default, ASCII via `--ascii`)
-- `intersect.rs` - Shared node-face intersection calculations
+- `mod.rs` — `render_diagram`, `validate_diagram`, `detect_diagram` facade functions
+- `graph_family.rs` — Graph-family solve-result dispatch
+- `prepared.rs` — Prepared-diagram rendering dispatch
 
-**`src/engines/`** - Engine adapters (ELK subprocess adapter behind `engine-elk` feature flag)
+**`src/mmds/`** — MMDS contract and output
 
-**`src/mmds.rs`** - MMDS JSON output (structured geometry export, version 2)
+- `output.rs` — MMDS JSON serialization for graph-family output
+- `detect.rs`, `parse.rs`, `hydrate.rs`, `replay.rs`, `mermaid.rs`
+
+**Other top-level modules:**
+- `config.rs` — `RenderConfig`
+- `format.rs` — `OutputFormat` enum
+- `errors.rs` — `RenderError`
+- `diagnostics.rs` — `ParseDiagnostic` re-export
+- `family.rs` — `DiagramFamily` enum
+- `registry.rs` — `DiagramRegistry`, `DiagramInstance`, `ParsedDiagram` traits
+- `builtins.rs` — `default_registry()` wiring
+- `prepared.rs` — `PreparedDiagram` payload enum
+- `simplification.rs` — Path simplification
+- `style.rs` — Style parsing
+- `timeline/sequence/` — Shared sequence-family model and layout types
 
 ### Key Data Flow
 
 1. `parse_flowchart(input)` → `Flowchart` AST
-2. `build_diagram(&flowchart)` → `Diagram` with nodes/edges
-3. `GraphEngine::solve()` → `GraphGeometry` (float coordinates, edge topology, subgraph bounds)
-4. Text: `geometry_to_text_layout()` → `Layout` (integer character-grid coordinates)
-5. Text: `route_all_edges()` → routed edge paths; `render_text_from_layout()` → `Canvas` → String
-6. SVG: `render_svg_from_geometry()` → SVG string
-7. MMDS: `mmds::render_json()` → structured JSON
+2. `compile_to_graph(&flowchart)` → `Diagram` with nodes/edges/subgraphs
+3. `GraphEngine::solve()` → `GraphGeometry` (float coordinates, edge topology)
+4. `route_graph_geometry()` → `RoutedGraphGeometry` (edge paths, attachment ports)
+5. Text: `geometry_to_grid_layout_with_routed()` → `GridLayout` → `route_all_edges()` → `Canvas` → String
+6. SVG: `render_svg_from_routed_geometry()` → SVG string
+7. MMDS: `mmds::output::render_mmds()` → structured JSON
 
 ## Testing
 
@@ -114,13 +143,17 @@ Snapshots follow the same structure: `tests/snapshots/flowchart/*.txt`, `tests/s
 
 Key test files:
 
-- `tests/integration.rs` — flowchart parsing, building, rendering
+- `tests/integration_full.rs` — full-pipeline rendering tests
 - `tests/dagre_parity.rs` — layout comparison against dagre.js fixtures
 - `tests/compliance_class.rs` — class diagram compliance
 - `tests/compliance_sequence.rs` — sequence diagram compliance
 - `tests/mmds_json.rs` — MMDS JSON contract tests
 - `tests/svg_render.rs` — SVG rendering tests
 - `tests/cli.rs` — CLI integration tests
+- `tests/architecture_guards.rs` — module boundary and dependency rule enforcement
+- `src/internal_tests/` — crate-local cross-pipeline tests (engine + routing + render)
+
+Architecture guard tests enforce the rules in `docs/architecture/dependency-rules.md`. They verify module boundaries in both production code and test code.
 
 ## Debug Infrastructure
 
