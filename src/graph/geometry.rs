@@ -255,7 +255,6 @@ pub struct RoutedSelfEdge {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::attachment::PortFace;
 
     #[test]
     fn graph_geometry_default_construction() {

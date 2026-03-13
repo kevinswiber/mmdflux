@@ -8,7 +8,7 @@ mod shape;
 mod subgraph;
 
 #[cfg(test)]
-pub(crate) use edge::render_all_edges_with_labels;
+pub(crate) use edge::{render_all_edges, render_all_edges_with_labels, render_edge};
 #[cfg(test)]
 pub(crate) use shape::render_node;
 #[cfg(test)]

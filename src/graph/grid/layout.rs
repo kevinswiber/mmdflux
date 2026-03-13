@@ -130,7 +130,7 @@ impl CoordTransform<'_> {
 }
 
 /// Grid-space layout result containing node positions and canvas dimensions.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GridLayout {
     /// Node positions in grid coordinates.
     pub grid_positions: HashMap<String, GridPos>,

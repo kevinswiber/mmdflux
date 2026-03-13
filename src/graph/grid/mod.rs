@@ -22,6 +22,8 @@ pub use layout::{GridLayout, GridPos, NodeBounds, SubgraphBounds};
 #[cfg(test)]
 pub(crate) use routing::route_edge;
 pub use routing::{AttachDirection, Point, RoutedEdge, Segment, route_all_edges};
+#[cfg(test)]
+pub(crate) use routing::{TextPathFamily, route_edge_with_probe};
 
 pub use crate::graph::projection::OverrideSubgraphProjection;
 

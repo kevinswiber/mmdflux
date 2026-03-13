@@ -23,8 +23,8 @@ pub use self::orthogonal::{build_orthogonal_path, orthogonalize};
 use self::orthogonal::{compute_vertical_first_path, orthogonalize_segment};
 use self::path_selection::{route_result, try_shared_draw_path};
 #[cfg(test)]
-use self::probe::TextPathRejection;
-use self::probe::{RouteEdgeResult, TextPathFamily};
+pub(crate) use self::probe::TextPathRejection;
+pub(crate) use self::probe::{RouteEdgeResult, TextPathFamily};
 use self::route_variants::{
     route_backward_with_synthetic_waypoints, route_edge_direct, route_edge_with_waypoints,
 };

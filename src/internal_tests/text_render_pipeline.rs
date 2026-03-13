@@ -451,3 +451,662 @@ mod owner_local_fixture_regressions {
         );
     }
 }
+
+mod edge_rendering_regression {
+    use std::path::Path;
+
+    use crate::engines::graph::algorithms::layered::MeasurementMode;
+    use crate::engines::graph::algorithms::layered::layout_building::layered_config_for_layout;
+    use crate::engines::graph::contracts::{
+        EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
+    };
+    use crate::engines::graph::flux::FluxLayeredEngine;
+    use crate::graph::grid::{
+        GridLayout, GridLayoutConfig, geometry_to_grid_layout_with_routed, route_edge,
+    };
+    use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Stroke};
+    use crate::render::graph::text::{render_all_edges, render_edge};
+    use crate::render::text::canvas::Canvas;
+    use crate::render::text::chars::CharSet;
+    use crate::{OutputFormat, RenderConfig};
+
+    fn simple_diagram() -> Diagram {
+        let mut diagram = Diagram::new(Direction::TopDown);
+        diagram.add_node(Node::new("A").with_label("Start"));
+        diagram.add_node(Node::new("B").with_label("End"));
+        diagram.add_edge(Edge::new("A", "B"));
+        diagram
+    }
+
+    fn compute_layout(diagram: &Diagram, config: &GridLayoutConfig) -> GridLayout {
+        let engine = FluxLayeredEngine::text();
+        let request = GraphSolveRequest::new(
+            MeasurementMode::Grid,
+            GraphGeometryContract::Canonical,
+            crate::GeometryLevel::Layout,
+            None,
+        );
+        let result = engine
+            .solve(
+                diagram,
+                &EngineConfig::Layered(layered_config_for_layout(diagram, config)),
+                &request,
+            )
+            .expect("text edge test layout solve failed");
+
+        geometry_to_grid_layout_with_routed(
+            diagram,
+            &result.geometry,
+            result.routed.as_ref(),
+            config,
+        )
+    }
+
+    /// Render a `Diagram` through the full text pipeline (engine + grid + text render).
+    fn render_diagram_to_text(diagram: &Diagram) -> String {
+        let layout = compute_layout(diagram, &GridLayoutConfig::default());
+        crate::render::graph::text::render_text_from_grid_layout(
+            diagram,
+            &layout,
+            &crate::render::graph::TextRenderOptions::default(),
+        )
+    }
+
+    fn render_flowchart_fixture(name: &str) -> String {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("flowchart")
+            .join(name);
+        let input = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("Failed to read fixture {}: {}", path.display(), error));
+        crate::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+            .unwrap_or_else(|error| panic!("Failed to render fixture {name}: {error}"))
+    }
+
+    fn render_flowchart_input(input: &str) -> String {
+        crate::render_diagram(input, OutputFormat::Text, &RenderConfig::default())
+            .expect("input render should succeed")
+    }
+
+    // === Tests using compute_layout (route_edge / render_edge) ===
+
+    #[test]
+    fn test_render_vertical_edge() {
+        let diagram = simple_diagram();
+        let config = GridLayoutConfig::default();
+        let layout = compute_layout(&diagram, &config);
+
+        let mut canvas = Canvas::new(layout.width, layout.height);
+        let charset = CharSet::unicode();
+
+        let routed = route_edge(
+            &diagram.edges[0],
+            &layout,
+            Direction::TopDown,
+            None,
+            None,
+            false,
+        )
+        .unwrap();
+        render_edge(&mut canvas, &routed, &charset, Direction::TopDown);
+
+        let output = canvas.to_string();
+        assert!(output.contains('│') || output.contains('▼'));
+    }
+
+    #[test]
+    fn test_render_edge_with_arrow() {
+        let diagram = simple_diagram();
+        let config = GridLayoutConfig::default();
+        let layout = compute_layout(&diagram, &config);
+
+        let mut canvas = Canvas::new(layout.width, layout.height);
+        let charset = CharSet::unicode();
+
+        let routed = route_edge(
+            &diagram.edges[0],
+            &layout,
+            Direction::TopDown,
+            None,
+            None,
+            false,
+        )
+        .unwrap();
+        render_edge(&mut canvas, &routed, &charset, Direction::TopDown);
+
+        let output = canvas.to_string();
+        assert!(output.contains('▼'));
+    }
+
+    #[test]
+    fn test_render_dotted_edge() {
+        let mut diagram = Diagram::new(Direction::TopDown);
+        diagram.add_node(Node::new("A").with_label("A"));
+        diagram.add_node(Node::new("B").with_label("B"));
+        diagram.add_edge(Edge::new("A", "B").with_stroke(Stroke::Dotted));
+
+        let config = GridLayoutConfig::default();
+        let layout = compute_layout(&diagram, &config);
+
+        let mut canvas = Canvas::new(layout.width, layout.height);
+        let charset = CharSet::unicode();
+
+        let routed = route_edge(
+            &diagram.edges[0],
+            &layout,
+            Direction::TopDown,
+            None,
+            None,
+            false,
+        )
+        .unwrap();
+        render_edge(&mut canvas, &routed, &charset, Direction::TopDown);
+
+        let _output = canvas.to_string();
+    }
+
+    #[test]
+    fn test_render_edge_without_arrow() {
+        let mut diagram = Diagram::new(Direction::TopDown);
+        diagram.add_node(Node::new("A").with_label("A"));
+        diagram.add_node(Node::new("B").with_label("B"));
+        diagram.add_edge(Edge::new("A", "B").with_arrow(Arrow::None));
+
+        let config = GridLayoutConfig::default();
+        let layout = compute_layout(&diagram, &config);
+
+        let mut canvas = Canvas::new(layout.width, layout.height);
+        let charset = CharSet::unicode();
+
+        let routed = route_edge(
+            &diagram.edges[0],
+            &layout,
+            Direction::TopDown,
+            None,
+            None,
+            false,
+        )
+        .unwrap();
+        render_edge(&mut canvas, &routed, &charset, Direction::TopDown);
+
+        let output = canvas.to_string();
+        assert!(!output.contains('▼'));
+    }
+
+    #[test]
+    fn test_render_all_edges() {
+        let diagram = simple_diagram();
+        let config = GridLayoutConfig::default();
+        let layout = compute_layout(&diagram, &config);
+
+        let mut canvas = Canvas::new(layout.width, layout.height);
+        let charset = CharSet::unicode();
+
+        let routed_edges: Vec<_> = diagram
+            .edges
+            .iter()
+            .filter_map(|e| route_edge(e, &layout, Direction::TopDown, None, None, false))
+            .collect();
+
+        render_all_edges(&mut canvas, &routed_edges, &charset, Direction::TopDown);
+
+        let output = canvas.to_string();
+        assert!(!output.trim().is_empty());
+    }
+
+    #[test]
+    fn test_labeled_edge_has_waypoints() {
+        let mut diagram = Diagram::new(Direction::TopDown);
+        diagram.add_node(Node::new("A").with_label("Start"));
+        diagram.add_node(Node::new("B").with_label("End"));
+        diagram.add_edge(Edge::new("A", "B").with_label("yes"));
+
+        let config = GridLayoutConfig::default();
+        let layout = compute_layout(&diagram, &config);
+
+        let ab_edge_idx = diagram
+            .edges
+            .iter()
+            .find(|e| e.from == "A" && e.to == "B")
+            .expect("Should have an A->B edge")
+            .index;
+        assert!(
+            layout.edge_waypoints.contains_key(&ab_edge_idx),
+            "Labeled short edge should have waypoints from label dummy"
+        );
+    }
+
+    #[test]
+    fn test_lr_label_placement_near_edge_segment() {
+        let mut diagram = Diagram::new(Direction::LeftRight);
+        diagram.add_node(Node::new("A").with_label("Start"));
+        diagram.add_node(Node::new("B").with_label("End"));
+        let mut edge = Edge::new("A", "B");
+        edge.label = Some("test".to_string());
+        diagram.add_edge(edge);
+
+        let config = GridLayoutConfig::default();
+        let layout = compute_layout(&diagram, &config);
+        let charset = CharSet::unicode();
+
+        let routed = route_edge(
+            &diagram.edges[0],
+            &layout,
+            Direction::LeftRight,
+            None,
+            None,
+            false,
+        )
+        .unwrap();
+
+        assert!(
+            !routed.segments.is_empty(),
+            "Routed edge should have segments"
+        );
+
+        let mut canvas = Canvas::new(layout.width, layout.height);
+        render_edge(&mut canvas, &routed, &charset, Direction::LeftRight);
+
+        let output = canvas.to_string();
+        assert!(
+            output.contains("test"),
+            "Label 'test' should appear in output:\n{}",
+            output
+        );
+
+        let lines: Vec<&str> = output.lines().collect();
+        let label_line = lines
+            .iter()
+            .position(|l| l.contains("test"))
+            .expect("Label should be on some line");
+
+        let edge_lines: Vec<usize> = lines
+            .iter()
+            .enumerate()
+            .filter(|(_, l)| l.contains('─') || l.contains('►') || l.contains('-'))
+            .map(|(i, _)| i)
+            .collect();
+
+        let near_edge = edge_lines.iter().any(|&ey| ey.abs_diff(label_line) <= 1);
+        assert!(
+            near_edge,
+            "Label at line {} should be within 1 row of an edge line (edge lines at {:?})",
+            label_line, edge_lines
+        );
+    }
+
+    // === Tests using render_diagram_to_text (full Diagram-based pipeline) ===
+
+    #[test]
+    fn test_render_edge_with_label() {
+        let mut diagram = Diagram::new(Direction::TopDown);
+        diagram.add_node(Node::new("A").with_label("Start"));
+        diagram.add_node(Node::new("B").with_label("End"));
+        diagram.add_edge(Edge::new("A", "B").with_label("Yes"));
+
+        let output = render_diagram_to_text(&diagram);
+        assert!(output.contains("Yes"));
+    }
+
+    #[test]
+    fn test_render_multiline_edge_label_as_centered_block() {
+        let mut diagram = Diagram::new(Direction::TopDown);
+        diagram.add_node(Node::new("A").with_label("A"));
+        diagram.add_node(Node::new("B").with_label("B"));
+        diagram.add_edge(Edge::new("A", "B").with_label("yes\nno"));
+
+        let output = render_diagram_to_text(&diagram);
+        let lines: Vec<&str> = output.lines().collect();
+
+        let yes_line = lines
+            .iter()
+            .position(|l| l.contains("yes"))
+            .expect("missing first line of multiline label");
+        let no_line = lines
+            .iter()
+            .position(|l| l.contains("no"))
+            .expect("missing second line of multiline label");
+        assert_eq!(
+            no_line,
+            yes_line + 1,
+            "multiline label lines should render on consecutive rows:\n{output}"
+        );
+
+        let yes_col = lines[yes_line]
+            .find("yes")
+            .expect("could not locate 'yes' column");
+        let no_col = lines[no_line]
+            .find("no")
+            .expect("could not locate 'no' column");
+        assert!(
+            yes_col.abs_diff(no_col) <= 1,
+            "multiline label lines should stay horizontally aligned:\n{output}"
+        );
+
+        let a_line = lines
+            .iter()
+            .position(|l| l.contains(" A "))
+            .expect("missing node A row");
+        let b_line = lines
+            .iter()
+            .rposition(|l| l.contains(" B "))
+            .expect("missing node B row");
+        let edge_mid = (a_line + b_line) / 2;
+        let label_mid = (yes_line + no_line) / 2;
+        assert!(
+            label_mid.abs_diff(edge_mid) <= 1,
+            "multiline label should stay near the edge midpoint:\n{output}"
+        );
+    }
+
+    #[test]
+    fn test_label_rendered_at_precomputed_position() {
+        let output = render_diagram_to_text(&{
+            let mut d = Diagram::new(Direction::TopDown);
+            d.add_node(Node::new("A").with_label("A"));
+            d.add_node(Node::new("B").with_label("B"));
+            d.add_edge(Edge::new("A", "B").with_label("yes"));
+            d
+        });
+
+        assert!(output.contains("yes"), "Label 'yes' should be rendered");
+
+        let lines: Vec<&str> = output.lines().collect();
+        let a_line = lines.iter().position(|l| l.contains('A')).unwrap();
+        let b_line = lines.iter().rposition(|l| l.contains('B')).unwrap();
+        let yes_line = lines.iter().position(|l| l.contains("yes")).unwrap();
+        assert!(
+            yes_line > a_line && yes_line < b_line,
+            "Label at line {} should be between A (line {}) and B (line {})\n{}",
+            yes_line,
+            a_line,
+            b_line,
+            output
+        );
+    }
+
+    #[test]
+    fn precomputed_label_avoids_node_overlap() {
+        let output = render_diagram_to_text(&{
+            let mut d = Diagram::new(Direction::LeftRight);
+            d.add_node(Node::new("A").with_label("Working Dir"));
+            d.add_node(Node::new("B").with_label("Staging Area"));
+            d.add_node(Node::new("C").with_label("Local Repo"));
+            d.add_edge(Edge::new("A", "B").with_label("git add"));
+            d.add_edge(Edge::new("B", "C").with_label("git commit"));
+            d
+        });
+
+        assert!(
+            output.contains("git add"),
+            "Label 'git add' should be fully visible:\n{output}"
+        );
+        assert!(
+            output.contains("git commit"),
+            "Label 'git commit' should be fully visible:\n{output}"
+        );
+    }
+
+    #[test]
+    fn test_cross_arrow_end_to_end() {
+        let mut diagram = Diagram::new(Direction::TopDown);
+        diagram.add_node(Node::new("A").with_label("A"));
+        diagram.add_node(Node::new("B").with_label("B"));
+        diagram.add_edge(Edge::new("A", "B").with_arrows(Arrow::None, Arrow::Cross));
+
+        let output = render_diagram_to_text(&diagram);
+        assert!(
+            output.contains('x'),
+            "Output should contain 'x' for cross arrow:\n{output}"
+        );
+        assert!(
+            !output.contains('\u{25BC}'),
+            "Output should NOT contain normal down arrow for cross edge"
+        );
+    }
+
+    #[test]
+    fn test_circle_arrow_end_to_end() {
+        let mut diagram = Diagram::new(Direction::TopDown);
+        diagram.add_node(Node::new("A").with_label("A"));
+        diagram.add_node(Node::new("B").with_label("B"));
+        diagram.add_edge(Edge::new("A", "B").with_arrows(Arrow::None, Arrow::Circle));
+
+        let output = render_diagram_to_text(&diagram);
+        assert!(
+            output.contains('o'),
+            "Output should contain 'o' for circle arrow:\n{output}"
+        );
+        assert!(
+            !output.contains('\u{25BC}'),
+            "Output should NOT contain normal down arrow for circle edge"
+        );
+    }
+
+    #[test]
+    fn backward_edge_label_near_routed_path_td() {
+        let flowchart =
+            crate::mermaid::parse_flowchart("graph TD\n    A --> B\n    B -->|retry| A").unwrap();
+        let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
+        let output = render_diagram_to_text(&diagram);
+
+        assert!(
+            output.contains("retry"),
+            "Label should appear in output:\n{output}"
+        );
+
+        let lines: Vec<&str> = output.lines().collect();
+        let a_line = lines
+            .iter()
+            .position(|l| l.contains(" A "))
+            .expect("missing node A row");
+        let b_line = lines
+            .iter()
+            .rposition(|l| l.contains(" B "))
+            .expect("missing node B row");
+        let retry_line = lines
+            .iter()
+            .position(|l| l.contains("retry"))
+            .expect("missing retry label row");
+
+        assert!(
+            retry_line > a_line && retry_line < b_line,
+            "Label row {} should be between A row {} and B row {}\n{}",
+            retry_line,
+            a_line,
+            b_line,
+            output
+        );
+    }
+
+    #[test]
+    fn text_renders_head_label() {
+        let input = "graph TD\n  A --> B\n";
+        let mut diagram = crate::diagrams::flowchart::compile_to_graph(
+            &crate::mermaid::parse_flowchart(input).expect("flowchart should parse"),
+        );
+        diagram.edges[0].head_label = Some("*".to_string());
+        let output = render_diagram_to_text(&diagram);
+        assert!(
+            output.contains('*'),
+            "text output should contain head label '*', got:\n{output}"
+        );
+    }
+
+    #[test]
+    fn text_renders_tail_label() {
+        let input = "graph TD\n  A --> B\n";
+        let mut diagram = crate::diagrams::flowchart::compile_to_graph(
+            &crate::mermaid::parse_flowchart(input).expect("flowchart should parse"),
+        );
+        diagram.edges[0].tail_label = Some("src".to_string());
+        let output = render_diagram_to_text(&diagram);
+        assert!(
+            output.contains("src"),
+            "text output should contain tail label 'src', got:\n{output}"
+        );
+    }
+
+    // === Tests using render_flowchart_fixture / render_flowchart_input ===
+
+    #[test]
+    fn labeled_edges_show_labels() {
+        let output = render_flowchart_fixture("labeled_edges.mmd");
+        assert!(output.contains("initialize") || output.contains("configure"));
+        assert!(
+            output.contains("yes"),
+            "Expected 'yes' label in output:\n{output}"
+        );
+        assert!(
+            output.contains("no"),
+            "Expected 'no' label in output:\n{output}"
+        );
+    }
+
+    #[test]
+    fn branching_labels_dont_overlap() {
+        let output = render_flowchart_fixture("label_spacing.mmd");
+
+        assert!(output.contains("valid"), "Should contain 'valid' label");
+        assert!(output.contains("invalid"), "Should contain 'invalid' label");
+        assert!(
+            !output.contains("valinvalid"),
+            "Labels should not merge into 'valinvalid'"
+        );
+        assert!(
+            !output.contains("invalidvalid"),
+            "Labels should not merge into 'invalidvalid'"
+        );
+
+        let lines: Vec<&str> = output.lines().collect();
+        let a_line = lines.iter().position(|line| line.contains(" A ")).unwrap();
+        let b_line = lines.iter().rposition(|line| line.contains(" B ")).unwrap();
+        let label_line = lines
+            .iter()
+            .position(|line| line.contains("valid"))
+            .unwrap();
+        assert!(
+            label_line > a_line && label_line < b_line,
+            "Label at line {} should be between A (line {}) and B (line {})\n{}",
+            label_line,
+            a_line,
+            b_line,
+            output
+        );
+    }
+
+    #[test]
+    fn long_label_renders_without_panic() {
+        let output = render_flowchart_input(
+            "graph TD\n    A -->|this is a very long label that might overflow| B",
+        );
+        assert!(!output.is_empty());
+        assert!(output.contains(" A "), "Node A should render:\n{output}");
+        assert!(output.contains(" B "), "Node B should render:\n{output}");
+    }
+
+    #[test]
+    fn fan_out_with_labels() {
+        let output = render_flowchart_input(
+            "graph TD\n    A -->|yes| B\n    A -->|no| C\n    A -->|maybe| D",
+        );
+        assert!(output.contains("yes"), "Expected 'yes' label:\n{output}");
+        assert!(output.contains("no"), "Expected 'no' label:\n{output}");
+        assert!(
+            output.contains("maybe"),
+            "Expected 'maybe' label:\n{output}"
+        );
+    }
+
+    #[test]
+    fn labeled_edge_lr_direction() {
+        let output = render_flowchart_input("graph LR\n    A -->|label| B");
+        assert!(output.contains(" A "), "Should contain node A:\n{output}");
+        assert!(output.contains(" B "), "Should contain node B:\n{output}");
+        assert!(
+            output.contains("label"),
+            "Expected 'label' in LR layout:\n{output}"
+        );
+    }
+
+    #[test]
+    fn mixed_labeled_and_unlabeled() {
+        let output = render_flowchart_input(
+            "graph TD\n    A -->|yes| B\n    A --> C\n    B --> D\n    C -->|error| D",
+        );
+        assert!(output.contains("yes"), "Expected 'yes' label:\n{output}");
+        assert!(
+            output.contains("error"),
+            "Expected 'error' label:\n{output}"
+        );
+        for node in ["A", "B", "C", "D"] {
+            assert!(
+                output.contains(&format!(" {node} ")),
+                "Expected node {node}:\n{output}"
+            );
+        }
+    }
+
+    #[test]
+    fn all_edges_labeled() {
+        let output = render_flowchart_input(
+            "graph TD\n    A -->|start| B\n    B -->|process| C\n    C -->|end| D",
+        );
+        assert!(output.contains("end"), "Expected 'end' label:\n{output}");
+        assert!(output.contains(" A "), "Expected node A:\n{output}");
+        assert!(output.contains(" B "), "Expected node B:\n{output}");
+        assert!(output.contains(" D "), "Expected node D:\n{output}");
+        assert!(
+            output.contains("┌───┐"),
+            "Expected at least one node box:\n{output}"
+        );
+    }
+
+    #[test]
+    fn labeled_edges_reasonable_height() {
+        let output = render_flowchart_fixture("labeled_edges.mmd");
+        let line_count = output.lines().count();
+
+        assert!(
+            line_count < 40,
+            "labeled_edges.mmd should render in under 40 lines, got {line_count}"
+        );
+
+        for label in &["initialize", "configure", "yes", "no", "retry"] {
+            assert!(
+                output.contains(label),
+                "Output should contain label '{label}'"
+            );
+        }
+    }
+
+    #[test]
+    fn diamond_text_not_corrupted_by_arrows() {
+        let output = render_flowchart_fixture("labeled_edges.mmd");
+        assert!(
+            output.contains("Valid?"),
+            "Diamond text 'Valid?' should be intact in output:\n{output}"
+        );
+    }
+
+    #[test]
+    fn simple_cycle_compact_backward_routing() {
+        let output = render_flowchart_fixture("simple_cycle.mmd");
+        let line_count = output.lines().count();
+        assert!(
+            line_count < 30,
+            "simple_cycle.mmd should be compact, got {line_count} lines"
+        );
+    }
+
+    #[test]
+    fn multiple_cycles_compact_backward_routing() {
+        let output = render_flowchart_fixture("multiple_cycles.mmd");
+        let line_count = output.lines().count();
+        assert!(
+            line_count < 40,
+            "multiple_cycles.mmd should be compact, got {line_count} lines"
+        );
+    }
+}
