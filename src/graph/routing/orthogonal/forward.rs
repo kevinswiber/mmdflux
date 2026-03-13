@@ -1,3 +1,4 @@
+use super::constants::MIN_PORT_CORNER_INSET_FORWARD;
 use super::endpoints::{
     RectFace, boundary_face_excluding_corners, boundary_face_including_corners,
     clamp_face_coordinate_with_corner_inset, clip_point_to_rect_face_with_inset,
@@ -325,7 +326,7 @@ fn collapse_tiny_forward_td_bt_lateral_jog(
         p0.x,
         target_rect.x,
         target_rect.x + target_rect.width,
-        super::MIN_PORT_CORNER_INSET_FORWARD,
+        MIN_PORT_CORNER_INSET_FORWARD,
     );
     let aligned_terminal = FPoint::new(aligned_x, p3.y);
     if super::segment_crosses_any_other_node_interior(
@@ -450,14 +451,14 @@ pub(super) fn prefer_secondary_axis_departure_for_angular_sources(
             FPoint::new(p0.x, preferred_primary_lane),
             source_rect,
             departure_face,
-            super::MIN_PORT_CORNER_INSET_FORWARD,
+            MIN_PORT_CORNER_INSET_FORWARD,
         )
     } else {
         clip_point_to_rect_face_with_inset(
             FPoint::new(preferred_primary_lane, p0.y),
             source_rect,
             departure_face,
-            super::MIN_PORT_CORNER_INSET_FORWARD,
+            MIN_PORT_CORNER_INSET_FORWARD,
         )
     };
     let provisional_elbow = if primary_vertical {

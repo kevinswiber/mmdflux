@@ -1,5 +1,5 @@
 use super::super::float_core::{build_orthogonal_path_float, normalize_orthogonal_route_contracts};
-use super::{LABEL_ANCHOR_REVALIDATION_MAX_DISTANCE, POINT_EPS};
+use super::constants::{LABEL_ANCHOR_REVALIDATION_MAX_DISTANCE, POINT_EPS};
 use crate::graph::Direction;
 use crate::graph::space::FPoint;
 

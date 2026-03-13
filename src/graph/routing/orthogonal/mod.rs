@@ -3,6 +3,7 @@
 //! This module routes edges in float space first, then optionally applies a
 //! deterministic grid snap adapter for grid replay.
 
+mod constants;
 pub(crate) mod endpoints;
 pub(crate) mod fan;
 pub(crate) mod forward;
@@ -12,6 +13,7 @@ pub(crate) mod path_utils;
 
 use std::collections::HashMap;
 
+use self::constants::{MIN_PORT_CORNER_INSET_BACKWARD, POINT_EPS};
 use self::endpoints::{
     anchor_path_endpoints_to_endpoint_faces, bias_face_coordinate_toward_center,
     clamp_face_coordinate_with_corner_inset, endpoint_is_on_policy_face, endpoint_rect_and_shape,
@@ -216,10 +218,6 @@ fn orthogonal_edge_direction(
     }
 }
 
-const LABEL_ANCHOR_REVALIDATION_MAX_DISTANCE: f64 = 2.0;
-const POINT_EPS: f64 = 0.000_001;
-const MIN_PORT_CORNER_INSET_FORWARD: f64 = 8.0;
-const MIN_PORT_CORNER_INSET_BACKWARD: f64 = 12.0;
 // Primary knob for TD/BT fan lane compaction near shared faces.
 // Increase for longer endpoint stems and tighter shared lanes;
 // decrease for wider lane spread.

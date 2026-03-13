@@ -1,6 +1,6 @@
 use super::super::float_core::intersect_shape_boundary_float;
+use super::constants::{MIN_PORT_CORNER_INSET_BACKWARD, MIN_PORT_CORNER_INSET_FORWARD, POINT_EPS};
 use super::path_utils::points_match;
-use super::{MIN_PORT_CORNER_INSET_BACKWARD, MIN_PORT_CORNER_INSET_FORWARD, POINT_EPS};
 use crate::graph::attachment::{
     Face, canonical_backward_channel_face, resolve_overflow_backward_channel_conflict,
 };

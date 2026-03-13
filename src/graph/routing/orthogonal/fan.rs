@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use super::constants::MIN_PORT_CORNER_INSET_FORWARD;
 use super::endpoints::{endpoint_rect, endpoint_rect_and_shape};
 use crate::graph::attachment::{
     Face, OverflowSide, fan_in_overflow_face_for_slot, fan_in_primary_face_capacity,
@@ -379,7 +380,7 @@ fn adaptive_fan_in_primary_face_capacity(direction: Direction, target_rect: &FRe
         Direction::TopDown | Direction::BottomTop => target_rect.width.abs(),
         Direction::LeftRight | Direction::RightLeft => target_rect.height.abs(),
     };
-    let usable_span = (face_span - 2.0 * super::MIN_PORT_CORNER_INSET_FORWARD).max(0.0);
+    let usable_span = (face_span - 2.0 * MIN_PORT_CORNER_INSET_FORWARD).max(0.0);
     let dynamic_capacity = if usable_span <= f64::EPSILON {
         1
     } else {
