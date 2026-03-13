@@ -4,6 +4,4 @@
 mod cross_pipeline;
 
 mod integration;
-mod routed_geometry;
 mod support;
-mod svg_render;
