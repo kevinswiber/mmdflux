@@ -2964,6 +2964,64 @@ fn svg_orthogonal_orthogonal_route_complex_backward_edge_terminal_tangent_points
 }
 
 #[test]
+fn backward_routes_keep_outer_lane_and_terminal_tangent_contracts() {
+    const MIN_OUTER_LANE_CLEARANCE: f64 = 12.0;
+
+    let diagram = load_flowchart_fixture_diagram("multiple_cycles.mmd");
+    let edge_idx = edge_index(&diagram, "C", "A");
+    let options = RenderConfig {
+        routing_style: Some(RoutingStyle::Orthogonal),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
+        path_simplification: PathSimplification::None,
+        ..Default::default()
+    };
+    let svg = render_svg(&diagram, &options);
+    let rect = node_rect_for_label(&svg, "Top").expect("target rect should exist for Top");
+    let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
+
+    assert!(
+        points.len() >= 4,
+        "multiple_cycles C->A should have enough SVG path points to form an outer return lane: {points:?}"
+    );
+
+    let start = points[0];
+    let prev = points[points.len() - 2];
+    let end = points[points.len() - 1];
+    let baseline_max_x = start.0.max(end.0);
+    let route_max_x = points
+        .iter()
+        .map(|point| point.0)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let clearance = route_max_x - baseline_max_x;
+    assert!(
+        clearance >= MIN_OUTER_LANE_CLEARANCE,
+        "multiple_cycles C->A should preserve an outer-lane lateral clearance (>= {MIN_OUTER_LANE_CLEARANCE}) in SVG orthogonal mode: clearance={clearance}, points={points:?}"
+    );
+
+    match svg_terminal_approach_face_relaxed(rect, &points) {
+        "right" => assert!(
+            (end.1 - prev.1).abs() <= 0.5 && end.0 < prev.0,
+            "multiple_cycles C->A orthogonal terminal tangent on right face should point left into Top; prev={prev:?}, end={end:?}, points={points:?}"
+        ),
+        "left" => assert!(
+            (end.1 - prev.1).abs() <= 0.5 && end.0 > prev.0,
+            "multiple_cycles C->A orthogonal terminal tangent on left face should point right into Top; prev={prev:?}, end={end:?}, points={points:?}"
+        ),
+        "top" => assert!(
+            (end.0 - prev.0).abs() <= 0.5 && end.1 > prev.1,
+            "multiple_cycles C->A orthogonal terminal tangent on top face should point down into Top; prev={prev:?}, end={end:?}, points={points:?}"
+        ),
+        "bottom" => assert!(
+            (end.0 - prev.0).abs() <= 0.5 && end.1 < prev.1,
+            "multiple_cycles C->A orthogonal terminal tangent on bottom face should point up into Top; prev={prev:?}, end={end:?}, points={points:?}"
+        ),
+        other => panic!(
+            "multiple_cycles C->A orthogonal terminal approach should resolve to a concrete Top face, got {other}; prev={prev:?}, end={end:?}, points={points:?}"
+        ),
+    }
+}
+
+#[test]
 fn svg_orthogonal_route_complex_top_diamond_loop_avoids_single_edge_micro_jogs() {
     // Keep this slightly below 6.0 to tolerate small metric/layout drift while
     // still catching true micro-jogs.

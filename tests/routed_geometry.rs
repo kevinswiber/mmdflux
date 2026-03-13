@@ -1471,6 +1471,73 @@ fn orthogonal_route_contracts_preserve_backward_cycle_outer_lane_clearance() {
     );
 }
 
+#[test]
+fn backward_routes_keep_outer_lane_and_terminal_tangent_contracts() {
+    const MIN_OUTER_LANE_CLEARANCE: f64 = 12.0;
+
+    let (diagram, geom) = layout_fixture_svg("multiple_cycles.mmd");
+    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let edge = routed
+        .edges
+        .iter()
+        .find(|edge| edge.from == "C" && edge.to == "A")
+        .expect("multiple_cycles fixture missing edge C -> A");
+
+    assert!(
+        edge.path.len() >= 4,
+        "multiple_cycles C -> A should have enough routed points to form an outer return lane: path={:?}",
+        edge.path
+    );
+
+    let start = edge.path[0];
+    let prev = edge.path[edge.path.len() - 2];
+    let end = *edge.path.last().expect("edge path is non-empty");
+    let baseline_max_x = start.x.max(end.x);
+    let route_max_x = edge
+        .path
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let clearance = route_max_x - baseline_max_x;
+    assert!(
+        clearance >= MIN_OUTER_LANE_CLEARANCE,
+        "multiple_cycles C -> A should preserve an outer-lane lateral clearance (>= {MIN_OUTER_LANE_CLEARANCE}) instead of collapsing into a near-vertical return: clearance={clearance}, path={:?}",
+        edge.path
+    );
+
+    let target_rect = geom
+        .nodes
+        .get("A")
+        .expect("multiple_cycles should contain node A")
+        .rect;
+    match point_on_target_face(target_rect, end) {
+        "right" => assert!(
+            approx_eq(prev.y, end.y) && end.x < prev.x,
+            "multiple_cycles C -> A should approach A from the right with a leftward terminal tangent: prev={prev:?}, end={end:?}, path={:?}",
+            edge.path
+        ),
+        "left" => assert!(
+            approx_eq(prev.y, end.y) && end.x > prev.x,
+            "multiple_cycles C -> A should approach A from the left with a rightward terminal tangent: prev={prev:?}, end={end:?}, path={:?}",
+            edge.path
+        ),
+        "top" => assert!(
+            approx_eq(prev.x, end.x) && end.y > prev.y,
+            "multiple_cycles C -> A should approach A from the top with a downward terminal tangent: prev={prev:?}, end={end:?}, path={:?}",
+            edge.path
+        ),
+        "bottom" => assert!(
+            approx_eq(prev.x, end.x) && end.y < prev.y,
+            "multiple_cycles C -> A should approach A from the bottom with an upward terminal tangent: prev={prev:?}, end={end:?}, path={:?}",
+            edge.path
+        ),
+        other => panic!(
+            "multiple_cycles C -> A should resolve to a concrete terminal face after backward routing, got {other}: path={:?}",
+            edge.path
+        ),
+    }
+}
+
 // -----------------------------------------------------------------------
 // Task 1.2: Shared float-route heuristics
 // -----------------------------------------------------------------------

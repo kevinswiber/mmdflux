@@ -47,10 +47,18 @@ pub(super) fn avoid_forward_td_bt_primary_lane_node_intrusion(
             continue;
         }
         let rect = node.rect;
-        let first_crosses =
-            super::axis_aligned_segment_crosses_rect_interior(p0, p1, rect, INTRUSION_MARGIN);
-        let middle_crosses =
-            super::axis_aligned_segment_crosses_rect_interior(p1, p2, rect, INTRUSION_MARGIN);
+        let first_crosses = super::collision::axis_aligned_segment_crosses_rect_interior(
+            p0,
+            p1,
+            rect,
+            INTRUSION_MARGIN,
+        );
+        let middle_crosses = super::collision::axis_aligned_segment_crosses_rect_interior(
+            p1,
+            p2,
+            rect,
+            INTRUSION_MARGIN,
+        );
         if !first_crosses && !middle_crosses {
             continue;
         }
@@ -128,7 +136,13 @@ fn reroute_forward_td_bt_terminal_intrusion_with_safe_vertical_corridor(
         return None;
     }
 
-    if !super::segment_crosses_any_other_node_interior(edge, geometry, p2, p3, INTRUSION_MARGIN) {
+    if !super::collision::segment_crosses_any_other_node_interior(
+        edge,
+        geometry,
+        p2,
+        p3,
+        INTRUSION_MARGIN,
+    ) {
         return None;
     }
 
@@ -192,7 +206,7 @@ fn reroute_forward_td_bt_terminal_intrusion_with_safe_vertical_corridor(
         }
 
         let segments_clear = deduped.windows(2).all(|segment| {
-            !super::segment_crosses_any_other_node_interior(
+            !super::collision::segment_crosses_any_other_node_interior(
                 edge,
                 geometry,
                 segment[0],
@@ -329,7 +343,7 @@ fn collapse_tiny_forward_td_bt_lateral_jog(
         MIN_PORT_CORNER_INSET_FORWARD,
     );
     let aligned_terminal = FPoint::new(aligned_x, p3.y);
-    if super::segment_crosses_any_other_node_interior(
+    if super::collision::segment_crosses_any_other_node_interior(
         edge,
         geometry,
         p1,
@@ -503,13 +517,13 @@ pub(super) fn prefer_secondary_axis_departure_for_angular_sources(
         return;
     }
 
-    let segments_clear = !super::segment_crosses_any_other_node_interior(
+    let segments_clear = !super::collision::segment_crosses_any_other_node_interior(
         edge,
         geometry,
         start,
         elbow,
         INTRUSION_MARGIN,
-    ) && !super::segment_crosses_any_other_node_interior(
+    ) && !super::collision::segment_crosses_any_other_node_interior(
         edge,
         geometry,
         elbow,

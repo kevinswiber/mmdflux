@@ -18,7 +18,6 @@ flowchart LR
     mod_registry["registry"]
     mod_registry_builtins["registry_builtins"]
     mod_render["render"]
-    mod_request["request"]
     mod_runtime["runtime"]
     mod_simplification["simplification"]
     mod_style["style"]
@@ -73,10 +72,9 @@ flowchart LR
     mod_render --> mod_errors
     mod_render --> mod_format
     mod_render --> mod_graph
+    mod_render --> mod_mermaid
     mod_render --> mod_simplification
     mod_render --> mod_timeline
-    mod_request --> mod_config
-    mod_request --> mod_format
     mod_runtime --> mod_config
     mod_runtime --> mod_diagnostics
     mod_runtime --> mod_engines

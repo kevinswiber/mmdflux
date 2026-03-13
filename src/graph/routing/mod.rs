@@ -417,6 +417,90 @@ mod tests {
     }
 
     #[test]
+    fn backward_channel_path_routes_outside_intermediate_td_nodes() {
+        let mut diagram = Diagram::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_node(crate::graph::Node::new("Mid"));
+        diagram.add_node(crate::graph::Node::new("C"));
+        diagram.add_edge(crate::graph::Edge::new("C", "A"));
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(0.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "Mid".into(),
+            PositionedNode {
+                id: "Mid".into(),
+                rect: FRect::new(20.0, 45.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "Mid".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "C".into(),
+            PositionedNode {
+                id: "C".into(),
+                rect: FRect::new(0.0, 100.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "C".into(),
+                parent: None,
+            },
+        );
+
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![LayoutEdge {
+                index: 0,
+                from: "C".into(),
+                to: "A".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+                preserve_orthogonal_topology: false,
+            }],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(0.0, 0.0, 80.0, 120.0),
+            reversed_edges: vec![0],
+            engine_hints: None,
+            grid_projection: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: true,
+        };
+
+        let path = super::orthogonal::backward::build_backward_orthogonal_channel_path(
+            &geom.edges[0],
+            &geom,
+            crate::graph::Direction::TopDown,
+        )
+        .expect("backward channel path should be constructed");
+
+        assert_eq!(
+            path,
+            vec![
+                FPoint::new(40.0, 110.0),
+                FPoint::new(72.0, 110.0),
+                FPoint::new(72.0, 10.0),
+                FPoint::new(40.0, 10.0),
+            ]
+        );
+    }
+
+    #[test]
     fn direct_route_uses_hint_when_endpoints_coincide() {
         let (diagram, mut geom) = simple_geometry();
         geom.nodes.insert(

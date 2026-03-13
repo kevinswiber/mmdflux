@@ -1907,6 +1907,110 @@ mod label_edge_cases {
             "multiple_cycles.mmd should be compact, got {line_count} lines"
         );
     }
+
+    #[test]
+    fn backward_routes_keep_outer_lane_and_terminal_tangent_contracts() {
+        const MIN_OUTER_LANE_CLEARANCE: f64 = 12.0;
+        const EPS: f64 = 0.5;
+
+        fn point_on_target_face(
+            rect: mmdflux::graph::geometry::FRect,
+            point: FPoint,
+        ) -> &'static str {
+            let left = rect.x;
+            let right = rect.x + rect.width;
+            let top = rect.y;
+            let bottom = rect.y + rect.height;
+
+            let on_right = (point.x - right).abs() <= EPS;
+            let on_left = (point.x - left).abs() <= EPS;
+            let on_top = (point.y - top).abs() <= EPS;
+            let on_bottom = (point.y - bottom).abs() <= EPS;
+
+            if on_right && point.y > top + EPS && point.y < bottom - EPS {
+                "right"
+            } else if on_left && point.y > top + EPS && point.y < bottom - EPS {
+                "left"
+            } else if on_top && point.x > left + EPS && point.x < right - EPS {
+                "top"
+            } else if on_bottom && point.x > left + EPS && point.x < right - EPS {
+                "bottom"
+            } else if on_right {
+                "right"
+            } else if on_left {
+                "left"
+            } else {
+                "interior_or_corner"
+            }
+        }
+
+        let diagram = parse_and_build("multiple_cycles.mmd");
+        let config = EngineConfig::Layered(
+            mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+        );
+        let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
+            .expect("layout should succeed");
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let edge = routed
+            .edges
+            .iter()
+            .find(|edge| edge.from == "C" && edge.to == "A")
+            .expect("multiple_cycles fixture missing edge C -> A");
+
+        assert!(
+            edge.path.len() >= 4,
+            "multiple_cycles C -> A should have enough routed points to form an outer return lane: path={:?}",
+            edge.path
+        );
+
+        let start = edge.path[0];
+        let prev = edge.path[edge.path.len() - 2];
+        let end = *edge.path.last().expect("edge path is non-empty");
+        let baseline_max_x = start.x.max(end.x);
+        let route_max_x = edge
+            .path
+            .iter()
+            .map(|point| point.x)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let clearance = route_max_x - baseline_max_x;
+        assert!(
+            clearance >= MIN_OUTER_LANE_CLEARANCE,
+            "multiple_cycles C -> A should preserve an outer-lane lateral clearance (>= {MIN_OUTER_LANE_CLEARANCE}) instead of collapsing into a near-vertical return: clearance={clearance}, path={:?}",
+            edge.path
+        );
+
+        let target_rect = geom
+            .nodes
+            .get("A")
+            .expect("multiple_cycles should contain node A")
+            .rect;
+        match point_on_target_face(target_rect, end) {
+            "right" => assert!(
+                (prev.y - end.y).abs() <= EPS && end.x < prev.x,
+                "multiple_cycles C -> A should approach A from the right with a leftward terminal tangent: prev={prev:?}, end={end:?}, path={:?}",
+                edge.path
+            ),
+            "left" => assert!(
+                (prev.y - end.y).abs() <= EPS && end.x > prev.x,
+                "multiple_cycles C -> A should approach A from the left with a rightward terminal tangent: prev={prev:?}, end={end:?}, path={:?}",
+                edge.path
+            ),
+            "top" => assert!(
+                (prev.x - end.x).abs() <= EPS && end.y > prev.y,
+                "multiple_cycles C -> A should approach A from the top with a downward terminal tangent: prev={prev:?}, end={end:?}, path={:?}",
+                edge.path
+            ),
+            "bottom" => assert!(
+                (prev.x - end.x).abs() <= EPS && end.y < prev.y,
+                "multiple_cycles C -> A should approach A from the bottom with an upward terminal tangent: prev={prev:?}, end={end:?}, path={:?}",
+                edge.path
+            ),
+            other => panic!(
+                "multiple_cycles C -> A should resolve to a concrete terminal face after backward routing, got {other}: path={:?}",
+                edge.path
+            ),
+        }
+    }
 }
 
 // === Backward edge label position tests (Plan 0027, Task 5.1) ===

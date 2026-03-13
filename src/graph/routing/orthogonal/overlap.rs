@@ -253,7 +253,7 @@ fn build_forward_td_bt_criss_cross_corridor_path(
                     continue;
                 }
                 if candidate.windows(2).any(|segment| {
-                    super::segment_crosses_any_other_node_interior(
+                    super::collision::segment_crosses_any_other_node_interior(
                         edge,
                         geometry,
                         segment[0],
