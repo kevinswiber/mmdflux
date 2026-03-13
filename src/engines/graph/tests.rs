@@ -1,5 +1,5 @@
 use super::algorithms::layered::{
-    LabelDummyStrategy, LayoutConfig, MeasurementMode, run_layered_layout,
+    DiGraph, LabelDummyStrategy, LayoutConfig, MeasurementMode, layout, run_layered_layout,
 };
 use super::flux::{
     FluxLayeredEngine, adapt_flux_profile_for_reversed_chain_crowding, flux_layout_profile,
@@ -94,6 +94,15 @@ fn proportional_request(
 fn public_layout_config_converts_to_layered_engine_config() {
     let config = EngineConfig::from(crate::config::LayoutConfig::default());
     assert!(matches!(config, EngineConfig::Layered(_)));
+}
+
+#[test]
+fn layered_public_surface_survives_kernel_move() {
+    let mut graph = DiGraph::new();
+    graph.add_node("A", (10.0, 10.0));
+
+    let _ = LayoutConfig::default();
+    let _ = layout(&graph, &LayoutConfig::default(), |_, dims| *dims);
 }
 
 #[test]

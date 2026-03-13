@@ -14,8 +14,8 @@ use super::support::{
 };
 use super::types::EdgeLabelInfo;
 use super::{
-    DiGraph, EdgeLayout, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Rect,
-    acyclic, border, nesting, normalize, order, parent_dummy_chains, position, rank,
+    acyclic, border, nesting, normalize, order, parent_dummy_chains, position, rank, DiGraph,
+    EdgeLayout, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Rect,
 };
 
 /// Main entry point for layout computation.

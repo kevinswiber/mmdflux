@@ -1034,6 +1034,116 @@ fn layered_kernel_does_not_keep_grid_layout_config_alias() {
 }
 
 #[test]
+fn layered_module_declares_internal_kernel_boundary() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let layered_mod = std::fs::read_to_string(
+        repo_root.join("src/engines/graph/algorithms/layered/mod.rs"),
+    )
+    .unwrap();
+
+    assert!(layered_mod.contains("pub(crate) mod kernel;"));
+    assert!(!layered_mod.contains("pub mod kernel;"));
+    assert!(
+        repo_root
+            .join("src/engines/graph/algorithms/layered/kernel/mod.rs")
+            .exists()
+    );
+}
+
+#[test]
+fn layered_kernel_stays_graph_agnostic() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert_no_production_imports(
+        &repo_root.join("src/engines/graph/algorithms/layered/kernel"),
+        &["crate::graph::"],
+        "layered::kernel should stay graph-agnostic",
+    );
+}
+
+#[test]
+fn layered_public_pure_modules_move_under_kernel() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for relative_path in [
+        "src/engines/graph/algorithms/layered/graph.rs",
+        "src/engines/graph/algorithms/layered/types.rs",
+        "src/engines/graph/algorithms/layered/pipeline.rs",
+        "src/engines/graph/algorithms/layered/debug.rs",
+        "src/engines/graph/algorithms/layered/normalize.rs",
+        "src/engines/graph/algorithms/layered/support.rs",
+    ] {
+        assert!(
+            !repo_root.join(relative_path).exists(),
+            "{relative_path} should move under layered/kernel/"
+        );
+    }
+
+    for relative_path in [
+        "src/engines/graph/algorithms/layered/kernel/graph.rs",
+        "src/engines/graph/algorithms/layered/kernel/types.rs",
+        "src/engines/graph/algorithms/layered/kernel/pipeline.rs",
+        "src/engines/graph/algorithms/layered/kernel/debug.rs",
+        "src/engines/graph/algorithms/layered/kernel/normalize.rs",
+        "src/engines/graph/algorithms/layered/kernel/support.rs",
+    ] {
+        assert!(
+            repo_root.join(relative_path).exists(),
+            "{relative_path} should exist under layered/kernel/"
+        );
+    }
+}
+
+#[test]
+fn layered_private_phase_modules_live_under_kernel() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for relative_path in [
+        "src/engines/graph/algorithms/layered/kernel/acyclic.rs",
+        "src/engines/graph/algorithms/layered/kernel/rank.rs",
+        "src/engines/graph/algorithms/layered/kernel/rank_core.rs",
+        "src/engines/graph/algorithms/layered/kernel/order.rs",
+        "src/engines/graph/algorithms/layered/kernel/position.rs",
+        "src/engines/graph/algorithms/layered/kernel/bk.rs",
+        "src/engines/graph/algorithms/layered/kernel/border.rs",
+        "src/engines/graph/algorithms/layered/kernel/nesting.rs",
+        "src/engines/graph/algorithms/layered/kernel/network_simplex.rs",
+        "src/engines/graph/algorithms/layered/kernel/parent_dummy_chains.rs",
+        "src/engines/graph/algorithms/layered/kernel/regression_tests.rs",
+    ] {
+        assert!(
+            repo_root.join(relative_path).exists(),
+            "{relative_path} should exist under layered/kernel/"
+        );
+    }
+
+    for relative_path in [
+        "src/engines/graph/algorithms/layered/acyclic.rs",
+        "src/engines/graph/algorithms/layered/rank.rs",
+        "src/engines/graph/algorithms/layered/rank_core.rs",
+        "src/engines/graph/algorithms/layered/order.rs",
+        "src/engines/graph/algorithms/layered/position.rs",
+        "src/engines/graph/algorithms/layered/bk.rs",
+        "src/engines/graph/algorithms/layered/border.rs",
+        "src/engines/graph/algorithms/layered/nesting.rs",
+        "src/engines/graph/algorithms/layered/network_simplex.rs",
+        "src/engines/graph/algorithms/layered/parent_dummy_chains.rs",
+        "src/engines/graph/algorithms/layered/regression_tests.rs",
+    ] {
+        assert!(
+            !repo_root.join(relative_path).exists(),
+            "{relative_path} should move under layered/kernel/"
+        );
+    }
+
+    assert!(
+        repo_root
+            .join("src/engines/graph/algorithms/layered/layout_building_tests.rs")
+            .exists(),
+        "layout_building_tests.rs should remain at the outer layered bridge"
+    );
+}
+
+#[test]
 fn graph_does_not_import_render_or_layered_kernel() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     assert_no_production_imports(
