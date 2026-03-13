@@ -33,8 +33,8 @@ pub(super) fn points_for_svg_path(
     let needs_orthogonalization =
         matches!(edge_routing, EdgeRouting::OrthogonalRoute) && matches!(curve, Curve::Linear(_));
     let points: Vec<Point> = if needs_orthogonalization && !points_are_axis_aligned(points) {
-        let start: Point = points[0];
-        let end: Point = points.last().copied().unwrap_or(points[0]);
+        let start = points[0];
+        let end = points[points.len() - 1];
         let waypoints: Vec<Point> = points
             .iter()
             .copied()
@@ -87,31 +87,28 @@ pub(super) fn path_from_prepared_points(
             } else {
                 dedup_consecutive_svg_points(points)
             };
-            let scaled: Vec<(f64, f64)> = basis_points
-                .iter()
-                .map(|point| (point.x * scale, point.y * scale))
-                .collect();
+            let scaled = scaled_points(&basis_points, scale);
             if enforce_basis_visible_stems {
                 path_from_points_curved_with_explicit_caps(&scaled)
             } else {
                 path_from_points_curved(&scaled)
             }
         }
-        Curve::Linear(CornerStyle::Rounded) => {
-            let scaled: Vec<(f64, f64)> = points
-                .iter()
-                .map(|point| (point.x * scale, point.y * scale))
-                .collect();
-            path_from_points_rounded(&scaled, curve_radius * scale)
-        }
-        Curve::Linear(CornerStyle::Sharp) => {
-            let scaled: Vec<(f64, f64)> = points
-                .iter()
-                .map(|point| (point.x * scale, point.y * scale))
-                .collect();
-            path_from_points_straight(&scaled)
+        Curve::Linear(corner_style) => {
+            let scaled = scaled_points(points, scale);
+            match corner_style {
+                CornerStyle::Rounded => path_from_points_rounded(&scaled, curve_radius * scale),
+                CornerStyle::Sharp => path_from_points_straight(&scaled),
+            }
         }
     }
+}
+
+fn scaled_points(points: &[Point], scale: f64) -> Vec<(f64, f64)> {
+    points
+        .iter()
+        .map(|point| (point.x * scale, point.y * scale))
+        .collect()
 }
 
 fn simplify_orthogonal_points(

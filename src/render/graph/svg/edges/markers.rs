@@ -26,23 +26,11 @@ pub(super) fn edge_style_attrs(edge: &Edge, scale: f64) -> String {
 
 pub(super) fn edge_marker_attrs(edge: &Edge) -> String {
     let mut attrs = String::new();
-    match edge.arrow_start {
-        Arrow::Normal => attrs.push_str(" marker-start=\"url(#arrowhead)\""),
-        Arrow::Cross => attrs.push_str(" marker-start=\"url(#crosshead)\""),
-        Arrow::Circle => attrs.push_str(" marker-start=\"url(#circlehead)\""),
-        Arrow::OpenTriangle => attrs.push_str(" marker-start=\"url(#open-arrowhead)\""),
-        Arrow::Diamond => attrs.push_str(" marker-start=\"url(#diamondhead)\""),
-        Arrow::OpenDiamond => attrs.push_str(" marker-start=\"url(#open-diamondhead)\""),
-        Arrow::None => {}
+    if let Some(marker_id) = marker_id_for_arrow(edge.arrow_start) {
+        let _ = write!(attrs, " marker-start=\"url(#{marker_id})\"");
     }
-    match edge.arrow_end {
-        Arrow::Normal => attrs.push_str(" marker-end=\"url(#arrowhead)\""),
-        Arrow::Cross => attrs.push_str(" marker-end=\"url(#crosshead)\""),
-        Arrow::Circle => attrs.push_str(" marker-end=\"url(#circlehead)\""),
-        Arrow::OpenTriangle => attrs.push_str(" marker-end=\"url(#open-arrowhead)\""),
-        Arrow::Diamond => attrs.push_str(" marker-end=\"url(#diamondhead)\""),
-        Arrow::OpenDiamond => attrs.push_str(" marker-end=\"url(#open-diamondhead)\""),
-        Arrow::None => {}
+    if let Some(marker_id) = marker_id_for_arrow(edge.arrow_end) {
+        let _ = write!(attrs, " marker-end=\"url(#{marker_id})\"");
     }
     attrs
 }
@@ -81,26 +69,14 @@ pub(super) fn apply_marker_offsets(
         skip_end_pullback,
         preserve_terminal_axis,
     } = options;
-    let expected_end_axis = preserve_terminal_axis
-        .then(|| {
-            if points.len() >= 2 {
-                segment_axis(points[points.len() - 2], points[points.len() - 1])
-            } else {
-                None
-            }
-        })
-        .flatten();
+    let expected_end_axis = if preserve_terminal_axis {
+        segment_axis(points[points.len() - 2], points[points.len() - 1])
+    } else {
+        None
+    };
 
-    let mut start_offset: f64 = match edge.arrow_start {
-        Arrow::Normal | Arrow::OpenTriangle => 4.0,
-        Arrow::Diamond | Arrow::OpenDiamond => 5.0,
-        Arrow::Cross | Arrow::Circle | Arrow::None => 0.0,
-    };
-    let mut end_offset: f64 = match edge.arrow_end {
-        Arrow::Normal | Arrow::OpenTriangle => 4.0,
-        Arrow::Diamond | Arrow::OpenDiamond => 5.0,
-        Arrow::Cross | Arrow::Circle | Arrow::None => 0.0,
-    };
+    let mut start_offset = marker_offset_for_arrow(edge.arrow_start);
+    let mut end_offset = marker_offset_for_arrow(edge.arrow_end);
     if skip_end_pullback {
         end_offset = 0.0;
     }
@@ -341,6 +317,26 @@ pub(super) fn curve_adaptive_orthogonal_terminal_support(
         Curve::Linear(CornerStyle::Rounded) => Some((10.0 + edge_radius).max(12.0)),
         Curve::Basis => Some(16.0),
         Curve::Linear(CornerStyle::Sharp) => None,
+    }
+}
+
+fn marker_id_for_arrow(arrow: Arrow) -> Option<&'static str> {
+    match arrow {
+        Arrow::Normal => Some("arrowhead"),
+        Arrow::Cross => Some("crosshead"),
+        Arrow::Circle => Some("circlehead"),
+        Arrow::OpenTriangle => Some("open-arrowhead"),
+        Arrow::Diamond => Some("diamondhead"),
+        Arrow::OpenDiamond => Some("open-diamondhead"),
+        Arrow::None => None,
+    }
+}
+
+fn marker_offset_for_arrow(arrow: Arrow) -> f64 {
+    match arrow {
+        Arrow::Normal | Arrow::OpenTriangle => 4.0,
+        Arrow::Diamond | Arrow::OpenDiamond => 5.0,
+        Arrow::Cross | Arrow::Circle | Arrow::None => 0.0,
     }
 }
 

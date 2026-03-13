@@ -31,27 +31,14 @@ fn routing_style_for(edge_routing: EdgeRouting) -> RoutingStyle {
 /// Scans the SVG for `<text ...>Label</text>` elements and returns a map of label -> x coordinate.
 fn extract_node_x_positions(svg: &str) -> HashMap<String, f64> {
     let mut positions = HashMap::new();
-    for line in svg.lines() {
-        let line = line.trim();
-        if !line.starts_with("<text") || !line.contains("dominant-baseline") {
+    for line in svg.lines().map(str::trim) {
+        if !line.contains("dominant-baseline") {
             continue;
         }
-        // Extract x value from x="..."
-        let x_val = line.find("x=\"").and_then(|start| {
-            let rest = &line[start + 3..];
-            rest.find('"')
-                .and_then(|end| rest[..end].parse::<f64>().ok())
-        });
-        // Extract text content between >...</text>
-        let label = line.find("</text>").and_then(|end| {
-            let before = &line[..end];
-            before
-                .rfind('>')
-                .map(|start| before[start + 1..].to_string())
-        });
-        if let (Some(x), Some(label)) = (x_val, label)
-            && !label.is_empty()
-        {
+        let Some((x, _y, label)) = parse_svg_text_position_and_value(line) else {
+            continue;
+        };
+        if !label.is_empty() {
             positions.insert(label, x);
         }
     }
@@ -914,10 +901,8 @@ fn point_inside_rect_with_margin(
 
 fn node_rect_for_label(svg: &str, label: &str) -> Option<(f64, f64, f64, f64)> {
     let (text_x, text_y) = svg.lines().find_map(|line| {
-        if !line.contains("<text") || !line.contains(&format!(">{label}<")) {
-            return None;
-        }
-        Some((parse_attr_f64(line, "x")?, parse_attr_f64(line, "y")?))
+        let (x, y, value) = parse_svg_text_position_and_value(line)?;
+        (value == label).then_some((x, y))
     })?;
 
     svg.lines()
