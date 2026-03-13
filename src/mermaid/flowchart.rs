@@ -1944,4 +1944,190 @@ mod tests {
         assert_eq!(edge.connector.right, ArrowHead::Normal);
         assert_eq!(edge.connector.label(), Some("both ways"));
     }
+
+    mod owner_local_fixture_regressions {
+        use super::*;
+
+        #[test]
+        fn comments_are_ignored() {
+            let flowchart = parse_fixture_flowchart("git_workflow.mmd");
+            assert_eq!(flowchart.edges().len(), 4);
+            assert!(flowchart.vertices().iter().all(|vertex| vertex.id != "%%"));
+        }
+
+        #[test]
+        fn shape_keywords_parse_document_and_card() {
+            let flowchart = parse_fixture_flowchart("shapes_document.mmd");
+
+            assert_eq!(
+                fixture_vertex(&flowchart, "doc").shape,
+                Some(ShapeSpec::Document("Doc".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "docs").shape,
+                Some(ShapeSpec::Documents("Docs".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "tagdoc").shape,
+                Some(ShapeSpec::TaggedDocument("TagDoc".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "card").shape,
+                Some(ShapeSpec::Card("Card".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "tag").shape,
+                Some(ShapeSpec::TaggedRect("Tag".to_string()))
+            );
+        }
+
+        #[test]
+        fn directive_stripped() {
+            let flowchart = parse_fixture_flowchart("compat_directive.mmd");
+            assert_eq!(flowchart.edges().len(), 3);
+            assert_eq!(
+                fixture_vertex(&flowchart, "A").shape,
+                Some(ShapeSpec::Rectangle("Start".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "B").shape,
+                Some(ShapeSpec::Diamond("Decision".to_string()))
+            );
+        }
+
+        #[test]
+        fn frontmatter_stripped() {
+            let flowchart = parse_fixture_flowchart("compat_frontmatter.mmd");
+            assert_eq!(flowchart.edges().len(), 2);
+            assert_eq!(fixture_vertex(&flowchart, "A").id, "A");
+            assert_eq!(fixture_vertex(&flowchart, "B").id, "B");
+            assert_eq!(fixture_vertex(&flowchart, "C").id, "C");
+        }
+
+        #[test]
+        fn no_direction_defaults_to_td() {
+            let flowchart = parse_fixture_flowchart("compat_no_direction.mmd");
+            assert_eq!(flowchart.direction, Direction::TopDown);
+            assert_eq!(flowchart.edges().len(), 1);
+        }
+
+        #[test]
+        fn numeric_ids() {
+            let flowchart = parse_fixture_flowchart("compat_numeric_ids.mmd");
+            assert_eq!(
+                fixture_vertex(&flowchart, "1").shape,
+                Some(ShapeSpec::Rectangle("First".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "2").shape,
+                Some(ShapeSpec::Rectangle("Second".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "3").shape,
+                Some(ShapeSpec::Rectangle("Third".to_string()))
+            );
+        }
+
+        #[test]
+        fn hyphenated_ids() {
+            let flowchart = parse_fixture_flowchart("compat_hyphenated_ids.mmd");
+            assert_eq!(
+                fixture_vertex(&flowchart, "start-node").shape,
+                Some(ShapeSpec::Rectangle("Start".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "process-1").shape,
+                Some(ShapeSpec::Rectangle("Process A".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "decision-point").shape,
+                Some(ShapeSpec::Diamond("Check".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "end-node").shape,
+                Some(ShapeSpec::Rectangle("Done".to_string()))
+            );
+        }
+
+        #[test]
+        fn class_annotation_ignored() {
+            let flowchart = parse_fixture_flowchart("compat_class_annotation.mmd");
+            assert_eq!(flowchart.edges().len(), 3);
+            assert_eq!(
+                fixture_vertex(&flowchart, "A").shape,
+                Some(ShapeSpec::Rectangle("Start".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "B").shape,
+                Some(ShapeSpec::Diamond("Decision".to_string()))
+            );
+        }
+
+        #[test]
+        fn invisible_edge_not_rendered() {
+            let flowchart = parse_fixture_flowchart("compat_invisible_edge.mmd");
+            assert_eq!(flowchart.edges().len(), 3);
+            assert_eq!(
+                flowchart
+                    .edges()
+                    .iter()
+                    .filter(|edge| edge.connector.stroke == StrokeSpec::Invisible)
+                    .count(),
+                1
+            );
+        }
+
+        #[test]
+        fn kitchen_sink() {
+            let flowchart = parse_fixture_flowchart("compat_kitchen_sink.mmd");
+            assert_eq!(flowchart.edges().len(), 5);
+            assert_eq!(
+                fixture_vertex(&flowchart, "start-node").shape,
+                Some(ShapeSpec::Rectangle("Start".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "check-1").shape,
+                Some(ShapeSpec::Diamond("Check Input".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "error-1").shape,
+                Some(ShapeSpec::Rectangle("Error".to_string()))
+            );
+            assert_eq!(
+                fixture_vertex(&flowchart, "end-node").shape,
+                Some(ShapeSpec::Rectangle("Done".to_string()))
+            );
+        }
+    }
+
+    fn parse_fixture_flowchart(name: &str) -> Flowchart {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("flowchart")
+            .join(name);
+        let input = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("Failed to read fixture {}: {}", path.display(), error));
+        parse_flowchart(&input).unwrap_or_else(|error| {
+            panic!(
+                "Failed to parse flowchart fixture {}: {}",
+                path.display(),
+                error
+            )
+        })
+    }
+
+    fn fixture_vertex<'a>(flowchart: &'a Flowchart, id: &str) -> &'a Vertex {
+        flowchart
+            .vertices()
+            .into_iter()
+            .find(|vertex| vertex.id == id && vertex.shape.is_some())
+            .or_else(|| {
+                flowchart
+                    .vertices()
+                    .into_iter()
+                    .find(|vertex| vertex.id == id)
+            })
+            .unwrap_or_else(|| panic!("Missing fixture vertex {id}"))
+    }
 }

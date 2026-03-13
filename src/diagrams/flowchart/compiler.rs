@@ -921,4 +921,225 @@ mod tests {
         let diagram = compile_to_graph(&flowchart);
         assert_eq!(diagram.edges[0].label, Some("yes\nno".to_string()));
     }
+
+    mod owner_local_fixture_regressions {
+        use super::*;
+
+        #[test]
+        fn simple_parses_correctly() {
+            let diagram = compile_fixture_diagram("simple.mmd");
+
+            assert_eq!(diagram.direction, Direction::TopDown);
+            assert_eq!(diagram.nodes.len(), 2);
+            assert_eq!(diagram.edges.len(), 1);
+
+            assert!(diagram.nodes.contains_key("A"));
+            assert!(diagram.nodes.contains_key("B"));
+            assert_eq!(diagram.nodes["A"].label, "Start");
+            assert_eq!(diagram.nodes["B"].label, "End");
+        }
+
+        #[test]
+        fn decision_parses_correctly() {
+            let diagram = compile_fixture_diagram("decision.mmd");
+
+            assert_eq!(diagram.nodes.len(), 4);
+            assert_eq!(diagram.edges.len(), 4);
+            assert_eq!(diagram.nodes["B"].shape, Shape::Diamond);
+            assert_eq!(diagram.nodes["B"].label, "Is it working?");
+        }
+
+        #[test]
+        fn shapes_parses_correctly() {
+            let diagram = compile_fixture_diagram("shapes.mmd");
+
+            assert_eq!(diagram.nodes["rect"].shape, Shape::Rectangle);
+            assert_eq!(diagram.nodes["round"].shape, Shape::Round);
+            assert_eq!(diagram.nodes["diamond"].shape, Shape::Diamond);
+        }
+
+        #[test]
+        fn shape_keywords_parse_junctions_and_specials() {
+            let diagram = compile_fixture_diagram("shapes_junction.mmd");
+            assert_eq!(diagram.nodes["j1"].shape, Shape::SmallCircle);
+            assert_eq!(diagram.nodes["j2"].shape, Shape::FramedCircle);
+            assert_eq!(diagram.nodes["j3"].shape, Shape::CrossedCircle);
+
+            let diagram = compile_fixture_diagram("shapes_special.mmd");
+            assert_eq!(diagram.nodes["fork"].shape, Shape::ForkJoin);
+            assert_eq!(diagram.nodes["note"].shape, Shape::TextBlock);
+        }
+
+        #[test]
+        fn shape_keywords_parse_degenerate_fallbacks() {
+            let diagram = compile_fixture_diagram("shapes_degenerate.mmd");
+            for id in [
+                "cloud",
+                "bolt",
+                "bang",
+                "icon",
+                "hourglass",
+                "tri",
+                "flip",
+                "notch",
+            ] {
+                assert_eq!(diagram.nodes[id].shape, Shape::Rectangle);
+            }
+        }
+
+        #[test]
+        fn left_right_direction() {
+            let diagram = compile_fixture_diagram("left_right.mmd");
+            assert_eq!(diagram.direction, Direction::LeftRight);
+        }
+
+        #[test]
+        fn bottom_top_direction() {
+            let diagram = compile_fixture_diagram("bottom_top.mmd");
+            assert_eq!(diagram.direction, Direction::BottomTop);
+        }
+
+        #[test]
+        fn right_left_direction() {
+            let diagram = compile_fixture_diagram("right_left.mmd");
+            assert_eq!(diagram.direction, Direction::RightLeft);
+        }
+
+        #[test]
+        fn chain_creates_correct_edges() {
+            let diagram = compile_fixture_diagram("chain.mmd");
+            assert_eq!(diagram.nodes.len(), 4);
+            assert_eq!(diagram.edges.len(), 3);
+        }
+
+        #[test]
+        fn ampersand_expands_to_multiple_edges() {
+            let diagram = compile_fixture_diagram("ampersand.mmd");
+            assert_eq!(diagram.nodes.len(), 5);
+            assert_eq!(diagram.edges.len(), 4);
+        }
+
+        #[test]
+        fn labeled_edges_parsed() {
+            let diagram = compile_fixture_diagram("labeled_edges.mmd");
+            let edges_with_labels = diagram
+                .edges
+                .iter()
+                .filter(|edge| edge.label.is_some())
+                .count();
+            assert!(edges_with_labels > 0, "Should have labeled edges");
+        }
+
+        #[test]
+        fn inline_edge_labels_parsed() {
+            let diagram = compile_fixture_diagram("inline_edge_labels.mmd");
+
+            assert_eq!(diagram.edges.len(), 4);
+            assert_eq!(diagram.edges[0].label.as_deref(), Some("yes"));
+            assert_eq!(diagram.edges[1].label.as_deref(), Some("retry"));
+            assert_eq!(diagram.edges[2].label.as_deref(), Some("final step"));
+            assert_eq!(diagram.edges[3].label.as_deref(), Some("no"));
+
+            assert!(!diagram.nodes.contains_key("yes"));
+            assert!(!diagram.nodes.contains_key("retry"));
+            assert!(!diagram.nodes.contains_key("no"));
+        }
+
+        #[test]
+        fn inline_label_flowchart_parsed() {
+            let diagram = compile_fixture_diagram("inline_label_flowchart.mmd");
+
+            let mut counts: HashMap<&str, usize> = HashMap::new();
+            for label in diagram
+                .edges
+                .iter()
+                .filter_map(|edge| edge.label.as_deref())
+            {
+                *counts.entry(label).or_insert(0) += 1;
+            }
+
+            assert_eq!(counts.get("no"), Some(&2));
+            assert_eq!(counts.get("yes"), Some(&2));
+            assert_eq!(counts.get("sync"), Some(&1));
+            assert_eq!(counts.get("async"), Some(&1));
+            assert_eq!(counts.get("hit"), Some(&1));
+            assert_eq!(counts.get("miss"), Some(&1));
+            assert_eq!(counts.get("warn"), Some(&1));
+            assert_eq!(counts.values().sum::<usize>(), 9);
+        }
+
+        #[test]
+        fn complex_parses_all_features() {
+            let diagram = compile_fixture_diagram("complex.mmd");
+            assert!(diagram.nodes.len() >= 9);
+            assert!(diagram.edges.len() >= 10);
+        }
+
+        #[test]
+        fn test_parse_simple_subgraph_fixture() {
+            let diagram = compile_fixture_diagram("simple_subgraph.mmd");
+
+            assert!(diagram.has_subgraphs());
+            assert!(diagram.subgraphs.contains_key("sg1"));
+            assert_eq!(diagram.subgraphs["sg1"].title, "Process");
+            assert!(diagram.subgraphs["sg1"].nodes.contains(&"A".to_string()));
+            assert!(diagram.subgraphs["sg1"].nodes.contains(&"B".to_string()));
+        }
+
+        #[test]
+        fn test_parse_subgraph_edges_fixture() {
+            let diagram = compile_fixture_diagram("subgraph_edges.mmd");
+
+            assert_eq!(diagram.subgraphs.len(), 2);
+            assert!(diagram.subgraphs.contains_key("sg1"));
+            assert!(diagram.subgraphs.contains_key("sg2"));
+            assert!(
+                diagram
+                    .edges
+                    .iter()
+                    .any(|edge| edge.from == "A" && edge.to == "C")
+            );
+            assert!(
+                diagram
+                    .edges
+                    .iter()
+                    .any(|edge| edge.from == "B" && edge.to == "D")
+            );
+        }
+
+        #[test]
+        fn test_parse_multi_subgraph_fixture() {
+            let diagram = compile_fixture_diagram("multi_subgraph.mmd");
+
+            assert_eq!(diagram.subgraphs.len(), 2);
+            assert!(diagram.subgraphs.contains_key("sg1"));
+            assert!(diagram.subgraphs.contains_key("sg2"));
+            assert_eq!(diagram.subgraphs["sg1"].title, "Frontend");
+            assert_eq!(diagram.subgraphs["sg2"].title, "Backend");
+            assert!(
+                diagram
+                    .edges
+                    .iter()
+                    .any(|edge| edge.from == "B" && edge.to == "C")
+            );
+        }
+    }
+
+    fn compile_fixture_diagram(name: &str) -> Diagram {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("flowchart")
+            .join(name);
+        let input = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("Failed to read fixture {}: {}", path.display(), error));
+        let flowchart = parse_flowchart(&input).unwrap_or_else(|error| {
+            panic!(
+                "Failed to parse flowchart fixture {}: {}",
+                path.display(),
+                error
+            )
+        });
+        compile_to_graph(&flowchart)
+    }
 }

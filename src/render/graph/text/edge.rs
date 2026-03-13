@@ -2222,4 +2222,217 @@ mod tests {
 
         assert_eq!(canvas.get(6, 4).unwrap().ch, '┘');
     }
+
+    fn render_flowchart_fixture(name: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("flowchart")
+            .join(name);
+        let input = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("Failed to read fixture {}: {}", path.display(), error));
+        crate::render_diagram(
+            &input,
+            crate::OutputFormat::Text,
+            &crate::RenderConfig::default(),
+        )
+        .unwrap_or_else(|error| panic!("Failed to render fixture {name}: {error}"))
+    }
+
+    fn render_flowchart_input(input: &str) -> String {
+        crate::render_diagram(
+            input,
+            crate::OutputFormat::Text,
+            &crate::RenderConfig::default(),
+        )
+        .expect("input render should succeed")
+    }
+
+    #[test]
+    fn labeled_edges_show_labels() {
+        let output = render_flowchart_fixture("labeled_edges.mmd");
+        assert!(output.contains("initialize") || output.contains("configure"));
+        assert!(
+            output.contains("yes"),
+            "Expected 'yes' label in output:\n{output}"
+        );
+        assert!(
+            output.contains("no"),
+            "Expected 'no' label in output:\n{output}"
+        );
+    }
+
+    #[test]
+    fn branching_labels_dont_overlap() {
+        let output = render_flowchart_fixture("label_spacing.mmd");
+
+        assert!(output.contains("valid"), "Should contain 'valid' label");
+        assert!(output.contains("invalid"), "Should contain 'invalid' label");
+        assert!(
+            !output.contains("valinvalid"),
+            "Labels should not merge into 'valinvalid'"
+        );
+        assert!(
+            !output.contains("invalidvalid"),
+            "Labels should not merge into 'invalidvalid'"
+        );
+
+        let lines: Vec<&str> = output.lines().collect();
+        let a_line = lines.iter().position(|line| line.contains(" A ")).unwrap();
+        let b_line = lines.iter().rposition(|line| line.contains(" B ")).unwrap();
+        let label_line = lines
+            .iter()
+            .position(|line| line.contains("valid"))
+            .unwrap();
+        assert!(
+            label_line > a_line && label_line < b_line,
+            "Label at line {} should be between A (line {}) and B (line {})\n{}",
+            label_line,
+            a_line,
+            b_line,
+            output
+        );
+    }
+
+    #[test]
+    fn text_renders_head_label() {
+        let input = "graph TD\n  A --> B\n";
+        let mut diagram = crate::diagrams::flowchart::compile_to_graph(
+            &crate::mermaid::parse_flowchart(input).expect("flowchart should parse"),
+        );
+        diagram.edges[0].head_label = Some("*".to_string());
+        let output = render_text_diagram(&diagram);
+        assert!(
+            output.contains('*'),
+            "text output should contain head label '*', got:\n{output}"
+        );
+    }
+
+    #[test]
+    fn text_renders_tail_label() {
+        let input = "graph TD\n  A --> B\n";
+        let mut diagram = crate::diagrams::flowchart::compile_to_graph(
+            &crate::mermaid::parse_flowchart(input).expect("flowchart should parse"),
+        );
+        diagram.edges[0].tail_label = Some("src".to_string());
+        let output = render_text_diagram(&diagram);
+        assert!(
+            output.contains("src"),
+            "text output should contain tail label 'src', got:\n{output}"
+        );
+    }
+
+    #[test]
+    fn long_label_renders_without_panic() {
+        let output = render_flowchart_input(
+            "graph TD\n    A -->|this is a very long label that might overflow| B",
+        );
+        assert!(!output.is_empty());
+        assert!(output.contains(" A "), "Node A should render:\n{output}");
+        assert!(output.contains(" B "), "Node B should render:\n{output}");
+    }
+
+    #[test]
+    fn fan_out_with_labels() {
+        let output = render_flowchart_input(
+            "graph TD\n    A -->|yes| B\n    A -->|no| C\n    A -->|maybe| D",
+        );
+        assert!(output.contains("yes"), "Expected 'yes' label:\n{output}");
+        assert!(output.contains("no"), "Expected 'no' label:\n{output}");
+        assert!(
+            output.contains("maybe"),
+            "Expected 'maybe' label:\n{output}"
+        );
+    }
+
+    #[test]
+    fn labeled_edge_lr_direction() {
+        let output = render_flowchart_input("graph LR\n    A -->|label| B");
+        assert!(output.contains(" A "), "Should contain node A:\n{output}");
+        assert!(output.contains(" B "), "Should contain node B:\n{output}");
+        assert!(
+            output.contains("label"),
+            "Expected 'label' in LR layout:\n{output}"
+        );
+    }
+
+    #[test]
+    fn mixed_labeled_and_unlabeled() {
+        let output = render_flowchart_input(
+            "graph TD\n    A -->|yes| B\n    A --> C\n    B --> D\n    C -->|error| D",
+        );
+        assert!(output.contains("yes"), "Expected 'yes' label:\n{output}");
+        assert!(
+            output.contains("error"),
+            "Expected 'error' label:\n{output}"
+        );
+        for node in ["A", "B", "C", "D"] {
+            assert!(
+                output.contains(&format!(" {node} ")),
+                "Expected node {node}:\n{output}"
+            );
+        }
+    }
+
+    #[test]
+    fn all_edges_labeled() {
+        let output = render_flowchart_input(
+            "graph TD\n    A -->|start| B\n    B -->|process| C\n    C -->|end| D",
+        );
+        assert!(output.contains("end"), "Expected 'end' label:\n{output}");
+        assert!(output.contains(" A "), "Expected node A:\n{output}");
+        assert!(output.contains(" B "), "Expected node B:\n{output}");
+        assert!(output.contains(" D "), "Expected node D:\n{output}");
+        assert!(
+            output.contains("┌───┐"),
+            "Expected at least one node box:\n{output}"
+        );
+    }
+
+    #[test]
+    fn labeled_edges_reasonable_height() {
+        let output = render_flowchart_fixture("labeled_edges.mmd");
+        let line_count = output.lines().count();
+
+        assert!(
+            line_count < 40,
+            "labeled_edges.mmd should render in under 40 lines, got {line_count}"
+        );
+
+        for label in &["initialize", "configure", "yes", "no", "retry"] {
+            assert!(
+                output.contains(label),
+                "Output should contain label '{label}'"
+            );
+        }
+    }
+
+    #[test]
+    fn diamond_text_not_corrupted_by_arrows() {
+        let output = render_flowchart_fixture("labeled_edges.mmd");
+        assert!(
+            output.contains("Valid?"),
+            "Diamond text 'Valid?' should be intact in output:\n{output}"
+        );
+    }
+
+    #[test]
+    fn simple_cycle_compact_backward_routing() {
+        let output = render_flowchart_fixture("simple_cycle.mmd");
+        let line_count = output.lines().count();
+        assert!(
+            line_count < 30,
+            "simple_cycle.mmd should be compact, got {line_count} lines"
+        );
+    }
+
+    #[test]
+    fn multiple_cycles_compact_backward_routing() {
+        let output = render_flowchart_fixture("multiple_cycles.mmd");
+        let line_count = output.lines().count();
+        assert!(
+            line_count < 40,
+            "multiple_cycles.mmd should be compact, got {line_count} lines"
+        );
+    }
 }
