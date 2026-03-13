@@ -38,6 +38,7 @@ pub mod mmds;
 pub mod prepared;
 pub mod registry;
 mod render;
+// Facade functions and config_input are re-exported below as public API.
 pub(crate) mod runtime;
 pub mod simplification;
 pub mod style;

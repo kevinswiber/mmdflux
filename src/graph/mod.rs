@@ -18,7 +18,7 @@ pub mod projection;
 pub(crate) mod routing;
 pub mod space;
 
-pub use diagram::*;
-pub use edge::*;
+pub use diagram::{Diagram, Direction, Subgraph};
+pub use edge::{Arrow, Edge, Stroke};
 pub use geometry::GeometryLevel;
-pub use node::*;
+pub use node::{Node, Shape};
