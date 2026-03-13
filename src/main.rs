@@ -39,6 +39,40 @@ struct CliLintJson {
     warnings: Vec<ValidationDiagnostic>,
 }
 
+const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
+
+fn normalize_validation_result(result: ValidationResult) -> CliLintJson {
+    let diagnostics = result
+        .diagnostics
+        .into_iter()
+        .map(|mut diag| {
+            if diag.severity.is_empty() {
+                diag.severity = if result.valid {
+                    "warning".to_string()
+                } else {
+                    "error".to_string()
+                };
+            }
+
+            if diag.message.contains(STRICT_PARSE_WARNING_PREFIX) {
+                diag.severity = "error".to_string();
+            }
+
+            diag
+        })
+        .collect::<Vec<_>>();
+
+    let (warnings, errors): (Vec<_>, Vec<_>) = diagnostics
+        .into_iter()
+        .partition(|diag| diag.severity.eq_ignore_ascii_case("warning"));
+
+    CliLintJson {
+        valid: result.valid && errors.is_empty(),
+        errors,
+        warnings,
+    }
+}
+
 impl fmt::Display for ValidationDiagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let severity = if self.severity.is_empty() {
@@ -309,41 +343,23 @@ fn main() -> io::Result<()> {
                 format!("failed to parse validation output: {error}"),
             )
         })?;
+        let lint_json = normalize_validation_result(result);
 
         if matches!(format, OutputFormat::Mmds) {
-            let diagnostics = result
-                .diagnostics
-                .into_iter()
-                .map(|mut diag| {
-                    if diag.severity.is_empty() {
-                        diag.severity = if result.valid {
-                            "warning".to_string()
-                        } else {
-                            "error".to_string()
-                        };
-                    }
-                    diag
-                })
-                .collect::<Vec<_>>();
-            let (warnings, errors): (Vec<_>, Vec<_>) = diagnostics
-                .into_iter()
-                .partition(|diag| diag.severity.eq_ignore_ascii_case("warning"));
-            let lint_json = CliLintJson {
-                valid: result.valid,
-                errors,
-                warnings,
-            };
             println!(
                 "{}",
                 serde_json::to_string(&lint_json).expect("lint JSON serialization should succeed")
             );
         } else {
-            for diag in &result.diagnostics {
+            for diag in &lint_json.errors {
+                eprintln!("{}", diag);
+            }
+            for diag in &lint_json.warnings {
                 eprintln!("{}", diag);
             }
         }
 
-        std::process::exit(if result.valid { 0 } else { 1 });
+        std::process::exit(if lint_json.valid { 0 } else { 1 });
     }
 
     // Parse CLI style flags.
