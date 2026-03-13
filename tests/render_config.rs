@@ -1,6 +1,6 @@
 use mmdflux::{
-    CornerStyle, Curve, EdgePreset, EngineAlgorithmId, OutputFormat, PathSimplification,
-    RenderConfig, RenderError, RoutingStyle,
+    CornerStyle, Curve, EdgePreset, EngineAlgorithmId, PathSimplification, RenderConfig,
+    RenderError, RoutingStyle,
 };
 
 #[test]
@@ -42,15 +42,8 @@ fn render_error_from_string() {
 }
 
 #[test]
-fn render_config_to_text_render_options_conversion() {
-    let config = RenderConfig::default();
-    let options: mmdflux::render::graph::TextRenderOptions = (&config).into();
-    assert!(matches!(options.output_format, OutputFormat::Text));
-}
-
-#[test]
-fn layout_config_accessible_from_graph_engine_module() {
-    let _ = mmdflux::engines::graph::LayoutConfig::default();
+fn layout_config_accessible_from_public_config_module() {
+    let _ = mmdflux::config::LayoutConfig::default();
 }
 
 #[test]
@@ -69,91 +62,16 @@ fn render_config_default_layout_engine_is_none() {
 }
 
 #[test]
-fn svg_render_options_default_config_uses_orthogonal_routing() {
-    let config = RenderConfig::default();
-    let options: mmdflux::render::graph::SvgRenderOptions = (&config).into();
-    assert_eq!(options.routing_style, RoutingStyle::Orthogonal);
-    assert_eq!(options.curve, Curve::Basis);
-}
-
-#[test]
-fn svg_render_options_step_preset_expands_to_orthogonal_routing() {
-    let config = RenderConfig {
-        edge_preset: Some(EdgePreset::Step),
-        ..Default::default()
-    };
-    let options: mmdflux::render::graph::SvgRenderOptions = (&config).into();
-    assert_eq!(options.routing_style, RoutingStyle::Orthogonal);
-    assert_eq!(options.curve, Curve::Linear(CornerStyle::Sharp));
-}
-
-#[test]
-fn svg_render_options_basis_preset_expands_to_polyline_routing() {
-    let config = RenderConfig {
-        edge_preset: Some(EdgePreset::Basis),
-        ..Default::default()
-    };
-    let options: mmdflux::render::graph::SvgRenderOptions = (&config).into();
-    assert_eq!(options.routing_style, RoutingStyle::Polyline);
-    assert_eq!(options.curve, Curve::Basis);
-}
-
-#[test]
-fn svg_render_options_explicit_routing_style_overrides_preset_routing() {
+fn render_config_keeps_public_svg_style_fields() {
     let config = RenderConfig {
         edge_preset: Some(EdgePreset::Step),
         routing_style: Some(RoutingStyle::Polyline),
-        ..Default::default()
-    };
-    let options: mmdflux::render::graph::SvgRenderOptions = (&config).into();
-    assert_eq!(options.routing_style, RoutingStyle::Polyline);
-    assert_eq!(options.curve, Curve::Linear(CornerStyle::Sharp));
-}
-
-#[test]
-fn svg_render_options_explicit_curve_overrides_preset_curve() {
-    let config = RenderConfig {
-        edge_preset: Some(EdgePreset::Step),
-        curve: Some(Curve::Basis),
-        ..Default::default()
-    };
-    let options: mmdflux::render::graph::SvgRenderOptions = (&config).into();
-    assert_eq!(options.routing_style, RoutingStyle::Orthogonal);
-    assert_eq!(options.curve, Curve::Basis);
-}
-
-#[test]
-fn svg_render_options_path_simplification_is_preserved() {
-    let config = RenderConfig {
-        edge_preset: Some(EdgePreset::Polyline),
+        curve: Some(Curve::Linear(CornerStyle::Rounded)),
         path_simplification: PathSimplification::Lossless,
         ..Default::default()
     };
-    let options: mmdflux::render::graph::SvgRenderOptions = (&config).into();
-    assert_eq!(options.path_simplification, PathSimplification::Lossless);
-}
-
-#[test]
-fn svg_render_options_mermaid_engine_uses_polyline_by_default() {
-    let config = RenderConfig {
-        layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
-        ..Default::default()
-    };
-    let options: mmdflux::render::graph::SvgRenderOptions = (&config).into();
-    assert_eq!(options.routing_style, RoutingStyle::Polyline);
-    assert_eq!(options.curve, Curve::Basis);
-}
-
-#[test]
-fn text_render_options_carry_padding_and_path_simplification() {
-    let config = RenderConfig {
-        padding: Some(4),
-        routing_style: Some(RoutingStyle::Direct),
-        path_simplification: PathSimplification::Lossless,
-        ..Default::default()
-    };
-    let options: mmdflux::render::graph::TextRenderOptions = (&config).into();
-    assert_eq!(options.padding, Some(4));
-    assert_eq!(options.routing_style, RoutingStyle::Direct);
-    assert_eq!(options.path_simplification, PathSimplification::Lossless);
+    assert_eq!(config.edge_preset, Some(EdgePreset::Step));
+    assert_eq!(config.routing_style, Some(RoutingStyle::Polyline));
+    assert_eq!(config.curve, Some(Curve::Linear(CornerStyle::Rounded)));
+    assert_eq!(config.path_simplification, PathSimplification::Lossless);
 }

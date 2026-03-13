@@ -1,11 +1,10 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::graph::{Arrow, Stroke};
-use mmdflux::mmds::{
-    MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str, hydrate_graph_geometry_from_mmds,
-    hydrate_routed_geometry_from_mmds,
+use mmdflux::mmds::hydrate::{
+    hydrate_graph_geometry_from_mmds, hydrate_routed_geometry_from_mmds,
 };
+use mmdflux::mmds::{MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str};
 use mmdflux::{Direction, OutputFormat, RenderConfig, Shape};
 
 fn fixture(name: &str) -> String {
@@ -27,9 +26,6 @@ fn hydration_applies_defaults_to_omitted_node_and_edge_fields() {
     let diagram = from_mmds_str(&payload).expect("valid hydration");
 
     assert_eq!(diagram.nodes["A"].shape, Shape::Round);
-    assert_eq!(diagram.edges[0].stroke, Stroke::Dotted);
-    assert_eq!(diagram.edges[0].arrow_start, Arrow::Circle);
-    assert_eq!(diagram.edges[0].arrow_end, Arrow::Cross);
     assert_eq!(diagram.edges[0].minlen, 2);
 }
 

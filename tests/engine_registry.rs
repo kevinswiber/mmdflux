@@ -1,6 +1,5 @@
 //! Engine registry tests: typed engine IDs, parsing, availability, and registry lookup.
 
-use mmdflux::engines::graph::{EngineAlgorithmCapabilities, RouteOwnership};
 use mmdflux::{
     AlgorithmId, CornerStyle, Curve, EdgePreset, EngineAlgorithmId, EngineId, OutputFormat,
     RenderConfig, RenderError, RoutingStyle,
@@ -188,39 +187,41 @@ fn engine_algorithm_id_display_roundtrips() {
 fn flux_layered_capabilities() {
     let id = EngineAlgorithmId::parse("flux-layered").unwrap();
     let caps = id.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::Native);
     assert!(caps.supports_subgraphs);
+    assert!(caps.route_ownership.routes_edges());
+    assert!(
+        caps.supported_routing_styles
+            .contains(&RoutingStyle::Orthogonal)
+    );
 }
 
 #[test]
 fn mermaid_layered_capabilities() {
     let id = EngineAlgorithmId::parse("mermaid-layered").unwrap();
     let caps = id.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::HintDriven);
     assert!(caps.supports_subgraphs);
+    assert!(!caps.route_ownership.routes_edges());
+    assert_eq!(caps.supported_routing_styles, &[RoutingStyle::Polyline]);
 }
 
 #[test]
 fn elk_layered_capabilities() {
     let id = EngineAlgorithmId::parse("elk-layered").unwrap();
     let caps = id.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::EngineProvided);
     assert!(caps.supports_subgraphs);
+    assert!(caps.route_ownership.routes_edges());
+    assert!(
+        caps.supported_routing_styles
+            .contains(&RoutingStyle::Orthogonal)
+    );
 }
 
 #[test]
 fn elk_mrtree_capabilities() {
     let id = EngineAlgorithmId::parse("elk-mrtree").unwrap();
     let caps = id.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::EngineProvided);
     assert!(!caps.supports_subgraphs);
-}
-
-#[test]
-fn route_ownership_native_routes_edges() {
-    assert!(RouteOwnership::Native.routes_edges());
-    assert!(!RouteOwnership::HintDriven.routes_edges());
-    assert!(RouteOwnership::EngineProvided.routes_edges());
+    assert!(caps.route_ownership.routes_edges());
 }
 
 // =============================================================================
@@ -557,7 +558,7 @@ fn flux_layered_accepts_step_preset() {
 #[test]
 fn capabilities_struct_exposes_supported_routing_styles() {
     // EngineAlgorithmCapabilities.supported_routing_styles is a slice of RoutingStyle
-    let caps: EngineAlgorithmCapabilities = EngineAlgorithmId::parse("flux-layered")
+    let caps = EngineAlgorithmId::parse("flux-layered")
         .unwrap()
         .capabilities();
     let _styles: &[RoutingStyle] = caps.supported_routing_styles;

@@ -7,6 +7,11 @@ mod edge;
 mod shape;
 mod subgraph;
 
+#[cfg(test)]
+pub(crate) use edge::render_all_edges_with_labels;
+#[cfg(test)]
+pub(crate) use shape::render_node;
+
 use super::TextRenderOptions;
 use crate::OutputFormat;
 use crate::graph::Diagram;

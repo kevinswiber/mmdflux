@@ -15,7 +15,7 @@ mod routing;
 
 pub use derive::geometry_to_grid_layout_with_routed;
 #[cfg(test)]
-pub(crate) use intersect::{NodeFace, face_extent, face_fixed_coord};
+pub(crate) use intersect::{NodeFace, classify_face, face_extent, face_fixed_coord};
 #[cfg(test)]
 pub(crate) use layout::SelfEdgeDrawData;
 pub use layout::{GridLayout, GridPos, NodeBounds, SubgraphBounds};

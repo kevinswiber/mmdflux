@@ -267,3 +267,15 @@ impl FromStr for EngineAlgorithmId {
         Self::parse(s)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::RouteOwnership;
+
+    #[test]
+    fn route_ownership_routes_edges_matrix() {
+        assert!(RouteOwnership::Native.routes_edges());
+        assert!(!RouteOwnership::HintDriven.routes_edges());
+        assert!(RouteOwnership::EngineProvided.routes_edges());
+    }
+}

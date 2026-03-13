@@ -1,4 +1,4 @@
-use mmdflux::engines::graph::contracts::EngineConfig;
+use mmdflux::config::{LabelDummyStrategy, LayoutConfig, LayoutDirection, Ranker};
 use mmdflux::{DiagramFamily, OutputFormat, PathSimplification, RenderConfig};
 
 #[test]
@@ -15,16 +15,19 @@ fn output_format_default_is_text() {
 }
 
 #[test]
-fn engine_config_layered_variant_exists() {
-    let layered_cfg = mmdflux::engines::graph::algorithms::layered::LayoutConfig::default();
-    let ec = EngineConfig::Layered(layered_cfg);
-    assert!(matches!(ec, EngineConfig::Layered(_)));
+fn layout_config_public_defaults_are_accessible() {
+    let cfg = LayoutConfig::default();
+    assert_eq!(cfg.direction, LayoutDirection::TopBottom);
+    assert_eq!(cfg.ranker, Ranker::NetworkSimplex);
+    assert_eq!(cfg.label_dummy_strategy, LabelDummyStrategy::Midpoint);
+    assert_eq!(cfg.rank_sep, 50.0);
 }
 
 #[test]
-fn render_config_layout_converts_to_engine_config_layered() {
-    let cfg: EngineConfig = RenderConfig::default().layout.into();
-    assert!(matches!(cfg, EngineConfig::Layered(_)));
+fn render_config_embeds_public_layout_config() {
+    let cfg = RenderConfig::default();
+    assert_eq!(cfg.layout.direction, LayoutDirection::TopBottom);
+    assert_eq!(cfg.layout.ranker, Ranker::NetworkSimplex);
 }
 
 #[test]

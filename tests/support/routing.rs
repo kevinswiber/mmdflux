@@ -1,6 +1,6 @@
 use mmdflux::graph::geometry::FPoint;
 #[allow(unused_imports)]
-pub use mmdflux::graph::{EdgeRouting, route_graph_geometry};
+pub use mmdflux::graph::routing::{EdgeRouting, route_graph_geometry};
 
 #[allow(dead_code)]
 pub fn snap_path_to_grid_preview(path: &[FPoint], scale_x: f64, scale_y: f64) -> Vec<FPoint> {

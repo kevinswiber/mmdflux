@@ -364,6 +364,7 @@ mod tests {
     use crate::engines::graph::flux::FluxLayeredEngine;
     use crate::graph::Diagram;
     use crate::mermaid::parse_flowchart;
+    use crate::{OutputFormat, PathSimplification, RenderConfig, RoutingStyle};
 
     fn render_text_diagram(diagram: &Diagram) -> String {
         let engine = FluxLayeredEngine::text();
@@ -428,5 +429,28 @@ mod tests {
             output.contains('B'),
             "output should contain node B: {output}"
         );
+    }
+
+    #[test]
+    fn text_render_options_default_config_targets_text_output() {
+        let options = super::TextRenderOptions::from(&RenderConfig::default());
+
+        assert_eq!(options.output_format, OutputFormat::Text);
+        assert_eq!(options.routing_style, RoutingStyle::Orthogonal);
+    }
+
+    #[test]
+    fn text_render_options_preserve_padding_and_path_simplification() {
+        let config = RenderConfig {
+            padding: Some(4),
+            routing_style: Some(RoutingStyle::Direct),
+            path_simplification: PathSimplification::Lossless,
+            ..Default::default()
+        };
+        let options = super::TextRenderOptions::from(&config);
+
+        assert_eq!(options.padding, Some(4));
+        assert_eq!(options.routing_style, RoutingStyle::Direct);
+        assert_eq!(options.path_simplification, PathSimplification::Lossless);
     }
 }

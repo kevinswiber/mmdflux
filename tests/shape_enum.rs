@@ -1,4 +1,4 @@
-use mmdflux::graph::Shape;
+use mmdflux::Shape;
 
 #[test]
 fn shape_new_variants_exist() {

@@ -22,6 +22,8 @@
 //!
 //! The rest of the implementation tree stays internal to the crate.
 
+extern crate self as mmdflux;
+
 pub mod builtins;
 pub mod config;
 pub mod diagnostics;
@@ -59,3 +61,27 @@ pub use runtime::config_input::{RuntimeConfigInput, apply_svg_surface_defaults};
 pub use runtime::{detect_diagram, render_diagram, validate_diagram};
 pub use simplification::PathSimplification;
 pub use style::{ColorToken, NodeStyle};
+
+#[cfg(test)]
+#[path = "../tests/integration_owner_local.rs"]
+mod integration_owner_local;
+
+#[cfg(test)]
+#[path = "../tests/dagre_parity_owner_local.rs"]
+mod dagre_parity_owner_local;
+
+#[cfg(test)]
+#[path = "../tests/model_order_owner_local.rs"]
+mod model_order_owner_local;
+
+#[cfg(test)]
+#[path = "../tests/mmds_input_owner_local.rs"]
+mod mmds_input_owner_local;
+
+#[cfg(test)]
+#[path = "../tests/routed_geometry_owner_local.rs"]
+mod routed_geometry_owner_local;
+
+#[cfg(test)]
+#[path = "../tests/svg_render_owner_local.rs"]
+mod svg_render_owner_local;
