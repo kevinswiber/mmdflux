@@ -2,22 +2,15 @@
   "version": 1,
   "rust_exports": {
     "modules": [
+      "builtins",
       "config",
       "diagnostics",
-      "diagrams",
-      "engines",
       "errors",
       "family",
       "format",
-      "frontends",
-      "graph",
-      "lint",
-      "mermaid",
       "mmds",
       "prepared",
       "registry",
-      "builtins",
-      "render",
       "simplification",
       "style"
     ],

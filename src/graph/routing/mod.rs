@@ -28,6 +28,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
+    use crate::graph::attachment::PortFace;
     use crate::graph::routing::EdgeRouting;
 
     fn simple_geometry() -> (Diagram, GraphGeometry) {

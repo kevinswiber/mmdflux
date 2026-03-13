@@ -7,7 +7,6 @@ mod edge;
 mod shape;
 mod subgraph;
 
-
 use super::TextRenderOptions;
 use crate::OutputFormat;
 use crate::graph::Diagram;

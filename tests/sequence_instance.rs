@@ -1,4 +1,4 @@
-use mmdflux::diagrams::sequence::SequenceInstance;
+use mmdflux::builtins::default_registry;
 use mmdflux::prepared::PreparedDiagram;
 use mmdflux::registry::DiagramInstance;
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, RenderError};
@@ -11,9 +11,15 @@ fn render_sequence(
     mmdflux::render_diagram(input, format, config)
 }
 
+fn sequence_instance() -> Box<dyn DiagramInstance> {
+    default_registry()
+        .create("sequence")
+        .expect("sequence should be registered")
+}
+
 #[test]
 fn sequence_instance_prepare_returns_timeline_payload() {
-    let prepared = Box::new(SequenceInstance::new())
+    let prepared = sequence_instance()
         .parse("sequenceDiagram\nparticipant A\nparticipant B\nA->>B: hello")
         .unwrap()
         .prepare(&RenderConfig::default())
@@ -33,7 +39,7 @@ fn sequence_instance_unknown_engine_rejected_at_parse_boundary() {
 
 #[test]
 fn sequence_instance_prepare_rejects_layout_engine_selection() {
-    let result = Box::new(SequenceInstance::new())
+    let result = sequence_instance()
         .parse("sequenceDiagram\nA->>B: hello")
         .unwrap()
         .prepare(&RenderConfig {

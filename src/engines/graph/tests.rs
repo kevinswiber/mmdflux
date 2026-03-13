@@ -5,9 +5,10 @@ use super::flux::{
     FluxLayeredEngine, adapt_flux_profile_for_reversed_chain_crowding, flux_layout_profile,
 };
 use super::mermaid::MermaidLayeredEngine;
+use super::selection::RouteOwnership;
 use super::{
     EngineAlgorithmId, EngineConfig, GraphEngine, GraphEngineRegistry, GraphGeometryContract,
-    GraphSolveRequest, GraphSolveResult, RouteOwnership,
+    GraphSolveRequest, GraphSolveResult,
 };
 use crate::format::RoutingStyle;
 use crate::graph::measure::ProportionalTextMetrics;

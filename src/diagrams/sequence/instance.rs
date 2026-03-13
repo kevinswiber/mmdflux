@@ -57,3 +57,44 @@ impl ParsedDiagram for ParsedSequence {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::format::OutputFormat;
+
+    #[test]
+    fn sequence_instance_prepares_timeline_payload() {
+        let prepared = Box::new(SequenceInstance::new())
+            .parse("sequenceDiagram\nparticipant A\nparticipant B\nA->>B: hello")
+            .expect("sequence input should parse")
+            .prepare(&RenderConfig::default())
+            .expect("sequence input should prepare");
+        let PreparedDiagram::Timeline(timeline) = prepared else {
+            panic!("sequence prepare should yield timeline payload");
+        };
+        assert_eq!(timeline.model.participants.len(), 2);
+        assert_eq!(timeline.model.events.len(), 1);
+    }
+
+    #[test]
+    fn sequence_instance_rejects_layout_engine_selection() {
+        let result = Box::new(SequenceInstance::new())
+            .parse("sequenceDiagram\nA->>B: hello")
+            .expect("sequence input should parse")
+            .prepare(&RenderConfig {
+                layout_engine: Some(crate::EngineAlgorithmId::parse("flux-layered").unwrap()),
+                ..RenderConfig::default()
+            });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn sequence_instance_supports_text_only_formats() {
+        let instance = SequenceInstance::new();
+        assert!(instance.supports_format(OutputFormat::Text));
+        assert!(instance.supports_format(OutputFormat::Ascii));
+        assert!(!instance.supports_format(OutputFormat::Svg));
+        assert!(!instance.supports_format(OutputFormat::Mmds));
+    }
+}

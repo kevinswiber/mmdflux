@@ -71,3 +71,56 @@ fn annotate_node_ids(mut diagram: Diagram) -> Diagram {
     }
     diagram
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flowchart_instance_parses_valid_input() {
+        let prepared = Box::new(FlowchartInstance::new())
+            .parse("graph TD\nA[Start] --> B[End]")
+            .expect("flowchart input should parse")
+            .prepare(&RenderConfig::default())
+            .expect("parsed flowchart should prepare");
+        let PreparedDiagram::Graph(graph) = prepared else {
+            panic!("flowchart prepare should yield graph payload");
+        };
+        assert_eq!(graph.diagram_type, "flowchart");
+        assert_eq!(graph.diagram.nodes.len(), 2);
+        assert_eq!(graph.diagram.edges.len(), 1);
+    }
+
+    #[test]
+    fn flowchart_instance_rejects_invalid_input() {
+        let result = Box::new(FlowchartInstance::new()).parse("not a valid diagram }{{}");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn flowchart_prepare_honors_show_ids() {
+        let prepared = Box::new(FlowchartInstance::new())
+            .parse("graph TD\nA[Start] --> B[End]\n")
+            .expect("flowchart input should parse")
+            .prepare(&RenderConfig {
+                show_ids: true,
+                ..RenderConfig::default()
+            })
+            .expect("prepared graph should succeed");
+        let PreparedDiagram::Graph(graph) = prepared else {
+            panic!("flowchart prepare should yield graph payload");
+        };
+        assert_eq!(graph.diagram.nodes["A"].label, "A: Start");
+        assert_eq!(graph.diagram.nodes["B"].label, "B: End");
+    }
+
+    #[test]
+    fn flowchart_instance_supports_supported_formats() {
+        let instance = FlowchartInstance::new();
+        assert!(instance.supports_format(OutputFormat::Text));
+        assert!(instance.supports_format(OutputFormat::Ascii));
+        assert!(instance.supports_format(OutputFormat::Svg));
+        assert!(instance.supports_format(OutputFormat::Mmds));
+        assert!(!instance.supports_format(OutputFormat::Mermaid));
+    }
+}

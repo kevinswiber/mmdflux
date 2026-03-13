@@ -1,6 +1,5 @@
-use mmdflux::diagrams::{info, packet, pie};
-use mmdflux::registry::DiagramInstance;
-use mmdflux::{OutputFormat, RenderConfig, render_diagram};
+use mmdflux::builtins::default_registry;
+use mmdflux::{DiagramFamily, OutputFormat, RenderConfig, render_diagram};
 
 fn render_simple(input: &str) -> String {
     render_diagram(input, OutputFormat::Text, &RenderConfig::default()).unwrap()
@@ -8,31 +7,40 @@ fn render_simple(input: &str) -> String {
 
 #[test]
 fn pie_definition_exists() {
-    let def = pie::definition();
+    let registry = default_registry();
+    let def = registry.get("pie").expect("pie should be registered");
     assert_eq!(def.id, "pie");
+    assert_eq!(def.family, DiagramFamily::Chart);
 }
 
 #[test]
 fn pie_detector_works() {
-    assert!(pie::detect("pie\n\"A\": 50"));
-    assert!(pie::detect("pie title My Chart\n\"A\": 50"));
-    assert!(!pie::detect("graph TD\nA-->B"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("pie\n\"A\": 50"), Some("pie"));
+    assert_eq!(
+        registry.detect("pie title My Chart\n\"A\": 50"),
+        Some("pie")
+    );
+    assert_eq!(registry.detect("graph TD\nA-->B"), Some("flowchart"));
 }
 
 #[test]
 fn pie_detector_skips_comments() {
-    assert!(pie::detect("%% comment\npie\n\"A\": 50"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("%% comment\npie\n\"A\": 50"), Some("pie"));
 }
 
 #[test]
 fn pie_detector_case_insensitive() {
-    assert!(pie::detect("PIE\n\"A\": 50"));
-    assert!(pie::detect("Pie\n\"A\": 50"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("PIE\n\"A\": 50"), Some("pie"));
+    assert_eq!(registry.detect("Pie\n\"A\": 50"), Some("pie"));
 }
 
 #[test]
 fn pie_detector_first_word_only() {
-    assert!(!pie::detect("piechart\n\"A\": 50"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("piechart\n\"A\": 50"), None);
 }
 
 #[test]
@@ -43,30 +51,36 @@ fn pie_instance_renders() {
 
 #[test]
 fn info_definition_exists() {
-    let def = info::definition();
+    let registry = default_registry();
+    let def = registry.get("info").expect("info should be registered");
     assert_eq!(def.id, "info");
+    assert_eq!(def.family, DiagramFamily::Chart);
 }
 
 #[test]
 fn info_detector_works() {
-    assert!(info::detect("info"));
-    assert!(!info::detect("pie"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("info"), Some("info"));
+    assert_eq!(registry.detect("pie"), Some("pie"));
 }
 
 #[test]
 fn info_detector_skips_comments() {
-    assert!(info::detect("%% comment\ninfo"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("%% comment\ninfo"), Some("info"));
 }
 
 #[test]
 fn info_detector_case_insensitive() {
-    assert!(info::detect("INFO"));
-    assert!(info::detect("Info"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("INFO"), Some("info"));
+    assert_eq!(registry.detect("Info"), Some("info"));
 }
 
 #[test]
 fn info_detector_first_word_only() {
-    assert!(!info::detect("infographic"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("infographic"), None);
 }
 
 #[test]
@@ -77,28 +91,33 @@ fn info_instance_renders() {
 
 #[test]
 fn packet_definition_exists() {
-    let def = packet::definition();
+    let registry = default_registry();
+    let def = registry.get("packet").expect("packet should be registered");
     assert_eq!(def.id, "packet");
+    assert_eq!(def.family, DiagramFamily::Table);
 }
 
 #[test]
 fn packet_detector_works() {
-    assert!(packet::detect("packet-beta"));
-    assert!(packet::detect("packet"));
-    assert!(!packet::detect("graph TD"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("packet-beta"), Some("packet"));
+    assert_eq!(registry.detect("packet"), Some("packet"));
+    assert_eq!(registry.detect("graph TD"), Some("flowchart"));
 }
 
 #[test]
 fn packet_detector_skips_comments() {
-    assert!(packet::detect("%% comment\npacket-beta"));
-    assert!(packet::detect("%% comment\npacket"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("%% comment\npacket-beta"), Some("packet"));
+    assert_eq!(registry.detect("%% comment\npacket"), Some("packet"));
 }
 
 #[test]
 fn packet_detector_case_insensitive() {
-    assert!(packet::detect("PACKET-BETA"));
-    assert!(packet::detect("Packet-Beta"));
-    assert!(packet::detect("PACKET"));
+    let registry = default_registry();
+    assert_eq!(registry.detect("PACKET-BETA"), Some("packet"));
+    assert_eq!(registry.detect("Packet-Beta"), Some("packet"));
+    assert_eq!(registry.detect("PACKET"), Some("packet"));
 }
 
 #[test]
@@ -109,11 +128,14 @@ fn packet_instance_renders() {
 
 #[test]
 fn simple_diagrams_dont_support_svg() {
-    let pie_inst = pie::PieInstance::new();
-    let info_inst = info::InfoInstance::new();
-    let packet_inst = packet::PacketInstance::new();
-
-    assert!(!pie_inst.supports_format(OutputFormat::Svg));
-    assert!(!info_inst.supports_format(OutputFormat::Svg));
-    assert!(!packet_inst.supports_format(OutputFormat::Svg));
+    let registry = default_registry();
+    for diagram_id in ["pie", "info", "packet"] {
+        let instance = registry
+            .create(diagram_id)
+            .unwrap_or_else(|| panic!("{diagram_id} should be registered"));
+        assert!(
+            !instance.supports_format(OutputFormat::Svg),
+            "{diagram_id} should not advertise SVG support"
+        );
+    }
 }

@@ -6,8 +6,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::diagrams::sequence::SequenceInstance;
-use mmdflux::registry::DiagramInstance;
+use mmdflux::builtins::default_registry;
 use mmdflux::{OutputFormat, RenderConfig};
 
 fn sequence_fixture_dir() -> PathBuf {
@@ -89,8 +88,11 @@ fn sequence_all_fixtures_parse() {
     for fixture in list_sequence_fixtures() {
         let path = sequence_fixture_dir().join(&fixture);
         let input = fs::read_to_string(&path).unwrap();
+        let instance = default_registry()
+            .create("sequence")
+            .expect("sequence should be registered");
         assert!(
-            Box::new(SequenceInstance::new()).parse(&input).is_ok(),
+            instance.parse(&input).is_ok(),
             "Failed to parse sequence fixture: {fixture}"
         );
     }

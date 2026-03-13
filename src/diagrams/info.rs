@@ -64,3 +64,30 @@ impl ParsedDiagram for ParsedInfo {
         Ok(PreparedDiagram::Info)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn info_definition_matches_registry_contract() {
+        let definition = definition();
+        assert_eq!(definition.id, "info");
+        assert_eq!(definition.family, DiagramFamily::Chart);
+    }
+
+    #[test]
+    fn info_detect_handles_supported_keywords() {
+        assert!(detect("info"));
+        assert!(detect("%% comment\nINFO"));
+        assert!(!detect("infographic"));
+    }
+
+    #[test]
+    fn info_instance_supports_text_and_ascii_only() {
+        let instance = InfoInstance::new();
+        assert!(instance.supports_format(OutputFormat::Text));
+        assert!(instance.supports_format(OutputFormat::Ascii));
+        assert!(!instance.supports_format(OutputFormat::Svg));
+    }
+}

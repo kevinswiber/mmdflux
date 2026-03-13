@@ -4,15 +4,11 @@
 //! Generate snapshots: `GENERATE_CLASS_TEXT_SNAPSHOTS=1 cargo test --test compliance_class`
 //! Generate SVG:       `GENERATE_CLASS_SVG_SNAPSHOTS=1 cargo test --test compliance_class`
 
-mod support;
-
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::diagrams::class::ClassInstance;
-use mmdflux::registry::DiagramInstance;
+use mmdflux::builtins::default_registry;
 use mmdflux::{OutputFormat, RenderConfig};
-use support::render::render_svg_with_config;
 
 fn class_fixture_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -64,7 +60,7 @@ fn render_class_svg(fixture: &str) -> String {
     let path = class_fixture_dir().join(fixture);
     let input = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read fixture {fixture}: {e}"));
-    render_svg_with_config(&input, &RenderConfig::default())
+    mmdflux::render_diagram(&input, OutputFormat::Svg, &RenderConfig::default())
         .expect("Failed to render class fixture as SVG")
 }
 
@@ -157,8 +153,11 @@ fn class_all_fixtures_parse() {
     for fixture in list_class_fixtures() {
         let path = class_fixture_dir().join(&fixture);
         let input = fs::read_to_string(&path).unwrap();
+        let instance = default_registry()
+            .create("class")
+            .expect("class should be registered");
         assert!(
-            Box::new(ClassInstance::new()).parse(&input).is_ok(),
+            instance.parse(&input).is_ok(),
             "Failed to parse class fixture: {fixture}"
         );
     }

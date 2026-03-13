@@ -71,3 +71,30 @@ impl ParsedDiagram for ParsedPacket {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn packet_definition_matches_registry_contract() {
+        let definition = definition();
+        assert_eq!(definition.id, "packet");
+        assert_eq!(definition.family, DiagramFamily::Table);
+    }
+
+    #[test]
+    fn packet_detect_handles_supported_keywords() {
+        assert!(detect("packet-beta"));
+        assert!(detect("%% comment\nPACKET"));
+        assert!(!detect("graph TD\nA-->B"));
+    }
+
+    #[test]
+    fn packet_instance_supports_text_and_ascii_only() {
+        let instance = PacketInstance::new();
+        assert!(instance.supports_format(OutputFormat::Text));
+        assert!(instance.supports_format(OutputFormat::Ascii));
+        assert!(!instance.supports_format(OutputFormat::Svg));
+    }
+}

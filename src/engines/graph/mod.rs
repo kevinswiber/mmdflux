@@ -29,8 +29,5 @@ pub(crate) use contracts::{
 };
 pub use layout::{LabelDummyStrategy, LayoutConfig, LayoutDirection, Ranker};
 pub(crate) use registry::GraphEngineRegistry;
-pub use selection::{
-    AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId,
-    EngineId,
-};
+pub use selection::{AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineId};
 pub(crate) use solve::solve_graph_family;

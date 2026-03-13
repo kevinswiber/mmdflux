@@ -19,6 +19,17 @@ fn repo_file(relative_path: &str) -> String {
     std::fs::read_to_string(&path).unwrap()
 }
 
+fn baseline_manifest_modules() -> BTreeSet<String> {
+    let manifest: serde_json::Value =
+        serde_json::from_str(&repo_file("tests/baselines/manifest.json")).unwrap();
+    manifest["rust_exports"]["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_str().unwrap().to_string())
+        .collect()
+}
+
 fn public_exports_for_test() -> BTreeSet<String> {
     let content = lib_rs_source();
     let mut exports = BTreeSet::new();
@@ -118,6 +129,47 @@ fn crate_root_only_exports_supported_expert_modules() {
         assert!(
             !modules.contains(forbidden),
             "{forbidden} should no longer be a public crate-root module"
+        );
+    }
+}
+
+#[test]
+fn baseline_manifest_locks_supported_v2_expert_modules() {
+    let modules = baseline_manifest_modules();
+
+    for required in [
+        "builtins",
+        "config",
+        "diagnostics",
+        "errors",
+        "family",
+        "format",
+        "mmds",
+        "prepared",
+        "registry",
+        "simplification",
+        "style",
+    ] {
+        assert!(
+            modules.contains(required),
+            "{required} should stay in the supported v2 expert manifest lock"
+        );
+    }
+
+    for forbidden in [
+        "registry_builtins",
+        "diagrams",
+        "engines",
+        "frontends",
+        "graph",
+        "lint",
+        "mermaid",
+        "render",
+        "runtime",
+    ] {
+        assert!(
+            !modules.contains(forbidden),
+            "{forbidden} should stay out of the supported v2 expert manifest lock"
         );
     }
 }

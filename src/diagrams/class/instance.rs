@@ -54,3 +54,40 @@ impl ParsedDiagram for ParsedClass {
         }))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn class_instance_parses_valid_input() {
+        let parsed = Box::new(ClassInstance::new())
+            .parse("classDiagram\nclass User")
+            .expect("class input should parse");
+
+        let prepared = parsed
+            .prepare(&RenderConfig::default())
+            .expect("parsed class input should prepare");
+        let PreparedDiagram::Graph(graph) = prepared else {
+            panic!("class prepare should yield graph payload");
+        };
+        assert_eq!(graph.diagram_type, "class");
+        assert!(graph.diagram.nodes.contains_key("User"));
+    }
+
+    #[test]
+    fn class_instance_rejects_invalid_input() {
+        let result = Box::new(ClassInstance::new()).parse("not a class diagram");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn class_instance_supports_supported_formats() {
+        let instance = ClassInstance::new();
+        assert!(instance.supports_format(OutputFormat::Text));
+        assert!(instance.supports_format(OutputFormat::Ascii));
+        assert!(instance.supports_format(OutputFormat::Svg));
+        assert!(instance.supports_format(OutputFormat::Mmds));
+        assert!(!instance.supports_format(OutputFormat::Mermaid));
+    }
+}

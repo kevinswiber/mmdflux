@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagrams::class::ClassInstance;
+use mmdflux::builtins::default_registry;
 use mmdflux::prepared::PreparedDiagram;
 use mmdflux::registry::DiagramInstance;
 use mmdflux::{EngineAlgorithmId, GeometryLevel, OutputFormat, RenderConfig, RenderError};
@@ -14,21 +14,27 @@ fn render_class(
     mmdflux::render_diagram(input, format, config)
 }
 
+fn class_instance() -> Box<dyn DiagramInstance> {
+    default_registry()
+        .create("class")
+        .expect("class should be registered")
+}
+
 #[test]
 fn class_instance_parse_simple() {
-    let result = Box::new(ClassInstance::new()).parse("classDiagram\nclass User");
+    let result = class_instance().parse("classDiagram\nclass User");
     assert!(result.is_ok());
 }
 
 #[test]
 fn class_instance_parse_error_on_invalid() {
-    let result = Box::new(ClassInstance::new()).parse("not a class diagram");
+    let result = class_instance().parse("not a class diagram");
     assert!(result.is_err());
 }
 
 #[test]
 fn class_instance_prepare_graph_payload() {
-    let prepared = Box::new(ClassInstance::new())
+    let prepared = class_instance()
         .parse("classDiagram\nclass A\nclass B\nA --> B")
         .unwrap()
         .prepare(&RenderConfig::default())
@@ -68,7 +74,7 @@ fn class_instance_render_svg() {
 
 #[test]
 fn class_instance_supports_text_ascii_svg() {
-    let instance = ClassInstance::new();
+    let instance = class_instance();
     assert!(instance.supports_format(OutputFormat::Text));
     assert!(instance.supports_format(OutputFormat::Ascii));
     assert!(instance.supports_format(OutputFormat::Svg));
@@ -137,7 +143,7 @@ Triangle --> Rectangle";
 
 #[test]
 fn class_instance_via_registry() {
-    let registry = mmdflux::builtins::default_registry();
+    let registry = default_registry();
     let instance = registry.create("class").unwrap();
     let prepared = instance
         .parse("classDiagram\nclass User\nclass Order\nUser --> Order")

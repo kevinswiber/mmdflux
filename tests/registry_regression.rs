@@ -1,25 +1,17 @@
 //! Parity checks between the direct render API and registry instance API.
 
-mod support;
-
 use mmdflux::builtins::default_registry;
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, render_diagram};
-use support::render::{render_ascii_with_config, render_text_with_config};
 
 /// Helper to compare direct vs registry rendering paths.
 fn compare_outputs(input: &str, ascii: bool) {
-    // Direct API path
     let output_format = if ascii {
         OutputFormat::Ascii
     } else {
         OutputFormat::Text
     };
-    let direct_output = if ascii {
-        render_ascii_with_config(input, &RenderConfig::default())
-    } else {
-        render_text_with_config(input, &RenderConfig::default())
-    };
-    let direct_output = direct_output.expect("Direct path render failed");
+    let direct_output = render_diagram(input, output_format, &RenderConfig::default())
+        .expect("Direct path render failed");
 
     // Registry API path
     let registry = default_registry();

@@ -1,4 +1,4 @@
-use mmdflux::diagrams::flowchart::FlowchartInstance;
+use mmdflux::builtins::default_registry;
 use mmdflux::prepared::PreparedDiagram;
 use mmdflux::registry::DiagramInstance;
 use mmdflux::{
@@ -11,6 +11,12 @@ fn render_flowchart(
     config: &RenderConfig,
 ) -> Result<String, RenderError> {
     mmdflux::render_diagram(input, format, config)
+}
+
+fn flowchart_instance() -> Box<dyn DiagramInstance> {
+    default_registry()
+        .create("flowchart")
+        .expect("flowchart should be registered")
 }
 
 fn edge_path_data(svg: &str) -> Vec<String> {
@@ -58,13 +64,13 @@ fn min_segment_len(points: &[(f64, f64)]) -> f64 {
 
 #[test]
 fn flowchart_instance_parse_simple() {
-    let result = Box::new(FlowchartInstance::new()).parse("graph TD\nA-->B");
+    let result = flowchart_instance().parse("graph TD\nA-->B");
     assert!(result.is_ok());
 }
 
 #[test]
 fn flowchart_instance_parse_error_on_invalid() {
-    let result = Box::new(FlowchartInstance::new()).parse("not a valid diagram }{{}");
+    let result = flowchart_instance().parse("not a valid diagram }{{}");
     assert!(result.is_err());
 }
 
@@ -94,7 +100,7 @@ fn flowchart_instance_render_ascii() {
 
 #[test]
 fn flowchart_instance_supports_text_and_ascii() {
-    let instance = FlowchartInstance::new();
+    let instance = flowchart_instance();
     assert!(instance.supports_format(OutputFormat::Text));
     assert!(instance.supports_format(OutputFormat::Ascii));
     assert!(instance.supports_format(OutputFormat::Svg));
@@ -114,7 +120,7 @@ fn flowchart_instance_render_svg() {
 
 #[test]
 fn flowchart_instance_render_json() {
-    let output = Box::new(FlowchartInstance::new())
+    let output = flowchart_instance()
         .parse("graph TD\nA[Start] --> B[End]")
         .unwrap()
         .prepare(&RenderConfig::default())
@@ -153,7 +159,7 @@ fn test_show_ids_annotates_labels() {
         show_ids: true,
         ..Default::default()
     };
-    let prepared = Box::new(FlowchartInstance::new())
+    let prepared = flowchart_instance()
         .parse("graph TD\nA[Start] --> B[End]\n")
         .unwrap()
         .prepare(&config)
@@ -171,7 +177,7 @@ fn test_show_ids_bare_nodes_unchanged() {
         show_ids: true,
         ..Default::default()
     };
-    let prepared = Box::new(FlowchartInstance::new())
+    let prepared = flowchart_instance()
         .parse("graph TD\nA --> B\n")
         .unwrap()
         .prepare(&config)
@@ -184,7 +190,7 @@ fn test_show_ids_bare_nodes_unchanged() {
 
 #[test]
 fn test_show_ids_false_no_annotation() {
-    let prepared = Box::new(FlowchartInstance::new())
+    let prepared = flowchart_instance()
         .parse("graph TD\nA[Start] --> B[End]\n")
         .unwrap()
         .prepare(&RenderConfig::default())

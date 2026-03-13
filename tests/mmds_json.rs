@@ -114,6 +114,21 @@ fn mmds_fixture(path: &str) -> Value {
     serde_json::from_str(&raw).unwrap_or_else(|err| panic!("invalid fixture JSON: {err}"))
 }
 
+fn mmds_profile_fixture(name: &str) -> Value {
+    mmds_fixture(&format!("profiles/{name}"))
+}
+
+fn mmds_profile_fixture_text(name: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("mmds")
+        .join("profiles")
+        .join(name);
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read profile fixture {}: {err}", path.display()))
+}
+
 fn mmds_contract_fixture_text(path: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
@@ -923,7 +938,7 @@ fn mmds_routed_output_with_ports_validates_against_schema() {
 
 #[test]
 fn schema_accepts_profiles_and_namespaced_extensions() {
-    let payload = mmds_fixture("profiles/profiles-svg-v1.json");
+    let payload = mmds_profile_fixture("profiles-svg-v1.json");
     assert_schema_valid(payload);
 }
 
@@ -948,15 +963,7 @@ fn schema_rejects_invalid_extension_namespace_shape() {
 
 #[test]
 fn mmds_profiles_and_extensions_roundtrip_through_serde() {
-    let payload = std::fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("fixtures")
-            .join("mmds")
-            .join("profiles")
-            .join("profiles-svg-v1.json"),
-    )
-    .unwrap();
+    let payload = mmds_profile_fixture_text("profiles-svg-v1.json");
     let parsed: MmdsOutput = serde_json::from_str(&payload).unwrap();
     let json = serde_json::to_string(&parsed).unwrap();
 
@@ -985,15 +992,10 @@ fn readme_mentions_mmds() {
 
 #[test]
 fn canonical_profile_examples_validate_against_schema() {
-    for path in [
-        "tests/fixtures/mmds/profiles/profiles-svg-v1.json",
-        "tests/fixtures/mmds/profiles/profiles-text-v1.json",
-    ] {
-        let absolute = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
-        let raw = std::fs::read_to_string(&absolute)
-            .unwrap_or_else(|err| panic!("failed to read {}: {err}", absolute.display()));
+    for profile in ["profiles-svg-v1.json", "profiles-text-v1.json"] {
+        let raw = mmds_profile_fixture_text(profile);
         let payload: Value = serde_json::from_str(&raw)
-            .unwrap_or_else(|err| panic!("invalid JSON {}: {err}", absolute.display()));
+            .unwrap_or_else(|err| panic!("invalid profile fixture {profile}: {err}"));
         assert_schema_valid(payload);
     }
 }
