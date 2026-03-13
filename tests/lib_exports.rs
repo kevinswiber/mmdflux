@@ -11,7 +11,6 @@ use mmdflux::{
     OutputFormat,
     RenderConfig,
     RenderError,
-    RenderRequest,
     Shape,
     // Diagrams
     diagrams::flowchart,
@@ -105,7 +104,6 @@ fn all_exports_accessible() {
     let _ = OutputFormat::default();
     let _ = RenderConfig::default();
     let _ = RenderError::from("surface");
-    let _ = RenderRequest::new("graph TD\nA-->B", OutputFormat::Text);
     let _: Box<dyn DiagramInstance> = Box::new(flowchart::FlowchartInstance::new());
     let _ = std::any::type_name::<Box<dyn ParsedDiagram>>();
 }
@@ -117,7 +115,6 @@ fn flat_public_contract_modules_are_accessible() {
     let _ = mmdflux::simplification::PathSimplification::default();
     let _ = mmdflux::format::RoutingStyle::Polyline;
     let _ = mmdflux::errors::RenderError::from("surface");
-    let _ = mmdflux::request::RenderRequest::new("graph TD\nA-->B", OutputFormat::Text);
     let _ = mmdflux::family::DiagramFamily::Graph;
     let _ = mmdflux::diagnostics::ParseDiagnostic::warning(None, None, String::new());
 }
@@ -145,15 +142,7 @@ fn crate_root_public_modules_expose_prepared_but_keep_runtime_internal() {
 fn crate_root_exports_only_the_curated_render_and_validation_surface() {
     let exports = public_exports_for_test();
 
-    assert_exports_include(
-        &exports,
-        &[
-            "OutputFormat",
-            "RenderConfig",
-            "RenderError",
-            "RenderRequest",
-        ],
-    );
+    assert_exports_include(&exports, &["OutputFormat", "RenderConfig", "RenderError"]);
     assert_exports_exclude(
         &exports,
         &[
@@ -163,6 +152,7 @@ fn crate_root_exports_only_the_curated_render_and_validation_surface() {
             "detect_diagram_type",
             "compile_to_graph",
             "default_registry",
+            "RenderRequest",
         ],
         "the crate-root export surface",
     );

@@ -497,7 +497,6 @@ fn public_contract_modules_are_flat_and_api_namespace_is_gone() {
         "src/errors.rs",
         "src/family.rs",
         "src/format.rs",
-        "src/request.rs",
     ] {
         let path = repo_root.join(relative_path);
         assert!(path.exists(), "{} should exist", path.display());

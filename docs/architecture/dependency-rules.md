@@ -82,9 +82,10 @@ Guard tests should fail when the code drifts away from these rules.
     downstream render/MMDS consumer concern.
 
 12. **flat top-level contract modules own the stable public contract** —
-    Stable public config types, request/response types, diagnostics, and error
-    vocabulary live in `src/config.rs`, `src/format.rs`, `src/request.rs`,
-    `src/errors.rs`, `src/diagnostics.rs`, and `src/family.rs`. Other
+    Stable public config, format, diagnostics, error, and family vocabulary
+    live in `src/config.rs`, `src/format.rs`, `src/errors.rs`,
+    `src/diagnostics.rs`, and `src/family.rs`. Adapter orchestration
+    entrypoints are curated runtime facade re-exports from `lib.rs`. Other
     namespaces are either advanced APIs or internal helpers.
 
 13. **runtime/ is orchestration only** — The runtime layer detects input
