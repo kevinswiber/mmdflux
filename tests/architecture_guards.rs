@@ -418,7 +418,7 @@ fn removed_transitional_module_roots_stay_gone() {
         "src/graph/attachment.rs",
         "src/graph/routing/mod.rs",
         "src/graph/routing/float_core.rs",
-        "src/graph/routing/orthogonal.rs",
+        "src/graph/routing/orthogonal/mod.rs",
         "src/graph/direction_policy.rs",
         "src/graph/measure.rs",
         "src/graph/projection.rs",
@@ -436,6 +436,7 @@ fn removed_transitional_module_roots_stay_gone() {
         "src/graph/routing.rs",
         "src/graph/routing_core.rs",
         "src/graph/orthogonal_router.rs",
+        "src/graph/routing/orthogonal.rs",
         "src/render/graph/text_routing_core.rs",
     ] {
         let path = repo_root.join(relative_path);
@@ -908,6 +909,18 @@ fn graph_grid_routing_uses_directory_module_shell() {
 
     assert!(!repo_root.join("src/graph/grid/routing.rs").exists());
     assert!(repo_root.join("src/graph/grid/routing/mod.rs").exists());
+}
+
+#[test]
+fn graph_routing_orthogonal_uses_directory_module_shell() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    assert!(!repo_root.join("src/graph/routing/orthogonal.rs").exists());
+    assert!(
+        repo_root
+            .join("src/graph/routing/orthogonal/mod.rs")
+            .exists()
+    );
 }
 
 #[test]

@@ -636,11 +636,130 @@ mod tests {
             FPoint::new(5.4, 12.3),
             FPoint::new(14.7, 12.3),
         ];
-        let snapped = orthogonal::snap_path_to_grid(&input, 1.0, 1.0);
+        let snapped = orthogonal::path_utils::snap_path_to_grid(&input, 1.0, 1.0);
 
         assert_eq!(snapped.first(), Some(&FPoint::new(5.0, 9.0)));
         assert_eq!(snapped.last(), Some(&FPoint::new(15.0, 12.0)));
-        assert_eq!(snapped, orthogonal::snap_path_to_grid(&input, 1.0, 1.0));
+        assert_eq!(
+            snapped,
+            orthogonal::path_utils::snap_path_to_grid(&input, 1.0, 1.0)
+        );
+    }
+
+    #[test]
+    fn build_path_from_hints_falls_back_to_nodes_and_waypoints_when_layout_hint_is_degenerate() {
+        let (_diagram, mut geom) = simple_geometry();
+        geom.edges[0].layout_path_hint =
+            Some(vec![FPoint::new(70.0, 35.0), FPoint::new(70.0, 35.0)]);
+        geom.edges[0].waypoints = vec![FPoint::new(60.0, 55.0)];
+
+        let path = orthogonal::hints::build_path_from_hints(&geom.edges[0], &geom);
+
+        assert_eq!(
+            path,
+            vec![
+                FPoint::new(70.0, 35.0),
+                FPoint::new(60.0, 55.0),
+                FPoint::new(70.0, 85.0),
+            ]
+        );
+    }
+
+    #[test]
+    fn light_normalize_dedups_and_removes_collinear_points() {
+        let normalized = orthogonal::path_utils::light_normalize(&[
+            FPoint::new(0.0, 0.0),
+            FPoint::new(0.0, 0.0),
+            FPoint::new(0.0, 10.0),
+            FPoint::new(0.0, 20.0),
+            FPoint::new(15.0, 20.0),
+        ]);
+
+        assert_eq!(
+            normalized,
+            vec![
+                FPoint::new(0.0, 0.0),
+                FPoint::new(0.0, 20.0),
+                FPoint::new(15.0, 20.0),
+            ]
+        );
+    }
+
+    #[test]
+    fn anchor_path_endpoints_to_endpoint_faces_projects_simple_td_route() {
+        let (_diagram, geom) = simple_geometry();
+        let edge = &geom.edges[0];
+        let mut path = vec![
+            FPoint::new(70.0, 35.0),
+            FPoint::new(70.0, 55.0),
+            FPoint::new(70.0, 85.0),
+        ];
+
+        orthogonal::endpoints::anchor_path_endpoints_to_endpoint_faces(
+            &mut path,
+            edge,
+            &geom,
+            crate::graph::Direction::TopDown,
+            false,
+            None,
+            None,
+            None,
+            false,
+            false,
+        );
+
+        assert_eq!(path[0], FPoint::new(70.0, 45.0));
+        assert_eq!(path[path.len() - 1], FPoint::new(70.0, 75.0));
+    }
+
+    #[test]
+    fn pairwise_parallel_clearance_measures_criss_cross_channel_spacing() {
+        let path_a = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(0.0, 10.0),
+            FPoint::new(12.0, 10.0),
+        ];
+        let path_b = vec![
+            FPoint::new(4.0, 0.0),
+            FPoint::new(4.0, 10.0),
+            FPoint::new(16.0, 10.0),
+        ];
+
+        assert_eq!(
+            orthogonal::overlap::pairwise_parallel_clearance(&path_a, &path_b),
+            Some(4.0)
+        );
+    }
+
+    #[test]
+    fn symmetric_side_band_depth_spreads_outer_and_inner_fan_channels() {
+        let outer = orthogonal::fan::symmetric_side_band_depth(0, 3);
+        let middle = orthogonal::fan::symmetric_side_band_depth(1, 3);
+        let inner = orthogonal::fan::symmetric_side_band_depth(2, 3);
+
+        assert!(outer < middle && middle < inner);
+        assert!(outer >= 0.0 && inner <= 1.0);
+    }
+
+    #[test]
+    fn collapse_forward_source_primary_turnback_hooks_flattens_inward_lr_hook() {
+        let mut path = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(10.0, 0.0),
+            FPoint::new(10.0, 5.0),
+            FPoint::new(5.0, 5.0),
+            FPoint::new(5.0, 10.0),
+            FPoint::new(20.0, 10.0),
+        ];
+
+        let changed = orthogonal::forward::collapse_forward_source_primary_turnback_hooks(
+            &mut path,
+            crate::graph::Direction::LeftRight,
+        );
+
+        assert!(changed);
+        assert_eq!(path[3].x, 10.0);
+        assert_eq!(path[4].x, 10.0);
     }
 
     #[test]

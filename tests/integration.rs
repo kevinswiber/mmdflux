@@ -3072,6 +3072,21 @@ fn test_orthogonal_route_routed_geometry_is_axis_aligned_for_forward_edges() {
 }
 
 #[test]
+fn test_orthogonal_route_criss_cross_repairs_preserve_axis_aligned_forward_paths() {
+    let routed = route_fixture_orthogonal("criss_cross.mmd");
+
+    for (from, to) in [("B", "E"), ("C", "D")] {
+        let path = edge_path(&routed, from, to);
+        assert!(
+            path.windows(2)
+                .all(|seg| seg[0].x == seg[1].x || seg[0].y == seg[1].y),
+            "criss_cross {from} -> {to} should remain axis-aligned after de-overlap repair: {:?}",
+            path
+        );
+    }
+}
+
+#[test]
 fn test_step_topology_preserves_fan_stem_room_and_lane_compaction() {
     let fan_out = route_fixture_orthogonal("five_fan_out.mmd");
     let (a_b_stem, _) = first_segment(edge_path(&fan_out, "A", "B"));

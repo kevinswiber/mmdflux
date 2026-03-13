@@ -818,6 +818,25 @@ fn orthogonal_router_produces_axis_aligned_forward_paths() {
 }
 
 #[test]
+fn orthogonal_route_simple_forward_edge_anchors_to_flow_faces() {
+    let (diagram, geom) = layout_test("graph TD\nA-->B");
+    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let edge = routed
+        .edges
+        .iter()
+        .find(|edge| edge.from == "A" && edge.to == "B")
+        .expect("fixture should contain A -> B");
+    let source_rect = geom.nodes["A"].rect;
+    let target_rect = geom.nodes["B"].rect;
+
+    assert_eq!(point_on_target_face(source_rect, edge.path[0]), "bottom");
+    assert_eq!(
+        point_on_target_face(target_rect, edge.path[edge.path.len() - 1]),
+        "top"
+    );
+}
+
+#[test]
 fn snap_path_to_grid_preserves_start_and_end_nodes() {
     let path = vec![
         FPoint::new(10.2, 20.8),
@@ -948,6 +967,27 @@ fn orthogonal_route_contracts_are_deterministic_for_repeated_runs() {
         assert_eq!(lhs.from, rhs.from);
         assert_eq!(lhs.to, rhs.to);
         assert_eq!(lhs.path, rhs.path);
+    }
+}
+
+#[test]
+fn orthogonal_forward_routes_remain_axis_aligned_after_criss_cross_repair() {
+    let (diagram, geom) = layout_fixture("criss_cross.mmd");
+    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+
+    for (from, to) in [("B", "E"), ("C", "D")] {
+        let edge = routed
+            .edges
+            .iter()
+            .find(|edge| edge.from == from && edge.to == to)
+            .unwrap_or_else(|| panic!("criss_cross should contain {from} -> {to}"));
+        assert!(
+            edge.path
+                .windows(2)
+                .all(|segment| segment_is_axis_aligned(segment[0], segment[1])),
+            "criss_cross {from} -> {to} should remain axis-aligned after de-overlap repair: {:?}",
+            edge.path
+        );
     }
 }
 
