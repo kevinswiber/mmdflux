@@ -4,9 +4,9 @@ use mmdflux::diagrams::class::compiler::compile as compile_class_diagram;
 use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::engines::graph::contracts::{EngineConfig, GraphEngine};
 use mmdflux::engines::graph::flux::FluxLayeredEngine;
-use mmdflux::frontends::mermaid::class::parse_class_diagram;
-use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::frontends::mmds::{from_mmds_str, is_mmds_input};
+use mmdflux::mermaid::class::parse_class_diagram;
+use mmdflux::mermaid::parse_flowchart;
 use mmdflux::render::graph::{
     SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
     render_text_from_geometry,

@@ -9,9 +9,9 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
+use mmdflux::mermaid::parse_flowchart;
 use mmdflux::render::{Canvas, CharSet};
 use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,
@@ -4372,7 +4372,7 @@ fn classify_face_matches_expected_common_approaches() {
 #[test]
 fn text_renders_head_label() {
     let input = "graph TD\n  A --> B\n";
-    let flowchart = mmdflux::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = mmdflux::mermaid::parse_flowchart(input).unwrap();
     let mut diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
     diagram.edges[0].head_label = Some("*".to_string());
     let output = render_text_diagram(&diagram);
@@ -4385,7 +4385,7 @@ fn text_renders_head_label() {
 #[test]
 fn text_renders_tail_label() {
     let input = "graph TD\n  A --> B\n";
-    let flowchart = mmdflux::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = mmdflux::mermaid::parse_flowchart(input).unwrap();
     let mut diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
     diagram.edges[0].tail_label = Some("src".to_string());
     let output = render_text_diagram(&diagram);

@@ -18,8 +18,7 @@ pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputForma
 /// - Case-insensitive keyword matching
 /// - Exact first-word matching (not prefix)
 pub fn detect(input: &str) -> bool {
-    crate::frontends::mermaid::detect_diagram_type(input)
-        == Some(crate::frontends::mermaid::DiagramType::Info)
+    crate::mermaid::detect_diagram_type(input) == Some(crate::mermaid::DiagramType::Info)
 }
 
 /// Info diagram definition for registry.
@@ -49,7 +48,7 @@ impl DiagramInstance for InfoInstance {
         self: Box<Self>,
         input: &str,
     ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
-        crate::frontends::mermaid::parse_info(input)?;
+        crate::mermaid::parse_info(input)?;
         Ok(Box::new(ParsedInfo))
     }
 

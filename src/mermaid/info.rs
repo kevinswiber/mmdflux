@@ -6,7 +6,7 @@ use pest_derive::Parser;
 use super::error::ParseError;
 
 #[derive(Parser)]
-#[grammar = "frontends/mermaid/info_grammar.pest"]
+#[grammar = "mermaid/info_grammar.pest"]
 pub struct InfoParser;
 
 /// Parsed info diagram.

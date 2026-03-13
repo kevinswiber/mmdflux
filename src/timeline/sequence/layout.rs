@@ -256,7 +256,7 @@ fn layout_participants(participants: &[Participant], gap: usize) -> Vec<Particip
 mod tests {
     use super::*;
     use crate::diagrams::sequence::compiler;
-    use crate::frontends::mermaid::sequence::parse_sequence;
+    use crate::mermaid::sequence::parse_sequence;
 
     fn layout_input(input: &str) -> SequenceLayout {
         let stmts = parse_sequence(input).unwrap();

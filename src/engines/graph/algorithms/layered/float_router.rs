@@ -624,9 +624,9 @@ mod tests {
     use super::*;
     use crate::diagrams::flowchart::compile_to_graph;
     use crate::engines::graph::algorithms::layered::float_layout::build_float_layout_with_flags;
-    use crate::frontends::mermaid::parse_flowchart;
     use crate::graph::measure::ProportionalTextMetrics;
     use crate::graph::routing::EdgeRouting;
+    use crate::mermaid::parse_flowchart;
 
     #[test]
     fn test_build_node_directions_basic() {

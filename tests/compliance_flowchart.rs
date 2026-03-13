@@ -12,7 +12,7 @@
 //
 // Tally: see bottom of file for pass/ignore counts.
 
-use mmdflux::frontends::mermaid::{ArrowHead, ShapeSpec, Statement, StrokeSpec, parse_flowchart};
+use mmdflux::mermaid::{ArrowHead, ShapeSpec, Statement, StrokeSpec, parse_flowchart};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -534,7 +534,7 @@ mod comments {
 // flow-direction.spec.js — Direction keywords
 // ===========================================================================
 mod direction {
-    use mmdflux::frontends::mermaid::Direction;
+    use mmdflux::mermaid::Direction;
 
     use super::*;
 

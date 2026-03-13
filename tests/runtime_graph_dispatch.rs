@@ -34,11 +34,11 @@ fn compile_graph_fixture(path: &str) -> (Diagram, DiagramFamily) {
     let family = registry.get(id).unwrap().family;
     let diagram = match id {
         "flowchart" => {
-            let fc = mmdflux::frontends::mermaid::parse_flowchart(&input).unwrap();
+            let fc = mmdflux::mermaid::parse_flowchart(&input).unwrap();
             mmdflux::diagrams::flowchart::compile_to_graph(&fc)
         }
         "class" => {
-            let model = mmdflux::frontends::mermaid::class::parse_class_diagram(&input).unwrap();
+            let model = mmdflux::mermaid::class::parse_class_diagram(&input).unwrap();
             mmdflux::diagrams::class::compiler::compile(&model)
         }
         _ => panic!("unexpected diagram type: {id}"),
@@ -54,7 +54,7 @@ fn repo_file(path: &str) -> String {
 /// Produce a GraphSolveResult fixture from a simple flowchart.
 fn graph_solve_result_fixture() -> (Diagram, GraphSolveResult) {
     let input = "graph TD\n    A[Start] --> B[End]\n";
-    let fc = mmdflux::frontends::mermaid::parse_flowchart(input).unwrap();
+    let fc = mmdflux::mermaid::parse_flowchart(input).unwrap();
     let diagram = mmdflux::diagrams::flowchart::compile_to_graph(&fc);
     let registry = GraphEngineRegistry::default();
     let engine_id = EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered);

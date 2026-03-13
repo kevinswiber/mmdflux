@@ -440,8 +440,8 @@ mod tests {
         EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
     };
     use crate::engines::graph::flux::FluxLayeredEngine;
-    use crate::frontends::mermaid::parse_flowchart;
     use crate::graph::Diagram;
+    use crate::mermaid::parse_flowchart;
 
     fn render_text_diagram(diagram: &Diagram) -> String {
         let engine = FluxLayeredEngine::text();

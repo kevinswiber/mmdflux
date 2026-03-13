@@ -7,8 +7,8 @@ use super::compiler;
 use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
-use crate::frontends::mermaid::class::parse_class_diagram;
 use crate::graph::Diagram;
+use crate::mermaid::class::parse_class_diagram;
 use crate::prepared::{PreparedDiagram, PreparedGraph};
 use crate::registry::{DiagramInstance, ParsedDiagram};
 

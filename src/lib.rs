@@ -17,8 +17,8 @@
 //!
 //! Low-level parsing, compilation, prepared-family payloads, MMDS hydration,
 //! and render-only geometry emission remain available through explicit
-//! namespaces such as `frontends`, `diagrams`, `prepared`, `render`,
-//! `registry`, and `registry_builtins`.
+//! namespaces such as `mermaid`, `mmds`, `frontends`, `diagrams`,
+//! `prepared`, `render`, `registry`, and `registry_builtins`.
 
 pub mod config;
 pub mod diagnostics;
@@ -31,6 +31,7 @@ pub mod format;
 pub mod frontends;
 pub mod graph;
 pub mod lint;
+pub mod mermaid;
 pub mod mmds;
 pub mod prepared;
 pub mod registry;

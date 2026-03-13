@@ -16,8 +16,7 @@ pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputForma
 
 /// Detect if input is a sequence diagram.
 pub fn detect(input: &str) -> bool {
-    crate::frontends::mermaid::detect_diagram_type(input)
-        == Some(crate::frontends::mermaid::DiagramType::Sequence)
+    crate::mermaid::detect_diagram_type(input) == Some(crate::mermaid::DiagramType::Sequence)
 }
 
 /// Sequence diagram definition for registry.

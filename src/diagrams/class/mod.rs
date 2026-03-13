@@ -22,8 +22,7 @@ pub const SUPPORTED_FORMATS: &[OutputFormat] = &[
 
 /// Detect if input is a class diagram.
 pub fn detect(input: &str) -> bool {
-    crate::frontends::mermaid::detect_diagram_type(input)
-        == Some(crate::frontends::mermaid::DiagramType::Class)
+    crate::mermaid::detect_diagram_type(input) == Some(crate::mermaid::DiagramType::Class)
 }
 
 /// Class diagram definition for registry.

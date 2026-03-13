@@ -27,8 +27,7 @@ pub const SUPPORTED_FORMATS: &[OutputFormat] = &[
 /// - Case-insensitive keyword matching
 /// - Exact first-word matching (not prefix)
 pub fn detect(input: &str) -> bool {
-    crate::frontends::mermaid::detect_diagram_type(input)
-        == Some(crate::frontends::mermaid::DiagramType::Flowchart)
+    crate::mermaid::detect_diagram_type(input) == Some(crate::mermaid::DiagramType::Flowchart)
 }
 
 /// Flowchart diagram definition for registry.

@@ -424,7 +424,7 @@ fn run_flowchart_conformance(name: &str) -> ConformanceReport {
 
     // Direct path: parse → build → Diagram
     let direct_diagram = {
-        let fc = mmdflux::frontends::mermaid::parse_flowchart(&input).unwrap();
+        let fc = mmdflux::mermaid::parse_flowchart(&input).unwrap();
         mmdflux::diagrams::flowchart::compile_to_graph(&fc)
     };
 
@@ -446,7 +446,7 @@ fn run_flowchart_conformance(name: &str) -> ConformanceReport {
 /// Run a full conformance case for a class diagram fixture.
 fn run_class_conformance(name: &str) -> ConformanceReport {
     use mmdflux::diagrams::class::compiler;
-    use mmdflux::frontends::mermaid::class::parse_class_diagram;
+    use mmdflux::mermaid::class::parse_class_diagram;
 
     let input = fixture_input("class", name);
 

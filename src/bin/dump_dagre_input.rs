@@ -3,8 +3,8 @@ use std::{env, fs};
 use mmdflux::Direction;
 use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::engines::graph::algorithms::layered::LayoutConfig;
-use mmdflux::frontends::mermaid::parse_flowchart;
 use mmdflux::graph::measure::grid_node_dimensions;
+use mmdflux::mermaid::parse_flowchart;
 
 fn json_escape(input: &str) -> String {
     let mut out = String::with_capacity(input.len());

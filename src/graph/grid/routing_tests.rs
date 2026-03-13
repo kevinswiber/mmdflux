@@ -9,7 +9,6 @@ use crate::engines::graph::algorithms::layered::layout_building::layered_config_
 use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
 use crate::engines::graph::contracts::{GraphEngine, GraphGeometryContract, GraphSolveRequest};
 use crate::engines::graph::flux::FluxLayeredEngine;
-use crate::frontends::mermaid::parse_flowchart;
 use crate::graph::geometry::{FPoint, FRect};
 use crate::graph::grid::{
     GridLayout, GridLayoutConfig, GridPos, NodeFace, SubgraphBounds,
@@ -21,6 +20,7 @@ use crate::graph::routing::{
     point_on_face_float, resolve_overflow_backward_channel_conflict, route_graph_geometry,
 };
 use crate::graph::{Diagram, Direction, Edge, Node};
+use crate::mermaid::parse_flowchart;
 
 fn simple_td_diagram() -> Diagram {
     let mut diagram = Diagram::new(Direction::TopDown);

@@ -867,8 +867,8 @@ mod tests {
     use crate::diagrams::flowchart::compile_to_graph;
     use crate::engines::graph::EngineConfig;
     use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-    use crate::frontends::mermaid::parse_flowchart;
     use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+    use crate::mermaid::parse_flowchart;
 
     fn layout_geometry(input: &str) -> (Diagram, GraphGeometry) {
         let fc = parse_flowchart(input).unwrap();

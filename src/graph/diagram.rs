@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn test_subgraph_children() {
         use crate::diagrams::flowchart::compile_to_graph;
-        use crate::frontends::mermaid::parse_flowchart;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB\nend\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn test_subgraph_depth() {
         use crate::diagrams::flowchart::compile_to_graph;
-        use crate::frontends::mermaid::parse_flowchart;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph outer[Outer]\nsubgraph inner[Inner]\nA\nend\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn subgraph_parse_order_is_postorder() {
         use crate::diagrams::flowchart::compile_to_graph;
-        use crate::frontends::mermaid::parse_flowchart;
+        use crate::mermaid::parse_flowchart;
         let input = include_str!("../../tests/fixtures/flowchart/external_node_subgraph.mmd");
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
@@ -219,7 +219,7 @@ mod tests {
     #[test]
     fn cross_boundary_edges_isolated_subgraph() {
         use crate::diagrams::flowchart::compile_to_graph;
-        use crate::frontends::mermaid::parse_flowchart;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> D";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
@@ -229,7 +229,7 @@ mod tests {
     #[test]
     fn cross_boundary_edges_non_isolated_subgraph() {
         use crate::diagrams::flowchart::compile_to_graph;
-        use crate::frontends::mermaid::parse_flowchart;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> A";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
@@ -239,7 +239,7 @@ mod tests {
     #[test]
     fn cross_boundary_edges_outgoing() {
         use crate::diagrams::flowchart::compile_to_graph;
-        use crate::frontends::mermaid::parse_flowchart;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nB --> C";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);
@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn cross_boundary_edges_nested_outer_has_inner_does_not() {
         use crate::diagrams::flowchart::compile_to_graph;
-        use crate::frontends::mermaid::parse_flowchart;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph outer[Outer]\ndirection LR\nsubgraph inner[Inner]\ndirection BT\nA --> B\nend\nC --> D\nend\nE --> C";
         let flowchart = parse_flowchart(input).unwrap();
         let diagram = compile_to_graph(&flowchart);

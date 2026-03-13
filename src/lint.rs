@@ -7,7 +7,7 @@ use std::fmt;
 
 use serde::Serialize;
 
-use crate::frontends::mermaid::{
+use crate::mermaid::{
     DiagramType, ParseError, ParseOptions, detect_diagram_type, parse_flowchart_with_options,
 };
 use crate::style::parse_node_style_statement;

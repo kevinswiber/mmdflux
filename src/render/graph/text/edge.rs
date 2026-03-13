@@ -2125,7 +2125,7 @@ mod tests {
     #[test]
     fn backward_edge_label_near_routed_path_td() {
         use crate::diagrams::flowchart::compile_to_graph;
-        use crate::frontends::mermaid::parse_flowchart;
+        use crate::mermaid::parse_flowchart;
         let flowchart = parse_flowchart("graph TD\n    A --> B\n    B -->|retry| A").unwrap();
         let diagram = compile_to_graph(&flowchart);
         let output = render_text_diagram(&diagram);

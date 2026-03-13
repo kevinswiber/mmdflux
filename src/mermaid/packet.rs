@@ -6,7 +6,7 @@ use pest_derive::Parser;
 use super::error::ParseError;
 
 #[derive(Parser)]
-#[grammar = "frontends/mermaid/packet_grammar.pest"]
+#[grammar = "mermaid/packet_grammar.pest"]
 pub struct PacketParser;
 
 /// A block in a packet diagram.

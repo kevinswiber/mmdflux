@@ -131,8 +131,8 @@ fn is_ancestor_sg(diagram: &Diagram, ancestor: &str, descendant: &str) -> bool {
 mod tests {
     use super::*;
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
     use crate::graph::{Diagram, Node};
+    use crate::mermaid::parse_flowchart;
 
     #[test]
     fn build_node_directions_all_root() {

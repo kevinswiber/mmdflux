@@ -4,7 +4,8 @@ This document defines the steady-state dependency and ownership rules for the
 mmdflux Rust crate. The module tree should tell one coherent story for
 contributors:
 
-- `frontends/` own source ingestion
+- `frontends.rs` owns source-format detection
+- `mermaid/` owns Mermaid source ingestion
 - `diagrams/` own compilation and instance behavior
 - `prepared/` owns the prepared-diagram payload contract
 - `graph/` owns graph-family IR, float-space geometry, and shared policy/measurement helpers
@@ -15,9 +16,10 @@ Guard tests should fail when the code drifts away from these rules.
 
 ## Core Rules
 
-1. **frontends own input formats** — Source-format ingestion lives under
-   `src/frontends/`. Runtime detects the frontend first (`mermaid`, `mmds`),
-   then resolves the logical diagram type and family pipeline.
+1. **frontends own input formats** — Source-format detection lives in
+   `src/frontends.rs`. Runtime detects the frontend first (`mermaid`, `mmds`),
+   then resolves the logical diagram type and family pipeline. Mermaid parsing
+   itself lives in the separate top-level `src/mermaid/` namespace.
 
 2. **diagrams do not parse source text directly** — Diagram modules
    (`src/diagrams/`) consume frontend-owned models and compile them into
@@ -64,8 +66,9 @@ Guard tests should fail when the code drifts away from these rules.
    MMDS serialization for graph-family output.
 
 10. **MMDS is a frontend, not a logical diagram type** — MMDS input handling
-   lives under `src/frontends/mmds/`. MMDS is not registered in the logical
-   diagram registry.
+   is detected through `src/frontends.rs`, with the `frontends::mmds`
+   compatibility access path defined inline there and the MMDS implementation
+   under `src/mmds/`. MMDS is not registered in the logical diagram registry.
 
 11. **engines do not know about diagram types or output formats** — Engine
     implementations (`src/engines/`) solve generic graph layout problems and
@@ -87,7 +90,7 @@ Guard tests should fail when the code drifts away from these rules.
 13. **runtime/ is orchestration only** — The runtime layer detects input
     frontends, resolves logical diagram types, manages the registry, consumes
     prepared diagram payloads, and wires the pipeline. Graph-family runtime
-    dispatch lives under `src/runtime/`; runtime itself does not own parsing
+    dispatch lives under `src/runtime/`; runtime itself does not own Mermaid
     grammars, layout algorithms, or renderer implementations.
 
 14. **registry is contract-only infrastructure** — `src/registry.rs` defines

@@ -11,7 +11,7 @@ use super::error::ParseError;
 use crate::style::parse_node_style_statement;
 
 #[derive(Parser)]
-#[grammar = "frontends/mermaid/grammar.pest"]
+#[grammar = "mermaid/grammar.pest"]
 pub struct FlowchartParser;
 
 /// Direction of the flowchart layout.

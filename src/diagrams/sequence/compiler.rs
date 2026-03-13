@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use crate::frontends::mermaid::sequence::ast::{ArrowType, SequenceStatement};
+use crate::mermaid::sequence::ast::{ArrowType, SequenceStatement};
 use crate::timeline::sequence::model::{
     MessageStyle, Participant, ParticipantKind, SequenceEvent, SequenceModel,
 };
@@ -118,7 +118,7 @@ fn ensure_participant(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::frontends::mermaid::sequence::parse_sequence;
+    use crate::mermaid::sequence::parse_sequence;
 
     fn compile_input(input: &str) -> SequenceModel {
         let stmts = parse_sequence(input).unwrap();

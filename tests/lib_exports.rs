@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
-use mmdflux::frontends::mermaid::{DiagramType, ParseError, detect_diagram_type};
+use mmdflux::mermaid::{DiagramType, ParseError, detect_diagram_type};
 // Verify core expected items are accessible from crate root.
 use mmdflux::{
     Diagram,
@@ -317,7 +317,7 @@ fn crate_root_exports_registry_builtins_but_not_removed_advanced_helpers() {
 
 #[test]
 fn low_level_graph_engine_api_is_accessible_from_explicit_namespace() {
-    let flowchart = mmdflux::frontends::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();
+    let flowchart = mmdflux::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();
     let diagram = mmdflux::diagrams::flowchart::compile_to_graph(&flowchart);
     let registry = mmdflux::engines::graph::registry::GraphEngineRegistry::default();
     let engine_id =

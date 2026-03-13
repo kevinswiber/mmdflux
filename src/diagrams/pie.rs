@@ -7,7 +7,7 @@ use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::family::DiagramFamily;
 use crate::format::OutputFormat;
-use crate::frontends::mermaid::pie::Pie;
+use crate::mermaid::pie::Pie;
 use crate::prepared::{PreparedDiagram, PreparedPie};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance, ParsedDiagram};
 
@@ -20,8 +20,7 @@ pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputForma
 /// - Case-insensitive keyword matching
 /// - Exact first-word matching (not prefix)
 pub fn detect(input: &str) -> bool {
-    crate::frontends::mermaid::detect_diagram_type(input)
-        == Some(crate::frontends::mermaid::DiagramType::Pie)
+    crate::mermaid::detect_diagram_type(input) == Some(crate::mermaid::DiagramType::Pie)
 }
 
 /// Pie diagram definition for registry.
@@ -52,7 +51,7 @@ impl DiagramInstance for PieInstance {
         input: &str,
     ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Box::new(ParsedPie {
-            pie: crate::frontends::mermaid::parse_pie(input)?,
+            pie: crate::mermaid::parse_pie(input)?,
             source: input.to_string(),
         }))
     }

@@ -153,7 +153,7 @@ fn scale_factors_single_node() {
 #[test]
 fn build_layered_layout_includes_label_positions() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nA -- yes --> B\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -531,7 +531,7 @@ fn label_transform_empty_input() {
 #[test]
 fn test_layout_subgraph_bounds_present() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Group]\nA --> B\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -551,7 +551,7 @@ fn test_layout_subgraph_bounds_present() {
 #[test]
 fn test_nested_subgraph_layout_produces_both_bounds() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph outer[Outer]\nA[Node A]\nsubgraph inner[Inner]\nB[Node B]\nend\nend\nA --> B\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -570,7 +570,7 @@ fn test_nested_subgraph_layout_produces_both_bounds() {
 #[test]
 fn test_layout_no_subgraph_bounds_simple() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nA --> B\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -583,7 +583,7 @@ fn test_layout_no_subgraph_bounds_simple() {
 #[test]
 fn test_layout_canvas_dimensions_include_borders() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Group]\nA --> B\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -608,7 +608,7 @@ fn test_layout_canvas_dimensions_include_borders() {
 #[test]
 fn test_compute_layout_subgraph_diagram_succeeds() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Group]\nA --> B\nend\nC --> A\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -624,7 +624,7 @@ fn test_compute_layout_subgraph_diagram_succeeds() {
 #[test]
 fn test_compute_layout_simple_diagram_no_compound() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nA --> B\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -638,7 +638,7 @@ fn test_compute_layout_simple_diagram_no_compound() {
 #[test]
 fn label_position_within_canvas_bounds() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\n    A -->|yes| B";
     let flowchart = parse_flowchart(input).unwrap();
@@ -710,7 +710,7 @@ fn label_transform_skips_missing_edge() {
 #[test]
 fn test_nested_borders_inner_visible() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input =
         "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB --> C\nend\nend\nA --> B\n";
@@ -730,7 +730,7 @@ fn test_nested_borders_inner_visible() {
 #[test]
 fn test_nested_subgraph_depth_values() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB\nend\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -743,7 +743,7 @@ fn test_nested_subgraph_depth_values() {
 #[test]
 fn test_nested_subgraph_parent_contains_child_bounds() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input =
         "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB --> C\nend\nend\nA --> B\n";
@@ -782,7 +782,7 @@ fn test_nested_subgraph_parent_contains_child_bounds() {
 #[test]
 fn test_nested_outer_only_subgraph_gets_bounds() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph outer[Outer]\nsubgraph inner[Inner]\nA --> B\nend\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -975,7 +975,7 @@ fn test_subgraph_bounds_maps_rects() {
 #[test]
 fn test_subgraph_bounds_expanded_for_title() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[This Is A Very Long Title]\nA --> B\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1001,7 +1001,7 @@ fn test_subgraph_bounds_expanded_for_title() {
 #[test]
 fn test_titled_subgraph_creates_title_rank() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = r#"graph TD
 subgraph sg1[Processing]
@@ -1120,7 +1120,7 @@ fn to_ascii_rect_dimensions_scale_with_layout_size() {
 #[test]
 fn stacked_subgraphs_do_not_overlap() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\n\
         subgraph sg1[Input]\nA[Data]\nB[Config]\nend\n\
@@ -1158,7 +1158,7 @@ fn stacked_subgraphs_do_not_overlap() {
 #[test]
 fn subgraph_bounds_contain_member_node_bounds() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Group]\nA[Node1]\nB[Node2]\nend\nA --> B";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1171,7 +1171,7 @@ fn subgraph_bounds_contain_member_node_bounds() {
 #[test]
 fn stacked_subgraph_bounds_contain_member_nodes_after_overlap_resolution() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\n\
         subgraph sg1[Input]\nA[Data]\nB[Config]\nend\n\
@@ -1225,7 +1225,7 @@ fn assert_subgraph_contains_members(layout: &GridLayout, sg_id: &str, members: &
 #[test]
 fn direction_override_field_available_at_layout() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1243,7 +1243,7 @@ fn direction_override_field_available_at_layout() {
 #[test]
 fn direction_override_none_when_not_specified() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Group]\nA --> B\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1301,7 +1301,7 @@ fn run_sublayout_for_sg(diagram: &Diagram, sg_id: &str) -> layered::LayoutResult
 #[test]
 fn sublayout_lr_nodes_arranged_horizontally() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1346,7 +1346,7 @@ fn sublayout_lr_nodes_arranged_horizontally() {
 #[test]
 fn sublayout_dimensions_wider_than_tall_for_lr() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1365,7 +1365,7 @@ fn sublayout_dimensions_wider_than_tall_for_lr() {
 #[test]
 fn sublayout_bt_nodes_arranged_bottom_to_top() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph LR\nsubgraph sg1[Vertical]\ndirection BT\nA[Start] --> B[End]\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1389,7 +1389,7 @@ fn sublayout_bt_nodes_arranged_bottom_to_top() {
 #[test]
 fn sublayout_rl_reverses_node_order() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Reverse]\ndirection RL\nA[Left] --> B[Right]\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1421,7 +1421,7 @@ fn sublayout_rl_reverses_node_order() {
 #[test]
 fn direction_override_nodes_horizontal_in_final_layout() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Horizontal Section]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\nStart --> A\nC --> End\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1467,7 +1467,7 @@ fn direction_override_nodes_horizontal_in_final_layout() {
 #[test]
 fn direction_override_subgraph_wider_than_tall() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1487,7 +1487,7 @@ fn direction_override_subgraph_wider_than_tall() {
 #[test]
 fn direction_override_bt_subgraph_taller_than_wide() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     // BT subgraph inside an LR parent: subgraph should be taller than wide
     let input =
@@ -1509,7 +1509,7 @@ fn direction_override_bt_subgraph_taller_than_wide() {
 #[test]
 fn direction_override_subgraph_title_width_minimum() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     // Subgraph with a long title should have bounds wide enough for the title
     let input = "graph TD\nsubgraph sg1[A Very Long Section Title]\ndirection LR\nA --> B\nend\n";
@@ -1532,7 +1532,7 @@ fn direction_override_subgraph_title_width_minimum() {
 #[test]
 fn direction_override_nodes_inside_subgraph_bounds() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\nStart --> A\nC --> End\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1546,7 +1546,7 @@ fn direction_override_nodes_inside_subgraph_bounds() {
 #[test]
 fn direction_override_no_node_overlap() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2] --> C[Step 3]\nend\nStart --> A\nC --> End\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1577,7 +1577,7 @@ fn direction_override_no_node_overlap() {
 #[test]
 fn direction_override_external_nodes_outside_subgraph() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA[Step 1] --> B[Step 2]\nend\nStart --> A\nB --> End\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1609,7 +1609,7 @@ fn direction_override_external_nodes_outside_subgraph() {
 #[test]
 fn cross_boundary_edge_no_panic() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input =
         "graph TD\nsubgraph sg1[Horizontal]\ndirection LR\nA --> B\nend\nC --> A\nB --> D\n";
@@ -1626,7 +1626,7 @@ fn cross_boundary_edge_no_panic() {
 #[test]
 fn node_effective_direction_populated() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> A\nB --> D\n";
     let flowchart = parse_flowchart(input).unwrap();
@@ -1662,7 +1662,7 @@ fn node_effective_direction_populated() {
 #[test]
 fn sublayout_excludes_cross_boundary_edges() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     let input =
         "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nStart --> A\nB --> End\n";
@@ -1681,7 +1681,7 @@ fn sublayout_excludes_cross_boundary_edges() {
 #[test]
 fn compute_sublayouts_skips_non_isolated_when_flag_set() {
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     // sg1 has direction LR but cross-boundary edge C --> A
     let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> A";

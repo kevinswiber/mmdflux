@@ -6,7 +6,7 @@ use pest_derive::Parser;
 use super::error::ParseError;
 
 #[derive(Parser)]
-#[grammar = "frontends/mermaid/pie_grammar.pest"]
+#[grammar = "mermaid/pie_grammar.pest"]
 pub struct PieParser;
 
 /// A section in a pie chart.

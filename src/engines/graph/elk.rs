@@ -400,7 +400,7 @@ mod tests {
     #[test]
     fn diagram_to_elk_json_simple() {
         let input = "graph TD\nA-->B";
-        let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
         let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let json = diagram_to_elk_json(&diagram);
@@ -413,7 +413,7 @@ mod tests {
     #[test]
     fn diagram_to_elk_json_lr_direction() {
         let input = "graph LR\nA-->B";
-        let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
         let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let json = diagram_to_elk_json(&diagram);
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn parse_elk_output_simple() {
         let input = "graph TD\nA-->B";
-        let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
         let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let elk_output = r#"{
@@ -459,7 +459,7 @@ mod tests {
     #[test]
     fn parse_elk_output_center_coordinates() {
         let input = "graph TD\nA-->B";
-        let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
         let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let elk_output = r#"{
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn parse_elk_output_uses_edge_ids_for_indices() {
         let input = "graph TD\nA-->B\nB-->C";
-        let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
         let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let elk_output = r#"{

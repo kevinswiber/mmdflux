@@ -4,10 +4,10 @@
 //! preparation. Runtime owns the final dispatch from these payloads to
 //! family-specific renderers.
 
-pub use crate::frontends::mermaid::info::Info;
-pub use crate::frontends::mermaid::packet::Packet;
-pub use crate::frontends::mermaid::pie::Pie;
 use crate::graph::Diagram;
+pub use crate::mermaid::info::Info;
+pub use crate::mermaid::packet::Packet;
+pub use crate::mermaid::pie::Pie;
 pub use crate::timeline::sequence::model::SequenceModel;
 
 /// Prepared payload for graph-family diagrams.

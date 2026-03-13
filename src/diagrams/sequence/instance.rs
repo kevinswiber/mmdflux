@@ -4,7 +4,7 @@ use super::compiler;
 use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
-use crate::frontends::mermaid::sequence::parse_sequence;
+use crate::mermaid::sequence::parse_sequence;
 use crate::prepared::{PreparedDiagram, PreparedTimeline};
 use crate::registry::{DiagramInstance, ParsedDiagram};
 use crate::timeline::sequence::model::SequenceModel;

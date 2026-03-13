@@ -16,7 +16,7 @@ use crate::graph::measure::ProportionalTextMetrics;
 use crate::graph::routing::EdgeRouting;
 
 fn build_simple_diagram() -> Diagram {
-    let flowchart = crate::frontends::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();
+    let flowchart = crate::mermaid::parse_flowchart("graph TD\nA-->B").unwrap();
     crate::diagrams::flowchart::compile_to_graph(&flowchart)
 }
 
@@ -269,7 +269,7 @@ fn registry_does_not_have_elk_solver_without_feature() {
 #[test]
 fn run_layered_layout_simple_graph() {
     let input = "graph TD\nA-->B";
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
     let config = EngineConfig::Layered(LayoutConfig::default());
@@ -284,7 +284,7 @@ fn run_layered_layout_simple_graph() {
 #[test]
 fn run_layered_layout_with_subgraphs() {
     let input = "graph TD\nsubgraph sg1[Group]\nA-->B\nend\nC-->A";
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
     let config = EngineConfig::Layered(LayoutConfig::default());
@@ -299,7 +299,7 @@ fn run_layered_layout_with_subgraphs() {
 #[test]
 fn run_layered_layout_proportional_mode_produces_larger_dimensions() {
     let input = "graph TD\nA-->B";
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
     let config = EngineConfig::Layered(LayoutConfig::default());
@@ -326,7 +326,7 @@ fn run_layered_layout_applies_subgraph_centering_and_expansion() {
         "/tests/fixtures/flowchart/direction_override.mmd"
     ))
     .unwrap();
-    let flowchart = crate::frontends::mermaid::parse_flowchart(&input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(&input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
     let config = EngineConfig::Layered(LayoutConfig::default());
@@ -479,8 +479,7 @@ fn flux_layout_profile_all_routing_styles_use_enhanced_profile() {
 #[test]
 fn adaptive_reversed_chain_policy_relaxes_for_inline_label_crowding() {
     let input = include_str!("../../../tests/fixtures/flowchart/inline_label_flowchart.mmd");
-    let flowchart =
-        crate::frontends::mermaid::parse_flowchart(input).expect("fixture should parse");
+    let flowchart = crate::mermaid::parse_flowchart(input).expect("fixture should parse");
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mode = MeasurementMode::Proportional(ProportionalTextMetrics::new(16.0, 15.0, 15.0));
 
@@ -514,8 +513,7 @@ fn adaptive_reversed_chain_policy_relaxes_for_inline_label_crowding() {
 #[test]
 fn adaptive_reversed_chain_policy_preserves_crossing_minimize_ordering() {
     let input = include_str!("../../../tests/fixtures/flowchart/crossing_minimize.mmd");
-    let flowchart =
-        crate::frontends::mermaid::parse_flowchart(input).expect("fixture should parse");
+    let flowchart = crate::mermaid::parse_flowchart(input).expect("fixture should parse");
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mode = MeasurementMode::Proportional(ProportionalTextMetrics::new(16.0, 15.0, 15.0));
 
@@ -569,7 +567,7 @@ fn solve_canonical_proportional_layout(
 #[test]
 fn subgraph_direction_isolated_both_engines_respect_override() {
     let input = include_str!("../../../tests/fixtures/flowchart/subgraph_direction_isolated.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
     let flux = FluxLayeredEngine::text();
@@ -611,7 +609,7 @@ fn subgraph_direction_isolated_both_engines_respect_override() {
 fn subgraph_direction_cross_boundary_engines_diverge() {
     let input =
         include_str!("../../../tests/fixtures/flowchart/subgraph_direction_cross_boundary.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
     let flux = FluxLayeredEngine::text();
@@ -646,7 +644,7 @@ fn subgraph_direction_cross_boundary_engines_diverge() {
 fn subgraph_direction_nested_mixed_isolation() {
     let input =
         include_str!("../../../tests/fixtures/flowchart/subgraph_direction_nested_mixed.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
     let mermaid = MermaidLayeredEngine::new();
@@ -675,7 +673,7 @@ fn subgraph_direction_nested_mixed_isolation() {
 #[test]
 fn mermaid_non_isolated_override_matches_parent_flow_in_svg_and_mmds() {
     let input = include_str!("../../../tests/fixtures/flowchart/direction_override.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mermaid = MermaidLayeredEngine::new();
 
@@ -716,7 +714,7 @@ fn mermaid_non_isolated_override_matches_parent_flow_in_svg_and_mmds() {
 #[test]
 fn mermaid_default_direction_matches_nested_with_siblings_fixture() {
     let input = include_str!("../../../tests/fixtures/flowchart/nested_with_siblings.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mermaid = MermaidLayeredEngine::new();
 
@@ -754,7 +752,7 @@ fn mermaid_default_direction_matches_nested_with_siblings_fixture() {
 #[test]
 fn mermaid_subgraph_as_node_edge_uses_isolated_default_direction() {
     let input = include_str!("../../../tests/fixtures/flowchart/subgraph_as_node_edge.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mermaid = MermaidLayeredEngine::new();
     let svg_result = solve_visual_proportional(&mermaid, &diagram);
@@ -786,7 +784,7 @@ fn mermaid_subgraph_as_node_edge_uses_isolated_default_direction() {
 #[test]
 fn mermaid_mmds_keeps_isolated_direction_override_layouted() {
     let input = include_str!("../../../tests/fixtures/flowchart/subgraph_direction_isolated.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mermaid = MermaidLayeredEngine::new();
     let mmds_result = solve_canonical_proportional_layout(&mermaid, &diagram);
@@ -813,7 +811,7 @@ fn mermaid_mmds_keeps_isolated_direction_override_layouted() {
 #[test]
 fn mermaid_nested_subgraph_bounds_are_compact_after_policy_normalization() {
     let input = include_str!("../../../tests/fixtures/flowchart/nested_subgraph.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mermaid = MermaidLayeredEngine::new();
     let result = solve_visual_proportional(&mermaid, &diagram);
@@ -836,7 +834,7 @@ fn mermaid_nested_subgraph_bounds_are_compact_after_policy_normalization() {
 fn mermaid_multi_subgraph_direction_override_bottom_cluster_is_compact_and_centered() {
     let input =
         include_str!("../../../tests/fixtures/flowchart/multi_subgraph_direction_override.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mermaid = MermaidLayeredEngine::new();
     let result = solve_visual_proportional(&mermaid, &diagram);
@@ -869,7 +867,7 @@ fn mermaid_multi_subgraph_direction_override_bottom_cluster_is_compact_and_cente
 #[test]
 fn mermaid_nested_subgraph_edge_keeps_compact_subgraph_to_node_gap() {
     let input = include_str!("../../../tests/fixtures/flowchart/nested_subgraph_edge.mmd");
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mermaid = MermaidLayeredEngine::new();
     let result = solve_visual_proportional(&mermaid, &diagram);
@@ -893,7 +891,7 @@ fn mermaid_nested_subgraph_edge_keeps_compact_subgraph_to_node_gap() {
 #[test]
 fn flux_layered_uses_per_edge_label_spacing() {
     let input = "graph TD\nA -->|yes| B --> C";
-    let flowchart = crate::frontends::mermaid::parse_flowchart(input).unwrap();
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
     let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
     let mode = MeasurementMode::Grid;
 

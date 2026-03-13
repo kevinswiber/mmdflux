@@ -2,11 +2,11 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::frontends::mermaid::{
+use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
+use crate::mermaid::{
     ArrowHead, ConnectorSpec, Direction as ParseDirection, EdgeSpec, Flowchart, ShapeSpec,
     Statement, StrokeSpec, Vertex,
 };
-use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
 use crate::style::NodeStyle;
 
 /// Build a Diagram from a parsed Flowchart.
@@ -433,7 +433,7 @@ fn map_arrow_head(head: ArrowHead) -> Arrow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::frontends::mermaid::parse_flowchart;
+    use crate::mermaid::parse_flowchart;
 
     #[test]
     fn test_build_simple_diagram() {

@@ -12,6 +12,7 @@ flowchart LR
     mod_frontends["frontends"]
     mod_graph["graph"]
     mod_lint["lint"]
+    mod_mermaid["mermaid"]
     mod_mmds["mmds"]
     mod_prepared["prepared"]
     mod_registry["registry"]
@@ -24,13 +25,13 @@ flowchart LR
     mod_config --> mod_engines
     mod_config --> mod_errors
     mod_config --> mod_format
-    mod_diagnostics --> mod_frontends
+    mod_diagnostics --> mod_mermaid
     mod_diagrams --> mod_config
     mod_diagrams --> mod_errors
     mod_diagrams --> mod_family
     mod_diagrams --> mod_format
-    mod_diagrams --> mod_frontends
     mod_diagrams --> mod_graph
+    mod_diagrams --> mod_mermaid
     mod_diagrams --> mod_prepared
     mod_diagrams --> mod_registry
     mod_diagrams --> mod_style
@@ -40,20 +41,21 @@ flowchart LR
     mod_engines --> mod_format
     mod_engines --> mod_graph
     mod_format --> mod_errors
+    mod_frontends --> mod_mermaid
     mod_frontends --> mod_mmds
-    mod_frontends --> mod_style
-    mod_frontends --> mod_timeline
     mod_graph --> mod_style
-    mod_lint --> mod_frontends
+    mod_lint --> mod_mermaid
     mod_lint --> mod_style
+    mod_mermaid --> mod_style
+    mod_mermaid --> mod_timeline
     mod_mmds --> mod_config
     mod_mmds --> mod_errors
     mod_mmds --> mod_format
     mod_mmds --> mod_graph
     mod_mmds --> mod_render
     mod_mmds --> mod_style
-    mod_prepared --> mod_frontends
     mod_prepared --> mod_graph
+    mod_prepared --> mod_mermaid
     mod_prepared --> mod_timeline
     mod_registry --> mod_config
     mod_registry --> mod_errors
@@ -74,6 +76,7 @@ flowchart LR
     mod_runtime --> mod_frontends
     mod_runtime --> mod_graph
     mod_runtime --> mod_lint
+    mod_runtime --> mod_mermaid
     mod_runtime --> mod_mmds
     mod_runtime --> mod_prepared
     mod_runtime --> mod_registry_builtins

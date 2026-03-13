@@ -7,7 +7,7 @@ use crate::config::RenderConfig;
 use crate::errors::RenderError;
 use crate::family::DiagramFamily;
 use crate::format::OutputFormat;
-use crate::frontends::mermaid::packet::Packet;
+use crate::mermaid::packet::Packet;
 use crate::prepared::{PreparedDiagram, PreparedPacket};
 use crate::registry::{DiagramDefinition, DiagramDetector, DiagramInstance, ParsedDiagram};
 
@@ -20,8 +20,7 @@ pub const SUPPORTED_FORMATS: &[OutputFormat] = &[OutputFormat::Text, OutputForma
 /// - Case-insensitive keyword matching
 /// - Accepts both `packet` and `packet-beta`
 pub fn detect(input: &str) -> bool {
-    crate::frontends::mermaid::detect_diagram_type(input)
-        == Some(crate::frontends::mermaid::DiagramType::Packet)
+    crate::mermaid::detect_diagram_type(input) == Some(crate::mermaid::DiagramType::Packet)
 }
 
 /// Packet diagram definition for registry.
@@ -52,7 +51,7 @@ impl DiagramInstance for PacketInstance {
         input: &str,
     ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Box::new(ParsedPacket {
-            packet: crate::frontends::mermaid::parse_packet(input)?,
+            packet: crate::mermaid::parse_packet(input)?,
             source: input.to_string(),
         }))
     }

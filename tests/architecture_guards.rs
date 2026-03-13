@@ -598,7 +598,7 @@ fn mmds_split_is_directory_based_and_explicit() {
     );
 
     for relative_path in [
-        "src/frontends/mmds/mod.rs",
+        "src/frontends.rs",
         "src/mmds/detect.rs",
         "src/mmds/parse.rs",
         "src/mmds/hydrate.rs",
@@ -611,6 +611,7 @@ fn mmds_split_is_directory_based_and_explicit() {
     }
 
     for relative_path in [
+        "src/frontends/mmds/mod.rs",
         "src/frontends/mmds/detect.rs",
         "src/frontends/mmds/parse.rs",
         "src/frontends/mmds/hydrate.rs",
@@ -623,6 +624,32 @@ fn mmds_split_is_directory_based_and_explicit() {
             path.display()
         );
     }
+}
+
+#[test]
+fn mermaid_is_a_top_level_namespace_and_frontends_is_a_file_boundary() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    assert!(
+        repo_root.join("src/frontends.rs").exists(),
+        "frontends should be a root module file boundary"
+    );
+    assert!(
+        !repo_root.join("src/frontends/mod.rs").exists(),
+        "legacy directory-root frontends module should be removed"
+    );
+    assert!(
+        !repo_root.join("src/frontends").exists(),
+        "frontends should no longer require a source directory once compatibility modules are inlined"
+    );
+    assert!(
+        repo_root.join("src/mermaid/mod.rs").exists(),
+        "mermaid should be a top-level source-ingestion namespace"
+    );
+    assert!(
+        !repo_root.join("src/frontends/mermaid").exists(),
+        "frontends::mermaid should be removed after promoting mermaid to a top-level module"
+    );
 }
 
 #[test]

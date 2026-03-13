@@ -1,4 +1,4 @@
-//! Mermaid frontend boundary.
+//! Mermaid source-ingestion boundary.
 //!
 //! Owns Mermaid source detection, diagnostics, and parse entrypoints before
 //! diagram modules compile Mermaid syntax into family IR.

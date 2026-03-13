@@ -373,7 +373,7 @@ fn baseline_scan_fixtures_for_equal_barycenters() {
                 Ok(c) => c,
                 Err(_) => continue,
             };
-            let flowchart = match mmdflux::frontends::mermaid::parse_flowchart(&content) {
+            let flowchart = match mmdflux::mermaid::parse_flowchart(&content) {
                 Ok(f) => f,
                 Err(_) => continue,
             };
