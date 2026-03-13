@@ -10,8 +10,6 @@
 mod float_core;
 mod labels;
 mod orthogonal;
-#[cfg(test)]
-mod preview;
 mod stage;
 
 pub(crate) use self::float_core::{
@@ -638,14 +636,11 @@ mod tests {
             FPoint::new(5.4, 12.3),
             FPoint::new(14.7, 12.3),
         ];
-        let snapped = preview::snap_path_to_grid_preview(&input, 1.0, 1.0);
+        let snapped = orthogonal::snap_path_to_grid(&input, 1.0, 1.0);
 
         assert_eq!(snapped.first(), Some(&FPoint::new(5.0, 9.0)));
         assert_eq!(snapped.last(), Some(&FPoint::new(15.0, 12.0)));
-        assert_eq!(
-            snapped,
-            preview::snap_path_to_grid_preview(&input, 1.0, 1.0)
-        );
+        assert_eq!(snapped, orthogonal::snap_path_to_grid(&input, 1.0, 1.0));
     }
 
     #[test]
