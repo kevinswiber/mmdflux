@@ -7,33 +7,19 @@
 //! - `EngineProvided`: Use engine-provided paths directly.
 //! - `OrthogonalRoute`: Produce axis-aligned (right-angle) edge paths.
 
-pub(crate) mod backward_policy;
 mod float_core;
 mod labels;
 mod orthogonal;
-mod policy;
 #[cfg(test)]
 mod preview;
 mod stage;
 
-pub(crate) use self::backward_policy::prefer_backward_side_channel;
 pub(crate) use self::float_core::{
-    LARGE_HORIZONTAL_OFFSET_THRESHOLD, build_orthogonal_path_float, classify_face_float,
-    compute_port_attachments_from_geometry, hexagon_vertices, intersect_convex_polygon,
-    point_on_face_float,
+    build_orthogonal_path_float, compute_port_attachments_from_geometry, hexagon_vertices,
+    intersect_convex_polygon,
 };
 pub(crate) use self::labels::{compute_end_label_positions, compute_end_labels_for_edge};
 pub(crate) use self::orthogonal::{OrthogonalRoutingOptions, route_edges_orthogonal};
-pub(crate) use self::policy::{
-    AttachmentCandidate, AttachmentPlan, AttachmentSide, Face, edge_faces,
-    plan_attachment_candidates,
-};
-#[cfg(test)]
-#[allow(unused_imports)]
-pub(crate) use self::policy::{
-    OverflowSide, canonical_backward_channel_face, fan_in_overflow_face_for_slot,
-    fan_in_primary_face_capacity, resolve_overflow_backward_channel_conflict,
-};
 pub use self::stage::route_graph_geometry;
 #[cfg(test)]
 use crate::graph::Diagram;

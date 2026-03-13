@@ -7,8 +7,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::super::layout::CoordTransform;
-use crate::graph::geometry::FRect;
 use crate::graph::grid::{NodeBounds, SubgraphBounds};
+use crate::graph::space::FRect;
 use crate::graph::{Diagram, Direction, Edge, Subgraph};
 
 #[cfg(test)]

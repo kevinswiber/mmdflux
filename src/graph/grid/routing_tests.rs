@@ -9,16 +9,17 @@ use crate::engines::graph::algorithms::layered::layout_building::layered_config_
 use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
 use crate::engines::graph::contracts::{GraphEngine, GraphGeometryContract, GraphSolveRequest};
 use crate::engines::graph::flux::FluxLayeredEngine;
-use crate::graph::geometry::{FPoint, FRect};
+use crate::graph::attachment::{
+    Face, OverflowSide, canonical_backward_channel_face, classify_face_float, edge_faces,
+    fan_in_overflow_face_for_slot, fan_in_primary_face_capacity, point_on_face_float,
+    resolve_overflow_backward_channel_conflict,
+};
 use crate::graph::grid::{
     GridLayout, GridLayoutConfig, GridPos, NodeFace, SubgraphBounds,
     geometry_to_grid_layout_with_routed,
 };
-use crate::graph::routing::{
-    EdgeRouting, Face, OverflowSide, build_orthogonal_path_float, canonical_backward_channel_face,
-    classify_face_float, edge_faces, fan_in_overflow_face_for_slot, fan_in_primary_face_capacity,
-    point_on_face_float, resolve_overflow_backward_channel_conflict, route_graph_geometry,
-};
+use crate::graph::routing::{EdgeRouting, build_orthogonal_path_float, route_graph_geometry};
+use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Diagram, Direction, Edge, Node};
 use crate::mermaid::parse_flowchart;
 

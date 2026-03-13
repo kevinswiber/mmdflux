@@ -4,9 +4,9 @@ use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
 use super::orthogonal::build_path_from_hints;
 use crate::graph::direction_policy::effective_edge_direction;
 use crate::graph::geometry::{
-    FPoint, FRect, GraphGeometry, LayoutEdge, RoutedEdgeGeometry, RoutedGraphGeometry,
-    RoutedSelfEdge,
+    GraphGeometry, LayoutEdge, RoutedEdgeGeometry, RoutedGraphGeometry, RoutedSelfEdge,
 };
+use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Diagram, Direction};
 
 /// Route graph geometry to produce fully-routed edge paths.

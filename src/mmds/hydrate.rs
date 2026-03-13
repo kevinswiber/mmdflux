@@ -9,11 +9,12 @@ use serde_json::{Map, Value};
 
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{
-    FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode, RoutedGraphGeometry,
-    SelfEdgeGeometry, SubgraphGeometry,
+    GraphGeometry, LayoutEdge, PositionedNode, RoutedGraphGeometry, SelfEdgeGeometry,
+    SubgraphGeometry,
 };
-use crate::graph::grid::{GridProjection, OverrideSubgraphProjection};
+use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
 use crate::mmds::{
     MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MMDS_TEXT_EXTENSION_NAMESPACE, MmdsEdge, MmdsOutput,

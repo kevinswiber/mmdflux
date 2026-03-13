@@ -38,8 +38,9 @@ use super::GridLayoutConfig;
 use super::layout::{
     CoordTransform, GridLayout, NodeBounds, RawCenter, SelfEdgeDrawData, TransformContext,
 };
-use crate::graph::geometry::{FRect, GraphGeometry, RoutedGraphGeometry};
+use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::measure::grid_node_dimensions;
+use crate::graph::space::FRect;
 use crate::graph::{Diagram, Direction, Edge, Shape};
 
 type DrawPath = Vec<(usize, usize)>;

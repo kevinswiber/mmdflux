@@ -4,8 +4,8 @@ use super::GridLayout;
 use super::backward::is_backward_edge;
 use super::bounds::{resolve_edge_bounds, subgraph_edge_face};
 use super::intersect::{NodeFace, classify_face};
-use crate::graph::routing::{AttachmentCandidate, AttachmentPlan, AttachmentSide};
-pub(crate) use crate::graph::routing::{
+use crate::graph::attachment::{AttachmentCandidate, AttachmentPlan, AttachmentSide};
+pub(crate) use crate::graph::attachment::{
     Face, LARGE_HORIZONTAL_OFFSET_THRESHOLD, edge_faces, plan_attachment_candidates,
     prefer_backward_side_channel,
 };

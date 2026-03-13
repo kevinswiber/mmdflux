@@ -6,6 +6,7 @@
 //! float-space solves and downstream grid replay without coupling those
 //! concerns to a higher-level render or engine namespace.
 
+pub mod attachment;
 mod diagram;
 pub mod direction_policy;
 mod edge;
@@ -13,7 +14,9 @@ pub mod geometry;
 pub mod grid;
 pub mod measure;
 mod node;
+pub mod projection;
 pub(crate) mod routing;
+pub mod space;
 
 pub use diagram::*;
 pub use edge::*;

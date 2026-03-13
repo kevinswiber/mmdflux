@@ -415,12 +415,14 @@ fn removed_transitional_module_roots_stay_gone() {
         "render::graph should not keep a layout-building compatibility shim"
     );
     for relative_path in [
+        "src/graph/attachment.rs",
         "src/graph/routing/mod.rs",
-        "src/graph/routing/policy.rs",
         "src/graph/routing/float_core.rs",
         "src/graph/routing/orthogonal.rs",
         "src/graph/direction_policy.rs",
         "src/graph/measure.rs",
+        "src/graph/projection.rs",
+        "src/graph/space.rs",
     ] {
         let path = repo_root.join(relative_path);
         assert!(
@@ -1107,10 +1109,11 @@ fn graph_root_does_not_own_backward_policy_module() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     assert!(!repo_root.join("src/graph/backward_policy.rs").exists());
     assert!(
-        repo_root
+        !repo_root
             .join("src/graph/routing/backward_policy.rs")
             .exists()
     );
+    assert!(repo_root.join("src/graph/attachment.rs").exists());
 }
 
 #[test]

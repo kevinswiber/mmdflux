@@ -8,17 +8,17 @@ use std::collections::{HashMap, HashSet};
 use super::super::direction_policy::{
     build_override_node_map, cross_boundary_edge_direction, effective_edge_direction,
 };
-use super::backward_policy::{can_apply_td_bt_backward_hint_parity, prefer_backward_side_channel};
 use super::float_core::{
     build_orthogonal_path_float, intersect_shape_boundary_float,
     normalize_orthogonal_route_contracts,
 };
-use super::policy::{
-    Face, OverflowSide, canonical_backward_channel_face, fan_in_overflow_face_for_slot,
-    fan_in_primary_face_capacity, fan_in_primary_target_face,
-    resolve_overflow_backward_channel_conflict,
+use crate::graph::attachment::{
+    Face, OverflowSide, can_apply_td_bt_backward_hint_parity, canonical_backward_channel_face,
+    fan_in_overflow_face_for_slot, fan_in_primary_face_capacity, fan_in_primary_target_face,
+    prefer_backward_side_channel, resolve_overflow_backward_channel_conflict,
 };
-use crate::graph::geometry::{EngineHints, FPoint, FRect, GraphGeometry, RoutedEdgeGeometry};
+use crate::graph::geometry::{EngineHints, GraphGeometry, RoutedEdgeGeometry};
+use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Diagram, Direction, Shape};
 
 /// Preview options for orthogonal float-first routing.

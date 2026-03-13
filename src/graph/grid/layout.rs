@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::GridLayoutConfig;
-use crate::graph::geometry::FRect;
+use crate::graph::space::FRect;
 use crate::graph::{Direction, Shape};
 
 /// Bounding box for a node in grid coordinates.

@@ -1,5 +1,5 @@
 use crate::graph::Diagram;
-use crate::graph::geometry::FPoint;
+use crate::graph::space::FPoint;
 
 pub(crate) fn arc_length_midpoint(path: &[FPoint]) -> Option<FPoint> {
     if path.is_empty() {

@@ -1,6 +1,6 @@
 use super::*;
-use crate::graph::geometry::FPoint;
 use crate::graph::grid::GridLayoutConfig;
+use crate::graph::space::FPoint;
 
 fn test_node_bounds(x: usize, y: usize, width: usize, height: usize) -> NodeBounds {
     NodeBounds {

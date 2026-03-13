@@ -11,8 +11,9 @@ use serde_json::{Map, Number, Value};
 
 use crate::engines::graph::EngineAlgorithmId;
 use crate::errors::RenderError;
-use crate::graph::geometry::{EdgePort, GraphGeometry, PositionedNode, RoutedGraphGeometry};
-use crate::graph::grid::{GridProjection, OverrideSubgraphProjection};
+use crate::graph::attachment::EdgePort;
+use crate::graph::geometry::{GraphGeometry, PositionedNode, RoutedGraphGeometry};
+use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{Arrow, Diagram, Direction, GeometryLevel, Shape, Stroke};
 use crate::simplification::PathSimplification;

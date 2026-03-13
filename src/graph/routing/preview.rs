@@ -1,5 +1,5 @@
 use super::orthogonal::snap_path_to_grid;
-use crate::graph::geometry::FPoint;
+use crate::graph::space::FPoint;
 
 /// Preview helper: snap a float path to a deterministic grid.
 #[cfg_attr(not(test), allow(dead_code))]

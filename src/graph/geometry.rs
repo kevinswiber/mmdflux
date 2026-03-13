@@ -8,7 +8,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::errors::RenderError;
 use crate::format::normalize_enum_token;
-use crate::graph::grid::GridProjection;
+pub use crate::graph::attachment::{EdgePort, PortFace};
+use crate::graph::projection::GridProjection;
+pub use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Direction, Shape};
 
 /// Requested graph-geometry detail level for downstream emitters and exports.
@@ -48,58 +50,6 @@ impl std::str::FromStr for GeometryLevel {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::parse(s)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Float coordinate primitives
-// ---------------------------------------------------------------------------
-
-/// Float-precision rectangle (layout coordinate space).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct FRect {
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
-}
-
-impl FRect {
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
-
-    pub fn center_x(&self) -> f64 {
-        self.x + self.width / 2.0
-    }
-
-    pub fn center_y(&self) -> f64 {
-        self.y + self.height / 2.0
-    }
-
-    pub fn center(&self) -> FPoint {
-        FPoint {
-            x: self.center_x(),
-            y: self.center_y(),
-        }
-    }
-}
-
-/// Float-precision point (layout coordinate space).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct FPoint {
-    pub x: f64,
-    pub y: f64,
-}
-
-impl FPoint {
-    pub fn new(x: f64, y: f64) -> Self {
-        Self { x, y }
     }
 }
 
@@ -294,62 +244,6 @@ pub struct RoutedSelfEdge {
     pub node_id: String,
     pub edge_index: usize,
     pub path: Vec<FPoint>,
-}
-
-// ---------------------------------------------------------------------------
-// Port attachment types
-// ---------------------------------------------------------------------------
-
-/// Which face of a node boundary an edge port attaches to.
-///
-/// Separate from `graph::routing::Face` so the geometry IR does not depend on
-/// routing-policy internals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum PortFace {
-    Top,
-    Bottom,
-    Left,
-    Right,
-}
-
-impl PortFace {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Top => "top",
-            Self::Bottom => "bottom",
-            Self::Left => "left",
-            Self::Right => "right",
-        }
-    }
-}
-
-impl std::str::FromStr for PortFace {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "top" => Ok(Self::Top),
-            "bottom" => Ok(Self::Bottom),
-            "left" => Ok(Self::Left),
-            "right" => Ok(Self::Right),
-            _ => Err(()),
-        }
-    }
-}
-
-/// Port attachment information for one end of a routed edge.
-#[derive(Debug, Clone, PartialEq)]
-pub struct EdgePort {
-    /// Face on the node boundary where the edge attaches.
-    pub face: PortFace,
-    /// Fractional position along the face (0.0 = start, 1.0 = end).
-    /// For top/bottom: 0.0 is left, 1.0 is right.
-    /// For left/right: 0.0 is top, 1.0 is bottom.
-    pub fraction: f64,
-    /// Computed position on the node boundary in layout coordinate space.
-    pub position: FPoint,
-    /// Number of edges attached to this face of this node.
-    pub group_size: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -718,44 +612,7 @@ mod tests {
     }
 
     #[test]
-    fn port_face_as_str() {
-        assert_eq!(PortFace::Top.as_str(), "top");
-        assert_eq!(PortFace::Bottom.as_str(), "bottom");
-        assert_eq!(PortFace::Left.as_str(), "left");
-        assert_eq!(PortFace::Right.as_str(), "right");
-    }
-
-    #[test]
-    fn port_face_from_str() {
-        assert_eq!("top".parse::<PortFace>(), Ok(PortFace::Top));
-        assert_eq!("bottom".parse::<PortFace>(), Ok(PortFace::Bottom));
-        assert_eq!("left".parse::<PortFace>(), Ok(PortFace::Left));
-        assert_eq!("right".parse::<PortFace>(), Ok(PortFace::Right));
-        assert_eq!("invalid".parse::<PortFace>(), Err(()));
-    }
-
-    #[test]
-    fn edge_port_construction() {
-        let port = EdgePort {
-            face: PortFace::Top,
-            fraction: 0.5,
-            position: FPoint { x: 50.0, y: 10.0 },
-            group_size: 1,
-        };
-        assert_eq!(port.face, PortFace::Top);
-        assert!((port.fraction - 0.5).abs() < f64::EPSILON);
-        assert!((port.position.x - 50.0).abs() < f64::EPSILON);
-        assert_eq!(port.group_size, 1);
-    }
-
-    #[test]
     fn routed_edge_geometry_with_ports() {
-        let port = EdgePort {
-            face: PortFace::Bottom,
-            fraction: 0.5,
-            position: FPoint { x: 50.0, y: 35.0 },
-            group_size: 1,
-        };
         let edge = RoutedEdgeGeometry {
             index: 0,
             from: "A".to_string(),
@@ -768,18 +625,16 @@ mod tests {
             is_backward: false,
             from_subgraph: None,
             to_subgraph: None,
-            source_port: Some(port),
+            source_port: Some(EdgePort {
+                face: crate::graph::attachment::PortFace::Bottom,
+                fraction: 0.5,
+                position: FPoint::new(50.0, 35.0),
+                group_size: 1,
+            }),
             target_port: None,
             preserve_orthogonal_topology: false,
         };
         assert!(edge.source_port.is_some());
         assert!(edge.target_port.is_none());
-    }
-
-    #[test]
-    fn frect_center() {
-        let r = FRect::new(10.0, 20.0, 100.0, 50.0);
-        assert_eq!(r.center_x(), 60.0);
-        assert_eq!(r.center_y(), 45.0);
     }
 }

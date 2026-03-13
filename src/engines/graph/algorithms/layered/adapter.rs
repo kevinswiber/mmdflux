@@ -4,10 +4,11 @@ use super::{LayoutResult, Point, Rect};
 use crate::graph::Diagram;
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{
-    EdgeLabelSide, EngineHints, FPoint, FRect, GraphGeometry, LayeredHints, LayoutEdge,
-    PositionedNode, SelfEdgeGeometry, SubgraphGeometry,
+    EdgeLabelSide, EngineHints, GraphGeometry, LayeredHints, LayoutEdge, PositionedNode,
+    SelfEdgeGeometry, SubgraphGeometry,
 };
-use crate::graph::grid::GridProjection;
+use crate::graph::projection::GridProjection;
+use crate::graph::space::{FPoint, FRect};
 
 impl From<FPoint> for Point {
     fn from(p: FPoint) -> Self {

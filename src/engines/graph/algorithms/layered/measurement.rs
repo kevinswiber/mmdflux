@@ -5,13 +5,12 @@ use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds
 use crate::engines::graph::EngineConfig;
 use crate::errors::RenderError;
 use crate::graph::geometry::GraphGeometry;
-use crate::graph::grid::{
-    GridLayoutConfig, GridProjection, GridRanker, OverrideSubgraphProjection,
-};
+use crate::graph::grid::{GridLayoutConfig, GridRanker};
 use crate::graph::measure::{
     ProportionalTextMetrics, grid_edge_label_dimensions, grid_node_dimensions,
     proportional_node_dimensions,
 };
+use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::{Diagram, Direction, Edge, Node};
 
 /// Measurement mode controls whether layout uses grid-cell dimensions or

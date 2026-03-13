@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use super::super::layout::{NodeBounds, SubgraphBounds, TransformContext};
 use crate::graph::Edge;
-use crate::graph::geometry::FPoint;
+use crate::graph::space::FPoint;
 
 pub(super) fn nudge_colliding_waypoints(
     edge_waypoints: &mut HashMap<usize, Vec<(usize, usize)>>,

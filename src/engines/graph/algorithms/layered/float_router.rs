@@ -8,17 +8,17 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::engines::graph::algorithms::layered::{LayoutResult, NodeId, Point, Rect};
+use crate::graph::attachment::{
+    AttachmentCandidate, AttachmentSide, Face, edge_faces as shared_edge_faces,
+    plan_attachment_candidates, point_on_face_float as shared_point_on_face_float,
+};
 #[cfg(test)]
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::direction_policy::{
     build_override_node_map, cross_boundary_edge_direction, effective_edge_direction,
 };
-use crate::graph::geometry::FRect;
-use crate::graph::routing::{
-    AttachmentCandidate, AttachmentSide, Face, build_orthogonal_path_float,
-    edge_faces as shared_edge_faces, plan_attachment_candidates,
-    point_on_face_float as shared_point_on_face_float,
-};
+use crate::graph::routing::build_orthogonal_path_float;
+use crate::graph::space::FRect;
 use crate::graph::{Diagram, Direction};
 
 /// The face an edge exits from in the given flow direction.

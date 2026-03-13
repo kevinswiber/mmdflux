@@ -13,8 +13,6 @@ mod intersect;
 mod layout;
 mod routing;
 
-use std::collections::HashMap;
-
 pub use derive::geometry_to_grid_layout_with_routed;
 pub use intersect::{
     FloatPoint, NodeFace, calculate_attachment_points, classify_face, face_extent,
@@ -25,7 +23,7 @@ pub use layout::{GridLayout, GridPos, NodeBounds, SelfEdgeDrawData, SubgraphBoun
 pub(crate) use routing::route_edge;
 pub use routing::{AttachDirection, Point, RoutedEdge, Segment, route_all_edges};
 
-use crate::graph::geometry::{FPoint, FRect};
+pub use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 
 /// Grid-layout rank assignment strategy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -81,26 +79,4 @@ impl Default for GridLayoutConfig {
             cluster_rank_sep: 25.0,
         }
     }
-}
-
-/// Graph-owned projection data needed to replay float geometry onto a derived grid.
-#[derive(Debug, Clone, Default)]
-pub struct GridProjection {
-    /// Per-node rank assignments (node_id -> rank).
-    pub node_ranks: HashMap<String, i32>,
-    /// Waypoints with rank info for grid-snap transformation.
-    /// Key: edge index, Value: list of (position, rank) pairs.
-    pub edge_waypoints: HashMap<usize, Vec<(FPoint, i32)>>,
-    /// Label positions with rank info for grid-snap transformation.
-    /// Key: edge index, Value: (position, rank).
-    pub label_positions: HashMap<usize, (FPoint, i32)>,
-    /// Precomputed direction-override subgraph layouts for grid replay.
-    pub override_subgraphs: HashMap<String, OverrideSubgraphProjection>,
-}
-
-/// Graph-owned replay data for a direction-override subgraph.
-#[derive(Debug, Clone, Default)]
-pub struct OverrideSubgraphProjection {
-    /// Per-node sublayout rectangles in subgraph-local float coordinates.
-    pub nodes: HashMap<String, FRect>,
 }

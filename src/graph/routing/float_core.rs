@@ -2,43 +2,13 @@
 
 use std::collections::HashMap;
 
-use super::policy::{
-    AttachmentCandidate, AttachmentSide, Face, edge_faces, plan_attachment_candidates,
+use crate::graph::attachment::{
+    AttachmentCandidate, AttachmentSide, EdgePort, Face, LARGE_HORIZONTAL_OFFSET_THRESHOLD,
+    edge_faces, plan_attachment_candidates, point_on_face_float,
 };
-use crate::graph::geometry::{EdgePort, FPoint, FRect, GraphGeometry};
+use crate::graph::geometry::GraphGeometry;
+use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Direction, Edge, Shape, Stroke};
-
-/// Classify which face a point approaches, using slope-vs-diagonal comparison.
-pub(crate) fn classify_face_float(center: FPoint, rect: FRect, approach: FPoint) -> Face {
-    let dx = approach.x - center.x;
-    let dy = approach.y - center.y;
-
-    if dx.abs() < 0.5 && dy.abs() < 0.5 {
-        return Face::Bottom;
-    }
-
-    let half_w = rect.width / 2.0;
-    let half_h = rect.height / 2.0;
-
-    if dy.abs() * half_w > dx.abs() * half_h {
-        if dy < 0.0 { Face::Top } else { Face::Bottom }
-    } else if dx < 0.0 {
-        Face::Left
-    } else {
-        Face::Right
-    }
-}
-
-/// Compute a point on a rectangle face at the given fraction.
-pub(crate) fn point_on_face_float(rect: FRect, face: Face, fraction: f64) -> FPoint {
-    let fraction = fraction.clamp(0.0, 1.0);
-    match face {
-        Face::Top => FPoint::new(rect.x + rect.width * fraction, rect.y),
-        Face::Bottom => FPoint::new(rect.x + rect.width * fraction, rect.y + rect.height),
-        Face::Left => FPoint::new(rect.x, rect.y + rect.height * fraction),
-        Face::Right => FPoint::new(rect.x + rect.width, rect.y + rect.height * fraction),
-    }
-}
 
 /// Compute port attachments for all edges using float-coordinate `GraphGeometry`.
 ///
@@ -167,7 +137,6 @@ pub(crate) fn compute_port_attachments_from_geometry(
 /// diagram's primary axis to keep paths axis-aligned and symmetric.
 pub(crate) const ROUTE_ALIGN_EPS: f64 = 0.5;
 pub(crate) const ROUTE_POINT_EPS: f64 = 0.000_001;
-pub(crate) const LARGE_HORIZONTAL_OFFSET_THRESHOLD: usize = 30;
 const MIN_TERMINAL_SUPPORT: f64 = 8.0;
 
 pub(crate) fn build_orthogonal_path_float(
