@@ -135,6 +135,25 @@ fn assert_no_full_source_imports(dir: &Path, forbidden: &[&str], message: &str) 
     }
 }
 
+fn assert_no_regression_test_imports(dir: &Path, forbidden: &[&str], message: &str) {
+    let mut files = Vec::new();
+    collect_rust_files(dir, &mut files);
+
+    for path in files {
+        if path.file_name().and_then(|name| name.to_str()) != Some("regression_tests.rs") {
+            continue;
+        }
+        let content = std::fs::read_to_string(&path).unwrap();
+        for needle in forbidden {
+            assert!(
+                !content.contains(needle),
+                "{message}: forbidden import `{needle}` found in {}",
+                path.display()
+            );
+        }
+    }
+}
+
 fn testing_shim_import_needles() -> [String; 2] {
     let hidden_module = "testing";
     [
@@ -1382,6 +1401,34 @@ fn graph_and_render_sources_do_not_import_runtime_test_support_shim() {
         !runtime_mod.contains("test_support_tests"),
         "runtime::mod should not expose a cross-layer test support shim",
     );
+}
+
+#[test]
+fn owner_local_regression_suites_do_not_reach_back_up_the_pipeline() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let forbidden = &[
+        "crate::engines::",
+        "mmdflux::engines::",
+        "crate::mermaid::",
+        "mmdflux::mermaid::",
+        "crate::diagrams::",
+        "mmdflux::diagrams::",
+        "crate::render_diagram(",
+        "mmdflux::render_diagram(",
+        "RenderConfig",
+    ];
+
+    for dir in [
+        repo_root.join("src/graph"),
+        repo_root.join("src/render"),
+        repo_root.join("src/mmds"),
+    ] {
+        assert_no_regression_test_imports(
+            &dir,
+            forbidden,
+            "owner-local regression suites should not depend on cross-pipeline setup",
+        );
+    }
 }
 
 #[test]
