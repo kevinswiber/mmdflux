@@ -64,10 +64,10 @@ fn js_error(message: impl Into<String>) -> JsError {
 
 #[cfg(test)]
 mod tests {
+    use mmdflux::format::EdgePreset;
     use mmdflux::{
         AlgorithmId, EngineAlgorithmId, EngineId, GeometryLevel, PathSimplification, TextColorMode,
     };
-    use mmdflux::format::EdgePreset;
 
     use super::*;
 
