@@ -2,6 +2,27 @@
 
 use crate::style::NodeStyle;
 
+/// Direction of the Mermaid flowchart layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    TopDown,
+    BottomTop,
+    LeftRight,
+    RightLeft,
+}
+
+impl Direction {
+    pub(crate) fn from_str(s: &str) -> Option<Self> {
+        match s.to_uppercase().as_str() {
+            "TD" | "TB" => Some(Direction::TopDown),
+            "BT" => Some(Direction::BottomTop),
+            "LR" => Some(Direction::LeftRight),
+            "RL" => Some(Direction::RightLeft),
+            _ => None,
+        }
+    }
+}
+
 /// Shape specification from parsing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShapeSpec {
@@ -198,7 +219,7 @@ pub struct SubgraphSpec {
     /// Statements contained within the subgraph.
     pub statements: Vec<Statement>,
     /// Optional direction override for this subgraph.
-    pub dir: Option<super::flowchart::Direction>,
+    pub dir: Option<Direction>,
 }
 
 /// A Mermaid `style NODE ...` statement for flowchart nodes.

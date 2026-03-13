@@ -15,8 +15,7 @@ pub mod sequence;
 pub use ast::*;
 pub use error::*;
 pub use flowchart::{
-    Direction, Flowchart, ParseOptions, parse_flowchart, parse_flowchart_with_options,
-    strip_frontmatter,
+    Flowchart, ParseOptions, parse_flowchart, parse_flowchart_with_options, strip_frontmatter,
 };
 pub use info::parse_info;
 pub use packet::parse_packet;

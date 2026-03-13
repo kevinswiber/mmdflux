@@ -4,8 +4,8 @@ use pest::Parser;
 use pest_derive::Parser;
 
 use super::ast::{
-    ArrowHead, ConnectorSpec, EdgeSpec, NodeStyleStatement, ShapeSpec, Statement, StrokeSpec,
-    SubgraphSpec, Vertex,
+    ArrowHead, ConnectorSpec, Direction, EdgeSpec, NodeStyleStatement, ShapeSpec, Statement,
+    StrokeSpec, SubgraphSpec, Vertex,
 };
 use super::error::ParseError;
 use crate::style::parse_node_style_statement;
@@ -13,27 +13,6 @@ use crate::style::parse_node_style_statement;
 #[derive(Parser)]
 #[grammar = "mermaid/grammar.pest"]
 pub struct FlowchartParser;
-
-/// Direction of the flowchart layout.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Direction {
-    TopDown,
-    BottomTop,
-    LeftRight,
-    RightLeft,
-}
-
-impl Direction {
-    fn from_str(s: &str) -> Option<Self> {
-        match s.to_uppercase().as_str() {
-            "TD" | "TB" => Some(Direction::TopDown),
-            "BT" => Some(Direction::BottomTop),
-            "LR" => Some(Direction::LeftRight),
-            "RL" => Some(Direction::RightLeft),
-            _ => None,
-        }
-    }
-}
 
 /// Parsed flowchart containing direction and statements.
 #[derive(Debug, Clone)]
