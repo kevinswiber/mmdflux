@@ -879,6 +879,30 @@ fn render_svg_legacy_flat_modules_stay_removed() {
 }
 
 #[test]
+fn svg_edges_uses_directory_module_shell() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    assert!(!repo_root.join("src/render/graph/svg/edges.rs").exists());
+    assert!(repo_root.join("src/render/graph/svg/edges/mod.rs").exists());
+}
+
+#[test]
+fn svg_edges_splits_endpoint_basis_and_marker_helpers() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for required in [
+        "src/render/graph/svg/edges/endpoints.rs",
+        "src/render/graph/svg/edges/basis.rs",
+        "src/render/graph/svg/edges/markers.rs",
+    ] {
+        assert!(
+            repo_root.join(required).exists(),
+            "svg::edges should keep split helper modules for endpoint, basis, and marker logic: {required}"
+        );
+    }
+}
+
+#[test]
 fn graph_grid_sources_use_graph_owned_projection_types_and_direct_mmds_replay() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let grid_layout = repo_root.join("src/graph/grid/layout.rs");

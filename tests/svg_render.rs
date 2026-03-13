@@ -856,12 +856,16 @@ fn style_segment_monitor_report_for_svg(
     }
 }
 
-fn parse_attr_f64(line: &str, attr: &str) -> Option<f64> {
+fn parse_attr_value<'a>(line: &'a str, attr: &str) -> Option<&'a str> {
     let marker = format!("{attr}=\"");
     let start = line.find(&marker)? + marker.len();
     let rest = &line[start..];
     let end = rest.find('"')?;
-    rest[..end].parse::<f64>().ok()
+    Some(&rest[..end])
+}
+
+fn parse_attr_f64(line: &str, attr: &str) -> Option<f64> {
+    parse_attr_value(line, attr)?.parse::<f64>().ok()
 }
 
 fn parse_svg_viewbox(svg: &str) -> Option<(f64, f64, f64, f64)> {
@@ -916,24 +920,63 @@ fn node_rect_for_label(svg: &str, label: &str) -> Option<(f64, f64, f64, f64)> {
         Some((parse_attr_f64(line, "x")?, parse_attr_f64(line, "y")?))
     })?;
 
-    svg.lines().find_map(|line| {
-        if !line.contains("<rect ")
-            || !line.contains("stroke=\"#333\"")
-            || !line.contains("fill=\"white\"")
-        {
-            return None;
-        }
-        let x = parse_attr_f64(line, "x")?;
-        let y = parse_attr_f64(line, "y")?;
-        let width = parse_attr_f64(line, "width")?;
-        let height = parse_attr_f64(line, "height")?;
-        let inside = text_x >= x && text_x <= x + width && text_y >= y && text_y <= y + height;
-        if inside {
-            Some((x, y, width, height))
-        } else {
-            None
-        }
-    })
+    svg.lines()
+        .find_map(|line| {
+            if !line.contains("<rect ")
+                || !line.contains("stroke=\"#333\"")
+                || !line.contains("fill=\"white\"")
+            {
+                return None;
+            }
+            let x = parse_attr_f64(line, "x")?;
+            let y = parse_attr_f64(line, "y")?;
+            let width = parse_attr_f64(line, "width")?;
+            let height = parse_attr_f64(line, "height")?;
+            let inside = text_x >= x && text_x <= x + width && text_y >= y && text_y <= y + height;
+            if inside {
+                Some((x, y, width, height))
+            } else {
+                None
+            }
+        })
+        .or_else(|| {
+            svg.lines().find_map(|line| {
+                if !line.contains("<polygon ")
+                    || !line.contains("stroke=\"#333\"")
+                    || !line.contains("fill=\"white\"")
+                {
+                    return None;
+                }
+                let points = parse_attr_value(line, "points")?;
+                let points: Vec<(f64, f64)> = points
+                    .split_whitespace()
+                    .filter_map(|point| {
+                        let (x, y) = point.split_once(',')?;
+                        Some((x.parse::<f64>().ok()?, y.parse::<f64>().ok()?))
+                    })
+                    .collect();
+                if points.is_empty() {
+                    return None;
+                }
+                let min_x = points.iter().map(|(x, _)| *x).fold(f64::INFINITY, f64::min);
+                let max_x = points
+                    .iter()
+                    .map(|(x, _)| *x)
+                    .fold(f64::NEG_INFINITY, f64::max);
+                let min_y = points.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
+                let max_y = points
+                    .iter()
+                    .map(|(_, y)| *y)
+                    .fold(f64::NEG_INFINITY, f64::max);
+                let inside =
+                    text_x >= min_x && text_x <= max_x && text_y >= min_y && text_y <= max_y;
+                if inside {
+                    Some((min_x, min_y, max_x - min_x, max_y - min_y))
+                } else {
+                    None
+                }
+            })
+        })
 }
 
 fn axis_aligned_segment_crosses_rect_interior(
@@ -1304,6 +1347,29 @@ fn node_center_for_id(diagram: &mmdflux::Diagram, node_id: &str) -> (f64, f64) {
     )
 }
 
+fn svg_node_rect_for_id(
+    diagram: &mmdflux::Diagram,
+    svg: &str,
+    node_id: &str,
+) -> (f64, f64, f64, f64) {
+    let config = EngineConfig::Layered(
+        mmdflux::engines::graph::algorithms::layered::LayoutConfig::default(),
+    );
+    let geom = run_layered_layout(&default_proportional_mode(), diagram, &config)
+        .expect("layout should succeed for rect lookup");
+    let node = geom
+        .nodes
+        .get(node_id)
+        .unwrap_or_else(|| panic!("expected node `{node_id}` in layout geometry"));
+    let (tx, ty) = parse_svg_main_translate(svg).unwrap_or((0.0, 0.0));
+    (
+        node.rect.x + tx,
+        node.rect.y + ty,
+        node.rect.width,
+        node.rect.height,
+    )
+}
+
 fn distance(a: (f64, f64), b: (f64, f64)) -> f64 {
     ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()
 }
@@ -1366,6 +1432,54 @@ fn svg_direct_route_straight_uses_source_and_target_ports() {
         target_face, "top",
         "direct/straight target should attach on the TD top face: points={points:?}"
     );
+}
+
+#[test]
+fn svg_marker_offsets_preserve_terminal_faces_for_orthogonal_and_non_orthogonal_paths() {
+    let diagram = load_flowchart_fixture_diagram("decision.mmd");
+    let cases = [
+        (
+            "direct-sharp",
+            EdgeRouting::DirectRoute,
+            Curve::Linear(CornerStyle::Sharp),
+        ),
+        (
+            "polyline-sharp",
+            EdgeRouting::PolylineRoute,
+            Curve::Linear(CornerStyle::Sharp),
+        ),
+        (
+            "orthogonal-rounded",
+            EdgeRouting::OrthogonalRoute,
+            Curve::Linear(CornerStyle::Rounded),
+        ),
+    ];
+
+    for (name, edge_routing, curve) in cases {
+        let svg = render_svg(
+            &diagram,
+            &RenderConfig {
+                routing_style: Some(routing_style_for(edge_routing)),
+                curve: Some(curve),
+                path_simplification: PathSimplification::None,
+                ..Default::default()
+            },
+        );
+        let points = edge_path_for_svg_order(&diagram, &svg, edge_index(&diagram, "A", "B"));
+        let source_rect = svg_node_rect_for_id(&diagram, &svg, "A");
+        let target_rect = svg_node_rect_for_id(&diagram, &svg, "B");
+
+        assert_eq!(
+            svg_source_departure_face(source_rect, &points),
+            "bottom",
+            "{name} source should keep bottom-face marker support on A->B: points={points:?}"
+        );
+        assert_eq!(
+            svg_terminal_approach_face_relaxed(target_rect, &points),
+            "top",
+            "{name} target should keep top-face marker support on A->B: points={points:?}"
+        );
+    }
 }
 
 #[test]
@@ -1554,6 +1668,31 @@ fn svg_stem_basis_backward_and_skip_edges_use_compact_visible_caps() {
                 style.name
             );
         }
+    }
+}
+
+#[test]
+fn svg_basis_reciprocal_backward_edges_keep_visible_terminal_stems() {
+    let diagram = load_flowchart_fixture_diagram("diamond_backward.mmd");
+    let edge_idx = edge_index(&diagram, "C", "B");
+    let styles = [BASIS_STYLE_PRESET, CURVED_STEP_STYLE_PRESET];
+
+    for style in styles {
+        let svg = render_basis_style_fixture_svg(&diagram, style, PathSimplification::None);
+        let d = edge_path_d_for_svg_order(&diagram, &svg, edge_idx);
+        let start_run = svg_visible_line_run_from_start(&d);
+        let end_run = svg_visible_line_run_from_end(&d);
+
+        assert!(
+            start_run >= 8.0,
+            "diamond_backward C->B {} should keep >=8px visible source stem; got {start_run:.2}; d={d}",
+            style.name
+        );
+        assert!(
+            end_run >= 8.0,
+            "diamond_backward C->B {} should keep >=8px visible terminal stem; got {end_run:.2}; d={d}",
+            style.name
+        );
     }
 }
 
@@ -4152,6 +4291,36 @@ fn mmds_svg_diamond_backward_endpoint_convergence() {
     assert_mmds_svg_endpoint_convergence(&diagram, "B", "C", tolerance);
     // Backward edge C->B (target is diamond)
     assert_mmds_svg_endpoint_convergence(&diagram, "C", "B", tolerance);
+}
+
+#[test]
+fn svg_rerouted_endpoints_do_not_detach_from_expected_faces() {
+    let diagram = load_flowchart_fixture_diagram("diamond_backward.mmd");
+    let svg = render_fixture_svg(&diagram, EdgeRouting::OrthogonalRoute, SMOOTH);
+    let points = edge_path_for_svg_order(&diagram, &svg, edge_index(&diagram, "C", "B"));
+    let source_rect =
+        node_rect_for_label(&svg, "Process").expect("source rect should exist in rendered SVG");
+    let target_rect =
+        node_rect_for_label(&svg, "Check").expect("target rect should exist in rendered SVG");
+    let end = *points
+        .last()
+        .expect("rerouted path should have a terminal point");
+    let (target_x, target_y, target_w, target_h) = target_rect;
+    let target_bottom = target_y + target_h;
+
+    assert_eq!(
+        svg_source_departure_face(source_rect, &points),
+        "top",
+        "diamond_backward C->B should leave the source from the top face after rerouting: points={points:?}"
+    );
+    assert!(
+        end.0 >= target_x && end.0 <= target_x + target_w,
+        "diamond_backward C->B should stay horizontally aligned with the diamond target after rerouting: end={end:?}, target_rect={target_rect:?}"
+    );
+    assert!(
+        end.1 <= target_bottom && target_bottom - end.1 <= 6.0,
+        "diamond_backward C->B should terminate within marker pullback tolerance of the diamond bottom boundary after rerouting: end={end:?}, target_rect={target_rect:?}"
+    );
 }
 
 #[test]
