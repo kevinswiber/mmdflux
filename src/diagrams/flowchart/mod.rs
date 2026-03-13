@@ -5,6 +5,7 @@
 
 pub mod compiler;
 mod instance;
+pub(crate) mod validation;
 
 pub use compiler::compile_to_graph;
 pub use instance::FlowchartInstance;

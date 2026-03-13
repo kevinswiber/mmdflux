@@ -40,6 +40,10 @@ impl DiagramInstance for FlowchartInstance {
     fn supports_format(&self, format: OutputFormat) -> bool {
         super::SUPPORTED_FORMATS.contains(&format)
     }
+
+    fn validation_warnings(&self, input: &str) -> Vec<crate::diagnostics::ParseDiagnostic> {
+        super::validation::collect_all_warnings(input)
+    }
 }
 
 struct ParsedFlowchart {

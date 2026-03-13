@@ -14,12 +14,7 @@ use crate::diagnostics::ParseDiagnostic;
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
 use crate::frontends::{InputFrontend, detect_input_frontend};
-use crate::lint::{collect_subgraph_warnings, collect_unsupported_warnings};
-use crate::mermaid::{
-    DiagramType, ParseError, ParseOptions, detect_diagram_type, parse_flowchart_with_options,
-};
-
-const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
+use crate::mermaid::ParseError;
 
 /// Detect the diagram type from input text.
 ///
@@ -100,8 +95,9 @@ pub fn validate_diagram(input: &str) -> String {
         }
     };
 
+    let warnings = instance.validation_warnings(input);
     match instance.parse(input) {
-        Ok(_) => validation_success_json(collect_validation_warnings(input)),
+        Ok(_) => validation_success_json(warnings),
         Err(error) => validation_failure_json(parse_failure_diagnostic(error.as_ref())),
     }
 }
@@ -134,38 +130,6 @@ fn validation_message_error_json(message: impl Into<String>) -> String {
         }]
     })
     .to_string()
-}
-
-fn collect_validation_warnings(input: &str) -> Vec<ParseDiagnostic> {
-    let mut warnings: Vec<_> = collect_unsupported_warnings(input)
-        .into_iter()
-        .chain(collect_subgraph_warnings(input))
-        .map(|warning| ParseDiagnostic::warning(warning.line, warning.column, warning.message))
-        .collect();
-
-    if let Some(strict_warning) = collect_strict_parse_warning(input) {
-        warnings.push(strict_warning);
-    }
-
-    warnings
-}
-
-fn collect_strict_parse_warning(input: &str) -> Option<ParseDiagnostic> {
-    if detect_diagram_type(input) != Some(DiagramType::Flowchart) {
-        return None;
-    }
-
-    let strict = ParseOptions { strict: true };
-    parse_flowchart_with_options(input, &strict)
-        .err()
-        .map(|error| strict_parse_warning(&error))
-}
-
-fn strict_parse_warning(error: &ParseError) -> ParseDiagnostic {
-    let mut diagnostic = ParseDiagnostic::from(error);
-    diagnostic.severity = "warning".to_string();
-    diagnostic.message = format!("{STRICT_PARSE_WARNING_PREFIX} {}", diagnostic.message);
-    diagnostic
 }
 
 fn parse_failure_diagnostic(error: &(dyn std::error::Error + 'static)) -> ParseDiagnostic {

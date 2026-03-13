@@ -33,7 +33,6 @@ pub mod family;
 pub mod format;
 mod frontends;
 mod graph;
-mod lint;
 mod mermaid;
 pub mod mmds;
 pub mod prepared;

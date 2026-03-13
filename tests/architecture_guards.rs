@@ -1780,3 +1780,29 @@ fn float_render_consumers_do_not_depend_on_render_grid_routing() {
         "float render helpers should not depend on render-owned grid routing internals"
     );
 }
+
+#[test]
+fn runtime_does_not_contain_diagram_specific_validation_logic() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    assert!(
+        !repo_root.join("src/lint.rs").exists(),
+        "lint.rs should be deleted after validation logic moved to diagrams/"
+    );
+
+    let runtime = std::fs::read_to_string(repo_root.join("src/runtime/mod.rs")).unwrap();
+
+    for forbidden in [
+        "crate::lint",
+        "mermaid::detect_diagram_type",
+        "parse_flowchart_with_options",
+        "collect_unsupported_warnings",
+        "collect_subgraph_warnings",
+        "STRICT_PARSE_WARNING_PREFIX",
+    ] {
+        assert!(
+            !runtime.contains(forbidden),
+            "runtime/mod.rs should not contain diagram-specific validation logic: {forbidden}"
+        );
+    }
+}

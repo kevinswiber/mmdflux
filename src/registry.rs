@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 
 use crate::config::RenderConfig;
+use crate::diagnostics::ParseDiagnostic;
 use crate::errors::RenderError;
 use crate::family::DiagramFamily;
 use crate::format::OutputFormat;
@@ -160,6 +161,15 @@ pub trait DiagramInstance: Send + Sync {
 
     /// Check if this instance supports the given output format.
     fn supports_format(&self, format: OutputFormat) -> bool;
+
+    /// Return validation warnings for the input.
+    ///
+    /// Called after successful parsing to collect diagram-type-specific
+    /// warnings (e.g., unsupported keywords, strict-mode issues).
+    /// Default: no warnings.
+    fn validation_warnings(&self, _input: &str) -> Vec<ParseDiagnostic> {
+        Vec::new()
+    }
 }
 
 /// Parsed diagram handle produced by [`DiagramInstance::parse`].
