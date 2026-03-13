@@ -415,9 +415,10 @@ fn dependency_rules_document_mentions_layered_kernel_boundary() {
 
 #[test]
 fn engine_graph_docs_describe_layered_kernel_and_bridge_split() {
-    let content =
-        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/engines/graph/mod.rs"))
-            .unwrap();
+    let content = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/engines/graph/mod.rs"),
+    )
+    .unwrap();
 
     assert!(content.contains("algorithms::layered::kernel"));
     assert!(content.contains("layout building / measurement adapters"));
