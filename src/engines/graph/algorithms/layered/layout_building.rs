@@ -3,13 +3,13 @@
 //!
 //! Contains the `build_layered_layout()` entry point, sublayout computation for
 //! direction-override subgraphs, and the `layered_config_for_layout()` bridge
-//! from `GridLayoutConfig` to `layered::LayoutConfig`.
+//! from `GridLayoutConfig` to the pure layered kernel config.
 
 use std::collections::{HashMap, HashSet};
 
-use crate::engines::graph::algorithms::layered::types::EdgeLabelInfo;
-use crate::engines::graph::algorithms::layered::{
-    self, Direction as LayeredDirection, LayoutConfig as LayeredConfig, Ranker,
+use super::kernel::types::EdgeLabelInfo;
+use super::kernel::{
+    self as layered, Direction as LayeredDirection, LayoutConfig as LayeredConfig, Ranker,
 };
 use crate::graph::grid::{GridLayoutConfig, GridRanker};
 use crate::graph::{Diagram, Direction, Edge, Node, Stroke};

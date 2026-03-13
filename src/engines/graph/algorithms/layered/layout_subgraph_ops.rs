@@ -7,8 +7,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use super::kernel::{self as layered, Rect};
 use super::layout_building::SubLayoutResult;
-use crate::engines::graph::algorithms::layered::{self, Rect};
 use crate::graph::{Diagram, Direction};
 
 /// Reconcile direction-override sub-layouts into a float-layout result.

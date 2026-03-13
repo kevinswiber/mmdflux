@@ -5,8 +5,8 @@ use std::collections::{HashMap, HashSet};
 use super::graph::LayoutGraph;
 use super::types::{DummyNode, DummyType, EdgeLabelInfo, LabelSide};
 use super::{
-    rank, Direction, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Rect,
-    SelfEdge, SelfEdgeLayout,
+    Direction, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Rect, SelfEdge,
+    SelfEdgeLayout, rank,
 };
 
 pub(crate) fn make_space_for_edge_labels(lg: &mut LayoutGraph) {

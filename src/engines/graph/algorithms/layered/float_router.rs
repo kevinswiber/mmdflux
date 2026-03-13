@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::engines::graph::algorithms::layered::{LayoutResult, NodeId, Point, Rect};
+use super::kernel::{LayoutResult, NodeId, Point, Rect};
 use crate::graph::attachment::{
     AttachmentCandidate, AttachmentSide, Face, edge_faces as shared_edge_faces,
     plan_attachment_candidates, point_on_face_float as shared_point_on_face_float,
@@ -621,9 +621,9 @@ pub fn align_cross_boundary_siblings(diagram: &Diagram, layout: &mut LayoutResul
 
 #[cfg(test)]
 mod tests {
+    use super::super::float_layout::build_float_layout_with_flags;
     use super::*;
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::engines::graph::algorithms::layered::float_layout::build_float_layout_with_flags;
     use crate::graph::measure::ProportionalTextMetrics;
     use crate::graph::routing::EdgeRouting;
     use crate::mermaid::parse_flowchart;

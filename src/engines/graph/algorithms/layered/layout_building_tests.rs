@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
+use super::kernel::{
+    DiGraph, Direction as LayeredDirection, LayoutConfig as LayeredConfig, LayoutResult, NodeId,
+    layout,
+};
 use super::layout_building::{build_layered_layout, compute_sublayouts, layered_config_for_layout};
-use super::{Direction as LayeredDirection, LayoutConfig as LayeredConfig, NodeId};
 use crate::diagrams::flowchart::compile_to_graph;
 use crate::engines::graph::EngineConfig;
 use crate::engines::graph::contracts::{GraphEngine, GraphGeometryContract, GraphSolveRequest};
@@ -77,7 +80,7 @@ fn assert_subgraph_contains_members(layout: &GridLayout, sg_id: &str, members: &
     }
 }
 
-fn run_sublayout_for_sg(diagram: &Diagram, sg_id: &str) -> super::LayoutResult {
+fn run_sublayout_for_sg(diagram: &Diagram, sg_id: &str) -> LayoutResult {
     let sg = &diagram.subgraphs[sg_id];
     let sub_dir = sg.dir.expect("subgraph should have direction override");
 
@@ -88,7 +91,7 @@ fn run_sublayout_for_sg(diagram: &Diagram, sg_id: &str) -> super::LayoutResult {
         Direction::RightLeft => LayeredDirection::RightLeft,
     };
 
-    let mut sub_graph: super::DiGraph<(f64, f64)> = super::DiGraph::new();
+    let mut sub_graph: DiGraph<(f64, f64)> = DiGraph::new();
 
     for node_id in &sg.nodes {
         if !diagram.is_subgraph(node_id)
@@ -111,7 +114,7 @@ fn run_sublayout_for_sg(diagram: &Diagram, sg_id: &str) -> super::LayoutResult {
         ..LayeredConfig::default()
     };
 
-    super::layout(&sub_graph, &sub_config, |_, dims| *dims)
+    layout(&sub_graph, &sub_config, |_, dims| *dims)
 }
 
 #[test]

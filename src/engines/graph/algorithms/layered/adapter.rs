@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use super::types::LabelSide;
-use super::{LayoutResult, Point, Rect};
+use super::kernel::types::LabelSide;
+use super::kernel::{LayoutResult, Point, Rect};
 use crate::graph::Diagram;
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{

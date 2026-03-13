@@ -403,6 +403,27 @@ fn dependency_rules_distinguish_supported_tiers_from_internal_modules() {
 }
 
 #[test]
+fn dependency_rules_document_mentions_layered_kernel_boundary() {
+    let content = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/architecture/dependency-rules.md"),
+    )
+    .unwrap();
+
+    assert!(content.contains("layered::kernel"));
+    assert!(content.contains("layout building / measurement adapters"));
+}
+
+#[test]
+fn engine_graph_docs_describe_layered_kernel_and_bridge_split() {
+    let content =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/engines/graph/mod.rs"))
+            .unwrap();
+
+    assert!(content.contains("algorithms::layered::kernel"));
+    assert!(content.contains("layout building / measurement adapters"));
+}
+
+#[test]
 fn removed_transitional_module_roots_stay_gone() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
 
@@ -1036,10 +1057,9 @@ fn layered_kernel_does_not_keep_grid_layout_config_alias() {
 #[test]
 fn layered_module_declares_internal_kernel_boundary() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let layered_mod = std::fs::read_to_string(
-        repo_root.join("src/engines/graph/algorithms/layered/mod.rs"),
-    )
-    .unwrap();
+    let layered_mod =
+        std::fs::read_to_string(repo_root.join("src/engines/graph/algorithms/layered/mod.rs"))
+            .unwrap();
 
     assert!(layered_mod.contains("pub(crate) mod kernel;"));
     assert!(!layered_mod.contains("pub mod kernel;"));
@@ -1141,6 +1161,60 @@ fn layered_private_phase_modules_live_under_kernel() {
             .exists(),
         "layout_building_tests.rs should remain at the outer layered bridge"
     );
+}
+
+#[test]
+fn layered_root_owns_only_kernel_and_graph_family_bridge_modules() {
+    let layered_mod = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("src/engines/graph/algorithms/layered/mod.rs"),
+    )
+    .unwrap();
+
+    for forbidden in [
+        "pub(crate) mod acyclic;",
+        "pub(crate) mod rank;",
+        "pub(crate) mod order;",
+        "pub(crate) mod position;",
+        "pub(crate) mod bk;",
+    ] {
+        assert!(
+            !layered_mod.contains(forbidden),
+            "layered root should not directly declare pure kernel phase modules: {forbidden}"
+        );
+    }
+
+    for required in [
+        "pub(crate) mod kernel;",
+        "pub(crate) mod adapter;",
+        "pub(crate) mod layout_building;",
+        "pub(crate) mod float_layout;",
+    ] {
+        assert!(
+            layered_mod.contains(required),
+            "layered root should keep the kernel + bridge shape: {required}"
+        );
+    }
+}
+
+#[test]
+fn layered_bridge_modules_import_kernel_explicitly() {
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    for relative_path in [
+        "src/engines/graph/algorithms/layered/adapter.rs",
+        "src/engines/graph/algorithms/layered/measurement.rs",
+        "src/engines/graph/algorithms/layered/layout_building.rs",
+        "src/engines/graph/algorithms/layered/layout_subgraph_ops.rs",
+        "src/engines/graph/algorithms/layered/float_layout.rs",
+        "src/engines/graph/algorithms/layered/float_router.rs",
+        "src/engines/graph/algorithms/layered/layout_building_tests.rs",
+    ] {
+        let content = std::fs::read_to_string(repo_root.join(relative_path)).unwrap();
+        assert!(
+            content.contains("super::kernel"),
+            "{relative_path} should reference layered::kernel explicitly"
+        );
+    }
 }
 
 #[test]

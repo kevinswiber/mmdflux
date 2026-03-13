@@ -1,3 +1,4 @@
+use super::kernel::{LayoutConfig, Ranker};
 use super::layout_building::{
     build_layered_layout_with_config, compute_sublayouts, layered_config_for_layout,
 };
@@ -28,7 +29,7 @@ pub enum MeasurementMode {
 /// This bridges the engine-facing layered config back to the render-facing
 /// config used by shared graph-family layout construction.
 pub(crate) fn layout_config_from_layered(
-    layered_cfg: &super::LayoutConfig,
+    layered_cfg: &LayoutConfig,
     diagram: &Diagram,
 ) -> GridLayoutConfig {
     let defaults = GridLayoutConfig::default();
@@ -50,8 +51,8 @@ pub(crate) fn layout_config_from_layered(
         rank_sep: layered_cfg.rank_sep,
         margin: layered_cfg.margin,
         ranker: Some(match layered_cfg.ranker {
-            super::Ranker::NetworkSimplex => GridRanker::NetworkSimplex,
-            super::Ranker::LongestPath => GridRanker::LongestPath,
+            Ranker::NetworkSimplex => GridRanker::NetworkSimplex,
+            Ranker::LongestPath => GridRanker::LongestPath,
         }),
         padding: defaults.padding + extra_padding,
         ..defaults
@@ -110,7 +111,7 @@ pub fn run_layered_layout(
     diagram: &Diagram,
     config: &EngineConfig,
 ) -> Result<GraphGeometry, RenderError> {
-    use crate::engines::graph::algorithms::layered::from_layered_layout;
+    use super::from_layered_layout;
 
     let EngineConfig::Layered(layered_cfg) = config;
     let override_subgraphs = override_subgraph_projections(diagram, layered_cfg);

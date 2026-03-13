@@ -10,6 +10,7 @@ contributors:
 - `prepared/` owns the prepared-diagram payload contract
 - `builtins/` owns default registry wiring for the supported expert tier
 - `graph/` owns graph-family IR, float-space geometry, and shared policy/measurement helpers
+- `engines/` own engine adapters and internal algorithm boundaries such as `algorithms::layered::kernel`
 - `render/` owns output production
 - `mmds/` owns the MMDS contract and output helpers
 
@@ -103,7 +104,12 @@ collapsed back into singleton roots:
     grid/proportional measurement plus canonical/visual geometry contracts.
     Render-format mapping (`Text`, `Svg`, `Mmds`) happens above the engine
     layer in graph-family orchestration, and path simplification remains a
-    downstream render/MMDS consumer concern.
+    downstream render/MMDS consumer concern. Within graph-family engines,
+    `algorithms::layered::kernel` is the pure graph-agnostic layered engine
+    boundary, while the outer `algorithms::layered` root owns the graph-family
+    bridge code such as layout building / measurement adapters, float layout,
+    and float routing. `layered::kernel` stays internal; it is a contributor
+    boundary, not a supported public contract.
 
 12. **flat top-level contract modules own the stable public contract** —
     Stable public config, format, diagnostics, error, and family vocabulary

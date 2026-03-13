@@ -1,6 +1,6 @@
 //! Engine-owned float-space layout construction for graph-family diagrams.
 
-use super::float_router;
+use super::kernel::{LayoutConfig, LayoutResult, NodeId};
 use super::layout_building::{
     build_layered_layout_with_config, compute_sublayouts, layered_config_for_layout,
 };
@@ -8,7 +8,7 @@ use super::layout_subgraph_ops::{
     center_override_subgraphs, expand_parent_bounds, reconcile_sublayouts,
     resolve_sublayout_overlaps,
 };
-use crate::engines::graph::algorithms::layered::{LayoutConfig, LayoutResult, from_layered_layout};
+use super::{float_router, from_layered_layout};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, RoutedEdgeGeometry};
 use crate::graph::grid::GridLayoutConfig;
@@ -199,30 +199,15 @@ fn apply_subgraph_float_padding(
         rect.width = (rect.width + pad_x * 2.0).max(0.0);
         rect.height = (rect.height + pad_y * 2.0).max(0.0);
 
-        if let Some(node_rect) =
-            layout
-                .nodes
-                .get_mut(&crate::engines::graph::algorithms::layered::NodeId(
-                    id.clone(),
-                ))
-        {
+        if let Some(node_rect) = layout.nodes.get_mut(&NodeId(id.clone())) {
             *node_rect = *rect;
         }
     }
 
     // Ensure all subgraph IDs exist in nodes map for bounds updates.
     for (id, rect) in layout.subgraph_bounds.iter() {
-        if !layout
-            .nodes
-            .contains_key(&crate::engines::graph::algorithms::layered::NodeId(
-                id.clone(),
-            ))
-            && diagram.subgraphs.contains_key(id)
-        {
-            layout.nodes.insert(
-                crate::engines::graph::algorithms::layered::NodeId(id.clone()),
-                *rect,
-            );
+        if !layout.nodes.contains_key(&NodeId(id.clone())) && diagram.subgraphs.contains_key(id) {
+            layout.nodes.insert(NodeId(id.clone()), *rect);
         }
     }
 }
@@ -279,7 +264,7 @@ fn push_node_from_subgraph(
     min_gap: f64,
     node_is_upstream: bool,
 ) {
-    let node_key = crate::engines::graph::algorithms::layered::NodeId(node_id.to_string());
+    let node_key = NodeId(node_id.to_string());
     let sg_rect = match layout.subgraph_bounds.get(sg_id) {
         Some(r) => *r,
         None => return,
@@ -385,7 +370,7 @@ fn push_subgraph_from_subgraph(
 
     // Shift each member node.
     for node_id in &member_nodes {
-        let key = crate::engines::graph::algorithms::layered::NodeId(node_id.clone());
+        let key = NodeId(node_id.clone());
         if let Some(rect) = layout.nodes.get_mut(&key) {
             match direction {
                 Direction::TopDown => rect.y += shift,
@@ -416,7 +401,7 @@ fn push_subgraph_from_subgraph(
             }
         }
         // Also update the nodes map entry for the subgraph.
-        let key = crate::engines::graph::algorithms::layered::NodeId(sg_id.clone());
+        let key = NodeId(sg_id.clone());
         if let Some(rect) = layout.nodes.get_mut(&key) {
             match direction {
                 Direction::TopDown => rect.y += shift,
