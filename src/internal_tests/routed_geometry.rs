@@ -3,10 +3,6 @@
 //! Verifies that `route_graph_geometry` produces correct `RoutedGraphGeometry`
 //! from engine-produced `GraphGeometry`.
 
-#[allow(clippy::duplicate_mod)]
-#[path = "../support/mod.rs"]
-mod support;
-
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -14,10 +10,11 @@ use std::path::Path;
 use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::graph::geometry::*;
 use mmdflux::mermaid::parse_flowchart;
-use support::graph_family::{
+
+use super::support::graph_family::{
     EngineConfig, MeasurementMode, default_proportional_mode, run_layered_layout,
 };
-use support::routing::{EdgeRouting, route_graph_geometry, snap_path_to_grid_preview};
+use super::support::routing::{EdgeRouting, route_graph_geometry, snap_path_to_grid_preview};
 
 /// Flux-layered LayoutConfig with all enhancements enabled.
 fn flux_layout_config() -> EngineConfig {

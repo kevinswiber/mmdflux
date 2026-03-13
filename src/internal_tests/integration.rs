@@ -2,10 +2,6 @@
 //!
 //! These tests verify the full parsing and rendering pipeline using fixture files.
 
-#[allow(clippy::duplicate_mod)]
-#[path = "../support/mod.rs"]
-mod support;
-
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -19,12 +15,13 @@ use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,
     TextColorMode,
 };
-use support::graph_family::{
+
+use super::support::graph_family::{
     EngineConfig, MeasurementMode, default_proportional_mode, run_layered_layout,
 };
-use support::render::{render_diagram_with_config, render_diagram_with_text_options};
-use support::routing::{EdgeRouting, route_graph_geometry};
-use support::text_grid::{
+use super::support::render::{render_diagram_with_config, render_diagram_with_text_options};
+use super::support::routing::{EdgeRouting, route_graph_geometry};
+use super::support::text_grid::{
     GridLayout, GridLayoutConfig, NodeBounds, RoutedEdge, Segment, compute_layout,
     geometry_to_grid_layout_with_routed, render_all_edges_with_labels, render_node,
     route_all_edges,

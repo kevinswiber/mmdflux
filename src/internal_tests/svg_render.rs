@@ -1,7 +1,3 @@
-#[allow(clippy::duplicate_mod)]
-#[path = "../support/mod.rs"]
-mod support;
-
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::Path;
@@ -10,11 +6,12 @@ use mmdflux::diagrams::flowchart::compile_to_graph;
 use mmdflux::graph::Stroke;
 use mmdflux::mermaid::parse_flowchart;
 use mmdflux::{CornerStyle, Curve, OutputFormat, PathSimplification, RenderConfig, RoutingStyle};
-use support::graph_family::{
+
+use super::support::graph_family::{
     EngineConfig, MeasurementMode, default_proportional_mode, run_layered_layout,
 };
-use support::render::render_svg_diagram_with_config;
-use support::routing::{EdgeRouting, route_graph_geometry};
+use super::support::render::render_svg_diagram_with_config;
+use super::support::routing::{EdgeRouting, route_graph_geometry};
 
 fn render_svg(diagram: &mmdflux::Diagram, config: &RenderConfig) -> String {
     render_svg_diagram_with_config(diagram, config).expect("SVG render should succeed")
