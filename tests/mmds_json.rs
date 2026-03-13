@@ -6,8 +6,9 @@
 
 use std::path::Path;
 
-use mmdflux::frontends::mmds::{evaluate_mmds_profiles, parse_mmds_input, render_input};
-use mmdflux::mmds::{MmdsOutput, SUPPORTED_MMDS_PROFILES};
+use mmdflux::mmds::{
+    MmdsOutput, SUPPORTED_MMDS_PROFILES, evaluate_mmds_profiles, parse_mmds_input, render_input,
+};
 use mmdflux::{
     EngineAlgorithmId, GeometryLevel, OutputFormat, PathSimplification, RenderConfig, TextColorMode,
 };

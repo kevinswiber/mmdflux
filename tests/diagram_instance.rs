@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::frontends::mmds::SUPPORTED_OUTPUT_FORMATS as MMDS_FRONTEND_SUPPORTED_FORMATS;
+use mmdflux::mmds::SUPPORTED_OUTPUT_FORMATS as MMDS_SUPPORTED_OUTPUT_FORMATS;
 use mmdflux::prepared::PreparedDiagram;
 use mmdflux::registry::{DiagramDefinition, DiagramInstance, DiagramRegistry, ParsedDiagram};
 use mmdflux::{DiagramFamily, GeometryLevel, OutputFormat, RenderConfig, RenderError};
@@ -164,31 +164,30 @@ fn diagram_definitions_and_instances_share_one_format_contract() {
         OutputFormat::Mermaid,
     ] {
         assert_eq!(
-            MMDS_FRONTEND_SUPPORTED_FORMATS.contains(&format),
-            mmdflux::frontends::mmds::supports_format(format),
-            "MMDS frontend format drift for {format}"
+            MMDS_SUPPORTED_OUTPUT_FORMATS.contains(&format),
+            mmdflux::mmds::supports_format(format),
+            "MMDS format drift for {format}"
         );
     }
 }
 
 #[test]
-fn mmds_frontend_exports_core_entrypoints() {
-    let _ = mmdflux::frontends::mmds::parse_mmds_input;
-    let _ = mmdflux::frontends::mmds::render_input;
+fn mmds_module_exports_core_entrypoints() {
+    let _ = mmdflux::mmds::parse_mmds_input;
+    let _ = mmdflux::mmds::render_input;
 }
 
 #[test]
-fn mmds_frontend_detects_minimal_layout_payload() {
+fn mmds_module_detects_minimal_layout_payload() {
     let input = mmds_fixture("minimal-layout.json");
 
-    let diagram_id =
-        mmdflux::frontends::mmds::detect_diagram_type(&input).expect("parse should succeed");
+    let diagram_id = mmdflux::mmds::detect_diagram_type(&input).expect("parse should succeed");
     assert_eq!(diagram_id, "flowchart");
 }
 
 #[test]
-fn mmds_frontend_parse_rejects_invalid_json_with_stable_message() {
-    let err = mmdflux::frontends::mmds::parse_mmds_input("not json").unwrap_err();
+fn mmds_module_parse_rejects_invalid_json_with_stable_message() {
+    let err = mmdflux::mmds::parse_mmds_input("not json").unwrap_err();
     assert!(err.to_string().starts_with("MMDS parse error:"));
 }
 
@@ -196,12 +195,9 @@ fn mmds_frontend_parse_rejects_invalid_json_with_stable_message() {
 fn mmds_layout_payload_renders_text() {
     let input = mmds_fixture("minimal-layout.json");
 
-    let rendered = mmdflux::frontends::mmds::render_input(
-        &input,
-        OutputFormat::Text,
-        &RenderConfig::default(),
-    )
-    .expect("layout payload should render text");
+    let rendered =
+        mmdflux::mmds::render_input(&input, OutputFormat::Text, &RenderConfig::default())
+            .expect("layout payload should render text");
     assert!(rendered.contains("Start"));
     assert!(rendered.contains("End"));
 }
@@ -210,9 +206,8 @@ fn mmds_layout_payload_renders_text() {
 fn mmds_routed_geometry_level_uses_direct_svg_path() {
     let input = mmds_fixture("positioned/routed-basic.json");
 
-    let svg =
-        mmdflux::frontends::mmds::render_input(&input, OutputFormat::Svg, &RenderConfig::default())
-            .expect("routed MMDS should render SVG");
+    let svg = mmdflux::mmds::render_input(&input, OutputFormat::Svg, &RenderConfig::default())
+        .expect("routed MMDS should render SVG");
     assert!(svg.starts_with("<svg"));
     assert!(svg.contains("Start"));
 }
@@ -221,12 +216,9 @@ fn mmds_routed_geometry_level_uses_direct_svg_path() {
 fn mmds_routed_geometry_level_renders_text_by_ignoring_paths() {
     let input = mmds_fixture("positioned/routed-basic.json");
 
-    let rendered = mmdflux::frontends::mmds::render_input(
-        &input,
-        OutputFormat::Text,
-        &RenderConfig::default(),
-    )
-    .expect("routed MMDS should render text by ignoring paths");
+    let rendered =
+        mmdflux::mmds::render_input(&input, OutputFormat::Text, &RenderConfig::default())
+            .expect("routed MMDS should render text by ignoring paths");
     assert!(rendered.contains("Start"));
 }
 
@@ -235,12 +227,8 @@ fn mmds_routed_json_output_at_layout_level_strips_paths() {
     let input = mmds_fixture("positioned/routed-basic.json");
 
     // Default geometry_level is Layout, so routed input should be downgraded.
-    let json = mmdflux::frontends::mmds::render_input(
-        &input,
-        OutputFormat::Mmds,
-        &RenderConfig::default(),
-    )
-    .expect("routed MMDS should render JSON at layout level");
+    let json = mmdflux::mmds::render_input(&input, OutputFormat::Mmds, &RenderConfig::default())
+        .expect("routed MMDS should render JSON at layout level");
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();
     assert_eq!(value["geometry_level"], "layout");
     // Routed-only fields should be stripped.
@@ -258,7 +246,7 @@ fn mmds_routed_json_output_at_routed_level_preserves_paths() {
         geometry_level: GeometryLevel::Routed,
         ..Default::default()
     };
-    let json = mmdflux::frontends::mmds::render_input(&input, OutputFormat::Mmds, &config)
+    let json = mmdflux::mmds::render_input(&input, OutputFormat::Mmds, &config)
         .expect("routed MMDS should pass through at routed level");
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();
     assert_eq!(value["geometry_level"], "routed");

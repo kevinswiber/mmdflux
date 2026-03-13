@@ -1,11 +1,11 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::frontends::mmds::{
+use mmdflux::graph::{Arrow, Stroke};
+use mmdflux::mmds::{
     MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str, hydrate_graph_geometry_from_mmds,
     hydrate_routed_geometry_from_mmds,
 };
-use mmdflux::graph::{Arrow, Stroke};
 use mmdflux::{Direction, OutputFormat, RenderConfig, Shape};
 
 fn fixture(name: &str) -> String {

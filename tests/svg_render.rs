@@ -4040,9 +4040,8 @@ fn render_svg_direction_override_backward_edge() {
 fn render_svg_positioned_mmds_routed_basic_includes_paths_and_subgraph() {
     let input = std::fs::read_to_string("tests/fixtures/mmds/positioned/routed-basic.json")
         .expect("positioned fixture should exist");
-    let svg =
-        mmdflux::frontends::mmds::render_input(&input, OutputFormat::Svg, &RenderConfig::default())
-            .expect("routed MMDS should render SVG");
+    let svg = mmdflux::mmds::render_input(&input, OutputFormat::Svg, &RenderConfig::default())
+        .expect("routed MMDS should render SVG");
 
     assert!(svg.starts_with("<svg"));
     assert!(svg.contains("class=\"subgraph\""));

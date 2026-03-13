@@ -66,9 +66,9 @@ Guard tests should fail when the code drifts away from these rules.
    MMDS serialization for graph-family output.
 
 10. **MMDS is a frontend, not a logical diagram type** — MMDS input handling
-   is detected through `src/frontends.rs`, with the `frontends::mmds`
-   compatibility access path defined inline there and the MMDS implementation
-   under `src/mmds/`. MMDS is not registered in the logical diagram registry.
+   is detected through `src/frontends.rs`, while the MMDS parse, hydration,
+   replay, and output helpers live under `src/mmds/`. MMDS is not registered
+   in the logical diagram registry.
 
 11. **engines do not know about diagram types or output formats** — Engine
     implementations (`src/engines/`) solve generic graph layout problems and

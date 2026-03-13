@@ -9,9 +9,9 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{FPoint, RoutedGraphGeometry};
 use mmdflux::mermaid::parse_flowchart;
+use mmdflux::mmds::from_mmds_str;
 use mmdflux::render::{Canvas, CharSet};
 use mmdflux::{
     Diagram, Direction, EdgePreset, EngineAlgorithmId, OutputFormat, RenderConfig, Shape,

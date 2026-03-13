@@ -3,7 +3,7 @@ mod support;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::frontends::mmds::render_input;
+use mmdflux::mmds::render_input;
 use mmdflux::{
     CornerStyle, Curve, EngineAlgorithmId, OutputFormat, PathSimplification, RenderConfig,
     RoutingStyle,

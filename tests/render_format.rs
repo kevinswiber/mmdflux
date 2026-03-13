@@ -1,4 +1,4 @@
-use mmdflux::frontends::mmds::{render_input, supports_format};
+use mmdflux::mmds::{render_input, supports_format};
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig};
 
 #[test]

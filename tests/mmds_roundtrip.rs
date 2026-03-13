@@ -2,9 +2,9 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::diagrams::flowchart::compile_to_graph;
-use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::{Arrow, Stroke};
 use mmdflux::mermaid::parse_flowchart;
+use mmdflux::mmds::from_mmds_str;
 use mmdflux::{Diagram, Direction, Shape, generate_mermaid_from_mmds_str};
 
 fn fixture(name: &str) -> String {

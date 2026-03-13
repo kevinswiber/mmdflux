@@ -2,8 +2,7 @@
 //!
 //! This module owns the typed MMDS envelope, profile vocabulary, Mermaid
 //! regeneration helpers, hydration/replay helpers, and graph-family
-//! serialization to MMDS JSON. [`crate::frontends::mmds`] remains the
-//! source-format compatibility namespace for frontend-oriented callers.
+//! serialization to MMDS JSON.
 
 pub(crate) mod detect;
 pub(crate) mod hydrate;
@@ -15,10 +14,21 @@ pub(crate) mod replay;
 use std::error::Error;
 use std::fmt;
 
+pub use detect::{
+    SUPPORTED_OUTPUT_FORMATS, detect_diagram_type, is_mmds_input, resolve_logical_diagram_id,
+    supports_format,
+};
+pub use hydrate::{
+    MmdsHydrationError, from_mmds_output, from_mmds_str, hydrate_graph_geometry_from_mmds,
+    hydrate_graph_geometry_from_output, hydrate_graph_geometry_from_output_with_diagram,
+    hydrate_routed_geometry_from_mmds, hydrate_routed_geometry_from_output, stub_hydrate,
+};
 pub use mermaid::{
     MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str,
 };
 pub use output::*;
+pub use parse::{parse_with_profiles, validate_input};
+pub use replay::{render_input, render_output};
 use serde_json::{Map, Value};
 
 /// Parse-time error for MMDS input.

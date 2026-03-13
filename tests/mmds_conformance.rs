@@ -15,9 +15,9 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::frontends::mmds::from_mmds_str;
 use mmdflux::graph::geometry::{GraphGeometry, LayoutEdge};
 use mmdflux::graph::{Diagram, Subgraph};
+use mmdflux::mmds::from_mmds_str;
 use mmdflux::{OutputFormat, RenderConfig};
 use support::graph_family::{EngineConfig, MeasurementMode, run_layered_layout};
 use support::render::{render_diagram_with_config, render_svg_diagram_with_config};

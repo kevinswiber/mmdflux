@@ -629,6 +629,7 @@ fn mmds_split_is_directory_based_and_explicit() {
 #[test]
 fn mermaid_is_a_top_level_namespace_and_frontends_is_a_file_boundary() {
     let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let frontends = std::fs::read_to_string(repo_root.join("src/frontends.rs")).unwrap();
 
     assert!(
         repo_root.join("src/frontends.rs").exists(),
@@ -640,7 +641,7 @@ fn mermaid_is_a_top_level_namespace_and_frontends_is_a_file_boundary() {
     );
     assert!(
         !repo_root.join("src/frontends").exists(),
-        "frontends should no longer require a source directory once compatibility modules are inlined"
+        "frontends should no longer require a source directory once it is a file boundary"
     );
     assert!(
         repo_root.join("src/mermaid/mod.rs").exists(),
@@ -649,6 +650,10 @@ fn mermaid_is_a_top_level_namespace_and_frontends_is_a_file_boundary() {
     assert!(
         !repo_root.join("src/frontends/mermaid").exists(),
         "frontends::mermaid should be removed after promoting mermaid to a top-level module"
+    );
+    assert!(
+        !frontends.contains("pub mod mmds"),
+        "frontends.rs should only own source-format detection, not an inlined mmds compatibility namespace"
     );
 }
 

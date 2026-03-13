@@ -4,7 +4,7 @@ MMDS is the structured JSON output format for graph-family diagrams produced by 
 
 ## Contract Ownership and Parity Harness
 
-Rust owns the canonical MMDS contract and output helpers under `src/mmds/`, while runtime MMDS frontend detection and the `frontends::mmds` compatibility access path live in `src/frontends.rs`.
+Rust owns the canonical MMDS contract, MMDS input helpers, and output helpers under `src/mmds/`, while runtime MMDS frontend detection lives in `src/frontends.rs`.
 
 Locked cross-language contract fixtures live under `tests/fixtures/mmds/contracts/`. They are consumed by:
 
