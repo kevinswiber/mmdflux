@@ -21,7 +21,7 @@
   </defs>
   <g transform="translate(0.00,0.00)">
     <g class="nodes">
-      <polygon points="104.10,112.00 164.50,112.00 184.63,139.00 164.50,166.00 104.10,166.00 83.96,139.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <polygon points="94.78,112.00 173.81,112.00 200.15,139.00 173.81,166.00 94.78,166.00 68.44,139.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="134.30" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
       <rect x="8.00" y="216.00" width="106.40" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="61.20" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output</text>

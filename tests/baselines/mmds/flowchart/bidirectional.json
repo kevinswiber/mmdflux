@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "profiles": [
+    "mmds-core-v1",
+    "mmdflux-text-v1"
+  ],
+  "extensions": {
+    "org.mmdflux.render.text.v1": {
+      "projection": {
+        "edge_waypoints": {},
+        "label_positions": {},
+        "node_ranks": {
+          "A": 0,
+          "B": 1,
+          "C": 2,
+          "D": 3
+        }
+      }
+    }
+  },
+  "defaults": {
+    "node": {
+      "shape": "rectangle"
+    },
+    "edge": {
+      "stroke": "solid",
+      "arrow_start": "none",
+      "arrow_end": "normal",
+      "minlen": 1
+    }
+  },
+  "geometry_level": "layout",
+  "metadata": {
+    "diagram_type": "flowchart",
+    "direction": "TD",
+    "bounds": {
+      "width": 84.9088,
+      "height": 382.0
+    },
+    "engine": "flux-layered"
+  },
+  "nodes": [
+    {
+      "id": "A",
+      "label": "A",
+      "position": {
+        "x": 42.4544,
+        "y": 35.0
+      },
+      "size": {
+        "width": 68.9088,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "B",
+      "label": "B",
+      "position": {
+        "x": 42.4544,
+        "y": 139.0
+      },
+      "size": {
+        "width": 68.9088,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "C",
+      "label": "C",
+      "position": {
+        "x": 42.4544,
+        "y": 243.0
+      },
+      "size": {
+        "width": 68.9088,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "D",
+      "label": "D",
+      "position": {
+        "x": 42.4544,
+        "y": 347.0
+      },
+      "size": {
+        "width": 68.9088,
+        "height": 54.0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "A",
+      "target": "B",
+      "arrow_start": "normal"
+    },
+    {
+      "id": "e1",
+      "source": "B",
+      "target": "C",
+      "stroke": "dotted",
+      "arrow_start": "normal"
+    },
+    {
+      "id": "e2",
+      "source": "C",
+      "target": "D",
+      "stroke": "thick",
+      "arrow_start": "normal"
+    }
+  ]
+}

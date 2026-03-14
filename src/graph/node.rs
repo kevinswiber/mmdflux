@@ -2,21 +2,21 @@
 
 use serde::Serialize;
 
-use crate::style::NodeStyle;
+use super::style::NodeStyle;
 
 /// Shape of a node in the diagram.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Shape {
     // === Box-style shapes ===
-    /// Rectangle shape: [text]
+    /// Rectangle shape: `[text]`
     #[default]
     Rectangle,
-    /// Rounded rectangle shape: (text)
+    /// Rounded rectangle shape: `(text)`
     Round,
-    /// Stadium shape: ([text]) (renders as Round)
+    /// Stadium shape: `([text])` (renders as Round)
     Stadium,
-    /// Subroutine shape: [[text]] (double vertical borders)
+    /// Subroutine shape: `[[text]]` (double vertical borders)
     Subroutine,
     /// Cylinder/database shape: [(text)] (curved sides)
     Cylinder,

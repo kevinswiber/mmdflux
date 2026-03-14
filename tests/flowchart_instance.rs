@@ -1,6 +1,23 @@
-use mmdflux::diagram::{EdgePreset, EngineAlgorithmId, GeometryLevel, OutputFormat, RenderConfig};
-use mmdflux::diagrams::flowchart::FlowchartInstance;
+use mmdflux::builtins::default_registry;
+use mmdflux::format::EdgePreset;
+use mmdflux::graph::GeometryLevel;
+use mmdflux::payload::Diagram;
 use mmdflux::registry::DiagramInstance;
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, RenderError};
+
+fn render_flowchart(
+    input: &str,
+    format: OutputFormat,
+    config: &RenderConfig,
+) -> Result<String, RenderError> {
+    mmdflux::render_diagram(input, format, config)
+}
+
+fn flowchart_instance() -> Box<dyn DiagramInstance> {
+    default_registry()
+        .create("flowchart")
+        .expect("flowchart should be registered")
+}
 
 fn edge_path_data(svg: &str) -> Vec<String> {
     svg.lines()
@@ -47,50 +64,43 @@ fn min_segment_len(points: &[(f64, f64)]) -> f64 {
 
 #[test]
 fn flowchart_instance_parse_simple() {
-    let mut instance = FlowchartInstance::new();
-    let result = instance.parse("graph TD\nA-->B");
+    let result = flowchart_instance().parse("graph TD\nA-->B");
     assert!(result.is_ok());
 }
 
 #[test]
 fn flowchart_instance_parse_error_on_invalid() {
-    let mut instance = FlowchartInstance::new();
-    let result = instance.parse("not a valid diagram }{{}");
+    let result = flowchart_instance().parse("not a valid diagram }{{}");
     assert!(result.is_err());
 }
 
 #[test]
 fn flowchart_instance_render_text() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-    let output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
+    let output = render_flowchart(
+        "graph TD\nA-->B",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
     assert!(output.contains('A'));
     assert!(output.contains('B'));
 }
 
 #[test]
 fn flowchart_instance_render_ascii() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-    let output = instance
-        .render(OutputFormat::Ascii, &RenderConfig::default())
-        .unwrap();
+    let output = render_flowchart(
+        "graph TD\nA-->B",
+        OutputFormat::Ascii,
+        &RenderConfig::default(),
+    )
+    .unwrap();
     assert!(!output.contains('│'));
     assert!(!output.contains('─'));
 }
 
 #[test]
-fn flowchart_instance_render_before_parse_errors() {
-    let instance = FlowchartInstance::new();
-    let result = instance.render(OutputFormat::Text, &RenderConfig::default());
-    assert!(result.is_err());
-}
-
-#[test]
 fn flowchart_instance_supports_text_and_ascii() {
-    let instance = FlowchartInstance::new();
+    let instance = flowchart_instance();
     assert!(instance.supports_format(OutputFormat::Text));
     assert!(instance.supports_format(OutputFormat::Ascii));
     assert!(instance.supports_format(OutputFormat::Svg));
@@ -98,53 +108,38 @@ fn flowchart_instance_supports_text_and_ascii() {
 
 #[test]
 fn flowchart_instance_render_svg() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-    let output = instance
-        .render(OutputFormat::Svg, &RenderConfig::default())
-        .unwrap();
+    let output = render_flowchart(
+        "graph TD\nA-->B",
+        OutputFormat::Svg,
+        &RenderConfig::default(),
+    )
+    .unwrap();
     assert!(output.starts_with("<svg"));
     assert!(output.contains("<text"));
 }
 
 #[test]
 fn flowchart_instance_render_json() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA[Start] --> B[End]").unwrap();
-    let output = instance
-        .render(OutputFormat::Mmds, &RenderConfig::default())
+    let output = flowchart_instance()
+        .parse("graph TD\nA[Start] --> B[End]")
+        .unwrap()
+        .into_payload(&RenderConfig::default())
         .unwrap();
-
-    let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
-    assert_eq!(parsed["version"], 1);
-    assert_eq!(parsed["geometry_level"], "layout");
-    assert!(parsed["metadata"]["bounds"].is_object());
-    assert_eq!(parsed["nodes"].as_array().unwrap().len(), 2);
-    assert_eq!(parsed["edges"].as_array().unwrap().len(), 1);
-    assert_eq!(parsed["edges"][0]["id"], "e0");
-
-    let nodes = parsed["nodes"].as_array().unwrap();
-    for node in nodes {
-        assert!(
-            node["position"].is_object(),
-            "Node should have position: {}",
-            node
-        );
-        assert!(node["size"].is_object(), "Node should have size: {}", node);
-    }
-
-    // Layout level: no edge geometry
-    assert!(!output.contains("\"path\""));
-    assert!(!output.contains("\"is_backward\""));
+    let Diagram::Flowchart(graph) = output else {
+        panic!("flowchart should yield a flowchart payload");
+    };
+    assert_eq!(graph.nodes.len(), 2);
+    assert_eq!(graph.edges.len(), 1);
 }
 
 #[test]
 fn flowchart_instance_render_json_uses_defaults_omission() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-    let output = instance
-        .render(OutputFormat::Mmds, &RenderConfig::default())
-        .unwrap();
+    let output = render_flowchart(
+        "graph TD\nA-->B",
+        OutputFormat::Mmds,
+        &RenderConfig::default(),
+    )
+    .unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
 
     assert_eq!(parsed["defaults"]["node"]["shape"], "rectangle");
@@ -159,67 +154,64 @@ fn flowchart_instance_render_json_uses_defaults_omission() {
 
 #[test]
 fn test_show_ids_annotates_labels() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA[Start] --> B[End]\n").unwrap();
-
     let config = RenderConfig {
         show_ids: true,
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Text, &config).unwrap();
-    assert!(
-        output.contains("A: Start"),
-        "Should contain 'A: Start', got: {}",
-        output
-    );
-    assert!(
-        output.contains("B: End"),
-        "Should contain 'B: End', got: {}",
-        output
-    );
+    let payload = flowchart_instance()
+        .parse("graph TD\nA[Start] --> B[End]\n")
+        .unwrap()
+        .into_payload(&config)
+        .unwrap();
+    let Diagram::Flowchart(graph) = payload else {
+        panic!("flowchart should yield a flowchart payload");
+    };
+    assert_eq!(graph.nodes["A"].label, "A: Start");
+    assert_eq!(graph.nodes["B"].label, "B: End");
 }
 
 #[test]
 fn test_show_ids_bare_nodes_unchanged() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA --> B\n").unwrap();
-
     let config = RenderConfig {
         show_ids: true,
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Text, &config).unwrap();
-    assert!(
-        !output.contains("A: A"),
-        "Bare node should not be annotated: {}",
-        output
-    );
+    let payload = flowchart_instance()
+        .parse("graph TD\nA --> B\n")
+        .unwrap()
+        .into_payload(&config)
+        .unwrap();
+    let Diagram::Flowchart(graph) = payload else {
+        panic!("flowchart should yield a flowchart payload");
+    };
+    assert_eq!(graph.nodes["A"].label, "A");
 }
 
 #[test]
 fn test_show_ids_false_no_annotation() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA[Start] --> B[End]\n").unwrap();
-    let output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
+    let payload = flowchart_instance()
+        .parse("graph TD\nA[Start] --> B[End]\n")
+        .unwrap()
+        .into_payload(&RenderConfig::default())
         .unwrap();
-    assert!(
-        !output.contains("A:"),
-        "Default should not annotate: {}",
-        output
-    );
+    let Diagram::Flowchart(graph) = payload else {
+        panic!("flowchart should yield a flowchart payload");
+    };
+    assert_eq!(graph.nodes["A"].label, "Start");
 }
 
 #[test]
 fn test_json_with_show_ids() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA[Start] --> B[End]\n").unwrap();
-
     let config = RenderConfig {
         show_ids: true,
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_flowchart(
+        "graph TD\nA[Start] --> B[End]\n",
+        OutputFormat::Mmds,
+        &config,
+    )
+    .unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
 
     let nodes = parsed["nodes"].as_array().unwrap();
@@ -229,11 +221,12 @@ fn test_json_with_show_ids() {
 
 #[test]
 fn test_json_without_show_ids() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA[Start] --> B[End]\n").unwrap();
-    let output = instance
-        .render(OutputFormat::Mmds, &RenderConfig::default())
-        .unwrap();
+    let output = render_flowchart(
+        "graph TD\nA[Start] --> B[End]\n",
+        OutputFormat::Mmds,
+        &RenderConfig::default(),
+    )
+    .unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
 
     let nodes = parsed["nodes"].as_array().unwrap();
@@ -245,42 +238,33 @@ fn test_json_without_show_ids() {
 
 #[test]
 fn flowchart_render_text_through_solve_path() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-
     let config = RenderConfig {
         layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Text, &config).unwrap();
+    let output = render_flowchart("graph TD\nA-->B", OutputFormat::Text, &config).unwrap();
     assert!(output.contains('A'));
     assert!(output.contains('B'));
 }
 
 #[test]
 fn flowchart_render_svg_through_solve_path() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-
     let config = RenderConfig {
         layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Svg, &config).unwrap();
+    let output = render_flowchart("graph TD\nA-->B", OutputFormat::Svg, &config).unwrap();
     assert!(output.contains("<svg"));
 }
 
 #[test]
 fn flowchart_render_mmds_through_solve_path() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-
     let config = RenderConfig {
         layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
         geometry_level: GeometryLevel::Routed,
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_flowchart("graph TD\nA-->B", OutputFormat::Mmds, &config).unwrap();
     let json: serde_json::Value = serde_json::from_str(&output).unwrap();
     assert!(json["edges"][0]["path"].is_array());
 }
@@ -288,28 +272,19 @@ fn flowchart_render_mmds_through_solve_path() {
 // --- Text geometry-driven integration tests (Task 4.2) ---
 
 #[test]
-fn text_render_from_solve_matches_legacy() {
+fn text_render_from_solve_produces_output() {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/simple.mmd").unwrap();
-    let mut instance = FlowchartInstance::new();
-    instance.parse(&input).unwrap();
-
-    let legacy_out = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
-    assert!(!legacy_out.is_empty());
+    let output = render_flowchart(&input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+    assert!(!output.is_empty());
 }
 
 #[test]
-fn text_snapshots_stable_after_geometry_driven_cutover() {
+fn text_snapshots_stable_after_geometry_driven_refactor() {
     for fixture in &["simple.mmd", "chain.mmd", "decision.mmd", "fan_in.mmd"] {
         let path = format!("tests/fixtures/flowchart/{fixture}");
         let input = std::fs::read_to_string(&path).unwrap();
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).unwrap();
-
-        let output = instance
-            .render(OutputFormat::Text, &RenderConfig::default())
-            .unwrap();
+        let output =
+            render_flowchart(&input, OutputFormat::Text, &RenderConfig::default()).unwrap();
         let snapshot_path = format!(
             "tests/snapshots/flowchart/{}",
             fixture.replace(".mmd", ".txt")
@@ -325,31 +300,27 @@ fn text_snapshots_stable_after_geometry_driven_cutover() {
 
 #[test]
 fn engine_selection_none_uses_default_layered() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-
     let config = RenderConfig::default(); // layout_engine: None
-    let output = instance.render(OutputFormat::Text, &config).unwrap();
+    let output = render_flowchart("graph TD\nA-->B", OutputFormat::Text, &config).unwrap();
     assert!(output.contains('A'));
     assert!(output.contains('B'));
 }
 
 #[test]
 fn engine_selection_explicit_layered_matches_default() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-
-    let default_output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
+    let default_output = render_flowchart(
+        "graph TD\nA-->B",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
 
     let layered_config = RenderConfig {
         layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
         ..Default::default()
     };
-    let layered_output = instance
-        .render(OutputFormat::Text, &layered_config)
-        .unwrap();
+    let layered_output =
+        render_flowchart("graph TD\nA-->B", OutputFormat::Text, &layered_config).unwrap();
 
     assert_eq!(default_output, layered_output);
 }
@@ -357,14 +328,11 @@ fn engine_selection_explicit_layered_matches_default() {
 #[cfg(not(feature = "engine-elk"))]
 #[test]
 fn engine_selection_unavailable_engine_errors() {
-    let mut instance = FlowchartInstance::new();
-    instance.parse("graph TD\nA-->B").unwrap();
-
     let config = RenderConfig {
         layout_engine: Some(EngineAlgorithmId::parse("elk-layered").unwrap()),
         ..Default::default()
     };
-    let result = instance.render(OutputFormat::Text, &config);
+    let result = render_flowchart("graph TD\nA-->B", OutputFormat::Text, &config);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(
@@ -390,16 +358,13 @@ fn flowchart_instance_svg_polyline_ampersand_avoids_micro_corner_jogs_for_layere
         .expect("fixture should load");
 
     for engine in ["flux-layered", "mermaid-layered"] {
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).expect("fixture should parse");
         let config = RenderConfig {
             layout_engine: Some(EngineAlgorithmId::parse(engine).expect("engine id should parse")),
             edge_preset: Some(EdgePreset::Polyline),
             ..Default::default()
         };
 
-        let svg = instance
-            .render(OutputFormat::Svg, &config)
+        let svg = render_flowchart(&input, OutputFormat::Svg, &config)
             .expect("svg render should succeed");
         let paths: Vec<Vec<(f64, f64)>> = edge_path_data(&svg)
             .iter()

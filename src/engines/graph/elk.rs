@@ -4,15 +4,18 @@
 //! and parses the output back to `GraphGeometry`. Feature-gated behind
 //! `engine-elk`.
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-use crate::diagram::{EngineConfig, RenderError};
-use crate::diagrams::flowchart::geometry::{
+use crate::engines::graph::EngineConfig;
+use crate::errors::RenderError;
+use crate::graph::geometry::{
     FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode, SubgraphGeometry,
 };
-use crate::graph::{Diagram, Direction, Shape};
+use crate::graph::{Direction, Graph, Shape};
 
 /// ELK layout engine adapter.
 ///
@@ -31,7 +34,7 @@ impl ElkLayoutEngine {
 impl ElkLayoutEngine {
     pub fn layout(
         &self,
-        diagram: &Diagram,
+        diagram: &Graph,
         _config: &EngineConfig,
     ) -> Result<GraphGeometry, RenderError> {
         let elk_input = diagram_to_elk_json(diagram);
@@ -44,7 +47,7 @@ impl ElkLayoutEngine {
 // Diagram → ELK JSON conversion
 // ---------------------------------------------------------------------------
 
-fn diagram_to_elk_json(diagram: &Diagram) -> String {
+fn diagram_to_elk_json(diagram: &Graph) -> String {
     let direction = match diagram.direction {
         Direction::TopDown => "DOWN",
         Direction::BottomTop => "UP",
@@ -176,7 +179,7 @@ fn invoke_elk_subprocess(input: &str) -> Result<String, RenderError> {
 // ELK JSON output → GraphGeometry conversion
 // ---------------------------------------------------------------------------
 
-fn parse_elk_output(output: &str, diagram: &Diagram) -> Result<GraphGeometry, RenderError> {
+fn parse_elk_output(output: &str, diagram: &Graph) -> Result<GraphGeometry, RenderError> {
     let root: serde_json::Value = serde_json::from_str(output).map_err(|e| RenderError {
         message: format!("failed to parse ELK output as JSON: {e}"),
     })?;
@@ -353,6 +356,7 @@ fn parse_elk_output(output: &str, diagram: &Diagram) -> Result<GraphGeometry, Re
         bounds: FRect::new(max_x / 2.0, max_y / 2.0, max_x, max_y),
         reversed_edges: Vec::new(),
         engine_hints: None,
+        grid_projection: None,
         rerouted_edges: std::collections::HashSet::new(),
         enhanced_backward_routing: false,
     })
@@ -398,8 +402,8 @@ mod tests {
     #[test]
     fn diagram_to_elk_json_simple() {
         let input = "graph TD\nA-->B";
-        let flowchart = crate::parser::parse_flowchart(input).unwrap();
-        let diagram = crate::graph::build_diagram(&flowchart);
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
+        let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let json = diagram_to_elk_json(&diagram);
         assert!(json.contains("\"elk.algorithm\": \"layered\""));
@@ -411,8 +415,8 @@ mod tests {
     #[test]
     fn diagram_to_elk_json_lr_direction() {
         let input = "graph LR\nA-->B";
-        let flowchart = crate::parser::parse_flowchart(input).unwrap();
-        let diagram = crate::graph::build_diagram(&flowchart);
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
+        let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let json = diagram_to_elk_json(&diagram);
         assert!(json.contains("\"elk.direction\": \"RIGHT\""));
@@ -421,8 +425,8 @@ mod tests {
     #[test]
     fn parse_elk_output_simple() {
         let input = "graph TD\nA-->B";
-        let flowchart = crate::parser::parse_flowchart(input).unwrap();
-        let diagram = crate::graph::build_diagram(&flowchart);
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
+        let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let elk_output = r#"{
             "id": "root",
@@ -457,8 +461,8 @@ mod tests {
     #[test]
     fn parse_elk_output_center_coordinates() {
         let input = "graph TD\nA-->B";
-        let flowchart = crate::parser::parse_flowchart(input).unwrap();
-        let diagram = crate::graph::build_diagram(&flowchart);
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
+        let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let elk_output = r#"{
             "id": "root",
@@ -478,8 +482,8 @@ mod tests {
     #[test]
     fn parse_elk_output_uses_edge_ids_for_indices() {
         let input = "graph TD\nA-->B\nB-->C";
-        let flowchart = crate::parser::parse_flowchart(input).unwrap();
-        let diagram = crate::graph::build_diagram(&flowchart);
+        let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
+        let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
 
         let elk_output = r#"{
             "id": "root",

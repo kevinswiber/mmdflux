@@ -1,4 +1,4 @@
-use mmdflux::{Edge, Node, Shape};
+use mmdflux::graph::{Edge, Node, Shape};
 
 #[test]
 fn test_node_serializes_to_json() {

@@ -2,6 +2,17 @@
 
 Converts [MMDS](https://github.com/mmdflux/mmdflux/blob/main/docs/mmds.md) JSON into tldraw `.tldr` files.
 
+## Library Usage
+
+```ts
+import { convertToTldrawStore, toTldrawFile } from "@mmds/tldraw";
+
+const store = convertToTldrawStore(mmds);
+const file = toTldrawFile(store);
+```
+
+The package root is library-only. CLI behavior lives in the `mmds-to-tldraw` bin and the `@mmds/tldraw/cli` entrypoint.
+
 ## Install
 
 ```bash

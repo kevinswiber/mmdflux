@@ -34,13 +34,13 @@
       <path d="M86.26,62.00 L86.26,86.67 L86.26,88.72 C86.26,90.78 86.26,94.89 86.26,99.00 C86.26,103.11 86.26,107.22 86.26,109.28 L86.26,111.33 L86.26,132.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M86.26,190.00 L86.26,223.00 L86.26,225.75 C86.26,228.50 86.26,234.00 86.26,239.50 C86.26,245.00 86.26,250.50 86.26,253.25 L86.26,256.00 L86.26,285.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M86.26,343.00 L86.26,376.00 L86.26,378.75 C86.26,381.50 86.26,387.00 86.26,392.50 C86.26,398.00 86.26,403.50 86.26,406.25 L86.26,409.00 L86.26,438.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M164.51,469.00 L184.51,469.00 L184.51,432.83 C184.51,396.67 184.51,324.33 184.51,252.00 C184.51,179.67 184.51,107.33 184.51,71.17 L184.51,35.00 L163.13,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M164.51,469.00 L183.13,469.00 L183.13,432.83 C183.13,396.67 183.13,324.33 183.13,252.00 C183.13,179.67 183.13,107.33 183.13,71.17 L183.13,35.00 L163.13,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <text x="86.26" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
       <text x="86.26" y="227.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
       <text x="86.26" y="380.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
-      <text x="184.51" y="251.31" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
+      <text x="183.13" y="251.31" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
     </g>
   </g>
 </svg>

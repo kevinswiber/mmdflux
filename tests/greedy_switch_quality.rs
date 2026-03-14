@@ -4,8 +4,7 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::render::{RenderOptions, render};
-use mmdflux::{build_diagram, parse_flowchart};
+use mmdflux::{OutputFormat, RenderConfig, render_diagram};
 
 fn load_fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -39,10 +38,8 @@ fn all_fixtures_render_successfully() {
     );
     for name in &names {
         let input = load_fixture(name);
-        let flowchart =
-            parse_flowchart(&input).unwrap_or_else(|e| panic!("Failed to parse {}: {}", name, e));
-        let diagram = build_diagram(&flowchart);
-        let output = render(&diagram, &RenderOptions::default());
+        let output = render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+            .unwrap_or_else(|e| panic!("Failed to render {}: {}", name, e));
         assert!(!output.is_empty(), "Empty output for {}", name);
     }
 }

@@ -1,19 +1,127 @@
+//! mmdflux CLI — Mermaid diagram to text/SVG renderer.
+
 use std::ffi::OsStr;
 use std::io::{self, IsTerminal, Read};
 use std::path::PathBuf;
-use std::{env, fs};
+use std::{env, fmt, fs};
 
 use clap::{Parser, ValueEnum};
-use mmdflux::diagram::{
-    AlgorithmId, ColorWhen, Curve, EdgePreset, EngineAlgorithmId, EngineId, GeometryLevel,
-    LayoutConfig, OutputFormat, PathSimplification, RenderConfig, RoutingStyle, TextColorMode,
+use mmdflux::config::{LayoutConfig, Ranker};
+use mmdflux::format::{Curve, EdgePreset, RoutingStyle};
+use mmdflux::graph::GeometryLevel;
+use mmdflux::simplification::PathSimplification;
+use mmdflux::{
+    ColorWhen, EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode,
+    apply_svg_surface_defaults, detect_diagram, render_diagram, validate_diagram,
 };
-use mmdflux::layered::Ranker;
-use mmdflux::registry::default_registry;
+use serde::{Deserialize, Serialize};
 
 const CURVE_CANONICAL_VALUES: &str = "basis, linear, linear-sharp, linear-rounded";
 const CURVE_ARG_HELP: &str = "SVG curve style (basis, linear, linear-sharp, or linear-rounded). \
      Overrides the curve component of --edge-preset when both are set.";
+const SEVERITY_ERROR: &str = "error";
+const SEVERITY_WARNING: &str = "warning";
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ValidationResult {
+    valid: bool,
+    #[serde(default)]
+    diagnostics: Vec<ValidationDiagnostic>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ValidationDiagnostic {
+    #[serde(default)]
+    severity: String,
+    line: Option<usize>,
+    column: Option<usize>,
+    message: String,
+}
+
+#[derive(Debug, Serialize)]
+struct CliLintJson {
+    valid: bool,
+    errors: Vec<ValidationDiagnostic>,
+    warnings: Vec<ValidationDiagnostic>,
+}
+
+const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
+
+fn normalize_validation_result(result: ValidationResult) -> CliLintJson {
+    let default_severity = if result.valid {
+        SEVERITY_WARNING
+    } else {
+        SEVERITY_ERROR
+    };
+    let diagnostics = result
+        .diagnostics
+        .into_iter()
+        .map(|diag| diag.normalized(default_severity))
+        .collect::<Vec<_>>();
+
+    let (warnings, errors): (Vec<_>, Vec<_>) = diagnostics
+        .into_iter()
+        .partition(ValidationDiagnostic::is_warning);
+
+    CliLintJson {
+        valid: result.valid && errors.is_empty(),
+        errors,
+        warnings,
+    }
+}
+
+impl ValidationDiagnostic {
+    fn normalized(mut self, default_severity: &str) -> Self {
+        if self.severity.is_empty() {
+            self.severity = default_severity.to_string();
+        }
+
+        if self.message.contains(STRICT_PARSE_WARNING_PREFIX) {
+            self.severity = SEVERITY_ERROR.to_string();
+        }
+
+        self
+    }
+
+    fn severity_label(&self) -> &str {
+        if self.severity.is_empty() {
+            SEVERITY_ERROR
+        } else {
+            self.severity.as_str()
+        }
+    }
+
+    fn is_warning(&self) -> bool {
+        self.severity_label().eq_ignore_ascii_case(SEVERITY_WARNING)
+    }
+}
+
+impl fmt::Display for ValidationDiagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match (self.line, self.column) {
+            (Some(line), Some(column)) => {
+                write!(
+                    f,
+                    "{}: line {}, column {}: {}",
+                    self.severity_label(),
+                    line,
+                    column,
+                    self.message
+                )
+            }
+            (Some(line), None) => {
+                write!(
+                    f,
+                    "{}: line {}: {}",
+                    self.severity_label(),
+                    line,
+                    self.message
+                )
+            }
+            _ => write!(f, "{}: {}", self.severity_label(), self.message),
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "mmdflux")]
@@ -235,24 +343,6 @@ fn resolve_text_color_mode(
     ColorWhen::Auto.resolve(stdout_is_terminal)
 }
 
-fn default_svg_engine() -> EngineAlgorithmId {
-    EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered)
-}
-
-fn apply_cli_svg_surface_defaults(format: OutputFormat, config: &mut RenderConfig) {
-    if !matches!(format, OutputFormat::Svg) {
-        return;
-    }
-
-    if config.edge_preset.is_some() || config.routing_style.is_some() || config.curve.is_some() {
-        return;
-    }
-
-    if config.layout_engine.unwrap_or(default_svg_engine()) == default_svg_engine() {
-        config.edge_preset = Some(EdgePreset::SmoothStep);
-    }
-}
-
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
 
@@ -275,23 +365,33 @@ fn main() -> io::Result<()> {
 
     // Lint mode: validate and exit
     if cli.lint {
-        let result = mmdflux::lint::lint(&input);
+        let json = validate_diagram(&input);
+        let result: ValidationResult = serde_json::from_str(&json).map_err(|error| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("failed to parse validation output: {error}"),
+            )
+        })?;
+        let lint_json = normalize_validation_result(result);
 
         if matches!(format, OutputFormat::Mmds) {
-            println!("{}", result.to_json());
+            println!(
+                "{}",
+                serde_json::to_string(&lint_json).expect("lint JSON serialization should succeed")
+            );
         } else {
-            for diag in &result.errors {
+            for diag in &lint_json.errors {
                 eprintln!("{}", diag);
             }
-            for diag in &result.warnings {
+            for diag in &lint_json.warnings {
                 eprintln!("{}", diag);
             }
         }
 
-        std::process::exit(result.exit_code());
+        std::process::exit(if lint_json.valid { 0 } else { 1 });
     }
 
-    // Parse new style flags.
+    // Parse CLI style flags.
     let edge_preset: Option<EdgePreset> = match cli.edge_preset.as_deref() {
         Some(s) => match EdgePreset::parse(s) {
             Ok(p) => Some(p),
@@ -322,7 +422,6 @@ fn main() -> io::Result<()> {
         }
     };
 
-    // Build render config from CLI options
     let engine_algo: Option<EngineAlgorithmId> = match cli
         .layout_engine
         .as_deref()
@@ -344,6 +443,7 @@ fn main() -> io::Result<()> {
         None => None,
     };
 
+    // Build render config from CLI flags.
     let mut config = RenderConfig {
         layout: LayoutConfig {
             node_sep: cli.node_spacing.unwrap_or(50.0),
@@ -369,12 +469,11 @@ fn main() -> io::Result<()> {
         geometry_level: cli.geometry_level.map(Into::into).unwrap_or_default(),
         path_simplification: cli.path_simplification.map(Into::into).unwrap_or_default(),
     };
-    apply_cli_svg_surface_defaults(format, &mut config);
+    // CLI does not force engine for SVG (auto-detect later).
+    apply_svg_surface_defaults(format, &mut config, false);
 
-    // Use registry for detection and rendering
-    let registry = default_registry();
-
-    let diagram_id = match registry.detect(&input) {
+    // Detect diagram type first for CLI-specific error formatting.
+    let diagram_id = match detect_diagram(&input) {
         Some(id) => id,
         None => {
             eprintln!("Error: Unknown diagram type");
@@ -386,31 +485,14 @@ fn main() -> io::Result<()> {
         eprintln!("Detected diagram type: {}", diagram_id);
     }
 
-    let mut instance = registry.create(diagram_id).unwrap_or_else(|| {
-        eprintln!("Error: No implementation for diagram type: {}", diagram_id);
-        std::process::exit(1);
-    });
-
-    if let Err(e) = instance.parse(&input) {
-        eprintln!("Parse error: {}", e);
-        std::process::exit(1);
-    }
-
-    if !instance.supports_format(format) {
-        eprintln!(
-            "Error: {} diagrams do not support {} output",
-            diagram_id, format
-        );
-        std::process::exit(1);
-    }
-
-    match instance.render(format, &config) {
+    // Render through the shared facade contract.
+    match render_diagram(&input, format, &config) {
         Ok(output) => match &cli.output {
             Some(path) => fs::write(path, &output)?,
             None => print!("{}", output),
         },
         Err(e) => {
-            eprintln!("Render error: {}", e);
+            eprintln!("Error: {}", e);
             std::process::exit(1);
         }
     }

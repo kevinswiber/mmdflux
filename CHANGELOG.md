@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+## v2.0.0
+
+### Breaking
+
+- Complete restructuring of the crate's module layout and public API.
+  All import paths have changed. The public surface is now a curated
+  three-tier contract: runtime facade (`render_diagram`, `detect_diagram`,
+  `validate_diagram`), low-level API (`builtins`, `registry`,
+  `prepared`, `mmds`), and internal implementation modules.
+- `src/parser/` moved to `src/mermaid/`.
+- `src/layered/` moved to `src/engines/graph/algorithms/layered/`.
+- `src/diagram.rs` split into `src/config.rs`, `src/format.rs`,
+  `src/errors.rs`, `src/family.rs`, `src/diagnostics.rs`.
+- Rendering code moved from `src/diagrams/flowchart/render/` to
+  `src/render/graph/` (shared) and `src/render/diagram/` (family-local).
+- `src/mmds.rs` expanded to `src/mmds/` directory module.
+- `src/lint.rs` removed; validation logic moved to
+  `src/diagrams/flowchart/validation.rs` via `DiagramInstance::validation_warnings`.
+
+### Added
+
+- `DiagramInstance::validation_warnings` trait method for diagram-type-specific
+  validation through the registry pipeline.
+- `PreparedDiagram` contract as the seam between diagram compilation and
+  rendering dispatch.
+- Architecture guard tests (`tests/architecture_guards.rs`) enforcing module
+  boundaries in both production and test code.
+- `docs/architecture/dependency-rules.md` with 18 ownership and dependency rules.
+- `docs/architecture/deferred-friction.md` tracking 5 monitored items.
+
 ## v1.4.0
 
 ### Fixed
@@ -161,7 +191,7 @@
   (`layout_subgraph_ops.rs`), moved text types to `text_types.rs`, renamed
   `layout.rs` to `text_layout.rs`, and added `text_` prefix to all text-only
   modules for naming symmetry with `svg_*`. Renamed `LayoutConfig` to
-  `TextLayoutConfig`.
+  `GridLayoutConfig`.
 - `mermaid-layered` engine now only supports SVG and MMDS output, matching
   Mermaid.js which only renders to SVG ([#14](https://github.com/kevinswiber/mmdflux/pull/14)).
   Text/ASCII output uses `flux-layered` exclusively.

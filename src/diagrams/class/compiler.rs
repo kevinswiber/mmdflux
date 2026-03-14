@@ -5,16 +5,16 @@
 
 use std::collections::HashSet;
 
-use super::parser::ast::{ClassModel, ClassRelationType};
-use crate::graph::{Arrow, Diagram, Direction, Edge, Node, Shape, Stroke, Subgraph};
+use crate::graph::{Arrow, Direction, Edge, Graph, Node, Shape, Stroke, Subgraph};
+use crate::mermaid::class::ast::{ClassModel, ClassRelationType};
 
 /// Compile a `ClassModel` into a canonical `graph::Diagram`.
 ///
 /// Class diagrams use top-down layout by default. Each class becomes a
 /// rectangle node whose label includes member lines (if any). Relationships
 /// map to edges with style/arrow metadata based on their type.
-pub fn compile(model: &ClassModel) -> Diagram {
-    let mut diagram = Diagram::new(class_direction(model.direction.as_deref()));
+pub fn compile(model: &ClassModel) -> Graph {
+    let mut diagram = Graph::new(class_direction(model.direction.as_deref()));
     let marker_only_lollipop_interfaces = lollipop_interface_nodes(model);
 
     for class in &model.classes {
@@ -155,7 +155,7 @@ fn lollipop_interface_nodes(model: &ClassModel) -> HashSet<String> {
     candidates
 }
 
-fn apply_namespaces(model: &ClassModel, diagram: &mut Diagram) {
+fn apply_namespaces(model: &ClassModel, diagram: &mut Graph) {
     for namespace in &model.namespaces {
         diagram.subgraphs.insert(
             namespace.id.clone(),
@@ -210,9 +210,9 @@ fn relation_style(rel: ClassRelationType) -> (Stroke, Arrow) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagrams::class::parser::parse_class_diagram;
+    use crate::mermaid::class::parse_class_diagram;
 
-    fn compile_class(input: &str) -> Diagram {
+    fn compile_class(input: &str) -> Graph {
         let model = parse_class_diagram(input).unwrap();
         compile(&model)
     }

@@ -39,7 +39,7 @@ pub struct Subgraph {
 
 /// A complete flowchart diagram.
 #[derive(Debug, Clone)]
-pub struct Diagram {
+pub struct Graph {
     /// Layout direction.
     pub direction: Direction,
     /// Nodes indexed by their ID.
@@ -52,7 +52,7 @@ pub struct Diagram {
     pub subgraph_order: Vec<String>,
 }
 
-impl Diagram {
+impl Graph {
     /// Create a new empty diagram.
     pub fn new(direction: Direction) -> Self {
         Self {
@@ -164,11 +164,11 @@ mod tests {
 
     #[test]
     fn test_subgraph_children() {
-        use crate::graph::builder::build_diagram;
-        use crate::parser::parse_flowchart;
+        use crate::diagrams::flowchart::compile_to_graph;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph outer[Outer]\nA\nsubgraph inner[Inner]\nB\nend\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         let children = diagram.subgraph_children("outer");
         assert_eq!(children.len(), 1);
         assert!(children.contains(&&"inner".to_string()));
@@ -177,11 +177,11 @@ mod tests {
 
     #[test]
     fn test_subgraph_depth() {
-        use crate::graph::builder::build_diagram;
-        use crate::parser::parse_flowchart;
+        use crate::diagrams::flowchart::compile_to_graph;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph outer[Outer]\nsubgraph inner[Inner]\nA\nend\nend\n";
         let flowchart = parse_flowchart(input).unwrap();
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         assert_eq!(diagram.subgraph_depth("outer"), 0);
         assert_eq!(diagram.subgraph_depth("inner"), 1);
     }
@@ -200,11 +200,11 @@ mod tests {
 
     #[test]
     fn subgraph_parse_order_is_postorder() {
-        use crate::graph::builder::build_diagram;
-        use crate::parser::parse_flowchart;
+        use crate::diagrams::flowchart::compile_to_graph;
+        use crate::mermaid::parse_flowchart;
         let input = include_str!("../../tests/fixtures/flowchart/external_node_subgraph.mmd");
         let flowchart = parse_flowchart(input).unwrap();
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
 
         assert_eq!(
             diagram.subgraph_order,
@@ -218,61 +218,61 @@ mod tests {
 
     #[test]
     fn cross_boundary_edges_isolated_subgraph() {
-        use crate::graph::builder::build_diagram;
-        use crate::parser::parse_flowchart;
+        use crate::diagrams::flowchart::compile_to_graph;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> D";
         let flowchart = parse_flowchart(input).unwrap();
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         assert!(!diagram.subgraph_has_cross_boundary_edges("sg1"));
     }
 
     #[test]
     fn cross_boundary_edges_non_isolated_subgraph() {
-        use crate::graph::builder::build_diagram;
-        use crate::parser::parse_flowchart;
+        use crate::diagrams::flowchart::compile_to_graph;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nC --> A";
         let flowchart = parse_flowchart(input).unwrap();
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         assert!(diagram.subgraph_has_cross_boundary_edges("sg1"));
     }
 
     #[test]
     fn cross_boundary_edges_outgoing() {
-        use crate::graph::builder::build_diagram;
-        use crate::parser::parse_flowchart;
+        use crate::diagrams::flowchart::compile_to_graph;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph sg1[Group]\ndirection LR\nA --> B\nend\nB --> C";
         let flowchart = parse_flowchart(input).unwrap();
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         assert!(diagram.subgraph_has_cross_boundary_edges("sg1"));
     }
 
     #[test]
     fn cross_boundary_edges_nonexistent_subgraph() {
-        let diagram = Diagram::new(Direction::TopDown);
+        let diagram = Graph::new(Direction::TopDown);
         assert!(!diagram.subgraph_has_cross_boundary_edges("nope"));
     }
 
     #[test]
     fn cross_boundary_edges_nested_outer_has_inner_does_not() {
-        use crate::graph::builder::build_diagram;
-        use crate::parser::parse_flowchart;
+        use crate::diagrams::flowchart::compile_to_graph;
+        use crate::mermaid::parse_flowchart;
         let input = "graph TD\nsubgraph outer[Outer]\ndirection LR\nsubgraph inner[Inner]\ndirection BT\nA --> B\nend\nC --> D\nend\nE --> C";
         let flowchart = parse_flowchart(input).unwrap();
-        let diagram = build_diagram(&flowchart);
+        let diagram = compile_to_graph(&flowchart);
         assert!(diagram.subgraph_has_cross_boundary_edges("outer"));
         assert!(!diagram.subgraph_has_cross_boundary_edges("inner"));
     }
 
     #[test]
     fn test_diagram_subgraphs_empty() {
-        let diagram = Diagram::new(Direction::TopDown);
+        let diagram = Graph::new(Direction::TopDown);
         assert!(diagram.subgraphs.is_empty());
         assert!(!diagram.has_subgraphs());
     }
 
     #[test]
     fn test_diagram_has_subgraphs() {
-        let mut diagram = Diagram::new(Direction::TopDown);
+        let mut diagram = Graph::new(Direction::TopDown);
         diagram.subgraphs.insert(
             "sg1".to_string(),
             Subgraph {

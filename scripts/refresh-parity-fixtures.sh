@@ -27,7 +27,7 @@ echo "Building mmdflux..."
 cargo build --manifest-path "$REPO_ROOT/Cargo.toml"
 
 MMDFLUX="$REPO_ROOT/target/debug/mmdflux"
-DUMP_BIN="$REPO_ROOT/target/debug/dump_dagre_input"
+DAGRE_INPUT_JQ="$REPO_ROOT/scripts/mmds-to-dagre-input.jq"
 
 # Fixtures to process
 FIXTURES=(
@@ -55,9 +55,9 @@ for fixture in "${FIXTURES[@]}"; do
     continue
   fi
 
-  # 1. Extract dagre input from mmdflux
+  # 1. Extract dagre input from mmdflux (render to MMDS, transform with jq)
   echo "  Extracting dagre input..."
-  "$DUMP_BIN" "$input" > "$outdir/mmdflux-dagre-input.json" 2>"$outdir/mmdflux-dagre-input.stderr" || true
+  "$MMDFLUX" "$input" --format mmds 2>"$outdir/mmdflux-dagre-input.stderr" | jq -f "$DAGRE_INPUT_JQ" > "$outdir/mmdflux-dagre-input.json" 2>>"$outdir/mmdflux-dagre-input.stderr" || true
 
   # 2. Run dagre.js to get expected layout
   echo "  Running dagre.js layout..."

@@ -54,7 +54,7 @@ The routing stage receives engine-agnostic node positions, edge topology, and la
 
 | Mode                 | Description                                   | Status                    |
 | -------------------- | --------------------------------------------- | ------------------------- |
-| `full-compute`       | Build paths from layout hints + node geometry | Default (legacy)          |
+| `full-compute`       | Build paths from layout hints + node geometry | Default                   |
 | `pass-through-clip`  | Use engine-provided paths with clipping       | Used by ELK adapter       |
 | `orthogonal-preview` | Float-first shared routing engine             | In hardening (plan 0076+) |
 

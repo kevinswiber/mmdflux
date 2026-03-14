@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "profiles": [
+    "mmds-core-v1",
+    "mmdflux-text-v1"
+  ],
+  "extensions": {
+    "org.mmdflux.render.text.v1": {
+      "projection": {
+        "edge_waypoints": {
+          "1": [
+            {
+              "rank": 3,
+              "x": 96.94239999999999,
+              "y": 341.0
+            }
+          ]
+        },
+        "label_positions": {},
+        "node_ranks": {
+          "A": 1,
+          "B": 2,
+          "C": 4
+        }
+      }
+    }
+  },
+  "defaults": {
+    "node": {
+      "shape": "rectangle"
+    },
+    "edge": {
+      "stroke": "solid",
+      "arrow_start": "none",
+      "arrow_end": "normal",
+      "minlen": 1
+    }
+  },
+  "geometry_level": "layout",
+  "metadata": {
+    "diagram_type": "flowchart",
+    "direction": "TD",
+    "bounds": {
+      "width": 193.88479999999998,
+      "height": 478.0
+    },
+    "engine": "flux-layered"
+  },
+  "nodes": [
+    {
+      "id": "A",
+      "label": "Start",
+      "parent": "sg1",
+      "position": {
+        "x": 96.94239999999999,
+        "y": 110.0
+      },
+      "size": {
+        "width": 95.26400000000001,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "B",
+      "label": "Middle",
+      "parent": "sg1",
+      "position": {
+        "x": 96.94239999999999,
+        "y": 239.0
+      },
+      "size": {
+        "width": 107.8848,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "C",
+      "label": "End",
+      "position": {
+        "x": 96.94239999999999,
+        "y": 443.0
+      },
+      "size": {
+        "width": 85.984,
+        "height": 54.0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "A",
+      "target": "B"
+    },
+    {
+      "id": "e1",
+      "source": "B",
+      "target": "C"
+    }
+  ],
+  "subgraphs": [
+    {
+      "id": "sg1",
+      "title": "Process",
+      "children": [
+        "A",
+        "B"
+      ]
+    }
+  ]
+}

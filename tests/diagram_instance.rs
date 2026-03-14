@@ -1,43 +1,34 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::{DiagramFamily, GeometryLevel, OutputFormat, RenderConfig, RenderError};
-use mmdflux::registry::{DiagramDefinition, DiagramInstance, DiagramRegistry};
+use mmdflux::graph::{Direction, GeometryLevel, Graph, Node};
+use mmdflux::mmds::SUPPORTED_OUTPUT_FORMATS as MMDS_SUPPORTED_OUTPUT_FORMATS;
+use mmdflux::payload::Diagram;
+use mmdflux::registry::{
+    DiagramDefinition, DiagramFamily, DiagramInstance, DiagramRegistry, ParsedDiagram,
+};
+use mmdflux::{OutputFormat, RenderConfig, RenderError};
 
-struct MockDiagram {
-    parsed: Option<String>,
-}
+struct MockDiagram;
 
-fn mmds_fixture(name: &str) -> String {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("fixtures")
-        .join("mmds")
-        .join(name);
-    fs::read_to_string(&path).unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()))
+struct MockParsedDiagram {
+    content: String,
 }
 
 impl MockDiagram {
     fn new() -> Self {
-        Self { parsed: None }
+        Self
     }
 }
 
 impl DiagramInstance for MockDiagram {
-    fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.parsed = Some(input.to_string());
-        Ok(())
-    }
-
-    fn render(&self, format: OutputFormat, _config: &RenderConfig) -> Result<String, RenderError> {
-        let content = self.parsed.as_ref().ok_or("Not parsed")?;
-        match format {
-            OutputFormat::Text => Ok(format!("[TEXT] {}", content)),
-            OutputFormat::Ascii => Ok(format!("[ASCII] {}", content)),
-            OutputFormat::Svg | OutputFormat::Mmds | OutputFormat::Mermaid => {
-                Err("Not supported".into())
-            }
-        }
+    fn parse(
+        self: Box<Self>,
+        input: &str,
+    ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
+        Ok(Box::new(MockParsedDiagram {
+            content: input.to_string(),
+        }))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
@@ -45,15 +36,54 @@ impl DiagramInstance for MockDiagram {
     }
 }
 
-#[test]
-fn diagram_instance_parse_and_render() {
-    let mut diagram = MockDiagram::new();
-    diagram.parse("test input").unwrap();
+impl ParsedDiagram for MockParsedDiagram {
+    fn into_payload(self: Box<Self>, _config: &RenderConfig) -> Result<Diagram, RenderError> {
+        let mut graph = Graph::new(Direction::TopDown);
+        graph.add_node(Node::new(&self.content));
+        Ok(Diagram::Flowchart(graph))
+    }
+}
 
-    let output = diagram
-        .render(OutputFormat::Text, &RenderConfig::default())
+#[test]
+fn diagram_instance_parse_and_into_payload() {
+    let payload = Box::new(MockDiagram::new())
+        .parse("test input")
+        .unwrap()
+        .into_payload(&RenderConfig::default())
         .unwrap();
-    assert_eq!(output, "[TEXT] test input");
+    let Diagram::Flowchart(graph) = payload else {
+        panic!("mock should yield a flowchart payload");
+    };
+    assert!(graph.nodes.contains_key("test input"));
+}
+
+#[test]
+fn diagram_instance_into_payload_returns_expected_variant() {
+    let payload = Box::new(MockDiagram::new())
+        .parse("test input")
+        .unwrap()
+        .into_payload(&RenderConfig::default())
+        .unwrap();
+    assert!(matches!(payload, Diagram::Flowchart(_)));
+}
+
+#[test]
+fn diagram_instance_trait_is_phase_split() {
+    let source = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("registry.rs"),
+    )
+    .unwrap();
+    let diagram_instance_block = source
+        .split("pub trait ParsedDiagram")
+        .next()
+        .expect("DiagramInstance trait should precede ParsedDiagram");
+
+    assert!(!source.contains("fn render(&self"));
+    assert!(source.contains("fn parse(\n        self: Box<Self>,"));
+    assert!(source.contains("pub trait ParsedDiagram"));
+    assert!(!diagram_instance_block.contains("fn into_payload("));
 }
 
 #[test]
@@ -62,14 +92,6 @@ fn diagram_instance_supports_format() {
     assert!(diagram.supports_format(OutputFormat::Text));
     assert!(diagram.supports_format(OutputFormat::Ascii));
     assert!(!diagram.supports_format(OutputFormat::Svg));
-}
-
-#[test]
-fn diagram_instance_unsupported_format_errors() {
-    let mut diagram = MockDiagram::new();
-    diagram.parse("test").unwrap();
-    let result = diagram.render(OutputFormat::Svg, &RenderConfig::default());
-    assert!(result.is_err());
 }
 
 #[test]
@@ -84,12 +106,16 @@ fn registry_create_returns_instance() {
         supported_formats: &[OutputFormat::Text, OutputFormat::Ascii],
     });
 
-    let mut instance = registry.create("mock").expect("should create instance");
-    instance.parse("hello").unwrap();
-    let output = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
+    let instance = registry.create("mock").expect("should create instance");
+    let payload = instance
+        .parse("hello")
+        .unwrap()
+        .into_payload(&RenderConfig::default())
         .unwrap();
-    assert_eq!(output, "[TEXT] hello");
+    let Diagram::Flowchart(graph) = payload else {
+        panic!("mock should yield a flowchart payload");
+    };
+    assert!(graph.nodes.contains_key("hello"));
 }
 
 #[test]
@@ -99,97 +125,23 @@ fn registry_create_unknown_returns_none() {
 }
 
 #[test]
-fn mmds_module_exports_instance_type() {
-    let _ = mmdflux::diagrams::mmds::MmdsInstance::default();
+fn mmds_frontend_is_not_registered_as_diagram_type() {
+    let registry = mmdflux::builtins::default_registry();
+
+    assert!(
+        registry.get("mmds").is_none(),
+        "MMDS should not appear as a registered logical diagram type"
+    );
 }
 
 #[test]
-fn mmds_instance_parse_accepts_minimal_layout_payload() {
-    let mut instance = mmdflux::diagrams::mmds::MmdsInstance::default();
-    let input = mmds_fixture("minimal-layout.json");
-
-    instance.parse(&input).expect("parse should succeed");
-    assert!(instance.has_parsed_payload());
+fn mmds_format_supported_list_includes_replay_formats() {
+    assert!(MMDS_SUPPORTED_OUTPUT_FORMATS.contains(&OutputFormat::Text));
+    assert!(MMDS_SUPPORTED_OUTPUT_FORMATS.contains(&OutputFormat::Svg));
+    assert!(MMDS_SUPPORTED_OUTPUT_FORMATS.contains(&OutputFormat::Mmds));
 }
 
 #[test]
-fn mmds_instance_parse_rejects_invalid_json_with_stable_message() {
-    let mut instance = mmdflux::diagrams::mmds::MmdsInstance::default();
-    let err = instance.parse("not json").unwrap_err();
-    assert!(err.to_string().starts_with("MMDS parse error:"));
-}
-
-#[test]
-fn mmds_layout_payload_renders_text() {
-    let mut instance = mmdflux::diagrams::mmds::MmdsInstance::default();
-    let input = mmds_fixture("minimal-layout.json");
-    instance.parse(&input).expect("parse should succeed");
-
-    let rendered = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .expect("layout payload should render text");
-    assert!(rendered.contains("Start"));
-    assert!(rendered.contains("End"));
-}
-
-#[test]
-fn mmds_routed_geometry_level_uses_direct_svg_path() {
-    let mut instance = mmdflux::diagrams::mmds::MmdsInstance::default();
-    let input = mmds_fixture("positioned/routed-basic.json");
-    instance.parse(&input).expect("parse should succeed");
-
-    let svg = instance
-        .render(OutputFormat::Svg, &RenderConfig::default())
-        .expect("routed MMDS should render SVG");
-    assert!(svg.starts_with("<svg"));
-    assert!(svg.contains("Start"));
-}
-
-#[test]
-fn mmds_routed_geometry_level_renders_text_by_ignoring_paths() {
-    let mut instance = mmdflux::diagrams::mmds::MmdsInstance::default();
-    let input = mmds_fixture("positioned/routed-basic.json");
-    instance.parse(&input).expect("parse should succeed");
-
-    let rendered = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .expect("routed MMDS should render text by ignoring paths");
-    assert!(rendered.contains("Start"));
-}
-
-#[test]
-fn mmds_routed_json_output_at_layout_level_strips_paths() {
-    let mut instance = mmdflux::diagrams::mmds::MmdsInstance::default();
-    let input = mmds_fixture("positioned/routed-basic.json");
-    instance.parse(&input).expect("parse should succeed");
-
-    // Default geometry_level is Layout, so routed input should be downgraded.
-    let json = instance
-        .render(OutputFormat::Mmds, &RenderConfig::default())
-        .expect("routed MMDS should render JSON at layout level");
-    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(value["geometry_level"], "layout");
-    // Routed-only fields should be stripped.
-    let edge = &value["edges"][0];
-    assert!(edge.get("path").is_none());
-    assert!(edge.get("label_position").is_none());
-    assert!(edge.get("is_backward").is_none());
-}
-
-#[test]
-fn mmds_routed_json_output_at_routed_level_preserves_paths() {
-    let mut instance = mmdflux::diagrams::mmds::MmdsInstance::default();
-    let input = mmds_fixture("positioned/routed-basic.json");
-    instance.parse(&input).expect("parse should succeed");
-
-    let config = RenderConfig {
-        geometry_level: GeometryLevel::Routed,
-        ..Default::default()
-    };
-    let json = instance
-        .render(OutputFormat::Mmds, &config)
-        .expect("routed MMDS should pass through at routed level");
-    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
-    assert_eq!(value["geometry_level"], "routed");
-    assert!(value["edges"][0].get("path").is_some());
+fn geometry_level_default_is_layout() {
+    assert_eq!(GeometryLevel::default(), GeometryLevel::Layout);
 }

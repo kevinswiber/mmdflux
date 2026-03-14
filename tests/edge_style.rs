@@ -1,6 +1,6 @@
 //! Tests for the style model types: RoutingStyle, Curve, CornerStyle, EdgePreset.
 
-use mmdflux::diagram::{CornerStyle, Curve, EdgePreset, RoutingStyle};
+use mmdflux::format::{CornerStyle, Curve, EdgePreset, RoutingStyle};
 
 #[test]
 fn routing_style_parse_accepts_canonical_values() {

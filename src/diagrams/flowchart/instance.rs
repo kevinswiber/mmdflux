@@ -1,158 +1,128 @@
 //! Flowchart diagram instance implementation.
+//!
+//! Compiles Mermaid flowchart syntax to `graph::Diagram` (graph-family IR),
+//! then builds an owned graph-family payload for runtime dispatch.
 
-use crate::diagram::{
-    AlgorithmId, EdgeRouting, EngineAlgorithmId, EngineConfig, EngineId, GraphSolveRequest,
-    OutputFormat, RenderConfig, RenderError,
-};
-use crate::diagrams::flowchart::render::svg::render_svg_from_geometry;
-use crate::engines::graph::GraphEngineRegistry;
-use crate::graph::{Diagram, build_diagram};
-use crate::mmds::to_mmds_json;
-use crate::parser::parse_flowchart;
-use crate::registry::DiagramInstance;
-use crate::render::{RenderOptions, layout_config_for_diagram, render_text_from_layout};
+use super::compile_to_graph;
+use crate::config::RenderConfig;
+use crate::errors::RenderError;
+use crate::format::OutputFormat;
+use crate::graph::Graph;
+use crate::mermaid::parse_flowchart;
+use crate::registry::{DiagramInstance, ParsedDiagram};
 
 /// Flowchart diagram instance.
 ///
-/// Wraps the existing flowchart parsing and rendering logic behind
-/// the `DiagramInstance` trait.
-pub struct FlowchartInstance {
-    /// Built diagram model.
-    diagram: Option<Diagram>,
-}
+/// Compiles flowchart syntax to `graph::Graph`, then builds a
+/// graph-family payload for runtime dispatch.
+#[derive(Default)]
+pub struct FlowchartInstance;
 
 impl FlowchartInstance {
     /// Create a new flowchart instance.
     pub fn new() -> Self {
-        Self { diagram: None }
-    }
-}
-
-impl Default for FlowchartInstance {
-    fn default() -> Self {
-        Self::new()
+        Self
     }
 }
 
 impl DiagramInstance for FlowchartInstance {
-    fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn parse(
+        self: Box<Self>,
+        input: &str,
+    ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
         let flowchart = parse_flowchart(input)?;
-        self.diagram = Some(build_diagram(&flowchart));
-        Ok(())
-    }
-
-    fn render(&self, format: OutputFormat, config: &RenderConfig) -> Result<String, RenderError> {
-        let diagram = self.diagram.as_ref().ok_or_else(|| RenderError {
-            message: "No diagram parsed. Call parse() first.".to_string(),
-        })?;
-
-        let annotated;
-        let diagram = if config.show_ids {
-            annotated = annotate_node_ids(diagram);
-            &annotated
-        } else {
-            diagram
-        };
-
-        // Resolve engine (default: flux-layered).
-        let engine_id = config
-            .layout_engine
-            .unwrap_or_else(|| EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered));
-        engine_id.check_available()?;
-        engine_id.check_routing_style(config)?;
-
-        let mut options: RenderOptions = config.into();
-        options.output_format = format;
-
-        match format {
-            OutputFormat::Mmds => {
-                // MMDS: use solve() to obtain geometry and optionally routed paths.
-                let request = GraphSolveRequest::from_config(config, format);
-                let registry = GraphEngineRegistry::default();
-                let engine = registry.get_solver(engine_id).ok_or_else(|| RenderError {
-                    message: format!("no engine registered for: {engine_id}"),
-                })?;
-                let result = engine.solve(
-                    diagram,
-                    &EngineConfig::Layered(config.layout.clone()),
-                    &request,
-                )?;
-                to_mmds_json(
-                    diagram,
-                    &result.geometry,
-                    result.routed.as_ref(),
-                    config.geometry_level,
-                    config.path_simplification,
-                    Some(engine_id),
-                )
-            }
-            OutputFormat::Svg => {
-                // SVG: solve() produces GraphGeometry; render_svg_from_geometry() renders it.
-                // This dispatches layout through the engine registry so --layout-engine
-                // is respected. Edge routing mode is derived from engine capabilities +
-                // the resolved routing style (already in options.edge_routing).
-                let request = GraphSolveRequest::from_config(config, format);
-                let registry = GraphEngineRegistry::default();
-                let engine = registry.get_solver(engine_id).ok_or_else(|| RenderError {
-                    message: format!("no engine registered for: {engine_id}"),
-                })?;
-                let result = engine.solve(
-                    diagram,
-                    &EngineConfig::Layered(config.layout.clone()),
-                    &request,
-                )?;
-                let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
-                Ok(render_svg_from_geometry(
-                    diagram,
-                    &options,
-                    &result.geometry,
-                    edge_routing,
-                ))
-            }
-            _ => {
-                // Text/Ascii: engine → text adapter → text renderer.
-                let request = GraphSolveRequest::from_config(config, format);
-                let registry = GraphEngineRegistry::default();
-                let engine = registry.get_solver(engine_id).ok_or_else(|| RenderError {
-                    message: format!("no engine registered for: {engine_id}"),
-                })?;
-                let result = engine.solve(
-                    diagram,
-                    &EngineConfig::Layered(config.layout.clone()),
-                    &request,
-                )?;
-                let mut text_config = layout_config_for_diagram(diagram, &options);
-                text_config.ranker = options.ranker;
-                let edge_routing = options.edge_routing.unwrap_or(EdgeRouting::OrthogonalRoute);
-                let routed =
-                    super::routing::route_graph_geometry(diagram, &result.geometry, edge_routing);
-                let layout = super::render::text_adapter::geometry_to_text_layout_with_routed(
-                    diagram,
-                    &result.geometry,
-                    Some(&routed),
-                    &text_config,
-                );
-                Ok(render_text_from_layout(diagram, &layout, &options))
-            }
-        }
+        Ok(Box::new(ParsedFlowchart {
+            diagram: compile_to_graph(&flowchart),
+        }))
     }
 
     fn supports_format(&self, format: OutputFormat) -> bool {
-        matches!(
-            format,
-            OutputFormat::Text | OutputFormat::Ascii | OutputFormat::Svg | OutputFormat::Mmds
-        )
+        super::SUPPORTED_FORMATS.contains(&format)
+    }
+
+    fn validation_warnings(&self, input: &str) -> Vec<crate::errors::ParseDiagnostic> {
+        super::validation::collect_all_warnings(input)
     }
 }
 
-/// Create a copy of the diagram with node labels annotated as "ID: Label".
-/// Skips nodes where label == id (bare nodes).
-fn annotate_node_ids(diagram: &Diagram) -> Diagram {
-    let mut annotated = diagram.clone();
-    for node in annotated.nodes.values_mut() {
+struct ParsedFlowchart {
+    diagram: Graph,
+}
+
+impl ParsedDiagram for ParsedFlowchart {
+    fn into_payload(
+        self: Box<Self>,
+        config: &RenderConfig,
+    ) -> Result<crate::payload::Diagram, RenderError> {
+        // Diagram-specific pre-processing: annotate node IDs if requested.
+        let diagram = if config.show_ids {
+            annotate_node_ids(self.diagram)
+        } else {
+            self.diagram
+        };
+
+        Ok(crate::payload::Diagram::Flowchart(diagram))
+    }
+}
+
+/// Annotate node labels as "ID: Label", skipping bare nodes where label == id.
+fn annotate_node_ids(mut diagram: Graph) -> Graph {
+    for node in diagram.nodes.values_mut() {
         if node.label != node.id {
             node.label = format!("{}: {}", node.id, node.label);
         }
     }
-    annotated
+    diagram
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flowchart_instance_parses_valid_input() {
+        let payload = Box::new(FlowchartInstance::new())
+            .parse("graph TD\nA[Start] --> B[End]")
+            .expect("flowchart input should parse")
+            .into_payload(&RenderConfig::default())
+            .expect("parsed flowchart should build a payload");
+        let crate::payload::Diagram::Flowchart(graph) = payload else {
+            panic!("flowchart should yield a Flowchart payload");
+        };
+        assert_eq!(graph.nodes.len(), 2);
+        assert_eq!(graph.edges.len(), 1);
+    }
+
+    #[test]
+    fn flowchart_instance_rejects_invalid_input() {
+        let result = Box::new(FlowchartInstance::new()).parse("not a valid diagram }{{}");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn flowchart_prepare_honors_show_ids() {
+        let payload = Box::new(FlowchartInstance::new())
+            .parse("graph TD\nA[Start] --> B[End]\n")
+            .expect("flowchart input should parse")
+            .into_payload(&RenderConfig {
+                show_ids: true,
+                ..RenderConfig::default()
+            })
+            .expect("graph payload should succeed");
+        let crate::payload::Diagram::Flowchart(graph) = payload else {
+            panic!("flowchart should yield a graph payload");
+        };
+        assert_eq!(graph.nodes["A"].label, "A: Start");
+        assert_eq!(graph.nodes["B"].label, "B: End");
+    }
+
+    #[test]
+    fn flowchart_instance_supports_supported_formats() {
+        let instance = FlowchartInstance::new();
+        assert!(instance.supports_format(OutputFormat::Text));
+        assert!(instance.supports_format(OutputFormat::Ascii));
+        assert!(instance.supports_format(OutputFormat::Svg));
+        assert!(instance.supports_format(OutputFormat::Mmds));
+        assert!(!instance.supports_format(OutputFormat::Mermaid));
+    }
 }

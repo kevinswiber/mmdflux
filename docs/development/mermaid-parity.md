@@ -7,7 +7,7 @@ including how to set up dependencies, run parity tests, and debug layout issues.
 
 1. Clone the repo
 2. Run `./scripts/setup-debug-deps.sh` to set up dagre and mermaid
-3. Run `cargo test --test dagre_parity` to verify layout parity
+3. Run `cargo nextest run -E 'test(dagre_parity)'` to verify layout parity
 
 ## Overview
 
@@ -52,10 +52,12 @@ Ensure dagre is at v0.8.5 and mermaid has the patch scripts copied.
 
 ## Parity Tests
 
-The `tests/dagre_parity.rs` tests compare mmdflux layout against dagre.js output:
+The dagre parity tests live in the layered kernel as owner-local tests
+(`src/engines/graph/algorithms/layered/kernel/dagre_parity_tests.rs`).
+They compare mmdflux layout against dagre.js output:
 
 ```bash
-cargo test dagre_parity
+cargo nextest run -E 'test(dagre_parity)'
 ```
 
 ### Test Fixtures
@@ -76,6 +78,9 @@ To regenerate fixtures after dagre changes:
 ```bash
 ./scripts/refresh-parity-fixtures.sh
 ```
+
+This uses `mmdflux --format mmds` piped through `scripts/mmds-to-dagre-input.jq`
+to produce dagre input JSON, then runs dagre.js to generate expected layouts.
 
 ## Debug Scripts
 
@@ -111,6 +116,14 @@ Dumps node order per rank after ordering phase:
 node scripts/dump-dagre-order.js input.json
 ```
 
+### mmds-to-dagre-input.jq
+
+Transforms mmdflux MMDS JSON output into dagre.js input format:
+
+```bash
+cargo run -- fixture.mmd --format mmds | jq -f scripts/mmds-to-dagre-input.jq
+```
+
 ## Environment Variables
 
 ### Paths
@@ -129,33 +142,6 @@ node scripts/dump-dagre-order.js input.json
 | `MMDFLUX_DEBUG_BORDER_NODES=1`  | Print border node trace                  |
 | `MMDFLUX_DEBUG_ORDER=1`         | Enable order debug tracing               |
 | `MMDFLUX_DEBUG_BK_TRACE=1`      | Trace Brandes-Köpf coordinate assignment |
-
-## Orthogonal Routing Preview
-
-Phase 4 of plan 0075 adds an explicit orthogonal-routing preview path for flowchart
-SVG and routed MMDS outputs:
-
-```bash
-# Preview orthogonal float-first routing (SVG)
-cargo run -- -f svg --edge-routing orthogonal-preview --edge-style straight diagram.mmd
-
-# Roll back to legacy routing behavior (default)
-cargo run -- -f svg --edge-style straight diagram.mmd
-```
-
-Notes:
-- Default rendering remains legacy unless `--edge-routing orthogonal-preview` is set.
-- `--edge-routing full-compute` is the explicit legacy override.
-- The parity harness currently tracks a known straight-SVG delta on
-  `simple_cycle.mmd` for orthogonal preview.
-
-### Preview Parity Gates
-
-```bash
-cargo test svg_orthogonal_preview_parity_core_fixture_subset_has_expected_deltas --test svg_snapshots
-cargo test svg_full_compute_override_matches_legacy_straight_core_subset --test svg_snapshots
-cargo test orthogonal_preview_preserves_core_routed_geometry_contracts --test routed_geometry
-```
 
 ## Troubleshooting
 

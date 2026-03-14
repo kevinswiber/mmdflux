@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "profiles": [
+    "mmds-core-v1",
+    "mmdflux-text-v1"
+  ],
+  "extensions": {
+    "org.mmdflux.render.text.v1": {
+      "projection": {
+        "edge_waypoints": {},
+        "label_positions": {},
+        "node_ranks": {
+          "Foundation": 0,
+          "Roof": 2,
+          "Structure": 1
+        }
+      }
+    }
+  },
+  "defaults": {
+    "node": {
+      "shape": "rectangle"
+    },
+    "edge": {
+      "stroke": "solid",
+      "arrow_start": "none",
+      "arrow_end": "normal",
+      "minlen": 1
+    }
+  },
+  "geometry_level": "layout",
+  "metadata": {
+    "diagram_type": "flowchart",
+    "direction": "BT",
+    "bounds": {
+      "width": 155.25119999999998,
+      "height": 278.0
+    },
+    "engine": "flux-layered"
+  },
+  "nodes": [
+    {
+      "id": "Foundation",
+      "label": "Foundation",
+      "position": {
+        "x": 77.62559999999999,
+        "y": 243.0
+      },
+      "size": {
+        "width": 139.25119999999998,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Roof",
+      "label": "Roof",
+      "position": {
+        "x": 77.62559999999999,
+        "y": 35.0
+      },
+      "size": {
+        "width": 91.9232,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Structure",
+      "label": "Structure",
+      "position": {
+        "x": 77.62559999999999,
+        "y": 139.0
+      },
+      "size": {
+        "width": 126.81599999999999,
+        "height": 54.0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "Foundation",
+      "target": "Structure"
+    },
+    {
+      "id": "e1",
+      "source": "Structure",
+      "target": "Roof"
+    }
+  ]
+}

@@ -6,13 +6,12 @@
 
 use std::path::Path;
 
-use mmdflux::diagram::{
-    EngineAlgorithmId, GeometryLevel, OutputFormat, PathSimplification, RenderConfig, TextColorMode,
+use mmdflux::graph::GeometryLevel;
+use mmdflux::mmds::{
+    MmdsOutput, SUPPORTED_MMDS_PROFILES, evaluate_mmds_profiles, parse_mmds_input, render_input,
 };
-use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::diagrams::mmds::MmdsInstance;
-use mmdflux::mmds::MmdsOutput;
-use mmdflux::registry::DiagramInstance;
+use mmdflux::simplification::PathSimplification;
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode};
 use serde_json::Value;
 
 const STYLED_MMDS_LAYOUT: &str = r##"{
@@ -74,42 +73,34 @@ fn flowchart_fixture(name: &str) -> String {
 }
 
 fn render_json(input: &str) -> String {
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
-    instance
-        .render(OutputFormat::Mmds, &RenderConfig::default())
-        .unwrap()
+    render_json_with_config(input, &RenderConfig::default())
 }
 
 fn render_json_with_level(input: &str, level: GeometryLevel) -> String {
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
     let config = RenderConfig {
         geometry_level: level,
         ..RenderConfig::default()
     };
-    instance.render(OutputFormat::Mmds, &config).unwrap()
+    render_json_with_config(input, &config)
 }
 
 fn render_routed_mmds_with_engine(input: &str, engine: &str) -> String {
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
-    instance
-        .render(
-            OutputFormat::Mmds,
-            &RenderConfig {
-                geometry_level: GeometryLevel::Routed,
-                layout_engine: EngineAlgorithmId::parse(engine).ok(),
-                ..RenderConfig::default()
-            },
-        )
-        .unwrap()
+    render_json_with_config(
+        input,
+        &RenderConfig {
+            geometry_level: GeometryLevel::Routed,
+            layout_engine: EngineAlgorithmId::parse(engine).ok(),
+            ..RenderConfig::default()
+        },
+    )
+}
+
+fn render_json_with_config(input: &str, config: &RenderConfig) -> String {
+    mmdflux::render_diagram(input, OutputFormat::Mmds, config).unwrap()
 }
 
 fn render_mmds_input(input: &str, format: OutputFormat, config: RenderConfig) -> String {
-    let mut instance = MmdsInstance::default();
-    instance.parse(input).unwrap();
-    instance.render(format, &config).unwrap()
+    render_input(input, format, &config).unwrap()
 }
 
 fn mmds_fixture(path: &str) -> Value {
@@ -121,6 +112,45 @@ fn mmds_fixture(path: &str) -> Value {
     let raw = std::fs::read_to_string(&path)
         .unwrap_or_else(|err| panic!("failed to read fixture {}: {err}", path.display()));
     serde_json::from_str(&raw).unwrap_or_else(|err| panic!("invalid fixture JSON: {err}"))
+}
+
+fn mmds_profile_fixture(name: &str) -> Value {
+    mmds_fixture(&format!("profiles/{name}"))
+}
+
+fn mmds_profile_fixture_text(name: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("mmds")
+        .join("profiles")
+        .join(name);
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read profile fixture {}: {err}", path.display()))
+}
+
+fn mmds_contract_fixture_text(path: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("mmds")
+        .join("contracts")
+        .join(path);
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read contract fixture {}: {err}", path.display()))
+}
+
+fn mmds_contract_fixture(path: &str) -> Value {
+    mmds_fixture(&format!("contracts/{path}"))
+}
+
+fn assert_matches_contract_fixture(actual: &str, fixture_path: &str) {
+    let actual: Value = serde_json::from_str(actual).expect("actual MMDS should be valid JSON");
+    let expected = mmds_contract_fixture(fixture_path);
+    assert_eq!(
+        actual, expected,
+        "MMDS output drifted from locked contract fixture {fixture_path}"
+    );
 }
 
 fn mmds_schema_validator() -> jsonschema::Validator {
@@ -157,6 +187,23 @@ fn assert_schema_invalid(payload: Value) {
         "expected schema-invalid payload but it validated"
     );
 }
+
+#[test]
+fn top_level_mmds_contract_helpers_parse_and_negotiate_shared_fixture_profiles() {
+    let payload = mmds_contract_fixture_text("flowchart-simple.layout.json");
+
+    let parsed = parse_mmds_input(&payload).expect("shared contract fixture should parse");
+    let negotiation =
+        evaluate_mmds_profiles(&payload).expect("shared contract fixture profile evaluation");
+
+    assert_eq!(parsed.metadata.diagram_type, "flowchart");
+    assert_eq!(
+        negotiation.supported,
+        vec!["mmds-core-v1".to_string(), "mmdflux-text-v1".to_string()]
+    );
+    assert_eq!(negotiation.unknown, Vec::<String>::new());
+}
+
 // -----------------------------------------------------------------------
 // Contract: MMDS envelope
 // -----------------------------------------------------------------------
@@ -234,6 +281,36 @@ fn mmds_output_omits_node_style_extension_when_styles_absent() {
             .and_then(|extensions| extensions.get("org.mmdflux.node-style.v1"))
             .is_none()
     );
+}
+
+#[test]
+fn mmds_output_emits_grid_projection_extension_when_available() {
+    let json = render_json("graph TD\nA-->B");
+    let value: Value = serde_json::from_str(&json).unwrap();
+
+    assert!(
+        value["profiles"]
+            .as_array()
+            .is_some_and(|profiles| profiles.iter().any(|profile| profile == "mmdflux-text-v1"))
+    );
+    let projection = &value["extensions"]["org.mmdflux.render.text.v1"]["projection"];
+    assert!(projection["node_ranks"].get("A").is_some());
+    assert!(projection["node_ranks"].get("B").is_some());
+    assert!(projection["edge_waypoints"].is_object());
+    assert!(projection["label_positions"].is_object());
+    assert_schema_valid(value);
+}
+
+#[test]
+fn mmds_output_matches_locked_simple_contract_fixture() {
+    let json = render_json(&flowchart_fixture("simple.mmd"));
+    assert_matches_contract_fixture(&json, "flowchart-simple.layout.json");
+}
+
+#[test]
+fn mmds_output_matches_locked_node_style_contract_fixture() {
+    let json = render_json(&flowchart_fixture("style-basic.mmd"));
+    assert_matches_contract_fixture(&json, "flowchart-style.layout.json");
 }
 
 #[test]
@@ -318,19 +395,15 @@ fn mmds_layout_node_shapes() {
 fn mmds_lossless_path_simplification_sits_between_none_and_lossy() {
     let input = flowchart_fixture("multi_subgraph_direction_override.mmd");
     let render_for = |path_simplification: PathSimplification| {
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).unwrap();
-        instance
-            .render(
-                OutputFormat::Mmds,
-                &RenderConfig {
-                    geometry_level: GeometryLevel::Routed,
-                    path_simplification,
-                    layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                    ..RenderConfig::default()
-                },
-            )
-            .unwrap()
+        render_json_with_config(
+            &input,
+            &RenderConfig {
+                geometry_level: GeometryLevel::Routed,
+                path_simplification,
+                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+                ..RenderConfig::default()
+            },
+        )
     };
 
     let full = render_for(PathSimplification::None);
@@ -378,8 +451,6 @@ fn mmds_lossless_path_simplification_sits_between_none_and_lossy() {
 fn routed_mmds_defaults_to_lossless_path_simplification() {
     let input = flowchart_fixture("multi_subgraph_direction_override.mmd");
     let render_for = |path_simplification: Option<PathSimplification>| {
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).unwrap();
         let mut config = RenderConfig {
             geometry_level: GeometryLevel::Routed,
             layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
@@ -388,7 +459,7 @@ fn routed_mmds_defaults_to_lossless_path_simplification() {
         if let Some(path_simplification) = path_simplification {
             config.path_simplification = path_simplification;
         }
-        instance.render(OutputFormat::Mmds, &config).unwrap()
+        render_json_with_config(&input, &config)
     };
     let edge_len = |json: &str| {
         let output: MmdsOutput = serde_json::from_str(json).unwrap();
@@ -434,19 +505,15 @@ fn routed_mmds_defaults_to_lossless_path_simplification() {
 fn path_simplification_monotonicity_holds_none_lossless_lossy() {
     let input = flowchart_fixture("multi_subgraph_direction_override.mmd");
     let render_for = |path_simplification: PathSimplification| {
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).unwrap();
-        instance
-            .render(
-                OutputFormat::Mmds,
-                &RenderConfig {
-                    geometry_level: GeometryLevel::Routed,
-                    path_simplification,
-                    layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                    ..RenderConfig::default()
-                },
-            )
-            .unwrap()
+        render_json_with_config(
+            &input,
+            &RenderConfig {
+                geometry_level: GeometryLevel::Routed,
+                path_simplification,
+                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+                ..RenderConfig::default()
+            },
+        )
     };
     let edge_len = |json: &str| {
         let output: MmdsOutput = serde_json::from_str(json).unwrap();
@@ -809,13 +876,8 @@ fn mmds_direction_variants() {
 
 #[test]
 fn mmds_class_diagram_produces_json() {
-    use mmdflux::diagrams::class::ClassInstance;
-
-    let mut instance = ClassInstance::new();
-    instance.parse("classDiagram\nA --> B").unwrap();
-
     let config = RenderConfig::default();
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_json_with_config("classDiagram\nA --> B", &config);
     let parsed: MmdsOutput = serde_json::from_str(&output).unwrap();
 
     assert_eq!(parsed.version, 1);
@@ -826,16 +888,11 @@ fn mmds_class_diagram_produces_json() {
 
 #[test]
 fn mmds_class_diagram_routed_level() {
-    use mmdflux::diagrams::class::ClassInstance;
-
-    let mut instance = ClassInstance::new();
-    instance.parse("classDiagram\nA --> B").unwrap();
-
     let config = RenderConfig {
         geometry_level: GeometryLevel::Routed,
         ..RenderConfig::default()
     };
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_json_with_config("classDiagram\nA --> B", &config);
     let parsed: MmdsOutput = serde_json::from_str(&output).unwrap();
 
     assert_eq!(parsed.geometry_level, "routed");
@@ -881,8 +938,21 @@ fn mmds_routed_output_with_ports_validates_against_schema() {
 
 #[test]
 fn schema_accepts_profiles_and_namespaced_extensions() {
-    let payload = mmds_fixture("profiles/profiles-svg-v1.json");
+    let payload = mmds_profile_fixture("profiles-svg-v1.json");
     assert_schema_valid(payload);
+}
+
+#[test]
+fn shared_mmds_profile_vocabulary_is_exported_from_contract_module() {
+    assert_eq!(
+        SUPPORTED_MMDS_PROFILES,
+        &[
+            "mmds-core-v1",
+            "mmdflux-svg-v1",
+            "mmdflux-text-v1",
+            "mmdflux-node-style-v1",
+        ]
+    );
 }
 
 #[test]
@@ -893,15 +963,7 @@ fn schema_rejects_invalid_extension_namespace_shape() {
 
 #[test]
 fn mmds_profiles_and_extensions_roundtrip_through_serde() {
-    let payload = std::fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("fixtures")
-            .join("mmds")
-            .join("profiles")
-            .join("profiles-svg-v1.json"),
-    )
-    .unwrap();
+    let payload = mmds_profile_fixture_text("profiles-svg-v1.json");
     let parsed: MmdsOutput = serde_json::from_str(&payload).unwrap();
     let json = serde_json::to_string(&parsed).unwrap();
 
@@ -915,13 +977,11 @@ fn mmds_spec_doc_exists() {
 }
 
 #[test]
-fn mmds_examples_exist() {
-    assert!(Path::new("examples/mmds/react_flow.js").exists());
-    assert!(Path::new("examples/mmds/cytoscape.js").exists());
-    assert!(Path::new("examples/mmds/d3.js").exists());
-    assert!(Path::new("examples/mmds/svg_passthrough.js").exists());
-    assert!(Path::new("examples/mmds/profile-mmdflux-svg-v1.json").exists());
-    assert!(Path::new("examples/mmds/profile-mmdflux-text-v1.json").exists());
+fn rust_api_examples_exist() {
+    assert!(Path::new("examples/high_level_render.rs").exists());
+    assert!(Path::new("examples/registry_adapter.rs").exists());
+    assert!(Path::new("examples/mmds_replay.rs").exists());
+    assert!(!Path::new("examples/mmds").exists());
 }
 
 #[test]
@@ -931,16 +991,32 @@ fn readme_mentions_mmds() {
 }
 
 #[test]
-fn canonical_profile_examples_validate_against_schema() {
-    for path in [
-        "examples/mmds/profile-mmdflux-svg-v1.json",
-        "examples/mmds/profile-mmdflux-text-v1.json",
+fn readme_describes_high_level_and_low_level_rust_api_tiers() {
+    let readme = std::fs::read_to_string("README.md").unwrap();
+
+    for required in [
+        "render_diagram",
+        "detect_diagram",
+        "validate_diagram",
+        "builtins::default_registry()",
+        "`registry`",
+        "`payload`",
+        "`mmds`",
+        "internal implementation modules",
     ] {
-        let absolute = Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
-        let raw = std::fs::read_to_string(&absolute)
-            .unwrap_or_else(|err| panic!("failed to read {}: {err}", absolute.display()));
+        assert!(
+            readme.contains(required),
+            "README should describe the narrowed Rust API tiers: {required}"
+        );
+    }
+}
+
+#[test]
+fn canonical_profile_examples_validate_against_schema() {
+    for profile in ["profiles-svg-v1.json", "profiles-text-v1.json"] {
+        let raw = mmds_profile_fixture_text(profile);
         let payload: Value = serde_json::from_str(&raw)
-            .unwrap_or_else(|err| panic!("invalid JSON {}: {err}", absolute.display()));
+            .unwrap_or_else(|err| panic!("invalid profile fixture {profile}: {err}"));
         assert_schema_valid(payload);
     }
 }
@@ -978,6 +1054,27 @@ fn docs_cover_live_style_scope_and_wasm_color_config() {
     let readme = std::fs::read_to_string("README.md").unwrap();
     assert!(readme.contains("NO_COLOR=1 mmdflux --format text"));
     assert!(readme.contains("--color always"));
+}
+
+#[test]
+fn mmds_docs_point_to_fixture_backed_examples_and_rust_replay_example() {
+    let docs = std::fs::read_to_string("docs/mmds.md").unwrap();
+
+    for required in [
+        "examples/mmds_replay.rs",
+        "tests/fixtures/mmds/generation/basic-flow.json",
+        "tests/fixtures/mmds/positioned/routed-basic.json",
+    ] {
+        assert!(
+            docs.contains(required),
+            "MMDS docs should reference the current example/fixture path: {required}"
+        );
+    }
+
+    assert!(
+        !docs.contains("examples/mmds/"),
+        "MMDS docs should not reference the deleted examples/mmds directory"
+    );
 }
 
 // -----------------------------------------------------------------------
@@ -1042,14 +1139,11 @@ fn mmds_layout_excludes_port_metadata() {
 #[test]
 fn mmds_routed_output_includes_engine_metadata() {
     let input = "graph TD\nA-->B";
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
-
     let config = RenderConfig {
         geometry_level: GeometryLevel::Routed,
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_json_with_config(input, &config);
     let json: serde_json::Value = serde_json::from_str(&output).unwrap();
 
     assert_eq!(json["metadata"]["engine"], "flux-layered");
@@ -1058,14 +1152,11 @@ fn mmds_routed_output_includes_engine_metadata() {
 #[test]
 fn mmds_layout_output_omits_edge_paths_regardless_of_engine() {
     let input = "graph TD\nA-->B";
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).unwrap();
-
     let config = RenderConfig {
         geometry_level: GeometryLevel::Layout,
         ..Default::default()
     };
-    let output = instance.render(OutputFormat::Mmds, &config).unwrap();
+    let output = render_json_with_config(input, &config);
     let json: serde_json::Value = serde_json::from_str(&output).unwrap();
 
     // Layout level should not have edge paths

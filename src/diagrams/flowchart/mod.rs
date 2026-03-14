@@ -3,16 +3,22 @@
 //! Flowcharts are node-edge graphs rendered using hierarchical (Sugiyama) layout.
 //! This is the original and most feature-complete diagram type in mmdflux.
 
-pub mod engine;
-pub mod geometry;
+pub mod compiler;
 mod instance;
-pub(crate) mod render;
-pub mod routing;
+pub(crate) mod validation;
 
+pub use compiler::compile_to_graph;
 pub use instance::FlowchartInstance;
 
-use crate::diagram::{DiagramFamily, OutputFormat};
-use crate::registry::{DiagramDefinition, DiagramDetector};
+use crate::format::OutputFormat;
+use crate::registry::{DiagramDefinition, DiagramDetector, DiagramFamily};
+
+pub const SUPPORTED_FORMATS: &[OutputFormat] = &[
+    OutputFormat::Text,
+    OutputFormat::Ascii,
+    OutputFormat::Svg,
+    OutputFormat::Mmds,
+];
 
 /// Detect if input is a flowchart diagram.
 ///
@@ -21,7 +27,7 @@ use crate::registry::{DiagramDefinition, DiagramDetector};
 /// - Case-insensitive keyword matching
 /// - Exact first-word matching (not prefix)
 pub fn detect(input: &str) -> bool {
-    crate::parser::detect_diagram_type(input) == Some(crate::parser::DiagramType::Flowchart)
+    crate::mermaid::detect_diagram_type(input) == Some(crate::mermaid::DiagramType::Flowchart)
 }
 
 /// Flowchart diagram definition for registry.
@@ -30,7 +36,7 @@ pub fn definition() -> DiagramDefinition {
         id: "flowchart",
         family: DiagramFamily::Graph,
         detector: detect as DiagramDetector,
-        factory: || Box::new(FlowchartInstance::default()),
-        supported_formats: &[OutputFormat::Text, OutputFormat::Ascii, OutputFormat::Svg],
+        factory: || Box::new(FlowchartInstance::new()),
+        supported_formats: SUPPORTED_FORMATS,
     }
 }

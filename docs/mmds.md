@@ -2,11 +2,43 @@
 
 MMDS is the structured JSON output format for graph-family diagrams produced by mmdflux. It is designed for machine consumption in LLM pipelines, adapter libraries, and agentic workflows.
 
+## Contract Ownership and Parity Harness
+
+Rust owns the canonical MMDS contract, MMDS input helpers, and output helpers under `src/mmds/`, while runtime MMDS frontend detection lives in `src/frontends.rs`.
+
+Locked cross-language contract fixtures live under `tests/fixtures/mmds/contracts/`. They are consumed by:
+
+- Rust contract tests in `tests/mmds_json.rs`
+- `@mmds/core` parity tests in `packages/mmds-core/test/*.test.mjs`
+- adapter package fixture tests in `packages/*/test/*.test.mjs`
+
+Any intentional MMDS contract change should update those locked fixtures and the related Rust/TypeScript assertions in the same change.
+
+## Supported Rust Entry Points
+
+Most Rust callers should produce MMDS through the high-level runtime facade:
+
+- `render_diagram(input, OutputFormat::Mmds, &RenderConfig::default())`
+- `mmdflux::mmds::render_input(...)` when the input may already be MMDS
+
+Adapter-oriented workflows can use the low-level API:
+
+- `mmdflux::builtins::default_registry()` for builtin registry wiring
+- `mmdflux::registry` and `mmdflux::payload` for explicit payload flows
+- `mmdflux::mmds` for hydration, replay, profile negotiation, and Mermaid generation
+
+The current Rust replay example lives at `examples/mmds_replay.rs`.
+
+Fixture-backed payloads used throughout the Rust contract tests live at:
+
+- `tests/fixtures/mmds/generation/basic-flow.json`
+- `tests/fixtures/mmds/positioned/routed-basic.json`
+
 ## Input Status
 
 MMDS input support is active:
 
-- The registry detects MMDS JSON input and dispatches to the `mmds` diagram type.
+- Runtime detects MMDS as an input frontend, resolves the logical diagram type from payload metadata, and dispatches through the existing family pipeline.
 - Parse-time envelope validation is active (`MMDS parse error: ...` on invalid JSON/envelope).
 - MMDS core hydration/validation contract is implemented (`MMDS validation error: ...` on invalid core payloads).
 - Render runtime dispatches by `geometry_level` with an explicit capability matrix.
@@ -102,6 +134,10 @@ MMDS edges may include optional endpoint intent fields:
 When present, hydration preserves these into internal edge state and renderers can reproduce subgraph-as-endpoint behavior deterministically.
 
 When absent (older payloads), hydration falls back to node-only endpoint semantics (`source`/`target`), which remains valid but may diverge from direct Mermaid replay in subgraph-edge cases.
+
+The fixture-backed endpoint-intent cases above are exercised through the public
+runtime and replay paths in the test suite rather than an older removed helper
+directory.
 
 ## Geometry Levels
 

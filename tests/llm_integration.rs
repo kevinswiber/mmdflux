@@ -150,7 +150,7 @@ fn lint_json_combination() {
 fn json_unsupported_diagram_type() {
     mmdflux()
         .args(["-f", "json"])
-        .write_stdin("pie title Pets\n\"Dogs\" : 36\n\"Cats\" : 64\n")
+        .write_stdin("sequenceDiagram\nA->>B: hello\n")
         .assert()
         .failure()
         .stderr(predicate::str::contains("do not support mmds"));

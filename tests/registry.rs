@@ -1,5 +1,5 @@
-use mmdflux::diagram::{DiagramFamily, OutputFormat};
-use mmdflux::registry::{DiagramDefinition, DiagramRegistry};
+use mmdflux::OutputFormat;
+use mmdflux::registry::{DiagramDefinition, DiagramFamily, DiagramRegistry};
 
 #[test]
 fn empty_registry_detects_nothing() {

@@ -7,10 +7,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use mmdflux::diagram::{OutputFormat, RenderConfig};
-use mmdflux::diagrams::class::ClassInstance;
-use mmdflux::registry::DiagramInstance;
-use mmdflux::render::{RenderOptions, render_svg};
+use mmdflux::builtins::default_registry;
+use mmdflux::{OutputFormat, RenderConfig};
 
 fn class_fixture_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -54,12 +52,7 @@ fn render_class_text(fixture: &str) -> String {
     let path = class_fixture_dir().join(fixture);
     let input = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read fixture {fixture}: {e}"));
-    let mut instance = ClassInstance::new();
-    instance
-        .parse(&input)
-        .expect("Failed to parse class fixture");
-    instance
-        .render(OutputFormat::Text, &RenderConfig::default())
+    mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
         .expect("Failed to render class fixture")
 }
 
@@ -67,10 +60,8 @@ fn render_class_svg(fixture: &str) -> String {
     let path = class_fixture_dir().join(fixture);
     let input = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read fixture {fixture}: {e}"));
-    let model =
-        mmdflux::diagrams::class::parser::parse_class_diagram(&input).expect("Failed to parse");
-    let diagram = mmdflux::diagrams::class::compiler::compile(&model);
-    render_svg(&diagram, &RenderOptions::default_svg())
+    mmdflux::render_diagram(&input, OutputFormat::Svg, &RenderConfig::default())
+        .expect("Failed to render class fixture as SVG")
 }
 
 fn assert_class_text_snapshot(fixture: &str) {
@@ -162,7 +153,9 @@ fn class_all_fixtures_parse() {
     for fixture in list_class_fixtures() {
         let path = class_fixture_dir().join(&fixture);
         let input = fs::read_to_string(&path).unwrap();
-        let mut instance = ClassInstance::new();
+        let instance = default_registry()
+            .create("class")
+            .expect("class should be registered");
         assert!(
             instance.parse(&input).is_ok(),
             "Failed to parse class fixture: {fixture}"

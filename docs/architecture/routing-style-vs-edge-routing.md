@@ -22,9 +22,10 @@ CLI/RenderConfig
 ### `RoutingStyle` (user intent + capability contract)
 
 - `src/main.rs` parses `--routing-style` (`direct`, `polyline`, `orthogonal`).
-- `src/diagram.rs` owns parse/display, capability lists, and style-to-route mapping.
-- `src/render/mod.rs` resolves style precedence: explicit style > preset > engine defaults.
-- `src/diagrams/flowchart/engine.rs` advertises supported styles per engine family.
+- `src/format.rs` defines the public `RoutingStyle` vocabulary.
+- `src/config.rs` and `src/engines/graph/contracts.rs` own capability lists and style-to-route mapping.
+- `src/render/graph/mod.rs` resolves style precedence: explicit style > preset > engine defaults.
+- `src/engines/graph/flux.rs` and `src/engines/graph/mermaid.rs` advertise supported styles per engine adapter.
 
 Classification:
 - User configuration concern: CLI parsing and preset/style resolution.
@@ -32,10 +33,10 @@ Classification:
 
 ### `EdgeRouting` (runtime execution concern)
 
-- `src/diagram.rs` defines execution modes and style-to-route selection.
-- `src/diagrams/flowchart/routing.rs` executes route-building by mode.
-- `src/diagrams/flowchart/render/svg.rs` applies mode-specific post-processing.
-- `src/diagrams/mmds/instance.rs` and `src/diagrams/mmds/hydrate.rs` select replay/runtime execution behavior.
+- `src/engines/graph/contracts.rs` defines execution modes and style-to-route selection.
+- `src/render/graph/routing.rs` executes route-building by mode.
+- `src/render/graph/svg/edges.rs` applies mode-specific post-processing.
+- `src/mmds/replay.rs` and `src/mmds/hydrate.rs` select replay/runtime execution behavior.
 
 Classification:
 - Runtime routing execution concern.

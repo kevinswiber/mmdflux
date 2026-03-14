@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "rust_exports": {
+    "modules": [
+      "builtins",
+      "config",
+      "errors",
+      "format",
+      "graph",
+      "mmds",
+      "payload",
+      "registry",
+      "simplification",
+      "timeline"
+    ],
+    "re_exports": [
+      "mmdflux::AlgorithmId",
+      "mmdflux::ColorWhen",
+      "mmdflux::EngineAlgorithmId",
+      "mmdflux::EngineId",
+      "mmdflux::OutputFormat",
+      "mmdflux::RenderConfig",
+      "mmdflux::RenderError",
+      "mmdflux::RuntimeConfigInput",
+      "mmdflux::TextColorMode",
+      "mmdflux::apply_svg_surface_defaults",
+      "mmdflux::detect_diagram",
+      "mmdflux::render_diagram",
+      "mmdflux::validate_diagram"
+    ]
+  },
+  "wasm_exports": [
+    "render",
+    "detect",
+    "version",
+    "validate"
+  ],
+  "npm_packages": [
+    "@mmds/core",
+    "@mmds/excalidraw",
+    "@mmds/tldraw"
+  ],
+  "fixture_outputs": {
+    "tests/fixtures/flowchart/simple.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/complex.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/chain.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/decision.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/shapes.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/left_right.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/bottom_top.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/right_left.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/simple_subgraph.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/nested_subgraph.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/labeled_edges.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/edge_styles.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/fan_in.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/fan_out.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/simple_cycle.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/subgraph_direction_lr.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/ci_pipeline.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/git_workflow.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/self_loop.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/flowchart/bidirectional.mmd": { "text": true, "svg": true, "mmds": true },
+    "tests/fixtures/class/simple.mmd": { "text": true, "svg": true, "mmds": false },
+    "tests/fixtures/class/members.mmd": { "text": true, "svg": true, "mmds": false },
+    "tests/fixtures/class/relationships.mmd": { "text": true, "svg": true, "mmds": false },
+    "tests/fixtures/class/inheritance_chain.mmd": { "text": true, "svg": true, "mmds": false },
+    "tests/fixtures/class/direction_lr.mmd": { "text": true, "svg": true, "mmds": false },
+    "tests/fixtures/sequence/simple.mmd": { "text": true, "svg": false, "mmds": false },
+    "tests/fixtures/sequence/dashed.mmd": { "text": true, "svg": false, "mmds": false },
+    "tests/fixtures/sequence/note.mmd": { "text": true, "svg": false, "mmds": false }
+  }
+}

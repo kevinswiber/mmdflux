@@ -1,14 +1,7 @@
 //! Engine registry tests: typed engine IDs, parsing, availability, and registry lookup.
 
-use mmdflux::diagram::{
-    AlgorithmId, CornerStyle, Curve, EdgePreset, EngineAlgorithmCapabilities, EngineAlgorithmId,
-    EngineConfig, EngineId, GeometryLevel, GraphEngine, GraphSolveRequest, OutputFormat,
-    PathSimplification, RenderConfig, RenderError, RouteOwnership, RoutingStyle,
-};
-use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::diagrams::flowchart::engine::{FluxLayeredEngine, MermaidLayeredEngine};
-use mmdflux::engines::graph::GraphEngineRegistry;
-use mmdflux::registry::DiagramInstance;
+use mmdflux::format::{CornerStyle, Curve, EdgePreset, RoutingStyle};
+use mmdflux::{AlgorithmId, EngineAlgorithmId, EngineId, OutputFormat, RenderConfig, RenderError};
 
 // =============================================================================
 // Engine selection through render path
@@ -16,16 +9,12 @@ use mmdflux::registry::DiagramInstance;
 
 /// Helper: parse + render with a specific engine algorithm ID string.
 fn render_with_engine(input: &str, engine: &str) -> Result<String, RenderError> {
-    let mut instance = FlowchartInstance::new();
-    instance
-        .parse(input)
-        .expect("parse should succeed in test helper");
     let engine = EngineAlgorithmId::parse(engine)?;
     let config = RenderConfig {
         layout_engine: Some(engine),
         ..Default::default()
     };
-    instance.render(OutputFormat::Text, &config)
+    mmdflux::render_diagram(input, OutputFormat::Text, &config)
 }
 
 #[test]
@@ -79,27 +68,24 @@ fn cose_bilkent_rejected_at_parse_boundary() {
 #[test]
 fn flux_vs_mermaid_svg_output_may_diverge_for_cycle() {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/simple_cycle.mmd").unwrap();
-    let mut instance = FlowchartInstance::new();
-    instance.parse(&input).unwrap();
-
-    let flux_out = instance
-        .render(
-            OutputFormat::Svg,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                ..RenderConfig::default()
-            },
-        )
-        .unwrap();
-    let mermaid_out = instance
-        .render(
-            OutputFormat::Svg,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
-                ..RenderConfig::default()
-            },
-        )
-        .unwrap();
+    let flux_out = mmdflux::render_diagram(
+        &input,
+        OutputFormat::Svg,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+            ..RenderConfig::default()
+        },
+    )
+    .unwrap();
+    let mermaid_out = mmdflux::render_diagram(
+        &input,
+        OutputFormat::Svg,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
+            ..RenderConfig::default()
+        },
+    )
+    .unwrap();
 
     // SVG paths will differ because routing topology changes — document, don't assert equal
     let _ = (flux_out, mermaid_out); // classification: SVG-divergent
@@ -199,39 +185,41 @@ fn engine_algorithm_id_display_roundtrips() {
 fn flux_layered_capabilities() {
     let id = EngineAlgorithmId::parse("flux-layered").unwrap();
     let caps = id.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::Native);
     assert!(caps.supports_subgraphs);
+    assert!(caps.route_ownership.routes_edges());
+    assert!(
+        caps.supported_routing_styles
+            .contains(&RoutingStyle::Orthogonal)
+    );
 }
 
 #[test]
 fn mermaid_layered_capabilities() {
     let id = EngineAlgorithmId::parse("mermaid-layered").unwrap();
     let caps = id.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::HintDriven);
     assert!(caps.supports_subgraphs);
+    assert!(!caps.route_ownership.routes_edges());
+    assert_eq!(caps.supported_routing_styles, &[RoutingStyle::Polyline]);
 }
 
 #[test]
 fn elk_layered_capabilities() {
     let id = EngineAlgorithmId::parse("elk-layered").unwrap();
     let caps = id.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::EngineProvided);
     assert!(caps.supports_subgraphs);
+    assert!(caps.route_ownership.routes_edges());
+    assert!(
+        caps.supported_routing_styles
+            .contains(&RoutingStyle::Orthogonal)
+    );
 }
 
 #[test]
 fn elk_mrtree_capabilities() {
     let id = EngineAlgorithmId::parse("elk-mrtree").unwrap();
     let caps = id.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::EngineProvided);
     assert!(!caps.supports_subgraphs);
-}
-
-#[test]
-fn route_ownership_native_routes_edges() {
-    assert!(RouteOwnership::Native.routes_edges());
-    assert!(!RouteOwnership::HintDriven.routes_edges());
-    assert!(RouteOwnership::EngineProvided.routes_edges());
+    assert!(caps.route_ownership.routes_edges());
 }
 
 // =============================================================================
@@ -346,266 +334,6 @@ fn edge_preset_expand_is_deterministic() {
 }
 
 // =============================================================================
-// GraphEngine solve contract (plan-0081 Phase 3.1)
-// =============================================================================
-
-#[test]
-fn solve_request_fields_round_trip() {
-    let req = GraphSolveRequest {
-        output_format: OutputFormat::Text,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
-    assert_eq!(req.output_format, OutputFormat::Text);
-    assert_eq!(req.geometry_level, GeometryLevel::Layout);
-    assert_eq!(req.path_simplification, PathSimplification::None);
-}
-
-#[test]
-fn solve_request_from_config_derives_fields() {
-    let config = RenderConfig {
-        geometry_level: GeometryLevel::Routed,
-        ..RenderConfig::default()
-    };
-    let req = GraphSolveRequest::from_config(&config, OutputFormat::Svg);
-    assert_eq!(req.output_format, OutputFormat::Svg);
-    assert_eq!(req.geometry_level, GeometryLevel::Routed);
-    assert_eq!(req.path_simplification, PathSimplification::Lossless);
-    assert_eq!(req.routing_style, None);
-}
-
-#[test]
-fn solve_request_from_config_keeps_path_simplification_independent_of_style() {
-    let config = RenderConfig {
-        geometry_level: GeometryLevel::Routed,
-        edge_preset: Some(EdgePreset::Straight),
-        routing_style: Some(RoutingStyle::Direct),
-        path_simplification: PathSimplification::Lossless,
-        ..RenderConfig::default()
-    };
-    let req = GraphSolveRequest::from_config(&config, OutputFormat::Svg);
-    assert_eq!(req.output_format, OutputFormat::Svg);
-    assert_eq!(req.geometry_level, GeometryLevel::Routed);
-    assert_eq!(req.path_simplification, PathSimplification::Lossless);
-    assert_eq!(req.routing_style, Some(RoutingStyle::Direct));
-}
-
-// =============================================================================
-// FluxLayeredEngine (plan-0081 Phase 3.2)
-// =============================================================================
-
-fn build_simple_diagram() -> mmdflux::Diagram {
-    let flowchart = mmdflux::parse_flowchart("graph TD\nA-->B").unwrap();
-    mmdflux::build_diagram(&flowchart)
-}
-
-#[test]
-fn flux_layered_engine_id() {
-    let engine = FluxLayeredEngine::text();
-    assert_eq!(
-        engine.id(),
-        EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered)
-    );
-}
-
-#[test]
-fn flux_layered_capabilities_are_native() {
-    let engine = FluxLayeredEngine::text();
-    let caps = engine.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::Native);
-    assert!(caps.supports_subgraphs);
-}
-
-#[test]
-fn flux_layered_solve_layout_level_has_no_routed_geometry() {
-    let diagram = build_simple_diagram();
-    let engine = FluxLayeredEngine::text();
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Text,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
-    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let result = engine.solve(&diagram, &config, &request).unwrap();
-
-    assert_eq!(result.engine_id.engine(), EngineId::Flux);
-    assert!(!result.geometry.nodes.is_empty());
-    assert!(
-        result.routed.is_none(),
-        "layout level should not include routed geometry"
-    );
-}
-
-#[test]
-fn flux_layered_solve_routed_level_has_routed_geometry() {
-    let diagram = build_simple_diagram();
-    let engine = FluxLayeredEngine::text();
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Text,
-        geometry_level: GeometryLevel::Routed,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
-    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let result = engine.solve(&diagram, &config, &request).unwrap();
-
-    assert!(
-        result.routed.is_some(),
-        "routed level should produce routed geometry"
-    );
-    let routed = result.routed.unwrap();
-    assert!(!routed.edges.is_empty());
-}
-
-// =============================================================================
-// MermaidLayeredEngine (plan-0081 Phase 3.3)
-// =============================================================================
-
-#[test]
-fn mermaid_layered_engine_id() {
-    let engine = MermaidLayeredEngine::new();
-    assert_eq!(
-        engine.id(),
-        EngineAlgorithmId::new(EngineId::Mermaid, AlgorithmId::Layered)
-    );
-}
-
-#[test]
-fn mermaid_layered_capabilities_are_hint_driven() {
-    let engine = MermaidLayeredEngine::new();
-    let caps = engine.capabilities();
-    assert_eq!(caps.route_ownership, RouteOwnership::HintDriven);
-    assert!(caps.supports_subgraphs);
-}
-
-#[test]
-fn mermaid_layered_solve_layout_level_has_no_routed_geometry() {
-    let diagram = build_simple_diagram();
-    let engine = MermaidLayeredEngine::new();
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Mmds,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
-    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let result = engine.solve(&diagram, &config, &request).unwrap();
-
-    assert!(
-        result.routed.is_none(),
-        "layout level should not include routed geometry"
-    );
-    assert!(!result.geometry.nodes.is_empty());
-}
-
-#[test]
-fn mermaid_layered_layout_matches_flux_layered_layout() {
-    // Both engines share the layered layout kernel, but Flux enables
-    // per_edge_label_spacing which halves rank_sep and uses minlen=1 for
-    // unlabeled edges.  For a simple A-->B (unlabeled), Flux produces a more
-    // compact layout.  We verify that x-coordinates still match and that
-    // Flux's y-spacing is <= Mermaid's (i.e., more compact or equal).
-    let diagram = build_simple_diagram();
-    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let layout_req = GraphSolveRequest {
-        output_format: OutputFormat::Mmds,
-        geometry_level: GeometryLevel::Layout,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
-
-    let flux = FluxLayeredEngine::text()
-        .solve(&diagram, &config, &layout_req)
-        .unwrap();
-    let mermaid = MermaidLayeredEngine::new()
-        .solve(&diagram, &config, &layout_req)
-        .unwrap();
-
-    assert_eq!(flux.geometry.nodes.len(), mermaid.geometry.nodes.len());
-    for (id, flux_node) in &flux.geometry.nodes {
-        let mermaid_node = mermaid.geometry.nodes.get(id).unwrap();
-        assert_eq!(
-            flux_node.rect.x, mermaid_node.rect.x,
-            "node {id} x mismatch"
-        );
-    }
-
-    // With per-edge label spacing, Flux is more compact for unlabeled edges.
-    let flux_b = flux.geometry.nodes.get("B").unwrap();
-    let mermaid_b = mermaid.geometry.nodes.get("B").unwrap();
-    assert!(
-        flux_b.rect.y <= mermaid_b.rect.y,
-        "Flux should be at least as compact as Mermaid: flux B.y={} mermaid B.y={}",
-        flux_b.rect.y,
-        mermaid_b.rect.y,
-    );
-}
-
-#[test]
-fn mermaid_layered_solve_routed_level_has_routed_geometry() {
-    let diagram = build_simple_diagram();
-    let engine = MermaidLayeredEngine::new();
-    let request = GraphSolveRequest {
-        output_format: OutputFormat::Mmds,
-        geometry_level: GeometryLevel::Routed,
-        path_simplification: PathSimplification::None,
-        routing_style: None,
-    };
-    let config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-    let result = engine.solve(&diagram, &config, &request).unwrap();
-
-    assert!(
-        result.routed.is_some(),
-        "routed level should produce routed geometry"
-    );
-}
-
-// =============================================================================
-// GraphEngineRegistry solver lookup (plan-0081 Phase 3.4)
-// =============================================================================
-
-#[test]
-fn registry_resolves_flux_layered() {
-    let registry = GraphEngineRegistry::default();
-    let id = EngineAlgorithmId::parse("flux-layered").unwrap();
-    let engine = registry.get_solver(id);
-    assert!(engine.is_some(), "flux-layered should be registered");
-    assert_eq!(engine.unwrap().id().to_string(), "flux-layered");
-}
-
-#[test]
-fn registry_resolves_mermaid_layered() {
-    let registry = GraphEngineRegistry::default();
-    let id = EngineAlgorithmId::parse("mermaid-layered").unwrap();
-    let engine = registry.get_solver(id);
-    assert!(engine.is_some(), "mermaid-layered should be registered");
-    assert_eq!(engine.unwrap().id().to_string(), "mermaid-layered");
-}
-
-#[cfg(not(feature = "engine-elk"))]
-#[test]
-fn registry_does_not_have_elk_solver_without_feature() {
-    let registry = GraphEngineRegistry::default();
-    let id = EngineAlgorithmId::parse("elk-layered").unwrap();
-    assert!(
-        registry.get_solver(id).is_none(),
-        "elk-layered should not be registered without engine-elk feature"
-    );
-}
-
-#[test]
-fn registry_get_solver_unknown_id_returns_none() {
-    // An ID that parses but has no engine registered (elk without feature).
-    // This test verifies get_solver returns None rather than panicking.
-    let registry = GraphEngineRegistry::default();
-    // flux-layered is always registered — verify the lookup succeeds (not None)
-    let id = EngineAlgorithmId::parse("flux-layered").unwrap();
-    assert!(registry.get_solver(id).is_some());
-}
-
-// =============================================================================
 // Engine routing style capabilities and validation (plan-0081 Phase 7.3)
 // =============================================================================
 
@@ -616,8 +344,6 @@ fn render_with_engine_routing(
     routing: Option<RoutingStyle>,
     preset: Option<EdgePreset>,
 ) -> Result<String, RenderError> {
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).expect("parse should succeed");
     let engine_id = EngineAlgorithmId::parse(engine)?;
     let config = RenderConfig {
         layout_engine: Some(engine_id),
@@ -625,7 +351,7 @@ fn render_with_engine_routing(
         edge_preset: preset,
         ..Default::default()
     };
-    instance.render(OutputFormat::Svg, &config)
+    mmdflux::render_diagram(input, OutputFormat::Svg, &config)
 }
 
 #[test]
@@ -830,7 +556,7 @@ fn flux_layered_accepts_step_preset() {
 #[test]
 fn capabilities_struct_exposes_supported_routing_styles() {
     // EngineAlgorithmCapabilities.supported_routing_styles is a slice of RoutingStyle
-    let caps: EngineAlgorithmCapabilities = EngineAlgorithmId::parse("flux-layered")
+    let caps = EngineAlgorithmId::parse("flux-layered")
         .unwrap()
         .capabilities();
     let _styles: &[RoutingStyle] = caps.supported_routing_styles;
@@ -898,17 +624,13 @@ fn flux_polyline_routing_differs_from_mermaid_layered_for_cycle() {
 fn render_cycle_mmds_with_styles(routing: RoutingStyle, curve: Curve) -> String {
     let input = std::fs::read_to_string("tests/fixtures/flowchart/simple_cycle.mmd")
         .expect("simple_cycle.mmd should exist");
-    let mut instance = FlowchartInstance::new();
-    instance.parse(&input).expect("parse should succeed");
     let config = RenderConfig {
         routing_style: Some(routing),
         curve: Some(curve),
-        geometry_level: mmdflux::diagram::GeometryLevel::Layout,
+        geometry_level: mmdflux::graph::GeometryLevel::Layout,
         ..Default::default()
     };
-    instance
-        .render(OutputFormat::Mmds, &config)
-        .expect("render should succeed")
+    mmdflux::render_diagram(&input, OutputFormat::Mmds, &config).expect("render should succeed")
 }
 
 #[test]

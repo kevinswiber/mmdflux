@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -9,6 +11,36 @@ import {
   edgeEndpointTargets,
   normalizeMmds,
 } from "../dist/index.js";
+
+const repoRoot = path.resolve(process.cwd(), "../..");
+
+function fixture(...segments) {
+  const fullPath = path.join(repoRoot, ...segments);
+  return JSON.parse(fs.readFileSync(fullPath, "utf8"));
+}
+
+test("mmds-core exposes a curated top-level surface and explicit subpath modules", async () => {
+  const core = await import("@mmds/core");
+  assert.ok("normalizeMmds" in core);
+  assert.ok("collectSubgraphDescendantNodeIds" in core);
+  assert.equal("assertValidMmdsDocument" in core, false);
+  assert.equal("normalizePath" in core, false);
+
+  const normalize = await import("@mmds/core/normalize");
+  assert.ok("normalizeMmds" in normalize);
+  assert.equal("collectSubgraphDescendantNodeIds" in normalize, false);
+
+  const traversal = await import("@mmds/core/traversal");
+  assert.ok("collectSubgraphDescendantNodeIds" in traversal);
+  assert.ok("edgeEndpointTargets" in traversal);
+  assert.equal("normalizeMmds" in traversal, false);
+
+  const validate = await import("@mmds/core/validate");
+  assert.ok("assertValidMmdsDocument" in validate);
+  assert.equal("normalizeMmds" in validate, false);
+
+  await import("@mmds/core/types");
+});
 
 test("normalizeMmds expands defaults for nodes and edges", () => {
   const doc = {
@@ -233,4 +265,39 @@ test("edgeEndpointTargets resolves endpoint intent to node or subgraph targets",
       subgraph_id: "sg2",
     },
   });
+});
+
+test("normalizeMmds preserves shared profile fixtures from the Rust contract set", () => {
+  const doc = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "profiles",
+    "profiles-svg-v1.json",
+  );
+
+  const normalized = normalizeMmds(doc);
+
+  assert.deepEqual(normalized.profiles, ["mmds-core-v1", "mmdflux-svg-v1"]);
+  assert.deepEqual(normalized.extensions, doc.extensions);
+});
+
+test("normalizeMmds consumes the locked shared flowchart contract fixture", () => {
+  const doc = fixture(
+    "tests",
+    "fixtures",
+    "mmds",
+    "contracts",
+    "flowchart-simple.layout.json",
+  );
+
+  const normalized = normalizeMmds(doc);
+
+  assert.equal(normalized.metadata?.diagram_type, "flowchart");
+  assert.deepEqual(
+    normalized.nodes.map((node) => node.id),
+    ["A", "B"],
+  );
+  assert.equal(normalized.edges[0]?.source, "A");
+  assert.equal(normalized.edges[0]?.target, "B");
 });

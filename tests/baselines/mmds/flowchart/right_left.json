@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "profiles": [
+    "mmds-core-v1",
+    "mmdflux-text-v1"
+  ],
+  "extensions": {
+    "org.mmdflux.render.text.v1": {
+      "projection": {
+        "edge_waypoints": {},
+        "label_positions": {},
+        "node_ranks": {
+          "End": 0,
+          "Middle": 1,
+          "Start": 2
+        }
+      }
+    }
+  },
+  "defaults": {
+    "node": {
+      "shape": "rectangle"
+    },
+    "edge": {
+      "stroke": "solid",
+      "arrow_start": "none",
+      "arrow_end": "normal",
+      "minlen": 1
+    }
+  },
+  "geometry_level": "layout",
+  "metadata": {
+    "diagram_type": "flowchart",
+    "direction": "RL",
+    "bounds": {
+      "width": 436.4992,
+      "height": 70.0
+    },
+    "engine": "flux-layered"
+  },
+  "nodes": [
+    {
+      "id": "End",
+      "label": "Finish",
+      "position": {
+        "x": 376.59839999999997,
+        "y": 35.0
+      },
+      "size": {
+        "width": 103.8016,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Middle",
+      "label": "Process",
+      "position": {
+        "x": 215.9296,
+        "y": 35.0
+      },
+      "size": {
+        "width": 117.536,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Start",
+      "label": "Begin",
+      "position": {
+        "x": 57.580799999999996,
+        "y": 35.0
+      },
+      "size": {
+        "width": 99.16159999999999,
+        "height": 54.0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "End",
+      "target": "Middle"
+    },
+    {
+      "id": "e1",
+      "source": "Middle",
+      "target": "Start"
+    }
+  ]
+}

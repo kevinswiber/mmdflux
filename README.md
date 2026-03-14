@@ -177,6 +177,38 @@ mmdflux --lint diagram.mmd
 - [MMDS specification](docs/mmds.md)
 - [Edge routing design](docs/edge-routing-heuristics.md)
 
+## Rust API Surface
+
+Most Rust integrations should stay on the high-level runtime facade:
+
+- `render_diagram`
+- `detect_diagram`
+- `validate_diagram`
+
+Pair those entrypoints with `RenderConfig` and `OutputFormat` unless you are
+building an adapter or tooling layer that needs explicit preparation control.
+
+The low-level API is smaller and adapter-focused:
+
+- `mmdflux::builtins::default_registry()` for the builtin diagram registry
+- `registry` and `payload` for explicit detect/parse/payload flows
+- `mmds` for MMDS parsing, replay, and Mermaid generation
+
+The rest of the crate tree (`diagrams`, `engines`, `graph`, `render`,
+`mermaid`, and `timeline`) consists of internal implementation modules and is
+not part of the supported public contract.
+
+## Rust Library Examples
+
+- [`examples/high_level_render.rs`](examples/high_level_render.rs) shows the
+  top-level `render_diagram` workflow.
+- [`examples/registry_adapter.rs`](examples/registry_adapter.rs) shows explicit
+  registry-driven detection and preparation with
+  `mmdflux::builtins::default_registry()`.
+- [`examples/mmds_replay.rs`](examples/mmds_replay.rs) shows MMDS profile
+  negotiation, replay, and Mermaid regeneration.
+- Verify the examples compile with `cargo test --examples`.
+
 ## Adapter Packages
 
 - `@mmds/excalidraw` — MMDS to Excalidraw `.excalidraw` JSON.

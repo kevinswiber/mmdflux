@@ -37,14 +37,14 @@
       <path d="M99.53,215.00 L99.53,233.00 L99.53,238.67 C99.53,244.33 99.53,255.67 97.52,261.33 C95.50,267.00 91.47,267.00 89.46,267.00 L87.44,267.00 L87.44,285.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M65.97,364.53 L65.97,404.95 L65.97,408.32 C65.97,411.69 65.97,418.43 65.97,425.17 C65.97,431.90 65.97,438.64 65.97,442.01 L65.97,445.38 L65.97,481.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M124.68,349.57 L142.49,349.57 C160.31,349.57 195.95,349.57 213.77,371.60 C231.58,393.64 231.58,437.72 231.58,459.76 L231.58,481.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M327.04,512.80 L347.04,512.80 L347.04,485.73 C347.04,458.67 347.04,404.53 347.04,350.40 C347.04,296.27 347.04,242.13 347.04,215.07 L347.04,188.00 L162.58,188.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
+      <path d="M327.04,512.80 L339.04,512.80 L339.04,485.73 C339.04,458.67 339.04,404.53 339.04,350.40 C339.04,296.27 339.04,242.13 339.04,215.07 L339.04,188.00 L162.58,188.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <text x="108.35" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">initialize</text>
       <text x="93.49" y="250.00" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
       <text x="66.77" y="409.30" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <text x="231.58" y="362.23" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <text x="347.04" y="268.17" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <text x="339.04" y="266.17" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>
 </svg>

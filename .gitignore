@@ -12,3 +12,5 @@ AGENTS.local.md
 /scripts/tests/out
 /scripts/out
 /.cursor/worktrees.json
+
+__pycache__

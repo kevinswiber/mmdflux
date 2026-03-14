@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "profiles": [
+    "mmds-core-v1",
+    "mmdflux-text-v1"
+  ],
+  "extensions": {
+    "org.mmdflux.render.text.v1": {
+      "projection": {
+        "edge_waypoints": {
+          "4": [
+            {
+              "rank": 5,
+              "x": 862.2864,
+              "y": 35.0
+            }
+          ],
+          "5": [
+            {
+              "rank": 5,
+              "x": 873.7936,
+              "y": 139.0
+            }
+          ]
+        },
+        "label_positions": {
+          "4": {
+            "rank": 5,
+            "x": 862.2864,
+            "y": 20.5
+          },
+          "5": {
+            "rank": 5,
+            "x": 873.7936,
+            "y": 153.5
+          }
+        },
+        "node_ranks": {
+          "Build": 1,
+          "Deploy": 4,
+          "Lint": 3,
+          "Prod": 6,
+          "Push": 0,
+          "Staging": 6,
+          "Test": 2
+        }
+      }
+    }
+  },
+  "defaults": {
+    "node": {
+      "shape": "rectangle"
+    },
+    "edge": {
+      "stroke": "solid",
+      "arrow_start": "none",
+      "arrow_end": "normal",
+      "minlen": 1
+    }
+  },
+  "geometry_level": "layout",
+  "metadata": {
+    "diagram_type": "flowchart",
+    "direction": "LR",
+    "bounds": {
+      "width": 1118.0944,
+      "height": 174.0
+    },
+    "engine": "flux-layered"
+  },
+  "nodes": [
+    {
+      "id": "Build",
+      "label": "Build",
+      "position": {
+        "x": 228.1792,
+        "y": 87.0
+      },
+      "size": {
+        "width": 95.264,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Deploy",
+      "label": "Deploy?",
+      "shape": "diamond",
+      "position": {
+        "x": 755.5343999999999,
+        "y": 87.0
+      },
+      "size": {
+        "width": 110.23679999999999,
+        "height": 110.23679999999999
+      }
+    },
+    {
+      "id": "Lint",
+      "label": "Lint Check",
+      "position": {
+        "x": 580.6048,
+        "y": 87.0
+      },
+      "size": {
+        "width": 139.6224,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Prod",
+      "label": "Production",
+      "position": {
+        "x": 1030.2608,
+        "y": 139.0
+      },
+      "size": {
+        "width": 136.6528,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Push",
+      "label": "Git Push",
+      "position": {
+        "x": 69.2736,
+        "y": 87.0
+      },
+      "size": {
+        "width": 122.5472,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Staging",
+      "label": "Staging Env",
+      "position": {
+        "x": 1036.0144,
+        "y": 35.0
+      },
+      "size": {
+        "width": 148.16,
+        "height": 54.0
+      }
+    },
+    {
+      "id": "Test",
+      "label": "Run Tests",
+      "position": {
+        "x": 393.3024,
+        "y": 87.0
+      },
+      "size": {
+        "width": 134.98239999999998,
+        "height": 54.0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "Push",
+      "target": "Build"
+    },
+    {
+      "id": "e1",
+      "source": "Build",
+      "target": "Test"
+    },
+    {
+      "id": "e2",
+      "source": "Test",
+      "target": "Lint"
+    },
+    {
+      "id": "e3",
+      "source": "Lint",
+      "target": "Deploy"
+    },
+    {
+      "id": "e4",
+      "source": "Deploy",
+      "target": "Staging",
+      "label": "staging"
+    },
+    {
+      "id": "e5",
+      "source": "Deploy",
+      "target": "Prod",
+      "label": "production"
+    }
+  ]
+}

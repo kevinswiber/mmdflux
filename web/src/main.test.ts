@@ -1,7 +1,20 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderApp } from "./main";
 
 describe("renderApp", () => {
+  it("main bootstraps the app without owning render or persistence logic", async () => {
+    const source = await readFile(
+      path.resolve(process.cwd(), "src/main.ts"),
+      "utf8",
+    );
+
+    expect(source).toMatch(/bootstrapPlaygroundApp/);
+    expect(source).not.toMatch(/localStorage\.setItem/);
+    expect(source).not.toMatch(/new Worker/);
+  });
+
   it("renders redesigned playground shell", () => {
     try {
       history.replaceState(null, "", window.location.pathname);

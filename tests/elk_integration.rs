@@ -5,20 +5,16 @@
 
 #![cfg(feature = "engine-elk")]
 
-use mmdflux::diagram::{EngineAlgorithmId, OutputFormat, RenderConfig, RenderError};
-use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::registry::DiagramInstance;
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, RenderError};
 
 /// Helper: render via the FlowchartInstance with a specific engine.
 fn render_with_engine(input: &str, engine: &str) -> Result<String, RenderError> {
-    let mut instance = FlowchartInstance::new();
-    instance.parse(input).expect("parse should succeed");
     let engine_id = EngineAlgorithmId::parse(engine)?;
     let config = RenderConfig {
         layout_engine: Some(engine_id),
         ..Default::default()
     };
-    instance.render(OutputFormat::Text, &config)
+    mmdflux::render_diagram(input, OutputFormat::Text, &config)
 }
 
 #[test]

@@ -19,15 +19,15 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 FIXTURES="$REPO/tests/fixtures/flowchart"
 OUTDIR="/tmp/mmdflux-dagre-compare"
 MMDFLUX="$REPO/target/debug/mmdflux"
-DUMP_BIN="$REPO/target/debug/dump_dagre_input"
+DAGRE_INPUT_JQ="$REPO/scripts/mmds-to-dagre-input.jq"
 DAGRE_ORDER_JS="$REPO/scripts/dump-dagre-order.js"
 
 mkdir -p "$OUTDIR"
 
-# Build binaries if needed
-if [[ ! -x "$MMDFLUX" || ! -x "$DUMP_BIN" ]]; then
-  echo "Building mmdflux + dump_dagre_input..."
-  cargo build --quiet --manifest-path "$REPO/Cargo.toml" --bin mmdflux --bin dump_dagre_input
+# Build binary if needed
+if [[ ! -x "$MMDFLUX" ]]; then
+  echo "Building mmdflux..."
+  cargo build --quiet --manifest-path "$REPO/Cargo.toml" --bin mmdflux
 fi
 
 # Collect fixture list
@@ -67,7 +67,7 @@ for f in "${files[@]}"; do
   "$MMDFLUX" "$f" > "$OUTDIR/${name}.mmdflux.txt" 2>/dev/null || true
 
   # dagre input JSON + order dump
-  "$DUMP_BIN" "$f" > "$OUTDIR/${name}.dagre.json" 2>/dev/null || true
+  "$MMDFLUX" "$f" --format mmds 2>/dev/null | jq -f "$DAGRE_INPUT_JQ" > "$OUTDIR/${name}.dagre.json" 2>/dev/null || true
   node "$DAGRE_ORDER_JS" "$OUTDIR/${name}.dagre.json" > "$OUTDIR/${name}.dagre.order.txt" 2>/dev/null || true
 
   # copy source for reference

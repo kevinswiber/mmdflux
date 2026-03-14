@@ -1,46 +1,52 @@
 //! Sequence diagram instance implementation.
 
-use super::model::SequenceModel;
-use super::parser::parse_sequence;
-use super::render::text;
-use super::{compiler, layout};
-use crate::diagram::{OutputFormat, RenderConfig, RenderError};
-use crate::registry::DiagramInstance;
-use crate::render::chars::CharSet;
+use super::compiler;
+use crate::config::RenderConfig;
+use crate::errors::RenderError;
+use crate::format::OutputFormat;
+use crate::mermaid::sequence::parse_sequence;
+use crate::registry::{DiagramInstance, ParsedDiagram};
+use crate::timeline::Sequence;
 
 /// Sequence diagram instance.
 ///
-/// Parses sequence diagram syntax, compiles to `SequenceModel`, then
+/// Parses sequence diagram syntax, compiles to `Sequence`, then
 /// renders through the timeline-family pipeline (layout + text renderer).
-pub struct SequenceInstance {
-    model: Option<SequenceModel>,
-}
+#[derive(Default)]
+pub struct SequenceInstance;
 
 impl SequenceInstance {
     /// Create a new sequence diagram instance.
     pub fn new() -> Self {
-        Self { model: None }
-    }
-}
-
-impl Default for SequenceInstance {
-    fn default() -> Self {
-        Self::new()
+        Self
     }
 }
 
 impl DiagramInstance for SequenceInstance {
-    fn parse(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn parse(
+        self: Box<Self>,
+        input: &str,
+    ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
         let statements = parse_sequence(input)?;
-        self.model = Some(compiler::compile(&statements)?);
-        Ok(())
+        Ok(Box::new(ParsedSequence {
+            model: compiler::compile(&statements)?,
+        }))
     }
 
-    fn render(&self, format: OutputFormat, config: &RenderConfig) -> Result<String, RenderError> {
-        let model = self.model.as_ref().ok_or_else(|| RenderError {
-            message: "No diagram parsed. Call parse() first.".to_string(),
-        })?;
+    fn supports_format(&self, format: OutputFormat) -> bool {
+        super::SUPPORTED_FORMATS.contains(&format)
+    }
+}
 
+struct ParsedSequence {
+    model: Sequence,
+}
+
+impl ParsedDiagram for ParsedSequence {
+    fn into_payload(
+        self: Box<Self>,
+        config: &RenderConfig,
+    ) -> Result<crate::payload::Diagram, RenderError> {
         if config.layout_engine.is_some() {
             return Err(RenderError {
                 message: "layout engine selection is not supported for sequence diagrams"
@@ -48,28 +54,47 @@ impl DiagramInstance for SequenceInstance {
             });
         }
 
-        if !self.supports_format(format) {
-            return Err(RenderError {
-                message: format!(
-                    "sequence diagrams do not support {} output",
-                    match format {
-                        OutputFormat::Svg => "svg",
-                        _ => "unknown",
-                    }
-                ),
-            });
-        }
+        Ok(crate::payload::Diagram::Sequence(self.model))
+    }
+}
 
-        let seq_layout = layout::layout(model);
-        let charset = match format {
-            OutputFormat::Ascii => CharSet::ascii(),
-            _ => CharSet::unicode(),
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::format::OutputFormat;
+
+    #[test]
+    fn sequence_instance_builds_sequence_payload() {
+        let payload = Box::new(SequenceInstance::new())
+            .parse("sequenceDiagram\nparticipant A\nparticipant B\nA->>B: hello")
+            .expect("sequence input should parse")
+            .into_payload(&RenderConfig::default())
+            .expect("sequence input should build a payload");
+        let crate::payload::Diagram::Sequence(sequence) = payload else {
+            panic!("sequence should yield a sequence payload");
         };
-
-        Ok(text::render(&seq_layout, &charset))
+        assert_eq!(sequence.participants.len(), 2);
+        assert_eq!(sequence.events.len(), 1);
     }
 
-    fn supports_format(&self, format: OutputFormat) -> bool {
-        matches!(format, OutputFormat::Text | OutputFormat::Ascii)
+    #[test]
+    fn sequence_instance_rejects_layout_engine_selection() {
+        let result = Box::new(SequenceInstance::new())
+            .parse("sequenceDiagram\nA->>B: hello")
+            .expect("sequence input should parse")
+            .into_payload(&RenderConfig {
+                layout_engine: Some(crate::EngineAlgorithmId::parse("flux-layered").unwrap()),
+                ..RenderConfig::default()
+            });
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn sequence_instance_supports_text_only_formats() {
+        let instance = SequenceInstance::new();
+        assert!(instance.supports_format(OutputFormat::Text));
+        assert!(instance.supports_format(OutputFormat::Ascii));
+        assert!(!instance.supports_format(OutputFormat::Svg));
+        assert!(!instance.supports_format(OutputFormat::Mmds));
     }
 }

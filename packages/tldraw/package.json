@@ -5,24 +5,35 @@
   "description": "Convert MMDS JSON to tldraw .tldr format",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
-    "mmds-to-tldraw": "dist/index.js"
+    "mmds-to-tldraw": "dist/cli.js"
   },
   "files": [
     "dist",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && chmod +x dist/index.js",
+    "build": "tsc && chmod +x dist/cli.js",
     "check": "biome check",
     "fmt": "biome check --write",
     "test": "npm run build && node --test --test-force-exit test/*.test.mjs",
     "prepublishOnly": "npm run build",
-    "start": "node dist/index.js",
+    "start": "node dist/cli.js",
     "preview": "vite --config vite.preview.config.ts"
   },
   "dependencies": {
-    "@mmds/core": "file:../mmds-core",
+    "@mmds/core": "0.1.0",
     "@tldraw/editor": "4.4.0",
     "fractional-indexing": "^3.2.0"
   },

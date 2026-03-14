@@ -1,44 +1,35 @@
 //! Parity checks between the direct render API and registry instance API.
 
-use mmdflux::diagram::{EngineAlgorithmId, OutputFormat, RenderConfig};
-use mmdflux::registry::default_registry;
-use mmdflux::render::{RenderOptions, render};
-use mmdflux::{build_diagram, parse_flowchart};
+use mmdflux::builtins::default_registry;
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, render_diagram};
 
 /// Helper to compare direct vs registry rendering paths.
 fn compare_outputs(input: &str, ascii: bool) {
-    // Direct API path
-    let flowchart = parse_flowchart(input).expect("Direct path parse failed");
-    let diagram = build_diagram(&flowchart);
     let output_format = if ascii {
         OutputFormat::Ascii
     } else {
         OutputFormat::Text
     };
-    let old_options = RenderOptions {
-        output_format,
-        ..Default::default()
-    };
-    let old_output = render(&diagram, &old_options);
+    let direct_output = render_diagram(input, output_format, &RenderConfig::default())
+        .expect("Direct path render failed");
 
     // Registry API path
     let registry = default_registry();
     let diagram_id = registry.detect(input).expect("Registry path detect failed");
     assert_eq!(diagram_id, "flowchart");
 
-    let mut instance = registry
+    let instance = registry
         .create(diagram_id)
         .expect("Registry path create failed");
     instance.parse(input).expect("Registry path parse failed");
 
-    let new_output = instance
-        .render(output_format, &RenderConfig::default())
+    let new_output = render_diagram(input, output_format, &RenderConfig::default())
         .expect("Registry path render failed");
 
     assert_eq!(
-        old_output, new_output,
-        "Output mismatch for input:\n{}\n\nOld:\n{}\n\nNew:\n{}",
-        input, old_output, new_output
+        direct_output, new_output,
+        "Output mismatch for input:\n{}\n\nDirect:\n{}\n\nRegistry:\n{}",
+        input, direct_output, new_output
     );
 }
 
@@ -106,29 +97,23 @@ fn regression_self_edge() {
 // Engine selection via registry path
 #[test]
 fn regression_engine_selection_via_registry() {
-    let registry = default_registry();
     let input = "graph TD\nA-->B";
 
-    let mut instance = registry.create("flowchart").unwrap();
-    instance.parse(input).unwrap();
+    let default_out = render_diagram(input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+    let layered_out = render_diagram(
+        input,
+        OutputFormat::Text,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
-    // Default (None) and explicit "layered" should produce identical output
-    let default_out = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
-    let layered_out = instance
-        .render(
-            OutputFormat::Text,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                ..Default::default()
-            },
-        )
-        .unwrap();
     assert_eq!(default_out, layered_out);
 
-    // Unknown engine should error
-    let err = instance.render(
+    let err = render_diagram(
+        input,
         OutputFormat::Text,
         &RenderConfig {
             layout_engine: Some(EngineAlgorithmId::parse("elk-layered").unwrap()),
@@ -194,22 +179,17 @@ fn layered_stability_engine_selection_consistent() {
     for path in &fixtures {
         let input = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
 
-        let registry = default_registry();
-        let mut instance = registry.create("flowchart").unwrap();
-        instance.parse(&input).unwrap();
-
-        let default_out = instance
-            .render(OutputFormat::Text, &RenderConfig::default())
-            .unwrap();
-        let layered_out = instance
-            .render(
-                OutputFormat::Text,
-                &RenderConfig {
-                    layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                    ..Default::default()
-                },
-            )
-            .unwrap();
+        let default_out =
+            render_diagram(&input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+        let layered_out = render_diagram(
+            &input,
+            OutputFormat::Text,
+            &RenderConfig {
+                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
 
         assert_eq!(
             default_out, layered_out,
@@ -244,17 +224,19 @@ fn cross_family_flowchart_unchanged_after_class_support() {
     assert_eq!(registry.detect("classDiagram\nclass A"), Some("class"));
 
     // Both render independently
-    let mut fc_instance = registry.create("flowchart").unwrap();
-    fc_instance.parse("graph TD\nA-->B").unwrap();
-    let fc_out = fc_instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
+    let fc_out = render_diagram(
+        "graph TD\nA-->B",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
 
-    let mut cl_instance = registry.create("class").unwrap();
-    cl_instance.parse("classDiagram\nA --> B").unwrap();
-    let cl_out = cl_instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
+    let cl_out = render_diagram(
+        "classDiagram\nA --> B",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
 
     // Both produce non-empty output with the expected nodes
     assert!(fc_out.contains('A'));
@@ -278,26 +260,22 @@ fn cross_family_class_does_not_steal_flowchart_detection() {
 
 #[test]
 fn class_engine_selection_default_matches_explicit_layered() {
-    let registry = default_registry();
-    let mut instance = registry.create("class").unwrap();
-    instance
-        .parse("classDiagram\nclass A\nclass B\nA --> B")
-        .unwrap();
+    let default_out = render_diagram(
+        "classDiagram\nclass A\nclass B\nA --> B",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
+    let layered_out = render_diagram(
+        "classDiagram\nclass A\nclass B\nA --> B",
+        OutputFormat::Text,
+        &RenderConfig {
+            layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
-    let default_out = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .unwrap();
-    let layered_out = instance
-        .render(
-            OutputFormat::Text,
-            &RenderConfig {
-                layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-    // Class doesn't use engine selection path yet, but output should still be stable
     assert_eq!(default_out, layered_out);
 }
 
@@ -363,24 +341,14 @@ fn regression_all_fixtures() {
 }
 
 #[test]
-fn mmds_dispatch_path_reaches_mmds_instance() {
+fn mmds_dispatch_path_uses_runtime_frontend_resolution() {
     let input = std::fs::read_to_string("tests/fixtures/mmds/minimal-layout.json")
         .expect("minimal-layout fixture should exist");
-    let registry = default_registry();
+    let diagram_id = mmdflux::detect_diagram(&input).expect("runtime should detect MMDS");
+    assert_eq!(diagram_id, "flowchart");
 
-    let diagram_id = registry
-        .detect(&input)
-        .expect("registry should detect MMDS");
-    assert_eq!(diagram_id, "mmds");
-
-    let mut instance = registry
-        .create(diagram_id)
-        .expect("registry should create MMDS instance");
-    instance.parse(&input).expect("MMDS parse should succeed");
-
-    let rendered = instance
-        .render(OutputFormat::Text, &RenderConfig::default())
-        .expect("layout MMDS payload should render through registry dispatch");
+    let rendered = mmdflux::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+        .expect("layout MMDS payload should render through runtime dispatch");
     assert!(rendered.contains("Start"));
     assert!(rendered.contains("End"));
 }

@@ -45,36 +45,6 @@ fn cli_debug_shows_detected_diagram_type() {
         .stderr(predicate::str::contains("Detected diagram type: flowchart"));
 }
 
-#[test]
-fn cli_debug_shows_pie_type() {
-    mmdflux()
-        .arg("--debug")
-        .write_stdin("pie\n\"A\": 50")
-        .assert()
-        .success()
-        .stderr(predicate::str::contains("Detected diagram type: pie"));
-}
-
-#[test]
-fn cli_debug_shows_info_type() {
-    mmdflux()
-        .arg("--debug")
-        .write_stdin("info")
-        .assert()
-        .success()
-        .stderr(predicate::str::contains("Detected diagram type: info"));
-}
-
-#[test]
-fn cli_debug_shows_packet_type() {
-    mmdflux()
-        .arg("--debug")
-        .write_stdin("packet-beta\n0-7: \"Header\"")
-        .assert()
-        .success()
-        .stderr(predicate::str::contains("Detected diagram type: packet"));
-}
-
 // =============================================================================
 // SVG Format Tests
 // =============================================================================
@@ -508,7 +478,7 @@ fn cli_help_omits_legacy_curve_flags() {
         .stdout(predicate::str::contains("--corner-style").not());
 }
 
-// --- legacy style flags removed ---
+// --- deprecated style flags removed ---
 
 #[test]
 fn cli_rejects_legacy_interpolation_style_flag() {
@@ -571,42 +541,6 @@ fn cli_rejects_legacy_svg_edge_curve_flag() {
         ));
 }
 
-#[test]
-fn cli_svg_format_errors_for_pie() {
-    mmdflux()
-        .args(["--format", "svg"])
-        .write_stdin("pie\n\"A\": 50")
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains(
-            "pie diagrams do not support svg output",
-        ));
-}
-
-#[test]
-fn cli_svg_format_errors_for_info() {
-    mmdflux()
-        .args(["--format", "svg"])
-        .write_stdin("info")
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains(
-            "info diagrams do not support svg output",
-        ));
-}
-
-#[test]
-fn cli_svg_format_errors_for_packet() {
-    mmdflux()
-        .args(["--format", "svg"])
-        .write_stdin("packet-beta")
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains(
-            "packet diagrams do not support svg output",
-        ));
-}
-
 // =============================================================================
 // Basic CLI Functionality
 // =============================================================================
@@ -658,39 +592,6 @@ fn cli_sequence_svg_errors() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("do not support svg"));
-}
-
-// =============================================================================
-// Simple Diagram Shim Output Tests
-// =============================================================================
-
-#[test]
-fn cli_pie_renders_with_header() {
-    mmdflux()
-        .write_stdin("pie\n\"Apples\": 50\n\"Oranges\": 50")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("[Pie Chart]"))
-        .stdout(predicate::str::contains("Apples"));
-}
-
-#[test]
-fn cli_info_renders_version() {
-    mmdflux()
-        .write_stdin("info")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("mmdflux"));
-}
-
-#[test]
-fn cli_packet_renders_with_header() {
-    mmdflux()
-        .write_stdin("packet-beta\n0-7: \"Header\"")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("[Packet Diagram]"))
-        .stdout(predicate::str::contains("Header"));
 }
 
 // =============================================================================

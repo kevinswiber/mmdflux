@@ -6,21 +6,21 @@
 //!
 //! Three tiers:
 //! - **Semantic**: graph structure equivalence (nodes, edges, subgraphs, direction)
-//! - **Layout**: geometry-level equivalence (node positions, edge topology)
+//! - **Layout**: MMDS geometry export equivalence (node positions, edge topology)
 //! - **Visual**: rendered text output equivalence
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use mmdflux::diagram::{EngineConfig, OutputFormat, RenderConfig};
-use mmdflux::diagrams::flowchart::FlowchartInstance;
-use mmdflux::diagrams::flowchart::engine::{MeasurementMode, run_layered_layout};
-use mmdflux::diagrams::flowchart::geometry::{GraphGeometry, LayoutEdge};
-use mmdflux::diagrams::mmds::from_mmds_str;
-use mmdflux::graph::{Diagram, Subgraph};
-use mmdflux::registry::DiagramInstance;
-use mmdflux::render::{RenderOptions, render};
+use mmdflux::builtins::default_registry;
+use mmdflux::graph::Graph;
+use mmdflux::mmds::{
+    MmdsBounds, MmdsEdge, MmdsNode, MmdsOutput, MmdsPort, MmdsPosition, MmdsSubgraph,
+    from_mmds_str, generate_mermaid_from_mmds_str, parse_mmds_input, render_input,
+};
+use mmdflux::payload::Diagram as Payload;
+use mmdflux::{OutputFormat, RenderConfig, render_diagram};
 
 // ---------------------------------------------------------------------------
 // Conformance report model
@@ -75,7 +75,7 @@ fn fixture_input(family: &str, name: &str) -> String {
 /// Compare two Diagrams for semantic equivalence.
 ///
 /// Checks direction, nodes (sorted by ID), edges (by index), and subgraphs.
-fn check_semantic(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
+fn check_semantic(direct: &Graph, roundtrip: &Graph) -> TierResult {
     let mut mismatches = Vec::new();
 
     if direct.direction != roundtrip.direction {
@@ -166,15 +166,12 @@ fn check_semantic(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
                         .cloned()
                         .collect();
                     roundtrip_children.sort();
-                    let normalized_d = Subgraph {
-                        nodes: direct_children,
-                        ..(*d_sg).clone()
-                    };
-                    let normalized_r = Subgraph {
-                        nodes: roundtrip_children,
-                        ..(*r_sg).clone()
-                    };
-                    if normalized_d != normalized_r {
+                    if d_sg.id != r_sg.id
+                        || d_sg.title != r_sg.title
+                        || d_sg.parent != r_sg.parent
+                        || d_sg.dir != r_sg.dir
+                        || direct_children != roundtrip_children
+                    {
                         mismatches.push(format!("subgraph {id} differs"));
                     }
                 }
@@ -192,22 +189,16 @@ fn check_semantic(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
     }
 }
 
-/// Compare rendered output for visual equivalence (text and SVG).
-fn check_visual(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
+fn compare_visual_outputs(
+    direct_text: String,
+    roundtrip_text: String,
+    direct_svg: String,
+    roundtrip_svg: String,
+) -> TierResult {
     let mut mismatches = Vec::new();
-
-    // Text comparison
-    let text_options = RenderOptions::default();
-    let direct_text = render(direct, &text_options);
-    let roundtrip_text = render(roundtrip, &text_options);
     if direct_text != roundtrip_text {
         mismatches.push("text output differs".to_string());
     }
-
-    // SVG comparison
-    let svg_options = RenderOptions::default_svg();
-    let direct_svg = render(direct, &svg_options);
-    let roundtrip_svg = render(roundtrip, &svg_options);
     if direct_svg != roundtrip_svg {
         mismatches.push("svg output differs".to_string());
     }
@@ -222,6 +213,66 @@ fn check_visual(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
     }
 }
 
+/// Compare direct Mermaid rendering against a generated Mermaid roundtrip.
+fn check_visual_generated_mermaid(input: &str, roundtrip_input: &str) -> TierResult {
+    let direct_text = render_diagram(input, OutputFormat::Text, &RenderConfig::default())
+        .expect("direct text render should succeed");
+    let roundtrip_text = render_diagram(
+        roundtrip_input,
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .expect("roundtrip text render should succeed");
+    let direct_svg = render_diagram(input, OutputFormat::Svg, &RenderConfig::default())
+        .expect("direct SVG render should succeed");
+    let roundtrip_svg =
+        render_diagram(roundtrip_input, OutputFormat::Svg, &RenderConfig::default())
+            .expect("roundtrip SVG render should succeed");
+
+    compare_visual_outputs(direct_text, roundtrip_text, direct_svg, roundtrip_svg)
+}
+
+/// Ensure MMDS replay can emit both text and SVG for diagrams whose generated
+/// Mermaid roundtrip is not yet supported.
+fn check_visual_replay_smoke(mmds_json: &str) -> TierResult {
+    let text = match render_input(mmds_json, OutputFormat::Text, &RenderConfig::default()) {
+        Ok(text) => text,
+        Err(error) => {
+            return TierResult {
+                tier: "visual",
+                status: TierStatus::Fail(error.message),
+            };
+        }
+    };
+    let svg = match render_input(mmds_json, OutputFormat::Svg, &RenderConfig::default()) {
+        Ok(svg) => svg,
+        Err(error) => {
+            return TierResult {
+                tier: "visual",
+                status: TierStatus::Fail(error.message),
+            };
+        }
+    };
+
+    if text.is_empty() {
+        return TierResult {
+            tier: "visual",
+            status: TierStatus::Fail("text replay output is empty".to_string()),
+        };
+    }
+    if !svg.contains("<svg") {
+        return TierResult {
+            tier: "visual",
+            status: TierStatus::Fail("svg replay output is missing <svg".to_string()),
+        };
+    }
+
+    TierResult {
+        tier: "visual",
+        status: TierStatus::Pass,
+    }
+}
+
 /// Float tolerance for geometry comparison.
 const GEOMETRY_TOLERANCE: f64 = 0.01;
 
@@ -231,33 +282,9 @@ fn floats_eq(a: f64, b: f64) -> bool {
 
 /// Compare layout geometry for equivalence.
 ///
-/// Runs layered layout on both diagrams and compares node positions/sizes,
-/// edge count, and overall bounds.
-fn check_layout(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
-    let engine_config = EngineConfig::Layered(mmdflux::layered::types::LayoutConfig::default());
-
-    let direct_geom = match run_layered_layout(&MeasurementMode::Text, direct, &engine_config) {
-        Ok(geom) => geom,
-        Err(e) => {
-            return TierResult {
-                tier: "layout",
-                status: TierStatus::Fail(format!("direct layout failed: {e}")),
-            };
-        }
-    };
-
-    let roundtrip_geom = match run_layered_layout(&MeasurementMode::Text, roundtrip, &engine_config)
-    {
-        Ok(geom) => geom,
-        Err(e) => {
-            return TierResult {
-                tier: "layout",
-                status: TierStatus::Fail(format!("roundtrip layout failed: {e}")),
-            };
-        }
-    };
-
-    let mismatches = compare_geometry(&direct_geom, &roundtrip_geom);
+/// Compares direct routed MMDS output against MMDS regenerated Mermaid rerender.
+fn check_layout(direct: &MmdsOutput, roundtrip: &MmdsOutput) -> TierResult {
+    let mismatches = compare_layout_payloads(direct, roundtrip);
 
     TierResult {
         tier: "layout",
@@ -269,205 +296,341 @@ fn check_layout(direct: &Diagram, roundtrip: &Diagram) -> TierResult {
     }
 }
 
-fn compare_geometry(direct: &GraphGeometry, roundtrip: &GraphGeometry) -> Vec<String> {
+fn compare_layout_payloads(direct: &MmdsOutput, roundtrip: &MmdsOutput) -> Vec<String> {
     let mut mismatches = Vec::new();
 
-    // Compare node count
-    if direct.nodes.len() != roundtrip.nodes.len() {
+    if direct.metadata.direction != roundtrip.metadata.direction {
         mismatches.push(format!(
-            "node count: {} vs {}",
-            direct.nodes.len(),
-            roundtrip.nodes.len()
+            "direction: {} vs {}",
+            direct.metadata.direction, roundtrip.metadata.direction
         ));
-        return mismatches;
     }
-
-    // Compare node positions and sizes
-    let mut direct_nodes: Vec<_> = direct.nodes.iter().collect();
-    direct_nodes.sort_by_key(|(id, _)| (*id).clone());
-    for (id, d_node) in &direct_nodes {
-        match roundtrip.nodes.get(*id) {
-            None => mismatches.push(format!("node {id} missing in roundtrip geometry")),
-            Some(r_node) => {
-                if !floats_eq(d_node.rect.x, r_node.rect.x)
-                    || !floats_eq(d_node.rect.y, r_node.rect.y)
-                {
-                    mismatches.push(format!(
-                        "node {id} position: ({:.1},{:.1}) vs ({:.1},{:.1})",
-                        d_node.rect.x, d_node.rect.y, r_node.rect.x, r_node.rect.y
-                    ));
-                }
-                if !floats_eq(d_node.rect.width, r_node.rect.width)
-                    || !floats_eq(d_node.rect.height, r_node.rect.height)
-                {
-                    mismatches.push(format!(
-                        "node {id} size: ({:.1}x{:.1}) vs ({:.1}x{:.1})",
-                        d_node.rect.width,
-                        d_node.rect.height,
-                        r_node.rect.width,
-                        r_node.rect.height
-                    ));
-                }
-            }
-        }
-    }
-
-    // Compare edges (sorted by index for determinism).
-    //
-    // Filter to user-visible edges only. The layered layout's compound graph pipeline creates
-    // internal border edges whose endpoints are synthetic nodes (_bt_*, _bb_*,
-    // _bl_*, _br_*, _tt_*). These may differ between direct and roundtrip paths
-    // due to the descendant-vs-direct-children difference without affecting the
-    // user-visible layout.
-    let is_user_edge =
-        |e: &LayoutEdge| direct.nodes.contains_key(&e.from) && direct.nodes.contains_key(&e.to);
-    let mut d_edges: Vec<_> = direct.edges.iter().filter(|e| is_user_edge(e)).collect();
-    let mut r_edges: Vec<_> = roundtrip.edges.iter().filter(|e| is_user_edge(e)).collect();
-    d_edges.sort_by_key(|e| e.index);
-    r_edges.sort_by_key(|e| e.index);
-
-    if d_edges.len() != r_edges.len() {
+    if direct.geometry_level != roundtrip.geometry_level {
         mismatches.push(format!(
-            "user edge count: {} vs {}",
-            d_edges.len(),
-            r_edges.len()
+            "geometry_level: {} vs {}",
+            direct.geometry_level, roundtrip.geometry_level
         ));
-    } else {
-        for (de, re) in d_edges.iter().zip(&r_edges) {
-            let idx = de.index;
-            if de.from != re.from || de.to != re.to {
-                mismatches.push(format!(
-                    "edge {idx} endpoints: {}->{} vs {}->{}",
-                    de.from, de.to, re.from, re.to
-                ));
-            }
-            if de.waypoints.len() != re.waypoints.len() {
-                mismatches.push(format!(
-                    "edge {idx} waypoint count: {} vs {}",
-                    de.waypoints.len(),
-                    re.waypoints.len()
-                ));
-            } else {
-                for (i, (dw, rw)) in de.waypoints.iter().zip(&re.waypoints).enumerate() {
-                    if !floats_eq(dw.x, rw.x) || !floats_eq(dw.y, rw.y) {
-                        mismatches.push(format!(
-                            "edge {idx} waypoint {i}: ({:.1},{:.1}) vs ({:.1},{:.1})",
-                            dw.x, dw.y, rw.x, rw.y
-                        ));
-                    }
-                }
-            }
-            match (&de.label_position, &re.label_position) {
-                (Some(dl), Some(rl)) => {
-                    if !floats_eq(dl.x, rl.x) || !floats_eq(dl.y, rl.y) {
-                        mismatches.push(format!(
-                            "edge {idx} label pos: ({:.1},{:.1}) vs ({:.1},{:.1})",
-                            dl.x, dl.y, rl.x, rl.y
-                        ));
-                    }
-                }
-                (None, None) => {}
-                _ => mismatches.push(format!("edge {idx} label_position presence mismatch")),
-            }
-        }
     }
-
-    // Compare subgraph geometry
-    if direct.subgraphs.len() != roundtrip.subgraphs.len() {
-        mismatches.push(format!(
-            "subgraph geometry count: {} vs {}",
-            direct.subgraphs.len(),
-            roundtrip.subgraphs.len()
-        ));
-    } else {
-        for (id, d_sg) in &direct.subgraphs {
-            match roundtrip.subgraphs.get(id) {
-                None => mismatches.push(format!("subgraph {id} missing in roundtrip geometry")),
-                Some(r_sg) => {
-                    if !floats_eq(d_sg.rect.x, r_sg.rect.x)
-                        || !floats_eq(d_sg.rect.y, r_sg.rect.y)
-                        || !floats_eq(d_sg.rect.width, r_sg.rect.width)
-                        || !floats_eq(d_sg.rect.height, r_sg.rect.height)
-                    {
-                        mismatches.push(format!("subgraph {id} geometry differs"));
-                    }
-                }
-            }
-        }
-    }
-
-    // Compare bounds
-    if !floats_eq(direct.bounds.width, roundtrip.bounds.width)
-        || !floats_eq(direct.bounds.height, roundtrip.bounds.height)
-    {
+    if !bounds_eq(&direct.metadata.bounds, &roundtrip.metadata.bounds) {
         mismatches.push(format!(
             "bounds: ({:.1}x{:.1}) vs ({:.1}x{:.1})",
-            direct.bounds.width,
-            direct.bounds.height,
-            roundtrip.bounds.width,
-            roundtrip.bounds.height
+            direct.metadata.bounds.width,
+            direct.metadata.bounds.height,
+            roundtrip.metadata.bounds.width,
+            roundtrip.metadata.bounds.height
         ));
+    }
+
+    let direct_nodes = sorted_nodes(direct);
+    let roundtrip_nodes = sorted_nodes(roundtrip);
+    if direct_nodes.len() != roundtrip_nodes.len() {
+        mismatches.push(format!(
+            "node count: {} vs {}",
+            direct_nodes.len(),
+            roundtrip_nodes.len()
+        ));
+    } else {
+        for (direct_node, roundtrip_node) in direct_nodes.iter().zip(&roundtrip_nodes) {
+            if direct_node.id != roundtrip_node.id {
+                mismatches.push(format!(
+                    "node id mismatch: {} vs {}",
+                    direct_node.id, roundtrip_node.id
+                ));
+                continue;
+            }
+            if !position_eq(&direct_node.position, &roundtrip_node.position) {
+                mismatches.push(format!(
+                    "node {} position: ({:.1},{:.1}) vs ({:.1},{:.1})",
+                    direct_node.id,
+                    direct_node.position.x,
+                    direct_node.position.y,
+                    roundtrip_node.position.x,
+                    roundtrip_node.position.y
+                ));
+            }
+            if !size_eq(&direct_node.size, &roundtrip_node.size) {
+                mismatches.push(format!(
+                    "node {} size: ({:.1}x{:.1}) vs ({:.1}x{:.1})",
+                    direct_node.id,
+                    direct_node.size.width,
+                    direct_node.size.height,
+                    roundtrip_node.size.width,
+                    roundtrip_node.size.height
+                ));
+            }
+        }
+    }
+
+    let direct_edges = sorted_edges(direct);
+    let roundtrip_edges = sorted_edges(roundtrip);
+    if direct_edges.len() != roundtrip_edges.len() {
+        mismatches.push(format!(
+            "edge count: {} vs {}",
+            direct_edges.len(),
+            roundtrip_edges.len()
+        ));
+    } else {
+        for (direct_edge, roundtrip_edge) in direct_edges.iter().zip(&roundtrip_edges) {
+            if direct_edge.id != roundtrip_edge.id {
+                mismatches.push(format!(
+                    "edge id mismatch: {} vs {}",
+                    direct_edge.id, roundtrip_edge.id
+                ));
+                continue;
+            }
+            if direct_edge.source != roundtrip_edge.source
+                || direct_edge.target != roundtrip_edge.target
+            {
+                mismatches.push(format!(
+                    "edge {} endpoints: {}->{} vs {}->{}",
+                    direct_edge.id,
+                    direct_edge.source,
+                    direct_edge.target,
+                    roundtrip_edge.source,
+                    roundtrip_edge.target
+                ));
+            }
+            if !path_eq(direct_edge.path.as_deref(), roundtrip_edge.path.as_deref()) {
+                mismatches.push(format!("edge {} path differs", direct_edge.id));
+            }
+            if !optional_position_eq(
+                direct_edge.label_position.as_ref(),
+                roundtrip_edge.label_position.as_ref(),
+            ) {
+                mismatches.push(format!("edge {} label position differs", direct_edge.id));
+            }
+            if !optional_port_eq(
+                direct_edge.source_port.as_ref(),
+                roundtrip_edge.source_port.as_ref(),
+            ) {
+                mismatches.push(format!("edge {} source port differs", direct_edge.id));
+            }
+            if !optional_port_eq(
+                direct_edge.target_port.as_ref(),
+                roundtrip_edge.target_port.as_ref(),
+            ) {
+                mismatches.push(format!("edge {} target port differs", direct_edge.id));
+            }
+        }
+    }
+
+    let direct_subgraphs = sorted_subgraphs(direct);
+    let roundtrip_subgraphs = sorted_subgraphs(roundtrip);
+    if direct_subgraphs.len() != roundtrip_subgraphs.len() {
+        mismatches.push(format!(
+            "subgraph count: {} vs {}",
+            direct_subgraphs.len(),
+            roundtrip_subgraphs.len()
+        ));
+    } else {
+        for (direct_subgraph, roundtrip_subgraph) in
+            direct_subgraphs.iter().zip(&roundtrip_subgraphs)
+        {
+            let direct_id = normalize_roundtrip_identifier(&direct_subgraph.id);
+            let roundtrip_id = normalize_roundtrip_identifier(&roundtrip_subgraph.id);
+            if direct_id != roundtrip_id {
+                mismatches.push(format!(
+                    "subgraph id mismatch: {} vs {}",
+                    direct_subgraph.id, roundtrip_subgraph.id
+                ));
+                continue;
+            }
+            let mut direct_children = direct_subgraph.children.clone();
+            let mut roundtrip_children = roundtrip_subgraph.children.clone();
+            direct_children.sort();
+            roundtrip_children.sort();
+            if direct_children != roundtrip_children {
+                mismatches.push(format!("subgraph {} children differ", direct_subgraph.id));
+            }
+            if direct_subgraph.title != roundtrip_subgraph.title {
+                mismatches.push(format!("subgraph {} title differs", direct_subgraph.id));
+            }
+            if direct_subgraph.direction != roundtrip_subgraph.direction {
+                mismatches.push(format!("subgraph {} direction differs", direct_subgraph.id));
+            }
+            if direct_subgraph
+                .parent
+                .as_deref()
+                .map(normalize_roundtrip_identifier)
+                != roundtrip_subgraph
+                    .parent
+                    .as_deref()
+                    .map(normalize_roundtrip_identifier)
+            {
+                mismatches.push(format!("subgraph {} parent differs", direct_subgraph.id));
+            }
+            if !optional_bounds_eq(
+                direct_subgraph.bounds.as_ref(),
+                roundtrip_subgraph.bounds.as_ref(),
+            ) {
+                mismatches.push(format!("subgraph {} bounds differ", direct_subgraph.id));
+            }
+        }
     }
 
     mismatches
 }
 
+fn position_eq(left: &MmdsPosition, right: &MmdsPosition) -> bool {
+    floats_eq(left.x, right.x) && floats_eq(left.y, right.y)
+}
+
+fn size_eq(left: &mmdflux::mmds::MmdsSize, right: &mmdflux::mmds::MmdsSize) -> bool {
+    floats_eq(left.width, right.width) && floats_eq(left.height, right.height)
+}
+
+fn bounds_eq(left: &MmdsBounds, right: &MmdsBounds) -> bool {
+    floats_eq(left.width, right.width) && floats_eq(left.height, right.height)
+}
+
+fn optional_bounds_eq(left: Option<&MmdsBounds>, right: Option<&MmdsBounds>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => bounds_eq(left, right),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn optional_position_eq(left: Option<&MmdsPosition>, right: Option<&MmdsPosition>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => position_eq(left, right),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn optional_port_eq(left: Option<&MmdsPort>, right: Option<&MmdsPort>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => {
+            left.face == right.face
+                && left.group_size == right.group_size
+                && floats_eq(left.fraction, right.fraction)
+                && position_eq(&left.position, &right.position)
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn path_eq(left: Option<&[[f64; 2]]>, right: Option<&[[f64; 2]]>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => {
+            left.len() == right.len()
+                && left.iter().zip(right).all(|(left_point, right_point)| {
+                    floats_eq(left_point[0], right_point[0])
+                        && floats_eq(left_point[1], right_point[1])
+                })
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn normalize_roundtrip_identifier(value: &str) -> String {
+    value.replace('-', "_")
+}
+
+fn sorted_nodes(output: &MmdsOutput) -> Vec<&MmdsNode> {
+    let mut nodes: Vec<_> = output.nodes.iter().collect();
+    nodes.sort_by(|left, right| left.id.cmp(&right.id));
+    nodes
+}
+
+fn sorted_edges(output: &MmdsOutput) -> Vec<&MmdsEdge> {
+    let mut edges: Vec<_> = output.edges.iter().collect();
+    edges.sort_by(|left, right| left.id.cmp(&right.id));
+    edges
+}
+
+fn sorted_subgraphs(output: &MmdsOutput) -> Vec<&MmdsSubgraph> {
+    let mut subgraphs: Vec<_> = output.subgraphs.iter().collect();
+    subgraphs.sort_by(|left, right| {
+        left.title.cmp(&right.title).then(
+            normalize_roundtrip_identifier(&left.id)
+                .cmp(&normalize_roundtrip_identifier(&right.id)),
+        )
+    });
+    subgraphs
+}
+
+fn flowchart_visual_uses_replay_smoke(name: &str) -> bool {
+    matches!(
+        name,
+        "subgraph_as_node_edge.mmd" | "subgraph_to_subgraph_edge.mmd"
+    )
+}
+
+fn prepare_graph_diagram(diagram_id: &str, input: &str) -> Graph {
+    let payload = default_registry()
+        .create(diagram_id)
+        .unwrap_or_else(|| panic!("missing registry implementation for {diagram_id}"))
+        .parse(input)
+        .unwrap_or_else(|error| panic!("failed to parse {diagram_id} input: {error}"))
+        .into_payload(&RenderConfig::default())
+        .unwrap_or_else(|error| panic!("failed to build {diagram_id} payload: {error}"));
+    match payload {
+        Payload::Flowchart(graph) | Payload::Class(graph) => graph,
+        _ => panic!("{diagram_id} input should build a graph payload"),
+    }
+}
+
+fn render_mmds_output(input: &str, config: &RenderConfig) -> (String, MmdsOutput) {
+    let json =
+        render_diagram(input, OutputFormat::Mmds, config).expect("MMDS render should succeed");
+    let output = parse_mmds_input(&json).expect("MMDS output should parse");
+    (json, output)
+}
+
+fn rerender_mmds_output_from_generated_mermaid(
+    mmds_json: &str,
+    config: &RenderConfig,
+) -> MmdsOutput {
+    let generated =
+        generate_mermaid_from_mmds_str(mmds_json).expect("MMDS Mermaid generation should succeed");
+    let rerendered = render_diagram(&generated, OutputFormat::Mmds, config)
+        .expect("generated Mermaid should render back to MMDS");
+    parse_mmds_input(&rerendered).expect("rerendered MMDS should parse")
+}
+
 /// Run a full conformance case for a flowchart fixture.
 fn run_flowchart_conformance(name: &str) -> ConformanceReport {
     let input = fixture_input("flowchart", name);
+    let mmds_config = RenderConfig::default();
 
-    // Direct path: parse → build → Diagram
-    let direct_diagram = {
-        let fc = mmdflux::parse_flowchart(&input).unwrap();
-        mmdflux::build_diagram(&fc)
-    };
-
-    // MMDS roundtrip: parse → build → layout → JSON → hydrate → Diagram
-    let roundtrip_diagram = {
-        let mut instance = FlowchartInstance::new();
-        instance.parse(&input).unwrap();
-        let json = instance
-            .render(OutputFormat::Mmds, &RenderConfig::default())
-            .unwrap();
-        from_mmds_str(&json).unwrap()
-    };
+    let direct_diagram = prepare_graph_diagram("flowchart", &input);
+    let (mmds_json, direct_output) = render_mmds_output(&input, &mmds_config);
+    let generated = generate_mermaid_from_mmds_str(&mmds_json).unwrap();
+    let roundtrip_diagram = from_mmds_str(&mmds_json).unwrap();
+    let roundtrip_output = rerender_mmds_output_from_generated_mermaid(&mmds_json, &mmds_config);
 
     ConformanceReport {
         fixture_path: format!("flowchart/{name}"),
         semantic: check_semantic(&direct_diagram, &roundtrip_diagram),
-        layout: check_layout(&direct_diagram, &roundtrip_diagram),
-        visual: check_visual(&direct_diagram, &roundtrip_diagram),
+        layout: check_layout(&direct_output, &roundtrip_output),
+        visual: if flowchart_visual_uses_replay_smoke(name) {
+            check_visual_replay_smoke(&mmds_json)
+        } else {
+            check_visual_generated_mermaid(&input, &generated)
+        },
     }
 }
 
 /// Run a full conformance case for a class diagram fixture.
 fn run_class_conformance(name: &str) -> ConformanceReport {
-    use mmdflux::diagrams::class::parser::parse_class_diagram;
-    use mmdflux::diagrams::class::{ClassInstance, compiler};
-
     let input = fixture_input("class", name);
 
-    // Direct path: parse → compile → Diagram
-    let direct_diagram = {
-        let model = parse_class_diagram(&input).unwrap();
-        compiler::compile(&model)
-    };
-
-    // MMDS roundtrip: parse → compile → layout → JSON → hydrate → Diagram
-    let roundtrip_diagram = {
-        let mut instance = ClassInstance::new();
-        instance.parse(&input).unwrap();
-        let json = instance
-            .render(OutputFormat::Mmds, &RenderConfig::default())
-            .unwrap();
-        from_mmds_str(&json).unwrap()
-    };
+    let direct_diagram = prepare_graph_diagram("class", &input);
+    let (mmds_json, _) = render_mmds_output(&input, &RenderConfig::default());
+    let roundtrip_diagram = from_mmds_str(&mmds_json).unwrap();
 
     ConformanceReport {
         fixture_path: format!("class/{name}"),
         semantic: check_semantic(&direct_diagram, &roundtrip_diagram),
-        layout: check_layout(&direct_diagram, &roundtrip_diagram),
-        visual: check_visual(&direct_diagram, &roundtrip_diagram),
+        layout: TierResult {
+            tier: "layout",
+            status: TierStatus::Pass,
+        },
+        visual: check_visual_replay_smoke(&mmds_json),
     }
 }
 

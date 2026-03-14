@@ -1,13 +1,15 @@
 //! Sequence diagram compiler.
 //!
-//! Compiles raw parsed AST statements into a validated `SequenceModel`.
+//! Compiles raw parsed AST statements into a validated `Sequence`.
 //! Resolves participant references, assigns stable ordering, and
 //! applies autonumbering.
 
 use std::collections::HashMap;
 
-use super::model::{MessageStyle, Participant, SequenceEvent, SequenceModel};
-use super::parser::ast::{ArrowType, ParticipantKind, SequenceStatement};
+use crate::mermaid::sequence::ast::{ArrowType, SequenceStatement};
+use crate::timeline::sequence::model::{
+    MessageStyle, Participant, ParticipantKind, Sequence, SequenceEvent,
+};
 
 /// Compile parsed sequence statements into a validated model.
 ///
@@ -16,7 +18,7 @@ use super::parser::ast::{ArrowType, ParticipantKind, SequenceStatement};
 /// notes produce an error.
 pub fn compile(
     statements: &[SequenceStatement],
-) -> Result<SequenceModel, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<Sequence, Box<dyn std::error::Error + Send + Sync>> {
     let mut participants: Vec<Participant> = Vec::new();
     let mut participant_index: HashMap<String, usize> = HashMap::new();
     let mut events: Vec<SequenceEvent> = Vec::new();
@@ -86,7 +88,7 @@ pub fn compile(
         }
     }
 
-    Ok(SequenceModel {
+    Ok(Sequence {
         participants,
         events,
         autonumber,
@@ -116,9 +118,9 @@ fn ensure_participant(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagrams::sequence::parser::parse_sequence;
+    use crate::mermaid::sequence::parse_sequence;
 
-    fn compile_input(input: &str) -> SequenceModel {
+    fn compile_input(input: &str) -> Sequence {
         let stmts = parse_sequence(input).unwrap();
         compile(&stmts).unwrap()
     }
