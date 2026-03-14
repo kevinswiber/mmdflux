@@ -331,13 +331,14 @@ fn mmds_module_keeps_supported_adapter_helpers_public() {
 fn mmds_module_hides_geometry_coupled_helpers() {
     let source = repo_file("src/mmds/mod.rs");
 
+    // These geometry-coupled helpers must not appear on the public surface.
+    // The single runtime helper (to_mmds_json_typed_with_routing) may appear
+    // as a pub(crate) re-export but not as a pub re-export.
     for forbidden in [
         "to_mmds_layout",
         "to_mmds_layout_typed",
         "to_mmds_routed",
         "to_mmds_routed_typed",
-        "to_mmds_json",
-        "to_mmds_json_typed",
         "hydrate_graph_geometry_from_mmds",
         "hydrate_graph_geometry_from_output",
         "hydrate_graph_geometry_from_output_with_diagram",
@@ -348,5 +349,16 @@ fn mmds_module_hides_geometry_coupled_helpers() {
             !source.contains(forbidden),
             "{forbidden} should no longer be part of the public mmds surface"
         );
+    }
+
+    // to_mmds_json helpers may only appear as pub(crate), never pub.
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.contains("to_mmds_json")
+            && !trimmed.starts_with("pub(crate)")
+            && !trimmed.starts_with("//")
+        {
+            panic!("to_mmds_json* helpers must be pub(crate) only, found: {trimmed}");
+        }
     }
 }

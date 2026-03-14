@@ -7,7 +7,7 @@
 pub(crate) mod detect;
 pub(crate) mod hydrate;
 mod mermaid;
-pub(crate) mod output;
+mod output;
 pub(crate) mod parse;
 pub(crate) mod replay;
 
@@ -22,6 +22,8 @@ pub use hydrate::{MmdsHydrationError, from_mmds_output, from_mmds_str};
 pub use mermaid::{
     MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str,
 };
+// Internal serialization (runtime plumbing, not part of public contract).
+pub(crate) use output::to_mmds_json_typed_with_routing;
 // Profile vocabulary constants.
 pub use output::{
     MMDS_CORE_PROFILE, MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MMDS_NODE_STYLE_PROFILE,
