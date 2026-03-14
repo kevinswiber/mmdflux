@@ -7,7 +7,7 @@
 pub(crate) mod detect;
 pub(crate) mod hydrate;
 mod mermaid;
-mod output;
+pub(crate) mod output;
 pub(crate) mod parse;
 pub(crate) mod replay;
 
@@ -22,7 +22,16 @@ pub use hydrate::{MmdsHydrationError, from_mmds_output, from_mmds_str};
 pub use mermaid::{
     MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str,
 };
-pub use output::*;
+// Profile vocabulary constants.
+pub use output::{
+    MMDS_CORE_PROFILE, MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MMDS_NODE_STYLE_PROFILE,
+    MMDS_SVG_PROFILE, MMDS_TEXT_EXTENSION_NAMESPACE, MMDS_TEXT_PROFILE, SUPPORTED_MMDS_PROFILES,
+};
+// Schema types (public adapter contract).
+pub use output::{
+    MmdsBounds, MmdsDefaults, MmdsEdge, MmdsEdgeDefaults, MmdsMetadata, MmdsNode, MmdsNodeDefaults,
+    MmdsOutput, MmdsPort, MmdsPosition, MmdsSize, MmdsSubgraph,
+};
 pub use parse::{parse_with_profiles, validate_input};
 pub use replay::{render_input, render_output};
 use serde_json::{Map, Value};

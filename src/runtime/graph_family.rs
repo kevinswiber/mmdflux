@@ -141,7 +141,7 @@ fn render_mmds_from_solve_result(
     level: GeometryLevel,
     path_simplification: PathSimplification,
 ) -> Result<String, RenderError> {
-    crate::mmds::to_mmds_json_typed_with_routing(
+    crate::mmds::output::to_mmds_json_typed_with_routing(
         diagram_type,
         diagram,
         &result.geometry,
