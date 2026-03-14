@@ -328,16 +328,10 @@ fn engine_selection_explicit_layered_matches_default() {
 #[cfg(not(feature = "engine-elk"))]
 #[test]
 fn engine_selection_unavailable_engine_errors() {
-    let config = RenderConfig {
-        layout_engine: Some(EngineAlgorithmId::parse("elk-layered").unwrap()),
-        ..Default::default()
-    };
-    let result = render_flowchart("graph TD\nA-->B", OutputFormat::Text, &config);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
+    let err = EngineAlgorithmId::parse("elk-layered").unwrap_err();
     assert!(
-        err.message.contains("engine-elk") || err.message.contains("not available"),
-        "error should be actionable: {}",
+        err.message.contains("not available"),
+        "error should indicate unavailability: {}",
         err.message
     );
 }

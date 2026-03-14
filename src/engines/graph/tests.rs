@@ -272,12 +272,11 @@ fn registry_resolves_mermaid_layered() {
 
 #[cfg(not(feature = "engine-elk"))]
 #[test]
-fn registry_does_not_have_elk_solver_without_feature() {
-    let registry = GraphEngineRegistry::default();
-    let id = EngineAlgorithmId::parse("elk-layered").unwrap();
+fn elk_engine_parse_rejected_without_feature() {
+    let result = EngineAlgorithmId::parse("elk-layered");
     assert!(
-        registry.get_solver(id).is_none(),
-        "elk-layered should not be registered without engine-elk feature"
+        result.is_err(),
+        "elk-layered should not be parseable without engine-elk feature"
     );
 }
 

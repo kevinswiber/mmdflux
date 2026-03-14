@@ -161,19 +161,12 @@ fn class_instance_unknown_engine_rejected_at_parse_boundary() {
 
 #[cfg(not(feature = "engine-elk"))]
 #[test]
-fn class_instance_unknown_engine_errors_cleanly() {
-    let result = render_class(
-        "classDiagram\nA --> B",
-        OutputFormat::Text,
-        &RenderConfig {
-            layout_engine: Some(EngineAlgorithmId::parse("elk-layered").unwrap()),
-            ..RenderConfig::default()
-        },
-    );
+fn class_instance_elk_engine_rejected_without_feature() {
+    let result = EngineAlgorithmId::parse("elk-layered");
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(
-        err.message.contains("engine-elk") || err.message.contains("not available"),
+        err.message.contains("not available"),
         "error should be actionable: {}",
         err.message
     );

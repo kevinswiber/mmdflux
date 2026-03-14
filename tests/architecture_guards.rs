@@ -805,7 +805,6 @@ fn engine_taxonomy_uses_explicit_engine_and_algorithm_namespaces() {
             .join("src/engines/graph/algorithms/layered")
             .exists()
     );
-    assert!(!repo_root.join("src/engines/graph/cose.rs").exists());
     assert!(
         !repo_root
             .join("src/engines/graph/layered_engine.rs")

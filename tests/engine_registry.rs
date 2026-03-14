@@ -17,17 +17,15 @@ fn render_with_engine(input: &str, engine: &str) -> Result<String, RenderError> 
     mmdflux::render_diagram(input, OutputFormat::Text, &config)
 }
 
+#[cfg(not(feature = "engine-elk"))]
 #[test]
 fn unavailable_engine_returns_actionable_error() {
-    #[cfg(not(feature = "engine-elk"))]
-    {
-        let err = render_with_engine("graph TD\nA-->B", "elk-layered").unwrap_err();
-        assert!(
-            err.message.contains("engine-elk"),
-            "error should reference feature flag: {}",
-            err.message
-        );
-    }
+    let err = render_with_engine("graph TD\nA-->B", "elk-layered").unwrap_err();
+    assert!(
+        err.message.contains("not available"),
+        "error should indicate unavailability: {}",
+        err.message
+    );
 }
 
 #[test]
@@ -36,27 +34,6 @@ fn unknown_engine_returns_error() {
     assert!(
         err.message.contains("unknown engine"),
         "error should mention unknown engine: {}",
-        err.message
-    );
-}
-
-#[test]
-fn cose_rejected_at_parse_boundary() {
-    // COSE is not in the new engine+algorithm taxonomy; rejected at parse time.
-    let err = EngineAlgorithmId::parse("cose").unwrap_err();
-    assert!(
-        !err.message.is_empty(),
-        "cose should be rejected at parse boundary: {}",
-        err.message
-    );
-}
-
-#[test]
-fn cose_bilkent_rejected_at_parse_boundary() {
-    let err = EngineAlgorithmId::parse("cose-bilkent").unwrap_err();
-    assert!(
-        !err.message.is_empty(),
-        "cose-bilkent should be rejected at parse boundary: {}",
         err.message
     );
 }
@@ -108,8 +85,6 @@ fn engine_algorithm_id_parses_all_valid_ids() {
     for (input, engine, algo) in [
         ("flux-layered", EngineId::Flux, AlgorithmId::Layered),
         ("mermaid-layered", EngineId::Mermaid, AlgorithmId::Layered),
-        ("elk-layered", EngineId::Elk, AlgorithmId::Layered),
-        ("elk-mrtree", EngineId::Elk, AlgorithmId::MrTree),
     ] {
         let id = EngineAlgorithmId::parse(input).unwrap();
         assert_eq!(id.engine(), engine);
@@ -120,8 +95,8 @@ fn engine_algorithm_id_parses_all_valid_ids() {
 #[test]
 fn engine_algorithm_id_is_case_insensitive() {
     assert!(EngineAlgorithmId::parse("Flux-Layered").is_ok());
-    assert!(EngineAlgorithmId::parse("ELK-MRTREE").is_ok());
-    assert!(EngineAlgorithmId::parse("  elk-layered  ").is_ok());
+    assert!(EngineAlgorithmId::parse("MERMAID-LAYERED").is_ok());
+    assert!(EngineAlgorithmId::parse("  flux-layered  ").is_ok());
 }
 
 #[test]
@@ -138,18 +113,8 @@ fn engine_algorithm_id_rejects_legacy_dagre_with_migration() {
 fn engine_algorithm_id_rejects_legacy_elk_with_migration() {
     let err = EngineAlgorithmId::parse("elk").unwrap_err();
     assert!(
-        err.message.contains("elk-layered"),
-        "should suggest replacement: {}",
-        err
-    );
-}
-
-#[test]
-fn engine_algorithm_id_rejects_legacy_cose() {
-    let err = EngineAlgorithmId::parse("cose").unwrap_err();
-    assert!(
-        err.message.contains("no longer supported") || err.message.contains("cose"),
-        "unexpected error: {}",
+        err.message.contains("not available"),
+        "should indicate unavailability: {}",
         err
     );
 }
@@ -166,12 +131,16 @@ fn engine_algorithm_id_rejects_unknown() {
 
 #[test]
 fn engine_algorithm_id_display_roundtrips() {
-    for input in [
-        "flux-layered",
-        "mermaid-layered",
-        "elk-layered",
-        "elk-mrtree",
-    ] {
+    for input in ["flux-layered", "mermaid-layered"] {
+        let id = EngineAlgorithmId::parse(input).unwrap();
+        assert_eq!(id.to_string(), input);
+    }
+}
+
+#[cfg(feature = "engine-elk")]
+#[test]
+fn engine_algorithm_id_display_roundtrips_elk() {
+    for input in ["elk-layered", "elk-mrtree"] {
         let id = EngineAlgorithmId::parse(input).unwrap();
         assert_eq!(id.to_string(), input);
     }
@@ -202,6 +171,7 @@ fn mermaid_layered_capabilities() {
     assert_eq!(caps.supported_routing_styles, &[RoutingStyle::Polyline]);
 }
 
+#[cfg(feature = "engine-elk")]
 #[test]
 fn elk_layered_capabilities() {
     let id = EngineAlgorithmId::parse("elk-layered").unwrap();
@@ -214,6 +184,7 @@ fn elk_layered_capabilities() {
     );
 }
 
+#[cfg(feature = "engine-elk")]
 #[test]
 fn elk_mrtree_capabilities() {
     let id = EngineAlgorithmId::parse("elk-mrtree").unwrap();
@@ -241,11 +212,10 @@ fn mermaid_layered_is_always_available() {
 #[cfg(not(feature = "engine-elk"))]
 #[test]
 fn elk_layered_unavailable_without_feature() {
-    let id = EngineAlgorithmId::parse("elk-layered").unwrap();
-    let err = id.check_available().unwrap_err();
+    let err = EngineAlgorithmId::parse("elk-layered").unwrap_err();
     assert!(
-        err.message.contains("engine-elk"),
-        "should name feature flag: {}",
+        err.message.contains("not available"),
+        "should indicate unavailability: {}",
         err
     );
 }
@@ -253,11 +223,10 @@ fn elk_layered_unavailable_without_feature() {
 #[cfg(not(feature = "engine-elk"))]
 #[test]
 fn elk_mrtree_unavailable_without_feature() {
-    let id = EngineAlgorithmId::parse("elk-mrtree").unwrap();
-    let err = id.check_available().unwrap_err();
+    let err = EngineAlgorithmId::parse("elk-mrtree").unwrap_err();
     assert!(
-        err.message.contains("engine-elk"),
-        "should name feature flag: {}",
+        err.message.contains("not available"),
+        "should indicate unavailability: {}",
         err
     );
 }

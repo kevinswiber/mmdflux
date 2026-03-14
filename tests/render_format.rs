@@ -38,7 +38,7 @@ fn routed_mmds_text_render_does_not_reenter_runtime_engine_selection() {
     let input =
         std::fs::read_to_string("tests/fixtures/mmds/positioned/routed-basic.json").unwrap();
     let config = RenderConfig {
-        layout_engine: Some(EngineAlgorithmId::parse("elk-layered").unwrap()),
+        layout_engine: Some(EngineAlgorithmId::ELK_LAYERED),
         ..RenderConfig::default()
     };
 

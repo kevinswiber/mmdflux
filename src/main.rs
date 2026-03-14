@@ -221,7 +221,7 @@ struct Cli {
     #[arg(long)]
     svg_diagram_padding: Option<f64>,
 
-    /// Layout engine (flux-layered, mermaid-layered, elk-layered, elk-mrtree)
+    /// Layout engine (flux-layered, mermaid-layered)
     #[arg(long)]
     layout_engine: Option<String>,
 

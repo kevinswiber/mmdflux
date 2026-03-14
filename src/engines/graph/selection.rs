@@ -155,25 +155,20 @@ impl EngineAlgorithmId {
         match normalize_enum_token(s).as_str() {
             "flux-layered" => Ok(Self::FLUX_LAYERED),
             "mermaid-layered" => Ok(Self::MERMAID_LAYERED),
+            #[cfg(feature = "engine-elk")]
             "elk-layered" => Ok(Self::ELK_LAYERED),
+            #[cfg(feature = "engine-elk")]
             "elk-mrtree" => Ok(Self::ELK_MRTREE),
-            "dagre" => Err(RenderError {
-                message: "\"dagre\" is no longer a valid engine ID. \
+            #[cfg(not(feature = "engine-elk"))]
+            "elk-layered" | "elk-mrtree" | "elk" => Err(RenderError {
+                message: "ELK engines are not available in this build. \
                           Use \"flux-layered\" (recommended) or \"mermaid-layered\"."
                     .into(),
-            }),
-            "elk" => Err(RenderError {
-                message: "\"elk\" is no longer a valid engine ID. \
-                          Use \"elk-layered\" or \"elk-mrtree\"."
-                    .into(),
-            }),
-            "cose" | "cose-bilkent" => Err(RenderError {
-                message: "\"cose\" is no longer supported. Use \"flux-layered\".".into(),
             }),
             other => Err(RenderError {
                 message: format!(
                     "unknown engine: {other:?}. Valid options: \
-                     flux-layered, mermaid-layered, elk-layered, elk-mrtree"
+                     flux-layered, mermaid-layered"
                 ),
             }),
         }
@@ -198,21 +193,12 @@ impl EngineAlgorithmId {
     pub fn check_available(self) -> Result<(), RenderError> {
         match self.descriptor().required_feature {
             None => Ok(()),
-            Some(feature) => {
-                if feature == "engine-elk" {
-                    #[cfg(feature = "engine-elk")]
-                    {
-                        return Ok(());
-                    }
-                }
-
-                Err(RenderError {
-                    message: format!(
-                        "{} is not available; rebuild with the `{feature}` feature flag enabled",
-                        self
-                    ),
-                })
-            }
+            Some(_) => Err(RenderError {
+                message: format!(
+                    "{self} is not yet implemented. \
+                     Use \"flux-layered\" (recommended) or \"mermaid-layered\"."
+                ),
+            }),
         }
     }
 

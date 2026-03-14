@@ -112,15 +112,15 @@ fn regression_engine_selection_via_registry() {
 
     assert_eq!(default_out, layered_out);
 
-    let err = render_diagram(
-        input,
-        OutputFormat::Text,
-        &RenderConfig {
-            layout_engine: Some(EngineAlgorithmId::parse("elk-layered").unwrap()),
-            ..Default::default()
-        },
-    );
-    assert!(err.is_err());
+    // ELK engine IDs are rejected at parse time when the engine-elk feature is not enabled
+    #[cfg(not(feature = "engine-elk"))]
+    {
+        let err = EngineAlgorithmId::parse("elk-layered");
+        assert!(
+            err.is_err(),
+            "elk-layered should not parse without engine-elk feature"
+        );
+    }
 }
 
 // =============================================================================

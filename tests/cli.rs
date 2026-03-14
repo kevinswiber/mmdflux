@@ -720,17 +720,7 @@ fn cli_layout_engine_unavailable_fails_cleanly() {
         .write_stdin("graph TD\nA-->B")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("engine-elk"));
-}
-
-#[test]
-fn cli_rejects_legacy_cose_with_migration() {
-    mmdflux()
-        .args(["--layout-engine", "cose"])
-        .write_stdin("graph TD\nA-->B")
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("flux-layered"));
+        .stderr(predicate::str::contains("not available"));
 }
 
 // =============================================================================

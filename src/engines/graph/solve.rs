@@ -20,6 +20,7 @@ pub(crate) fn solve_graph_family(
     config: &EngineConfig,
     request: &GraphSolveRequest,
 ) -> Result<GraphSolveResult, RenderError> {
+    engine_id.check_available()?;
     let registry = GraphEngineRegistry::default();
     let engine = registry.get_solver(engine_id).ok_or_else(|| RenderError {
         message: format!("no engine registered for: {engine_id}"),
