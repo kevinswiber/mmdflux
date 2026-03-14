@@ -148,3 +148,9 @@ collapsed back into singleton roots:
 18. **CLI adapter is a thin boundary** — `src/main.rs` maps CLI flags to the
     Rust facade contract and formats output. It does not contain business logic
     beyond argument mapping.
+
+## Deferred Friction
+
+See [deferred-friction.md](./deferred-friction.md) for architecture friction items
+that have been reviewed and deliberately deferred, each with a specific trigger
+condition for when to revisit.
