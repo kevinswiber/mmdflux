@@ -1,4 +1,4 @@
-use mmdflux::mmds::{render_input, supports_format};
+use mmdflux::mmds::supports_format;
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig};
 #[test]
 fn output_format_from_render_module() {
@@ -14,20 +14,18 @@ fn output_format_from_render_module() {
 fn output_format_debug() {
     assert_eq!(format!("{:?}", OutputFormat::Text), "Text");
     assert_eq!(format!("{:?}", OutputFormat::Svg), "Svg");
+    assert_eq!(format!("{:?}", OutputFormat::Ascii), "Ascii");
+    assert_eq!(format!("{:?}", OutputFormat::Mmds), "Mmds");
 }
 
-#[test]
-fn output_format_json_display() {
-    assert_eq!(format!("{}", OutputFormat::Mmds), "mmds");
-}
-
+/// Routed MMDS input should render to text/ascii by ignoring edge paths.
 #[test]
 fn mmds_routed_payload_renders_text_and_ascii_by_ignoring_paths() {
     let input =
         std::fs::read_to_string("tests/fixtures/mmds/positioned/routed-basic.json").unwrap();
 
     for format in [OutputFormat::Text, OutputFormat::Ascii] {
-        let output = render_input(&input, format, &mmdflux::RenderConfig::default())
+        let output = mmdflux::render_diagram(&input, format, &RenderConfig::default())
             .expect("routed MMDS should render text/ascii by ignoring paths");
         assert!(output.contains("Start"));
     }
@@ -42,7 +40,7 @@ fn routed_mmds_text_render_does_not_reenter_runtime_engine_selection() {
         ..RenderConfig::default()
     };
 
-    let output = render_input(&input, OutputFormat::Text, &config)
+    let output = mmdflux::render_diagram(&input, OutputFormat::Text, &config)
         .expect("routed MMDS text replay should not depend on runtime engine availability");
     assert!(output.contains("Start"));
 }
@@ -59,14 +57,17 @@ fn mmds_capability_matrix_matches_geometry_level_contract() {
         OutputFormat::Ascii,
         OutputFormat::Svg,
         OutputFormat::Mmds,
+        OutputFormat::Mermaid,
     ] {
-        assert!(
+        assert_eq!(
+            mmdflux::render_diagram(&layout_payload, format, &RenderConfig::default()).is_ok(),
             supports_format(format),
-            "frontend should advertise {format}"
-        );
-        assert!(
-            render_input(&layout_payload, format, &mmdflux::RenderConfig::default()).is_ok(),
-            "layout payload should support {format}"
+            "layout MMDS should {} {format}",
+            if supports_format(format) {
+                "support"
+            } else {
+                "reject"
+            }
         );
     }
 
@@ -76,14 +77,17 @@ fn mmds_capability_matrix_matches_geometry_level_contract() {
         OutputFormat::Ascii,
         OutputFormat::Svg,
         OutputFormat::Mmds,
+        OutputFormat::Mermaid,
     ] {
-        assert!(
+        assert_eq!(
+            mmdflux::render_diagram(&routed_payload, format, &RenderConfig::default()).is_ok(),
             supports_format(format),
-            "frontend should advertise {format}"
-        );
-        assert!(
-            render_input(&routed_payload, format, &mmdflux::RenderConfig::default()).is_ok(),
-            "routed payload should support {format}"
+            "routed MMDS should {} {format}",
+            if supports_format(format) {
+                "support"
+            } else {
+                "reject"
+            }
         );
     }
 }

@@ -27,7 +27,7 @@ fn build_graph_fixture(path: &str) -> (Diagram, DiagramFamily) {
         .unwrap_or_else(|| panic!("missing registry implementation for {id}"))
         .parse(&input)
         .unwrap_or_else(|e| panic!("failed to parse {path}: {e}"))
-        .into_payload(&Default::default())
+        .into_payload()
         .unwrap_or_else(|e| panic!("failed to build payload for {path}: {e}"));
     (payload, family)
 }

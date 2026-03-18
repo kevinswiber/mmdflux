@@ -5,15 +5,15 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 
-use super::{MmdsEdge, MmdsNode, MmdsOutput, MmdsSubgraph, parse_mmds_input};
+use super::{Edge, Node, Output, Subgraph, parse_input};
 
 /// Error produced when MMDS-to-Mermaid regeneration fails.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MmdsGenerationError {
+pub struct GenerationError {
     message: String,
 }
 
-impl MmdsGenerationError {
+impl GenerationError {
     fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
@@ -21,13 +21,13 @@ impl MmdsGenerationError {
     }
 }
 
-impl fmt::Display for MmdsGenerationError {
+impl fmt::Display for GenerationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "MMDS generation error: {}", self.message)
     }
 }
 
-impl Error for MmdsGenerationError {}
+impl Error for GenerationError {}
 
 struct IdentifierMaps {
     node_ids: HashMap<String, String>,
@@ -35,7 +35,7 @@ struct IdentifierMaps {
 }
 
 /// Generate canonical Mermaid text from parsed MMDS output.
-pub fn generate_mermaid_from_mmds(output: &MmdsOutput) -> Result<String, MmdsGenerationError> {
+pub fn generate_mermaid(output: &Output) -> Result<String, GenerationError> {
     validate_mermaid_generation_scope(output)?;
 
     let identifiers = build_identifier_maps(output);
@@ -50,13 +50,13 @@ pub fn generate_mermaid_from_mmds(output: &MmdsOutput) -> Result<String, MmdsGen
 }
 
 /// Parse MMDS JSON and generate canonical Mermaid text.
-pub fn generate_mermaid_from_mmds_str(input: &str) -> Result<String, MmdsGenerationError> {
-    let output = parse_mmds_input(input)
-        .map_err(|err| MmdsGenerationError::new(format!("failed to parse MMDS input: {err}")))?;
-    generate_mermaid_from_mmds(&output)
+pub fn generate_mermaid_from_str(input: &str) -> Result<String, GenerationError> {
+    let output = parse_input(input)
+        .map_err(|err| GenerationError::new(format!("failed to parse MMDS input: {err}")))?;
+    generate_mermaid(&output)
 }
 
-fn build_identifier_maps(output: &MmdsOutput) -> IdentifierMaps {
+fn build_identifier_maps(output: &Output) -> IdentifierMaps {
     IdentifierMaps {
         node_ids: build_identifier_map(output.nodes.iter().map(|node| node.id.as_str()), "node"),
         subgraph_ids: build_identifier_map(
@@ -66,10 +66,10 @@ fn build_identifier_maps(output: &MmdsOutput) -> IdentifierMaps {
     }
 }
 
-fn validate_mermaid_generation_scope(output: &MmdsOutput) -> Result<(), MmdsGenerationError> {
+fn validate_mermaid_generation_scope(output: &Output) -> Result<(), GenerationError> {
     match output.metadata.diagram_type.as_str() {
         "flowchart" | "class" => Ok(()),
-        value => Err(MmdsGenerationError::new(format!(
+        value => Err(GenerationError::new(format!(
             "unsupported MMDS diagram_type '{value}'; expected flowchart or class"
         ))),
     }
@@ -133,12 +133,12 @@ fn normalize_identifier(raw: &str, fallback_prefix: &str) -> String {
 }
 
 fn emit_nodes(
-    output: &MmdsOutput,
+    output: &Output,
     identifiers: &IdentifierMaps,
     lines: &mut Vec<String>,
-) -> Result<(), MmdsGenerationError> {
-    let mut root_subgraphs: Vec<&MmdsSubgraph> = Vec::new();
-    let mut subgraphs_by_parent: HashMap<&str, Vec<&MmdsSubgraph>> = HashMap::new();
+) -> Result<(), GenerationError> {
+    let mut root_subgraphs: Vec<&Subgraph> = Vec::new();
+    let mut subgraphs_by_parent: HashMap<&str, Vec<&Subgraph>> = HashMap::new();
 
     for subgraph in &output.subgraphs {
         if let Some(parent) = subgraph.parent.as_deref() {
@@ -155,8 +155,8 @@ fn emit_nodes(
         children.sort_by(|left, right| left.id.cmp(&right.id));
     }
 
-    let mut standalone_nodes: Vec<&MmdsNode> = Vec::new();
-    let mut nodes_by_parent: HashMap<&str, Vec<&MmdsNode>> = HashMap::new();
+    let mut standalone_nodes: Vec<&Node> = Vec::new();
+    let mut nodes_by_parent: HashMap<&str, Vec<&Node>> = HashMap::new();
     for node in &output.nodes {
         if let Some(parent) = node.parent.as_deref() {
             nodes_by_parent.entry(parent).or_default().push(node);
@@ -189,13 +189,13 @@ fn emit_nodes(
 }
 
 fn emit_subgraph(
-    subgraph: &MmdsSubgraph,
+    subgraph: &Subgraph,
     identifiers: &IdentifierMaps,
     indent: usize,
-    subgraphs_by_parent: &HashMap<&str, Vec<&MmdsSubgraph>>,
-    nodes_by_parent: &HashMap<&str, Vec<&MmdsNode>>,
+    subgraphs_by_parent: &HashMap<&str, Vec<&Subgraph>>,
+    nodes_by_parent: &HashMap<&str, Vec<&Node>>,
     lines: &mut Vec<String>,
-) -> Result<(), MmdsGenerationError> {
+) -> Result<(), GenerationError> {
     let padding = " ".repeat(indent);
     lines.push(format!(
         "{padding}{}",
@@ -233,9 +233,9 @@ fn emit_subgraph(
 }
 
 fn render_subgraph_header(
-    subgraph: &MmdsSubgraph,
+    subgraph: &Subgraph,
     identifiers: &IdentifierMaps,
-) -> Result<String, MmdsGenerationError> {
+) -> Result<String, GenerationError> {
     let id = map_subgraph_id(identifiers, subgraph.id.as_str())?;
     if subgraph.title == subgraph.id {
         Ok(format!("subgraph {id}"))
@@ -248,11 +248,11 @@ fn render_subgraph_header(
 }
 
 fn emit_edges(
-    output: &MmdsOutput,
+    output: &Output,
     identifiers: &IdentifierMaps,
     lines: &mut Vec<String>,
-) -> Result<(), MmdsGenerationError> {
-    let mut edges: Vec<(usize, &MmdsEdge)> = output.edges.iter().enumerate().collect();
+) -> Result<(), GenerationError> {
+    let mut edges: Vec<(usize, &Edge)> = output.edges.iter().enumerate().collect();
     edges.sort_by(|(left_index, left), (right_index, right)| {
         compare_edge_ids(&left.id, &right.id).then(left_index.cmp(right_index))
     });
@@ -264,7 +264,7 @@ fn emit_edges(
     Ok(())
 }
 
-fn render_node(node_id: &str, node: &MmdsNode) -> Result<String, MmdsGenerationError> {
+fn render_node(node_id: &str, node: &Node) -> Result<String, GenerationError> {
     let label = format_structural_label(&node.label);
 
     match node.shape.as_str() {
@@ -293,7 +293,7 @@ fn render_node(node_id: &str, node: &MmdsNode) -> Result<String, MmdsGenerationE
         "crossed_circle" => Ok(render_at_shape(node_id, "cross-circ", &node.label)),
         "text_block" => Ok(render_at_shape(node_id, "text", &node.label)),
         "fork_join" => Ok(render_at_shape(node_id, "fork", &node.label)),
-        value => Err(MmdsGenerationError::new(format!(
+        value => Err(GenerationError::new(format!(
             "unsupported node shape '{value}' for node '{}'",
             node.id
         ))),
@@ -305,10 +305,7 @@ fn render_at_shape(node_id: &str, keyword: &str, label: &str) -> String {
     format!(r#"{node_id}@{{shape: {keyword}, label: "{escaped}"}}"#)
 }
 
-fn render_edge(
-    edge: &MmdsEdge,
-    identifiers: &IdentifierMaps,
-) -> Result<String, MmdsGenerationError> {
+fn render_edge(edge: &Edge, identifiers: &IdentifierMaps) -> Result<String, GenerationError> {
     let connector = connector_for(edge)?;
     let source_id = map_node_id(identifiers, edge.source.as_str())?;
     let target_id = map_node_id(identifiers, edge.target.as_str())?;
@@ -328,23 +325,23 @@ fn render_edge(
 fn map_node_id<'a>(
     identifiers: &'a IdentifierMaps,
     raw_id: &str,
-) -> Result<&'a str, MmdsGenerationError> {
+) -> Result<&'a str, GenerationError> {
     identifiers
         .node_ids
         .get(raw_id)
         .map(String::as_str)
-        .ok_or_else(|| MmdsGenerationError::new(format!("unknown node id '{raw_id}'")))
+        .ok_or_else(|| GenerationError::new(format!("unknown node id '{raw_id}'")))
 }
 
 fn map_subgraph_id<'a>(
     identifiers: &'a IdentifierMaps,
     raw_id: &str,
-) -> Result<&'a str, MmdsGenerationError> {
+) -> Result<&'a str, GenerationError> {
     identifiers
         .subgraph_ids
         .get(raw_id)
         .map(String::as_str)
-        .ok_or_else(|| MmdsGenerationError::new(format!("unknown subgraph id '{raw_id}'")))
+        .ok_or_else(|| GenerationError::new(format!("unknown subgraph id '{raw_id}'")))
 }
 
 fn format_structural_label(label: &str) -> String {
@@ -373,7 +370,7 @@ fn format_edge_label(label: &str) -> String {
     escape_quoted_label(label).replace('|', "&#124;")
 }
 
-fn connector_for(edge: &MmdsEdge) -> Result<String, MmdsGenerationError> {
+fn connector_for(edge: &Edge) -> Result<String, GenerationError> {
     let minlen = edge.minlen.max(1) as usize;
     let connector = match (
         edge.stroke.as_str(),
@@ -399,7 +396,7 @@ fn connector_for(edge: &MmdsEdge) -> Result<String, MmdsGenerationError> {
         ("thick", "none", "circle") => format!("{}o", "=".repeat(minlen + 1)),
         ("invisible", "none", "none") => "~".repeat(minlen + 2),
         _ => {
-            return Err(MmdsGenerationError::new(format!(
+            return Err(GenerationError::new(format!(
                 "unsupported edge connector combination stroke='{}' arrow_start='{}' arrow_end='{}' on edge '{}'",
                 edge.stroke, edge.arrow_start, edge.arrow_end, edge.id
             )));

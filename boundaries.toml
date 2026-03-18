@@ -1,0 +1,50 @@
+# boundaries.toml — semantic module dependency policy
+#
+# Enforces the architecture rules from docs/architecture/dependency-rules.md
+# through the repo-owned `cargo xtask architecture boundaries` checker.
+#
+# Run:   cargo xtask architecture boundaries
+# CI:    cargo run --locked --package xtask -- architecture boundaries
+#
+# Only modules listed in [modules] are evaluated as source boundaries. Omitting a
+# top-level module keeps it out of the source set; imports from checked modules
+# into omitted modules still show up as violations.
+
+version = 1
+
+# internal_tests is intentionally omitted. It remains a cross-pipeline bucket
+# for owner-spanning regressions rather than a governed architecture boundary.
+
+[modules]
+errors = []
+format = ["errors"]
+timeline = []
+
+simplification = ["errors", "format"]
+
+# Must not import render, engines, diagrams, or runtime.
+graph = ["errors", "format"]
+mermaid = ["errors", "graph", "timeline"]
+
+# Must not import render, diagrams, or runtime.
+engines = ["errors", "format", "graph"]
+
+# Must not import diagrams, config, engines, or runtime.
+render = ["format", "graph", "simplification", "timeline"]
+
+payload = ["graph", "timeline"]
+registry = ["errors", "format", "payload"]
+
+# Must not import render or engines (stops at into_payload).
+diagrams = ["errors", "graph", "mermaid", "payload", "registry", "timeline"]
+builtins = ["diagrams", "format", "registry"]
+
+# Must not import diagrams, config, engines, render, or runtime.
+mmds = ["errors", "format", "graph", "simplification"]
+frontends = ["mermaid", "mmds"]
+
+runtime = [
+    "builtins", "engines", "errors",
+    "format", "frontends", "graph", "mermaid", "mmds",
+    "payload", "registry", "render", "simplification", "timeline",
+]

@@ -7,7 +7,7 @@ use mmdflux::payload::Diagram;
 use mmdflux::registry::{
     DiagramDefinition, DiagramFamily, DiagramInstance, DiagramRegistry, ParsedDiagram,
 };
-use mmdflux::{OutputFormat, RenderConfig, RenderError};
+use mmdflux::{OutputFormat, RenderError};
 
 struct MockDiagram;
 
@@ -30,14 +30,10 @@ impl DiagramInstance for MockDiagram {
             content: input.to_string(),
         }))
     }
-
-    fn supports_format(&self, format: OutputFormat) -> bool {
-        matches!(format, OutputFormat::Text | OutputFormat::Ascii)
-    }
 }
 
 impl ParsedDiagram for MockParsedDiagram {
-    fn into_payload(self: Box<Self>, _config: &RenderConfig) -> Result<Diagram, RenderError> {
+    fn into_payload(self: Box<Self>) -> Result<Diagram, RenderError> {
         let mut graph = Graph::new(Direction::TopDown);
         graph.add_node(Node::new(&self.content));
         Ok(Diagram::Flowchart(graph))
@@ -49,7 +45,7 @@ fn diagram_instance_parse_and_into_payload() {
     let payload = Box::new(MockDiagram::new())
         .parse("test input")
         .unwrap()
-        .into_payload(&RenderConfig::default())
+        .into_payload()
         .unwrap();
     let Diagram::Flowchart(graph) = payload else {
         panic!("mock should yield a flowchart payload");
@@ -62,7 +58,7 @@ fn diagram_instance_into_payload_returns_expected_variant() {
     let payload = Box::new(MockDiagram::new())
         .parse("test input")
         .unwrap()
-        .into_payload(&RenderConfig::default())
+        .into_payload()
         .unwrap();
     assert!(matches!(payload, Diagram::Flowchart(_)));
 }
@@ -87,11 +83,18 @@ fn diagram_instance_trait_is_phase_split() {
 }
 
 #[test]
-fn diagram_instance_supports_format() {
-    let diagram = MockDiagram::new();
-    assert!(diagram.supports_format(OutputFormat::Text));
-    assert!(diagram.supports_format(OutputFormat::Ascii));
-    assert!(!diagram.supports_format(OutputFormat::Svg));
+fn registry_supports_format_queries_definition() {
+    let mut registry = DiagramRegistry::new();
+    registry.register(DiagramDefinition {
+        id: "mock",
+        family: DiagramFamily::Graph,
+        detector: |_| true,
+        factory: || Box::new(MockDiagram::new()),
+        supported_formats: &[OutputFormat::Text, OutputFormat::Ascii],
+    });
+    assert!(registry.supports_format("mock", OutputFormat::Text));
+    assert!(registry.supports_format("mock", OutputFormat::Ascii));
+    assert!(!registry.supports_format("mock", OutputFormat::Svg));
 }
 
 #[test]
@@ -107,11 +110,7 @@ fn registry_create_returns_instance() {
     });
 
     let instance = registry.create("mock").expect("should create instance");
-    let payload = instance
-        .parse("hello")
-        .unwrap()
-        .into_payload(&RenderConfig::default())
-        .unwrap();
+    let payload = instance.parse("hello").unwrap().into_payload().unwrap();
     let Diagram::Flowchart(graph) = payload else {
         panic!("mock should yield a flowchart payload");
     };

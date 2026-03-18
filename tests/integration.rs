@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::builtins::default_registry;
-use mmdflux::mmds::generate_mermaid_from_mmds_str;
+use mmdflux::mmds::generate_mermaid_from_str;
 use mmdflux::payload::Diagram;
 use mmdflux::{OutputFormat, RenderConfig, render_diagram};
 
@@ -34,7 +34,7 @@ fn flowchart_registry_into_payload_returns_graph_payload() {
         .expect("flowchart should be registered")
         .parse(&input)
         .expect("flowchart fixture should parse")
-        .into_payload(&RenderConfig::default())
+        .into_payload()
         .expect("flowchart fixture should build a payload");
 
     let Diagram::Flowchart(graph) = payload else {
@@ -77,7 +77,7 @@ fn runtime_renders_positioned_mmds_fixture_as_svg() {
 #[test]
 fn generated_mermaid_from_mmds_rerenders_through_runtime() {
     let payload = load_mmds_fixture("generation/basic-flow.json");
-    let mermaid = generate_mermaid_from_mmds_str(&payload)
+    let mermaid = generate_mermaid_from_str(&payload)
         .expect("basic flow MMDS fixture should generate Mermaid");
     let text = render_diagram(&mermaid, OutputFormat::Text, &RenderConfig::default())
         .expect("generated Mermaid should render through the runtime facade");

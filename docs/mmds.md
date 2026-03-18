@@ -19,13 +19,13 @@ Any intentional MMDS contract change should update those locked fixtures and the
 Most Rust callers should produce MMDS through the high-level runtime facade:
 
 - `render_diagram(input, OutputFormat::Mmds, &RenderConfig::default())`
-- `mmdflux::mmds::render_input(...)` when the input may already be MMDS
+  (`render_diagram` auto-detects MMDS input and dispatches to the replay path)
 
 Adapter-oriented workflows can use the low-level API:
 
 - `mmdflux::builtins::default_registry()` for builtin registry wiring
 - `mmdflux::registry` and `mmdflux::payload` for explicit payload flows
-- `mmdflux::mmds` for hydration, replay, profile negotiation, and Mermaid generation
+- `mmdflux::mmds` for hydration, profile negotiation, and Mermaid generation
 
 The current Rust replay example lives at `examples/mmds_replay.rs`.
 
@@ -56,8 +56,8 @@ MMDS input support is active:
 
 mmdflux provides deterministic Mermaid generation for graph-family MMDS payloads:
 
-- `mmdflux::generate_mermaid_from_mmds_str(input: &str) -> Result<String, MmdsGenerationError>`
-- `mmdflux::generate_mermaid_from_mmds(output: &MmdsOutput) -> Result<String, MmdsGenerationError>`
+- `mmdflux::mmds::generate_mermaid_from_str(input: &str) -> Result<String, GenerationError>`
+- `mmdflux::mmds::generate_mermaid(output: &Output) -> Result<String, GenerationError>`
 
 ### Canonical Output Rules
 
@@ -92,7 +92,7 @@ Example (validated by tests):
 ### Known Non-Goals / Caveats
 
 - Generation preserves semantics, not source formatting. Comments, original statement ordering, quoting style, and alias spellings are not reconstructed.
-- Non-graph payloads (for example `diagram_type: "sequence"`) are rejected with `MmdsGenerationError`.
+- Non-graph payloads (for example `diagram_type: "sequence"`) are rejected with `GenerationError`.
 - IDs that are not Mermaid-safe are normalized; exact original ID text is not retained in generated Mermaid.
 - Mermaid regeneration from MMDS does not yet emit style, class, or link directives.
 - Node styles can still round-trip through the `mmdflux-node-style-v1` extension for MMDS, text, and SVG rendering.

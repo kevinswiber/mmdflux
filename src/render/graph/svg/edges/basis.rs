@@ -4,7 +4,7 @@ use super::{
     SegmentAxis, dedup_consecutive_svg_points, point_inside_rect, points_approx_equal,
     points_are_axis_aligned, segment_axis, vectors_share_ray,
 };
-use crate::graph::geometry::{EngineHints, GraphGeometry};
+use crate::graph::geometry::GraphGeometry;
 use crate::graph::{Direction, Edge, Graph, Shape, Stroke};
 
 pub(super) fn enforce_basis_visible_terminal_stems(
@@ -81,7 +81,7 @@ pub(super) fn clamp_basis_edge_endpoints_to_boundaries(
 }
 
 pub(super) fn edge_rank_span_for_svg(geom: &GraphGeometry, edge: &Edge) -> Option<usize> {
-    let EngineHints::Layered(hints) = geom.engine_hints.as_ref()?;
+    let crate::graph::geometry::EngineHints::Layered(hints) = geom.engine_hints.as_ref()?;
     let src_rank = *hints.node_ranks.get(&edge.from)?;
     let dst_rank = *hints.node_ranks.get(&edge.to)?;
     Some(src_rank.abs_diff(dst_rank) as usize)

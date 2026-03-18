@@ -26,12 +26,11 @@ use crate::graph::grid::{
 use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{Direction, GeometryLevel, Graph, Shape};
-use crate::mmds::from_mmds_str;
+use crate::mmds::from_str;
 use crate::payload::Diagram as DiagramPayload;
 use crate::render::graph::text::{render_all_edges_with_labels, render_node};
 use crate::render::graph::{
-    SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
-    render_text_from_geometry,
+    render_svg_from_geometry, render_svg_from_routed_geometry, render_text_from_geometry,
 };
 use crate::render::text::{Canvas, CharSet};
 use crate::{EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode};
@@ -129,8 +128,7 @@ fn render_diagram_with_config(
 
     match format {
         OutputFormat::Text | OutputFormat::Ascii => {
-            let mut options: TextRenderOptions = config.into();
-            options.output_format = format;
+            let options = config.text_render_options(format);
             Ok(render_text_from_geometry(
                 diagram,
                 &result.geometry,
@@ -139,7 +137,7 @@ fn render_diagram_with_config(
             ))
         }
         OutputFormat::Svg => {
-            let options: SvgRenderOptions = config.into();
+            let options = config.svg_render_options();
             Ok(if let Some(routed) = result.routed.as_ref() {
                 render_svg_from_routed_geometry(diagram, routed, &options)
             } else {
@@ -215,9 +213,9 @@ fn parse_flowchart_via_registry(input: &str) -> Box<dyn crate::registry::ParsedD
         .unwrap_or_else(|e| panic!("Failed to parse flowchart input: {e}"))
 }
 
-fn prepare_flowchart(input: &str, config: &RenderConfig) -> Graph {
+fn prepare_flowchart(input: &str) -> Graph {
     let payload = parse_flowchart_via_registry(input)
-        .into_payload(config)
+        .into_payload()
         .unwrap_or_else(|e| panic!("Failed to build flowchart payload: {e}"));
     let DiagramPayload::Flowchart(graph) = payload else {
         panic!("flowchart input should yield a Flowchart payload");
@@ -228,7 +226,7 @@ fn prepare_flowchart(input: &str, config: &RenderConfig) -> Graph {
 /// Parse and build a diagram from a fixture file.
 fn parse_and_build(name: &str) -> Graph {
     let input = load_fixture(name);
-    prepare_flowchart(&input, &RenderConfig::default())
+    prepare_flowchart(&input)
 }
 
 /// Parse, build, and compute layout for a fixture file.
@@ -269,7 +267,7 @@ fn render_fixture_with_options(
 
 /// Parse, build, and render a Mermaid input string.
 fn render_input(input: &str) -> String {
-    let diagram = prepare_flowchart(input, &RenderConfig::default());
+    let diagram = prepare_flowchart(input);
     render_text_diagram(&diagram)
 }
 
@@ -326,7 +324,7 @@ fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
 }
 
 fn route_input_orthogonal(input: &str) -> RoutedGraphGeometry {
-    let diagram = prepare_flowchart(input, &RenderConfig::default());
+    let diagram = prepare_flowchart(input);
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
@@ -378,7 +376,7 @@ mod snapshots {
             if path.extension().is_some_and(|e| e == "mmd") {
                 let name = path.file_stem().unwrap().to_str().unwrap();
                 let input = fs::read_to_string(&path).unwrap();
-                let diagram = prepare_flowchart(&input, &RenderConfig::default());
+                let diagram = prepare_flowchart(&input);
                 let output = render_text_diagram(&diagram);
                 let snapshot_path = snapshot_dir.join(format!("{}.txt", name));
                 if regenerate {
@@ -1341,7 +1339,7 @@ mod multigraph {
     #[test]
     fn test_multi_edge_parse_preserves_both() {
         let input = load_fixture("multi_edge.mmd");
-        let diagram = prepare_flowchart(&input, &RenderConfig::default());
+        let diagram = prepare_flowchart(&input);
         assert_eq!(
             diagram.edges.len(),
             2,
@@ -1382,7 +1380,7 @@ mod multigraph {
     #[test]
     fn test_multi_edge_different_styles() {
         let input = "graph TD\n    A --> B\n    A -.-> B\n    A ==> B";
-        let diagram = prepare_flowchart(input, &RenderConfig::default());
+        let diagram = prepare_flowchart(input);
 
         assert_eq!(
             diagram.edges.len(),
@@ -1971,7 +1969,7 @@ fn mmds_integration_fixture_matrix() {
     for (fixture_name, should_pass) in cases {
         let payload = load_mmds_fixture(fixture_name);
         assert_eq!(
-            from_mmds_str(&payload).is_ok(),
+            from_str(&payload).is_ok(),
             should_pass,
             "fixture {} expected pass={}",
             fixture_name,
@@ -2508,7 +2506,7 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
     ) in cases
     {
         let input = load_fixture(fixture);
-        let diagram = prepare_flowchart(&input, &RenderConfig::default());
+        let diagram = prepare_flowchart(&input);
         let mode = default_proportional_mode();
         let config = EngineConfig::Layered(
             crate::engines::graph::algorithms::layered::LayoutConfig::default(),
@@ -2650,7 +2648,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
     {
         let fixture = "git_workflow.mmd";
         let input = load_fixture(fixture);
-        let diagram = prepare_flowchart(&input, &RenderConfig::default());
+        let diagram = prepare_flowchart(&input);
         let mode = default_proportional_mode();
         let config = EngineConfig::Layered(
             crate::engines::graph::algorithms::layered::LayoutConfig::default(),
@@ -2735,7 +2733,7 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
     {
         let fixture = "http_request.mmd";
         let input = load_fixture(fixture);
-        let diagram = prepare_flowchart(&input, &RenderConfig::default());
+        let diagram = prepare_flowchart(&input);
         let config = EngineConfig::Layered(
             crate::engines::graph::algorithms::layered::LayoutConfig::default(),
         );
@@ -2957,10 +2955,8 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
         (matches[0], output)
     }
 
-    let diagram = prepare_flowchart(
-        "graph TD\nA[Very Wide Source Node] -->|cfg| B[Very Wide Target Node]\n",
-        &RenderConfig::default(),
-    );
+    let diagram =
+        prepare_flowchart("graph TD\nA[Very Wide Source Node] -->|cfg| B[Very Wide Target Node]\n");
     let layout = compute_layout(&diagram, &GridLayoutConfig::default());
     let routed_edges = route_all_edges(&diagram.edges, &layout, diagram.direction);
 

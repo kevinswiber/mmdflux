@@ -139,7 +139,7 @@ pub(crate) const ROUTE_ALIGN_EPS: f64 = 0.5;
 pub(crate) const ROUTE_POINT_EPS: f64 = 0.000_001;
 const MIN_TERMINAL_SUPPORT: f64 = 8.0;
 
-pub(crate) fn build_orthogonal_path_float(
+pub fn build_orthogonal_path_float(
     start: FPoint,
     end: FPoint,
     direction: Direction,
@@ -562,7 +562,7 @@ pub(crate) const HEXAGON_INDENT_FACTOR: f64 = 0.2;
 
 /// Return the 6 vertices of a hexagon inscribed in `rect`.
 /// Order: top-left, top-right, right, bottom-right, bottom-left, left (clockwise).
-pub(crate) fn hexagon_vertices(rect: FRect) -> [FPoint; 6] {
+pub fn hexagon_vertices(rect: FRect) -> [FPoint; 6] {
     let indent = rect.width * HEXAGON_INDENT_FACTOR;
     let cy = rect.y + rect.height / 2.0;
     [
@@ -580,11 +580,7 @@ pub(crate) fn hexagon_vertices(rect: FRect) -> [FPoint; 6] {
 /// Returns the point where the ray first crosses the polygon boundary.
 /// For degenerate cases (approach == center), returns the bottom-most vertex.
 /// Vertices must be in order (clockwise or counter-clockwise).
-pub(crate) fn intersect_convex_polygon(
-    vertices: &[FPoint],
-    approach: FPoint,
-    center: FPoint,
-) -> FPoint {
+pub fn intersect_convex_polygon(vertices: &[FPoint], approach: FPoint, center: FPoint) -> FPoint {
     let dx = approach.x - center.x;
     let dy = approach.y - center.y;
 

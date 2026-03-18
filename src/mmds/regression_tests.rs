@@ -2,13 +2,13 @@ use std::fs;
 use std::path::Path;
 
 use super::hydrate::{hydrate_graph_geometry_from_mmds, hydrate_routed_geometry_from_mmds};
-use super::{MmdsHydrationError, evaluate_mmds_profiles, from_mmds_str};
+use super::{HydrationError, evaluate_profiles, from_str};
 use crate::graph::{Direction, Shape};
 
 #[test]
 fn hydration_applies_defaults_to_omitted_node_and_edge_fields() {
     let payload = mmds_fixture("defaults-minimal.json");
-    let diagram = from_mmds_str(&payload).expect("valid hydration");
+    let diagram = from_str(&payload).expect("valid hydration");
 
     assert_eq!(diagram.nodes["A"].shape, Shape::Round);
     assert_eq!(diagram.edges[0].minlen, 2);
@@ -17,7 +17,7 @@ fn hydration_applies_defaults_to_omitted_node_and_edge_fields() {
 #[test]
 fn hydration_maps_direction_subgraphs_and_minlen() {
     let payload = mmds_fixture("layout-with-subgraphs.json");
-    let diagram = from_mmds_str(&payload).expect("valid hydration");
+    let diagram = from_str(&payload).expect("valid hydration");
 
     assert_eq!(diagram.direction, Direction::LeftRight);
     assert_eq!(diagram.edges[0].minlen, 2);
@@ -31,7 +31,7 @@ fn hydration_maps_direction_subgraphs_and_minlen() {
 #[test]
 fn hydration_reconstructs_compound_membership_for_nested_subgraphs() {
     let payload = mmds_fixture("layout-with-subgraphs.json");
-    let diagram = from_mmds_str(&payload).expect("valid hydration");
+    let diagram = from_str(&payload).expect("valid hydration");
 
     assert_eq!(
         diagram.subgraphs["sg1"].nodes,
@@ -43,8 +43,8 @@ fn hydration_reconstructs_compound_membership_for_nested_subgraphs() {
 #[test]
 fn hydration_compound_membership_order_is_deterministic() {
     let payload = mmds_fixture("layout-with-subgraphs.json");
-    let first = from_mmds_str(&payload).expect("valid hydration");
-    let second = from_mmds_str(&payload).expect("valid hydration");
+    let first = from_str(&payload).expect("valid hydration");
+    let second = from_str(&payload).expect("valid hydration");
 
     assert_eq!(first.subgraphs["sg1"].nodes, second.subgraphs["sg1"].nodes);
     assert_eq!(first.subgraphs["sg2"].nodes, second.subgraphs["sg2"].nodes);
@@ -53,62 +53,62 @@ fn hydration_compound_membership_order_is_deterministic() {
 #[test]
 fn hydration_rejects_dangling_edge_reference() {
     let payload = invalid_fixture("dangling-edge-target.json");
-    let err = from_mmds_str(&payload).unwrap_err();
+    let err = from_str(&payload).unwrap_err();
 
-    assert!(matches!(err, MmdsHydrationError::DanglingEdgeTarget { .. }));
+    assert!(matches!(err, HydrationError::DanglingEdgeTarget { .. }));
 }
 
 #[test]
 fn hydration_rejects_dangling_subgraph_endpoint_intent_reference() {
     let payload = invalid_fixture("dangling-endpoint-intent-subgraph.json");
-    let err = from_mmds_str(&payload).unwrap_err();
+    let err = from_str(&payload).unwrap_err();
 
     assert!(matches!(
         err,
-        MmdsHydrationError::DanglingEdgeToSubgraphIntent { .. }
+        HydrationError::DanglingEdgeToSubgraphIntent { .. }
     ));
 }
 
 #[test]
 fn hydration_rejects_missing_required_id() {
     let payload = invalid_fixture("missing-node-id.json");
-    let err = from_mmds_str(&payload).unwrap_err();
+    let err = from_str(&payload).unwrap_err();
 
-    assert!(matches!(err, MmdsHydrationError::MissingNodeId { .. }));
+    assert!(matches!(err, HydrationError::MissingNodeId { .. }));
 }
 
 #[test]
 fn hydration_rejects_invalid_enum_value() {
     let payload = invalid_fixture("invalid-shape.json");
-    let err = from_mmds_str(&payload).unwrap_err();
+    let err = from_str(&payload).unwrap_err();
 
-    assert!(matches!(err, MmdsHydrationError::InvalidShape { .. }));
+    assert!(matches!(err, HydrationError::InvalidShape { .. }));
 }
 
 #[test]
 fn hydration_rejects_cyclic_subgraph_parent_chain() {
     let payload = invalid_fixture("cyclic-subgraph-parent.json");
-    let err = from_mmds_str(&payload).unwrap_err();
+    let err = from_str(&payload).unwrap_err();
 
     assert!(matches!(
         err,
-        MmdsHydrationError::CyclicSubgraphParentChain { .. }
+        HydrationError::CyclicSubgraphParentChain { .. }
     ));
 }
 
 #[test]
 fn hydration_rejects_unsupported_mmds_core_version() {
     let payload = invalid_fixture("unsupported-version.json");
-    let err = from_mmds_str(&payload).unwrap_err();
+    let err = from_str(&payload).unwrap_err();
 
-    assert!(matches!(err, MmdsHydrationError::UnsupportedVersion { .. }));
+    assert!(matches!(err, HydrationError::UnsupportedVersion { .. }));
 }
 
 #[test]
 fn hydration_preserves_deterministic_edge_order_by_edge_id() {
     let payload = mmds_fixture("layout-unsorted-edges.json");
-    let diagram1 = from_mmds_str(&payload).unwrap();
-    let diagram2 = from_mmds_str(&payload).unwrap();
+    let diagram1 = from_str(&payload).unwrap();
+    let diagram2 = from_str(&payload).unwrap();
 
     assert_eq!(diagram1.edges, diagram2.edges);
     let edge_pairs: Vec<(&str, &str)> = diagram1
@@ -122,7 +122,7 @@ fn hydration_preserves_deterministic_edge_order_by_edge_id() {
 #[test]
 fn hydration_ignores_unknown_extension_namespace() {
     let payload = mmds_fixture("layout-with-unknown-extension.json");
-    assert!(from_mmds_str(&payload).is_ok());
+    assert!(from_str(&payload).is_ok());
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn layout_geometry_level_builds_graph_geometry_without_edge_paths() {
 #[test]
 fn hydration_populates_edge_subgraph_endpoint_intent_when_present() {
     let payload = mmds_fixture("subgraph-endpoint-intent-present.json");
-    let diagram = from_mmds_str(&payload).expect("valid hydration");
+    let diagram = from_str(&payload).expect("valid hydration");
 
     let into_subgraph = diagram
         .edges
@@ -172,7 +172,7 @@ fn hydration_populates_edge_subgraph_endpoint_intent_when_present() {
 #[test]
 fn hydration_preserves_subgraph_endpoint_fallback_when_intent_is_omitted() {
     let payload = mmds_fixture("subgraph-endpoint-intent-missing.json");
-    let diagram = from_mmds_str(&payload).expect("valid hydration");
+    let diagram = from_str(&payload).expect("valid hydration");
 
     assert!(
         diagram
@@ -185,7 +185,7 @@ fn hydration_preserves_subgraph_endpoint_fallback_when_intent_is_omitted() {
 #[test]
 fn endpoint_intent_absent_payload_uses_documented_fallback_behavior() {
     let payload = mmds_fixture("subgraph-endpoint-intent-missing.json");
-    let diagram = from_mmds_str(&payload).expect("valid hydration");
+    let diagram = from_str(&payload).expect("valid hydration");
 
     let into_backend = diagram
         .edges
@@ -205,20 +205,20 @@ fn endpoint_intent_absent_payload_uses_documented_fallback_behavior() {
 #[test]
 fn hydration_accepts_unknown_extension_namespace_profiles_fixture() {
     let payload = profile_fixture("unknown-extension.json");
-    assert!(from_mmds_str(&payload).is_ok());
+    assert!(from_str(&payload).is_ok());
 }
 
 #[test]
 fn hydration_rejects_unknown_core_version_even_with_known_profiles() {
     let payload = profile_fixture("unknown-core-version.json");
-    let err = from_mmds_str(&payload).unwrap_err();
-    assert!(matches!(err, MmdsHydrationError::UnsupportedVersion { .. }));
+    let err = from_str(&payload).unwrap_err();
+    assert!(matches!(err, HydrationError::UnsupportedVersion { .. }));
 }
 
 #[test]
 fn profile_negotiation_reports_supported_and_unknown_profiles() {
     let payload = profile_fixture("mixed-known-unknown.json");
-    let result = evaluate_mmds_profiles(&payload).unwrap();
+    let result = evaluate_profiles(&payload).unwrap();
 
     assert!(result.supported.contains(&"mmds-core-v1".to_string()));
     assert!(result.supported.contains(&"mmdflux-svg-v1".to_string()));
@@ -251,7 +251,7 @@ fn mmds_fixture_matrix_covers_valid_and_invalid_payloads() {
     for (path, should_pass) in cases {
         let payload = mmds_fixture(path);
         assert_eq!(
-            from_mmds_str(&payload).is_ok(),
+            from_str(&payload).is_ok(),
             should_pass,
             "fixture {} expected pass={}",
             path,
@@ -263,7 +263,7 @@ fn mmds_fixture_matrix_covers_valid_and_invalid_payloads() {
 #[test]
 fn dangling_edge_error_message_matches_docs_example() {
     let payload = invalid_fixture("dangling-edge-target.json");
-    let err = from_mmds_str(&payload).unwrap_err();
+    let err = from_str(&payload).unwrap_err();
     assert_eq!(
         err.to_string(),
         "MMDS validation error: edge e0 target 'X' not found"

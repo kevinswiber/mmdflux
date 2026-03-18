@@ -18,6 +18,7 @@ just lint                      # clippy + fmt check
 just check                     # lint + test
 just build                     # Debug build
 just release                   # Release build
+just boundaries-watch         # Watch semantic architecture boundaries
 just run diagram.mmd           # Run the CLI
 just fmt                       # Format code
 
@@ -30,7 +31,12 @@ echo 'graph LR\nA-->B' | cargo run
 
 ## Architecture
 
-See `docs/architecture/dependency-rules.md` for the authoritative module ownership rules and public contract tiers.
+See `docs/architecture/dependency-rules.md` for the authoritative module ownership rules and public contract tiers. The repo-owned architecture gate is `cargo xtask architecture` or `just architecture`. Semantic module boundaries are enforced from `boundaries.toml` (override with `SEMANTIC_BOUNDARIES_CONFIG`); run `cargo xtask architecture boundaries` or `just boundaries` when you want only the semantic dependency check.
+
+When editing imports, top-level wiring, or ownership boundaries, run
+`cargo xtask architecture boundaries` before finishing. During larger boundary
+refactors, consider keeping `just boundaries-watch` running in a separate
+terminal and pay attention to its output while you work.
 
 Pipeline: **Frontend → Diagrams → Engine → Render**
 
@@ -95,22 +101,24 @@ Diagrams stop at `into_payload()` — they produce a `payload::Diagram`, not ren
 - `graph/text/` — Text-pipeline edge/node/subgraph rendering
 - `graph/svg/` — SVG-pipeline rendering
 - `diagram/` — Family-local renderers (sequence text)
-- `text/` — Text utilities (`Canvas`, `CharSet`, color)
+- `text/` — Text utilities (`Canvas`, `CharSet`)
 
-**`src/runtime/`** — Pipeline orchestration
+**`src/runtime/`** — Pipeline orchestration and config
 
 - `mod.rs` — `render_diagram`, `validate_diagram`, `detect_diagram` facade functions
+- `config.rs` — `RenderConfig`, `LayoutConfig`, `LayoutDirection`, `Ranker`
+- `config_input.rs` — `RuntimeConfigInput` (serde-friendly config for JSON/WASM consumers)
 - `graph_family.rs` — Graph-family solve-result dispatch
+- `mmds.rs` — MMDS replay rendering (hydrate → render dispatch)
 - `payload.rs` — Payload rendering dispatch
 
-**`src/mmds/`** — MMDS contract and output
+**`src/mmds/`** — MMDS interchange format (pure — no render or engines imports)
 
 - `output.rs` — MMDS JSON serialization for graph-family output
-- `detect.rs`, `parse.rs`, `hydrate.rs`, `replay.rs`, `mermaid.rs`
+- `detect.rs`, `parse.rs`, `hydrate.rs`, `mermaid.rs`
 
 **Other top-level modules:**
-- `config.rs` — `RenderConfig`
-- `format.rs` — `OutputFormat`, `Curve`, `EdgePreset`, `RoutingStyle`
+- `format.rs` — `OutputFormat`, `Curve`, `EdgePreset`, `RoutingStyle`, `ColorWhen`, `TextColorMode`
 - `errors.rs` — `RenderError`, `ParseDiagnostic`
 - `registry.rs` — `DiagramRegistry`, `DiagramInstance`, `ParsedDiagram`, `DiagramFamily`
 - `builtins.rs` — `default_registry()` wiring
@@ -146,10 +154,12 @@ Key test files:
 - `tests/mmds_json.rs` — MMDS JSON contract tests
 - `tests/svg_render.rs` — SVG rendering tests
 - `tests/cli.rs` — CLI integration tests
-- `tests/architecture_guards.rs` — module boundary and dependency rule enforcement
+- `cargo xtask architecture` — repo-owned architecture policy enforcement
 - `src/internal_tests/` — crate-local cross-pipeline tests (engine + routing + render)
 
-Architecture guard tests enforce the rules in `docs/architecture/dependency-rules.md`. They verify module boundaries in both production code and test code.
+The xtask architecture command enforces the semantic boundary rules in
+`docs/architecture/dependency-rules.md`. `boundaries` owns semantic top-level
+dependency policy across production and test code.
 
 ## Debug Infrastructure
 

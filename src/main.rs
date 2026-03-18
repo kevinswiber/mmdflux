@@ -6,12 +6,11 @@ use std::path::PathBuf;
 use std::{env, fmt, fs};
 
 use clap::{Parser, ValueEnum};
-use mmdflux::config::{LayoutConfig, Ranker};
 use mmdflux::format::{Curve, EdgePreset, RoutingStyle};
 use mmdflux::graph::GeometryLevel;
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{
-    ColorWhen, EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode,
+    ColorWhen, EngineAlgorithmId, LayoutConfig, OutputFormat, Ranker, RenderConfig, TextColorMode,
     apply_svg_surface_defaults, detect_diagram, render_diagram, validate_diagram,
 };
 use serde::{Deserialize, Serialize};

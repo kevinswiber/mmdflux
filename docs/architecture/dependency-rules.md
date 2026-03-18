@@ -14,7 +14,20 @@ contributors:
 - `render/` owns output production
 - `mmds/` owns the MMDS contract and output helpers
 
-Guard tests should fail when the code drifts away from these rules.
+The repo-owned architecture gate should fail when the code drifts away from
+these rules.
+
+The repo-owned architecture gate is `cargo xtask architecture` or
+`just architecture`.
+
+The semantic boundaries guard reads its declarative module-dependency policy
+from the repo-root
+[`boundaries.toml`](/Users/kevin/src/mmdflux-semantic-architecture/boundaries.toml).
+Set `SEMANTIC_BOUNDARIES_CONFIG` to point at a different file when reusing the
+checker outside this repo. The semantic-only command is
+`cargo xtask architecture boundaries` or `just boundaries`.
+Performance investigation notes for the xtask guard live in
+[`docs/architecture/semantic-boundaries-guard-performance.md`](/Users/kevin/src/mmdflux-semantic-architecture/docs/architecture/semantic-boundaries-guard-performance.md).
 
 ## Public Contract Tiers
 
@@ -86,13 +99,15 @@ collapsed back into singleton roots:
    replay geometry contracts. Output emission does not live under `src/graph/`,
    but graph-family routing, derived grid geometry, and shared sizing/policy do.
 
-9. **mmds/ is the MMDS contract and output namespace** — `src/mmds/` owns the
-   typed MMDS envelope, profile vocabulary, Mermaid regeneration helpers, and
-   MMDS serialization for graph-family output.
+9. **mmds/ is a pure interchange format layer** — `src/mmds/` owns the
+   typed MMDS envelope, profile vocabulary, Mermaid regeneration helpers,
+   hydration to graph IR, and MMDS serialization for graph-family output.
+   mmds must not import from `render` or `engines`. Replay rendering
+   (hydrate→render dispatch) lives in `runtime/mmds.rs`.
 
 10. **MMDS is a frontend, not a logical diagram type** — MMDS input handling
    is detected through `src/frontends.rs`, while the MMDS parse, hydration,
-   replay, and output helpers live under `src/mmds/`. MMDS is not registered
+   and output helpers live under `src/mmds/`. MMDS is not registered
    in the logical diagram registry.
 
 11. **engines do not know about diagram types or output formats** — Engine
@@ -112,9 +127,10 @@ collapsed back into singleton roots:
     boundary, not a supported public contract.
 
 12. **flat top-level contract modules own the stable public contract** —
-    Stable public config, format, and error vocabulary live in `src/config.rs`,
-    `src/format.rs`, and `src/errors.rs`. Diagnostics live in `errors`,
-    family classification in `registry`, and style types in `graph/style`.
+    Stable public format and error vocabulary live in `src/format.rs` and
+    `src/errors.rs`. `RenderConfig` lives in `src/runtime/config.rs`
+    (re-exported from `lib.rs`). Diagnostics live in `errors`, family
+    classification in `registry`, and style types in `graph/style`.
     Adapter orchestration entrypoints are curated runtime facade re-exports
     from `lib.rs`. Other namespaces are either part of the supported
     low-level API or internal implementation modules.

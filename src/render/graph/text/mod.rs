@@ -15,7 +15,7 @@ pub(crate) use shape::render_node;
 mod regression_tests;
 
 use super::TextRenderOptions;
-use crate::OutputFormat;
+use crate::format::OutputFormat;
 use crate::graph::Graph;
 use crate::graph::grid::{GridLayout, RoutedEdge, Segment, SubgraphBounds, route_all_edges};
 use crate::render::text::canvas::{Cell, Connections};

@@ -2,7 +2,7 @@
 
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
-use crate::mmds::{MmdsOutput, MmdsParseError, parse_mmds_input};
+use crate::mmds::{Output, ParseError, parse_input};
 
 pub const SUPPORTED_OUTPUT_FORMATS: &[OutputFormat] = &[
     OutputFormat::Text,
@@ -34,7 +34,7 @@ fn contains_json_key(input: &str, key: &str) -> bool {
 }
 
 /// Resolve the logical diagram ID carried by an MMDS payload.
-pub fn resolve_logical_diagram_id(output: &MmdsOutput) -> Result<&'static str, RenderError> {
+pub fn resolve_logical_diagram_id(output: &Output) -> Result<&'static str, RenderError> {
     match output.metadata.diagram_type.as_str() {
         "flowchart" => Ok("flowchart"),
         "class" => Ok("class"),
@@ -47,7 +47,7 @@ pub fn resolve_logical_diagram_id(output: &MmdsOutput) -> Result<&'static str, R
 }
 
 /// Parse MMDS input and resolve the logical diagram ID it hydrates.
-pub fn detect_diagram_type(input: &str) -> Result<&'static str, MmdsParseError> {
-    let output = parse_mmds_input(input)?;
-    resolve_logical_diagram_id(&output).map_err(|error| MmdsParseError::new(error.message))
+pub fn detect_diagram_type(input: &str) -> Result<&'static str, ParseError> {
+    let output = parse_input(input)?;
+    resolve_logical_diagram_id(&output).map_err(|error| ParseError::new(error.message))
 }

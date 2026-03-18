@@ -3,17 +3,21 @@
 //! This module provides the single orchestration contract that all adapters
 //! delegate to, plus serde-friendly config input types for JSON consumers.
 
+pub mod config;
 pub mod config_input;
 
 mod graph_family;
+pub(crate) mod mmds;
 mod payload;
 
+use config::RenderConfig;
+
 use crate::builtins::default_registry;
-use crate::config::RenderConfig;
 use crate::errors::{ParseDiagnostic, RenderError};
 use crate::format::OutputFormat;
 use crate::frontends::{InputFrontend, detect_input_frontend};
 use crate::mermaid::ParseError;
+use crate::registry::DiagramFamily;
 
 /// Detect the diagram type from input text.
 ///
@@ -37,7 +41,13 @@ pub fn render_diagram(
     config: &RenderConfig,
 ) -> Result<String, RenderError> {
     if matches!(detect_input_frontend(input), Some(InputFrontend::Mmds)) {
-        return crate::mmds::render_input(input, format, config);
+        return mmds::render_input(
+            input,
+            format,
+            config.geometry_level,
+            &config.text_render_options(format),
+            &config.svg_render_options(),
+        );
     }
 
     let registry = default_registry();
@@ -46,21 +56,35 @@ pub fn render_diagram(
         message: "unknown diagram type".to_string(),
     })?;
 
-    let instance = registry.create(diagram_id).ok_or_else(|| RenderError {
-        message: format!("no implementation for diagram type: {diagram_id}"),
-    })?;
-
-    if !instance.supports_format(format) {
+    // Check format support and engine policy before creating an instance.
+    if !registry.supports_format(diagram_id, format) {
         return Err(RenderError {
             message: format!("{diagram_id} diagrams do not support {format} output"),
         });
     }
 
+    if config.layout_engine.is_some() {
+        let family = registry
+            .get(diagram_id)
+            .map(|d| d.family)
+            .unwrap_or(DiagramFamily::Graph);
+        if family != DiagramFamily::Graph {
+            return Err(RenderError {
+                message: "layout engine selection is not supported for sequence diagrams"
+                    .to_string(),
+            });
+        }
+    }
+
+    let instance = registry.create(diagram_id).ok_or_else(|| RenderError {
+        message: format!("no implementation for diagram type: {diagram_id}"),
+    })?;
+
     let parsed = instance.parse(input).map_err(|error| RenderError {
         message: format!("parse error: {error}"),
     })?;
 
-    let payload = parsed.into_payload(config)?;
+    let payload = parsed.into_payload()?;
     payload::render_payload(payload, format, config)
 }
 

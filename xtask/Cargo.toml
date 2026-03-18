@@ -1,0 +1,23 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+annotate-snippets = "0.12.13"
+anyhow = "1"
+ctrlc = "3"
+notify = "8"
+ra_ap_cfg = "=0.0.289"
+ra_ap_hir = "=0.0.289"
+ra_ap_ide = "=0.0.289"
+ra_ap_ide_db = "=0.0.289"
+ra_ap_load-cargo = "=0.0.289"
+ra_ap_paths = "=0.0.289"
+ra_ap_project_model = "=0.0.289"
+ra_ap_syntax = "=0.0.289"
+ra_ap_vfs = "=0.0.289"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"

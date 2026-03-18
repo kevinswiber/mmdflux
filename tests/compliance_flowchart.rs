@@ -69,7 +69,7 @@ fn flowchart_fixtures_parse_prepare_via_registry() {
         let payload = instance
             .parse(&input)
             .unwrap_or_else(|e| panic!("Failed to parse flowchart fixture {fixture}: {e}"))
-            .into_payload(&RenderConfig::default())
+            .into_payload()
             .unwrap_or_else(|e| panic!("Failed to build flowchart payload for {fixture}: {e}"));
         assert!(
             matches!(payload, mmdflux::payload::Diagram::Flowchart(_)),

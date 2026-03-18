@@ -13,7 +13,7 @@ documentation = "https://docs.rs/mmdflux"
 keywords = ["mermaid", "diagram", "cli", "svg", "text"]
 
 [workspace]
-members = ["crates/mmdflux-wasm"]
+members = ["crates/mmdflux-wasm", "xtask"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }

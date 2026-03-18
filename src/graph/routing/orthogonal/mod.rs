@@ -38,7 +38,7 @@ use crate::graph::{Direction, Graph};
 
 /// Preview options for orthogonal float-first routing.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct OrthogonalRoutingOptions {
+pub struct OrthogonalRoutingOptions {
     /// Keep existing behavior for backward edges while previewing forward routing.
     pub backward_fallback_to_hints: bool,
     /// Optional grid snap `(scale_x, scale_y)` applied after routing.
@@ -47,7 +47,7 @@ pub(crate) struct OrthogonalRoutingOptions {
 
 impl OrthogonalRoutingOptions {
     /// Conservative preview: orthogonal routing for forward edges only.
-    pub(crate) fn preview() -> Self {
+    pub fn preview() -> Self {
         Self {
             backward_fallback_to_hints: true,
             grid_snap: None,
@@ -56,7 +56,7 @@ impl OrthogonalRoutingOptions {
 }
 
 /// Route all edges using float-first orthogonal routing.
-pub(crate) fn route_edges_orthogonal(
+pub fn route_edges_orthogonal(
     diagram: &Graph,
     geometry: &GraphGeometry,
     options: OrthogonalRoutingOptions,

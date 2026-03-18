@@ -92,7 +92,7 @@ fn proportional_request(
 
 #[test]
 fn public_layout_config_converts_to_layered_engine_config() {
-    let config = EngineConfig::from(crate::config::LayoutConfig::default());
+    let config = EngineConfig::from(crate::runtime::config::LayoutConfig::default());
     assert!(matches!(config, EngineConfig::Layered(_)));
 }
 

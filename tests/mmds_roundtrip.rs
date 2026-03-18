@@ -1,10 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use mmdflux::RenderConfig;
 use mmdflux::builtins::default_registry;
 use mmdflux::graph::{Direction, Graph, Shape};
-use mmdflux::mmds::{from_mmds_str, generate_mermaid_from_mmds_str};
+use mmdflux::mmds::{from_str, generate_mermaid_from_str};
 use mmdflux::payload::Diagram as Payload;
 
 fn fixture(name: &str) -> String {
@@ -85,14 +84,14 @@ fn nested_subgraph_membership_roundtrip_remains_semantically_equivalent() {
 }
 
 fn assert_semantic_roundtrip(mmds: &str) {
-    let generated = generate_mermaid_from_mmds_str(mmds).expect("generator output");
-    let from_mmds = from_mmds_str(mmds).expect("valid MMDS fixture");
+    let generated = generate_mermaid_from_str(mmds).expect("generator output");
+    let from_mmds = from_str(mmds).expect("valid MMDS fixture");
     let payload = default_registry()
         .create("flowchart")
         .expect("flowchart should be registered")
         .parse(&generated)
         .expect("generated Mermaid must parse")
-        .into_payload(&RenderConfig::default())
+        .into_payload()
         .expect("generated Mermaid must build a payload");
     let Payload::Flowchart(graph_payload) = payload else {
         panic!("generated Mermaid should build a flowchart payload");

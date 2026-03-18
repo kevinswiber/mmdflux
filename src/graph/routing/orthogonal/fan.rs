@@ -6,7 +6,7 @@ use crate::graph::attachment::{
     Face, OverflowSide, fan_in_overflow_face_for_slot, fan_in_primary_face_capacity,
     fan_in_primary_target_face,
 };
-use crate::graph::geometry::{EngineHints, GraphGeometry, LayoutEdge};
+use crate::graph::geometry::{GraphGeometry, LayoutEdge};
 use crate::graph::space::FRect;
 use crate::graph::{Direction, Shape};
 
@@ -630,7 +630,7 @@ fn stagger_axis_value(
 }
 
 pub(super) fn edge_rank_span(geometry: &GraphGeometry, edge: &LayoutEdge) -> Option<usize> {
-    let EngineHints::Layered(hints) = geometry.engine_hints.as_ref()?;
+    let crate::graph::geometry::EngineHints::Layered(hints) = geometry.engine_hints.as_ref()?;
     let src_rank = *hints.node_ranks.get(&edge.from)?;
     let dst_rank = *hints.node_ranks.get(&edge.to)?;
     Some(src_rank.abs_diff(dst_rank) as usize)

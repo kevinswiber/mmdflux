@@ -12,11 +12,11 @@ mod labels;
 mod orthogonal;
 mod stage;
 
-pub(crate) use self::float_core::{
+pub use self::float_core::{
     build_orthogonal_path_float, hexagon_vertices, intersect_convex_polygon,
 };
-pub(crate) use self::labels::compute_end_label_positions;
-pub(crate) use self::orthogonal::{OrthogonalRoutingOptions, route_edges_orthogonal};
+pub use self::labels::compute_end_label_positions;
+pub use self::orthogonal::{OrthogonalRoutingOptions, route_edges_orthogonal};
 pub use self::stage::{EdgeRouting, route_graph_geometry};
 #[cfg(test)]
 use crate::graph::Graph;

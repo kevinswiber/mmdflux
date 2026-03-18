@@ -4,9 +4,7 @@
 //! then builds an owned graph-family payload for runtime dispatch.
 
 use super::compiler;
-use crate::config::RenderConfig;
 use crate::errors::RenderError;
-use crate::format::OutputFormat;
 use crate::graph::Graph;
 use crate::mermaid::class::parse_class_diagram;
 use crate::registry::{DiagramInstance, ParsedDiagram};
@@ -35,10 +33,6 @@ impl DiagramInstance for ClassInstance {
             diagram: compiler::compile(&model),
         }))
     }
-
-    fn supports_format(&self, format: OutputFormat) -> bool {
-        super::SUPPORTED_FORMATS.contains(&format)
-    }
 }
 
 struct ParsedClass {
@@ -46,10 +40,7 @@ struct ParsedClass {
 }
 
 impl ParsedDiagram for ParsedClass {
-    fn into_payload(
-        self: Box<Self>,
-        _config: &RenderConfig,
-    ) -> Result<crate::payload::Diagram, RenderError> {
+    fn into_payload(self: Box<Self>) -> Result<crate::payload::Diagram, RenderError> {
         Ok(crate::payload::Diagram::Class(self.diagram))
     }
 }
@@ -65,7 +56,7 @@ mod tests {
             .expect("class input should parse");
 
         let payload = parsed
-            .into_payload(&RenderConfig::default())
+            .into_payload()
             .expect("parsed class input should build a payload");
         let crate::payload::Diagram::Class(graph) = payload else {
             panic!("class should yield a Class payload");
@@ -79,13 +70,5 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn class_instance_supports_supported_formats() {
-        let instance = ClassInstance::new();
-        assert!(instance.supports_format(OutputFormat::Text));
-        assert!(instance.supports_format(OutputFormat::Ascii));
-        assert!(instance.supports_format(OutputFormat::Svg));
-        assert!(instance.supports_format(OutputFormat::Mmds));
-        assert!(!instance.supports_format(OutputFormat::Mermaid));
-    }
+    // Format support is now tested at the registry level.
 }

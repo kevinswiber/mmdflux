@@ -7,7 +7,7 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::builtins::default_registry;
-use mmdflux::mmds::generate_mermaid_from_mmds_str;
+use mmdflux::mmds::generate_mermaid_from_str;
 use mmdflux::{OutputFormat, RenderConfig, render_diagram};
 
 fn render_with_registry(input: &str, format: OutputFormat) -> String {
@@ -159,7 +159,7 @@ fn registry_render_smoke() {
 #[test]
 fn generated_mermaid_from_mmds_renders_through_registry() {
     let payload = include_str!("fixtures/mmds/generation/basic-flow.json");
-    let mermaid = generate_mermaid_from_mmds_str(payload).expect("should generate Mermaid");
+    let mermaid = generate_mermaid_from_str(payload).expect("should generate Mermaid");
     let rendered = render_with_registry(&mermaid, OutputFormat::Text);
     assert!(rendered.contains("Start"));
     assert!(rendered.contains("End"));

@@ -39,7 +39,7 @@
 //!
 //! ```
 //! use mmdflux::{OutputFormat, RenderConfig, render_diagram};
-//! use mmdflux::config::LayoutConfig;
+//! use mmdflux::LayoutConfig;
 //! use mmdflux::format::RoutingStyle;
 //!
 //! let config = RenderConfig {
@@ -85,11 +85,10 @@
 //!   [`Shape`](graph::Shape), [`Direction`](graph::Direction))
 //! - [`timeline`] — timeline-family types
 //!   ([`Sequence`](timeline::Sequence))
-//! - [`mmds`] — MMDS parsing, replay, hydration to [`graph::Graph`],
+//! - [`mmds`] — MMDS parsing, hydration to [`graph::Graph`],
 //!   profile negotiation, and Mermaid regeneration
 //!
 //! ```no_run
-//! use mmdflux::RenderConfig;
 //! use mmdflux::builtins::default_registry;
 //! use mmdflux::payload::Diagram;
 //!
@@ -104,7 +103,7 @@
 //! let instance = registry.create(resolved.diagram_id()).unwrap();
 //! let payload = instance
 //!     .parse(input).unwrap()
-//!     .into_payload(&RenderConfig::default()).unwrap();
+//!     .into_payload().unwrap();
 //!
 //! // Inspect the payload
 //! match payload {
@@ -123,11 +122,12 @@
 //! ## MMDS interchange
 //!
 //! [MMDS](https://mmds.dev/) is a structured JSON format for diagram geometry.
-//! Use the [`mmds`] module to parse MMDS input, replay it to text/SVG, hydrate
-//! it to a [`graph::Graph`], or regenerate Mermaid source:
+//! Use the [`mmds`] module to parse MMDS input, hydrate it to a
+//! [`graph::Graph`], or regenerate Mermaid source. To render MMDS input to
+//! text/SVG, pass it to [`render_diagram`] which auto-detects MMDS:
 //!
 //! ```
-//! use mmdflux::mmds::{from_mmds_str, generate_mermaid_from_mmds_str};
+//! use mmdflux::mmds::{from_str, generate_mermaid_from_str};
 //!
 //! let mmds_json = r#"{
 //!   "version": 1,
@@ -152,16 +152,15 @@
 //! }"#;
 //!
 //! // Hydrate to graph IR
-//! let graph = from_mmds_str(mmds_json).unwrap();
+//! let graph = from_str(mmds_json).unwrap();
 //! assert_eq!(graph.nodes.len(), 2);
 //!
 //! // Regenerate Mermaid source
-//! let mermaid = generate_mermaid_from_mmds_str(mmds_json).unwrap();
+//! let mermaid = generate_mermaid_from_str(mmds_json).unwrap();
 //! assert!(mermaid.contains("flowchart TD"));
 //! ```
 
 pub mod builtins;
-pub mod config;
 mod diagrams;
 mod engines;
 pub mod errors;
@@ -179,8 +178,7 @@ pub mod simplification;
 pub mod timeline;
 
 // Public re-exports from public modules (convenience aliases).
-pub use config::RenderConfig;
-// Re-exports from private modules — only reachable through these aliases.
+// Re-exports from public modules for convenience at crate root.
 /// Algorithm identifier (e.g., `Layered`, `Mrtree`) used in engine selection.
 pub use engines::graph::AlgorithmId;
 /// Combined engine + algorithm identifier for explicit layout engine selection.
@@ -188,11 +186,14 @@ pub use engines::graph::EngineAlgorithmId;
 /// Engine identifier (e.g., `Flux`, `Mermaid`, `Elk`).
 pub use engines::graph::EngineId;
 pub use errors::RenderError;
-pub use format::OutputFormat;
 /// Policy for resolving `--color auto` in CLI/WASM adapters.
-pub use render::text::ColorWhen;
+pub use format::ColorWhen;
+pub use format::OutputFormat;
 /// Text output color mode (plain, styled, or ANSI).
-pub use render::text::TextColorMode;
+pub use format::TextColorMode;
+pub use runtime::config::RenderConfig;
+/// Layout configuration for the Sugiyama hierarchical engine.
+pub use runtime::config::{LabelDummyStrategy, LayoutConfig, LayoutDirection, Ranker};
 /// Serde-friendly config input for JSON consumers (WASM, API).
 pub use runtime::config_input::RuntimeConfigInput;
 /// Apply default SVG surface settings (curve, engine) when format is SVG.

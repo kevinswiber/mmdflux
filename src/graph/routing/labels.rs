@@ -37,7 +37,7 @@ pub(crate) fn arc_length_midpoint(path: &[FPoint]) -> Option<FPoint> {
 ///
 /// Head labels are positioned near the path end (target), tail labels near
 /// the start (source), both offset perpendicular to the edge direction.
-pub(crate) fn compute_end_label_positions(path: &[FPoint]) -> (Option<FPoint>, Option<FPoint>) {
+pub fn compute_end_label_positions(path: &[FPoint]) -> (Option<FPoint>, Option<FPoint>) {
     if path.len() < 2 {
         return (None, None);
     }

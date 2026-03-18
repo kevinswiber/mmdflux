@@ -61,7 +61,7 @@ pub struct EdgePort {
 
 /// Which face of a rectangular node an edge attaches to.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-pub(crate) enum Face {
+pub enum Face {
     Top,
     Bottom,
     Left,
@@ -70,7 +70,7 @@ pub(crate) enum Face {
 
 impl Face {
     /// Convert to the geometry IR port face type.
-    pub(crate) fn to_port_face(self) -> PortFace {
+    pub fn to_port_face(self) -> PortFace {
         match self {
             Face::Top => PortFace::Top,
             Face::Bottom => PortFace::Bottom,
@@ -82,26 +82,26 @@ impl Face {
 
 /// Direction-specific overflow lane for fan-in spill candidates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum OverflowSide {
+pub enum OverflowSide {
     LeftOrTop,
     RightOrBottom,
 }
 
 /// Primary face capacity for deterministic overflow policy.
-pub(crate) const FAN_IN_PRIMARY_FACE_CAPACITY_TD_BT: usize = 4;
-pub(crate) const FAN_IN_PRIMARY_FACE_CAPACITY_LR_RL: usize = 2;
+pub const FAN_IN_PRIMARY_FACE_CAPACITY_TD_BT: usize = 4;
+pub const FAN_IN_PRIMARY_FACE_CAPACITY_LR_RL: usize = 2;
 
 /// Long backward edges (3+ user-visible rank gaps, normalized rank_span >= 6)
 /// use side-face channel routing.
-pub(crate) const BACKWARD_SIDE_CHANNEL_LONG_RANK_SPAN: usize = 6;
+pub const BACKWARD_SIDE_CHANNEL_LONG_RANK_SPAN: usize = 6;
 
 /// Shared threshold for choosing wide horizontal detours.
-pub(crate) const LARGE_HORIZONTAL_OFFSET_THRESHOLD: usize = 30;
+pub const LARGE_HORIZONTAL_OFFSET_THRESHOLD: usize = 30;
 
 const TD_BT_PARITY_MIN_RECT_SPAN: f64 = 20.0;
 
 /// Return the deterministic base capacity for the primary incoming face.
-pub(crate) fn fan_in_primary_face_capacity(direction: Direction) -> usize {
+pub fn fan_in_primary_face_capacity(direction: Direction) -> usize {
     match direction {
         Direction::TopDown | Direction::BottomTop => FAN_IN_PRIMARY_FACE_CAPACITY_TD_BT,
         Direction::LeftRight | Direction::RightLeft => FAN_IN_PRIMARY_FACE_CAPACITY_LR_RL,
@@ -109,7 +109,7 @@ pub(crate) fn fan_in_primary_face_capacity(direction: Direction) -> usize {
 }
 
 /// Convert canonical fan-in spill slot into an overflow face for a direction.
-pub(crate) fn fan_in_overflow_face_for_slot(direction: Direction, slot: OverflowSide) -> Face {
+pub fn fan_in_overflow_face_for_slot(direction: Direction, slot: OverflowSide) -> Face {
     match direction {
         Direction::TopDown | Direction::BottomTop => match slot {
             OverflowSide::LeftOrTop => Face::Left,
@@ -123,7 +123,7 @@ pub(crate) fn fan_in_overflow_face_for_slot(direction: Direction, slot: Overflow
 }
 
 /// Canonical backward channel for backward-channel policy.
-pub(crate) fn canonical_backward_channel_face(direction: Direction) -> Face {
+pub fn canonical_backward_channel_face(direction: Direction) -> Face {
     match direction {
         Direction::TopDown | Direction::BottomTop => Face::Right,
         Direction::LeftRight | Direction::RightLeft => Face::Bottom,
@@ -131,7 +131,7 @@ pub(crate) fn canonical_backward_channel_face(direction: Direction) -> Face {
 }
 
 /// Primary incoming target face for forward edges under fan-in policy.
-pub(crate) fn fan_in_primary_target_face(direction: Direction) -> Face {
+pub fn fan_in_primary_target_face(direction: Direction) -> Face {
     match direction {
         Direction::TopDown => Face::Top,
         Direction::BottomTop => Face::Bottom,
@@ -149,7 +149,7 @@ fn fan_in_non_canonical_overflow_face(direction: Direction) -> Face {
 
 /// Resolve a target/source face with explicit precedence when both fan-in overflow and
 /// backward channels are in contention.
-pub(crate) fn resolve_overflow_backward_channel_conflict(
+pub fn resolve_overflow_backward_channel_conflict(
     direction: Direction,
     is_backward: bool,
     target_has_backward_conflict: bool,
@@ -170,7 +170,7 @@ pub(crate) fn resolve_overflow_backward_channel_conflict(
 }
 
 /// Whether a backward edge should prefer the canonical backward side channel.
-pub(crate) fn prefer_backward_side_channel(
+pub fn prefer_backward_side_channel(
     is_backward: bool,
     has_layout_waypoints: bool,
     rank_span: Option<usize>,
@@ -185,7 +185,7 @@ pub(crate) fn prefer_backward_side_channel(
 }
 
 /// Whether TD/BT backward hint-parity overrides can be applied safely.
-pub(crate) fn can_apply_td_bt_backward_hint_parity(
+pub fn can_apply_td_bt_backward_hint_parity(
     direction: Direction,
     is_backward: bool,
     has_subgraph_endpoint: bool,
@@ -216,7 +216,7 @@ pub(crate) fn can_apply_td_bt_backward_hint_parity(
 }
 
 /// Classify which face a point approaches, using slope-vs-diagonal comparison.
-pub(crate) fn classify_face_float(center: FPoint, rect: FRect, approach: FPoint) -> Face {
+pub fn classify_face_float(center: FPoint, rect: FRect, approach: FPoint) -> Face {
     let dx = approach.x - center.x;
     let dy = approach.y - center.y;
 
@@ -237,7 +237,7 @@ pub(crate) fn classify_face_float(center: FPoint, rect: FRect, approach: FPoint)
 }
 
 /// Compute a point on a rectangle face at the given fraction.
-pub(crate) fn point_on_face_float(rect: FRect, face: Face, fraction: f64) -> FPoint {
+pub fn point_on_face_float(rect: FRect, face: Face, fraction: f64) -> FPoint {
     let fraction = fraction.clamp(0.0, 1.0);
     match face {
         Face::Top => FPoint::new(rect.x + rect.width * fraction, rect.y),
@@ -249,21 +249,21 @@ pub(crate) fn point_on_face_float(rect: FRect, face: Face, fraction: f64) -> FPo
 
 /// Per-edge attachment location on a node face.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct EdgeAttachment {
+pub struct EdgeAttachment {
     pub face: Face,
     pub fraction: f64,
 }
 
 /// Source and target attachment assignments for one edge.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct PlannedEdgeAttachments {
+pub struct PlannedEdgeAttachments {
     pub source: Option<EdgeAttachment>,
     pub target: Option<EdgeAttachment>,
 }
 
 /// Deterministic attachment assignments for all planned edges.
 #[derive(Debug, Clone, Default, PartialEq)]
-pub(crate) struct AttachmentPlan {
+pub struct AttachmentPlan {
     edge_attachments: HashMap<usize, PlannedEdgeAttachments>,
     group_sizes: HashMap<(String, Face), usize>,
     source_fractions: HashMap<(String, Face), Vec<f64>>,
@@ -274,7 +274,7 @@ impl AttachmentPlan {
     /// Return source-side fractions for a node face in deterministic order.
     #[cfg(test)]
     #[allow(dead_code)]
-    pub(crate) fn source_fractions_for(&self, node_id: &str, face: Face) -> Vec<f64> {
+    pub fn source_fractions_for(&self, node_id: &str, face: Face) -> Vec<f64> {
         self.source_fractions
             .get(&(node_id.to_string(), face))
             .cloned()
@@ -282,33 +282,31 @@ impl AttachmentPlan {
     }
 
     /// Return the edge-specific source/target assignments.
-    pub(crate) fn edge(&self, edge_index: usize) -> Option<&PlannedEdgeAttachments> {
+    pub fn edge(&self, edge_index: usize) -> Option<&PlannedEdgeAttachments> {
         self.edge_attachments.get(&edge_index)
     }
 
     /// Return the number of attachments planned for a node face.
-    pub(crate) fn group_size(&self, node_id: &str, face: Face) -> usize {
+    pub fn group_size(&self, node_id: &str, face: Face) -> usize {
         self.group_sizes
             .get(&(node_id.to_string(), face))
             .copied()
             .unwrap_or(0)
     }
 
-    pub(crate) fn attachments(
-        &self,
-    ) -> impl Iterator<Item = (&usize, &PlannedEdgeAttachments)> + '_ {
+    pub fn attachments(&self) -> impl Iterator<Item = (&usize, &PlannedEdgeAttachments)> + '_ {
         self.edge_attachments.iter()
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum AttachmentSide {
+pub enum AttachmentSide {
     Source,
     Target,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct AttachmentCandidate {
+pub struct AttachmentCandidate {
     pub edge_index: usize,
     pub node_id: String,
     pub side: AttachmentSide,
@@ -316,7 +314,7 @@ pub(crate) struct AttachmentCandidate {
     pub cross_axis: f64,
 }
 
-pub(crate) fn plan_attachment_candidates(candidates: Vec<AttachmentCandidate>) -> AttachmentPlan {
+pub fn plan_attachment_candidates(candidates: Vec<AttachmentCandidate>) -> AttachmentPlan {
     let mut groups: HashMap<(String, Face), Vec<AttachmentCandidate>> = HashMap::new();
     for candidate in candidates {
         groups
@@ -376,7 +374,7 @@ fn compare_attachment_candidates(
         .then_with(|| a.side.cmp(&b.side))
 }
 
-pub(crate) fn edge_faces(direction: Direction, is_backward: bool) -> (Face, Face) {
+pub fn edge_faces(direction: Direction, is_backward: bool) -> (Face, Face) {
     let (forward_src, forward_tgt) = match direction {
         Direction::TopDown => (Face::Bottom, Face::Top),
         Direction::BottomTop => (Face::Top, Face::Bottom),

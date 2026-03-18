@@ -1,7 +1,8 @@
-use mmdflux::config::{LabelDummyStrategy, LayoutConfig, LayoutDirection, Ranker};
 use mmdflux::registry::DiagramFamily;
 use mmdflux::simplification::PathSimplification;
-use mmdflux::{OutputFormat, RenderConfig};
+use mmdflux::{
+    LabelDummyStrategy, LayoutConfig, LayoutDirection, OutputFormat, Ranker, RenderConfig,
+};
 
 #[test]
 fn diagram_family_variants_exist() {

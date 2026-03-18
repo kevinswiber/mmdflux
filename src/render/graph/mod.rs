@@ -13,14 +13,12 @@ pub(crate) mod svg;
 pub mod text;
 
 pub use self::svg::SvgRenderOptions;
-use crate::format::RoutingStyle;
+use crate::format::{OutputFormat, RoutingStyle, TextColorMode};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Direction, Graph};
-use crate::render::text::TextColorMode;
 use crate::simplification::PathSimplification;
-use crate::{OutputFormat, RenderConfig};
 
 pub(crate) fn edge_routing_from_style(routing_style: RoutingStyle) -> EdgeRouting {
     match routing_style {
@@ -51,22 +49,6 @@ impl Default for TextRenderOptions {
             cluster_ranksep: None,
             padding: None,
             path_simplification: PathSimplification::default(),
-        }
-    }
-}
-
-impl From<&RenderConfig> for TextRenderOptions {
-    fn from(config: &RenderConfig) -> Self {
-        Self {
-            output_format: OutputFormat::Text,
-            text_color_mode: config.text_color_mode,
-            routing_style: config
-                .routing_style
-                .or_else(|| config.edge_preset.map(|preset| preset.expand().0))
-                .unwrap_or(RoutingStyle::Orthogonal),
-            cluster_ranksep: config.cluster_ranksep,
-            padding: config.padding,
-            path_simplification: config.path_simplification,
         }
     }
 }
@@ -355,32 +337,4 @@ fn branching_label_info(diagram: &Graph) -> (bool, usize, usize) {
     (has_branching, max_left, max_right)
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::format::RoutingStyle;
-    use crate::simplification::PathSimplification;
-    use crate::{OutputFormat, RenderConfig};
-
-    #[test]
-    fn text_render_options_default_config_targets_text_output() {
-        let options = super::TextRenderOptions::from(&RenderConfig::default());
-
-        assert_eq!(options.output_format, OutputFormat::Text);
-        assert_eq!(options.routing_style, RoutingStyle::Orthogonal);
-    }
-
-    #[test]
-    fn text_render_options_preserve_padding_and_path_simplification() {
-        let config = RenderConfig {
-            padding: Some(4),
-            routing_style: Some(RoutingStyle::Direct),
-            path_simplification: PathSimplification::Lossless,
-            ..Default::default()
-        };
-        let options = super::TextRenderOptions::from(&config);
-
-        assert_eq!(options.padding, Some(4));
-        assert_eq!(options.routing_style, RoutingStyle::Direct);
-        assert_eq!(options.path_simplification, PathSimplification::Lossless);
-    }
-}
+// RenderConfig conversion tests live in runtime/config.rs.

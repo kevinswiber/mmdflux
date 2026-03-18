@@ -99,11 +99,12 @@ fn flowchart_instance_render_ascii() {
 }
 
 #[test]
-fn flowchart_instance_supports_text_and_ascii() {
-    let instance = flowchart_instance();
-    assert!(instance.supports_format(OutputFormat::Text));
-    assert!(instance.supports_format(OutputFormat::Ascii));
-    assert!(instance.supports_format(OutputFormat::Svg));
+fn flowchart_supports_text_ascii_and_svg() {
+    let registry = default_registry();
+    assert!(registry.supports_format("flowchart", OutputFormat::Text));
+    assert!(registry.supports_format("flowchart", OutputFormat::Ascii));
+    assert!(registry.supports_format("flowchart", OutputFormat::Svg));
+    assert!(!registry.supports_format("flowchart", OutputFormat::Mermaid));
 }
 
 #[test]
@@ -123,7 +124,7 @@ fn flowchart_instance_render_json() {
     let output = flowchart_instance()
         .parse("graph TD\nA[Start] --> B[End]")
         .unwrap()
-        .into_payload(&RenderConfig::default())
+        .into_payload()
         .unwrap();
     let Diagram::Flowchart(graph) = output else {
         panic!("flowchart should yield a flowchart payload");
@@ -158,16 +159,14 @@ fn test_show_ids_annotates_labels() {
         show_ids: true,
         ..Default::default()
     };
-    let payload = flowchart_instance()
-        .parse("graph TD\nA[Start] --> B[End]\n")
-        .unwrap()
-        .into_payload(&config)
-        .unwrap();
-    let Diagram::Flowchart(graph) = payload else {
-        panic!("flowchart should yield a flowchart payload");
-    };
-    assert_eq!(graph.nodes["A"].label, "A: Start");
-    assert_eq!(graph.nodes["B"].label, "B: End");
+    let output = mmdflux::render_diagram(
+        "graph TD\nA[Start] --> B[End]\n",
+        OutputFormat::Text,
+        &config,
+    )
+    .unwrap();
+    assert!(output.contains("A: Start"));
+    assert!(output.contains("B: End"));
 }
 
 #[test]
@@ -176,28 +175,22 @@ fn test_show_ids_bare_nodes_unchanged() {
         show_ids: true,
         ..Default::default()
     };
-    let payload = flowchart_instance()
-        .parse("graph TD\nA --> B\n")
-        .unwrap()
-        .into_payload(&config)
-        .unwrap();
-    let Diagram::Flowchart(graph) = payload else {
-        panic!("flowchart should yield a flowchart payload");
-    };
-    assert_eq!(graph.nodes["A"].label, "A");
+    let output =
+        mmdflux::render_diagram("graph TD\nA --> B\n", OutputFormat::Text, &config).unwrap();
+    // Bare nodes (label == id) should not get "A: A" annotation
+    assert!(!output.contains("A: A"));
+    assert!(!output.contains("B: B"));
 }
 
 #[test]
 fn test_show_ids_false_no_annotation() {
-    let payload = flowchart_instance()
-        .parse("graph TD\nA[Start] --> B[End]\n")
-        .unwrap()
-        .into_payload(&RenderConfig::default())
-        .unwrap();
-    let Diagram::Flowchart(graph) = payload else {
-        panic!("flowchart should yield a flowchart payload");
-    };
-    assert_eq!(graph.nodes["A"].label, "Start");
+    let output = mmdflux::render_diagram(
+        "graph TD\nA[Start] --> B[End]\n",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
+    assert!(!output.contains("A:"));
 }
 
 #[test]

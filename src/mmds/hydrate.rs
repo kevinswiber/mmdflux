@@ -16,26 +16,25 @@ use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::space::{FPoint, FRect};
 use crate::graph::style::{ColorToken, NodeStyle};
-use crate::graph::{Arrow, Direction, Edge, Graph, Node, Shape, Stroke, Subgraph};
+use crate::graph::{Arrow, Direction, Edge as GraphEdge, Graph, Node, Shape, Stroke, Subgraph};
 use crate::mmds::{
-    MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MMDS_TEXT_EXTENSION_NAMESPACE, MmdsEdge, MmdsOutput,
-    parse_mmds_input,
+    Edge, NODE_STYLE_EXTENSION_NAMESPACE, Output, TEXT_EXTENSION_NAMESPACE, parse_input,
 };
 
 /// Hydrate a graph `Diagram` from MMDS JSON text.
-pub fn from_mmds_str(input: &str) -> Result<Graph, MmdsHydrationError> {
-    let output = parse_mmds_input(input).map_err(|err| MmdsHydrationError::Parse {
+pub fn from_str(input: &str) -> Result<Graph, HydrationError> {
+    let output = parse_input(input).map_err(|err| HydrationError::Parse {
         message: err.to_string(),
     })?;
-    from_mmds_output(&output)
+    from_output(&output)
 }
 
 /// Hydrate a graph `Diagram` from a parsed MMDS envelope.
-pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError> {
+pub fn from_output(output: &Output) -> Result<Graph, HydrationError> {
     validate_output(output)?;
 
     let direction = parse_direction(&output.metadata.direction).ok_or_else(|| {
-        MmdsHydrationError::InvalidDirection {
+        HydrationError::InvalidDirection {
             context: "metadata.direction".to_string(),
             value: output.metadata.direction.clone(),
         }
@@ -44,15 +43,15 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError
 
     for (index, subgraph) in output.subgraphs.iter().enumerate() {
         if subgraph.id.trim().is_empty() {
-            return Err(MmdsHydrationError::MissingSubgraphId { index });
+            return Err(HydrationError::MissingSubgraphId { index });
         }
         let dir = if let Some(direction) = &subgraph.direction {
-            Some(parse_direction(direction).ok_or_else(|| {
-                MmdsHydrationError::InvalidDirection {
+            Some(
+                parse_direction(direction).ok_or_else(|| HydrationError::InvalidDirection {
                     context: format!("subgraph {} direction", subgraph.id),
                     value: direction.to_string(),
-                }
-            })?)
+                })?,
+            )
         } else {
             None
         };
@@ -71,9 +70,9 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError
 
     for (index, node) in output.nodes.iter().enumerate() {
         if node.id.trim().is_empty() {
-            return Err(MmdsHydrationError::MissingNodeId { index });
+            return Err(HydrationError::MissingNodeId { index });
         }
-        let shape = parse_shape(&node.shape).ok_or_else(|| MmdsHydrationError::InvalidShape {
+        let shape = parse_shape(&node.shape).ok_or_else(|| HydrationError::InvalidShape {
             node_id: node.id.clone(),
             value: node.shape.clone(),
         })?;
@@ -91,7 +90,7 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError
         if let Some(parent) = &node.parent
             && !diagram.subgraphs.contains_key(parent)
         {
-            return Err(MmdsHydrationError::DanglingNodeParent {
+            return Err(HydrationError::DanglingNodeParent {
                 node_id: node.id.clone(),
                 parent: parent.clone(),
             });
@@ -102,7 +101,7 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError
         if let Some(parent) = &subgraph.parent
             && !diagram.subgraphs.contains_key(parent)
         {
-            return Err(MmdsHydrationError::DanglingSubgraphParent {
+            return Err(HydrationError::DanglingSubgraphParent {
                 subgraph_id: subgraph.id.clone(),
                 parent: parent.clone(),
             });
@@ -110,7 +109,7 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError
 
         for child in &subgraph.nodes {
             if !diagram.nodes.contains_key(child) {
-                return Err(MmdsHydrationError::DanglingSubgraphChild {
+                return Err(HydrationError::DanglingSubgraphChild {
                     subgraph_id: subgraph.id.clone(),
                     child: child.clone(),
                 });
@@ -127,7 +126,7 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError
             .and_then(|subgraph| subgraph.parent.as_deref())
         {
             if !seen.insert(current) {
-                return Err(MmdsHydrationError::CyclicSubgraphParentChain {
+                return Err(HydrationError::CyclicSubgraphParentChain {
                     subgraph_id: subgraph_id.clone(),
                 });
             }
@@ -141,27 +140,27 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError
 
     for (index, edge) in edges {
         if edge.id.trim().is_empty() {
-            return Err(MmdsHydrationError::MissingEdgeId { index });
+            return Err(HydrationError::MissingEdgeId { index });
         }
         if edge.source.trim().is_empty() {
-            return Err(MmdsHydrationError::MissingEdgeSource {
+            return Err(HydrationError::MissingEdgeSource {
                 edge_id: edge.id.clone(),
             });
         }
         if edge.target.trim().is_empty() {
-            return Err(MmdsHydrationError::MissingEdgeTarget {
+            return Err(HydrationError::MissingEdgeTarget {
                 edge_id: edge.id.clone(),
             });
         }
 
         if !diagram.nodes.contains_key(&edge.source) {
-            return Err(MmdsHydrationError::DanglingEdgeSource {
+            return Err(HydrationError::DanglingEdgeSource {
                 edge_id: edge.id.clone(),
                 source: edge.source.clone(),
             });
         }
         if !diagram.nodes.contains_key(&edge.target) {
-            return Err(MmdsHydrationError::DanglingEdgeTarget {
+            return Err(HydrationError::DanglingEdgeTarget {
                 edge_id: edge.id.clone(),
                 target: edge.target.clone(),
             });
@@ -169,7 +168,7 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError
         if let Some(from_subgraph) = &edge.from_subgraph
             && !diagram.subgraphs.contains_key(from_subgraph.as_str())
         {
-            return Err(MmdsHydrationError::DanglingEdgeFromSubgraphIntent {
+            return Err(HydrationError::DanglingEdgeFromSubgraphIntent {
                 edge_id: edge.id.clone(),
                 subgraph: from_subgraph.clone(),
             });
@@ -177,31 +176,30 @@ pub fn from_mmds_output(output: &MmdsOutput) -> Result<Graph, MmdsHydrationError
         if let Some(to_subgraph) = &edge.to_subgraph
             && !diagram.subgraphs.contains_key(to_subgraph.as_str())
         {
-            return Err(MmdsHydrationError::DanglingEdgeToSubgraphIntent {
+            return Err(HydrationError::DanglingEdgeToSubgraphIntent {
                 edge_id: edge.id.clone(),
                 subgraph: to_subgraph.clone(),
             });
         }
 
-        let stroke =
-            parse_stroke(&edge.stroke).ok_or_else(|| MmdsHydrationError::InvalidStroke {
-                edge_id: edge.id.clone(),
-                value: edge.stroke.clone(),
-            })?;
+        let stroke = parse_stroke(&edge.stroke).ok_or_else(|| HydrationError::InvalidStroke {
+            edge_id: edge.id.clone(),
+            value: edge.stroke.clone(),
+        })?;
         let arrow_start =
-            parse_arrow(&edge.arrow_start).ok_or_else(|| MmdsHydrationError::InvalidArrow {
+            parse_arrow(&edge.arrow_start).ok_or_else(|| HydrationError::InvalidArrow {
                 edge_id: edge.id.clone(),
                 endpoint: "start".to_string(),
                 value: edge.arrow_start.clone(),
             })?;
         let arrow_end =
-            parse_arrow(&edge.arrow_end).ok_or_else(|| MmdsHydrationError::InvalidArrow {
+            parse_arrow(&edge.arrow_end).ok_or_else(|| HydrationError::InvalidArrow {
                 edge_id: edge.id.clone(),
                 endpoint: "end".to_string(),
                 value: edge.arrow_end.clone(),
             })?;
 
-        let mut hydrated = Edge::new(edge.source.clone(), edge.target.clone())
+        let mut hydrated = GraphEdge::new(edge.source.clone(), edge.target.clone())
             .with_stroke(stroke)
             .with_arrows(arrow_start, arrow_end)
             .with_minlen(edge.minlen);
@@ -220,7 +218,7 @@ fn hydrate_node_style_extension(
     diagram: &mut Graph,
     extensions: &std::collections::BTreeMap<String, Map<String, Value>>,
 ) {
-    let Some(extension) = extensions.get(MMDS_NODE_STYLE_EXTENSION_NAMESPACE) else {
+    let Some(extension) = extensions.get(NODE_STYLE_EXTENSION_NAMESPACE) else {
         return;
     };
     let Some(nodes) = extension.get("nodes").and_then(Value::as_object) else {
@@ -295,8 +293,8 @@ fn reconstruct_compound_membership(diagram: &mut Graph) {
 #[cfg(test)]
 pub(crate) fn hydrate_graph_geometry_from_mmds(
     input: &str,
-) -> Result<GraphGeometry, MmdsHydrationError> {
-    let output = parse_mmds_input(input).map_err(|err| MmdsHydrationError::Parse {
+) -> Result<GraphGeometry, HydrationError> {
+    let output = parse_input(input).map_err(|err| HydrationError::Parse {
         message: err.to_string(),
     })?;
     hydrate_graph_geometry_from_output(&output)
@@ -305,17 +303,17 @@ pub(crate) fn hydrate_graph_geometry_from_mmds(
 /// Hydrate graph geometry IR from parsed MMDS output.
 #[cfg(test)]
 pub(crate) fn hydrate_graph_geometry_from_output(
-    output: &MmdsOutput,
-) -> Result<GraphGeometry, MmdsHydrationError> {
+    output: &Output,
+) -> Result<GraphGeometry, HydrationError> {
     let (_, geometry) = hydrate_geometry_parts(output)?;
     Ok(geometry)
 }
 
 /// Hydrate graph geometry IR from parsed MMDS output, using a pre-built diagram.
-pub(crate) fn hydrate_graph_geometry_from_output_with_diagram(
-    output: &MmdsOutput,
+pub fn hydrate_graph_geometry_from_output_with_diagram(
+    output: &Output,
     diagram: &Graph,
-) -> Result<GraphGeometry, MmdsHydrationError> {
+) -> Result<GraphGeometry, HydrationError> {
     validate_output(output)?;
     build_graph_geometry(output, diagram)
 }
@@ -324,17 +322,17 @@ pub(crate) fn hydrate_graph_geometry_from_output_with_diagram(
 #[cfg(test)]
 pub(crate) fn hydrate_routed_geometry_from_mmds(
     input: &str,
-) -> Result<RoutedGraphGeometry, MmdsHydrationError> {
-    let output = parse_mmds_input(input).map_err(|err| MmdsHydrationError::Parse {
+) -> Result<RoutedGraphGeometry, HydrationError> {
+    let output = parse_input(input).map_err(|err| HydrationError::Parse {
         message: err.to_string(),
     })?;
     hydrate_routed_geometry_from_output(&output)
 }
 
 /// Hydrate routed geometry IR from parsed MMDS output.
-pub(crate) fn hydrate_routed_geometry_from_output(
-    output: &MmdsOutput,
-) -> Result<RoutedGraphGeometry, MmdsHydrationError> {
+pub fn hydrate_routed_geometry_from_output(
+    output: &Output,
+) -> Result<RoutedGraphGeometry, HydrationError> {
     let (diagram, geometry) = hydrate_geometry_parts(output)?;
     let edge_routing = if output.geometry_level == "routed" {
         EdgeRouting::EngineProvided
@@ -344,18 +342,13 @@ pub(crate) fn hydrate_routed_geometry_from_output(
     Ok(route_graph_geometry(&diagram, &geometry, edge_routing))
 }
 
-fn hydrate_geometry_parts(
-    output: &MmdsOutput,
-) -> Result<(Graph, GraphGeometry), MmdsHydrationError> {
-    let diagram = from_mmds_output(output)?;
+fn hydrate_geometry_parts(output: &Output) -> Result<(Graph, GraphGeometry), HydrationError> {
+    let diagram = from_output(output)?;
     let geometry = build_graph_geometry(output, &diagram)?;
     Ok((diagram, geometry))
 }
 
-fn build_graph_geometry(
-    output: &MmdsOutput,
-    diagram: &Graph,
-) -> Result<GraphGeometry, MmdsHydrationError> {
+fn build_graph_geometry(output: &Output, diagram: &Graph) -> Result<GraphGeometry, HydrationError> {
     let nodes = build_positioned_nodes(output, diagram)?;
     let (edges, self_edges, reversed_edges) = build_layout_edges(output);
     let subgraphs = build_subgraph_geometry(output, diagram, &nodes);
@@ -382,10 +375,10 @@ fn build_graph_geometry(
     })
 }
 
-fn hydrate_grid_projection(output: &MmdsOutput) -> Option<GridProjection> {
+fn hydrate_grid_projection(output: &Output) -> Option<GridProjection> {
     let projection = output
         .extensions
-        .get(MMDS_TEXT_EXTENSION_NAMESPACE)?
+        .get(TEXT_EXTENSION_NAMESPACE)?
         .get("projection")?;
 
     let node_ranks = projection
@@ -502,18 +495,20 @@ fn parse_override_subgraphs(value: Option<&Value>) -> HashMap<String, OverrideSu
 }
 
 fn build_positioned_nodes(
-    output: &MmdsOutput,
+    output: &Output,
     diagram: &Graph,
-) -> Result<HashMap<String, PositionedNode>, MmdsHydrationError> {
+) -> Result<HashMap<String, PositionedNode>, HydrationError> {
     output
         .nodes
         .iter()
         .map(|node| {
-            let hydrated = diagram.nodes.get(&node.id).ok_or_else(|| {
-                MmdsHydrationError::MissingGeometryNode {
-                    node_id: node.id.clone(),
-                }
-            })?;
+            let hydrated =
+                diagram
+                    .nodes
+                    .get(&node.id)
+                    .ok_or_else(|| HydrationError::MissingGeometryNode {
+                        node_id: node.id.clone(),
+                    })?;
             // MMDS position is node center; FRect uses top-left origin
             let left = node.position.x - node.size.width / 2.0;
             let top = node.position.y - node.size.height / 2.0;
@@ -531,7 +526,7 @@ fn build_positioned_nodes(
         .collect()
 }
 
-fn build_layout_edges(output: &MmdsOutput) -> (Vec<LayoutEdge>, Vec<SelfEdgeGeometry>, Vec<usize>) {
+fn build_layout_edges(output: &Output) -> (Vec<LayoutEdge>, Vec<SelfEdgeGeometry>, Vec<usize>) {
     let routed_level = output.geometry_level == "routed";
     let edges = sorted_output_edges(output);
 
@@ -582,8 +577,8 @@ fn build_layout_edges(output: &MmdsOutput) -> (Vec<LayoutEdge>, Vec<SelfEdgeGeom
     (layout_edges, self_edges, reversed_edges)
 }
 
-fn sorted_output_edges(output: &MmdsOutput) -> Vec<(usize, &MmdsEdge)> {
-    let mut edges: Vec<(usize, &MmdsEdge)> = output.edges.iter().enumerate().collect();
+fn sorted_output_edges(output: &Output) -> Vec<(usize, &Edge)> {
+    let mut edges: Vec<(usize, &Edge)> = output.edges.iter().enumerate().collect();
     edges.sort_by(|(left_index, left), (right_index, right)| {
         compare_edge_ids(&left.id, &right.id).then(left_index.cmp(right_index))
     });
@@ -595,7 +590,7 @@ fn parse_path_points(path: Option<&[[f64; 2]]>) -> Option<Vec<FPoint>> {
 }
 
 fn build_subgraph_geometry(
-    output: &MmdsOutput,
+    output: &Output,
     diagram: &Graph,
     nodes: &HashMap<String, PositionedNode>,
 ) -> HashMap<String, SubgraphGeometry> {
@@ -680,21 +675,21 @@ fn node_is_within_subgraph(node: &Node, subgraph_id: &str, diagram: &Graph) -> b
     false
 }
 
-fn validate_output(output: &MmdsOutput) -> Result<(), MmdsHydrationError> {
+fn validate_output(output: &Output) -> Result<(), HydrationError> {
     if output.version != 1 {
-        return Err(MmdsHydrationError::UnsupportedVersion {
+        return Err(HydrationError::UnsupportedVersion {
             version: output.version,
         });
     }
 
     if !matches!(output.geometry_level.as_str(), "layout" | "routed") {
-        return Err(MmdsHydrationError::InvalidGeometryLevel {
+        return Err(HydrationError::InvalidGeometryLevel {
             value: output.geometry_level.clone(),
         });
     }
 
     if !matches!(output.metadata.diagram_type.as_str(), "flowchart" | "class") {
-        return Err(MmdsHydrationError::UnsupportedDiagramType {
+        return Err(HydrationError::UnsupportedDiagramType {
             value: output.metadata.diagram_type.clone(),
         });
     }
@@ -784,7 +779,7 @@ fn parse_arrow(value: &str) -> Option<Arrow> {
 
 /// MMDS hydration and validation error.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MmdsHydrationError {
+pub enum HydrationError {
     Parse {
         message: String,
     },
@@ -865,37 +860,37 @@ pub enum MmdsHydrationError {
     },
 }
 
-impl fmt::Display for MmdsHydrationError {
+impl fmt::Display for HydrationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            MmdsHydrationError::Parse { message } => write!(f, "{message}"),
-            MmdsHydrationError::UnsupportedVersion { version } => {
+            HydrationError::Parse { message } => write!(f, "{message}"),
+            HydrationError::UnsupportedVersion { version } => {
                 write!(f, "MMDS validation error: unsupported version {version}")
             }
-            MmdsHydrationError::UnsupportedDiagramType { value } => {
+            HydrationError::UnsupportedDiagramType { value } => {
                 write!(
                     f,
                     "MMDS validation error: unsupported diagram_type '{value}'"
                 )
             }
-            MmdsHydrationError::InvalidGeometryLevel { value } => {
+            HydrationError::InvalidGeometryLevel { value } => {
                 write!(f, "MMDS validation error: invalid geometry_level '{value}'")
             }
-            MmdsHydrationError::InvalidDirection { context, value } => {
+            HydrationError::InvalidDirection { context, value } => {
                 write!(
                     f,
                     "MMDS validation error: invalid direction '{value}' for {context}"
                 )
             }
-            MmdsHydrationError::InvalidShape { node_id, value } => write!(
+            HydrationError::InvalidShape { node_id, value } => write!(
                 f,
                 "MMDS validation error: node {node_id} has invalid shape '{value}'"
             ),
-            MmdsHydrationError::InvalidStroke { edge_id, value } => write!(
+            HydrationError::InvalidStroke { edge_id, value } => write!(
                 f,
                 "MMDS validation error: edge {edge_id} has invalid stroke '{value}'"
             ),
-            MmdsHydrationError::InvalidArrow {
+            HydrationError::InvalidArrow {
                 edge_id,
                 endpoint,
                 value,
@@ -903,64 +898,64 @@ impl fmt::Display for MmdsHydrationError {
                 f,
                 "MMDS validation error: edge {edge_id} has invalid {endpoint} arrow '{value}'"
             ),
-            MmdsHydrationError::MissingNodeId { index } => {
+            HydrationError::MissingNodeId { index } => {
                 write!(
                     f,
                     "MMDS validation error: node at index {index} is missing id"
                 )
             }
-            MmdsHydrationError::MissingGeometryNode { node_id } => write!(
+            HydrationError::MissingGeometryNode { node_id } => write!(
                 f,
                 "MMDS validation error: geometry node '{node_id}' not found"
             ),
-            MmdsHydrationError::MissingSubgraphId { index } => write!(
+            HydrationError::MissingSubgraphId { index } => write!(
                 f,
                 "MMDS validation error: subgraph at index {index} is missing id"
             ),
-            MmdsHydrationError::MissingEdgeId { index } => {
+            HydrationError::MissingEdgeId { index } => {
                 write!(
                     f,
                     "MMDS validation error: edge at index {index} is missing id"
                 )
             }
-            MmdsHydrationError::MissingEdgeSource { edge_id } => {
+            HydrationError::MissingEdgeSource { edge_id } => {
                 write!(f, "MMDS validation error: edge {edge_id} is missing source")
             }
-            MmdsHydrationError::MissingEdgeTarget { edge_id } => {
+            HydrationError::MissingEdgeTarget { edge_id } => {
                 write!(f, "MMDS validation error: edge {edge_id} is missing target")
             }
-            MmdsHydrationError::DanglingEdgeSource { edge_id, source } => write!(
+            HydrationError::DanglingEdgeSource { edge_id, source } => write!(
                 f,
                 "MMDS validation error: edge {edge_id} source '{source}' not found"
             ),
-            MmdsHydrationError::DanglingEdgeTarget { edge_id, target } => write!(
+            HydrationError::DanglingEdgeTarget { edge_id, target } => write!(
                 f,
                 "MMDS validation error: edge {edge_id} target '{target}' not found"
             ),
-            MmdsHydrationError::DanglingEdgeFromSubgraphIntent { edge_id, subgraph } => write!(
+            HydrationError::DanglingEdgeFromSubgraphIntent { edge_id, subgraph } => write!(
                 f,
                 "MMDS validation error: edge {edge_id} from_subgraph '{subgraph}' not found"
             ),
-            MmdsHydrationError::DanglingEdgeToSubgraphIntent { edge_id, subgraph } => write!(
+            HydrationError::DanglingEdgeToSubgraphIntent { edge_id, subgraph } => write!(
                 f,
                 "MMDS validation error: edge {edge_id} to_subgraph '{subgraph}' not found"
             ),
-            MmdsHydrationError::DanglingNodeParent { node_id, parent } => write!(
+            HydrationError::DanglingNodeParent { node_id, parent } => write!(
                 f,
                 "MMDS validation error: node {node_id} parent subgraph '{parent}' not found"
             ),
-            MmdsHydrationError::DanglingSubgraphParent {
+            HydrationError::DanglingSubgraphParent {
                 subgraph_id,
                 parent,
             } => write!(
                 f,
                 "MMDS validation error: subgraph {subgraph_id} parent '{parent}' not found"
             ),
-            MmdsHydrationError::DanglingSubgraphChild { subgraph_id, child } => write!(
+            HydrationError::DanglingSubgraphChild { subgraph_id, child } => write!(
                 f,
                 "MMDS validation error: subgraph {subgraph_id} child '{child}' not found"
             ),
-            MmdsHydrationError::CyclicSubgraphParentChain { subgraph_id } => write!(
+            HydrationError::CyclicSubgraphParentChain { subgraph_id } => write!(
                 f,
                 "MMDS validation error: cyclic subgraph parent chain detected at '{subgraph_id}'"
             ),
@@ -968,7 +963,7 @@ impl fmt::Display for MmdsHydrationError {
     }
 }
 
-impl Error for MmdsHydrationError {}
+impl Error for HydrationError {}
 
 #[cfg(test)]
 mod tests {

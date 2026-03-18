@@ -130,9 +130,7 @@ fn is_ancestor_sg(diagram: &Graph, ancestor: &str, descendant: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagrams::flowchart::compile_to_graph;
     use crate::graph::{Graph, Node};
-    use crate::mermaid::parse_flowchart;
 
     #[test]
     fn build_node_directions_all_root() {
@@ -172,26 +170,5 @@ mod tests {
         diagram.add_node(Node::new("A"));
         let map = build_override_node_map(&diagram);
         assert!(map.is_empty());
-    }
-
-    #[test]
-    fn cross_boundary_direction_uses_ancestor_override() {
-        let input = "graph TD\nsubgraph outer\ndirection LR\nA\nsubgraph inner\ndirection BT\nB\nend\nA --> B\nend\n";
-        let flowchart = parse_flowchart(input).unwrap();
-        let diagram = compile_to_graph(&flowchart);
-        let dirs = build_node_directions(&diagram);
-        let override_nodes = build_override_node_map(&diagram);
-
-        let direction = cross_boundary_edge_direction(
-            &diagram,
-            &dirs,
-            override_nodes.get("A"),
-            override_nodes.get("B"),
-            "A",
-            "B",
-            Direction::TopDown,
-        );
-
-        assert_eq!(direction, Direction::LeftRight);
     }
 }

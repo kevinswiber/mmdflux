@@ -22,7 +22,7 @@ fn sequence_instance_into_payload_returns_sequence_payload() {
     let payload = sequence_instance()
         .parse("sequenceDiagram\nparticipant A\nparticipant B\nA->>B: hello")
         .unwrap()
-        .into_payload(&RenderConfig::default())
+        .into_payload()
         .unwrap();
     let Diagram::Sequence(sequence) = payload else {
         panic!("sequence should yield a sequence payload");
@@ -39,13 +39,15 @@ fn sequence_instance_unknown_engine_rejected_at_parse_boundary() {
 
 #[test]
 fn sequence_instance_prepare_rejects_layout_engine_selection() {
-    let result = sequence_instance()
-        .parse("sequenceDiagram\nA->>B: hello")
-        .unwrap()
-        .into_payload(&RenderConfig {
-            layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
-            ..RenderConfig::default()
-        });
+    let config = RenderConfig {
+        layout_engine: Some(EngineAlgorithmId::parse("flux-layered").unwrap()),
+        ..RenderConfig::default()
+    };
+    let result = mmdflux::render_diagram(
+        "sequenceDiagram\nA->>B: hello",
+        mmdflux::OutputFormat::Text,
+        &config,
+    );
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(

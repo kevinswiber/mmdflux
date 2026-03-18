@@ -1,6 +1,5 @@
 //! Runtime rendering for graph-family payloads.
 
-use crate::config::RenderConfig;
 use crate::engines::graph::algorithms::layered::MeasurementMode;
 use crate::engines::graph::contracts::GraphGeometryContract;
 use crate::engines::graph::{
@@ -15,9 +14,10 @@ use crate::graph::measure::{
 };
 use crate::graph::{GeometryLevel, Graph};
 use crate::render::graph::{
-    SvgRenderOptions, TextRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
+    SvgRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
     render_text_from_geometry,
 };
+use crate::runtime::config::RenderConfig;
 use crate::simplification::PathSimplification;
 
 pub(in crate::runtime) fn render_graph_family(
@@ -49,12 +49,11 @@ pub(in crate::runtime) fn render_graph_family(
             config.path_simplification,
         ),
         OutputFormat::Svg => {
-            let options: SvgRenderOptions = config.into();
+            let options = config.svg_render_options();
             Ok(render_svg_from_solve_result(diagram, &result, &options))
         }
         OutputFormat::Text | OutputFormat::Ascii => {
-            let mut options: TextRenderOptions = config.into();
-            options.output_format = format;
+            let options = config.text_render_options(format);
             Ok(render_text_from_geometry(
                 diagram,
                 &result.geometry,
@@ -141,26 +140,29 @@ fn render_mmds_from_solve_result(
     level: GeometryLevel,
     path_simplification: PathSimplification,
 ) -> Result<String, RenderError> {
-    crate::mmds::to_mmds_json_typed_with_routing(
+    let engine_id = result.engine_id.to_string();
+    crate::mmds::to_json_typed_with_routing(
         diagram_type,
         diagram,
         &result.geometry,
         result.routed.as_ref(),
         level,
         path_simplification,
-        Some(result.engine_id),
+        Some(engine_id.as_str()),
     )
 }
 
 #[cfg(test)]
-mod regression_tests;
-
-#[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::Path;
+
     use super::*;
     use crate::builtins::default_registry;
-    use crate::graph::Graph;
+    use crate::graph::{Direction, Edge, Graph, Node};
     use crate::payload::Diagram as Payload;
+    use crate::render::graph::TextRenderOptions;
+    use crate::runtime::config::RenderConfig;
 
     fn graph_fixture(input: &str) -> Graph {
         let payload = default_registry()
@@ -168,7 +170,7 @@ mod tests {
             .expect("flowchart should be registered")
             .parse(input)
             .expect("fixture should parse")
-            .into_payload(&RenderConfig::default())
+            .into_payload()
             .expect("fixture should build a payload");
         let Payload::Flowchart(graph) = payload else {
             panic!("flowchart should yield a flowchart payload");
@@ -225,5 +227,51 @@ mod tests {
         )
         .expect("MMDS render should succeed");
         assert!(json.contains("\"nodes\""));
+    }
+
+    // -- regression tests (formerly runtime/graph_family/regression_tests.rs) --
+
+    #[test]
+    fn runtime_owner_local_smoke_renders_graph_family_text() {
+        let rendered = super::render_graph_family(
+            "flowchart",
+            &smoke_diagram(),
+            OutputFormat::Text,
+            &RenderConfig::default(),
+        )
+        .expect("runtime graph-family smoke render should succeed");
+
+        assert!(rendered.contains("Start"));
+    }
+
+    #[test]
+    fn runtime_entrypoint_dispatches_mmds_input_through_frontend() {
+        let input = mmds_fixture("minimal-layout.json");
+        let diagram_id =
+            crate::detect_diagram(&input).expect("runtime should resolve MMDS fixture");
+        assert_eq!(diagram_id, "flowchart");
+
+        let output = crate::render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+            .expect("layout MMDS payload should render via runtime frontend dispatch");
+        assert!(output.contains("Start"));
+        assert!(output.contains("End"));
+    }
+
+    fn mmds_fixture(name: &str) -> String {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("mmds")
+            .join(name);
+        fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()))
+    }
+
+    fn smoke_diagram() -> Graph {
+        let mut diagram = Graph::new(Direction::TopDown);
+        diagram.add_node(Node::new("A").with_label("Start"));
+        diagram.add_node(Node::new("B").with_label("End"));
+        diagram.add_edge(Edge::new("A", "B"));
+        diagram
     }
 }

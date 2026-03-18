@@ -26,10 +26,10 @@ mod solve;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use contracts::{
+pub use contracts::{
     EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
 };
 pub use layout::{LabelDummyStrategy, LayoutConfig, LayoutDirection, Ranker};
-pub(crate) use registry::GraphEngineRegistry;
+pub use registry::GraphEngineRegistry;
 pub use selection::{AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineId};
-pub(crate) use solve::solve_graph_family;
+pub use solve::solve_graph_family;

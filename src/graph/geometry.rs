@@ -81,7 +81,7 @@ pub struct GraphGeometry {
     pub bounds: FRect,
     /// Which edge indices were reversed for cycle removal.
     pub reversed_edges: Vec<usize>,
-    /// Optional engine-specific metadata for migration-sensitive behavior.
+    /// Optional engine-specific metadata for grid-snap and rank-aware routing.
     pub engine_hints: Option<EngineHints>,
     /// Optional graph-owned replay metadata for projecting float geometry onto a discrete grid.
     pub grid_projection: Option<GridProjection>,
@@ -157,13 +157,17 @@ pub enum EdgeLabelSide {
 }
 
 // ---------------------------------------------------------------------------
-// Engine hints (optional, typed per engine)
+// Engine hints (optional engine-specific metadata for grid-snap and routing)
 // ---------------------------------------------------------------------------
 
-/// Engine-specific metadata that does not belong in the core geometry contract.
+/// Engine-specific metadata channel.
+///
+/// Layout engines attach algorithm-specific hints that downstream stages
+/// (grid projection, routing, rendering) can consume.  The outer enum
+/// discriminates by engine family; the inner struct carries the payload.
 #[derive(Debug, Clone)]
-#[non_exhaustive]
 pub enum EngineHints {
+    /// Hints produced by layered (Sugiyama-family) engines.
     Layered(LayeredHints),
 }
 
@@ -286,7 +290,8 @@ mod tests {
             edge_waypoints: HashMap::new(),
             label_positions: HashMap::new(),
         });
-        assert!(matches!(hints, EngineHints::Layered(_)));
+        let EngineHints::Layered(inner) = &hints;
+        assert!(inner.node_ranks.is_empty());
     }
 
     #[test]

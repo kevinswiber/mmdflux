@@ -14,7 +14,7 @@ use crate::graph::Graph;
 ///
 /// Shared by flowchart, class, and any future graph-family diagram.
 ///
-pub(crate) fn solve_graph_family(
+pub fn solve_graph_family(
     diagram: &Graph,
     engine_id: EngineAlgorithmId,
     config: &EngineConfig,

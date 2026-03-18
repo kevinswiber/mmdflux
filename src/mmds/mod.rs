@@ -1,15 +1,14 @@
 //! MMDS interchange contract and output-generation namespace.
 //!
 //! This module owns the typed MMDS envelope, profile vocabulary, Mermaid
-//! regeneration helpers, validation, replay helpers, and hydration to
-//! `Diagram` for adapter workflows.
+//! regeneration helpers, validation, and hydration to `Diagram` for
+//! adapter workflows. Replay rendering lives in `runtime::mmds`.
 
 pub(crate) mod detect;
 pub(crate) mod hydrate;
 mod mermaid;
-mod output;
+pub(crate) mod output;
 pub(crate) mod parse;
-pub(crate) mod replay;
 
 use std::error::Error;
 use std::fmt;
@@ -18,24 +17,23 @@ pub use detect::{
     SUPPORTED_OUTPUT_FORMATS, detect_diagram_type, is_mmds_input, resolve_logical_diagram_id,
     supports_format,
 };
-pub use hydrate::{MmdsHydrationError, from_mmds_output, from_mmds_str};
-pub use mermaid::{
-    MmdsGenerationError, generate_mermaid_from_mmds, generate_mermaid_from_mmds_str,
+pub use hydrate::{
+    HydrationError, from_output, from_str, hydrate_graph_geometry_from_output_with_diagram,
+    hydrate_routed_geometry_from_output,
 };
-// Internal serialization (runtime plumbing, not part of public contract).
-pub(crate) use output::to_mmds_json_typed_with_routing;
-// Profile vocabulary constants.
-pub use output::{
-    MMDS_CORE_PROFILE, MMDS_NODE_STYLE_EXTENSION_NAMESPACE, MMDS_NODE_STYLE_PROFILE,
-    MMDS_SVG_PROFILE, MMDS_TEXT_EXTENSION_NAMESPACE, MMDS_TEXT_PROFILE, SUPPORTED_MMDS_PROFILES,
-};
+pub use mermaid::{GenerationError, generate_mermaid, generate_mermaid_from_str};
+pub use output::to_json_typed_with_routing;
 // Schema types (public adapter contract).
 pub use output::{
-    MmdsBounds, MmdsDefaults, MmdsEdge, MmdsEdgeDefaults, MmdsMetadata, MmdsNode, MmdsNodeDefaults,
-    MmdsOutput, MmdsPort, MmdsPosition, MmdsSize, MmdsSubgraph,
+    Bounds, Defaults, Edge, EdgeDefaults, Metadata, Node, NodeDefaults, Output, Port, Position,
+    Size, Subgraph,
+};
+// Profile vocabulary constants.
+pub use output::{
+    CORE_PROFILE, NODE_STYLE_EXTENSION_NAMESPACE, NODE_STYLE_PROFILE, SUPPORTED_PROFILES,
+    SVG_PROFILE, TEXT_EXTENSION_NAMESPACE, TEXT_PROFILE,
 };
 pub use parse::{parse_with_profiles, validate_input};
-pub use replay::{render_input, render_output};
 use serde_json::{Map, Value};
 
 #[cfg(test)]
@@ -43,11 +41,11 @@ mod regression_tests;
 
 /// Parse-time error for MMDS input.
 #[derive(Debug, Clone)]
-pub struct MmdsParseError {
+pub struct ParseError {
     message: String,
 }
 
-impl MmdsParseError {
+impl ParseError {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
@@ -55,17 +53,17 @@ impl MmdsParseError {
     }
 }
 
-impl fmt::Display for MmdsParseError {
+impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.message)
     }
 }
 
-impl Error for MmdsParseError {}
+impl Error for ParseError {}
 
 /// Result of profile capability evaluation for a parsed MMDS payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MmdsProfileNegotiation {
+pub struct ProfileNegotiation {
     /// Profiles recognized by the current runtime.
     pub supported: Vec<String>,
     /// Profiles declared by payload but unknown to this runtime.
@@ -75,34 +73,34 @@ pub struct MmdsProfileNegotiation {
 /// Parse MMDS JSON input into the typed output envelope.
 ///
 /// Unlike a plain deserialize, this expands omitted node/edge fields using
-/// the top-level `defaults` block before constructing `MmdsOutput`.
-pub fn parse_mmds_input(input: &str) -> Result<MmdsOutput, MmdsParseError> {
+/// the top-level `defaults` block before constructing [`Output`].
+pub fn parse_input(input: &str) -> Result<Output, ParseError> {
     let mut value: Value = serde_json::from_str(input)
-        .map_err(|err| MmdsParseError::new(format!("MMDS parse error: {err}")))?;
+        .map_err(|err| ParseError::new(format!("MMDS parse error: {err}")))?;
 
     expand_defaults_in_value(&mut value)?;
 
-    serde_json::from_value::<MmdsOutput>(value)
-        .map_err(|err| MmdsParseError::new(format!("MMDS parse error: {err}")))
+    serde_json::from_value::<Output>(value)
+        .map_err(|err| ParseError::new(format!("MMDS parse error: {err}")))
 }
 
 /// Evaluate declared profiles against runtime-known profile vocabulary.
 ///
 /// This helper is advisory. Hydration remains permissive with unknown profiles.
-pub fn evaluate_mmds_profiles(input: &str) -> Result<MmdsProfileNegotiation, MmdsParseError> {
-    let output = parse_mmds_input(input)?;
-    Ok(evaluate_mmds_profiles_for_output(&output))
+pub fn evaluate_profiles(input: &str) -> Result<ProfileNegotiation, ParseError> {
+    let output = parse_input(input)?;
+    Ok(evaluate_profiles_for_output(&output))
 }
 
 /// Evaluate declared profiles for an already-parsed MMDS payload.
-pub fn evaluate_mmds_profiles_for_output(output: &MmdsOutput) -> MmdsProfileNegotiation {
+pub fn evaluate_profiles_for_output(output: &Output) -> ProfileNegotiation {
     let mut supported = Vec::new();
     let mut unknown = Vec::new();
     let mut seen_supported = std::collections::HashSet::new();
     let mut seen_unknown = std::collections::HashSet::new();
 
     for profile in &output.profiles {
-        if SUPPORTED_MMDS_PROFILES.contains(&profile.as_str()) {
+        if SUPPORTED_PROFILES.contains(&profile.as_str()) {
             if seen_supported.insert(profile.clone()) {
                 supported.push(profile.clone());
             }
@@ -114,12 +112,12 @@ pub fn evaluate_mmds_profiles_for_output(output: &MmdsOutput) -> MmdsProfileNego
         }
     }
 
-    MmdsProfileNegotiation { supported, unknown }
+    ProfileNegotiation { supported, unknown }
 }
 
-fn expand_defaults_in_value(value: &mut Value) -> Result<(), MmdsParseError> {
+fn expand_defaults_in_value(value: &mut Value) -> Result<(), ParseError> {
     let root = value.as_object_mut().ok_or_else(|| {
-        MmdsParseError::new("MMDS parse error: top-level JSON value must be an object")
+        ParseError::new("MMDS parse error: top-level JSON value must be an object")
     })?;
 
     let node_shape = default_value(

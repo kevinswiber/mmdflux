@@ -1,4 +1,9 @@
-//! Engine and algorithm taxonomy identifiers for graph-family layout selection.
+//! Engine-specific capability descriptors and routing resolution for
+//! graph-family layout selection.
+//!
+//! Defines the vocabulary types [`EngineId`], [`AlgorithmId`], and
+//! [`EngineAlgorithmId`], plus engine-specific capability descriptors
+//! and routing resolution that depend on graph-family routing types.
 
 use std::str::FromStr;
 
@@ -24,6 +29,80 @@ pub enum AlgorithmId {
     Layered,
     /// ELK Mr. Tree algorithm.
     MrTree,
+}
+
+/// Combined engine+algorithm identifier for explicit layout engine selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EngineAlgorithmId {
+    engine: EngineId,
+    algorithm: AlgorithmId,
+}
+
+impl EngineAlgorithmId {
+    pub const FLUX_LAYERED: Self = Self::new(EngineId::Flux, AlgorithmId::Layered);
+    pub const MERMAID_LAYERED: Self = Self::new(EngineId::Mermaid, AlgorithmId::Layered);
+    pub const ELK_LAYERED: Self = Self::new(EngineId::Elk, AlgorithmId::Layered);
+    pub const ELK_MRTREE: Self = Self::new(EngineId::Elk, AlgorithmId::MrTree);
+
+    /// Create an explicit `engine + algorithm` selection.
+    pub const fn new(engine: EngineId, algorithm: AlgorithmId) -> Self {
+        Self { engine, algorithm }
+    }
+
+    /// Return the engine half of the `engine-algorithm` identifier.
+    pub const fn engine(self) -> EngineId {
+        self.engine
+    }
+
+    /// Return the algorithm half of the `engine-algorithm` identifier.
+    pub const fn algorithm(self) -> AlgorithmId {
+        self.algorithm
+    }
+
+    /// Parse an `engine-algorithm` ID string (case-insensitive, trims whitespace).
+    pub fn parse(s: &str) -> Result<Self, RenderError> {
+        match normalize_enum_token(s).as_str() {
+            "flux-layered" => Ok(Self::FLUX_LAYERED),
+            "mermaid-layered" => Ok(Self::MERMAID_LAYERED),
+            #[cfg(feature = "engine-elk")]
+            "elk-layered" => Ok(Self::ELK_LAYERED),
+            #[cfg(feature = "engine-elk")]
+            "elk-mrtree" => Ok(Self::ELK_MRTREE),
+            #[cfg(not(feature = "engine-elk"))]
+            "elk-layered" | "elk-mrtree" | "elk" => Err(RenderError {
+                message: "ELK engines are not available in this build. \
+                          Use \"flux-layered\" (recommended) or \"mermaid-layered\"."
+                    .into(),
+            }),
+            other => Err(RenderError {
+                message: format!(
+                    "unknown engine: {other:?}. Valid options: \
+                     flux-layered, mermaid-layered"
+                ),
+            }),
+        }
+    }
+}
+
+impl std::fmt::Display for EngineAlgorithmId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match (self.engine, self.algorithm) {
+            (EngineId::Flux, AlgorithmId::Layered) => write!(f, "flux-layered"),
+            (EngineId::Mermaid, AlgorithmId::Layered) => write!(f, "mermaid-layered"),
+            (EngineId::Elk, AlgorithmId::Layered) => write!(f, "elk-layered"),
+            (EngineId::Elk, AlgorithmId::MrTree) => write!(f, "elk-mrtree"),
+            (EngineId::Flux, AlgorithmId::MrTree) => write!(f, "flux-mrtree"),
+            (EngineId::Mermaid, AlgorithmId::MrTree) => write!(f, "mermaid-mrtree"),
+        }
+    }
+}
+
+impl FromStr for EngineAlgorithmId {
+    type Err = RenderError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s)
+    }
 }
 
 /// How edge routing is owned for a given engine+algorithm.
@@ -122,60 +201,9 @@ const UNKNOWN_DESCRIPTOR: EngineAlgorithmDescriptor = EngineAlgorithmDescriptor 
     required_feature: None,
 };
 
-/// Combined engine+algorithm identifier for public selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct EngineAlgorithmId {
-    engine: EngineId,
-    algorithm: AlgorithmId,
-}
-
 impl EngineAlgorithmId {
-    pub const FLUX_LAYERED: Self = Self::new(EngineId::Flux, AlgorithmId::Layered);
-    pub const MERMAID_LAYERED: Self = Self::new(EngineId::Mermaid, AlgorithmId::Layered);
-    pub const ELK_LAYERED: Self = Self::new(EngineId::Elk, AlgorithmId::Layered);
-    pub const ELK_MRTREE: Self = Self::new(EngineId::Elk, AlgorithmId::MrTree);
-
-    /// Create an explicit `engine + algorithm` selection.
-    pub const fn new(engine: EngineId, algorithm: AlgorithmId) -> Self {
-        Self { engine, algorithm }
-    }
-
-    /// Return the engine half of the `engine-algorithm` identifier.
-    pub const fn engine(self) -> EngineId {
-        self.engine
-    }
-
-    /// Return the algorithm half of the `engine-algorithm` identifier.
-    pub const fn algorithm(self) -> AlgorithmId {
-        self.algorithm
-    }
-
-    /// Parse an `engine-algorithm` ID string (case-insensitive, trims whitespace).
-    pub fn parse(s: &str) -> Result<Self, RenderError> {
-        match normalize_enum_token(s).as_str() {
-            "flux-layered" => Ok(Self::FLUX_LAYERED),
-            "mermaid-layered" => Ok(Self::MERMAID_LAYERED),
-            #[cfg(feature = "engine-elk")]
-            "elk-layered" => Ok(Self::ELK_LAYERED),
-            #[cfg(feature = "engine-elk")]
-            "elk-mrtree" => Ok(Self::ELK_MRTREE),
-            #[cfg(not(feature = "engine-elk"))]
-            "elk-layered" | "elk-mrtree" | "elk" => Err(RenderError {
-                message: "ELK engines are not available in this build. \
-                          Use \"flux-layered\" (recommended) or \"mermaid-layered\"."
-                    .into(),
-            }),
-            other => Err(RenderError {
-                message: format!(
-                    "unknown engine: {other:?}. Valid options: \
-                     flux-layered, mermaid-layered"
-                ),
-            }),
-        }
-    }
-
     pub fn descriptor(self) -> &'static EngineAlgorithmDescriptor {
-        match (self.engine, self.algorithm) {
+        match (self.engine(), self.algorithm()) {
             (EngineId::Flux, AlgorithmId::Layered) => &FLUX_LAYERED_DESCRIPTOR,
             (EngineId::Mermaid, AlgorithmId::Layered) => &MERMAID_LAYERED_DESCRIPTOR,
             (EngineId::Elk, AlgorithmId::Layered) => &ELK_LAYERED_DESCRIPTOR,
@@ -232,27 +260,6 @@ impl EngineAlgorithmId {
     /// Resolve the concrete routing algorithm for a requested routing style.
     pub fn edge_routing_for_style(self, routing_style: Option<RoutingStyle>) -> EdgeRouting {
         self.capabilities().edge_routing_for_style(routing_style)
-    }
-}
-
-impl std::fmt::Display for EngineAlgorithmId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match (self.engine, self.algorithm) {
-            (EngineId::Flux, AlgorithmId::Layered) => write!(f, "flux-layered"),
-            (EngineId::Mermaid, AlgorithmId::Layered) => write!(f, "mermaid-layered"),
-            (EngineId::Elk, AlgorithmId::Layered) => write!(f, "elk-layered"),
-            (EngineId::Elk, AlgorithmId::MrTree) => write!(f, "elk-mrtree"),
-            (EngineId::Flux, AlgorithmId::MrTree) => write!(f, "flux-mrtree"),
-            (EngineId::Mermaid, AlgorithmId::MrTree) => write!(f, "mermaid-mrtree"),
-        }
-    }
-}
-
-impl FromStr for EngineAlgorithmId {
-    type Err = RenderError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::parse(s)
     }
 }
 

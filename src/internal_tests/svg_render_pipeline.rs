@@ -12,9 +12,7 @@ use crate::graph::Stroke;
 use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::mermaid::parse_flowchart;
-use crate::render::graph::{
-    SvgRenderOptions, render_svg_from_geometry, render_svg_from_routed_geometry,
-};
+use crate::render::graph::{render_svg_from_geometry, render_svg_from_routed_geometry};
 use crate::simplification::PathSimplification;
 use crate::{OutputFormat, RenderConfig};
 
@@ -36,7 +34,7 @@ fn render_svg(diagram: &crate::graph::Graph, config: &RenderConfig) -> String {
         )
         .expect("SVG render should succeed");
 
-    let options: SvgRenderOptions = config.into();
+    let options = config.svg_render_options();
     if let Some(routed) = result.routed.as_ref() {
         render_svg_from_routed_geometry(diagram, routed, &options)
     } else {
@@ -4242,8 +4240,15 @@ fn render_svg_direction_override_backward_edge() {
 fn render_svg_positioned_mmds_routed_basic_includes_paths_and_subgraph() {
     let input = std::fs::read_to_string("tests/fixtures/mmds/positioned/routed-basic.json")
         .expect("positioned fixture should exist");
-    let svg = crate::mmds::render_input(&input, OutputFormat::Svg, &RenderConfig::default())
-        .expect("routed MMDS should render SVG");
+    let config = RenderConfig::default();
+    let svg = crate::runtime::mmds::render_input(
+        &input,
+        OutputFormat::Svg,
+        config.geometry_level,
+        &config.text_render_options(OutputFormat::Svg),
+        &config.svg_render_options(),
+    )
+    .expect("routed MMDS should render SVG");
 
     assert!(svg.starts_with("<svg"));
     assert!(svg.contains("class=\"subgraph\""));

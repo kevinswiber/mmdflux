@@ -2,7 +2,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use mmdflux::format::{CornerStyle, Curve, RoutingStyle};
-use mmdflux::mmds::render_input;
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, render_diagram};
 
@@ -89,7 +88,7 @@ fn render_svg_positioned_mmds_fixture(name: &str) -> String {
         .join(name);
     let payload = fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read MMDS fixture {}: {e}", path.display()));
-    render_input(
+    mmdflux::render_diagram(
         &payload,
         OutputFormat::Svg,
         &RenderConfig {

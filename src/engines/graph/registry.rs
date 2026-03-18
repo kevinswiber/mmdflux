@@ -8,9 +8,10 @@
 
 use std::collections::HashMap;
 
+use crate::engines::graph::GraphEngine;
 use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::engines::graph::mermaid::MermaidLayeredEngine;
-use crate::engines::graph::{EngineAlgorithmId, GraphEngine};
+use crate::engines::graph::selection::EngineAlgorithmId;
 
 /// Concrete trait object type for graph solvers.
 type BoxedGraphSolver = Box<dyn GraphEngine>;

@@ -137,7 +137,7 @@ impl NodeStyleIssue {
     }
 }
 
-pub(crate) fn parse_node_style_statement(raw: &str) -> Option<ParsedNodeStyleDirective> {
+pub fn parse_node_style_statement(raw: &str) -> Option<ParsedNodeStyleDirective> {
     let trimmed = raw.trim();
     let rest = strip_keyword(trimmed, "style")?.trim_start();
     if rest.is_empty() {

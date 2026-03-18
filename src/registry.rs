@@ -7,7 +7,6 @@
 
 use std::collections::HashMap;
 
-use crate::config::RenderConfig;
 use crate::errors::{ParseDiagnostic, RenderError};
 use crate::format::OutputFormat;
 use crate::payload::Diagram;
@@ -95,6 +94,14 @@ impl DiagramRegistry {
         self.diagrams.get(id)
     }
 
+    /// Check if a diagram type supports the given output format.
+    #[must_use]
+    pub fn supports_format(&self, id: &str, format: OutputFormat) -> bool {
+        self.diagrams
+            .get(id)
+            .is_some_and(|def| def.supported_formats.contains(&format))
+    }
+
     /// List all registered diagram IDs.
     pub fn diagram_ids(&self) -> impl Iterator<Item = &'static str> + '_ {
         self.detection_order.iter().copied()
@@ -166,9 +173,6 @@ pub trait DiagramInstance: Send + Sync {
         input: &str,
     ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>>;
 
-    /// Check if this instance supports the given output format.
-    fn supports_format(&self, format: OutputFormat) -> bool;
-
     /// Return validation warnings for the input.
     ///
     /// Called after successful parsing to collect diagram-type-specific
@@ -184,5 +188,5 @@ pub trait DiagramInstance: Send + Sync {
 /// Parsed diagrams can only advance forward into runtime payloads.
 pub trait ParsedDiagram: Send + Sync {
     /// Consume the parsed diagram into a family-local payload for runtime dispatch.
-    fn into_payload(self: Box<Self>, config: &RenderConfig) -> Result<Diagram, RenderError>;
+    fn into_payload(self: Box<Self>) -> Result<Diagram, RenderError>;
 }

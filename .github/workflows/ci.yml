@@ -45,6 +45,9 @@ jobs:
       - name: Run clippy
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
+      - name: Run architecture suite
+        run: cargo run --locked --package xtask -- architecture
+
   test:
     name: Test
     runs-on: ubuntu-latest

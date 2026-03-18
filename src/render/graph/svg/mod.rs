@@ -17,14 +17,13 @@ use nodes::{render_nodes, render_subgraphs};
 use self_edges::compute_self_edge_paths;
 use writer::{SvgWriter, render_defs};
 
-use crate::format::{Curve, EdgePreset, RoutingStyle};
+use crate::format::{Curve, RoutingStyle};
 use crate::graph::Graph;
 use crate::graph::direction_policy::build_override_node_map;
 use crate::graph::geometry::{FPoint, FRect, GraphGeometry};
 use crate::graph::measure::{DEFAULT_PROPORTIONAL_FONT_SIZE, ProportionalTextMetrics};
 use crate::graph::routing::EdgeRouting;
 use crate::simplification::PathSimplification;
-use crate::{EngineId, RenderConfig};
 
 const DEFAULT_FONT_FAMILY: &str = "\"trebuchet ms\", verdana, arial, sans-serif";
 
@@ -67,50 +66,6 @@ impl Default for SvgRenderOptions {
             diagram_padding: 8.0,
             path_simplification: PathSimplification::default(),
         }
-    }
-}
-
-impl From<&RenderConfig> for SvgRenderOptions {
-    fn from(config: &RenderConfig) -> Self {
-        let mut svg = Self::default();
-        if let Some(scale) = config.svg_scale {
-            svg.scale = scale;
-        }
-        if let Some(padding_x) = config.svg_node_padding_x {
-            svg.node_padding_x = padding_x;
-        }
-        if let Some(padding_y) = config.svg_node_padding_y {
-            svg.node_padding_y = padding_y;
-        }
-        if let Some(radius) = config.edge_radius {
-            svg.edge_radius = radius;
-        }
-        if let Some(padding) = config.svg_diagram_padding {
-            svg.diagram_padding = padding;
-        }
-
-        let engine_id = config.layout_engine.map(|id| id.engine());
-        let (def_routing, def_curve) = engine_style_defaults(engine_id);
-        let (preset_routing, preset_curve) = config
-            .edge_preset
-            .map(EdgePreset::expand)
-            .unwrap_or((def_routing, def_curve));
-
-        svg.routing_style = config.routing_style.unwrap_or(preset_routing);
-        svg.curve = config.curve.unwrap_or(preset_curve);
-        svg.path_simplification = config.path_simplification;
-        svg
-    }
-}
-
-/// Engine defaults for SVG style (routing + curve).
-///
-/// When no preset or explicit style is specified, these engine-specific defaults
-/// preserve the pre-Phase-7 rendering behaviour.
-fn engine_style_defaults(engine: Option<EngineId>) -> (RoutingStyle, Curve) {
-    match engine {
-        Some(EngineId::Mermaid) => (RoutingStyle::Polyline, Curve::Basis),
-        _ => (RoutingStyle::Orthogonal, Curve::Basis),
     }
 }
 
@@ -236,91 +191,4 @@ fn render_svg_with_geometry_context(
     writer.finish()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::SvgRenderOptions;
-    use crate::format::{CornerStyle, Curve, EdgePreset, RoutingStyle};
-    use crate::simplification::PathSimplification;
-    use crate::{EngineAlgorithmId, RenderConfig};
-
-    #[test]
-    fn default_config_uses_orthogonal_routing() {
-        let options = SvgRenderOptions::from(&RenderConfig::default());
-        assert_eq!(options.routing_style, RoutingStyle::Orthogonal);
-        assert_eq!(options.curve, Curve::Basis);
-    }
-
-    #[test]
-    fn step_preset_expands_to_orthogonal_linear_sharp() {
-        let config = RenderConfig {
-            edge_preset: Some(EdgePreset::Step),
-            ..Default::default()
-        };
-        let options = SvgRenderOptions::from(&config);
-
-        assert_eq!(options.routing_style, RoutingStyle::Orthogonal);
-        assert_eq!(options.curve, Curve::Linear(CornerStyle::Sharp));
-    }
-
-    #[test]
-    fn basis_preset_expands_to_polyline_basis() {
-        let config = RenderConfig {
-            edge_preset: Some(EdgePreset::Basis),
-            ..Default::default()
-        };
-        let options = SvgRenderOptions::from(&config);
-
-        assert_eq!(options.routing_style, RoutingStyle::Polyline);
-        assert_eq!(options.curve, Curve::Basis);
-    }
-
-    #[test]
-    fn explicit_routing_style_overrides_preset_routing() {
-        let config = RenderConfig {
-            edge_preset: Some(EdgePreset::Step),
-            routing_style: Some(RoutingStyle::Polyline),
-            ..Default::default()
-        };
-        let options = SvgRenderOptions::from(&config);
-
-        assert_eq!(options.routing_style, RoutingStyle::Polyline);
-        assert_eq!(options.curve, Curve::Linear(CornerStyle::Sharp));
-    }
-
-    #[test]
-    fn explicit_curve_overrides_preset_curve() {
-        let config = RenderConfig {
-            edge_preset: Some(EdgePreset::Step),
-            curve: Some(Curve::Basis),
-            ..Default::default()
-        };
-        let options = SvgRenderOptions::from(&config);
-
-        assert_eq!(options.routing_style, RoutingStyle::Orthogonal);
-        assert_eq!(options.curve, Curve::Basis);
-    }
-
-    #[test]
-    fn path_simplification_is_preserved() {
-        let config = RenderConfig {
-            edge_preset: Some(EdgePreset::Polyline),
-            path_simplification: PathSimplification::Lossless,
-            ..Default::default()
-        };
-        let options = SvgRenderOptions::from(&config);
-
-        assert_eq!(options.path_simplification, PathSimplification::Lossless);
-    }
-
-    #[test]
-    fn mermaid_engine_uses_polyline_by_default() {
-        let config = RenderConfig {
-            layout_engine: Some(EngineAlgorithmId::parse("mermaid-layered").unwrap()),
-            ..Default::default()
-        };
-        let options = SvgRenderOptions::from(&config);
-
-        assert_eq!(options.routing_style, RoutingStyle::Polyline);
-        assert_eq!(options.curve, Curve::Basis);
-    }
-}
+// RenderConfig conversion tests live in runtime/config.rs.

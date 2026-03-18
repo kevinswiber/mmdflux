@@ -6,12 +6,13 @@
 
 use serde::Deserialize;
 
-use crate::config::RenderConfig;
 use crate::engines::graph::{EngineAlgorithmId, Ranker};
 use crate::errors::RenderError;
-use crate::format::{Curve, EdgePreset, OutputFormat, RoutingStyle, normalize_enum_token};
+use crate::format::{
+    ColorWhen, Curve, EdgePreset, OutputFormat, RoutingStyle, normalize_enum_token,
+};
 use crate::graph::GeometryLevel;
-use crate::render::text::ColorWhen;
+use crate::runtime::config::RenderConfig;
 use crate::simplification::PathSimplification;
 
 /// Serde-friendly render config accepted from JSON callers.

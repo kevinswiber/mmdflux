@@ -15,7 +15,7 @@ pub mod grid;
 pub mod measure;
 mod node;
 pub mod projection;
-pub(crate) mod routing;
+pub mod routing;
 pub mod space;
 pub mod style;
 

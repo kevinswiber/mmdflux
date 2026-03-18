@@ -4,6 +4,6 @@
 //! Shared runtime model/layout code for those families lives here so parsers
 //! and renderers can depend on a neutral namespace.
 
-pub(crate) mod sequence;
+pub mod sequence;
 
 pub use sequence::model::Sequence;

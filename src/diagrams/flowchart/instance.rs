@@ -4,9 +4,7 @@
 //! then builds an owned graph-family payload for runtime dispatch.
 
 use super::compile_to_graph;
-use crate::config::RenderConfig;
 use crate::errors::RenderError;
-use crate::format::OutputFormat;
 use crate::graph::Graph;
 use crate::mermaid::parse_flowchart;
 use crate::registry::{DiagramInstance, ParsedDiagram};
@@ -36,10 +34,6 @@ impl DiagramInstance for FlowchartInstance {
         }))
     }
 
-    fn supports_format(&self, format: OutputFormat) -> bool {
-        super::SUPPORTED_FORMATS.contains(&format)
-    }
-
     fn validation_warnings(&self, input: &str) -> Vec<crate::errors::ParseDiagnostic> {
         super::validation::collect_all_warnings(input)
     }
@@ -50,29 +44,9 @@ struct ParsedFlowchart {
 }
 
 impl ParsedDiagram for ParsedFlowchart {
-    fn into_payload(
-        self: Box<Self>,
-        config: &RenderConfig,
-    ) -> Result<crate::payload::Diagram, RenderError> {
-        // Diagram-specific pre-processing: annotate node IDs if requested.
-        let diagram = if config.show_ids {
-            annotate_node_ids(self.diagram)
-        } else {
-            self.diagram
-        };
-
-        Ok(crate::payload::Diagram::Flowchart(diagram))
+    fn into_payload(self: Box<Self>) -> Result<crate::payload::Diagram, RenderError> {
+        Ok(crate::payload::Diagram::Flowchart(self.diagram))
     }
-}
-
-/// Annotate node labels as "ID: Label", skipping bare nodes where label == id.
-fn annotate_node_ids(mut diagram: Graph) -> Graph {
-    for node in diagram.nodes.values_mut() {
-        if node.label != node.id {
-            node.label = format!("{}: {}", node.id, node.label);
-        }
-    }
-    diagram
 }
 
 #[cfg(test)]
@@ -84,7 +58,7 @@ mod tests {
         let payload = Box::new(FlowchartInstance::new())
             .parse("graph TD\nA[Start] --> B[End]")
             .expect("flowchart input should parse")
-            .into_payload(&RenderConfig::default())
+            .into_payload()
             .expect("parsed flowchart should build a payload");
         let crate::payload::Diagram::Flowchart(graph) = payload else {
             panic!("flowchart should yield a Flowchart payload");
@@ -99,30 +73,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn flowchart_prepare_honors_show_ids() {
-        let payload = Box::new(FlowchartInstance::new())
-            .parse("graph TD\nA[Start] --> B[End]\n")
-            .expect("flowchart input should parse")
-            .into_payload(&RenderConfig {
-                show_ids: true,
-                ..RenderConfig::default()
-            })
-            .expect("graph payload should succeed");
-        let crate::payload::Diagram::Flowchart(graph) = payload else {
-            panic!("flowchart should yield a graph payload");
-        };
-        assert_eq!(graph.nodes["A"].label, "A: Start");
-        assert_eq!(graph.nodes["B"].label, "B: End");
-    }
-
-    #[test]
-    fn flowchart_instance_supports_supported_formats() {
-        let instance = FlowchartInstance::new();
-        assert!(instance.supports_format(OutputFormat::Text));
-        assert!(instance.supports_format(OutputFormat::Ascii));
-        assert!(instance.supports_format(OutputFormat::Svg));
-        assert!(instance.supports_format(OutputFormat::Mmds));
-        assert!(!instance.supports_format(OutputFormat::Mermaid));
-    }
+    // show_ids annotation and format support are now tested at the
+    // runtime/registry level.
 }

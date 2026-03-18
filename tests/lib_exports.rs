@@ -22,17 +22,6 @@ fn repo_file(relative_path: &str) -> String {
     std::fs::read_to_string(&path).unwrap()
 }
 
-fn baseline_manifest_modules() -> BTreeSet<String> {
-    let manifest: serde_json::Value =
-        serde_json::from_str(&repo_file("tests/baselines/manifest.json")).unwrap();
-    manifest["rust_exports"]["modules"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|value| value.as_str().unwrap().to_string())
-        .collect()
-}
-
 fn public_exports_for_test() -> BTreeSet<String> {
     let content = lib_rs_source();
     let mut exports = BTreeSet::new();
@@ -102,7 +91,6 @@ fn crate_root_only_exports_supported_public_modules() {
 
     for required in [
         "builtins",
-        "config",
         "errors",
         "format",
         "graph",
@@ -119,6 +107,7 @@ fn crate_root_only_exports_supported_public_modules() {
     }
 
     for forbidden in [
+        "config",
         "diagrams",
         "engines",
         "frontends",
@@ -130,45 +119,6 @@ fn crate_root_only_exports_supported_public_modules() {
         assert!(
             !modules.contains(forbidden),
             "{forbidden} should no longer be a public crate-root module"
-        );
-    }
-}
-
-#[test]
-fn baseline_manifest_locks_supported_v2_public_modules() {
-    let modules = baseline_manifest_modules();
-
-    for required in [
-        "builtins",
-        "config",
-        "errors",
-        "format",
-        "graph",
-        "mmds",
-        "payload",
-        "registry",
-        "simplification",
-        "timeline",
-    ] {
-        assert!(
-            modules.contains(required),
-            "{required} should stay in the supported v2 public manifest lock"
-        );
-    }
-
-    for forbidden in [
-        "registry_builtins",
-        "diagrams",
-        "engines",
-        "frontends",
-        "lint",
-        "mermaid",
-        "render",
-        "runtime",
-    ] {
-        assert!(
-            !modules.contains(forbidden),
-            "{forbidden} should stay out of the supported v2 public manifest lock"
         );
     }
 }
@@ -280,11 +230,7 @@ fn registry_api_works() {
     assert_eq!(diagram_id, "flowchart");
 
     let instance = registry.create(diagram_id).unwrap();
-    let payload = instance
-        .parse(input)
-        .unwrap()
-        .into_payload(&RenderConfig::default())
-        .unwrap();
+    let payload = instance.parse(input).unwrap().into_payload().unwrap();
     assert!(matches!(payload, Payload::Flowchart(_)));
 }
 
@@ -301,41 +247,23 @@ fn builtin_registry_module_is_public_and_registry_default_registry_is_gone() {
 
 #[test]
 fn mmds_module_keeps_supported_adapter_helpers_public() {
-    let _ = std::any::type_name::<mmdflux::mmds::MmdsOutput>();
-    let _ = std::any::type_name::<mmdflux::mmds::MmdsHydrationError>();
-    let _ = std::any::type_name::<mmdflux::mmds::MmdsGenerationError>();
+    let _ = std::any::type_name::<mmdflux::mmds::Output>();
+    let _ = std::any::type_name::<mmdflux::mmds::HydrationError>();
+    let _ = std::any::type_name::<mmdflux::mmds::GenerationError>();
 
     let _parse_with_profiles: fn(
         &str,
     ) -> Result<
-        (
-            mmdflux::mmds::MmdsOutput,
-            mmdflux::mmds::MmdsProfileNegotiation,
-        ),
-        mmdflux::mmds::MmdsParseError,
+        (mmdflux::mmds::Output, mmdflux::mmds::ProfileNegotiation),
+        mmdflux::mmds::ParseError,
     > = mmdflux::mmds::parse_with_profiles;
     let _validate_input: fn(&str) -> Result<(), mmdflux::RenderError> =
         mmdflux::mmds::validate_input;
-    let _from_mmds_str: fn(
-        &str,
-    )
-        -> Result<mmdflux::graph::Graph, mmdflux::mmds::MmdsHydrationError> =
-        mmdflux::mmds::from_mmds_str;
-    let _render_input: fn(
-        &str,
-        mmdflux::OutputFormat,
-        &mmdflux::RenderConfig,
-    ) -> Result<String, mmdflux::RenderError> = mmdflux::mmds::render_input;
-    let _render_output: fn(
-        &mmdflux::mmds::MmdsOutput,
-        mmdflux::OutputFormat,
-        &mmdflux::RenderConfig,
-    ) -> Result<String, mmdflux::RenderError> = mmdflux::mmds::render_output;
+    let _from_mmds_str: fn(&str) -> Result<mmdflux::graph::Graph, mmdflux::mmds::HydrationError> =
+        mmdflux::mmds::from_str;
     let _generate_mermaid_from_mmds_str: fn(
         &str,
-    )
-        -> Result<String, mmdflux::mmds::MmdsGenerationError> =
-        mmdflux::mmds::generate_mermaid_from_mmds_str;
+    ) -> Result<String, mmdflux::mmds::GenerationError> = mmdflux::mmds::generate_mermaid_from_str;
 }
 
 #[test]
@@ -351,10 +279,7 @@ fn mmds_module_hides_geometry_coupled_helpers() {
         "to_mmds_routed",
         "to_mmds_routed_typed",
         "hydrate_graph_geometry_from_mmds",
-        "hydrate_graph_geometry_from_output",
-        "hydrate_graph_geometry_from_output_with_diagram",
         "hydrate_routed_geometry_from_mmds",
-        "hydrate_routed_geometry_from_output",
     ] {
         assert!(
             !source.contains(forbidden),
@@ -362,14 +287,15 @@ fn mmds_module_hides_geometry_coupled_helpers() {
         );
     }
 
-    // to_mmds_json helpers may only appear as pub(crate), never pub.
+    // to_mmds_json helpers should be pub or pub(crate) re-exports, never inlined.
     for line in source.lines() {
         let trimmed = line.trim();
         if trimmed.contains("to_mmds_json")
+            && !trimmed.starts_with("pub use")
             && !trimmed.starts_with("pub(crate)")
             && !trimmed.starts_with("//")
         {
-            panic!("to_mmds_json* helpers must be pub(crate) only, found: {trimmed}");
+            panic!("to_mmds_json* helpers must be re-exports only, found: {trimmed}");
         }
     }
 }

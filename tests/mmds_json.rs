@@ -7,9 +7,7 @@
 use std::path::Path;
 
 use mmdflux::graph::GeometryLevel;
-use mmdflux::mmds::{
-    MmdsOutput, SUPPORTED_MMDS_PROFILES, evaluate_mmds_profiles, parse_mmds_input, render_input,
-};
+use mmdflux::mmds::{Output, SUPPORTED_PROFILES, evaluate_profiles, parse_input};
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode};
 use serde_json::Value;
@@ -100,7 +98,7 @@ fn render_json_with_config(input: &str, config: &RenderConfig) -> String {
 }
 
 fn render_mmds_input(input: &str, format: OutputFormat, config: RenderConfig) -> String {
-    render_input(input, format, &config).unwrap()
+    mmdflux::render_diagram(input, format, &config).unwrap()
 }
 
 fn mmds_fixture(path: &str) -> Value {
@@ -192,9 +190,9 @@ fn assert_schema_invalid(payload: Value) {
 fn top_level_mmds_contract_helpers_parse_and_negotiate_shared_fixture_profiles() {
     let payload = mmds_contract_fixture_text("flowchart-simple.layout.json");
 
-    let parsed = parse_mmds_input(&payload).expect("shared contract fixture should parse");
+    let parsed = parse_input(&payload).expect("shared contract fixture should parse");
     let negotiation =
-        evaluate_mmds_profiles(&payload).expect("shared contract fixture profile evaluation");
+        evaluate_profiles(&payload).expect("shared contract fixture profile evaluation");
 
     assert_eq!(parsed.metadata.diagram_type, "flowchart");
     assert_eq!(
@@ -211,21 +209,21 @@ fn top_level_mmds_contract_helpers_parse_and_negotiate_shared_fixture_profiles()
 #[test]
 fn mmds_default_has_version_1() {
     let json = render_json("graph TD\nA-->B");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     assert_eq!(output.version, 1);
 }
 
 #[test]
 fn mmds_default_geometry_level_is_layout() {
     let json = render_json("graph TD\nA-->B");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     assert_eq!(output.geometry_level, "layout");
 }
 
 #[test]
 fn mmds_has_metadata_with_direction() {
     let json = render_json("graph LR\nA-->B");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     assert_eq!(output.metadata.diagram_type, "flowchart");
     assert_eq!(output.metadata.direction, "LR");
 }
@@ -233,7 +231,7 @@ fn mmds_has_metadata_with_direction() {
 #[test]
 fn mmds_has_nodes_and_edges() {
     let json = render_json("graph TD\nA[Start]-->B[End]");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     assert_eq!(output.nodes.len(), 2);
     assert_eq!(output.edges.len(), 1);
 }
@@ -358,7 +356,7 @@ fn mmds_hydration_replays_node_styles_into_svg_and_text_rendering() {
 #[test]
 fn mmds_layout_nodes_have_positions_and_sizes() {
     let json = render_json("graph TD\nA[Start]-->B[End]");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     let node_a = output.nodes.iter().find(|n| n.id == "A").unwrap();
     assert_eq!(node_a.label, "Start");
@@ -370,7 +368,7 @@ fn mmds_layout_nodes_have_positions_and_sizes() {
 #[test]
 fn mmds_layout_nodes_sorted_by_id() {
     let json = render_json("graph TD\nC-->B\nB-->A");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     let ids: Vec<&str> = output.nodes.iter().map(|n| n.id.as_str()).collect();
     assert_eq!(ids, vec!["A", "B", "C"]);
 }
@@ -378,7 +376,7 @@ fn mmds_layout_nodes_sorted_by_id() {
 #[test]
 fn mmds_layout_node_shapes() {
     let json = render_json("graph TD\nA[Rect]\nB(Round)\nC{Diamond}\nD([Stadium])");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     let shapes: std::collections::HashMap<String, String> = output
         .nodes
@@ -410,9 +408,9 @@ fn mmds_lossless_path_simplification_sits_between_none_and_lossy() {
     let compact = render_for(PathSimplification::Lossless);
     let simplified = render_for(PathSimplification::Lossy);
 
-    let full: MmdsOutput = serde_json::from_str(&full).unwrap();
-    let compact: MmdsOutput = serde_json::from_str(&compact).unwrap();
-    let simplified: MmdsOutput = serde_json::from_str(&simplified).unwrap();
+    let full: Output = serde_json::from_str(&full).unwrap();
+    let compact: Output = serde_json::from_str(&compact).unwrap();
+    let simplified: Output = serde_json::from_str(&simplified).unwrap();
 
     let full_len = full
         .edges
@@ -462,7 +460,7 @@ fn routed_mmds_defaults_to_lossless_path_simplification() {
         render_json_with_config(&input, &config)
     };
     let edge_len = |json: &str| {
-        let output: MmdsOutput = serde_json::from_str(json).unwrap();
+        let output: Output = serde_json::from_str(json).unwrap();
         output
             .edges
             .iter()
@@ -516,7 +514,7 @@ fn path_simplification_monotonicity_holds_none_lossless_lossy() {
         )
     };
     let edge_len = |json: &str| {
-        let output: MmdsOutput = serde_json::from_str(json).unwrap();
+        let output: Output = serde_json::from_str(json).unwrap();
         output
             .edges
             .iter()
@@ -566,7 +564,7 @@ fn mmds_node_sizes_are_in_svg_pixel_dimensions() {
     // This test catches the bug where MMDS emits text-grid char dimensions
     // instead of pixel dimensions.
     let json = render_json("graph TD\nA-->B");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     let node_a = output.nodes.iter().find(|n| n.id == "A").unwrap();
     assert!(
@@ -590,7 +588,7 @@ fn mmds_routed_subgraph_bounds_are_reasonable() {
         "graph TD\nsubgraph sg1[Group]\nA-->B\nend\nC-->A",
         GeometryLevel::Routed,
     );
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     let sg = &output.subgraphs[0];
     let bounds = sg
@@ -643,7 +641,7 @@ fn mmds_layout_edges_exclude_label_position() {
 #[test]
 fn mmds_layout_edges_have_topology() {
     let json = render_json("graph TD\nA-.label.->B");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     let edge = &output.edges[0];
     assert_eq!(edge.id, "e0");
@@ -693,7 +691,7 @@ fn mmds_edge_serializes_optional_subgraph_endpoint_intent_for_subgraph_to_subgra
 #[test]
 fn mmds_layout_metadata_includes_bounds() {
     let json = render_json("graph TD\nA-->B");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     assert!(output.metadata.bounds.width > 0.0);
     assert!(output.metadata.bounds.height > 0.0);
 }
@@ -705,7 +703,7 @@ fn mmds_layout_metadata_includes_bounds() {
 #[test]
 fn mmds_layout_subgraphs() {
     let json = render_json("graph TD\nsubgraph sg1[Group]\nA-->B\nend");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     assert_eq!(output.subgraphs.len(), 1);
     assert_eq!(output.subgraphs[0].id, "sg1");
@@ -717,7 +715,7 @@ fn mmds_layout_subgraphs() {
 #[test]
 fn mmds_layout_subgraph_direction_override() {
     let json = render_json("graph TD\nsubgraph sg1[Group]\ndirection LR\nA-->B\nend");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     assert_eq!(output.subgraphs[0].direction.as_deref(), Some("LR"));
 }
 
@@ -728,14 +726,14 @@ fn mmds_layout_subgraph_direction_override() {
 #[test]
 fn mmds_routed_has_geometry_level_routed() {
     let json = render_json_with_level("graph TD\nA-->B", GeometryLevel::Routed);
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     assert_eq!(output.geometry_level, "routed");
 }
 
 #[test]
 fn mmds_routed_includes_edge_paths() {
     let json = render_json_with_level("graph TD\nA-->B", GeometryLevel::Routed);
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     let edge = &output.edges[0];
     assert!(edge.path.is_some());
@@ -746,7 +744,7 @@ fn mmds_routed_includes_edge_paths() {
 #[test]
 fn mmds_routed_includes_metadata_bounds() {
     let json = render_json_with_level("graph TD\nA-->B", GeometryLevel::Routed);
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     let bounds = &output.metadata.bounds;
     assert!(bounds.width > 0.0);
@@ -759,7 +757,7 @@ fn mmds_routed_subgraph_bounds() {
         "graph TD\nsubgraph sg1[Group]\nA-->B\nend",
         GeometryLevel::Routed,
     );
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     let sg = &output.subgraphs[0];
     assert!(sg.bounds.is_some());
@@ -769,7 +767,7 @@ fn mmds_routed_subgraph_bounds() {
 #[test]
 fn mmds_routed_label_position_for_labeled_edge() {
     let json = render_json_with_level("graph TD\nA--label-->B", GeometryLevel::Routed);
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
 
     let edge = &output.edges[0];
     assert!(edge.label_position.is_some());
@@ -845,7 +843,7 @@ fn mmds_routed_still_includes_paths() {
 #[test]
 fn mmds_deserializes_with_defaults() {
     let json = render_json("graph TD\nA-->B");
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     assert_eq!(output.nodes[0].shape, "rectangle");
     assert_eq!(output.edges[0].stroke, "solid");
     assert_eq!(output.edges[0].arrow_start, "none");
@@ -865,7 +863,7 @@ fn mmds_direction_variants() {
     for (dir_str, expected) in [("TD", "TD"), ("LR", "LR"), ("BT", "BT"), ("RL", "RL")] {
         let input = format!("graph {dir_str}\nA-->B");
         let json = render_json(&input);
-        let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+        let output: Output = serde_json::from_str(&json).unwrap();
         assert_eq!(output.metadata.direction, expected);
     }
 }
@@ -878,7 +876,7 @@ fn mmds_direction_variants() {
 fn mmds_class_diagram_produces_json() {
     let config = RenderConfig::default();
     let output = render_json_with_config("classDiagram\nA --> B", &config);
-    let parsed: MmdsOutput = serde_json::from_str(&output).unwrap();
+    let parsed: Output = serde_json::from_str(&output).unwrap();
 
     assert_eq!(parsed.version, 1);
     assert_eq!(parsed.geometry_level, "layout");
@@ -893,7 +891,7 @@ fn mmds_class_diagram_routed_level() {
         ..RenderConfig::default()
     };
     let output = render_json_with_config("classDiagram\nA --> B", &config);
-    let parsed: MmdsOutput = serde_json::from_str(&output).unwrap();
+    let parsed: Output = serde_json::from_str(&output).unwrap();
 
     assert_eq!(parsed.geometry_level, "routed");
     assert!(output.contains("\"path\""));
@@ -945,7 +943,7 @@ fn schema_accepts_profiles_and_namespaced_extensions() {
 #[test]
 fn shared_mmds_profile_vocabulary_is_exported_from_contract_module() {
     assert_eq!(
-        SUPPORTED_MMDS_PROFILES,
+        SUPPORTED_PROFILES,
         &[
             "mmds-core-v1",
             "mmdflux-svg-v1",
@@ -964,7 +962,7 @@ fn schema_rejects_invalid_extension_namespace_shape() {
 #[test]
 fn mmds_profiles_and_extensions_roundtrip_through_serde() {
     let payload = mmds_profile_fixture_text("profiles-svg-v1.json");
-    let parsed: MmdsOutput = serde_json::from_str(&payload).unwrap();
+    let parsed: Output = serde_json::from_str(&payload).unwrap();
     let json = serde_json::to_string(&parsed).unwrap();
 
     assert!(json.contains("profiles"));
@@ -1084,7 +1082,7 @@ fn mmds_docs_point_to_fixture_backed_examples_and_rust_replay_example() {
 #[test]
 fn mmds_routed_includes_port_metadata() {
     let json = render_json_with_level("graph TD\nA-->B", GeometryLevel::Routed);
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     let edge = &output.edges[0];
     assert!(
         edge.source_port.is_some(),
@@ -1099,7 +1097,7 @@ fn mmds_routed_includes_port_metadata() {
 #[test]
 fn mmds_routed_port_faces_correct_td() {
     let json = render_json_with_level("graph TD\nA-->B", GeometryLevel::Routed);
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     let edge = &output.edges[0];
     let sp = edge.source_port.as_ref().unwrap();
     let tp = edge.target_port.as_ref().unwrap();
@@ -1110,7 +1108,7 @@ fn mmds_routed_port_faces_correct_td() {
 #[test]
 fn mmds_routed_port_fractions_fan_in() {
     let json = render_json_with_level("graph TD\nA-->C\nB-->C", GeometryLevel::Routed);
-    let output: MmdsOutput = serde_json::from_str(&json).unwrap();
+    let output: Output = serde_json::from_str(&json).unwrap();
     let e0 = output.edges.iter().find(|e| e.source == "A").unwrap();
     let e1 = output.edges.iter().find(|e| e.source == "B").unwrap();
     let f0 = e0.target_port.as_ref().unwrap().fraction;

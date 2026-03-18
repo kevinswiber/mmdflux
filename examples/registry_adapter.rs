@@ -1,4 +1,3 @@
-use mmdflux::RenderConfig;
 use mmdflux::builtins::default_registry;
 use mmdflux::payload::Diagram;
 
@@ -11,9 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let instance = registry
         .create(resolved.diagram_id())
         .expect("resolved diagram should have a constructible instance");
-    let payload = instance
-        .parse(input)?
-        .into_payload(&RenderConfig::default())?;
+    let payload = instance.parse(input)?.into_payload()?;
 
     match payload {
         Diagram::Flowchart(graph) => {

@@ -16,8 +16,8 @@ use std::path::Path;
 use mmdflux::builtins::default_registry;
 use mmdflux::graph::Graph;
 use mmdflux::mmds::{
-    MmdsBounds, MmdsEdge, MmdsNode, MmdsOutput, MmdsPort, MmdsPosition, MmdsSubgraph,
-    from_mmds_str, generate_mermaid_from_mmds_str, parse_mmds_input, render_input,
+    Bounds, Edge, Node, Output, Port, Position, Subgraph, from_str, generate_mermaid_from_str,
+    parse_input,
 };
 use mmdflux::payload::Diagram as Payload;
 use mmdflux::{OutputFormat, RenderConfig, render_diagram};
@@ -235,16 +235,18 @@ fn check_visual_generated_mermaid(input: &str, roundtrip_input: &str) -> TierRes
 /// Ensure MMDS replay can emit both text and SVG for diagrams whose generated
 /// Mermaid roundtrip is not yet supported.
 fn check_visual_replay_smoke(mmds_json: &str) -> TierResult {
-    let text = match render_input(mmds_json, OutputFormat::Text, &RenderConfig::default()) {
-        Ok(text) => text,
-        Err(error) => {
-            return TierResult {
-                tier: "visual",
-                status: TierStatus::Fail(error.message),
-            };
-        }
-    };
-    let svg = match render_input(mmds_json, OutputFormat::Svg, &RenderConfig::default()) {
+    let text =
+        match mmdflux::render_diagram(mmds_json, OutputFormat::Text, &RenderConfig::default()) {
+            Ok(text) => text,
+            Err(error) => {
+                return TierResult {
+                    tier: "visual",
+                    status: TierStatus::Fail(error.message),
+                };
+            }
+        };
+    let svg = match mmdflux::render_diagram(mmds_json, OutputFormat::Svg, &RenderConfig::default())
+    {
         Ok(svg) => svg,
         Err(error) => {
             return TierResult {
@@ -283,7 +285,7 @@ fn floats_eq(a: f64, b: f64) -> bool {
 /// Compare layout geometry for equivalence.
 ///
 /// Compares direct routed MMDS output against MMDS regenerated Mermaid rerender.
-fn check_layout(direct: &MmdsOutput, roundtrip: &MmdsOutput) -> TierResult {
+fn check_layout(direct: &Output, roundtrip: &Output) -> TierResult {
     let mismatches = compare_layout_payloads(direct, roundtrip);
 
     TierResult {
@@ -296,7 +298,7 @@ fn check_layout(direct: &MmdsOutput, roundtrip: &MmdsOutput) -> TierResult {
     }
 }
 
-fn compare_layout_payloads(direct: &MmdsOutput, roundtrip: &MmdsOutput) -> Vec<String> {
+fn compare_layout_payloads(direct: &Output, roundtrip: &Output) -> Vec<String> {
     let mut mismatches = Vec::new();
 
     if direct.metadata.direction != roundtrip.metadata.direction {
@@ -471,19 +473,19 @@ fn compare_layout_payloads(direct: &MmdsOutput, roundtrip: &MmdsOutput) -> Vec<S
     mismatches
 }
 
-fn position_eq(left: &MmdsPosition, right: &MmdsPosition) -> bool {
+fn position_eq(left: &Position, right: &Position) -> bool {
     floats_eq(left.x, right.x) && floats_eq(left.y, right.y)
 }
 
-fn size_eq(left: &mmdflux::mmds::MmdsSize, right: &mmdflux::mmds::MmdsSize) -> bool {
+fn size_eq(left: &mmdflux::mmds::Size, right: &mmdflux::mmds::Size) -> bool {
     floats_eq(left.width, right.width) && floats_eq(left.height, right.height)
 }
 
-fn bounds_eq(left: &MmdsBounds, right: &MmdsBounds) -> bool {
+fn bounds_eq(left: &Bounds, right: &Bounds) -> bool {
     floats_eq(left.width, right.width) && floats_eq(left.height, right.height)
 }
 
-fn optional_bounds_eq(left: Option<&MmdsBounds>, right: Option<&MmdsBounds>) -> bool {
+fn optional_bounds_eq(left: Option<&Bounds>, right: Option<&Bounds>) -> bool {
     match (left, right) {
         (Some(left), Some(right)) => bounds_eq(left, right),
         (None, None) => true,
@@ -491,7 +493,7 @@ fn optional_bounds_eq(left: Option<&MmdsBounds>, right: Option<&MmdsBounds>) -> 
     }
 }
 
-fn optional_position_eq(left: Option<&MmdsPosition>, right: Option<&MmdsPosition>) -> bool {
+fn optional_position_eq(left: Option<&Position>, right: Option<&Position>) -> bool {
     match (left, right) {
         (Some(left), Some(right)) => position_eq(left, right),
         (None, None) => true,
@@ -499,7 +501,7 @@ fn optional_position_eq(left: Option<&MmdsPosition>, right: Option<&MmdsPosition
     }
 }
 
-fn optional_port_eq(left: Option<&MmdsPort>, right: Option<&MmdsPort>) -> bool {
+fn optional_port_eq(left: Option<&Port>, right: Option<&Port>) -> bool {
     match (left, right) {
         (Some(left), Some(right)) => {
             left.face == right.face
@@ -530,19 +532,19 @@ fn normalize_roundtrip_identifier(value: &str) -> String {
     value.replace('-', "_")
 }
 
-fn sorted_nodes(output: &MmdsOutput) -> Vec<&MmdsNode> {
+fn sorted_nodes(output: &Output) -> Vec<&Node> {
     let mut nodes: Vec<_> = output.nodes.iter().collect();
     nodes.sort_by(|left, right| left.id.cmp(&right.id));
     nodes
 }
 
-fn sorted_edges(output: &MmdsOutput) -> Vec<&MmdsEdge> {
+fn sorted_edges(output: &Output) -> Vec<&Edge> {
     let mut edges: Vec<_> = output.edges.iter().collect();
     edges.sort_by(|left, right| left.id.cmp(&right.id));
     edges
 }
 
-fn sorted_subgraphs(output: &MmdsOutput) -> Vec<&MmdsSubgraph> {
+fn sorted_subgraphs(output: &Output) -> Vec<&Subgraph> {
     let mut subgraphs: Vec<_> = output.subgraphs.iter().collect();
     subgraphs.sort_by(|left, right| {
         left.title.cmp(&right.title).then(
@@ -566,7 +568,7 @@ fn prepare_graph_diagram(diagram_id: &str, input: &str) -> Graph {
         .unwrap_or_else(|| panic!("missing registry implementation for {diagram_id}"))
         .parse(input)
         .unwrap_or_else(|error| panic!("failed to parse {diagram_id} input: {error}"))
-        .into_payload(&RenderConfig::default())
+        .into_payload()
         .unwrap_or_else(|error| panic!("failed to build {diagram_id} payload: {error}"));
     match payload {
         Payload::Flowchart(graph) | Payload::Class(graph) => graph,
@@ -574,22 +576,19 @@ fn prepare_graph_diagram(diagram_id: &str, input: &str) -> Graph {
     }
 }
 
-fn render_mmds_output(input: &str, config: &RenderConfig) -> (String, MmdsOutput) {
+fn render_mmds_output(input: &str, config: &RenderConfig) -> (String, Output) {
     let json =
         render_diagram(input, OutputFormat::Mmds, config).expect("MMDS render should succeed");
-    let output = parse_mmds_input(&json).expect("MMDS output should parse");
+    let output = parse_input(&json).expect("MMDS output should parse");
     (json, output)
 }
 
-fn rerender_mmds_output_from_generated_mermaid(
-    mmds_json: &str,
-    config: &RenderConfig,
-) -> MmdsOutput {
+fn rerender_mmds_output_from_generated_mermaid(mmds_json: &str, config: &RenderConfig) -> Output {
     let generated =
-        generate_mermaid_from_mmds_str(mmds_json).expect("MMDS Mermaid generation should succeed");
+        generate_mermaid_from_str(mmds_json).expect("MMDS Mermaid generation should succeed");
     let rerendered = render_diagram(&generated, OutputFormat::Mmds, config)
         .expect("generated Mermaid should render back to MMDS");
-    parse_mmds_input(&rerendered).expect("rerendered MMDS should parse")
+    parse_input(&rerendered).expect("rerendered MMDS should parse")
 }
 
 /// Run a full conformance case for a flowchart fixture.
@@ -599,8 +598,8 @@ fn run_flowchart_conformance(name: &str) -> ConformanceReport {
 
     let direct_diagram = prepare_graph_diagram("flowchart", &input);
     let (mmds_json, direct_output) = render_mmds_output(&input, &mmds_config);
-    let generated = generate_mermaid_from_mmds_str(&mmds_json).unwrap();
-    let roundtrip_diagram = from_mmds_str(&mmds_json).unwrap();
+    let generated = generate_mermaid_from_str(&mmds_json).unwrap();
+    let roundtrip_diagram = from_str(&mmds_json).unwrap();
     let roundtrip_output = rerender_mmds_output_from_generated_mermaid(&mmds_json, &mmds_config);
 
     ConformanceReport {
@@ -621,7 +620,7 @@ fn run_class_conformance(name: &str) -> ConformanceReport {
 
     let direct_diagram = prepare_graph_diagram("class", &input);
     let (mmds_json, _) = render_mmds_output(&input, &RenderConfig::default());
-    let roundtrip_diagram = from_mmds_str(&mmds_json).unwrap();
+    let roundtrip_diagram = from_str(&mmds_json).unwrap();
 
     ConformanceReport {
         fixture_path: format!("class/{name}"),

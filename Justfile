@@ -28,7 +28,7 @@ lint:
     cargo clippy --locked --all-targets --all-features -- -D warnings
 
 # Run clippy with auto-fix
-fix *args:
+fix *args: fmt
     cargo clippy --fix --all-targets --all-features --allow-dirty --allow-staged -- -D warnings {{ args }}
 
 # Format code
@@ -67,13 +67,25 @@ module-map-pivot-dag module *args:
 conformance *args:
     cargo nextest run --test mmds_conformance --success-output immediate {{ args }}
 
-# Check that everything compiles, passes lint, and tests
-check: lint test
+# Check that everything compiles, passes lint, tests, and architecture policy
+check: lint test architecture
 
 # Build wasm bindings for browser and bundler targets
 wasm-build:
     wasm-pack build crates/mmdflux-wasm --target web --dev --out-dir ../../target/wasm-pkg-web
     wasm-pack build crates/mmdflux-wasm --target bundler --dev --out-dir ../../target/wasm-pkg-bundler
+
+# Run the full repo architecture suite.
+architecture:
+    cargo xtask architecture
+
+# Run the semantic boundaries suite.
+boundaries:
+    cargo xtask architecture boundaries
+
+# Watch semantic boundaries during larger refactors.
+boundaries-watch:
+    cargo xtask architecture boundaries --watch
 
 # Build size-optimized release wasm bindings for browser and bundler targets
 wasm-build-release:

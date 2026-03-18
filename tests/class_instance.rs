@@ -38,7 +38,7 @@ fn class_instance_into_payload_returns_graph_payload() {
     let payload = class_instance()
         .parse("classDiagram\nclass A\nclass B\nA --> B")
         .unwrap()
-        .into_payload(&RenderConfig::default())
+        .into_payload()
         .unwrap();
     let Diagram::Class(graph) = payload else {
         panic!("class should yield a class payload");
@@ -73,11 +73,12 @@ fn class_instance_render_svg() {
 }
 
 #[test]
-fn class_instance_supports_text_ascii_svg() {
-    let instance = class_instance();
-    assert!(instance.supports_format(OutputFormat::Text));
-    assert!(instance.supports_format(OutputFormat::Ascii));
-    assert!(instance.supports_format(OutputFormat::Svg));
+fn class_supports_text_ascii_svg() {
+    let registry = mmdflux::builtins::default_registry();
+    assert!(registry.supports_format("class", OutputFormat::Text));
+    assert!(registry.supports_format("class", OutputFormat::Ascii));
+    assert!(registry.supports_format("class", OutputFormat::Svg));
+    assert!(!registry.supports_format("class", OutputFormat::Mermaid));
 }
 
 #[test]
@@ -148,7 +149,7 @@ fn class_instance_via_registry() {
     let payload = instance
         .parse("classDiagram\nclass User\nclass Order\nUser --> Order")
         .unwrap()
-        .into_payload(&RenderConfig::default())
+        .into_payload()
         .unwrap();
     assert!(matches!(payload, Diagram::Class(_)));
 }

@@ -42,7 +42,7 @@ fn render_error_from_string() {
 
 #[test]
 fn layout_config_accessible_from_public_config_module() {
-    let _ = mmdflux::config::LayoutConfig::default();
+    let _ = mmdflux::LayoutConfig::default();
 }
 
 #[test]
