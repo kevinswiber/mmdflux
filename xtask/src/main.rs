@@ -1,4 +1,5 @@
 mod architecture;
+mod lint;
 
 use anyhow::Result;
 
@@ -18,6 +19,7 @@ fn try_main() -> Result<()> {
 
     match command {
         "architecture" => run_architecture_command(&args),
+        "lint" => run_lint_command(&args),
         "help" | "--help" | "-h" => {
             print_help();
             Ok(())
@@ -40,6 +42,16 @@ fn is_help_arg(arg: &str) -> bool {
     matches!(arg, "help" | "--help" | "-h")
 }
 
+fn run_lint_command(args: &[String]) -> Result<()> {
+    if args.iter().skip(1).any(|arg| is_help_arg(arg)) {
+        eprintln!("{}", lint::help_text());
+        return Ok(());
+    }
+
+    let options = lint::parse_lint_args(args.iter().map(String::as_str))?;
+    lint::run(options)
+}
+
 fn print_help() {
     eprintln!(
         "\
@@ -47,8 +59,9 @@ cargo xtask <command>
 
 Commands:
     architecture    Run the repo architecture suite
+    lint            Run clippy and architecture boundary checks
 
-Run `cargo xtask architecture --help` for suite and flag details."
+Run `cargo xtask <command> --help` for details."
     );
 }
 

@@ -1,0 +1,8 @@
+{
+    "rust-analyzer.check.overrideCommand": [
+        "cargo",
+        "xtask",
+        "lint",
+        "--json"
+    ]
+}

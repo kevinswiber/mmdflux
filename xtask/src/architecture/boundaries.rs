@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write as _;
 use std::io::{IsTerminal, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
@@ -21,7 +22,7 @@ use ra_ap_project_model::{
 };
 use ra_ap_syntax::{AstNode, SyntaxNode, TextRange, TextSize, ast};
 use ra_ap_vfs::{Change, Vfs, VfsPath};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 const BOUNDARIES_CONFIG_ENV: &str = "SEMANTIC_BOUNDARIES_CONFIG";
 #[derive(Debug, Default, Clone, Copy)]
@@ -29,6 +30,15 @@ pub(crate) struct SemanticBoundariesSuiteOptions {
     pub(crate) timings: bool,
     pub(crate) quiet: bool,
     pub(crate) verbose: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct BoundariesRunReport {
+    pub(crate) success: bool,
+    pub(crate) rendered_output: String,
+    pub(crate) summary: Option<String>,
+    pub(crate) timings_output: Option<String>,
+    pub(crate) violations: Vec<BoundaryViolation>,
 }
 
 #[derive(Debug, Default)]
@@ -73,10 +83,10 @@ impl SemanticBoundariesContext {
             return Ok(self.library.as_mut().expect("library should be loaded"));
         }
 
-        if let PendingRefresh::Incremental(paths) = pending_refresh {
-            if let Some(library) = self.library.as_mut() {
-                library.apply_source_changes(&paths)?;
-            }
+        if let PendingRefresh::Incremental(paths) = pending_refresh
+            && let Some(library) = self.library.as_mut()
+        {
+            library.apply_source_changes(&paths)?;
         }
 
         Ok(self.library.as_mut().expect("library should be present"))
@@ -129,6 +139,35 @@ enum PendingRefreshKind {
     Ignore,
     IncrementalSource(PathBuf),
     FullReload,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct BoundaryViolation {
+    pub(crate) source_boundary: String,
+    pub(crate) target_boundary: String,
+    pub(crate) symbol: String,
+    pub(crate) file: Option<String>,
+    pub(crate) line: Option<usize>,
+    pub(crate) column: Option<usize>,
+    pub(crate) line_text: Option<String>,
+    pub(crate) underline_offset: Option<usize>,
+    pub(crate) underline_len: Option<usize>,
+}
+
+impl BoundaryViolation {
+    fn from_sample(source: &str, target: &str, sample: &DependencySample) -> Self {
+        Self {
+            source_boundary: source.to_string(),
+            target_boundary: target.to_string(),
+            symbol: sample.symbol.clone(),
+            file: sample.location.as_ref().map(|loc| loc.path.clone()),
+            line: sample.location.as_ref().map(|loc| loc.line),
+            column: sample.location.as_ref().map(|loc| loc.column),
+            line_text: sample.location.as_ref().map(|loc| loc.line_text.clone()),
+            underline_offset: sample.location.as_ref().map(|loc| loc.underline_offset),
+            underline_len: sample.location.as_ref().map(|loc| loc.underline_len),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -260,10 +299,45 @@ struct SlowModuleLocatorFile {
     module_count: usize,
 }
 
+struct EdgeCollectionContext<'a> {
+    sema: &'a Semantics<'a, RootDatabase>,
+    vfs: &'a Vfs,
+    krate: HirCrate,
+    root: Module,
+    db: &'a RootDatabase,
+    declared_boundaries: &'a BTreeSet<String>,
+    verbose: bool,
+}
+
 pub(crate) fn run_with_context(
     context: &mut SemanticBoundariesContext,
     options: SemanticBoundariesSuiteOptions,
 ) -> Result<()> {
+    let report = run_with_context_report(context, options)?;
+    if let Some(timings_output) = &report.timings_output {
+        eprint!("{timings_output}");
+    }
+    if report.success {
+        return Ok(());
+    }
+
+    if options.quiet {
+        anyhow::bail!(quiet_failure_message(&report));
+    }
+
+    eprint!("{}", report.rendered_output);
+    anyhow::bail!(
+        report
+            .summary
+            .clone()
+            .unwrap_or_else(|| "error: architecture boundaries failed".to_string())
+    );
+}
+
+pub(crate) fn run_with_context_report(
+    context: &mut SemanticBoundariesContext,
+    options: SemanticBoundariesSuiteOptions,
+) -> Result<BoundariesRunReport> {
     let started = Instant::now();
     let mut timings = TimingBreakdown::default();
 
@@ -323,16 +397,16 @@ pub(crate) fn run_with_context(
             policy_boundaries.len()
         ));
     }
-    let actual = collect_actual_edges(
-        &sema,
-        &loaded.vfs,
-        loaded.krate,
+    let edge_collection = EdgeCollectionContext {
+        sema: &sema,
+        vfs: &loaded.vfs,
+        krate: loaded.krate,
         root,
         db,
-        &policy_boundaries,
-        !options.quiet && options.verbose,
-        &mut timings,
-    );
+        declared_boundaries: &policy_boundaries,
+        verbose: !options.quiet && options.verbose,
+    };
+    let actual = collect_actual_edges(&edge_collection, &mut timings);
     let phase_started = Instant::now();
     let violations = find_policy_violations(&policy, &actual);
     timings.violation_analysis = phase_started.elapsed();
@@ -340,32 +414,44 @@ pub(crate) fn run_with_context(
     if !options.quiet && options.verbose {
         report_boundary_results(&policy, &actual);
     }
+    let report = if violations.is_empty() {
+        BoundariesRunReport {
+            success: true,
+            rendered_output: String::new(),
+            summary: None,
+            timings_output: None,
+            violations: Vec::new(),
+        }
+    } else {
+        let boundary_violations = violations
+            .iter()
+            .map(|(source, target, sample)| BoundaryViolation::from_sample(source, target, sample))
+            .collect();
+        BoundariesRunReport {
+            success: false,
+            rendered_output: render_violation_report(
+                &policy,
+                &violations,
+                &actual,
+                options.verbose,
+                &diagnostic_renderer(),
+                false,
+            ),
+            summary: Some(format_failure_summary(violations.len())),
+            timings_output: None,
+            violations: boundary_violations,
+        }
+    };
     timings.reporting = phase_started.elapsed();
     timings.total = started.elapsed();
     if !options.quiet && options.verbose {
         log_info(format!("finished in {:.2}s", timings.total.as_secs_f64()));
     }
-    if options.timings {
-        report_timing_breakdown(&timings);
-    }
 
-    if violations.is_empty() {
-        return Ok(());
-    }
-
-    let summary = format_failure_summary(violations.len());
-    if options.quiet {
-        anyhow::bail!(format_violation_report(
-            &policy,
-            &violations,
-            &actual,
-            options.verbose
-        ));
-    }
-
-    stream_violation_report(&policy, &violations, &actual, options.verbose)
-        .context("failed to write boundaries diagnostics")?;
-    anyhow::bail!(summary);
+    Ok(BoundariesRunReport {
+        timings_output: options.timings.then(|| render_timing_breakdown(&timings)),
+        ..report
+    })
 }
 
 fn default_boundaries_config_version() -> u32 {
@@ -600,49 +686,40 @@ fn discover_top_level_boundaries(root: Module, db: &RootDatabase) -> BTreeSet<St
 }
 
 fn collect_actual_edges(
-    sema: &Semantics<'_, RootDatabase>,
-    vfs: &Vfs,
-    krate: HirCrate,
-    root: Module,
-    db: &RootDatabase,
-    declared_boundaries: &BTreeSet<String>,
-    verbose: bool,
+    ctx: &EdgeCollectionContext<'_>,
     timings: &mut TimingBreakdown,
 ) -> BTreeMap<String, BTreeMap<String, DependencySample>> {
     let mut edges = BTreeMap::<String, BTreeMap<String, DependencySample>>::new();
 
-    if verbose {
+    if ctx.verbose {
         log_info("collect semantic module-scope edges");
     }
     let phase_started = Instant::now();
-    for top_level_module in root.children(db) {
-        let Some(source_boundary) = module_name(top_level_module, db) else {
+    for top_level_module in ctx.root.children(ctx.db) {
+        let Some(source_boundary) = module_name(top_level_module, ctx.db) else {
             continue;
         };
-        if !declared_boundaries.contains(&source_boundary) {
+        if !ctx.declared_boundaries.contains(&source_boundary) {
             continue;
         }
-        if verbose {
+        if ctx.verbose {
             log_info(format!("scan {source_boundary}"));
         }
-        collect_module_scope_edges(top_level_module, &source_boundary, root, db, &mut edges);
+        collect_module_scope_edges(
+            top_level_module,
+            &source_boundary,
+            ctx.root,
+            ctx.db,
+            &mut edges,
+        );
     }
     timings.module_scope_scan = phase_started.elapsed();
 
-    if verbose {
+    if ctx.verbose {
         log_info("resolve qualified crate/self/super paths");
     }
     let phase_started = Instant::now();
-    let breakdown = collect_qualified_path_edges(
-        sema,
-        vfs,
-        krate,
-        root,
-        db,
-        declared_boundaries,
-        verbose,
-        &mut edges,
-    );
+    let breakdown = collect_qualified_path_edges(ctx, &mut edges);
     timings.qualified_path_scan = phase_started.elapsed();
     timings.qualified_path_candidate_file_filtering = breakdown.candidate_file_filtering;
     timings.qualified_path_file_reads = breakdown.file_reads;
@@ -727,21 +804,15 @@ fn collect_module_scope_edges(
 }
 
 fn collect_qualified_path_edges(
-    sema: &Semantics<'_, RootDatabase>,
-    vfs: &Vfs,
-    krate: HirCrate,
-    root: Module,
-    db: &RootDatabase,
-    declared_boundaries: &BTreeSet<String>,
-    verbose: bool,
+    ctx: &EdgeCollectionContext<'_>,
     edges: &mut BTreeMap<String, BTreeMap<String, DependencySample>>,
 ) -> QualifiedPathScanBreakdown {
     let src_root = AbsPathBuf::assert_utf8(repo_root().join("src"));
-    let boundary_names = discover_top_level_boundaries(root, db);
-    let root_export_boundaries = root_export_boundaries(root, db, krate);
-    let crate_edition = krate.edition(db);
+    let boundary_names = discover_top_level_boundaries(ctx.root, ctx.db);
+    let root_export_boundaries = root_export_boundaries(ctx.root, ctx.db, ctx.krate);
+    let crate_edition = ctx.krate.edition(ctx.db);
     let mut breakdown = QualifiedPathScanBreakdown::default();
-    for (file_id, vfs_path) in vfs.iter() {
+    for (file_id, vfs_path) in ctx.vfs.iter() {
         let filter_started = Instant::now();
         let Some(abs_path) = vfs_path.as_path() else {
             breakdown.candidate_file_filtering += filter_started.elapsed();
@@ -766,7 +837,7 @@ fn collect_qualified_path_edges(
             breakdown.candidate_file_filtering += filter_started.elapsed();
             continue;
         };
-        if !declared_boundaries.contains(probable_boundary) {
+        if !ctx.declared_boundaries.contains(probable_boundary) {
             breakdown.candidate_file_filtering += filter_started.elapsed();
             continue;
         }
@@ -785,20 +856,20 @@ fn collect_qualified_path_edges(
         breakdown.candidate_file_filtering += filter_started.elapsed();
         breakdown.candidate_files += 1;
         let attach_started = Instant::now();
-        let editioned_file_id = EditionedFileId::new(db, file_id, crate_edition);
+        let editioned_file_id = EditionedFileId::new(ctx.db, file_id, crate_edition);
         breakdown.edition_attach += attach_started.elapsed();
         let parse_started = Instant::now();
-        let source_file = sema.parse(editioned_file_id);
+        let source_file = ctx.sema.parse(editioned_file_id);
         breakdown.sema_parse += parse_started.elapsed();
         let locator_started = Instant::now();
-        let module_locator = ModuleLocator::for_file(sema, db, file_id, krate);
+        let module_locator = ModuleLocator::for_file(ctx.sema, ctx.db, file_id, ctx.krate);
         let locator_elapsed = locator_started.elapsed();
         breakdown.module_locator_setup += locator_elapsed;
         breakdown.parsed_files += 1;
         let parsed_ordinal = breakdown.parsed_files;
         if parsed_ordinal == 1 {
             let repeat_started = Instant::now();
-            let _ = ModuleLocator::for_file(sema, db, file_id, krate);
+            let _ = ModuleLocator::for_file(ctx.sema, ctx.db, file_id, ctx.krate);
             breakdown.module_locator_repeat += repeat_started.elapsed();
         }
         update_slowest_module_locator_files(
@@ -834,13 +905,13 @@ fn collect_qualified_path_edges(
             file_use_tree_candidates += 1;
             let resolution_started = Instant::now();
             let resolution = record_relative_path_edge(
-                sema,
-                krate,
-                root,
-                db,
+                ctx.sema,
+                ctx.krate,
+                ctx.root,
+                ctx.db,
                 &boundary_names,
                 &root_export_boundaries,
-                declared_boundaries,
+                ctx.declared_boundaries,
                 abs_path.as_ref(),
                 &module_locator,
                 use_tree.syntax(),
@@ -921,13 +992,13 @@ fn collect_qualified_path_edges(
             file_path_candidates += 1;
             let resolution_started = Instant::now();
             let resolution = record_relative_path_edge(
-                sema,
-                krate,
-                root,
-                db,
+                ctx.sema,
+                ctx.krate,
+                ctx.root,
+                ctx.db,
                 &boundary_names,
                 &root_export_boundaries,
-                declared_boundaries,
+                ctx.declared_boundaries,
                 abs_path.as_ref(),
                 &module_locator,
                 path.syntax(),
@@ -968,7 +1039,7 @@ fn collect_qualified_path_edges(
         );
     }
 
-    if verbose {
+    if ctx.verbose {
         log_info(format!(
             "qualified path scan: {} direct boundary prefixes, {} semantic fallbacks",
             breakdown.direct_prefix_hits, breakdown.semantic_fallbacks
@@ -1436,22 +1507,6 @@ fn compare_dependency_samples(
     }
 }
 
-fn format_violation_report(
-    policy: &BTreeMap<String, BTreeSet<String>>,
-    violations: &[(String, String, DependencySample)],
-    actual: &BTreeMap<String, BTreeMap<String, DependencySample>>,
-    verbose: bool,
-) -> String {
-    render_violation_report(
-        policy,
-        violations,
-        actual,
-        verbose,
-        &diagnostic_renderer(),
-        true,
-    )
-}
-
 fn render_violation_report(
     policy: &BTreeMap<String, BTreeSet<String>>,
     violations: &[(String, String, DependencySample)],
@@ -1472,6 +1527,14 @@ fn render_violation_report(
     )
     .expect("writing a violation report into memory should not fail");
     String::from_utf8(output).expect("violation reports should be valid UTF-8")
+}
+
+fn quiet_failure_message(report: &BoundariesRunReport) -> String {
+    match (&report.rendered_output[..], report.summary.as_deref()) {
+        ("", Some(summary)) => summary.to_string(),
+        (body, Some(summary)) => format!("{body}\n{summary}"),
+        (body, None) => body.to_string(),
+    }
 }
 
 fn render_violation(
@@ -1510,25 +1573,6 @@ fn render_violation(
     }
 
     renderer.render(&[group]).trim_end().to_string()
-}
-
-fn stream_violation_report(
-    policy: &BTreeMap<String, BTreeSet<String>>,
-    violations: &[(String, String, DependencySample)],
-    actual: &BTreeMap<String, BTreeMap<String, DependencySample>>,
-    verbose: bool,
-) -> std::io::Result<()> {
-    let stderr = std::io::stderr();
-    let mut stderr = stderr.lock();
-    write_violation_report(
-        &mut stderr,
-        policy,
-        violations,
-        actual,
-        verbose,
-        &diagnostic_renderer(),
-        false,
-    )
 }
 
 fn write_violation_report<W: Write>(
@@ -1673,102 +1717,151 @@ fn log_info(message: impl AsRef<str>) {
     eprintln!("[I] {}", message.as_ref());
 }
 
-fn report_timing_breakdown(timings: &TimingBreakdown) {
-    eprintln!("[T] config load: {:.2}s", timings.config_load.as_secs_f64());
-    eprintln!(
+fn render_timing_breakdown(timings: &TimingBreakdown) -> String {
+    let mut output = String::new();
+    writeln!(
+        output,
+        "[T] config load: {:.2}s",
+        timings.config_load.as_secs_f64()
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] rust-analyzer workspace load: {:.2}s",
         timings.workspace_load.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] top-level boundary discovery: {:.2}s",
         timings.boundary_discovery.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] repeated top-level boundary discovery: {:.2}s",
         timings.boundary_discovery_repeat.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] semantic module-scope scan: {:.2}s",
         timings.module_scope_scan.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path scan: {:.2}s",
         timings.qualified_path_scan.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path files: {} src rs, {} candidate, {} parsed",
         timings.qualified_path_source_rs_files,
         timings.qualified_path_candidate_files,
         timings.qualified_path_parsed_files
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path candidates: {} use trees, {} top-level paths",
         timings.qualified_path_use_tree_candidates, timings.qualified_path_path_candidates
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path text hits: {} ({} duplicate top-level path hits)",
         timings.qualified_path_text_hits, timings.qualified_path_duplicate_path_hits
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path candidate-file filtering: {:.2}s",
         timings
             .qualified_path_candidate_file_filtering
             .as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path file reads: {:.2}s",
         timings.qualified_path_file_reads.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path edition attach: {:.2}s",
         timings.qualified_path_edition_attach.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path sema.parse: {:.2}s",
         timings.qualified_path_sema_parse.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path module locator setup: {:.2}s",
         timings.qualified_path_module_locator_setup.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path repeated first module locator: {:.2}s",
         timings.qualified_path_module_locator_repeat.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path use-tree descendant walk (inclusive): {:.2}s",
         timings.qualified_path_use_tree_walk.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path text-seeded lookup (inclusive): {:.2}s",
         timings.qualified_path_path_walk.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path segment extraction: {:.2}s",
         timings.qualified_path_segment_extraction.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path token lookup: {:.2}s",
         timings.qualified_path_token_lookup.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path path ascend: {:.2}s",
         timings.qualified_path_path_ascend.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path syntactic fast-path resolution: {:.2}s",
         timings.qualified_path_fast_path_resolution.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] qualified path semantic fallback resolution: {:.2}s",
         timings
             .qualified_path_semantic_fallback_resolution
             .as_secs_f64()
-    );
+    )
+    .unwrap();
     if !timings.qualified_path_slowest_files.is_empty() {
-        eprintln!("[T] slowest qualified-path files:");
+        writeln!(output, "[T] slowest qualified-path files:").unwrap();
         for file in &timings.qualified_path_slowest_files {
-            eprintln!(
+            writeln!(
+                output,
                 "[T]   {} [parsed #{}]: {:.2}s ({} text hits, {} duplicate hits, {} use trees, {} top-level paths, token lookup {:.2}s, path ascend {:.2}s)",
                 file.path,
                 file.parsed_ordinal,
@@ -1779,33 +1872,41 @@ fn report_timing_breakdown(timings: &TimingBreakdown) {
                 file.path_candidates,
                 file.token_lookup.as_secs_f64(),
                 file.path_ascend.as_secs_f64()
-            );
+            )
+            .unwrap();
         }
     }
     if !timings
         .qualified_path_slowest_module_locator_files
         .is_empty()
     {
-        eprintln!("[T] slowest module-locator files:");
+        writeln!(output, "[T] slowest module-locator files:").unwrap();
         for file in &timings.qualified_path_slowest_module_locator_files {
-            eprintln!(
+            writeln!(
+                output,
                 "[T]   {} [parsed #{}]: {:.2}s ({} located modules)",
                 file.path,
                 file.parsed_ordinal,
                 file.locator_setup.as_secs_f64(),
                 file.module_count
-            );
+            )
+            .unwrap();
         }
     }
-    eprintln!(
+    writeln!(
+        output,
         "[T] policy violation analysis: {:.2}s",
         timings.violation_analysis.as_secs_f64()
-    );
-    eprintln!(
+    )
+    .unwrap();
+    writeln!(
+        output,
         "[T] result reporting: {:.2}s",
         timings.reporting.as_secs_f64()
-    );
-    eprintln!("[T] total: {:.2}s", timings.total.as_secs_f64());
+    )
+    .unwrap();
+    writeln!(output, "[T] total: {:.2}s", timings.total.as_secs_f64()).unwrap();
+    output
 }
 
 fn display_repo_relative(path: &Path) -> String {
@@ -1831,9 +1932,88 @@ mod tests {
     use annotate_snippets::renderer::DecorStyle;
 
     use super::{
-        DependencySample, PendingRefresh, SemanticBoundariesContext, SourceLocation,
-        insert_dependency_sample, render_violation_report, write_violation_report,
+        BoundariesRunReport, BoundaryViolation, DependencySample, PendingRefresh,
+        SemanticBoundariesContext, SourceLocation, insert_dependency_sample, quiet_failure_message,
+        render_violation_report, write_violation_report,
     };
+
+    #[test]
+    fn boundary_violation_round_trips_through_json() {
+        let violation = BoundaryViolation {
+            source_boundary: "diagrams".to_string(),
+            target_boundary: "engines".to_string(),
+            symbol: "crate::EngineAlgorithmId".to_string(),
+            file: Some("src/diagrams/flowchart/compiler.rs".to_string()),
+            line: Some(5),
+            column: Some(5),
+            line_text: Some("use crate::EngineAlgorithmId;".to_string()),
+            underline_offset: Some(4),
+            underline_len: Some(24),
+        };
+
+        let json = serde_json::to_string(&violation).unwrap();
+        let decoded: BoundaryViolation = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, violation);
+    }
+
+    #[test]
+    fn boundary_violation_handles_missing_location() {
+        let violation = BoundaryViolation {
+            source_boundary: "diagrams".to_string(),
+            target_boundary: "engines".to_string(),
+            symbol: "crate::EngineAlgorithmId".to_string(),
+            file: None,
+            line: None,
+            column: None,
+            line_text: None,
+            underline_offset: None,
+            underline_len: None,
+        };
+
+        let json = serde_json::to_string(&violation).unwrap();
+        let decoded: BoundaryViolation = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded, violation);
+    }
+
+    #[test]
+    fn boundary_violation_converts_from_dependency_sample_with_location() {
+        let sample = DependencySample {
+            source: "diagrams".to_string(),
+            symbol: "crate::EngineAlgorithmId".to_string(),
+            target: "engines".to_string(),
+            location: Some(SourceLocation {
+                path: "src/diagrams/flowchart/compiler.rs".to_string(),
+                line: 5,
+                column: 5,
+                line_text: "use crate::EngineAlgorithmId;".to_string(),
+                underline_offset: 4,
+                underline_len: 24,
+            }),
+        };
+
+        let violation = BoundaryViolation::from_sample("diagrams", "engines", &sample);
+        assert_eq!(violation.source_boundary, "diagrams");
+        assert_eq!(violation.target_boundary, "engines");
+        assert_eq!(
+            violation.file,
+            Some("src/diagrams/flowchart/compiler.rs".to_string())
+        );
+        assert_eq!(violation.line, Some(5));
+    }
+
+    #[test]
+    fn boundary_violation_converts_from_dependency_sample_without_location() {
+        let sample = DependencySample {
+            source: "diagrams".to_string(),
+            symbol: "crate::EngineAlgorithmId".to_string(),
+            target: "engines".to_string(),
+            location: None,
+        };
+
+        let violation = BoundaryViolation::from_sample("diagrams", "engines", &sample);
+        assert_eq!(violation.file, None);
+        assert_eq!(violation.line, None);
+    }
 
     #[test]
     fn semantic_boundary_context_batches_incremental_source_changes() {
@@ -1850,8 +2030,8 @@ mod tests {
                 assert_eq!(
                     paths.into_iter().collect::<Vec<_>>(),
                     vec![
-                        PathBuf::from(super::repo_root().join("src/graph/mod.rs")),
-                        PathBuf::from(super::repo_root().join("src/runtime/mod.rs")),
+                        super::repo_root().join("src/graph/mod.rs"),
+                        super::repo_root().join("src/runtime/mod.rs"),
                     ]
                 );
             }
@@ -2019,6 +2199,27 @@ mod tests {
     }
 
     #[test]
+    fn boundaries_run_report_contains_rendered_output_and_summary() {
+        let report = BoundariesRunReport {
+            success: false,
+            rendered_output: "error[boundaries]: forbidden dependency ...".into(),
+            summary: Some("error: architecture boundaries failed with 1 violation".into()),
+            timings_output: None,
+            violations: Vec::new(),
+        };
+
+        assert!(!report.success);
+        assert!(report.rendered_output.contains("error[boundaries]"));
+        assert!(report.summary.as_deref().unwrap().contains("1 violation"));
+    }
+
+    #[test]
+    fn quiet_and_streaming_paths_share_the_same_report_body() {
+        let report = violation_report_fixture();
+        assert_eq!(streamed_body(&report), quiet_body(&report));
+    }
+
+    #[test]
     fn location_backed_samples_replace_module_only_samples() {
         let mut edges = BTreeMap::new();
         insert_dependency_sample(
@@ -2057,5 +2258,57 @@ mod tests {
             .unwrap();
         assert_eq!(sample.source, "src/graph/direction_policy.rs");
         assert!(sample.location.is_some());
+    }
+
+    fn violation_report_fixture() -> BoundariesRunReport {
+        BoundariesRunReport {
+            success: false,
+            rendered_output: render_violation_report(
+                &BTreeMap::from([(
+                    "graph".to_string(),
+                    BTreeSet::from(["errors".to_string(), "format".to_string()]),
+                )]),
+                &[(
+                    "graph".to_string(),
+                    "diagrams".to_string(),
+                    DependencySample {
+                        source: "src/graph/direction_policy.rs".to_string(),
+                        symbol: "crate::diagrams::flowchart::compile_to_graph".to_string(),
+                        target: "crate::diagrams".to_string(),
+                        location: Some(SourceLocation {
+                            path: "src/graph/direction_policy.rs".to_string(),
+                            line: 133,
+                            column: 9,
+                            line_text: "    use crate::diagrams::flowchart::compile_to_graph;"
+                                .to_string(),
+                            underline_offset: 8,
+                            underline_len: 45,
+                        }),
+                    },
+                )],
+                &BTreeMap::new(),
+                false,
+                &Renderer::plain()
+                    .decor_style(DecorStyle::Unicode)
+                    .term_width(140),
+                false,
+            ),
+            summary: Some("error: architecture boundaries failed with 1 violation".to_string()),
+            timings_output: None,
+            violations: Vec::new(),
+        }
+    }
+
+    fn streamed_body(report: &BoundariesRunReport) -> String {
+        report.rendered_output.clone()
+    }
+
+    fn quiet_body(report: &BoundariesRunReport) -> String {
+        let summary = report.summary.as_deref().unwrap();
+        quiet_failure_message(report)
+            .strip_suffix(summary)
+            .and_then(|body| body.strip_suffix('\n'))
+            .unwrap()
+            .to_string()
     }
 }

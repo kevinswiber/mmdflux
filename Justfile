@@ -22,18 +22,18 @@ build *args:
 release *args:
     cargo build --release {{ args }}
 
-# Run clippy and fmt check
+# Run clippy, architecture boundaries, and fmt check
 lint:
     cargo +nightly fmt -- --check
-    cargo clippy --locked --all-targets --all-features -- -D warnings
+    cargo xtask lint
 
 # Run clippy with auto-fix
 fix *args: fmt
-    cargo clippy --fix --all-targets --all-features --allow-dirty --allow-staged -- -D warnings {{ args }}
+    cargo clippy --fix --workspace --all-targets --all-features --allow-dirty --allow-staged -- -D warnings {{ args }}
 
 # Format code
-fmt:
-    cargo +nightly fmt
+fmt *args:
+    cargo +nightly fmt --all {{ args }}
 
 # Run the CLI
 run *args:
@@ -83,7 +83,7 @@ architecture:
 boundaries:
     cargo xtask architecture boundaries
 
-# Watch semantic boundaries during larger refactors.
+# Watch semantic boundaries during larger refactors and host the optional warm daemon.
 boundaries-watch:
     cargo xtask architecture boundaries --watch
 

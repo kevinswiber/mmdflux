@@ -1,0 +1,5 @@
+{
+  "name": "mmdflux-lsp-config",
+  "description": "Project rust-analyzer with architecture boundary checking via cargo xtask lint",
+  "version": "1.0.0"
+}

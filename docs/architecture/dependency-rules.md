@@ -26,6 +26,16 @@ from the repo-root
 Set `SEMANTIC_BOUNDARIES_CONFIG` to point at a different file when reusing the
 checker outside this repo. The semantic-only command is
 `cargo xtask architecture boundaries` or `just boundaries`.
+The normal one-shot command always works on its own. If a matching
+`cargo xtask architecture boundaries --watch` process is already running for
+this worktree, the one-shot command may reuse that warm daemon automatically;
+otherwise it falls back to the local runner with no extra setup. Use
+`cargo xtask architecture boundaries --status` to inspect the local daemon
+state for this worktree, or `cargo xtask architecture boundaries --fresh` to
+bypass daemon reuse and force a fresh local run. The watch-hosted daemon uses
+Unix sockets on macOS/Linux and a named-pipe transport shape on Windows. The
+Windows client path still falls back locally today, so Windows contributors do
+not need any extra socket setup.
 Performance investigation notes for the xtask guard live in
 [`docs/architecture/semantic-boundaries-guard-performance.md`](/Users/kevin/src/mmdflux-semantic-architecture/docs/architecture/semantic-boundaries-guard-performance.md).
 

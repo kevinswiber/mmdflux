@@ -36,7 +36,16 @@ See `docs/architecture/dependency-rules.md` for the authoritative module ownersh
 When editing imports, top-level wiring, or ownership boundaries, run
 `cargo xtask architecture boundaries` before finishing. During larger boundary
 refactors, consider keeping `just boundaries-watch` running in a separate
-terminal and pay attention to its output while you work.
+terminal and pay attention to its output while you work. `boundaries --watch`
+is also the natural warm-daemon host for one-shot `cargo xtask architecture
+boundaries` runs in the same worktree. That daemon reuse is optional: the
+normal one-shot command still falls back to the standalone local run when no
+daemon is present or when the daemon is incompatible. Use
+`cargo xtask architecture boundaries --status` to inspect the warm-daemon
+state, or `cargo xtask architecture boundaries --fresh` to bypass reuse and
+force a local run. Windows contributors should treat the daemon as optional;
+the transport shape is named-pipe based there, and one-shot client reuse still
+falls back locally today.
 
 Pipeline: **Frontend → Diagrams → Engine → Render**
 

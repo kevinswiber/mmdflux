@@ -10,8 +10,8 @@ use anyhow::{Context, Result, bail};
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 
 use super::{
-    ArchitectureContext, ArchitectureOptions, ArchitectureSuite, run_suites_collect,
-    selected_suites, suite_name,
+    ArchitectureContext, ArchitectureOptions, ArchitectureSuite, daemon,
+    run_boundaries_watch_report, selected_suites, suite_name,
 };
 
 const DEBOUNCE_WINDOW: Duration = Duration::from_millis(350);
@@ -51,7 +51,7 @@ trait WatchRunner {
 
 pub(crate) fn run(options: ArchitectureOptions, context: ArchitectureContext) -> Result<()> {
     let mut runner = ArchitectureWatchRunner::new(options, context);
-    if !std::io::stdin().is_terminal() {
+    if !options.background && !std::io::stdin().is_terminal() {
         return run_noninteractive(&mut runner);
     }
 
@@ -69,7 +69,20 @@ pub(crate) fn run(options: ArchitectureOptions, context: ArchitectureContext) ->
     })
     .context("failed to install Ctrl-C handler for architecture watch mode")?;
 
-    let outcome = run_watch_loop(&mut source, &mut runner, DEBOUNCE_WINDOW)?;
+    let binder = daemon::PlatformDaemonBinder;
+    let repo_root = runner.repo_root().to_path_buf();
+    let render_options = daemon::DaemonRenderOptions {
+        verbose: options.verbose,
+        timings: options.timings,
+    };
+    let outcome = run_architecture_watch_with_daemon(
+        &mut source,
+        &mut runner,
+        &repo_root,
+        &binder,
+        render_options,
+        DEBOUNCE_WINDOW,
+    )?;
     if outcome.last_status == WatchRunStatus::Passed {
         return Ok(());
     }
@@ -84,6 +97,62 @@ fn run_noninteractive<R: WatchRunner>(runner: &mut R) -> Result<()> {
     }
 }
 
+fn run_architecture_watch_with_daemon<S, B>(
+    source: &mut S,
+    runner: &mut ArchitectureWatchRunner,
+    repo_root: &Path,
+    binder: &B,
+    render_options: daemon::DaemonRenderOptions,
+    debounce_window: Duration,
+) -> Result<WatchLoopOutcome>
+where
+    S: WatchEventSource,
+    B: daemon::DaemonTransportBinder,
+{
+    let daemon_host = start_watch_daemon(repo_root, binder, render_options)?;
+    let mut run_number = 1usize;
+    daemon_host.begin_run();
+    let initial = runner.run_once(run_number, &[]);
+    daemon_host.complete_run(initial.report);
+    let mut last_status = initial.status;
+    let mut reruns = 0usize;
+
+    loop {
+        runner.on_waiting();
+        let event = source.recv()?;
+        let Some(changes) = collect_change_burst(source, event, debounce_window)? else {
+            break;
+        };
+        daemon_host.note_dirty();
+        runner.on_change_burst(&changes);
+        reruns += 1;
+        run_number += 1;
+        daemon_host.begin_run();
+        let outcome = runner.run_once(run_number, &changes);
+        daemon_host.complete_run(outcome.report);
+        last_status = outcome.status;
+    }
+
+    Ok(WatchLoopOutcome {
+        reruns,
+        last_status,
+    })
+}
+
+fn start_watch_daemon<B: daemon::DaemonTransportBinder>(
+    repo_root: &Path,
+    binder: &B,
+    render_options: daemon::DaemonRenderOptions,
+) -> Result<daemon::DaemonHost<B::Endpoint>> {
+    daemon::DaemonHost::start_with_binder(repo_root, binder, render_options).with_context(|| {
+        format!(
+            "failed to start boundaries watch daemon for {}",
+            repo_root.display()
+        )
+    })
+}
+
+#[cfg(test)]
 fn run_watch_loop<S: WatchEventSource, R: WatchRunner>(
     source: &mut S,
     runner: &mut R,
@@ -117,7 +186,7 @@ fn collect_change_burst<S: WatchEventSource>(
     debounce_window: Duration,
 ) -> Result<Option<Vec<PathBuf>>> {
     match event {
-        WatchEvent::Interrupt | WatchEvent::Closed => return Ok(None),
+        WatchEvent::Interrupt | WatchEvent::Closed => Ok(None),
         WatchEvent::Changes(paths) => {
             let mut unique_paths: BTreeSet<PathBuf> = paths.into_iter().collect();
             let burst_started = Instant::now();
@@ -247,6 +316,11 @@ struct ArchitectureWatchRunner {
     context: ArchitectureContext,
 }
 
+struct ArchitectureRunOutcome {
+    status: WatchRunStatus,
+    report: super::boundaries::BoundariesRunReport,
+}
+
 impl ArchitectureWatchRunner {
     fn new(mut options: ArchitectureOptions, context: ArchitectureContext) -> Self {
         options.watch = false;
@@ -264,46 +338,54 @@ impl ArchitectureWatchRunner {
             .collect::<Vec<_>>()
             .join(", ")
     }
-}
 
-impl WatchRunner for ArchitectureWatchRunner {
-    fn run(&mut self, run_number: usize, changes: &[PathBuf]) -> WatchRunStatus {
+    fn run_once(&mut self, run_number: usize, changes: &[PathBuf]) -> ArchitectureRunOutcome {
         if !changes.is_empty() {
             self.context.record_changes(changes);
         }
 
-        let executions = run_suites_collect(&mut self.context, self.options, true);
-        let has_failures = executions.iter().any(|execution| !execution.is_success());
-        for execution in &executions {
-            let verdict = if execution.is_success() {
-                "PASS"
-            } else {
-                "FAIL"
-            };
-            eprintln!(
-                "[run {run_number}] {verdict} {:<10} {:.2}s",
-                suite_name(execution.suite),
-                execution.duration.as_secs_f64()
-            );
+        let started = Instant::now();
+        let report = match run_boundaries_watch_report(&mut self.context, self.options) {
+            Ok(report) => report,
+            Err(error) => super::boundaries::BoundariesRunReport {
+                success: false,
+                rendered_output: String::new(),
+                summary: Some(format!("{error:#}")),
+                timings_output: None,
+                violations: Vec::new(),
+            },
+        };
+        let duration = started.elapsed();
+        let status = if report.success {
+            WatchRunStatus::Passed
+        } else {
+            WatchRunStatus::Failed
+        };
+
+        let verdict = if report.success { "PASS" } else { "FAIL" };
+        eprintln!(
+            "[run {run_number}] {verdict} {:<10} {:.2}s",
+            suite_name(ArchitectureSuite::Boundaries),
+            duration.as_secs_f64()
+        );
+        if let Some(timings_output) = &report.timings_output {
+            eprint!("{timings_output}");
         }
-        for execution in executions
-            .into_iter()
-            .filter(|execution| !execution.is_success())
-        {
-            let error = execution
-                .error
-                .expect("failed suite executions should capture their error");
+        if !report.success {
             eprintln!(
-                "[run {run_number}] failure detail for {}:\n{error}",
-                suite_name(execution.suite)
+                "[run {run_number}] failure detail for {}:\n{}",
+                suite_name(ArchitectureSuite::Boundaries),
+                render_failure_detail(&report)
             );
         }
 
-        if has_failures {
-            WatchRunStatus::Failed
-        } else {
-            WatchRunStatus::Passed
-        }
+        ArchitectureRunOutcome { status, report }
+    }
+}
+
+impl WatchRunner for ArchitectureWatchRunner {
+    fn run(&mut self, run_number: usize, changes: &[PathBuf]) -> WatchRunStatus {
+        self.run_once(run_number, changes).status
     }
 
     fn on_waiting(&mut self) {
@@ -319,6 +401,15 @@ impl WatchRunner for ArchitectureWatchRunner {
                 .collect::<Vec<_>>()
                 .join(", ")
         );
+    }
+}
+
+fn render_failure_detail(report: &super::boundaries::BoundariesRunReport) -> String {
+    match (&report.rendered_output[..], report.summary.as_deref()) {
+        ("", Some(summary)) => summary.to_string(),
+        (body, Some(summary)) if !body.ends_with('\n') => format!("{body}\n{summary}"),
+        (body, Some(summary)) => format!("{body}{summary}"),
+        (body, None) => body.to_string(),
     }
 }
 
@@ -360,14 +451,17 @@ fn display_watch_path(repo_root: &Path, path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use std::collections::VecDeque;
+    use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
 
     use anyhow::Result;
 
     use super::{
-        WatchEvent, WatchEventSource, WatchLoopOutcome, WatchRunStatus, WatchRunner,
-        path_matches_suite, run_noninteractive, run_watch_loop,
+        WatchEvent, WatchEventSource, WatchLoopOutcome, WatchRunStatus, WatchRunner, daemon,
+        path_matches_suite, run_noninteractive, run_watch_loop, start_watch_daemon,
     };
 
     #[test]
@@ -441,6 +535,57 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn watch_mode_writes_daemon_metadata_on_startup() {
+        let mut harness = WatchDaemonHarness::new();
+
+        harness.start();
+
+        assert!(harness.metadata_path().exists());
+        assert_eq!(harness.bind_calls(), 1);
+    }
+
+    #[test]
+    fn watch_mode_uses_worktree_specific_metadata_and_transport_names() {
+        let mut left = WatchDaemonHarness::new_for_worktree("feature-a");
+        let mut right = WatchDaemonHarness::new_for_worktree("feature-b");
+
+        left.start();
+        right.start();
+
+        let left_metadata = left.metadata();
+        let right_metadata = right.metadata();
+        assert_ne!(left_metadata.worktree_id, right_metadata.worktree_id);
+        assert_ne!(
+            left_metadata.metadata_path(),
+            right_metadata.metadata_path()
+        );
+        assert_ne!(left_metadata.transport, right_metadata.transport);
+    }
+
+    #[test]
+    fn watch_mode_removes_metadata_on_clean_shutdown() {
+        let mut harness = WatchDaemonHarness::new();
+        harness.start();
+        let metadata_path = harness.metadata_path();
+
+        harness.stop();
+
+        assert!(!metadata_path.exists());
+        assert_eq!(harness.cleanup_calls(), 1);
+    }
+
+    #[test]
+    fn noninteractive_run_does_not_accidentally_spawn_daemon_metadata() {
+        let harness = WatchDaemonHarness::new();
+        let mut runner = FakeRunner::new([WatchRunStatus::Passed]);
+
+        run_noninteractive(&mut runner).unwrap();
+
+        assert!(!harness.metadata_path().exists());
+        assert_eq!(harness.bind_calls(), 0);
+    }
+
     #[derive(Debug)]
     struct FakeEventSource {
         events: VecDeque<WatchEvent>,
@@ -490,5 +635,121 @@ mod tests {
             self.observed_changes.push(changes.to_vec());
             self.statuses.pop_front().unwrap_or(WatchRunStatus::Passed)
         }
+    }
+
+    #[derive(Debug, Default, Clone)]
+    struct FakeDaemonBinder {
+        bind_calls: Arc<AtomicUsize>,
+        cleanup_calls: Arc<AtomicUsize>,
+    }
+
+    impl daemon::DaemonTransportBinder for FakeDaemonBinder {
+        type Endpoint = FakeDaemonEndpoint;
+
+        fn bind(
+            &self,
+            _metadata: &daemon::DaemonMetadata,
+            _state: daemon::SharedDaemonState,
+            _render_options: daemon::DaemonRenderOptions,
+        ) -> Result<Self::Endpoint> {
+            self.bind_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(FakeDaemonEndpoint {
+                cleanup_calls: Arc::clone(&self.cleanup_calls),
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    struct FakeDaemonEndpoint {
+        cleanup_calls: Arc<AtomicUsize>,
+    }
+
+    impl daemon::DaemonEndpoint for FakeDaemonEndpoint {
+        fn cleanup(&mut self) -> Result<()> {
+            self.cleanup_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    struct WatchDaemonHarness {
+        repo_root: PathBuf,
+        binder: FakeDaemonBinder,
+        host: Option<daemon::DaemonHost<FakeDaemonEndpoint>>,
+    }
+
+    impl WatchDaemonHarness {
+        fn new() -> Self {
+            Self::new_for_worktree("default")
+        }
+
+        fn new_for_worktree(name: &str) -> Self {
+            let repo_root = unique_repo_root(name);
+            fs::create_dir_all(&repo_root).unwrap();
+            Self {
+                repo_root,
+                binder: FakeDaemonBinder::default(),
+                host: None,
+            }
+        }
+
+        fn start(&mut self) {
+            self.host = Some(
+                start_watch_daemon(
+                    &self.repo_root,
+                    &self.binder,
+                    daemon::DaemonRenderOptions {
+                        verbose: false,
+                        timings: false,
+                    },
+                )
+                .unwrap(),
+            );
+        }
+
+        fn stop(&mut self) {
+            if let Some(host) = self.host.take() {
+                host.shutdown();
+            }
+        }
+
+        fn metadata_path(&self) -> PathBuf {
+            daemon::DaemonMetadata::for_repo(&self.repo_root).metadata_path()
+        }
+
+        fn metadata(&self) -> daemon::DaemonMetadata {
+            let content = fs::read_to_string(self.metadata_path()).unwrap();
+            serde_json::from_str(&content).unwrap()
+        }
+
+        fn bind_calls(&self) -> usize {
+            self.binder.bind_calls.load(Ordering::SeqCst)
+        }
+
+        fn cleanup_calls(&self) -> usize {
+            self.binder.cleanup_calls.load(Ordering::SeqCst)
+        }
+    }
+
+    impl Drop for WatchDaemonHarness {
+        fn drop(&mut self) {
+            self.stop();
+            let _ = fs::remove_dir_all(self.repo_root.parent().unwrap_or(&self.repo_root));
+        }
+    }
+
+    fn unique_repo_root(name: &str) -> PathBuf {
+        let unique = format!(
+            "mmdflux-watch-daemon-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        std::env::temp_dir()
+            .join(unique)
+            .join("worktrees")
+            .join(name)
     }
 }

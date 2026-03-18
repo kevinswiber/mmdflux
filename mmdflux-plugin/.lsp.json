@@ -1,0 +1,13 @@
+{
+  "rust-analyzer": {
+    "command": "rust-analyzer",
+    "extensionToLanguage": { ".rs": "rust" },
+    "initializationOptions": {
+      "check": {
+        "overrideCommand": [
+          "cargo", "xtask", "lint", "--json"
+        ]
+      }
+    }
+  }
+}
