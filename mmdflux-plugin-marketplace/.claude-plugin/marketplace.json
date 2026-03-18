@@ -1,0 +1,14 @@
+{
+  "name": "mmdflux-local",
+  "owner": {
+    "name": "mmdflux"
+  },
+  "plugins": [
+    {
+      "name": "mmdflux-rust-lsp",
+      "source": "./mmdflux-rust-lsp",
+      "description": "Project rust-analyzer with architecture boundary checking via cargo xtask lint",
+      "version": "1.0.0"
+    }
+  ]
+}

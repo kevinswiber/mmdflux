@@ -45,5 +45,16 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "mmdflux-rust-lsp@mmdflux-local": true
+  },
+  "extraKnownMarketplaces": {
+    "mmdflux-local": {
+      "source": {
+        "source": "directory",
+        "path": "../mmdflux-plugin-marketplace"
+      }
+    }
   }
 }
