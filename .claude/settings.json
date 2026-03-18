@@ -47,14 +47,16 @@
     ]
   },
   "enabledPlugins": {
-    "mmdflux-rust-lsp@mmdflux-local": true
+    "rust-analyzer-lsp@claude-plugins-official": false,
+    "rust-analyzer-lsp@mmdflux-local": true
   },
   "extraKnownMarketplaces": {
     "mmdflux-local": {
       "source": {
         "source": "directory",
         "path": "../mmdflux-plugin-marketplace"
-      }
+      },
+      "autoUpdate": true
     }
   }
 }

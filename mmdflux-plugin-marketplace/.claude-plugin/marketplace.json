@@ -1,14 +1,31 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "mmdflux-local",
   "owner": {
-    "name": "mmdflux"
+    "name": "mmdflux",
+    "email": "kevin@swiber.dev"
   },
   "plugins": [
     {
-      "name": "mmdflux-rust-lsp",
-      "source": "./mmdflux-rust-lsp",
+      "name": "rust-analyzer-lsp",
+      "source": "./plugins/rust-analyzer-lsp",
       "description": "Project rust-analyzer with architecture boundary checking via cargo xtask lint",
-      "version": "1.0.0"
+      "version": "1.0.0",
+      "category": "development",
+      "strict": false,
+      "lspServers": {
+        "rust": {
+          "command": "rust-analyzer",
+          "extensionToLanguage": { ".rs": "rust" },
+          "initializationOptions": {
+            "check": {
+              "overrideCommand": ["cargo", "xtask", "lint", "--json"]
+            }
+          },
+          "settings": {},
+          "transport": "stdio"
+        }
+      }
     }
   ]
 }
