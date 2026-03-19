@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::io::{BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -14,23 +12,23 @@ use super::boundaries::{BoundariesRunReport, BoundaryViolation};
 
 const WORKTREE_TARGET_DIR: &str = "target";
 const XTASK_TARGET_DIR: &str = "xtask";
-const DAEMON_METADATA_FILE: &str = "boundaries-daemon.json";
-const DAEMON_SOCKET_FILE: &str = "boundaries.sock";
-const WINDOWS_PIPE_PREFIX: &str = r"\\.\pipe\mmdflux-boundaries-";
-const DAEMON_DISCOVERY_ROOT_ENV: &str = "XTASK_BOUNDARIES_DAEMON_DISCOVERY_ROOT";
+const HOST_METADATA_FILE: &str = "architecture-host.json";
+const HOST_SOCKET_FILE: &str = "architecture.sock";
+const WINDOWS_PIPE_PREFIX: &str = r"\\.\pipe\mmdflux-architecture-";
+const HOST_DISCOVERY_ROOT_ENV: &str = "XTASK_BOUNDARIES_HOST_DISCOVERY_ROOT";
 const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 
-pub(crate) const DAEMON_PROTOCOL_VERSION: u32 = 2;
+pub(crate) const HOST_PROTOCOL_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum DaemonTransport {
+pub(crate) enum HostTransport {
     UnixSocket { path: PathBuf },
     NamedPipe { name: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum DaemonFreshness {
+pub(crate) enum HostFreshness {
     IdleClean,
     Dirty,
     Running,
@@ -38,13 +36,13 @@ pub(crate) enum DaemonFreshness {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct DaemonRenderOptions {
+pub(crate) struct HostRenderOptions {
     pub(crate) verbose: bool,
     pub(crate) timings: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum DaemonRequest {
+pub(crate) enum HostRequest {
     Check {
         wait_for_fresh: bool,
         verbose: bool,
@@ -53,13 +51,15 @@ pub(crate) enum DaemonRequest {
     },
     NotifyDirty,
     Status,
+    Shutdown,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum DaemonResponse {
+pub(crate) enum HostResponse {
     Check(CheckResponse),
     NotifyDirtyAck,
     Status(StatusResponse),
+    ShuttingDown,
     Error {
         retry_locally: bool,
         message: String,
@@ -68,7 +68,7 @@ pub(crate) enum DaemonResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct CheckResponse {
-    pub(crate) freshness: DaemonFreshness,
+    pub(crate) freshness: HostFreshness,
     pub(crate) generation: u64,
     pub(crate) reused_warm_context: bool,
     pub(crate) duration_ms: u128,
@@ -82,73 +82,73 @@ pub(crate) struct CheckResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct StatusResponse {
-    pub(crate) freshness: DaemonFreshness,
+    pub(crate) freshness: HostFreshness,
     pub(crate) generation: u64,
     pub(crate) last_started_at: Option<String>,
     pub(crate) last_finished_at: Option<String>,
     pub(crate) last_success: Option<bool>,
-    pub(crate) render_options: DaemonRenderOptions,
+    pub(crate) render_options: HostRenderOptions,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum DaemonCheckResult {
+pub(crate) enum HostCheckResult {
     Reused(CheckResponse),
     RetryLocally { reason: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum DaemonStatusResult {
+pub(crate) enum HostStatusResult {
     Live(StatusResponse),
     Unavailable { reason: String },
 }
 
 #[derive(Debug, Clone)]
-struct LoadedDaemonMetadata {
-    metadata: DaemonMetadata,
+struct LoadedHostMetadata {
+    metadata: HostMetadata,
     metadata_path: PathBuf,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct DaemonMetadata {
+pub(crate) struct HostMetadata {
     pub(crate) protocol_version: u32,
     pub(crate) repo_root: PathBuf,
     pub(crate) worktree_id: String,
-    pub(crate) transport: DaemonTransport,
+    pub(crate) transport: HostTransport,
     pub(crate) pid: u32,
     pub(crate) started_at: String,
     pub(crate) binary_version: String,
 }
 
-impl DaemonMetadata {
+impl HostMetadata {
     pub(crate) fn for_repo(repo_root: &Path) -> Self {
         let worktree_id = worktree_id_for_repo(repo_root);
         Self {
-            protocol_version: DAEMON_PROTOCOL_VERSION,
+            protocol_version: HOST_PROTOCOL_VERSION,
             repo_root: repo_root.to_path_buf(),
             worktree_id: worktree_id.clone(),
-            transport: daemon_transport_for_repo(repo_root, &worktree_id),
+            transport: host_transport_for_repo(repo_root, &worktree_id),
             pid: std::process::id(),
             started_at: unix_timestamp_string(),
-            binary_version: daemon_binary_version(),
+            binary_version: host_binary_version(),
         }
     }
 
     pub(crate) fn metadata_path(&self) -> PathBuf {
-        daemon_metadata_path(&self.repo_root, &self.worktree_id)
+        host_metadata_path(&self.repo_root, &self.worktree_id)
     }
 
     pub(crate) fn validate_for_repo(&self, repo_root: &Path) -> Result<()> {
-        if self.protocol_version != DAEMON_PROTOCOL_VERSION {
+        if self.protocol_version != HOST_PROTOCOL_VERSION {
             bail!(
-                "daemon protocol mismatch: expected {}, found {}",
-                DAEMON_PROTOCOL_VERSION,
+                "host protocol mismatch: expected {}, found {}",
+                HOST_PROTOCOL_VERSION,
                 self.protocol_version
             );
         }
 
         if self.repo_root != repo_root {
             bail!(
-                "daemon repo root mismatch: expected {}, found {}",
+                "host repo root mismatch: expected {}, found {}",
                 repo_root.display(),
                 self.repo_root.display()
             );
@@ -157,21 +157,21 @@ impl DaemonMetadata {
         let expected_worktree_id = worktree_id_for_repo(repo_root);
         if self.worktree_id != expected_worktree_id {
             bail!(
-                "daemon worktree mismatch: expected {}, found {}",
+                "host worktree mismatch: expected {}, found {}",
                 expected_worktree_id,
                 self.worktree_id
             );
         }
 
-        let expected_transport = daemon_transport_for_repo(repo_root, &expected_worktree_id);
+        let expected_transport = host_transport_for_repo(repo_root, &expected_worktree_id);
         if self.transport != expected_transport {
-            bail!("daemon transport mismatch for {}", repo_root.display());
+            bail!("host transport mismatch for {}", repo_root.display());
         }
 
-        if self.binary_version != daemon_binary_version() {
+        if self.binary_version != host_binary_version() {
             bail!(
-                "daemon binary version mismatch: expected {}, found {}",
-                daemon_binary_version(),
+                "host binary version mismatch: expected {}, found {}",
+                host_binary_version(),
                 self.binary_version
             );
         }
@@ -180,18 +180,18 @@ impl DaemonMetadata {
     }
 }
 
-pub(crate) fn daemon_metadata_path(repo_root: &Path, worktree_id: &str) -> PathBuf {
-    daemon_worktree_dir(repo_root, worktree_id).join(DAEMON_METADATA_FILE)
+pub(crate) fn host_metadata_path(repo_root: &Path, worktree_id: &str) -> PathBuf {
+    host_worktree_dir(repo_root, worktree_id).join(HOST_METADATA_FILE)
 }
 
-pub(crate) fn daemon_transport_for_repo(repo_root: &Path, worktree_id: &str) -> DaemonTransport {
+pub(crate) fn host_transport_for_repo(repo_root: &Path, worktree_id: &str) -> HostTransport {
     if cfg!(windows) {
-        DaemonTransport::NamedPipe {
+        HostTransport::NamedPipe {
             name: format!("{WINDOWS_PIPE_PREFIX}{worktree_id}"),
         }
     } else {
-        DaemonTransport::UnixSocket {
-            path: daemon_worktree_dir(repo_root, worktree_id).join(DAEMON_SOCKET_FILE),
+        HostTransport::UnixSocket {
+            path: host_worktree_dir(repo_root, worktree_id).join(HOST_SOCKET_FILE),
         }
     }
 }
@@ -206,56 +206,75 @@ pub(crate) fn worktree_id_for_repo(repo_root: &Path) -> String {
     format!("{hash:016x}")
 }
 
-pub(crate) trait DaemonEndpoint {
+pub(crate) trait HostEndpoint {
     fn cleanup(&mut self) -> Result<()>;
 }
 
-pub(crate) trait DaemonTransportBinder {
-    type Endpoint: DaemonEndpoint;
+pub(crate) trait HostTransportBinder {
+    type Endpoint: HostEndpoint;
 
     fn bind(
         &self,
-        metadata: &DaemonMetadata,
-        state: SharedDaemonState,
-        render_options: DaemonRenderOptions,
+        metadata: &HostMetadata,
+        state: SharedHostState,
+        render_options: HostRenderOptions,
     ) -> Result<Self::Endpoint>;
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SharedDaemonState {
-    inner: Arc<SharedDaemonStateInner>,
+pub(crate) struct SharedHostState {
+    inner: Arc<SharedHostStateInner>,
 }
 
 #[derive(Debug)]
-struct SharedDaemonStateInner {
-    snapshot: Mutex<SharedDaemonSnapshot>,
+struct SharedHostStateInner {
+    snapshot: Mutex<SharedHostSnapshot>,
     updates: Condvar,
+    shutdown_requested: AtomicBool,
+    /// When set, the shutdown handler also sets this flag — used to wake
+    /// the filesystem event source that polls on a separate `Arc<AtomicBool>`.
+    interrupt_flag: Option<Arc<AtomicBool>>,
 }
 
 #[derive(Debug, Clone)]
-struct SharedDaemonSnapshot {
-    freshness: DaemonFreshness,
+struct SharedHostSnapshot {
+    freshness: HostFreshness,
     generation: u64,
     last_started_at: Option<String>,
     last_finished_at: Option<String>,
     last_report: Option<BoundariesRunReport>,
 }
 
-impl Default for SharedDaemonState {
-    fn default() -> Self {
+impl SharedHostState {
+    fn with_interrupt_flag(interrupt_flag: Arc<AtomicBool>) -> Self {
         Self {
-            inner: Arc::new(SharedDaemonStateInner {
-                snapshot: Mutex::new(SharedDaemonSnapshot::default()),
+            inner: Arc::new(SharedHostStateInner {
+                snapshot: Mutex::new(SharedHostSnapshot::default()),
                 updates: Condvar::new(),
+                shutdown_requested: AtomicBool::new(false),
+                interrupt_flag: Some(interrupt_flag),
             }),
         }
     }
 }
 
-impl Default for SharedDaemonSnapshot {
+impl Default for SharedHostState {
     fn default() -> Self {
         Self {
-            freshness: DaemonFreshness::Dirty,
+            inner: Arc::new(SharedHostStateInner {
+                snapshot: Mutex::new(SharedHostSnapshot::default()),
+                updates: Condvar::new(),
+                shutdown_requested: AtomicBool::new(false),
+                interrupt_flag: None,
+            }),
+        }
+    }
+}
+
+impl Default for SharedHostSnapshot {
+    fn default() -> Self {
+        Self {
+            freshness: HostFreshness::Dirty,
             generation: 0,
             last_started_at: None,
             last_finished_at: None,
@@ -264,15 +283,15 @@ impl Default for SharedDaemonSnapshot {
     }
 }
 
-impl SharedDaemonState {
+impl SharedHostState {
     pub(crate) fn note_dirty(&self) {
         let mut snapshot = self
             .inner
             .snapshot
             .lock()
-            .expect("daemon state mutex poisoned");
-        if snapshot.freshness != DaemonFreshness::Running {
-            snapshot.freshness = DaemonFreshness::Dirty;
+            .expect("host state mutex poisoned");
+        if snapshot.freshness != HostFreshness::Running {
+            snapshot.freshness = HostFreshness::Dirty;
         }
         self.inner.updates.notify_all();
     }
@@ -282,8 +301,8 @@ impl SharedDaemonState {
             .inner
             .snapshot
             .lock()
-            .expect("daemon state mutex poisoned");
-        snapshot.freshness = DaemonFreshness::Running;
+            .expect("host state mutex poisoned");
+        snapshot.freshness = HostFreshness::Running;
         snapshot.last_started_at = Some(unix_timestamp_string());
         self.inner.updates.notify_all();
     }
@@ -293,24 +312,24 @@ impl SharedDaemonState {
             .inner
             .snapshot
             .lock()
-            .expect("daemon state mutex poisoned");
+            .expect("host state mutex poisoned");
         snapshot.generation += 1;
         snapshot.last_finished_at = Some(unix_timestamp_string());
         snapshot.freshness = if report.success {
-            DaemonFreshness::IdleClean
+            HostFreshness::IdleClean
         } else {
-            DaemonFreshness::IdleFailed
+            HostFreshness::IdleFailed
         };
         snapshot.last_report = Some(report);
         self.inner.updates.notify_all();
     }
 
-    pub(crate) fn handle_status(&self, render_options: DaemonRenderOptions) -> StatusResponse {
+    pub(crate) fn handle_status(&self, render_options: HostRenderOptions) -> StatusResponse {
         let snapshot = self
             .inner
             .snapshot
             .lock()
-            .expect("daemon state mutex poisoned");
+            .expect("host state mutex poisoned");
         StatusResponse {
             freshness: snapshot.freshness,
             generation: snapshot.generation,
@@ -321,29 +340,41 @@ impl SharedDaemonState {
         }
     }
 
+    pub(crate) fn is_shutdown_requested(&self) -> bool {
+        self.inner.shutdown_requested.load(Ordering::SeqCst)
+    }
+
     pub(crate) fn handle_request(
         &self,
-        request: DaemonRequest,
-        hosted_options: DaemonRenderOptions,
-    ) -> DaemonResponse {
+        request: HostRequest,
+        hosted_options: HostRenderOptions,
+    ) -> HostResponse {
         match request {
-            DaemonRequest::NotifyDirty => {
+            HostRequest::NotifyDirty => {
                 self.note_dirty();
-                DaemonResponse::NotifyDirtyAck
+                HostResponse::NotifyDirtyAck
             }
-            DaemonRequest::Status => DaemonResponse::Status(self.handle_status(hosted_options)),
-            DaemonRequest::Check {
+            HostRequest::Status => HostResponse::Status(self.handle_status(hosted_options)),
+            HostRequest::Shutdown => {
+                self.inner.shutdown_requested.store(true, Ordering::SeqCst);
+                if let Some(flag) = &self.inner.interrupt_flag {
+                    flag.store(true, Ordering::SeqCst);
+                }
+                self.inner.updates.notify_all();
+                HostResponse::ShuttingDown
+            }
+            HostRequest::Check {
                 wait_for_fresh,
                 verbose,
                 timings,
                 ..
             } => {
-                let requested_options = DaemonRenderOptions { verbose, timings };
+                let requested_options = HostRenderOptions { verbose, timings };
                 if requested_options != hosted_options {
-                    return DaemonResponse::Error {
+                    return HostResponse::Error {
                         retry_locally: true,
                         message: format!(
-                            "daemon render options mismatch: daemon verbose={}, timings={}, request verbose={}, timings={}",
+                            "host render options mismatch: host verbose={}, timings={}, request verbose={}, timings={}",
                             hosted_options.verbose,
                             hosted_options.timings,
                             requested_options.verbose,
@@ -356,22 +387,22 @@ impl SharedDaemonState {
                     .inner
                     .snapshot
                     .lock()
-                    .expect("daemon state mutex poisoned");
+                    .expect("host state mutex poisoned");
                 while wait_for_fresh
                     && matches!(
                         snapshot.freshness,
-                        DaemonFreshness::Dirty | DaemonFreshness::Running
+                        HostFreshness::Dirty | HostFreshness::Running
                     )
                 {
                     snapshot = self
                         .inner
                         .updates
                         .wait(snapshot)
-                        .expect("daemon state mutex poisoned");
+                        .expect("host state mutex poisoned");
                 }
 
                 match snapshot.last_report.as_ref() {
-                    Some(report) => DaemonResponse::Check(CheckResponse {
+                    Some(report) => HostResponse::Check(CheckResponse {
                         freshness: snapshot.freshness,
                         generation: snapshot.generation,
                         reused_warm_context: true,
@@ -382,9 +413,9 @@ impl SharedDaemonState {
                         timings_output: report.timings_output.clone(),
                         violations: report.violations.clone(),
                     }),
-                    None => DaemonResponse::Error {
+                    None => HostResponse::Error {
                         retry_locally: true,
-                        message: "daemon has no completed boundaries result yet".to_string(),
+                        message: "host has no completed boundaries result yet".to_string(),
                     },
                 }
             }
@@ -393,27 +424,33 @@ impl SharedDaemonState {
 }
 
 #[derive(Debug)]
-pub(crate) struct DaemonHost<E: DaemonEndpoint> {
-    metadata: DaemonMetadata,
+#[allow(dead_code)]
+pub(crate) struct ArchitectureHost<E: HostEndpoint> {
+    metadata: HostMetadata,
     metadata_path: PathBuf,
-    state: SharedDaemonState,
-    render_options: DaemonRenderOptions,
+    state: SharedHostState,
+    render_options: HostRenderOptions,
     endpoint: Option<E>,
 }
 
-impl<E: DaemonEndpoint> DaemonHost<E> {
+#[allow(dead_code)]
+impl<E: HostEndpoint> ArchitectureHost<E> {
     pub(crate) fn start_with_binder(
         repo_root: &Path,
-        binder: &impl DaemonTransportBinder<Endpoint = E>,
-        render_options: DaemonRenderOptions,
+        binder: &impl HostTransportBinder<Endpoint = E>,
+        render_options: HostRenderOptions,
+        interrupt_flag: Option<Arc<AtomicBool>>,
     ) -> Result<Self> {
-        let metadata = DaemonMetadata::for_repo(repo_root);
+        let metadata = HostMetadata::for_repo(repo_root);
         let metadata_path = metadata.metadata_path();
         if let Some(parent) = metadata_path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
         }
-        let state = SharedDaemonState::default();
+        let state = match interrupt_flag {
+            Some(flag) => SharedHostState::with_interrupt_flag(flag),
+            None => SharedHostState::default(),
+        };
         let endpoint = binder.bind(&metadata, state.clone(), render_options)?;
         if let Err(error) = write_metadata_file(&metadata_path, &metadata) {
             let mut endpoint = endpoint;
@@ -429,7 +466,7 @@ impl<E: DaemonEndpoint> DaemonHost<E> {
         })
     }
 
-    pub(crate) fn metadata(&self) -> &DaemonMetadata {
+    pub(crate) fn metadata(&self) -> &HostMetadata {
         &self.metadata
     }
 
@@ -449,12 +486,16 @@ impl<E: DaemonEndpoint> DaemonHost<E> {
         self.state.complete_run(report);
     }
 
-    pub(crate) fn handle_request(&self, request: DaemonRequest) -> DaemonResponse {
+    pub(crate) fn handle_request(&self, request: HostRequest) -> HostResponse {
         self.state.handle_request(request, self.render_options)
     }
 
     pub(crate) fn handle_status(&self) -> StatusResponse {
         self.state.handle_status(self.render_options)
+    }
+
+    pub(crate) fn is_shutdown_requested(&self) -> bool {
+        self.state.is_shutdown_requested()
     }
 
     pub(crate) fn shutdown(mut self) {
@@ -470,17 +511,17 @@ impl<E: DaemonEndpoint> DaemonHost<E> {
     }
 }
 
-impl<E: DaemonEndpoint> Drop for DaemonHost<E> {
+impl<E: HostEndpoint> Drop for ArchitectureHost<E> {
     fn drop(&mut self) {
         self.cleanup();
     }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct PlatformDaemonBinder;
+pub(crate) struct PlatformHostBinder;
 
 #[derive(Debug)]
-pub(crate) enum PlatformDaemonEndpoint {
+pub(crate) enum PlatformHostEndpoint {
     #[cfg(unix)]
     UnixSocket {
         path: PathBuf,
@@ -492,52 +533,52 @@ pub(crate) enum PlatformDaemonEndpoint {
     },
 }
 
-impl DaemonTransportBinder for PlatformDaemonBinder {
-    type Endpoint = PlatformDaemonEndpoint;
+impl HostTransportBinder for PlatformHostBinder {
+    type Endpoint = PlatformHostEndpoint;
 
     fn bind(
         &self,
-        metadata: &DaemonMetadata,
-        state: SharedDaemonState,
-        render_options: DaemonRenderOptions,
+        metadata: &HostMetadata,
+        state: SharedHostState,
+        render_options: HostRenderOptions,
     ) -> Result<Self::Endpoint> {
         match &metadata.transport {
             #[cfg(unix)]
-            DaemonTransport::UnixSocket { path } => {
+            HostTransport::UnixSocket { path } => {
                 if let Some(parent) = path.parent() {
                     std::fs::create_dir_all(parent)
                         .with_context(|| format!("failed to create {}", parent.display()))?;
                 }
                 remove_file_if_exists(path)?;
                 let listener = std::os::unix::net::UnixListener::bind(path).with_context(|| {
-                    format!("failed to bind unix daemon socket {}", path.display())
+                    format!("failed to bind unix host socket {}", path.display())
                 })?;
                 let shutdown = Arc::new(AtomicBool::new(false));
-                let thread = Some(spawn_unix_daemon_server(
+                let thread = Some(spawn_unix_host_server(
                     listener,
                     state,
                     render_options,
                     Arc::clone(&shutdown),
                 ));
-                Ok(PlatformDaemonEndpoint::UnixSocket {
+                Ok(PlatformHostEndpoint::UnixSocket {
                     path: path.clone(),
                     shutdown,
                     thread,
                 })
             }
             #[cfg(not(unix))]
-            DaemonTransport::UnixSocket { path } => bail!(
-                "unix socket daemon transport is unavailable on this platform: {}",
+            HostTransport::UnixSocket { path } => bail!(
+                "unix socket host transport is unavailable on this platform: {}",
                 path.display()
             ),
-            DaemonTransport::NamedPipe { name } => Ok(PlatformDaemonEndpoint::NamedPipe {
+            HostTransport::NamedPipe { name } => Ok(PlatformHostEndpoint::NamedPipe {
                 _name: name.clone(),
             }),
         }
     }
 }
 
-impl DaemonEndpoint for PlatformDaemonEndpoint {
+impl HostEndpoint for PlatformHostEndpoint {
     fn cleanup(&mut self) -> Result<()> {
         match self {
             #[cfg(unix)]
@@ -560,17 +601,17 @@ impl DaemonEndpoint for PlatformDaemonEndpoint {
 
 pub(crate) fn try_request_check(
     repo_root: &Path,
-    render_options: DaemonRenderOptions,
-) -> DaemonCheckResult {
+    render_options: HostRenderOptions,
+) -> HostCheckResult {
     let loaded = match load_metadata_for_repo(repo_root) {
         Ok(Some(metadata)) => metadata,
         Ok(None) => {
-            return DaemonCheckResult::RetryLocally {
-                reason: "no daemon metadata found".to_string(),
+            return HostCheckResult::RetryLocally {
+                reason: "no host metadata found".to_string(),
             };
         }
         Err(error) => {
-            return DaemonCheckResult::RetryLocally {
+            return HostCheckResult::RetryLocally {
                 reason: format!("{error:#}"),
             };
         }
@@ -578,22 +619,22 @@ pub(crate) fn try_request_check(
 
     match send_request(
         &loaded.metadata,
-        &DaemonRequest::Check {
+        &HostRequest::Check {
             wait_for_fresh: true,
             verbose: render_options.verbose,
             timings: render_options.timings,
             no_color: true,
         },
     ) {
-        Ok(DaemonResponse::Check(response)) => DaemonCheckResult::Reused(response),
-        Ok(DaemonResponse::Error {
+        Ok(HostResponse::Check(response)) => HostCheckResult::Reused(response),
+        Ok(HostResponse::Error {
             retry_locally,
             message,
-        }) if retry_locally => DaemonCheckResult::RetryLocally { reason: message },
-        Ok(other) => DaemonCheckResult::RetryLocally {
-            reason: format!("unexpected daemon response: {other:?}"),
+        }) if retry_locally => HostCheckResult::RetryLocally { reason: message },
+        Ok(other) => HostCheckResult::RetryLocally {
+            reason: format!("unexpected host response: {other:?}"),
         },
-        Err(error) => DaemonCheckResult::RetryLocally {
+        Err(error) => HostCheckResult::RetryLocally {
             reason: stale_cleanup_reason(loaded, error),
         },
     }
@@ -606,52 +647,65 @@ pub(crate) fn try_notify_dirty(repo_root: &Path) -> bool {
     };
 
     matches!(
-        send_request(&loaded.metadata, &DaemonRequest::NotifyDirty),
-        Ok(DaemonResponse::NotifyDirtyAck)
+        send_request(&loaded.metadata, &HostRequest::NotifyDirty),
+        Ok(HostResponse::NotifyDirtyAck)
     )
 }
 
-pub(crate) fn query_status(repo_root: &Path) -> DaemonStatusResult {
+/// Send a shutdown request to an existing host. Returns true if the host acknowledged.
+pub(crate) fn request_shutdown(repo_root: &Path) -> bool {
+    let loaded = match load_metadata_for_repo(repo_root) {
+        Ok(Some(metadata)) => metadata,
+        _ => return false,
+    };
+
+    matches!(
+        send_request(&loaded.metadata, &HostRequest::Shutdown),
+        Ok(HostResponse::ShuttingDown)
+    )
+}
+
+pub(crate) fn query_status(repo_root: &Path) -> HostStatusResult {
     let loaded = match load_metadata_for_repo(repo_root) {
         Ok(Some(metadata)) => metadata,
         Ok(None) => {
-            return DaemonStatusResult::Unavailable {
-                reason: "no warm boundaries daemon for this worktree".to_string(),
+            return HostStatusResult::Unavailable {
+                reason: "no warm boundaries host for this worktree".to_string(),
             };
         }
         Err(error) => {
-            return DaemonStatusResult::Unavailable {
-                reason: format!("no warm boundaries daemon for this worktree ({error:#})"),
+            return HostStatusResult::Unavailable {
+                reason: format!("no warm boundaries host for this worktree ({error:#})"),
             };
         }
     };
 
-    match send_request(&loaded.metadata, &DaemonRequest::Status) {
-        Ok(DaemonResponse::Status(status)) => DaemonStatusResult::Live(status),
-        Ok(other) => DaemonStatusResult::Unavailable {
+    match send_request(&loaded.metadata, &HostRequest::Status) {
+        Ok(HostResponse::Status(status)) => HostStatusResult::Live(status),
+        Ok(other) => HostStatusResult::Unavailable {
             reason: format!(
-                "no warm boundaries daemon for this worktree (unexpected response: {other:?})"
+                "no warm boundaries host for this worktree (unexpected response: {other:?})"
             ),
         },
-        Err(error) => DaemonStatusResult::Unavailable {
+        Err(error) => HostStatusResult::Unavailable {
             reason: format!(
-                "no warm boundaries daemon for this worktree ({})",
+                "no warm boundaries host for this worktree ({})",
                 stale_cleanup_reason(loaded, error)
             ),
         },
     }
 }
 
-fn daemon_worktree_dir(repo_root: &Path, worktree_id: &str) -> PathBuf {
+fn host_worktree_dir(repo_root: &Path, worktree_id: &str) -> PathBuf {
     repo_root
         .join(WORKTREE_TARGET_DIR)
         .join(XTASK_TARGET_DIR)
         .join(worktree_id)
 }
 
-fn load_metadata_for_repo(repo_root: &Path) -> Result<Option<LoadedDaemonMetadata>> {
-    let discovery_root = daemon_discovery_root(repo_root);
-    let metadata_path = DaemonMetadata::for_repo(&discovery_root).metadata_path();
+fn load_metadata_for_repo(repo_root: &Path) -> Result<Option<LoadedHostMetadata>> {
+    let discovery_root = host_discovery_root(repo_root);
+    let metadata_path = HostMetadata::for_repo(&discovery_root).metadata_path();
     let json = match std::fs::read_to_string(&metadata_path) {
         Ok(json) => json,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -661,57 +715,56 @@ fn load_metadata_for_repo(repo_root: &Path) -> Result<Option<LoadedDaemonMetadat
         }
     };
 
-    let metadata: DaemonMetadata = serde_json::from_str(&json)
-        .with_context(|| {
-            format!(
-                "failed to parse daemon metadata {}",
-                metadata_path.display()
-            )
-        })
+    let metadata: HostMetadata = serde_json::from_str(&json)
+        .with_context(|| format!("failed to parse host metadata {}", metadata_path.display()))
         .map_err(|error| cleanup_invalid_metadata(&metadata_path, error))?;
     metadata
         .validate_for_repo(&discovery_root)
         .map_err(|error| cleanup_invalid_metadata(&metadata_path, error))?;
-    Ok(Some(LoadedDaemonMetadata {
+    if !is_pid_alive(metadata.pid) {
+        let _ = remove_file_if_exists(&metadata_path);
+        return Ok(None);
+    }
+    Ok(Some(LoadedHostMetadata {
         metadata,
         metadata_path,
     }))
 }
 
-fn daemon_discovery_root(repo_root: &Path) -> PathBuf {
-    std::env::var_os(DAEMON_DISCOVERY_ROOT_ENV)
+fn host_discovery_root(repo_root: &Path) -> PathBuf {
+    std::env::var_os(HOST_DISCOVERY_ROOT_ENV)
         .map(PathBuf::from)
         .unwrap_or_else(|| repo_root.to_path_buf())
 }
 
-fn send_request(metadata: &DaemonMetadata, request: &DaemonRequest) -> Result<DaemonResponse> {
+fn send_request(metadata: &HostMetadata, request: &HostRequest) -> Result<HostResponse> {
     match &metadata.transport {
         #[cfg(unix)]
-        DaemonTransport::UnixSocket { path } => send_request_over_unix_socket(path, request),
+        HostTransport::UnixSocket { path } => send_request_over_unix_socket(path, request),
         #[cfg(not(unix))]
-        DaemonTransport::UnixSocket { path } => bail!(
-            "unix socket daemon transport is unavailable on this platform: {}",
+        HostTransport::UnixSocket { path } => bail!(
+            "unix socket host transport is unavailable on this platform: {}",
             path.display()
         ),
-        DaemonTransport::NamedPipe { name } => {
-            bail!("named pipe daemon transport is not yet supported for client reuse: {name}")
+        HostTransport::NamedPipe { name } => {
+            bail!("named pipe host transport is not yet supported for client reuse: {name}")
         }
     }
 }
 
 #[cfg(unix)]
-fn send_request_over_unix_socket(path: &Path, request: &DaemonRequest) -> Result<DaemonResponse> {
+fn send_request_over_unix_socket(path: &Path, request: &HostRequest) -> Result<HostResponse> {
     use std::os::unix::net::UnixStream;
 
     let mut stream = UnixStream::connect(path)
-        .with_context(|| format!("failed to connect to daemon socket {}", path.display()))?;
+        .with_context(|| format!("failed to connect to host socket {}", path.display()))?;
     serde_json::to_writer(&mut stream, request)
-        .with_context(|| format!("failed to write daemon request {}", path.display()))?;
+        .with_context(|| format!("failed to write host request {}", path.display()))?;
     stream
         .shutdown(std::net::Shutdown::Write)
-        .with_context(|| format!("failed to finish daemon request {}", path.display()))?;
+        .with_context(|| format!("failed to finish host request {}", path.display()))?;
     let response = serde_json::from_reader(BufReader::new(stream))
-        .with_context(|| format!("failed to read daemon response {}", path.display()))?;
+        .with_context(|| format!("failed to read host response {}", path.display()))?;
     Ok(response)
 }
 
@@ -719,8 +772,8 @@ fn repo_identity_path(repo_root: &Path) -> PathBuf {
     std::fs::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf())
 }
 
-fn daemon_binary_version() -> String {
-    format!("xtask-boundaries-daemon-v{DAEMON_PROTOCOL_VERSION}")
+fn host_binary_version() -> String {
+    format!("xtask-boundaries-host-v{HOST_PROTOCOL_VERSION}")
 }
 
 fn unix_timestamp_string() -> String {
@@ -730,11 +783,27 @@ fn unix_timestamp_string() -> String {
         .unwrap_or_else(|_| "0".to_owned())
 }
 
-fn write_metadata_file(path: &Path, metadata: &DaemonMetadata) -> Result<()> {
-    let json =
-        serde_json::to_vec_pretty(metadata).context("failed to serialize daemon metadata")?;
+fn write_metadata_file(path: &Path, metadata: &HostMetadata) -> Result<()> {
+    let json = serde_json::to_vec_pretty(metadata).context("failed to serialize host metadata")?;
     std::fs::write(path, json)
-        .with_context(|| format!("failed to write daemon metadata {}", path.display()))
+        .with_context(|| format!("failed to write host metadata {}", path.display()))
+}
+
+fn is_pid_alive(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        std::process::Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|s| s.success())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = pid;
+        true // conservatively assume alive on non-unix
+    }
 }
 
 fn remove_file_if_exists(path: &Path) -> Result<()> {
@@ -750,24 +819,24 @@ fn cleanup_invalid_metadata(metadata_path: &Path, error: anyhow::Error) -> anyho
     error
 }
 
-fn stale_cleanup_reason(loaded: LoadedDaemonMetadata, error: anyhow::Error) -> String {
+fn stale_cleanup_reason(loaded: LoadedHostMetadata, error: anyhow::Error) -> String {
     if should_cleanup_stale_transport(&error) {
         maybe_cleanup_stale_transport(&loaded);
-        format!("{error:#} (removed stale daemon metadata)")
+        format!("{error:#} (removed stale host metadata)")
     } else {
         format!("{error:#}")
     }
 }
 
-fn maybe_cleanup_stale_transport(loaded: &LoadedDaemonMetadata) {
+fn maybe_cleanup_stale_transport(loaded: &LoadedHostMetadata) {
     match &loaded.metadata.transport {
         #[cfg(unix)]
-        DaemonTransport::UnixSocket { path } => {
+        HostTransport::UnixSocket { path } => {
             let _ = remove_file_if_exists(path);
         }
-        DaemonTransport::NamedPipe { .. } => {}
+        HostTransport::NamedPipe { .. } => {}
         #[cfg(not(unix))]
-        DaemonTransport::UnixSocket { .. } => {}
+        HostTransport::UnixSocket { .. } => {}
     }
     let _ = remove_file_if_exists(&loaded.metadata_path);
 }
@@ -790,10 +859,10 @@ fn should_cleanup_stale_transport(error: &anyhow::Error) -> bool {
 }
 
 #[cfg(unix)]
-fn spawn_unix_daemon_server(
+fn spawn_unix_host_server(
     listener: std::os::unix::net::UnixListener,
-    state: SharedDaemonState,
-    render_options: DaemonRenderOptions,
+    state: SharedHostState,
+    render_options: HostRenderOptions,
     shutdown: Arc<AtomicBool>,
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
@@ -819,43 +888,44 @@ fn spawn_unix_daemon_server(
 #[cfg(unix)]
 fn handle_unix_client(
     mut stream: std::os::unix::net::UnixStream,
-    state: &SharedDaemonState,
-    render_options: DaemonRenderOptions,
+    state: &SharedHostState,
+    render_options: HostRenderOptions,
 ) -> Result<()> {
-    let request: DaemonRequest = serde_json::from_reader(BufReader::new(
+    let request: HostRequest = serde_json::from_reader(BufReader::new(
         stream
             .try_clone()
-            .context("failed to clone daemon stream for request read")?,
+            .context("failed to clone host stream for request read")?,
     ))
-    .context("failed to decode daemon request")?;
+    .context("failed to decode host request")?;
     let response = state.handle_request(request, render_options);
-    serde_json::to_writer(&mut stream, &response).context("failed to encode daemon response")?;
-    stream.flush().context("failed to flush daemon response")
+    serde_json::to_writer(&mut stream, &response).context("failed to encode host response")?;
+    stream.flush().context("failed to flush host response")
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::Path;
-    use std::sync::mpsc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, mpsc};
     use std::time::Duration;
 
     use super::{
-        DaemonFreshness, DaemonMetadata, DaemonRenderOptions, DaemonRequest, DaemonResponse,
-        DaemonTransport, SharedDaemonState,
+        HostFreshness, HostMetadata, HostRenderOptions, HostRequest, HostResponse, HostTransport,
+        SharedHostState,
     };
     use crate::architecture::boundaries::BoundariesRunReport;
 
-    fn render_options() -> DaemonRenderOptions {
-        DaemonRenderOptions {
+    fn render_options() -> HostRenderOptions {
+        HostRenderOptions {
             verbose: false,
             timings: false,
         }
     }
 
     #[test]
-    fn daemon_metadata_uses_worktree_specific_target_xtask_paths() {
+    fn host_metadata_uses_worktree_specific_target_xtask_paths() {
         let repo_root = Path::new("/tmp/example-repo/worktrees/feature-a");
-        let metadata = DaemonMetadata::for_repo(repo_root);
+        let metadata = HostMetadata::for_repo(repo_root);
         assert_eq!(metadata.repo_root, repo_root);
         assert!(!metadata.worktree_id.is_empty());
         assert_eq!(
@@ -864,56 +934,56 @@ mod tests {
                 .join("target")
                 .join("xtask")
                 .join(&metadata.worktree_id)
-                .join("boundaries-daemon.json")
+                .join("architecture-host.json")
         );
         match &metadata.transport {
-            DaemonTransport::UnixSocket { path } => assert_eq!(
+            HostTransport::UnixSocket { path } => assert_eq!(
                 path,
                 &repo_root
                     .join("target")
                     .join("xtask")
                     .join(&metadata.worktree_id)
-                    .join("boundaries.sock")
+                    .join("architecture.sock")
             ),
-            DaemonTransport::NamedPipe { name } => {
+            HostTransport::NamedPipe { name } => {
                 assert!(name.contains(&metadata.worktree_id));
             }
         }
     }
 
     #[test]
-    fn different_worktrees_do_not_share_daemon_identity() {
-        let left = DaemonMetadata::for_repo(Path::new("/tmp/example-repo/worktrees/feature-a"));
-        let right = DaemonMetadata::for_repo(Path::new("/tmp/example-repo/worktrees/feature-b"));
+    fn different_worktrees_do_not_share_host_identity() {
+        let left = HostMetadata::for_repo(Path::new("/tmp/example-repo/worktrees/feature-a"));
+        let right = HostMetadata::for_repo(Path::new("/tmp/example-repo/worktrees/feature-b"));
         assert_ne!(left.worktree_id, right.worktree_id);
     }
 
     #[test]
-    fn daemon_request_round_trips_through_json() {
-        let request = DaemonRequest::Check {
+    fn host_request_round_trips_through_json() {
+        let request = HostRequest::Check {
             wait_for_fresh: true,
             verbose: false,
             timings: true,
             no_color: true,
         };
         let json = serde_json::to_string(&request).unwrap();
-        let decoded: DaemonRequest = serde_json::from_str(&json).unwrap();
+        let decoded: HostRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, request);
     }
 
     #[test]
-    fn daemon_metadata_round_trips_through_json() {
-        let metadata = DaemonMetadata::for_repo(Path::new("/tmp/example-repo/worktrees/feature-a"));
+    fn host_metadata_round_trips_through_json() {
+        let metadata = HostMetadata::for_repo(Path::new("/tmp/example-repo/worktrees/feature-a"));
         let json = serde_json::to_string(&metadata).unwrap();
-        let decoded: DaemonMetadata = serde_json::from_str(&json).unwrap();
+        let decoded: HostMetadata = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, metadata);
     }
 
     #[test]
     fn stale_or_mismatched_metadata_is_rejected() {
-        let metadata = DaemonMetadata {
+        let metadata = HostMetadata {
             protocol_version: 99,
-            ..DaemonMetadata::for_repo(Path::new("/tmp/example-repo"))
+            ..HostMetadata::for_repo(Path::new("/tmp/example-repo"))
         };
         assert!(
             metadata
@@ -923,15 +993,15 @@ mod tests {
     }
 
     #[test]
-    fn check_request_waits_for_rerun_when_daemon_is_dirty() {
-        let daemon = SharedDaemonState::default();
-        daemon.note_dirty();
-        let waiting_daemon = daemon.clone();
+    fn check_request_waits_for_rerun_when_host_is_dirty() {
+        let host = SharedHostState::default();
+        host.note_dirty();
+        let waiting_host = host.clone();
         let (sender, receiver) = mpsc::channel();
 
         let waiting_thread = std::thread::spawn(move || {
-            let response = waiting_daemon.handle_request(
-                DaemonRequest::Check {
+            let response = waiting_host.handle_request(
+                HostRequest::Check {
                     wait_for_fresh: true,
                     verbose: false,
                     timings: false,
@@ -943,14 +1013,14 @@ mod tests {
         });
 
         std::thread::sleep(Duration::from_millis(20));
-        daemon.complete_run(failing_report());
+        host.complete_run(failing_report());
 
         let response = receiver.recv_timeout(Duration::from_secs(1)).unwrap();
         waiting_thread.join().unwrap();
 
         match response {
-            DaemonResponse::Check(check) => {
-                assert_eq!(check.freshness, DaemonFreshness::IdleFailed);
+            HostResponse::Check(check) => {
+                assert_eq!(check.freshness, HostFreshness::IdleFailed);
                 assert!(!check.success);
                 assert_eq!(
                     check.summary.as_deref(),
@@ -963,13 +1033,13 @@ mod tests {
 
     #[test]
     fn status_request_reports_generation_and_last_outcome() {
-        let daemon = SharedDaemonState::default();
-        daemon.begin_run();
-        daemon.complete_run(passing_report());
+        let host = SharedHostState::default();
+        host.begin_run();
+        host.complete_run(passing_report());
 
-        let status = daemon.handle_status(render_options());
+        let status = host.handle_status(render_options());
 
-        assert_eq!(status.freshness, DaemonFreshness::IdleClean);
+        assert_eq!(status.freshness, HostFreshness::IdleClean);
         assert_eq!(status.generation, 1);
         assert_eq!(status.last_success, Some(true));
         assert!(status.last_started_at.is_some());
@@ -979,21 +1049,43 @@ mod tests {
 
     #[test]
     fn notify_dirty_transitions_idle_to_dirty() {
-        let daemon = SharedDaemonState::default();
-        daemon.begin_run();
-        daemon.complete_run(passing_report());
+        let host = SharedHostState::default();
+        host.begin_run();
+        host.complete_run(passing_report());
         assert_eq!(
-            daemon.handle_status(render_options()).freshness,
-            DaemonFreshness::IdleClean
+            host.handle_status(render_options()).freshness,
+            HostFreshness::IdleClean
         );
 
-        let response = daemon.handle_request(DaemonRequest::NotifyDirty, render_options());
+        let response = host.handle_request(HostRequest::NotifyDirty, render_options());
 
-        assert_eq!(response, DaemonResponse::NotifyDirtyAck);
+        assert_eq!(response, HostResponse::NotifyDirtyAck);
         assert_eq!(
-            daemon.handle_status(render_options()).freshness,
-            DaemonFreshness::Dirty
+            host.handle_status(render_options()).freshness,
+            HostFreshness::Dirty
         );
+    }
+
+    #[test]
+    fn shutdown_sets_interrupt_flag() {
+        let interrupt = Arc::new(AtomicBool::new(false));
+        let host = SharedHostState::with_interrupt_flag(Arc::clone(&interrupt));
+
+        let response = host.handle_request(HostRequest::Shutdown, render_options());
+
+        assert_eq!(response, HostResponse::ShuttingDown);
+        assert!(host.is_shutdown_requested());
+        assert!(interrupt.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn shutdown_without_interrupt_flag_still_works() {
+        let host = SharedHostState::default();
+
+        let response = host.handle_request(HostRequest::Shutdown, render_options());
+
+        assert_eq!(response, HostResponse::ShuttingDown);
+        assert!(host.is_shutdown_requested());
     }
 
     fn passing_report() -> BoundariesRunReport {

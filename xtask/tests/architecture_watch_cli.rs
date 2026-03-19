@@ -21,7 +21,7 @@ fn architecture_watch_noninteractive_boundaries_runs_once() {
     fs::write(&temp_path, "version = 1\n[modules]\n").unwrap();
 
     let run = run_xtask(
-        &["architecture", "boundaries", "--watch"],
+        &["architecture", "check", "--watch"],
         &[("SEMANTIC_BOUNDARIES_CONFIG", temp_path.to_str().unwrap())],
     );
 
@@ -45,7 +45,7 @@ fn architecture_watch_noninteractive_preserves_failure_status() {
     fs::write(&temp_path, "version = 2\n").unwrap();
 
     let run = run_xtask(
-        &["architecture", "boundaries", "--watch"],
+        &["architecture", "check", "--watch"],
         &[("SEMANTIC_BOUNDARIES_CONFIG", temp_path.to_str().unwrap())],
     );
 

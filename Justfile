@@ -79,13 +79,13 @@ wasm-build:
 architecture:
     cargo xtask architecture
 
-# Run the semantic boundaries suite.
+# Run the semantic boundaries check.
 boundaries:
-    cargo xtask architecture boundaries
+    cargo xtask architecture check
 
-# Watch semantic boundaries during larger refactors and host the optional warm daemon.
+# Watch semantic boundaries during larger refactors and host results for one-shot reuse.
 boundaries-watch:
-    cargo xtask architecture boundaries --watch
+    cargo xtask architecture host
 
 # Build size-optimized release wasm bindings for browser and bundler targets
 wasm-build-release:

@@ -1,5 +1,5 @@
 pub(crate) mod boundaries;
-pub(crate) mod daemon;
+pub(crate) mod host;
 pub(crate) mod json_output;
 pub(crate) mod watch;
 
@@ -8,25 +8,33 @@ use std::path::{Path, PathBuf};
 use anyhow::{Result, bail};
 
 use self::boundaries::{BoundariesRunReport, SemanticBoundariesSuiteOptions};
-use self::daemon::{DaemonCheckResult, DaemonRenderOptions, DaemonStatusResult};
+use self::host::{HostCheckResult, HostRenderOptions, HostStatusResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ArchitectureSuite {
-    All,
-    Boundaries,
+pub(crate) struct RenderFlags {
+    pub(crate) timings: bool,
+    pub(crate) verbose: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct ArchitectureOptions {
-    pub(crate) suite: ArchitectureSuite,
-    pub(crate) watch: bool,
-    pub(crate) background: bool,
-    pub(crate) notify_dirty: bool,
-    pub(crate) json: bool,
-    pub(crate) timings: bool,
-    pub(crate) verbose: bool,
-    pub(crate) fresh: bool,
-    pub(crate) status: bool,
+pub(crate) enum ArchitectureCommand {
+    Check {
+        render: RenderFlags,
+        notify_dirty: bool,
+        fresh: bool,
+    },
+    CheckWatch {
+        render: RenderFlags,
+    },
+    CheckStatus,
+    CheckJson {
+        render: RenderFlags,
+        notify_dirty: bool,
+        fresh: bool,
+    },
+    Host {
+        render: RenderFlags,
+    },
 }
 
 #[derive(Debug)]
@@ -52,7 +60,7 @@ impl ArchitectureContext {
     }
 }
 
-pub(crate) fn parse_architecture_args<I, S>(args: I) -> Result<ArchitectureOptions>
+pub(crate) fn parse_architecture_args<I, S>(args: I) -> Result<ArchitectureCommand>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
@@ -60,63 +68,58 @@ where
     parse_command_args(args, "architecture")
 }
 
-pub(crate) fn run(options: ArchitectureOptions) -> Result<()> {
-    if options.status {
-        return print_boundaries_daemon_status(ArchitectureContext::new().repo_root());
-    }
-    if options.json {
-        return run_boundaries_json(options);
-    }
-    if options.watch {
-        return watch::run(options, ArchitectureContext::new());
-    }
-
-    let mut context = ArchitectureContext::new();
-    for suite in selected_suites(options.suite) {
-        match suite {
-            ArchitectureSuite::Boundaries => {
-                if let Some(report) = try_run_boundaries_via_daemon(context.repo_root(), options) {
-                    emit_boundaries_report(report)?;
-                } else {
-                    run_suite(
-                        &mut context,
-                        *suite,
-                        options.timings,
-                        options.verbose,
-                        false,
-                    )?;
-                }
-            }
-            ArchitectureSuite::All => {
-                run_suite(
-                    &mut context,
-                    *suite,
-                    options.timings,
-                    options.verbose,
-                    false,
-                )?;
+pub(crate) fn run(command: ArchitectureCommand) -> Result<()> {
+    match command {
+        ArchitectureCommand::Check {
+            render,
+            notify_dirty,
+            fresh,
+        } => {
+            let mut context = ArchitectureContext::new();
+            if let Some(report) =
+                try_run_boundaries_via_host(context.repo_root(), render, notify_dirty, fresh, false)
+            {
+                emit_boundaries_report(report)
+            } else {
+                run_boundaries(&mut context, render.timings, render.verbose, false)
             }
         }
+        ArchitectureCommand::CheckWatch { render } => {
+            watch::run_watch(render, ArchitectureContext::new())
+        }
+        ArchitectureCommand::CheckStatus => {
+            print_boundaries_host_status(ArchitectureContext::new().repo_root())
+        }
+        ArchitectureCommand::CheckJson {
+            render,
+            notify_dirty,
+            fresh,
+        } => run_boundaries_json(render, notify_dirty, fresh),
+        ArchitectureCommand::Host { render } => watch::run_host(render, ArchitectureContext::new()),
     }
-    Ok(())
 }
 
-pub(crate) fn run_boundaries_report(options: ArchitectureOptions) -> Result<BoundariesRunReport> {
+pub(crate) fn run_boundaries_report(
+    render: RenderFlags,
+    notify_dirty: bool,
+    fresh: bool,
+    json: bool,
+) -> Result<BoundariesRunReport> {
     let context = ArchitectureContext::new();
     let repo_root = context.repo_root().to_path_buf();
 
-    match try_run_boundaries_via_daemon(&repo_root, options) {
+    match try_run_boundaries_via_host(&repo_root, render, notify_dirty, fresh, json) {
         Some(report) => Ok(report),
         None => {
             let mut context = ArchitectureContext::new();
-            run_boundaries_watch_report(&mut context, options)
+            run_boundaries_watch_report(&mut context, render)
         }
     }
 }
 
-fn run_boundaries_json(options: ArchitectureOptions) -> Result<()> {
+fn run_boundaries_json(render: RenderFlags, notify_dirty: bool, fresh: bool) -> Result<()> {
     let repo_root = ArchitectureContext::new().repo_root().to_path_buf();
-    let report = run_boundaries_report(options)?;
+    let report = run_boundaries_report(render, notify_dirty, fresh, true)?;
 
     json_output::emit_violations_json(&report.violations, &repo_root)
         .map_err(|e| anyhow::anyhow!("failed to emit JSON violations: {e}"))?;
@@ -128,67 +131,69 @@ fn run_boundaries_json(options: ArchitectureOptions) -> Result<()> {
 
 pub(crate) fn help_text() -> &'static str {
     "\
-cargo xtask architecture [suite] [options]
+cargo xtask architecture [subcommand] [options]
 
-Suites:
-    boundaries    Run the semantic module dependency guard
+Run the semantic module dependency guard.
 
-Options:
+Subcommands:
+    check            One-shot boundaries check (default if no subcommand)
+    host             Run check, then watch and host results for one-shot reuse
+
+Check options:
+    --watch, -w      Rerun boundaries when files change (interactive, requires TTY)
+    --status         Print warm host status for this worktree
+    --fresh          Run the local boundaries check and bypass host reuse
+    --json           Output cargo-compatible JSON diagnostics (for IDE integration)
+    --notify-dirty   Tell the host to mark itself dirty before checking (for hooks)
     --timings, -t    Print phase timing breakdown
-    --verbose, -v    Print verbose suite diagnostics and debug context
-    --fresh          Run the local boundaries check and bypass daemon reuse
-    --status         Print warm-daemon status for this worktree
-    --watch, -w      Rerun the selected suite when files change
-    --background     Run watch mode without requiring a terminal (for hooks/daemons)
-    --notify-dirty   Tell the daemon to mark itself dirty before checking (for hooks)
-    --json           Output cargo-compatible JSON diagnostics (for IDE integration)"
+    --verbose, -v    Print verbose diagnostics and debug context
+
+Host options:
+    --timings, -t    Print phase timing breakdown
+    --verbose, -v    Print verbose diagnostics and debug context"
 }
 
 pub(crate) fn run_boundaries_watch_report(
     context: &mut ArchitectureContext,
-    options: ArchitectureOptions,
+    render: RenderFlags,
 ) -> Result<boundaries::BoundariesRunReport> {
     boundaries::run_with_context_report(
         &mut context.boundaries,
         SemanticBoundariesSuiteOptions {
-            timings: options.timings,
+            timings: render.timings,
             quiet: true,
-            verbose: options.verbose,
+            verbose: render.verbose,
         },
     )
 }
 
-pub(crate) fn suite_name(suite: ArchitectureSuite) -> &'static str {
-    match suite {
-        ArchitectureSuite::All => "architecture",
-        ArchitectureSuite::Boundaries => "boundaries",
-    }
-}
-
-fn try_run_boundaries_via_daemon(
+fn try_run_boundaries_via_host(
     repo_root: &Path,
-    options: ArchitectureOptions,
+    render: RenderFlags,
+    notify_dirty: bool,
+    fresh: bool,
+    json: bool,
 ) -> Option<BoundariesRunReport> {
-    if options.fresh {
-        if !options.json {
+    if fresh {
+        if !json {
             eprintln!("running local boundaries check (--fresh)");
         }
         return None;
     }
 
-    if options.notify_dirty {
-        daemon::try_notify_dirty(repo_root);
+    if notify_dirty {
+        host::try_notify_dirty(repo_root);
     }
 
-    let render_options = DaemonRenderOptions {
-        verbose: options.verbose,
-        timings: options.timings,
+    let render_options = HostRenderOptions {
+        verbose: render.verbose,
+        timings: render.timings,
     };
-    match daemon::try_request_check(repo_root, render_options) {
-        DaemonCheckResult::Reused(response) => {
-            if options.verbose && !options.json {
+    match host::try_request_check(repo_root, render_options) {
+        HostCheckResult::Reused(response) => {
+            if render.verbose && !json {
                 eprintln!(
-                    "[daemon] reused warm boundaries daemon (generation {}, freshness {:?})",
+                    "[host] reused warm boundaries host (generation {}, freshness {:?})",
                     response.generation, response.freshness
                 );
             }
@@ -200,9 +205,9 @@ fn try_run_boundaries_via_daemon(
                 violations: response.violations,
             })
         }
-        DaemonCheckResult::RetryLocally { reason } => {
-            if options.verbose && !options.json {
-                eprintln!("[daemon] falling back to local boundaries run: {reason}");
+        HostCheckResult::RetryLocally { reason } => {
+            if render.verbose && !json {
+                eprintln!("[host] falling back to local boundaries run: {reason}");
             }
             None
         }
@@ -225,11 +230,11 @@ fn emit_boundaries_report(report: BoundariesRunReport) -> Result<()> {
     )
 }
 
-fn print_boundaries_daemon_status(repo_root: &Path) -> Result<()> {
-    match daemon::query_status(repo_root) {
-        DaemonStatusResult::Live(status) => {
+fn print_boundaries_host_status(repo_root: &Path) -> Result<()> {
+    match host::query_status(repo_root) {
+        HostStatusResult::Live(status) => {
             eprintln!(
-                "warm boundaries daemon: freshness={:?}, generation={}, verbose={}, timings={}",
+                "warm boundaries host: freshness={:?}, generation={}, verbose={}, timings={}",
                 status.freshness,
                 status.generation,
                 status.render_options.verbose,
@@ -242,41 +247,27 @@ fn print_boundaries_daemon_status(repo_root: &Path) -> Result<()> {
                 eprintln!("last_finished_at={last_finished_at}");
             }
         }
-        DaemonStatusResult::Unavailable { reason } => {
+        HostStatusResult::Unavailable { reason } => {
             eprintln!("{reason}");
         }
     }
     Ok(())
 }
 
-pub(crate) fn selected_suites(selection: ArchitectureSuite) -> &'static [ArchitectureSuite] {
-    const ALL_SUITES: [ArchitectureSuite; 1] = [ArchitectureSuite::Boundaries];
-    const BOUNDARIES_ONLY: [ArchitectureSuite; 1] = [ArchitectureSuite::Boundaries];
-
-    match selection {
-        ArchitectureSuite::All => &ALL_SUITES,
-        ArchitectureSuite::Boundaries => &BOUNDARIES_ONLY,
-    }
-}
-
-fn run_suite(
+fn run_boundaries(
     context: &mut ArchitectureContext,
-    suite: ArchitectureSuite,
     timings: bool,
     verbose: bool,
-    quiet_boundaries: bool,
+    quiet: bool,
 ) -> Result<()> {
-    match suite {
-        ArchitectureSuite::All => unreachable!("run_suite only accepts concrete suites"),
-        ArchitectureSuite::Boundaries => boundaries::run_with_context(
-            &mut context.boundaries,
-            SemanticBoundariesSuiteOptions {
-                timings,
-                quiet: quiet_boundaries,
-                verbose,
-            },
-        ),
-    }
+    boundaries::run_with_context(
+        &mut context.boundaries,
+        SemanticBoundariesSuiteOptions {
+            timings,
+            quiet,
+            verbose,
+        },
+    )
 }
 
 fn repo_root() -> PathBuf {
@@ -286,7 +277,7 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn parse_command_args<I, S>(args: I, expected_command: &str) -> Result<ArchitectureOptions>
+fn parse_command_args<I, S>(args: I, expected_command: &str) -> Result<ArchitectureCommand>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
@@ -302,183 +293,289 @@ where
         None => bail!("missing `cargo xtask {expected_command}` invocation"),
     }
 
-    let mut options = ArchitectureOptions {
-        suite: ArchitectureSuite::All,
-        watch: false,
-        background: false,
-        notify_dirty: false,
-        json: false,
-        timings: false,
-        verbose: false,
-        fresh: false,
-        status: false,
-    };
-    let mut suite_selected = false;
+    let mut subcommand: Option<&str> = None;
+    let mut watch = false;
+    let mut notify_dirty = false;
+    let mut json = false;
+    let mut timings = false;
+    let mut verbose = false;
+    let mut fresh = false;
+    let mut status = false;
 
-    for arg in args {
-        let arg = arg.as_ref();
+    let args_collected: Vec<String> = args.map(|s| s.as_ref().to_string()).collect();
+
+    for arg in &args_collected {
+        let arg = arg.as_str();
         match arg {
-            "boundaries" => set_suite(
-                &mut options,
-                &mut suite_selected,
-                ArchitectureSuite::Boundaries,
-                arg,
-            )?,
-            "--watch" | "-w" => options.watch = true,
-            "--background" => options.background = true,
-            "--notify-dirty" => options.notify_dirty = true,
-            "--json" => options.json = true,
-            "--timings" | "-t" => options.timings = true,
-            "--verbose" | "-v" => options.verbose = true,
-            "--fresh" => options.fresh = true,
-            "--status" => options.status = true,
+            "check" => {
+                if subcommand.is_some() {
+                    bail!("multiple subcommands provided; unexpected `{arg}`");
+                }
+                subcommand = Some("check");
+            }
+            "host" => {
+                if subcommand.is_some() {
+                    bail!("multiple subcommands provided; unexpected `{arg}`");
+                }
+                subcommand = Some("host");
+            }
+            "--watch" | "-w" => watch = true,
+            "--notify-dirty" => notify_dirty = true,
+            "--json" => json = true,
+            "--timings" | "-t" => timings = true,
+            "--verbose" | "-v" => verbose = true,
+            "--fresh" => fresh = true,
+            "--status" => status = true,
             other => bail!("unknown `cargo xtask {expected_command}` argument `{other}`"),
         }
     }
 
-    if options.background {
-        options.watch = true;
-    }
-    if options.json && options.watch {
-        bail!("`--json` cannot be combined with `--watch`");
-    }
-    if options.json && options.status {
-        bail!("`--json` cannot be combined with `--status`");
-    }
-    if options.watch && options.status {
-        bail!("`--status` cannot be combined with `--watch`");
-    }
-    if options.fresh && options.status {
-        bail!("`--fresh` cannot be combined with `--status`");
-    }
+    let render = RenderFlags { timings, verbose };
 
-    Ok(options)
-}
-
-fn set_suite(
-    options: &mut ArchitectureOptions,
-    suite_selected: &mut bool,
-    suite: ArchitectureSuite,
-    arg: &str,
-) -> Result<()> {
-    if *suite_selected {
-        bail!("multiple architecture suites provided; unexpected `{arg}`");
+    match subcommand {
+        Some("host") => {
+            if watch {
+                bail!("`host` subcommand cannot be combined with `--watch` (host implies watch)");
+            }
+            if status {
+                bail!("`host` subcommand cannot be combined with `--status`");
+            }
+            if json {
+                bail!("`host` subcommand cannot be combined with `--json`");
+            }
+            if fresh {
+                bail!("`host` subcommand cannot be combined with `--fresh`");
+            }
+            if notify_dirty {
+                bail!("`host` subcommand cannot be combined with `--notify-dirty`");
+            }
+            Ok(ArchitectureCommand::Host { render })
+        }
+        Some("check") | None => {
+            // "check" is the default subcommand
+            if status {
+                if watch || json || fresh || notify_dirty {
+                    bail!("`--status` cannot be combined with other check flags");
+                }
+                return Ok(ArchitectureCommand::CheckStatus);
+            }
+            if watch {
+                if json {
+                    bail!("`--json` cannot be combined with `--watch`");
+                }
+                if fresh {
+                    bail!("`--fresh` cannot be combined with `--watch`");
+                }
+                return Ok(ArchitectureCommand::CheckWatch { render });
+            }
+            if json {
+                return Ok(ArchitectureCommand::CheckJson {
+                    render,
+                    notify_dirty,
+                    fresh,
+                });
+            }
+            Ok(ArchitectureCommand::Check {
+                render,
+                notify_dirty,
+                fresh,
+            })
+        }
+        Some(other) => bail!("unknown subcommand `{other}`"),
     }
-
-    options.suite = suite;
-    *suite_selected = true;
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ArchitectureOptions, ArchitectureSuite, parse_architecture_args};
+    use super::{ArchitectureCommand, RenderFlags, parse_architecture_args};
 
-    const DEFAULT_OPTIONS: ArchitectureOptions = ArchitectureOptions {
-        suite: ArchitectureSuite::All,
-        watch: false,
-        background: false,
-        notify_dirty: false,
-        json: false,
+    const DEFAULT_RENDER: RenderFlags = RenderFlags {
         timings: false,
         verbose: false,
-        fresh: false,
-        status: false,
     };
 
     #[test]
-    fn architecture_defaults_to_all_suites() {
-        let parsed = parse_architecture_args(["architecture"]).unwrap();
-        assert_eq!(parsed, DEFAULT_OPTIONS);
-    }
-
-    #[test]
-    fn architecture_accepts_named_suites_and_flags() {
-        let parsed = parse_architecture_args(["architecture", "boundaries", "--timings"]).unwrap();
+    fn default_is_check() {
+        let cmd = parse_architecture_args(["architecture"]).unwrap();
         assert_eq!(
-            parsed,
-            ArchitectureOptions {
-                suite: ArchitectureSuite::Boundaries,
-                timings: true,
-                ..DEFAULT_OPTIONS
+            cmd,
+            ArchitectureCommand::Check {
+                render: DEFAULT_RENDER,
+                notify_dirty: false,
+                fresh: false,
             }
         );
     }
 
     #[test]
-    fn architecture_accepts_verbose_flag() {
-        let parsed = parse_architecture_args(["architecture", "boundaries", "--verbose"]).unwrap();
+    fn explicit_check_subcommand() {
+        let cmd = parse_architecture_args(["architecture", "check"]).unwrap();
         assert_eq!(
-            parsed,
-            ArchitectureOptions {
-                suite: ArchitectureSuite::Boundaries,
-                verbose: true,
-                ..DEFAULT_OPTIONS
+            cmd,
+            ArchitectureCommand::Check {
+                render: DEFAULT_RENDER,
+                notify_dirty: false,
+                fresh: false,
             }
         );
     }
 
     #[test]
-    fn architecture_accepts_fresh_and_status_flags() {
-        let parsed = parse_architecture_args(["architecture", "boundaries", "--fresh"]).unwrap();
+    fn check_with_timings() {
+        let cmd = parse_architecture_args(["architecture", "check", "--timings"]).unwrap();
         assert_eq!(
-            parsed,
-            ArchitectureOptions {
-                suite: ArchitectureSuite::Boundaries,
+            cmd,
+            ArchitectureCommand::Check {
+                render: RenderFlags {
+                    timings: true,
+                    verbose: false,
+                },
+                notify_dirty: false,
+                fresh: false,
+            }
+        );
+    }
+
+    #[test]
+    fn check_with_fresh() {
+        let cmd = parse_architecture_args(["architecture", "--fresh"]).unwrap();
+        assert_eq!(
+            cmd,
+            ArchitectureCommand::Check {
+                render: DEFAULT_RENDER,
+                notify_dirty: false,
                 fresh: true,
-                ..DEFAULT_OPTIONS
             }
         );
+    }
 
-        let parsed = parse_architecture_args(["architecture", "boundaries", "--status"]).unwrap();
+    #[test]
+    fn check_with_status() {
+        let cmd = parse_architecture_args(["architecture", "--status"]).unwrap();
+        assert_eq!(cmd, ArchitectureCommand::CheckStatus);
+    }
+
+    #[test]
+    fn check_with_watch() {
+        let cmd = parse_architecture_args(["architecture", "--watch"]).unwrap();
         assert_eq!(
-            parsed,
-            ArchitectureOptions {
-                suite: ArchitectureSuite::Boundaries,
-                status: true,
-                ..DEFAULT_OPTIONS
+            cmd,
+            ArchitectureCommand::CheckWatch {
+                render: DEFAULT_RENDER,
             }
         );
     }
 
     #[test]
-    fn architecture_accepts_json_flag() {
-        let parsed = parse_architecture_args(["architecture", "boundaries", "--json"]).unwrap();
+    fn check_watch_with_verbose() {
+        let cmd =
+            parse_architecture_args(["architecture", "check", "--watch", "--verbose"]).unwrap();
         assert_eq!(
-            parsed,
-            ArchitectureOptions {
-                suite: ArchitectureSuite::Boundaries,
-                json: true,
-                ..DEFAULT_OPTIONS
+            cmd,
+            ArchitectureCommand::CheckWatch {
+                render: RenderFlags {
+                    timings: false,
+                    verbose: true,
+                },
             }
         );
     }
 
     #[test]
-    fn architecture_rejects_json_with_watch() {
-        let error = parse_architecture_args(["architecture", "boundaries", "--json", "--watch"])
-            .unwrap_err();
-        assert!(error.to_string().contains("--json"));
+    fn check_with_json() {
+        let cmd = parse_architecture_args(["architecture", "--json"]).unwrap();
+        assert_eq!(
+            cmd,
+            ArchitectureCommand::CheckJson {
+                render: DEFAULT_RENDER,
+                notify_dirty: false,
+                fresh: false,
+            }
+        );
     }
 
     #[test]
-    fn architecture_rejects_json_with_status() {
-        let error = parse_architecture_args(["architecture", "boundaries", "--json", "--status"])
-            .unwrap_err();
-        assert!(error.to_string().contains("--json"));
+    fn host_subcommand() {
+        let cmd = parse_architecture_args(["architecture", "host"]).unwrap();
+        assert_eq!(
+            cmd,
+            ArchitectureCommand::Host {
+                render: DEFAULT_RENDER,
+            }
+        );
     }
 
     #[test]
-    fn architecture_help_omits_retired_structure_suite() {
+    fn host_with_timings_and_verbose() {
+        let cmd =
+            parse_architecture_args(["architecture", "host", "--timings", "--verbose"]).unwrap();
+        assert_eq!(
+            cmd,
+            ArchitectureCommand::Host {
+                render: RenderFlags {
+                    timings: true,
+                    verbose: true,
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn host_rejects_watch() {
+        let err = parse_architecture_args(["architecture", "host", "--watch"]).unwrap_err();
+        assert!(err.to_string().contains("--watch"));
+    }
+
+    #[test]
+    fn host_rejects_status() {
+        let err = parse_architecture_args(["architecture", "host", "--status"]).unwrap_err();
+        assert!(err.to_string().contains("--status"));
+    }
+
+    #[test]
+    fn host_rejects_json() {
+        let err = parse_architecture_args(["architecture", "host", "--json"]).unwrap_err();
+        assert!(err.to_string().contains("--json"));
+    }
+
+    #[test]
+    fn host_rejects_fresh() {
+        let err = parse_architecture_args(["architecture", "host", "--fresh"]).unwrap_err();
+        assert!(err.to_string().contains("--fresh"));
+    }
+
+    #[test]
+    fn json_rejects_watch() {
+        let err = parse_architecture_args(["architecture", "--json", "--watch"]).unwrap_err();
+        assert!(err.to_string().contains("--json"));
+    }
+
+    #[test]
+    fn status_rejects_other_flags() {
+        let err = parse_architecture_args(["architecture", "--status", "--fresh"]).unwrap_err();
+        assert!(err.to_string().contains("--status"));
+    }
+
+    #[test]
+    fn help_text_reflects_new_structure() {
         let help = super::help_text();
-        assert!(!help.contains("surface"));
-        assert!(!help.contains("structure"));
-        assert!(!help.contains("layers"));
+        assert!(help.contains("check"));
+        assert!(help.contains("host"));
+        assert!(!help.contains("--background"));
+        assert!(!help.contains("daemon"));
+        // "boundaries" is fine in descriptions — just not as a subcommand/alias
+        assert!(!help.contains("Aliases"));
     }
 
     #[test]
-    fn architecture_rejects_layers_alias() {
-        let error = parse_architecture_args(["architecture", "layers", "--timings"]).unwrap_err();
-        assert!(error.to_string().contains("unknown"));
+    fn rejects_unknown_args() {
+        let err = parse_architecture_args(["architecture", "layers", "--timings"]).unwrap_err();
+        assert!(err.to_string().contains("unknown"));
+    }
+
+    #[test]
+    fn rejects_background_flag() {
+        let err = parse_architecture_args(["architecture", "--background"]).unwrap_err();
+        assert!(err.to_string().contains("unknown"));
     }
 }

@@ -6,11 +6,11 @@ use std::sync::{Arc, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, thread};
 
-const DAEMON_DISCOVERY_ROOT_ENV: &str = "XTASK_BOUNDARIES_DAEMON_DISCOVERY_ROOT";
+const HOST_DISCOVERY_ROOT_ENV: &str = "XTASK_BOUNDARIES_HOST_DISCOVERY_ROOT";
 const WORKTREE_TARGET_DIR: &str = "target";
 const XTASK_TARGET_DIR: &str = "xtask";
-const DAEMON_METADATA_FILE: &str = "boundaries-daemon.json";
-const DAEMON_SOCKET_FILE: &str = "boundaries.sock";
+const HOST_METADATA_FILE: &str = "architecture-host.json";
+const HOST_SOCKET_FILE: &str = "architecture.sock";
 const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 
@@ -31,13 +31,14 @@ fn architecture_boundaries_emits_timing_headers() {
 }
 
 #[test]
-fn architecture_help_only_mentions_canonical_suites() {
+fn architecture_help_reflects_subcommand_structure() {
     let help = architecture_help_run();
     assert_eq!(help.status_code, 0);
-    assert!(help.output.contains("boundaries"));
-    assert!(!help.output.contains("surface"));
-    assert!(!help.output.contains("structure"));
-    assert!(!help.output.contains("layers"));
+    assert!(help.output.contains("check"));
+    assert!(help.output.contains("host"));
+    assert!(help.output.contains("--notify-dirty"));
+    assert!(!help.output.contains("daemon"));
+    assert!(!help.output.contains("--background"));
 }
 
 #[test]
@@ -48,10 +49,10 @@ fn top_level_layers_command_is_rejected() {
 }
 
 #[test]
-fn boundaries_falls_back_locally_when_no_daemon_is_present() {
-    let harness = BoundariesCliHarness::without_daemon();
+fn boundaries_falls_back_locally_when_no_host_is_present() {
+    let harness = BoundariesCliHarness::without_host();
 
-    let outcome = harness.run(&["architecture", "boundaries"]);
+    let outcome = harness.run(&["architecture", "check"]);
 
     assert_ne!(outcome.status_code, 0);
     assert!(
@@ -63,13 +64,13 @@ fn boundaries_falls_back_locally_when_no_daemon_is_present() {
 
 #[cfg(unix)]
 #[test]
-fn boundaries_uses_daemon_when_metadata_and_protocol_match() {
-    let harness = BoundariesCliHarness::with_live_daemon(DaemonFixture::successful_check());
+fn boundaries_uses_host_when_metadata_and_protocol_match() {
+    let harness = BoundariesCliHarness::with_live_host(HostFixture::successful_check());
 
-    let outcome = harness.run(&["architecture", "boundaries"]);
+    let outcome = harness.run(&["architecture", "check"]);
 
     assert_eq!(outcome.status_code, 0);
-    assert_eq!(harness.daemon_requests(), 1);
+    assert_eq!(harness.host_requests(), 1);
     assert!(
         !outcome
             .output
@@ -81,7 +82,7 @@ fn boundaries_uses_daemon_when_metadata_and_protocol_match() {
 fn boundaries_falls_back_locally_on_protocol_mismatch() {
     let harness = BoundariesCliHarness::with_incompatible_metadata();
 
-    let outcome = harness.run(&["architecture", "boundaries"]);
+    let outcome = harness.run(&["architecture", "check"]);
 
     assert_ne!(outcome.status_code, 0);
     assert!(
@@ -89,14 +90,14 @@ fn boundaries_falls_back_locally_on_protocol_mismatch() {
             .output
             .contains("unsupported semantic boundaries config version 2")
     );
-    assert_eq!(harness.daemon_requests(), 0);
+    assert_eq!(harness.host_requests(), 0);
 }
 
 #[test]
-fn boundaries_ignores_daemon_metadata_from_a_different_worktree() {
+fn boundaries_ignores_host_metadata_from_a_different_worktree() {
     let harness = BoundariesCliHarness::with_foreign_worktree_metadata();
 
-    let outcome = harness.run(&["architecture", "boundaries"]);
+    let outcome = harness.run(&["architecture", "check"]);
 
     assert_ne!(outcome.status_code, 0);
     assert!(
@@ -104,28 +105,28 @@ fn boundaries_ignores_daemon_metadata_from_a_different_worktree() {
             .output
             .contains("unsupported semantic boundaries config version 2")
     );
-    assert_eq!(harness.daemon_requests(), 0);
+    assert_eq!(harness.host_requests(), 0);
 }
 
 #[test]
-fn boundaries_status_reports_when_no_daemon_is_running() {
-    let harness = BoundariesCliHarness::without_daemon();
+fn boundaries_status_reports_when_no_host_is_running() {
+    let harness = BoundariesCliHarness::without_host();
 
-    let outcome = harness.run(&["architecture", "boundaries", "--status"]);
+    let outcome = harness.run(&["architecture", "check", "--status"]);
 
     assert_eq!(outcome.status_code, 0);
-    assert!(outcome.output.contains("no warm boundaries daemon"));
+    assert!(outcome.output.contains("no warm boundaries host"));
 }
 
 #[cfg(unix)]
 #[test]
-fn boundaries_fresh_bypasses_daemon_reuse() {
-    let harness = BoundariesCliHarness::with_live_daemon(DaemonFixture::successful_check());
+fn boundaries_fresh_bypasses_host_reuse() {
+    let harness = BoundariesCliHarness::with_live_host(HostFixture::successful_check());
 
-    let outcome = harness.run(&["architecture", "boundaries", "--fresh", "--verbose"]);
+    let outcome = harness.run(&["architecture", "check", "--fresh", "--verbose"]);
 
     assert_ne!(outcome.status_code, 0);
-    assert_eq!(harness.daemon_requests(), 0);
+    assert_eq!(harness.host_requests(), 0);
     assert!(
         outcome
             .output
@@ -140,18 +141,18 @@ fn boundaries_fresh_bypasses_daemon_reuse() {
 
 #[cfg(unix)]
 #[test]
-fn stale_unix_daemon_metadata_is_removed_after_transport_failure() {
+fn stale_unix_host_metadata_is_removed_after_transport_failure() {
     let harness = BoundariesCliHarness::with_stale_transport_metadata();
 
-    let outcome = harness.run(&["architecture", "boundaries", "--status"]);
+    let outcome = harness.run(&["architecture", "check", "--status"]);
 
     assert_eq!(outcome.status_code, 0);
-    assert!(outcome.output.contains("removed stale daemon metadata"));
+    assert!(outcome.output.contains("removed stale host metadata"));
     assert!(!harness.metadata_path().exists());
 }
 
 fn boundary_suite_run() -> &'static CommandRun {
-    BOUNDARY_SUITE_RUN.get_or_init(|| run_xtask(&["architecture", "boundaries", "--timings"]))
+    BOUNDARY_SUITE_RUN.get_or_init(|| run_xtask(&["architecture", "--timings", "--fresh"]))
 }
 
 fn architecture_help_run() -> &'static CommandRun {
@@ -178,17 +179,17 @@ fn run_xtask(args: &[&str]) -> CommandRun {
 struct BoundariesCliHarness {
     discovery_root: PathBuf,
     config_path: PathBuf,
-    daemon: Option<DaemonFixture>,
+    host: Option<HostFixture>,
 }
 
 impl BoundariesCliHarness {
-    fn without_daemon() -> Self {
+    fn without_host() -> Self {
         Self::new(None, HarnessMode::NoMetadata)
     }
 
     #[cfg(unix)]
-    fn with_live_daemon(daemon: DaemonFixture) -> Self {
-        Self::new(Some(daemon), HarnessMode::LiveDaemon)
+    fn with_live_host(host: HostFixture) -> Self {
+        Self::new(Some(host), HarnessMode::LiveHost)
     }
 
     fn with_incompatible_metadata() -> Self {
@@ -204,23 +205,23 @@ impl BoundariesCliHarness {
         Self::new(None, HarnessMode::StaleTransport)
     }
 
-    fn new(mut daemon: Option<DaemonFixture>, mode: HarnessMode) -> Self {
+    fn new(mut host: Option<HostFixture>, mode: HarnessMode) -> Self {
         let discovery_root = unique_temp_dir("xbd-root");
         let config_path = discovery_root.join("invalid-boundaries.toml");
         fs::create_dir_all(&discovery_root).unwrap();
         fs::write(&config_path, "version = 2\n").unwrap();
 
-        let metadata_path = daemon_metadata_path(&discovery_root);
+        let metadata_path = host_metadata_path(&discovery_root);
         if let Some(parent) = metadata_path.parent() {
             fs::create_dir_all(parent).unwrap();
         }
 
         match mode {
             HarnessMode::NoMetadata => {}
-            HarnessMode::LiveDaemon => {
-                let daemon = daemon.as_mut().expect("live daemon fixture is required");
-                daemon.start_for_discovery_root(&discovery_root);
-                fs::write(&metadata_path, daemon.metadata_json()).unwrap();
+            HarnessMode::LiveHost => {
+                let host = host.as_mut().expect("live host fixture is required");
+                host.start_for_discovery_root(&discovery_root);
+                fs::write(&metadata_path, host.metadata_json()).unwrap();
             }
             HarnessMode::ProtocolMismatch => {
                 fs::write(&metadata_path, incompatible_metadata_json(&discovery_root)).unwrap();
@@ -244,7 +245,7 @@ impl BoundariesCliHarness {
         Self {
             discovery_root,
             config_path,
-            daemon,
+            host,
         }
     }
 
@@ -252,7 +253,7 @@ impl BoundariesCliHarness {
         let mut command = Command::new(env!("CARGO_BIN_EXE_xtask"));
         command.args(args);
         command.env("SEMANTIC_BOUNDARIES_CONFIG", &self.config_path);
-        command.env(DAEMON_DISCOVERY_ROOT_ENV, &self.discovery_root);
+        command.env(HOST_DISCOVERY_ROOT_ENV, &self.discovery_root);
 
         let output = command
             .output()
@@ -268,21 +269,21 @@ impl BoundariesCliHarness {
         }
     }
 
-    fn daemon_requests(&self) -> usize {
-        self.daemon
+    fn host_requests(&self) -> usize {
+        self.host
             .as_ref()
-            .map_or(0, |daemon| daemon.requests.load(Ordering::SeqCst))
+            .map_or(0, |host| host.requests.load(Ordering::SeqCst))
     }
 
     fn metadata_path(&self) -> PathBuf {
-        daemon_metadata_path(&self.discovery_root)
+        host_metadata_path(&self.discovery_root)
     }
 }
 
 impl Drop for BoundariesCliHarness {
     fn drop(&mut self) {
-        if let Some(daemon) = self.daemon.take() {
-            drop(daemon);
+        if let Some(host) = self.host.take() {
+            drop(host);
         }
         let _ = fs::remove_dir_all(&self.discovery_root);
     }
@@ -291,7 +292,7 @@ impl Drop for BoundariesCliHarness {
 #[derive(Debug, Clone, Copy)]
 enum HarnessMode {
     NoMetadata,
-    LiveDaemon,
+    LiveHost,
     ProtocolMismatch,
     ForeignWorktree,
     StaleTransport,
@@ -299,7 +300,7 @@ enum HarnessMode {
 
 #[cfg(unix)]
 #[derive(Debug)]
-struct DaemonFixture {
+struct HostFixture {
     requests: Arc<AtomicUsize>,
     response_json: String,
     socket_path: Option<PathBuf>,
@@ -308,7 +309,7 @@ struct DaemonFixture {
 }
 
 #[cfg(unix)]
-impl DaemonFixture {
+impl HostFixture {
     fn successful_check() -> Self {
         Self::new(
             serde_json::json!({
@@ -338,12 +339,12 @@ impl DaemonFixture {
     }
 
     fn start_for_discovery_root(&mut self, discovery_root: &Path) {
-        let socket_path = daemon_socket_path(discovery_root);
+        let socket_path = host_socket_path(discovery_root);
         if let Some(parent) = socket_path.parent() {
             fs::create_dir_all(parent).unwrap();
         }
 
-        self.thread = Some(start_unix_daemon(
+        self.thread = Some(start_unix_host(
             socket_path.clone(),
             Arc::clone(&self.requests),
             self.response_json.clone(),
@@ -351,7 +352,7 @@ impl DaemonFixture {
         self.socket_path = Some(socket_path.clone());
         self.metadata_json = Some(
             serde_json::json!({
-                "protocol_version": 1,
+                "protocol_version": 3,
                 "repo_root": discovery_root,
                 "worktree_id": worktree_id_for_repo(discovery_root),
                 "transport": {
@@ -361,7 +362,7 @@ impl DaemonFixture {
                 },
                 "pid": std::process::id(),
                 "started_at": "0",
-                "binary_version": "xtask-boundaries-daemon-v1"
+                "binary_version": "xtask-boundaries-host-v3"
             })
             .to_string(),
         );
@@ -370,12 +371,12 @@ impl DaemonFixture {
     fn metadata_json(&self) -> &str {
         self.metadata_json
             .as_deref()
-            .expect("daemon metadata should be configured")
+            .expect("host metadata should be configured")
     }
 }
 
 #[cfg(unix)]
-impl Drop for DaemonFixture {
+impl Drop for HostFixture {
     fn drop(&mut self) {
         if let Some(socket_path) = &self.socket_path {
             #[cfg(unix)]
@@ -392,7 +393,7 @@ impl Drop for DaemonFixture {
 }
 
 #[cfg(unix)]
-fn start_unix_daemon(
+fn start_unix_host(
     socket_path: PathBuf,
     requests: Arc<AtomicUsize>,
     response_json: String,
@@ -422,7 +423,7 @@ fn incompatible_metadata_json(discovery_root: &Path) -> String {
         },
         "pid": std::process::id(),
         "started_at": "0",
-        "binary_version": "xtask-boundaries-daemon-v1"
+        "binary_version": "xtask-boundaries-host-v3"
     })
     .to_string()
 }
@@ -430,7 +431,7 @@ fn incompatible_metadata_json(discovery_root: &Path) -> String {
 fn foreign_worktree_metadata_json(discovery_root: &Path) -> String {
     let foreign_root = discovery_root.join("foreign-worktree");
     serde_json::json!({
-        "protocol_version": 1,
+        "protocol_version": 3,
         "repo_root": foreign_root,
         "worktree_id": worktree_id_for_repo(&foreign_root),
         "transport": {
@@ -438,42 +439,42 @@ fn foreign_worktree_metadata_json(discovery_root: &Path) -> String {
         },
         "pid": std::process::id(),
         "started_at": "0",
-        "binary_version": "xtask-boundaries-daemon-v1"
+        "binary_version": "xtask-boundaries-host-v3"
     })
     .to_string()
 }
 
 fn stale_transport_metadata_json(discovery_root: &Path) -> String {
     serde_json::json!({
-        "protocol_version": 1,
+        "protocol_version": 3,
         "repo_root": discovery_root,
         "worktree_id": worktree_id_for_repo(discovery_root),
         "transport": {
             "UnixSocket": {
-                "path": daemon_socket_path(discovery_root)
+                "path": host_socket_path(discovery_root)
             }
         },
         "pid": std::process::id(),
         "started_at": "0",
-        "binary_version": "xtask-boundaries-daemon-v1"
+        "binary_version": "xtask-boundaries-host-v3"
     })
     .to_string()
 }
 
-fn daemon_metadata_path(discovery_root: &Path) -> PathBuf {
+fn host_metadata_path(discovery_root: &Path) -> PathBuf {
     discovery_root
         .join(WORKTREE_TARGET_DIR)
         .join(XTASK_TARGET_DIR)
         .join(worktree_id_for_repo(discovery_root))
-        .join(DAEMON_METADATA_FILE)
+        .join(HOST_METADATA_FILE)
 }
 
-fn daemon_socket_path(discovery_root: &Path) -> PathBuf {
+fn host_socket_path(discovery_root: &Path) -> PathBuf {
     discovery_root
         .join(WORKTREE_TARGET_DIR)
         .join(XTASK_TARGET_DIR)
         .join(worktree_id_for_repo(discovery_root))
-        .join(DAEMON_SOCKET_FILE)
+        .join(HOST_SOCKET_FILE)
 }
 
 fn transport_key() -> &'static str {
@@ -487,11 +488,11 @@ fn transport_key() -> &'static str {
 fn transport_value(discovery_root: &Path) -> serde_json::Value {
     if cfg!(windows) {
         serde_json::json!({
-            "name": format!(r"\\.\pipe\mmdflux-boundaries-{}", worktree_id_for_repo(discovery_root))
+            "name": format!(r"\\.\pipe\mmdflux-architecture-{}", worktree_id_for_repo(discovery_root))
         })
     } else {
         serde_json::json!({
-            "path": daemon_socket_path(discovery_root)
+            "path": host_socket_path(discovery_root)
         })
     }
 }

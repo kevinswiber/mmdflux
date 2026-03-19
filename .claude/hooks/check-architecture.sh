@@ -1,7 +1,7 @@
 #!/bin/bash
 # Check architecture boundaries after edits to .rs files.
-# Uses the warm daemon if available, falls back to standalone run.
-# --notify-dirty tells the daemon to mark itself dirty before checking,
+# Uses the warm host if available, falls back to standalone run.
+# --notify-dirty tells the host to mark itself dirty before checking,
 # avoiding stale cached results from before the edit.
 # If no watcher is running, restart it in the background for next time.
 # Exit 2 = block the edit (PostToolUse convention).
@@ -31,7 +31,7 @@ if ! $watcher_alive; then
 fi
 
 cd "$CLAUDE_PROJECT_DIR" || exit 0
-output=$(cargo xtask architecture boundaries --notify-dirty 2>&1)
+output=$(cargo xtask architecture check --notify-dirty 2>&1)
 status=$?
 if [ $status -ne 0 ]; then
     echo "$output" >&2

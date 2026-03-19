@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start the architecture watcher daemon if not already running.
+# Start the architecture host if not already running.
 # Can be called from SessionStart hook or from check-architecture.sh as recovery.
 
 cd "$CLAUDE_PROJECT_DIR" || exit 0
@@ -30,9 +30,9 @@ if [ ! -x "$xtask_bin" ]; then
 fi
 
 if [ -x "$xtask_bin" ]; then
-    "$xtask_bin" architecture boundaries --watch --background > "$logfile" 2>&1 &
+    "$xtask_bin" architecture host > "$logfile" 2>&1 &
 else
-    cargo xtask architecture boundaries --watch --background > "$logfile" 2>&1 &
+    cargo xtask architecture host > "$logfile" 2>&1 &
 fi
 echo $! > "$pidfile"
 disown

@@ -9,10 +9,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result, bail};
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 
-use super::{
-    ArchitectureContext, ArchitectureOptions, ArchitectureSuite, daemon,
-    run_boundaries_watch_report, selected_suites, suite_name,
-};
+use super::{ArchitectureContext, RenderFlags, host, run_boundaries_watch_report};
 
 const DEBOUNCE_WINDOW: Duration = Duration::from_millis(350);
 const INTERRUPT_POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -49,38 +46,165 @@ trait WatchRunner {
     fn on_change_burst(&mut self, _paths: &[PathBuf]) {}
 }
 
-pub(crate) fn run(options: ArchitectureOptions, context: ArchitectureContext) -> Result<()> {
-    let mut runner = ArchitectureWatchRunner::new(options, context);
-    if !options.background && !std::io::stdin().is_terminal() {
+/// Interactive watch mode (`check --watch`). Requires TTY; without TTY does a single run.
+/// If an existing host is available, connects as a client. Otherwise falls back to
+/// running locally and becoming the host.
+pub(crate) fn run_watch(render: RenderFlags, context: ArchitectureContext) -> Result<()> {
+    let mut runner = ArchitectureWatchRunner::new(render, context);
+    if !std::io::stdin().is_terminal() {
         return run_noninteractive(&mut runner);
     }
 
-    eprintln!("[watch] architecture ({})", runner.selection_label());
-    eprintln!("[watch] initial run");
+    let repo_root = runner.repo_root().to_path_buf();
+    let render_options = host::HostRenderOptions {
+        verbose: render.verbose,
+        timings: render.timings,
+    };
+
+    // Try to connect to an existing host as a client
+    if host_is_available(&repo_root, render_options) {
+        eprintln!("[watch] connected to existing architecture host");
+        return run_watch_as_client(&repo_root, render_options);
+    }
+
+    // No host available — fall back to becoming the host
+    eprintln!("[watch] no existing host, starting local watch + host");
+    run_interactive(&mut runner, render)
+}
+
+fn host_is_available(repo_root: &Path, render_options: host::HostRenderOptions) -> bool {
+    matches!(
+        host::query_status(repo_root),
+        host::HostStatusResult::Live(status) if status.render_options == render_options
+    )
+}
+
+fn run_watch_as_client(repo_root: &Path, render_options: host::HostRenderOptions) -> Result<()> {
+    let interrupted = Arc::new(AtomicBool::new(false));
+    let mut source = NotifyEventSource::new(repo_root.to_path_buf(), Arc::clone(&interrupted))?;
+    let interrupted_for_handler = Arc::clone(&interrupted);
+    ctrlc::set_handler(move || {
+        interrupted_for_handler.store(true, Ordering::SeqCst);
+    })
+    .context("failed to install Ctrl-C handler for architecture watch mode")?;
+
+    // Initial check via host
+    eprintln!("[watch] initial check via host");
+    let mut run_number = 1usize;
+    let mut last_status = run_client_check(repo_root, render_options, run_number, false);
+
+    loop {
+        eprintln!("[watch] waiting for changes...");
+        let event = source.recv()?;
+        let Some(_changes) = collect_change_burst(&mut source, event, DEBOUNCE_WINDOW)? else {
+            break;
+        };
+        run_number += 1;
+        last_status = run_client_check(repo_root, render_options, run_number, true);
+    }
+
+    if last_status == WatchRunStatus::Passed {
+        Ok(())
+    } else {
+        bail!("last run failed")
+    }
+}
+
+fn run_client_check(
+    repo_root: &Path,
+    render_options: host::HostRenderOptions,
+    run_number: usize,
+    notify_dirty: bool,
+) -> WatchRunStatus {
+    if notify_dirty {
+        host::try_notify_dirty(repo_root);
+    }
+
+    match host::try_request_check(repo_root, render_options) {
+        host::HostCheckResult::Reused(response) => {
+            let verdict = if response.success { "PASS" } else { "FAIL" };
+            eprintln!(
+                "[run {run_number}] {verdict} {:<10} (via host)",
+                "boundaries"
+            );
+            if let Some(timings_output) = &response.timings_output {
+                eprint!("{timings_output}");
+            }
+            if !response.success {
+                eprint!("{}", response.rendered_output);
+                if let Some(summary) = &response.summary {
+                    eprintln!("{summary}");
+                }
+            }
+            if response.success {
+                WatchRunStatus::Passed
+            } else {
+                WatchRunStatus::Failed
+            }
+        }
+        host::HostCheckResult::RetryLocally { reason } => {
+            eprintln!("[run {run_number}] FAIL boundaries  (host unavailable: {reason})");
+            WatchRunStatus::Failed
+        }
+    }
+}
+
+/// Host mode (`host`). Warms up the boundaries context, then takes over from any existing
+/// host so clients experience no latency gap.
+pub(crate) fn run_host(render: RenderFlags, context: ArchitectureContext) -> Result<()> {
+    let repo_root = context.repo_root().to_path_buf();
+    let mut runner = ArchitectureWatchRunner::new(render, context);
+
+    // Warm up before taking over — run boundaries while the old host is still serving.
+    eprintln!("[host] warming up boundaries context...");
+    let warm_result = runner.run_once(1, &[]);
+
+    // Now shut down the old host and take over.
+    if host::request_shutdown(&repo_root) {
+        eprintln!("[host] shut down previous host");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+
+    run_interactive_with_warm_result(&mut runner, render, Some(warm_result))
+}
+
+fn run_interactive(runner: &mut ArchitectureWatchRunner, render: RenderFlags) -> Result<()> {
+    run_interactive_with_warm_result(runner, render, None)
+}
+
+fn run_interactive_with_warm_result(
+    runner: &mut ArchitectureWatchRunner,
+    render: RenderFlags,
+    warm_result: Option<ArchitectureRunOutcome>,
+) -> Result<()> {
+    eprintln!("[watch] architecture (boundaries)");
+    if warm_result.is_none() {
+        eprintln!("[watch] initial run");
+    }
 
     let interrupted = Arc::new(AtomicBool::new(false));
-    let mut source = NotifyEventSource::new(
-        runner.repo_root().to_path_buf(),
-        options.suite,
-        Arc::clone(&interrupted),
-    )?;
+    let mut source =
+        NotifyEventSource::new(runner.repo_root().to_path_buf(), Arc::clone(&interrupted))?;
+    let interrupt_for_host = Arc::clone(&interrupted);
     ctrlc::set_handler(move || {
         interrupted.store(true, Ordering::SeqCst);
     })
     .context("failed to install Ctrl-C handler for architecture watch mode")?;
 
-    let binder = daemon::PlatformDaemonBinder;
+    let binder = host::PlatformHostBinder;
     let repo_root = runner.repo_root().to_path_buf();
-    let render_options = daemon::DaemonRenderOptions {
-        verbose: options.verbose,
-        timings: options.timings,
+    let render_options = host::HostRenderOptions {
+        verbose: render.verbose,
+        timings: render.timings,
     };
-    let outcome = run_architecture_watch_with_daemon(
+    let outcome = run_architecture_watch_with_host(
         &mut source,
-        &mut runner,
+        runner,
         &repo_root,
         &binder,
         render_options,
+        interrupt_for_host,
+        warm_result,
         DEBOUNCE_WINDOW,
     )?;
     if outcome.last_status == WatchRunStatus::Passed {
@@ -97,39 +221,54 @@ fn run_noninteractive<R: WatchRunner>(runner: &mut R) -> Result<()> {
     }
 }
 
-fn run_architecture_watch_with_daemon<S, B>(
+fn run_architecture_watch_with_host<S, B>(
     source: &mut S,
     runner: &mut ArchitectureWatchRunner,
     repo_root: &Path,
     binder: &B,
-    render_options: daemon::DaemonRenderOptions,
+    render_options: host::HostRenderOptions,
+    interrupt_flag: Arc<AtomicBool>,
+    warm_result: Option<ArchitectureRunOutcome>,
     debounce_window: Duration,
 ) -> Result<WatchLoopOutcome>
 where
     S: WatchEventSource,
-    B: daemon::DaemonTransportBinder,
+    B: host::HostTransportBinder,
 {
-    let daemon_host = start_watch_daemon(repo_root, binder, render_options)?;
+    let boundaries_host = start_watch_host(repo_root, binder, render_options, interrupt_flag)?;
     let mut run_number = 1usize;
-    daemon_host.begin_run();
-    let initial = runner.run_once(run_number, &[]);
-    daemon_host.complete_run(initial.report);
+    let initial = match warm_result {
+        Some(warm) => warm,
+        None => {
+            boundaries_host.begin_run();
+            runner.run_once(run_number, &[])
+        }
+    };
+    boundaries_host.complete_run(initial.report);
     let mut last_status = initial.status;
     let mut reruns = 0usize;
 
     loop {
+        if boundaries_host.is_shutdown_requested() {
+            eprintln!("[host] shutdown requested, exiting");
+            break;
+        }
         runner.on_waiting();
         let event = source.recv()?;
+        if boundaries_host.is_shutdown_requested() {
+            eprintln!("[host] shutdown requested, exiting");
+            break;
+        }
         let Some(changes) = collect_change_burst(source, event, debounce_window)? else {
             break;
         };
-        daemon_host.note_dirty();
+        boundaries_host.note_dirty();
         runner.on_change_burst(&changes);
         reruns += 1;
         run_number += 1;
-        daemon_host.begin_run();
+        boundaries_host.begin_run();
         let outcome = runner.run_once(run_number, &changes);
-        daemon_host.complete_run(outcome.report);
+        boundaries_host.complete_run(outcome.report);
         last_status = outcome.status;
     }
 
@@ -139,14 +278,21 @@ where
     })
 }
 
-fn start_watch_daemon<B: daemon::DaemonTransportBinder>(
+fn start_watch_host<B: host::HostTransportBinder>(
     repo_root: &Path,
     binder: &B,
-    render_options: daemon::DaemonRenderOptions,
-) -> Result<daemon::DaemonHost<B::Endpoint>> {
-    daemon::DaemonHost::start_with_binder(repo_root, binder, render_options).with_context(|| {
+    render_options: host::HostRenderOptions,
+    interrupt_flag: Arc<AtomicBool>,
+) -> Result<host::ArchitectureHost<B::Endpoint>> {
+    host::ArchitectureHost::start_with_binder(
+        repo_root,
+        binder,
+        render_options,
+        Some(interrupt_flag),
+    )
+    .with_context(|| {
         format!(
-            "failed to start boundaries watch daemon for {}",
+            "failed to start boundaries host for {}",
             repo_root.display()
         )
     })
@@ -209,18 +355,13 @@ fn collect_change_burst<S: WatchEventSource>(
 
 struct NotifyEventSource {
     repo_root: PathBuf,
-    selection: ArchitectureSuite,
     receiver: Receiver<notify::Result<Event>>,
     interrupted: Arc<AtomicBool>,
     _watcher: RecommendedWatcher,
 }
 
 impl NotifyEventSource {
-    fn new(
-        repo_root: PathBuf,
-        selection: ArchitectureSuite,
-        interrupted: Arc<AtomicBool>,
-    ) -> Result<Self> {
+    fn new(repo_root: PathBuf, interrupted: Arc<AtomicBool>) -> Result<Self> {
         let (sender, receiver) = mpsc::channel();
         let mut watcher = RecommendedWatcher::new(
             move |event| {
@@ -240,7 +381,6 @@ impl NotifyEventSource {
 
         Ok(Self {
             repo_root,
-            selection,
             receiver,
             interrupted,
             _watcher: watcher,
@@ -287,7 +427,7 @@ impl NotifyEventSource {
         let paths: BTreeSet<PathBuf> = event
             .paths
             .into_iter()
-            .filter(|path| path_matches_selection(&self.repo_root, self.selection, path))
+            .filter(|path| path_matches_boundaries(&self.repo_root, path))
             .collect();
         if paths.is_empty() {
             return Ok(None);
@@ -312,7 +452,7 @@ impl WatchEventSource for NotifyEventSource {
 }
 
 struct ArchitectureWatchRunner {
-    options: ArchitectureOptions,
+    render: RenderFlags,
     context: ArchitectureContext,
 }
 
@@ -322,21 +462,12 @@ struct ArchitectureRunOutcome {
 }
 
 impl ArchitectureWatchRunner {
-    fn new(mut options: ArchitectureOptions, context: ArchitectureContext) -> Self {
-        options.watch = false;
-        Self { options, context }
+    fn new(render: RenderFlags, context: ArchitectureContext) -> Self {
+        Self { render, context }
     }
 
     fn repo_root(&self) -> &Path {
         self.context.repo_root()
-    }
-
-    fn selection_label(&self) -> String {
-        selected_suites(self.options.suite)
-            .iter()
-            .map(|suite| suite_name(*suite))
-            .collect::<Vec<_>>()
-            .join(", ")
     }
 
     fn run_once(&mut self, run_number: usize, changes: &[PathBuf]) -> ArchitectureRunOutcome {
@@ -345,7 +476,7 @@ impl ArchitectureWatchRunner {
         }
 
         let started = Instant::now();
-        let report = match run_boundaries_watch_report(&mut self.context, self.options) {
+        let report = match run_boundaries_watch_report(&mut self.context, self.render) {
             Ok(report) => report,
             Err(error) => super::boundaries::BoundariesRunReport {
                 success: false,
@@ -365,7 +496,7 @@ impl ArchitectureWatchRunner {
         let verdict = if report.success { "PASS" } else { "FAIL" };
         eprintln!(
             "[run {run_number}] {verdict} {:<10} {:.2}s",
-            suite_name(ArchitectureSuite::Boundaries),
+            "boundaries",
             duration.as_secs_f64()
         );
         if let Some(timings_output) = &report.timings_output {
@@ -373,8 +504,7 @@ impl ArchitectureWatchRunner {
         }
         if !report.success {
             eprintln!(
-                "[run {run_number}] failure detail for {}:\n{}",
-                suite_name(ArchitectureSuite::Boundaries),
+                "[run {run_number}] failure detail for boundaries:\n{}",
                 render_failure_detail(&report)
             );
         }
@@ -413,32 +543,22 @@ fn render_failure_detail(report: &super::boundaries::BoundariesRunReport) -> Str
     }
 }
 
-fn path_matches_selection(repo_root: &Path, selection: ArchitectureSuite, path: &Path) -> bool {
+fn path_matches_boundaries(repo_root: &Path, path: &Path) -> bool {
     let Ok(rel_path) = path.strip_prefix(repo_root) else {
         return false;
     };
-    selected_suites(selection)
-        .iter()
-        .any(|suite| path_matches_suite(*suite, rel_path))
-}
 
-fn path_matches_suite(suite: ArchitectureSuite, rel_path: &Path) -> bool {
     if rel_path.starts_with("target") {
         return false;
     }
 
-    match suite {
-        ArchitectureSuite::All => unreachable!("path matching expects a concrete suite"),
-        ArchitectureSuite::Boundaries => {
-            rel_path.starts_with("src") && rel_path.extension().is_some_and(|ext| ext == "rs")
-                || rel_path.file_name().is_some_and(|name| {
-                    matches!(
-                        name.to_str(),
-                        Some("boundaries.toml" | "Cargo.toml" | "Cargo.lock" | "build.rs")
-                    )
-                })
-        }
-    }
+    rel_path.starts_with("src") && rel_path.extension().is_some_and(|ext| ext == "rs")
+        || rel_path.file_name().is_some_and(|name| {
+            matches!(
+                name.to_str(),
+                Some("boundaries.toml" | "Cargo.toml" | "Cargo.lock" | "build.rs")
+            )
+        })
 }
 
 fn display_watch_path(repo_root: &Path, path: &Path) -> String {
@@ -454,14 +574,14 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::time::Duration;
 
     use anyhow::Result;
 
     use super::{
-        WatchEvent, WatchEventSource, WatchLoopOutcome, WatchRunStatus, WatchRunner, daemon,
-        path_matches_suite, run_noninteractive, run_watch_loop, start_watch_daemon,
+        WatchEvent, WatchEventSource, WatchLoopOutcome, WatchRunStatus, WatchRunner, host,
+        path_matches_boundaries, run_noninteractive, run_watch_loop, start_watch_host,
     };
 
     #[test]
@@ -520,24 +640,24 @@ mod tests {
     }
 
     #[test]
-    fn watch_path_filter_tracks_suite_specific_inputs() {
-        assert!(path_matches_suite(
-            super::ArchitectureSuite::Boundaries,
-            Path::new("src/runtime/mod.rs")
+    fn watch_path_filter_tracks_boundaries_inputs() {
+        assert!(path_matches_boundaries(
+            Path::new("/repo"),
+            Path::new("/repo/src/runtime/mod.rs")
         ));
-        assert!(!path_matches_suite(
-            super::ArchitectureSuite::Boundaries,
-            Path::new("docs/architecture/dependency-rules.md")
+        assert!(!path_matches_boundaries(
+            Path::new("/repo"),
+            Path::new("/repo/docs/architecture/dependency-rules.md")
         ));
-        assert!(!path_matches_suite(
-            super::ArchitectureSuite::Boundaries,
-            Path::new("target/rust-analyzer/metadata/workspace/Cargo.lock")
+        assert!(!path_matches_boundaries(
+            Path::new("/repo"),
+            Path::new("/repo/target/rust-analyzer/metadata/workspace/Cargo.lock")
         ));
     }
 
     #[test]
-    fn watch_mode_writes_daemon_metadata_on_startup() {
-        let mut harness = WatchDaemonHarness::new();
+    fn watch_mode_writes_host_metadata_on_startup() {
+        let mut harness = WatchHostHarness::new();
 
         harness.start();
 
@@ -547,8 +667,8 @@ mod tests {
 
     #[test]
     fn watch_mode_uses_worktree_specific_metadata_and_transport_names() {
-        let mut left = WatchDaemonHarness::new_for_worktree("feature-a");
-        let mut right = WatchDaemonHarness::new_for_worktree("feature-b");
+        let mut left = WatchHostHarness::new_for_worktree("feature-a");
+        let mut right = WatchHostHarness::new_for_worktree("feature-b");
 
         left.start();
         right.start();
@@ -565,7 +685,7 @@ mod tests {
 
     #[test]
     fn watch_mode_removes_metadata_on_clean_shutdown() {
-        let mut harness = WatchDaemonHarness::new();
+        let mut harness = WatchHostHarness::new();
         harness.start();
         let metadata_path = harness.metadata_path();
 
@@ -576,8 +696,8 @@ mod tests {
     }
 
     #[test]
-    fn noninteractive_run_does_not_accidentally_spawn_daemon_metadata() {
-        let harness = WatchDaemonHarness::new();
+    fn noninteractive_run_does_not_accidentally_spawn_host_metadata() {
+        let harness = WatchHostHarness::new();
         let mut runner = FakeRunner::new([WatchRunStatus::Passed]);
 
         run_noninteractive(&mut runner).unwrap();
@@ -638,33 +758,33 @@ mod tests {
     }
 
     #[derive(Debug, Default, Clone)]
-    struct FakeDaemonBinder {
+    struct FakeHostBinder {
         bind_calls: Arc<AtomicUsize>,
         cleanup_calls: Arc<AtomicUsize>,
     }
 
-    impl daemon::DaemonTransportBinder for FakeDaemonBinder {
-        type Endpoint = FakeDaemonEndpoint;
+    impl host::HostTransportBinder for FakeHostBinder {
+        type Endpoint = FakeHostEndpoint;
 
         fn bind(
             &self,
-            _metadata: &daemon::DaemonMetadata,
-            _state: daemon::SharedDaemonState,
-            _render_options: daemon::DaemonRenderOptions,
+            _metadata: &host::HostMetadata,
+            _state: host::SharedHostState,
+            _render_options: host::HostRenderOptions,
         ) -> Result<Self::Endpoint> {
             self.bind_calls.fetch_add(1, Ordering::SeqCst);
-            Ok(FakeDaemonEndpoint {
+            Ok(FakeHostEndpoint {
                 cleanup_calls: Arc::clone(&self.cleanup_calls),
             })
         }
     }
 
     #[derive(Debug)]
-    struct FakeDaemonEndpoint {
+    struct FakeHostEndpoint {
         cleanup_calls: Arc<AtomicUsize>,
     }
 
-    impl daemon::DaemonEndpoint for FakeDaemonEndpoint {
+    impl host::HostEndpoint for FakeHostEndpoint {
         fn cleanup(&mut self) -> Result<()> {
             self.cleanup_calls.fetch_add(1, Ordering::SeqCst);
             Ok(())
@@ -672,13 +792,13 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct WatchDaemonHarness {
+    struct WatchHostHarness {
         repo_root: PathBuf,
-        binder: FakeDaemonBinder,
-        host: Option<daemon::DaemonHost<FakeDaemonEndpoint>>,
+        binder: FakeHostBinder,
+        host: Option<host::ArchitectureHost<FakeHostEndpoint>>,
     }
 
-    impl WatchDaemonHarness {
+    impl WatchHostHarness {
         fn new() -> Self {
             Self::new_for_worktree("default")
         }
@@ -688,20 +808,21 @@ mod tests {
             fs::create_dir_all(&repo_root).unwrap();
             Self {
                 repo_root,
-                binder: FakeDaemonBinder::default(),
+                binder: FakeHostBinder::default(),
                 host: None,
             }
         }
 
         fn start(&mut self) {
             self.host = Some(
-                start_watch_daemon(
+                start_watch_host(
                     &self.repo_root,
                     &self.binder,
-                    daemon::DaemonRenderOptions {
+                    host::HostRenderOptions {
                         verbose: false,
                         timings: false,
                     },
+                    Arc::new(AtomicBool::new(false)),
                 )
                 .unwrap(),
             );
@@ -714,10 +835,10 @@ mod tests {
         }
 
         fn metadata_path(&self) -> PathBuf {
-            daemon::DaemonMetadata::for_repo(&self.repo_root).metadata_path()
+            host::HostMetadata::for_repo(&self.repo_root).metadata_path()
         }
 
-        fn metadata(&self) -> daemon::DaemonMetadata {
+        fn metadata(&self) -> host::HostMetadata {
             let content = fs::read_to_string(self.metadata_path()).unwrap();
             serde_json::from_str(&content).unwrap()
         }
@@ -731,7 +852,7 @@ mod tests {
         }
     }
 
-    impl Drop for WatchDaemonHarness {
+    impl Drop for WatchHostHarness {
         fn drop(&mut self) {
             self.stop();
             let _ = fs::remove_dir_all(self.repo_root.parent().unwrap_or(&self.repo_root));
@@ -740,7 +861,7 @@ mod tests {
 
     fn unique_repo_root(name: &str) -> PathBuf {
         let unique = format!(
-            "mmdflux-watch-daemon-{name}-{}-{}",
+            "mmdflux-watch-host-{name}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

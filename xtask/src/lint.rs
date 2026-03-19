@@ -57,19 +57,12 @@ Options:
 fn run_lint_json() -> Result<()> {
     let clippy_success = run_clippy_json_streaming()?;
 
-    let arch_options = architecture::ArchitectureOptions {
-        suite: architecture::ArchitectureSuite::Boundaries,
-        json: true,
-        watch: false,
-        background: false,
-        notify_dirty: false,
+    let render = architecture::RenderFlags {
         timings: false,
         verbose: false,
-        fresh: false,
-        status: false,
     };
     let repo_root = repo_root();
-    let report = architecture::run_boundaries_report(arch_options)?;
+    let report = architecture::run_boundaries_report(render, false, false, true)?;
 
     architecture::json_output::emit_violations_json(&report.violations, &repo_root)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -101,18 +94,14 @@ fn run_lint_text() -> Result<()> {
         bail!("cargo clippy failed");
     }
 
-    let arch_options = architecture::ArchitectureOptions {
-        suite: architecture::ArchitectureSuite::Boundaries,
-        watch: false,
-        background: false,
+    architecture::run(architecture::ArchitectureCommand::Check {
+        render: architecture::RenderFlags {
+            timings: false,
+            verbose: false,
+        },
         notify_dirty: false,
-        json: false,
-        timings: false,
-        verbose: false,
         fresh: false,
-        status: false,
-    };
-    architecture::run(arch_options)
+    })
 }
 
 fn run_clippy_json_streaming() -> Result<bool> {
