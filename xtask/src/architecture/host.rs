@@ -347,6 +347,10 @@ struct SharedHostStateInner {
     /// When set, the shutdown handler also sets this flag — used to wake
     /// the filesystem event source that polls on a separate `Arc<AtomicBool>`.
     interrupt_flag: Option<Arc<AtomicBool>>,
+    /// Set by `note_dirty` when a `NotifyDirty` request arrives via socket.
+    /// The watch loop polls this to trigger a re-run without waiting for
+    /// a filesystem event.
+    external_dirty_flag: Arc<AtomicBool>,
 }
 
 #[derive(Debug, Clone)]
@@ -366,6 +370,7 @@ impl SharedHostState {
                 updates: Condvar::new(),
                 shutdown_requested: AtomicBool::new(false),
                 interrupt_flag: Some(interrupt_flag),
+                external_dirty_flag: Arc::new(AtomicBool::new(false)),
             }),
         }
     }
@@ -379,6 +384,7 @@ impl Default for SharedHostState {
                 updates: Condvar::new(),
                 shutdown_requested: AtomicBool::new(false),
                 interrupt_flag: None,
+                external_dirty_flag: Arc::new(AtomicBool::new(false)),
             }),
         }
     }
@@ -397,6 +403,11 @@ impl Default for SharedHostSnapshot {
 }
 
 impl SharedHostState {
+    /// Get a clone of the external dirty flag for the watch loop to poll.
+    pub(crate) fn external_dirty_flag(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.inner.external_dirty_flag)
+    }
+
     pub(crate) fn note_dirty(&self) {
         let mut snapshot = self
             .inner
@@ -406,6 +417,8 @@ impl SharedHostState {
         if snapshot.freshness != HostFreshness::Running {
             snapshot.freshness = HostFreshness::Dirty;
         }
+        // Signal the watch loop to wake up and re-run.
+        self.inner.external_dirty_flag.store(true, Ordering::SeqCst);
         self.inner.updates.notify_all();
     }
 
@@ -618,6 +631,11 @@ impl<E: HostEndpoint> ArchitectureHost<E> {
 
     pub(crate) fn note_dirty(&self) {
         self.state.note_dirty();
+    }
+
+    /// Get the external dirty flag for the watch loop to poll.
+    pub(crate) fn external_dirty_flag(&self) -> Arc<AtomicBool> {
+        self.state.external_dirty_flag()
     }
 
     pub(crate) fn begin_run(&self) {

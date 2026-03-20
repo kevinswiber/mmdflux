@@ -36,6 +36,8 @@ struct WatchLoopOutcome {
 trait WatchEventSource {
     fn recv(&mut self) -> Result<WatchEvent>;
     fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<WatchEvent>>;
+    /// Wire an external dirty flag so the source wakes up on NotifyDirty.
+    fn set_external_dirty_flag(&mut self, _flag: Arc<AtomicBool>) {}
 }
 
 trait WatchRunner {
@@ -461,6 +463,8 @@ where
         config.render_options,
         config.interrupt_flag,
     )?;
+    // Wire the host's dirty flag to the event source so NotifyDirty wakes the loop.
+    source.set_external_dirty_flag(boundaries_host.external_dirty_flag());
     let mut run_number = 1usize;
     let initial = match config.warm_result {
         Some(warm) => warm,
@@ -582,6 +586,7 @@ struct NotifyEventSource {
     repo_root: PathBuf,
     receiver: Receiver<notify::Result<Event>>,
     interrupted: Arc<AtomicBool>,
+    external_dirty: Option<Arc<AtomicBool>>,
     _watcher: RecommendedWatcher,
 }
 
@@ -608,6 +613,7 @@ impl NotifyEventSource {
             repo_root,
             receiver,
             interrupted,
+            external_dirty: None,
             _watcher: watcher,
         })
     }
@@ -617,6 +623,13 @@ impl NotifyEventSource {
         loop {
             if self.interrupted.load(Ordering::SeqCst) {
                 return Ok(Some(WatchEvent::Interrupt));
+            }
+
+            // Check if an external NotifyDirty arrived via socket.
+            if let Some(flag) = &self.external_dirty {
+                if flag.swap(false, Ordering::SeqCst) {
+                    return Ok(Some(WatchEvent::Changes(Vec::new())));
+                }
             }
 
             let wait = deadline
@@ -673,6 +686,10 @@ impl WatchEventSource for NotifyEventSource {
 
     fn recv_timeout(&mut self, timeout: Duration) -> Result<Option<WatchEvent>> {
         self.next_event(Some(timeout))
+    }
+
+    fn set_external_dirty_flag(&mut self, flag: Arc<AtomicBool>) {
+        self.external_dirty = Some(flag);
     }
 }
 
