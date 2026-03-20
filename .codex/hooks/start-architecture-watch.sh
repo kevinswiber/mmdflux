@@ -25,9 +25,9 @@ if [ ! -x "$xtask_bin" ]; then
 fi
 
 if [ -x "$xtask_bin" ]; then
-    "$xtask_bin" architecture boundaries --watch --background > "$logfile" 2>&1 &
+    "$xtask_bin" architecture host > "$logfile" 2>&1 &
 else
-    cargo xtask architecture boundaries --watch --background > "$logfile" 2>&1 &
+    cargo xtask architecture host > "$logfile" 2>&1 &
 fi
 echo $! > "$pidfile"
 disown
