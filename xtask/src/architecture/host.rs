@@ -417,9 +417,15 @@ impl SharedHostState {
         if snapshot.freshness != HostFreshness::Running {
             snapshot.freshness = HostFreshness::Dirty;
         }
-        // Signal the watch loop to wake up and re-run.
-        self.inner.external_dirty_flag.store(true, Ordering::SeqCst);
         self.inner.updates.notify_all();
+    }
+
+    /// Like `note_dirty`, but also signals the watch loop's event source to
+    /// wake up. Used only for external socket requests (NotifyDirty), not for
+    /// the watch loop's own change detection (which would cause an infinite loop).
+    pub(crate) fn note_dirty_external(&self) {
+        self.note_dirty();
+        self.inner.external_dirty_flag.store(true, Ordering::SeqCst);
     }
 
     pub(crate) fn begin_run(&self) {
@@ -477,7 +483,7 @@ impl SharedHostState {
     ) -> HostResponse {
         match request {
             HostRequest::NotifyDirty => {
-                self.note_dirty();
+                self.note_dirty_external();
                 HostResponse::NotifyDirtyAck
             }
             HostRequest::Status => HostResponse::Status(self.handle_status(hosted_options)),
