@@ -19,7 +19,7 @@ const HOST_DISCOVERY_ROOT_ENV: &str = "XTASK_BOUNDARIES_HOST_DISCOVERY_ROOT";
 const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 
-pub(crate) const HOST_PROTOCOL_VERSION: u32 = 3;
+pub(crate) const HOST_PROTOCOL_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum HostTransport {
@@ -103,33 +103,83 @@ pub(crate) enum HostStatusResult {
 }
 
 #[derive(Debug, Clone)]
-struct LoadedHostMetadata {
-    metadata: HostMetadata,
+struct LoadedCluster {
+    cluster: ClusterMetadata,
     metadata_path: PathBuf,
 }
 
+/// Lifecycle state of a host process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum HostState {
+    /// Host is registered but has not yet completed its first boundaries run.
+    Warming,
+    /// Host has completed warm-up and is serving requests.
+    /// This is the default for backward compatibility with metadata files that
+    /// predate the `state` field.
+    #[default]
+    Ready,
+}
+
+/// How long a host can stay in `Warming` before being treated as stuck/dead.
+const WARMUP_TIMEOUT_SECS: u64 = 120;
+
+/// A single host process in the cluster.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct HostMetadata {
+pub(crate) struct HostEntry {
+    pub(crate) pid: u32,
+    pub(crate) started_at: String,
+    #[serde(default)]
+    pub(crate) state: HostState,
+}
+
+impl HostEntry {
+    /// A host is effectively alive if its PID exists and it hasn't been stuck
+    /// warming up beyond the timeout.
+    pub(crate) fn is_effectively_alive(&self) -> bool {
+        if !is_pid_alive(self.pid) {
+            return false;
+        }
+        if self.state == HostState::Warming {
+            if let Ok(started) = self.started_at.parse::<u64>() {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                if now.saturating_sub(started) > WARMUP_TIMEOUT_SECS {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
+
+/// Cluster-aware metadata file. One leader owns the socket; zero or more
+/// standbys stay warm and are candidates for leader election.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct ClusterMetadata {
     pub(crate) protocol_version: u32,
     pub(crate) repo_root: PathBuf,
     pub(crate) worktree_id: String,
-    pub(crate) transport: HostTransport,
-    pub(crate) pid: u32,
-    pub(crate) started_at: String,
     pub(crate) binary_version: String,
+    pub(crate) transport: HostTransport,
+    pub(crate) leader: Option<HostEntry>,
+    #[serde(default)]
+    pub(crate) standbys: Vec<HostEntry>,
 }
 
-impl HostMetadata {
-    pub(crate) fn for_repo(repo_root: &Path) -> Self {
+impl ClusterMetadata {
+    pub(crate) fn empty_for_repo(repo_root: &Path) -> Self {
         let worktree_id = worktree_id_for_repo(repo_root);
         Self {
             protocol_version: HOST_PROTOCOL_VERSION,
             repo_root: repo_root.to_path_buf(),
             worktree_id: worktree_id.clone(),
-            transport: host_transport_for_repo(repo_root, &worktree_id),
-            pid: std::process::id(),
-            started_at: unix_timestamp_string(),
             binary_version: host_binary_version(),
+            transport: host_transport_for_repo(repo_root, &worktree_id),
+            leader: None,
+            standbys: Vec::new(),
         }
     }
 
@@ -178,7 +228,70 @@ impl HostMetadata {
 
         Ok(())
     }
+
+    /// Remove dead or stuck hosts and return whether the leader was pruned.
+    pub(crate) fn prune_dead(&mut self) -> bool {
+        let leader_dead = self
+            .leader
+            .as_ref()
+            .is_some_and(|entry| !entry.is_effectively_alive());
+        if leader_dead {
+            self.leader = None;
+        }
+        self.standbys.retain(|entry| entry.is_effectively_alive());
+        leader_dead
+    }
+
+    /// Elect the newest standby as leader (in `Warming` state). Returns the promoted PID if any.
+    pub(crate) fn elect_leader(&mut self) -> Option<u32> {
+        if self.leader.is_some() {
+            return None;
+        }
+        let newest_idx = self
+            .standbys
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, entry)| &entry.started_at)?
+            .0;
+        let mut promoted = self.standbys.remove(newest_idx);
+        promoted.state = HostState::Warming;
+        self.leader = Some(promoted);
+        self.leader.as_ref().map(|entry| entry.pid)
+    }
+
+    /// Register a host as standby. Returns true if it was added.
+    pub(crate) fn register_standby(&mut self, pid: u32, started_at: String) -> bool {
+        if self.leader.as_ref().is_some_and(|e| e.pid == pid) {
+            return false;
+        }
+        if self.standbys.iter().any(|e| e.pid == pid) {
+            return false;
+        }
+        self.standbys.push(HostEntry {
+            pid,
+            started_at,
+            state: HostState::Warming,
+        });
+        true
+    }
+
+    /// Remove a host (from leader or standbys) by PID.
+    pub(crate) fn deregister(&mut self, pid: u32) {
+        if self.leader.as_ref().is_some_and(|e| e.pid == pid) {
+            self.leader = None;
+        }
+        self.standbys.retain(|e| e.pid != pid);
+    }
+
+    pub(crate) fn has_living_leader(&self) -> bool {
+        self.leader
+            .as_ref()
+            .is_some_and(|entry| is_pid_alive(entry.pid))
+    }
 }
+
+/// Backward-compatible alias used by v3 client functions during migration.
+pub(crate) type HostMetadata = ClusterMetadata;
 
 pub(crate) fn host_metadata_path(repo_root: &Path, worktree_id: &str) -> PathBuf {
     host_worktree_dir(repo_root, worktree_id).join(HOST_METADATA_FILE)
@@ -441,8 +554,8 @@ impl<E: HostEndpoint> ArchitectureHost<E> {
         render_options: HostRenderOptions,
         interrupt_flag: Option<Arc<AtomicBool>>,
     ) -> Result<Self> {
-        let metadata = HostMetadata::for_repo(repo_root);
-        let metadata_path = metadata.metadata_path();
+        let template = HostMetadata::empty_for_repo(repo_root);
+        let metadata_path = template.metadata_path();
         if let Some(parent) = metadata_path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create {}", parent.display()))?;
@@ -451,12 +564,41 @@ impl<E: HostEndpoint> ArchitectureHost<E> {
             Some(flag) => SharedHostState::with_interrupt_flag(flag),
             None => SharedHostState::default(),
         };
-        let endpoint = binder.bind(&metadata, state.clone(), render_options)?;
-        if let Err(error) = write_metadata_file(&metadata_path, &metadata) {
-            let mut endpoint = endpoint;
-            let _ = endpoint.cleanup();
-            return Err(error);
-        }
+        let endpoint = binder.bind(&template, state.clone(), render_options)?;
+
+        // Merge into existing metadata (preserving standbys) under flock.
+        let metadata = {
+            #[cfg(unix)]
+            {
+                let lock = MetadataLock::acquire(repo_root)
+                    .context("failed to acquire cluster lock during host start")?;
+                let mut cluster = lock.read()?;
+                cluster.leader = Some(HostEntry {
+                    pid: std::process::id(),
+                    started_at: unix_timestamp_string(),
+                    state: HostState::Ready,
+                });
+                // Inherit transport from template (socket path etc.)
+                cluster.transport = template.transport;
+                lock.write(&cluster)?;
+                cluster
+            }
+            #[cfg(not(unix))]
+            {
+                let mut metadata = template;
+                metadata.leader = Some(HostEntry {
+                    pid: std::process::id(),
+                    started_at: unix_timestamp_string(),
+                });
+                if let Err(error) = write_metadata_file(&metadata_path, &metadata) {
+                    let mut endpoint = endpoint;
+                    let _ = endpoint.cleanup();
+                    return Err(error);
+                }
+                metadata
+            }
+        };
+
         Ok(Self {
             metadata,
             metadata_path,
@@ -507,7 +649,25 @@ impl<E: HostEndpoint> ArchitectureHost<E> {
             let _ = endpoint.cleanup();
         }
         self.endpoint = None;
-        let _ = remove_file_if_exists(&self.metadata_path);
+        // Deregister this host from the cluster rather than nuking the file.
+        let my_pid = std::process::id();
+        #[cfg(unix)]
+        {
+            let repo_root = &self.metadata.repo_root;
+            if let Ok(lock) = MetadataLock::acquire(repo_root)
+                && let Ok(cluster) = lock.mutate(|cluster| {
+                    cluster.deregister(my_pid);
+                })
+                && cluster.leader.is_none()
+                && cluster.standbys.is_empty()
+            {
+                let _ = remove_file_if_exists(&self.metadata_path);
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = remove_file_if_exists(&self.metadata_path);
+        }
     }
 }
 
@@ -603,40 +763,65 @@ pub(crate) fn try_request_check(
     repo_root: &Path,
     render_options: HostRenderOptions,
 ) -> HostCheckResult {
-    let loaded = match load_metadata_for_repo(repo_root) {
-        Ok(Some(metadata)) => metadata,
-        Ok(None) => {
-            return HostCheckResult::RetryLocally {
-                reason: "no host metadata found".to_string(),
-            };
-        }
-        Err(error) => {
-            return HostCheckResult::RetryLocally {
-                reason: format!("{error:#}"),
-            };
-        }
+    let request = HostRequest::Check {
+        wait_for_fresh: true,
+        verbose: render_options.verbose,
+        timings: render_options.timings,
+        no_color: true,
     };
 
-    match send_request(
-        &loaded.metadata,
-        &HostRequest::Check {
-            wait_for_fresh: true,
-            verbose: render_options.verbose,
-            timings: render_options.timings,
-            no_color: true,
-        },
-    ) {
-        Ok(HostResponse::Check(response)) => HostCheckResult::Reused(response),
-        Ok(HostResponse::Error {
-            retry_locally,
-            message,
-        }) if retry_locally => HostCheckResult::RetryLocally { reason: message },
-        Ok(other) => HostCheckResult::RetryLocally {
-            reason: format!("unexpected host response: {other:?}"),
-        },
-        Err(error) => HostCheckResult::RetryLocally {
-            reason: stale_cleanup_reason(loaded, error),
-        },
+    for attempt in 0..2 {
+        let loaded = match load_metadata_for_repo(repo_root) {
+            Ok(Some(loaded)) => loaded,
+            Ok(None) => {
+                return HostCheckResult::RetryLocally {
+                    reason: "no host metadata found".to_string(),
+                };
+            }
+            Err(error) => {
+                return HostCheckResult::RetryLocally {
+                    reason: format!("{error:#}"),
+                };
+            }
+        };
+
+        // Don't try the socket if the leader is still warming up.
+        if let Some(leader) = &loaded.cluster.leader {
+            if leader.state == HostState::Warming {
+                return HostCheckResult::RetryLocally {
+                    reason: format!("host (pid {}) is warming up", leader.pid),
+                };
+            }
+        }
+
+        match send_request(&loaded.cluster, &request) {
+            Ok(HostResponse::Check(response)) => return HostCheckResult::Reused(response),
+            Ok(HostResponse::Error {
+                retry_locally,
+                message,
+            }) if retry_locally => {
+                return HostCheckResult::RetryLocally { reason: message };
+            }
+            Ok(other) => {
+                return HostCheckResult::RetryLocally {
+                    reason: format!("unexpected host response: {other:?}"),
+                };
+            }
+            Err(error) => {
+                if attempt == 0 && should_cleanup_stale_transport(&error) {
+                    // Leader may have died. Re-read metadata (prunes dead) and retry.
+                    maybe_cleanup_stale_transport(&loaded);
+                    continue;
+                }
+                return HostCheckResult::RetryLocally {
+                    reason: stale_cleanup_reason(loaded, error),
+                };
+            }
+        }
+    }
+
+    HostCheckResult::RetryLocally {
+        reason: "host connection failed after retry".to_string(),
     }
 }
 
@@ -647,7 +832,7 @@ pub(crate) fn try_notify_dirty(repo_root: &Path) -> bool {
     };
 
     matches!(
-        send_request(&loaded.metadata, &HostRequest::NotifyDirty),
+        send_request(&loaded.cluster, &HostRequest::NotifyDirty),
         Ok(HostResponse::NotifyDirtyAck)
     )
 }
@@ -660,9 +845,17 @@ pub(crate) fn request_shutdown(repo_root: &Path) -> bool {
     };
 
     matches!(
-        send_request(&loaded.metadata, &HostRequest::Shutdown),
+        send_request(&loaded.cluster, &HostRequest::Shutdown),
         Ok(HostResponse::ShuttingDown)
     )
+}
+
+/// Check if a living leader PID exists in the cluster metadata (no socket connection).
+pub(crate) fn has_living_leader(repo_root: &Path) -> bool {
+    load_metadata_for_repo(repo_root)
+        .ok()
+        .flatten()
+        .is_some_and(|loaded| loaded.cluster.has_living_leader())
 }
 
 pub(crate) fn query_status(repo_root: &Path) -> HostStatusResult {
@@ -680,7 +873,16 @@ pub(crate) fn query_status(repo_root: &Path) -> HostStatusResult {
         }
     };
 
-    match send_request(&loaded.metadata, &HostRequest::Status) {
+    // If the leader is still warming up, don't try the socket — it won't be bound yet.
+    if let Some(leader) = &loaded.cluster.leader {
+        if leader.state == HostState::Warming {
+            return HostStatusResult::Unavailable {
+                reason: format!("host (pid {}) is warming up", leader.pid),
+            };
+        }
+    }
+
+    match send_request(&loaded.cluster, &HostRequest::Status) {
         Ok(HostResponse::Status(status)) => HostStatusResult::Live(status),
         Ok(other) => HostStatusResult::Unavailable {
             reason: format!(
@@ -703,9 +905,9 @@ fn host_worktree_dir(repo_root: &Path, worktree_id: &str) -> PathBuf {
         .join(worktree_id)
 }
 
-fn load_metadata_for_repo(repo_root: &Path) -> Result<Option<LoadedHostMetadata>> {
+fn load_metadata_for_repo(repo_root: &Path) -> Result<Option<LoadedCluster>> {
     let discovery_root = host_discovery_root(repo_root);
-    let metadata_path = HostMetadata::for_repo(&discovery_root).metadata_path();
+    let metadata_path = HostMetadata::empty_for_repo(&discovery_root).metadata_path();
     let json = match std::fs::read_to_string(&metadata_path) {
         Ok(json) => json,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -715,18 +917,19 @@ fn load_metadata_for_repo(repo_root: &Path) -> Result<Option<LoadedHostMetadata>
         }
     };
 
-    let metadata: HostMetadata = serde_json::from_str(&json)
+    let mut cluster: ClusterMetadata = serde_json::from_str(&json)
         .with_context(|| format!("failed to parse host metadata {}", metadata_path.display()))
         .map_err(|error| cleanup_invalid_metadata(&metadata_path, error))?;
-    metadata
+    cluster
         .validate_for_repo(&discovery_root)
         .map_err(|error| cleanup_invalid_metadata(&metadata_path, error))?;
-    if !is_pid_alive(metadata.pid) {
+    cluster.prune_dead();
+    if cluster.leader.is_none() && cluster.standbys.is_empty() {
         let _ = remove_file_if_exists(&metadata_path);
         return Ok(None);
     }
-    Ok(Some(LoadedHostMetadata {
-        metadata,
+    Ok(Some(LoadedCluster {
+        cluster,
         metadata_path,
     }))
 }
@@ -776,14 +979,104 @@ fn host_binary_version() -> String {
     format!("xtask-boundaries-host-v{HOST_PROTOCOL_VERSION}")
 }
 
-fn unix_timestamp_string() -> String {
+pub(crate) fn unix_timestamp_string() -> String {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs().to_string())
         .unwrap_or_else(|_| "0".to_owned())
 }
 
-fn write_metadata_file(path: &Path, metadata: &HostMetadata) -> Result<()> {
+/// Advisory file lock on the cluster metadata. Serializes concurrent reads
+/// and writes from multiple host processes. Uses a `.lock` sidecar file so
+/// the metadata JSON can be atomically replaced.
+#[cfg(unix)]
+pub(crate) struct MetadataLock {
+    _file: std::fs::File,
+    repo_root: PathBuf,
+    metadata_path: PathBuf,
+}
+
+#[cfg(unix)]
+impl MetadataLock {
+    /// Acquire an exclusive lock on the metadata sidecar. Blocks until acquired.
+    pub(crate) fn acquire(repo_root: &Path) -> Result<Self> {
+        use std::os::unix::io::AsRawFd;
+
+        let worktree_id = worktree_id_for_repo(repo_root);
+        let metadata_path = host_metadata_path(repo_root, &worktree_id);
+        let lock_path = metadata_path.with_extension("lock");
+        if let Some(parent) = lock_path.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create {}", parent.display()))?;
+        }
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(false)
+            .open(&lock_path)
+            .with_context(|| format!("failed to open lock file {}", lock_path.display()))?;
+        let rc = unsafe { libc_flock(file.as_raw_fd(), LOCK_EX) };
+        if rc != 0 {
+            bail!(
+                "failed to acquire metadata lock {}: {}",
+                lock_path.display(),
+                std::io::Error::last_os_error()
+            );
+        }
+        Ok(Self {
+            _file: file,
+            repo_root: repo_root.to_path_buf(),
+            metadata_path,
+        })
+    }
+
+    /// Read the current cluster metadata (or create an empty one if missing).
+    pub(crate) fn read(&self) -> Result<ClusterMetadata> {
+        match std::fs::read_to_string(&self.metadata_path) {
+            Ok(json) => {
+                let cluster: ClusterMetadata = serde_json::from_str(&json).with_context(|| {
+                    format!(
+                        "failed to parse host metadata {}",
+                        self.metadata_path.display()
+                    )
+                })?;
+                Ok(cluster)
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                Ok(ClusterMetadata::empty_for_repo(&self.repo_root))
+            }
+            Err(error) => Err(error)
+                .with_context(|| format!("failed to read {}", self.metadata_path.display())),
+        }
+    }
+
+    /// Write the cluster metadata atomically.
+    pub(crate) fn write(&self, cluster: &ClusterMetadata) -> Result<()> {
+        write_metadata_file(&self.metadata_path, cluster)
+    }
+
+    /// Read, apply a mutation, write back. Returns the mutated cluster.
+    pub(crate) fn mutate(&self, f: impl FnOnce(&mut ClusterMetadata)) -> Result<ClusterMetadata> {
+        let mut cluster = self.read()?;
+        f(&mut cluster);
+        self.write(&cluster)?;
+        Ok(cluster)
+    }
+}
+
+// Inline flock binding to avoid a libc dependency.
+#[cfg(unix)]
+const LOCK_EX: i32 = 2;
+
+#[cfg(unix)]
+unsafe fn libc_flock(fd: i32, operation: i32) -> i32 {
+    unsafe extern "C" {
+        fn flock(fd: i32, operation: i32) -> i32;
+    }
+    unsafe { flock(fd, operation) }
+}
+
+fn write_metadata_file(path: &Path, metadata: &ClusterMetadata) -> Result<()> {
     let json = serde_json::to_vec_pretty(metadata).context("failed to serialize host metadata")?;
     std::fs::write(path, json)
         .with_context(|| format!("failed to write host metadata {}", path.display()))
@@ -819,17 +1112,33 @@ fn cleanup_invalid_metadata(metadata_path: &Path, error: anyhow::Error) -> anyho
     error
 }
 
-fn stale_cleanup_reason(loaded: LoadedHostMetadata, error: anyhow::Error) -> String {
+fn stale_cleanup_reason(loaded: LoadedCluster, error: anyhow::Error) -> String {
     if should_cleanup_stale_transport(&error) {
-        maybe_cleanup_stale_transport(&loaded);
-        format!("{error:#} (removed stale host metadata)")
+        let cleaned = maybe_cleanup_stale_transport(&loaded);
+        if cleaned {
+            format!("{error:#} (removed stale host metadata)")
+        } else {
+            format!("{error:#}")
+        }
     } else {
         format!("{error:#}")
     }
 }
 
-fn maybe_cleanup_stale_transport(loaded: &LoadedHostMetadata) {
-    match &loaded.metadata.transport {
+/// Attempt to clean up stale transport/metadata. Returns true if the metadata
+/// file was removed.
+fn maybe_cleanup_stale_transport(loaded: &LoadedCluster) -> bool {
+    // Don't touch anything if the leader is still warming up (socket not bound yet).
+    let leader_warming = loaded
+        .cluster
+        .leader
+        .as_ref()
+        .is_some_and(|e| e.state == HostState::Warming && e.is_effectively_alive());
+    if leader_warming {
+        return false;
+    }
+
+    match &loaded.cluster.transport {
         #[cfg(unix)]
         HostTransport::UnixSocket { path } => {
             let _ = remove_file_if_exists(path);
@@ -838,7 +1147,12 @@ fn maybe_cleanup_stale_transport(loaded: &LoadedHostMetadata) {
         #[cfg(not(unix))]
         HostTransport::UnixSocket { .. } => {}
     }
-    let _ = remove_file_if_exists(&loaded.metadata_path);
+    // Only remove the metadata file if no standbys and no warming leader.
+    if loaded.cluster.standbys.is_empty() {
+        let _ = remove_file_if_exists(&loaded.metadata_path);
+        return true;
+    }
+    false
 }
 
 fn should_cleanup_stale_transport(error: &anyhow::Error) -> bool {
@@ -925,7 +1239,7 @@ mod tests {
     #[test]
     fn host_metadata_uses_worktree_specific_target_xtask_paths() {
         let repo_root = Path::new("/tmp/example-repo/worktrees/feature-a");
-        let metadata = HostMetadata::for_repo(repo_root);
+        let metadata = HostMetadata::empty_for_repo(repo_root);
         assert_eq!(metadata.repo_root, repo_root);
         assert!(!metadata.worktree_id.is_empty());
         assert_eq!(
@@ -953,8 +1267,9 @@ mod tests {
 
     #[test]
     fn different_worktrees_do_not_share_host_identity() {
-        let left = HostMetadata::for_repo(Path::new("/tmp/example-repo/worktrees/feature-a"));
-        let right = HostMetadata::for_repo(Path::new("/tmp/example-repo/worktrees/feature-b"));
+        let left = HostMetadata::empty_for_repo(Path::new("/tmp/example-repo/worktrees/feature-a"));
+        let right =
+            HostMetadata::empty_for_repo(Path::new("/tmp/example-repo/worktrees/feature-b"));
         assert_ne!(left.worktree_id, right.worktree_id);
     }
 
@@ -973,7 +1288,8 @@ mod tests {
 
     #[test]
     fn host_metadata_round_trips_through_json() {
-        let metadata = HostMetadata::for_repo(Path::new("/tmp/example-repo/worktrees/feature-a"));
+        let metadata =
+            HostMetadata::empty_for_repo(Path::new("/tmp/example-repo/worktrees/feature-a"));
         let json = serde_json::to_string(&metadata).unwrap();
         let decoded: HostMetadata = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded, metadata);
@@ -983,7 +1299,7 @@ mod tests {
     fn stale_or_mismatched_metadata_is_rejected() {
         let metadata = HostMetadata {
             protocol_version: 99,
-            ..HostMetadata::for_repo(Path::new("/tmp/example-repo"))
+            ..HostMetadata::empty_for_repo(Path::new("/tmp/example-repo"))
         };
         assert!(
             metadata

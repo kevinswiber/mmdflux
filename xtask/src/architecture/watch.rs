@@ -149,23 +149,236 @@ fn run_client_check(
     }
 }
 
-/// Host mode (`host`). Warms up the boundaries context, then takes over from any existing
-/// host so clients experience no latency gap.
+/// Host mode (`host`). Joins the cluster as leader (warm up first) or standby (cold).
 pub(crate) fn run_host(render: RenderFlags, context: ArchitectureContext) -> Result<()> {
     let repo_root = context.repo_root().to_path_buf();
     let mut runner = ArchitectureWatchRunner::new(render, context);
+    let my_pid = std::process::id();
 
-    // Warm up before taking over — run boundaries while the old host is still serving.
-    eprintln!("[host] warming up boundaries context...");
-    let warm_result = runner.run_once(1, &[]);
+    // Acquire the cluster lock, decide our role BEFORE warming up.
+    #[cfg(unix)]
+    {
+        let lock = host::MetadataLock::acquire(&repo_root)
+            .context("failed to acquire cluster metadata lock")?;
+        let mut cluster = lock.read()?;
+        cluster.prune_dead();
 
-    // Now shut down the old host and take over.
-    if host::request_shutdown(&repo_root) {
-        eprintln!("[host] shut down previous host");
-        std::thread::sleep(Duration::from_millis(100));
+        // Clean up stale socket if the leader died.
+        if cluster.leader.is_none() {
+            cleanup_stale_socket(&cluster);
+        }
+
+        if cluster.has_living_leader() {
+            // Register as standby (cold — no warm-up until promotion).
+            let started_at = host::unix_timestamp_string();
+            cluster.register_standby(my_pid, started_at);
+            lock.write(&cluster)?;
+            drop(lock);
+            eprintln!(
+                "[host] registered as standby (leader pid {})",
+                cluster.leader.as_ref().unwrap().pid
+            );
+            return run_standby(&mut runner, render, &repo_root, my_pid);
+        }
+
+        // No living leader — shut down old leader (if lingering) and promote self.
+        if host::request_shutdown(&repo_root) {
+            eprintln!("[host] shut down previous host");
+            std::thread::sleep(Duration::from_millis(100));
+        }
+
+        // Register as leader directly.
+        cluster.leader = Some(host::HostEntry {
+            pid: my_pid,
+            started_at: host::unix_timestamp_string(),
+            state: host::HostState::Warming,
+        });
+        lock.write(&cluster)?;
+        drop(lock);
     }
 
+    // Warm up only when becoming leader.
+    eprintln!("[host] warming up boundaries context...");
+    let warm_result = runner.run_once(1, &[]);
+    eprintln!("[host] promoted to leader");
+
     run_interactive_with_warm_result(&mut runner, render, Some(warm_result))
+}
+
+fn cleanup_stale_socket(cluster: &host::ClusterMetadata) {
+    match &cluster.transport {
+        #[cfg(unix)]
+        host::HostTransport::UnixSocket { path } => {
+            let _ = std::fs::remove_file(path);
+        }
+        #[allow(unreachable_patterns)]
+        _ => {}
+    }
+}
+
+/// Standby liveness poll interval — how often to check if the leader is still alive
+/// when no file changes are happening.
+const STANDBY_LIVENESS_POLL: Duration = Duration::from_secs(5);
+
+/// Run as a standby: monitor leader liveness and promote to leader if it dies.
+/// Standbys start cold (no warm-up) and only warm up on promotion.
+fn run_standby(
+    runner: &mut ArchitectureWatchRunner,
+    render: RenderFlags,
+    repo_root: &Path,
+    my_pid: u32,
+) -> Result<()> {
+    let interrupted = Arc::new(AtomicBool::new(false));
+    let mut source =
+        NotifyEventSource::new(runner.repo_root().to_path_buf(), Arc::clone(&interrupted))?;
+    let interrupted_for_handler = Arc::clone(&interrupted);
+    ctrlc::set_handler(move || {
+        interrupted_for_handler.store(true, Ordering::SeqCst);
+    })
+    .context("failed to install Ctrl-C handler for standby watch mode")?;
+
+    loop {
+        eprintln!(
+            "[standby] waiting (polling leader every {}s)...",
+            STANDBY_LIVENESS_POLL.as_secs()
+        );
+
+        // Poll with timeout so we check leader liveness even without file changes.
+        let event = match source.recv_timeout(STANDBY_LIVENESS_POLL)? {
+            Some(event) => event,
+            None => {
+                // Timeout — no file changes, but check leader liveness.
+                if !leader_is_alive(repo_root) {
+                    eprintln!("[standby] leader died, attempting promotion...");
+                    if try_promote_to_leader(repo_root, my_pid)? {
+                        eprintln!("[host] warming up boundaries context...");
+                        let warm = runner.run_once(1, &[]);
+                        eprintln!("[host] promoted to leader");
+                        return promote_to_leader(
+                            source,
+                            runner,
+                            render,
+                            Arc::clone(&interrupted),
+                            Some(warm),
+                        );
+                    }
+                    eprintln!("[standby] another host was promoted, continuing as standby");
+                }
+                continue;
+            }
+        };
+
+        if interrupted.load(Ordering::SeqCst) {
+            break;
+        }
+
+        // Drain the change burst but we don't act on it — standbys stay cold.
+        let Some(_changes) = collect_change_burst(&mut source, event, DEBOUNCE_WINDOW)? else {
+            break;
+        };
+
+        // Check leader liveness on file changes too.
+        if !leader_is_alive(repo_root) {
+            eprintln!("[standby] leader died, attempting promotion...");
+            if try_promote_to_leader(repo_root, my_pid)? {
+                eprintln!("[host] warming up boundaries context...");
+                let warm = runner.run_once(1, &[]);
+                eprintln!("[host] promoted to leader");
+                return promote_to_leader(
+                    source,
+                    runner,
+                    render,
+                    Arc::clone(&interrupted),
+                    Some(warm),
+                );
+            }
+            eprintln!("[standby] another host was promoted, continuing as standby");
+        }
+    }
+
+    // Deregister from cluster on exit.
+    deregister_from_cluster(repo_root, my_pid);
+    Ok(())
+}
+
+/// Transition from standby to leader, reusing the existing event source and interrupt flag.
+fn promote_to_leader(
+    mut source: NotifyEventSource,
+    runner: &mut ArchitectureWatchRunner,
+    render: RenderFlags,
+    interrupted: Arc<AtomicBool>,
+    warm_result: Option<ArchitectureRunOutcome>,
+) -> Result<()> {
+    eprintln!("[watch] architecture (boundaries)");
+
+    let binder = host::PlatformHostBinder;
+    let repo_root = runner.repo_root().to_path_buf();
+    let render_options = host::HostRenderOptions {
+        verbose: render.verbose,
+        timings: render.timings,
+    };
+    let outcome = run_architecture_watch_with_host(
+        &mut source,
+        runner,
+        &repo_root,
+        WatchHostConfig {
+            binder,
+            render_options,
+            interrupt_flag: interrupted,
+            warm_result,
+            debounce_window: DEBOUNCE_WINDOW,
+        },
+    )?;
+    if outcome.last_status == WatchRunStatus::Passed {
+        return Ok(());
+    }
+    bail!("last run failed")
+}
+
+fn leader_is_alive(repo_root: &Path) -> bool {
+    host::has_living_leader(repo_root)
+}
+
+#[cfg(unix)]
+fn try_promote_to_leader(repo_root: &Path, my_pid: u32) -> Result<bool> {
+    let lock = host::MetadataLock::acquire(repo_root)
+        .context("failed to acquire cluster metadata lock for promotion")?;
+    let mut cluster = lock.read()?;
+    cluster.prune_dead();
+
+    if cluster.has_living_leader() {
+        return Ok(false);
+    }
+
+    cleanup_stale_socket(&cluster);
+
+    // Newest standby wins.
+    if let Some(promoted_pid) = cluster.elect_leader() {
+        lock.write(&cluster)?;
+        Ok(promoted_pid == my_pid)
+    } else {
+        Ok(false)
+    }
+}
+
+#[cfg(not(unix))]
+fn try_promote_to_leader(_repo_root: &Path, _my_pid: u32) -> Result<bool> {
+    Ok(false)
+}
+
+fn deregister_from_cluster(repo_root: &Path, my_pid: u32) {
+    #[cfg(unix)]
+    {
+        if let Ok(lock) = host::MetadataLock::acquire(repo_root) {
+            let _ = lock.mutate(|cluster| {
+                cluster.deregister(my_pid);
+            });
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (repo_root, my_pid);
+    }
 }
 
 fn run_interactive(runner: &mut ArchitectureWatchRunner, render: RenderFlags) -> Result<()> {
@@ -201,11 +414,13 @@ fn run_interactive_with_warm_result(
         &mut source,
         runner,
         &repo_root,
-        &binder,
-        render_options,
-        interrupt_for_host,
-        warm_result,
-        DEBOUNCE_WINDOW,
+        WatchHostConfig {
+            binder,
+            render_options,
+            interrupt_flag: interrupt_for_host,
+            warm_result,
+            debounce_window: DEBOUNCE_WINDOW,
+        },
     )?;
     if outcome.last_status == WatchRunStatus::Passed {
         return Ok(());
@@ -221,23 +436,33 @@ fn run_noninteractive<R: WatchRunner>(runner: &mut R) -> Result<()> {
     }
 }
 
-fn run_architecture_watch_with_host<S, B>(
-    source: &mut S,
-    runner: &mut ArchitectureWatchRunner,
-    repo_root: &Path,
-    binder: &B,
+struct WatchHostConfig<B: host::HostTransportBinder> {
+    binder: B,
     render_options: host::HostRenderOptions,
     interrupt_flag: Arc<AtomicBool>,
     warm_result: Option<ArchitectureRunOutcome>,
     debounce_window: Duration,
+}
+
+fn run_architecture_watch_with_host<S, B>(
+    source: &mut S,
+    runner: &mut ArchitectureWatchRunner,
+    repo_root: &Path,
+    config: WatchHostConfig<B>,
 ) -> Result<WatchLoopOutcome>
 where
     S: WatchEventSource,
     B: host::HostTransportBinder,
 {
-    let boundaries_host = start_watch_host(repo_root, binder, render_options, interrupt_flag)?;
+    let debounce = config.debounce_window;
+    let boundaries_host = start_watch_host(
+        repo_root,
+        &config.binder,
+        config.render_options,
+        config.interrupt_flag,
+    )?;
     let mut run_number = 1usize;
-    let initial = match warm_result {
+    let initial = match config.warm_result {
         Some(warm) => warm,
         None => {
             boundaries_host.begin_run();
@@ -259,7 +484,7 @@ where
             eprintln!("[host] shutdown requested, exiting");
             break;
         }
-        let Some(changes) = collect_change_burst(source, event, debounce_window)? else {
+        let Some(changes) = collect_change_burst(source, event, debounce)? else {
             break;
         };
         boundaries_host.note_dirty();
@@ -835,7 +1060,7 @@ mod tests {
         }
 
         fn metadata_path(&self) -> PathBuf {
-            host::HostMetadata::for_repo(&self.repo_root).metadata_path()
+            host::HostMetadata::empty_for_repo(&self.repo_root).metadata_path()
         }
 
         fn metadata(&self) -> host::HostMetadata {

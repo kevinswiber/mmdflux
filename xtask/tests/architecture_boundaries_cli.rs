@@ -352,17 +352,20 @@ impl HostFixture {
         self.socket_path = Some(socket_path.clone());
         self.metadata_json = Some(
             serde_json::json!({
-                "protocol_version": 3,
+                "protocol_version": 4,
                 "repo_root": discovery_root,
                 "worktree_id": worktree_id_for_repo(discovery_root),
+                "binary_version": "xtask-boundaries-host-v4",
                 "transport": {
                     "UnixSocket": {
                         "path": socket_path
                     }
                 },
-                "pid": std::process::id(),
-                "started_at": "0",
-                "binary_version": "xtask-boundaries-host-v3"
+                "leader": {
+                    "pid": std::process::id(),
+                    "started_at": "0"
+                },
+                "standbys": []
             })
             .to_string(),
         );
@@ -418,12 +421,15 @@ fn incompatible_metadata_json(discovery_root: &Path) -> String {
         "protocol_version": 99,
         "repo_root": discovery_root,
         "worktree_id": worktree_id_for_repo(discovery_root),
+        "binary_version": "xtask-boundaries-host-v4",
         "transport": {
             transport_key(): transport_value(discovery_root)
         },
-        "pid": std::process::id(),
-        "started_at": "0",
-        "binary_version": "xtask-boundaries-host-v3"
+        "leader": {
+            "pid": std::process::id(),
+            "started_at": "0"
+        },
+        "standbys": []
     })
     .to_string()
 }
@@ -431,32 +437,38 @@ fn incompatible_metadata_json(discovery_root: &Path) -> String {
 fn foreign_worktree_metadata_json(discovery_root: &Path) -> String {
     let foreign_root = discovery_root.join("foreign-worktree");
     serde_json::json!({
-        "protocol_version": 3,
+        "protocol_version": 4,
         "repo_root": foreign_root,
         "worktree_id": worktree_id_for_repo(&foreign_root),
+        "binary_version": "xtask-boundaries-host-v4",
         "transport": {
             transport_key(): transport_value(&foreign_root)
         },
-        "pid": std::process::id(),
-        "started_at": "0",
-        "binary_version": "xtask-boundaries-host-v3"
+        "leader": {
+            "pid": std::process::id(),
+            "started_at": "0"
+        },
+        "standbys": []
     })
     .to_string()
 }
 
 fn stale_transport_metadata_json(discovery_root: &Path) -> String {
     serde_json::json!({
-        "protocol_version": 3,
+        "protocol_version": 4,
         "repo_root": discovery_root,
         "worktree_id": worktree_id_for_repo(discovery_root),
+        "binary_version": "xtask-boundaries-host-v4",
         "transport": {
             "UnixSocket": {
                 "path": host_socket_path(discovery_root)
             }
         },
-        "pid": std::process::id(),
-        "started_at": "0",
-        "binary_version": "xtask-boundaries-host-v3"
+        "leader": {
+            "pid": std::process::id(),
+            "started_at": "0"
+        },
+        "standbys": []
     })
     .to_string()
 }
