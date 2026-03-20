@@ -22,6 +22,7 @@ pub(crate) enum ArchitectureCommand {
         render: RenderFlags,
         notify_dirty: bool,
         fresh: bool,
+        fast_exit: bool,
     },
     CheckWatch {
         render: RenderFlags,
@@ -31,6 +32,7 @@ pub(crate) enum ArchitectureCommand {
         render: RenderFlags,
         notify_dirty: bool,
         fresh: bool,
+        fast_exit: bool,
     },
     Host {
         render: RenderFlags,
@@ -74,11 +76,17 @@ pub(crate) fn run(command: ArchitectureCommand) -> Result<()> {
             render,
             notify_dirty,
             fresh,
+            fast_exit,
         } => {
             let mut context = ArchitectureContext::new();
-            if let Some(report) =
-                try_run_boundaries_via_host(context.repo_root(), render, notify_dirty, fresh, false)
-            {
+            if let Some(report) = try_run_boundaries_via_host(
+                context.repo_root(),
+                render,
+                notify_dirty,
+                fresh,
+                fast_exit,
+                false,
+            ) {
                 emit_boundaries_report(report)
             } else {
                 run_boundaries(&mut context, render.timings, render.verbose, false)
@@ -94,7 +102,8 @@ pub(crate) fn run(command: ArchitectureCommand) -> Result<()> {
             render,
             notify_dirty,
             fresh,
-        } => run_boundaries_json(render, notify_dirty, fresh),
+            fast_exit,
+        } => run_boundaries_json(render, notify_dirty, fresh, fast_exit),
         ArchitectureCommand::Host { render } => watch::run_host(render, ArchitectureContext::new()),
     }
 }
@@ -103,12 +112,13 @@ pub(crate) fn run_boundaries_report(
     render: RenderFlags,
     notify_dirty: bool,
     fresh: bool,
+    fast_exit: bool,
     json: bool,
 ) -> Result<BoundariesRunReport> {
     let context = ArchitectureContext::new();
     let repo_root = context.repo_root().to_path_buf();
 
-    match try_run_boundaries_via_host(&repo_root, render, notify_dirty, fresh, json) {
+    match try_run_boundaries_via_host(&repo_root, render, notify_dirty, fresh, fast_exit, json) {
         Some(report) => Ok(report),
         None => {
             let mut context = ArchitectureContext::new();
@@ -117,9 +127,14 @@ pub(crate) fn run_boundaries_report(
     }
 }
 
-fn run_boundaries_json(render: RenderFlags, notify_dirty: bool, fresh: bool) -> Result<()> {
+fn run_boundaries_json(
+    render: RenderFlags,
+    notify_dirty: bool,
+    fresh: bool,
+    fast_exit: bool,
+) -> Result<()> {
     let repo_root = ArchitectureContext::new().repo_root().to_path_buf();
-    let report = run_boundaries_report(render, notify_dirty, fresh, true)?;
+    let report = run_boundaries_report(render, notify_dirty, fresh, fast_exit, true)?;
 
     json_output::emit_violations_json(&report.violations, &repo_root)
         .map_err(|e| anyhow::anyhow!("failed to emit JSON violations: {e}"))?;
@@ -143,6 +158,7 @@ Check options:
     --watch, -w      Rerun boundaries when files change (interactive, requires TTY)
     --status         Print warm host status for this worktree
     --fresh          Run the local boundaries check and bypass host reuse
+    --fast-exit      Don't wait for a warming host; fall back to local immediately
     --json           Output cargo-compatible JSON diagnostics (for IDE integration)
     --notify-dirty   Tell the host to mark itself dirty before checking (for hooks)
     --timings, -t    Print phase timing breakdown
@@ -172,6 +188,7 @@ fn try_run_boundaries_via_host(
     render: RenderFlags,
     notify_dirty: bool,
     fresh: bool,
+    fast_exit: bool,
     json: bool,
 ) -> Option<BoundariesRunReport> {
     if fresh {
@@ -189,7 +206,26 @@ fn try_run_boundaries_via_host(
         verbose: render.verbose,
         timings: render.timings,
     };
-    match host::try_request_check(repo_root, render_options) {
+    let result = host::try_request_check(repo_root, render_options);
+
+    // If the host is warming up and we're not in fast-exit mode, poll until ready.
+    let result = match &result {
+        HostCheckResult::RetryLocally { reason }
+            if !fast_exit && reason.contains("is warming up") =>
+        {
+            if !json {
+                eprintln!("[host] waiting for host to finish warming up...");
+            }
+            host::poll_until_ready_then_check(
+                repo_root,
+                render_options,
+                std::time::Duration::from_secs(60),
+            )
+        }
+        _ => result,
+    };
+
+    match result {
         HostCheckResult::Reused(response) => {
             if render.verbose && !json {
                 eprintln!(
@@ -300,6 +336,7 @@ where
     let mut timings = false;
     let mut verbose = false;
     let mut fresh = false;
+    let mut fast_exit = false;
     let mut status = false;
 
     let args_collected: Vec<String> = args.map(|s| s.as_ref().to_string()).collect();
@@ -325,6 +362,7 @@ where
             "--timings" | "-t" => timings = true,
             "--verbose" | "-v" => verbose = true,
             "--fresh" => fresh = true,
+            "--fast-exit" => fast_exit = true,
             "--status" => status = true,
             other => bail!("unknown `cargo xtask {expected_command}` argument `{other}`"),
         }
@@ -373,12 +411,14 @@ where
                     render,
                     notify_dirty,
                     fresh,
+                    fast_exit,
                 });
             }
             Ok(ArchitectureCommand::Check {
                 render,
                 notify_dirty,
                 fresh,
+                fast_exit,
             })
         }
         Some(other) => bail!("unknown subcommand `{other}`"),
@@ -403,6 +443,7 @@ mod tests {
                 render: DEFAULT_RENDER,
                 notify_dirty: false,
                 fresh: false,
+                fast_exit: false,
             }
         );
     }
@@ -416,6 +457,7 @@ mod tests {
                 render: DEFAULT_RENDER,
                 notify_dirty: false,
                 fresh: false,
+                fast_exit: false,
             }
         );
     }
@@ -432,6 +474,7 @@ mod tests {
                 },
                 notify_dirty: false,
                 fresh: false,
+                fast_exit: false,
             }
         );
     }
@@ -445,6 +488,7 @@ mod tests {
                 render: DEFAULT_RENDER,
                 notify_dirty: false,
                 fresh: true,
+                fast_exit: false,
             }
         );
     }
@@ -490,6 +534,7 @@ mod tests {
                 render: DEFAULT_RENDER,
                 notify_dirty: false,
                 fresh: false,
+                fast_exit: false,
             }
         );
     }

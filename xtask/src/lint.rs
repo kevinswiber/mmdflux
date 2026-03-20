@@ -62,7 +62,7 @@ fn run_lint_json() -> Result<()> {
         verbose: false,
     };
     let repo_root = repo_root();
-    let report = architecture::run_boundaries_report(render, false, false, true)?;
+    let report = architecture::run_boundaries_report(render, false, false, false, true)?;
 
     architecture::json_output::emit_violations_json(&report.violations, &repo_root)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -101,6 +101,7 @@ fn run_lint_text() -> Result<()> {
         },
         notify_dirty: false,
         fresh: false,
+        fast_exit: false,
     })
 }
 

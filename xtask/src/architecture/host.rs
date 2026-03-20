@@ -825,6 +825,48 @@ pub(crate) fn try_request_check(
     }
 }
 
+/// Poll metadata until the leader transitions out of `Warming`, then send a check request.
+/// Returns `RetryLocally` if the timeout expires or the host disappears.
+pub(crate) fn poll_until_ready_then_check(
+    repo_root: &Path,
+    render_options: HostRenderOptions,
+    timeout: std::time::Duration,
+) -> HostCheckResult {
+    let deadline = std::time::Instant::now() + timeout;
+    let poll_interval = std::time::Duration::from_secs(2);
+
+    loop {
+        if std::time::Instant::now() >= deadline {
+            return HostCheckResult::RetryLocally {
+                reason: "timed out waiting for host to finish warming up".to_string(),
+            };
+        }
+
+        std::thread::sleep(poll_interval);
+
+        match load_metadata_for_repo(repo_root) {
+            Ok(Some(loaded)) => {
+                let is_warming = loaded
+                    .cluster
+                    .leader
+                    .as_ref()
+                    .is_some_and(|e| e.state == HostState::Warming);
+                if is_warming {
+                    continue;
+                }
+                // Leader is ready — send the check request.
+                return try_request_check(repo_root, render_options);
+            }
+            Ok(None) => {
+                return HostCheckResult::RetryLocally {
+                    reason: "host metadata disappeared while waiting for warm-up".to_string(),
+                };
+            }
+            Err(_) => continue,
+        }
+    }
+}
+
 pub(crate) fn try_notify_dirty(repo_root: &Path) -> bool {
     let loaded = match load_metadata_for_repo(repo_root) {
         Ok(Some(metadata)) => metadata,
