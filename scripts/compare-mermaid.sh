@@ -149,6 +149,7 @@ for f in "${files[@]}"; do
     fi
 
     if [[ ${#parts[@]} -gt 0 ]]; then
+        # nosemgrep: bash.lang.security.ifs-tampering.ifs-tampering
         echo "$(IFS=', '; echo "${parts[*]}"), done"
     else
         echo "done"

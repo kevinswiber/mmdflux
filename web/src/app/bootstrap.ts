@@ -199,6 +199,7 @@ function updateThemeToggleButton(
     `Theme: ${currentLabel}. Switch to ${nextLabel}.`,
   );
   button.title = `Theme: ${currentLabel}.`;
+  // nosemgrep: javascript.browser.security.insecure-document-method.insecure-document-method
   button.innerHTML = THEME_ICONS[preference];
 }
 

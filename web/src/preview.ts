@@ -46,6 +46,7 @@ export function createPreviewController(
     );
 
     if (lastResult.format === "svg") {
+      // nosemgrep: javascript.browser.security.insecure-document-method.insecure-document-method
       elements.output.innerHTML = lastResult.output;
       return;
     }

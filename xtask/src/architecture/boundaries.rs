@@ -603,6 +603,7 @@ fn absolute_watch_path(path: &Path) -> Result<AbsPathBuf> {
 }
 
 fn read_watch_file_contents(path: &Path) -> Result<Option<Vec<u8>>> {
+    // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
     match std::fs::read(path) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),

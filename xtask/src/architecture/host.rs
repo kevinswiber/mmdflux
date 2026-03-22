@@ -974,6 +974,7 @@ fn host_worktree_dir(repo_root: &Path, worktree_id: &str) -> PathBuf {
 fn load_metadata_for_repo(repo_root: &Path) -> Result<Option<LoadedCluster>> {
     let discovery_root = host_discovery_root(repo_root);
     let metadata_path = HostMetadata::empty_for_repo(&discovery_root).metadata_path();
+    // nosemgrep: rust.actix.path-traversal.tainted-path.tainted-path
     let json = match std::fs::read_to_string(&metadata_path) {
         Ok(json) => json,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),

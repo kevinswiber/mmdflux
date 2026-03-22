@@ -214,8 +214,10 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_benchmark_smoke == 'true' }}
         working-directory: web
         shell: bash
+        env:
+          BENCHMARK_PROFILE: ${{ github.event.inputs.benchmark_profile }}
         run: |
-          if [[ "${{ github.event.inputs.benchmark_profile }}" == "release" ]]; then
+          if [[ "$BENCHMARK_PROFILE" == "release" ]]; then
             npm run benchmark:smoke:release
           else
             npm run benchmark:smoke
