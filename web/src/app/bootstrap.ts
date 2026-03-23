@@ -553,9 +553,17 @@ export function renderApp(
     output: previewOutput,
     error: previewError,
   });
+  const workerClient = options.renderClientFactory
+    ? options.renderClientFactory()
+    : typeof Worker === "undefined"
+      ? null
+      : createRenderWorkerClient();
   const editor = createEditorController({
     root: editorRoot,
     initialValue: stateStore.getState().input,
+    validateWithWorker: workerClient
+      ? (input) => workerClient.validate(input)
+      : undefined,
   });
   const previewControls = createPreviewControls({
     viewportRoot: previewOutput,
@@ -599,12 +607,6 @@ export function renderApp(
   });
   themeController.apply();
   updateThemeToggleButton(themeToggleButton, themeController.getPreference());
-
-  const workerClient = options.renderClientFactory
-    ? options.renderClientFactory()
-    : typeof Worker === "undefined"
-      ? null
-      : createRenderWorkerClient();
 
   const renderControlBindings: RenderControlBinding[] = [
     {

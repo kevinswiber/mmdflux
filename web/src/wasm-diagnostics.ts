@@ -122,42 +122,25 @@ export function normalizeValidateResultToDiagnostics(
   );
 }
 
-interface WasmModule {
-  default: () => Promise<void>;
-  validate: (input: string) => string;
-}
+export type ValidateWithWorker = (input: string) => Promise<string>;
 
-let wasmPromise: Promise<WasmModule> | null = null;
-
-async function loadWasm(): Promise<WasmModule> {
-  if (!wasmPromise) {
-    wasmPromise = import("./wasm-pkg/mmdflux_wasm.js")
-      .then(async (module) => {
-        const wasm = module as unknown as WasmModule;
-        await wasm.default();
-        return wasm;
-      })
-      .catch((error: unknown) => {
-        wasmPromise = null;
-        throw error;
-      });
-  }
-  return wasmPromise;
-}
-
-export async function lintWithWasm(
+export async function lintWithWorker(
   input: string,
+  validateWithWorker: ValidateWithWorker,
 ): Promise<readonly Diagnostic[]> {
   if (input.trim().length === 0) {
     return [];
   }
 
-  const wasm = await loadWasm();
-  const resultJson = wasm.validate(input);
+  const resultJson = await validateWithWorker(input);
   return normalizeValidateResultToDiagnostics(input, resultJson);
 }
 
-export const wasmLintExtension: Extension = linter(
-  async (view) => lintWithWasm(view.state.doc.toString()),
-  { delay: 350 },
-);
+export function createWasmLintExtension(
+  validateWithWorker: ValidateWithWorker,
+): Extension {
+  return linter(
+    async (view) => lintWithWorker(view.state.doc.toString(), validateWithWorker),
+    { delay: 350 },
+  );
+}

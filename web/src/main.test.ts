@@ -27,6 +27,7 @@ describe("renderApp", () => {
             format: request.format,
             output: `${request.format}:${request.input}`,
           }),
+          validate: async () => '{"valid":true}',
           terminate: () => {},
         }),
         stateStorage: {

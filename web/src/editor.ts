@@ -4,7 +4,10 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { minimalSetup } from "codemirror";
 import { mermaidSyntaxHighlighting } from "./mermaid-language";
-import { wasmLintExtension } from "./wasm-diagnostics";
+import {
+  createWasmLintExtension,
+  type ValidateWithWorker,
+} from "./wasm-diagnostics";
 
 export interface EditorController {
   getValue: () => string;
@@ -15,6 +18,7 @@ export interface EditorController {
 interface CreateEditorControllerOptions {
   root: HTMLElement;
   initialValue: string;
+  validateWithWorker?: ValidateWithWorker;
 }
 
 function supportsCodeMirrorView(): boolean {
@@ -83,28 +87,34 @@ export function createEditorController(
   }
 
   try {
+    const extensions = [
+      minimalSetup,
+      keymap.of([indentWithTab]),
+      EditorView.lineWrapping,
+      indentUnit.of("  "),
+      ...mermaidSyntaxHighlighting,
+    ];
+    if (options.validateWithWorker) {
+      extensions.push(createWasmLintExtension(options.validateWithWorker));
+    }
+    extensions.push(
+      EditorView.updateListener.of((update) => {
+        if (!update.docChanged) {
+          return;
+        }
+
+        currentValue = update.state.doc.toString();
+        syncTextarea.value = currentValue;
+
+        if (!suppressEditorEvents) {
+          emit(currentValue);
+        }
+      }),
+    );
+
     const editorState = EditorState.create({
       doc: currentValue,
-      extensions: [
-        minimalSetup,
-        keymap.of([indentWithTab]),
-        EditorView.lineWrapping,
-        indentUnit.of("  "),
-        ...mermaidSyntaxHighlighting,
-        wasmLintExtension,
-        EditorView.updateListener.of((update) => {
-          if (!update.docChanged) {
-            return;
-          }
-
-          currentValue = update.state.doc.toString();
-          syncTextarea.value = currentValue;
-
-          if (!suppressEditorEvents) {
-            emit(currentValue);
-          }
-        }),
-      ],
+      extensions,
     });
 
     const view = new EditorView({

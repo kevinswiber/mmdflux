@@ -10,6 +10,7 @@ function createFakeRenderClient() {
   }));
   return {
     render,
+    validate: vi.fn(async () => '{"valid":true}'),
     terminate: vi.fn(),
   } satisfies RenderWorkerClient;
 }

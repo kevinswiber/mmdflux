@@ -17,13 +17,23 @@ export interface RenderResponse {
   output: string;
 }
 
-interface PendingRequest {
+interface PendingRenderRequest {
+  kind: "render";
   resolve: (response: RenderResponse) => void;
   reject: (error: Error) => void;
 }
 
+interface PendingValidateRequest {
+  kind: "validate";
+  resolve: (resultJson: string) => void;
+  reject: (error: Error) => void;
+}
+
+type PendingRequest = PendingRenderRequest | PendingValidateRequest;
+
 export interface RenderWorkerClient {
   render: (request: RenderRequest) => Promise<RenderResponse>;
+  validate: (input: string) => Promise<string>;
   terminate: () => void;
 }
 
@@ -41,6 +51,7 @@ export function createRenderWorkerClient(
   worker: Worker = createDefaultWorker(),
 ): RenderWorkerClient {
   const pending = new Map<number, PendingRequest>();
+  let nextValidationSeq = -1;
 
   worker.onmessage = (event: MessageEvent<WorkerResponseMessage>) => {
     const response = event.data;
@@ -52,11 +63,30 @@ export function createRenderWorkerClient(
     pending.delete(response.seq);
 
     if (response.type === "result") {
+      if (pendingRequest.kind !== "render") {
+        pendingRequest.reject(
+          new Error("worker returned render output for a validation request"),
+        );
+        return;
+      }
+
       pendingRequest.resolve({
         seq: response.seq,
         format: response.format,
         output: response.output,
       });
+      return;
+    }
+
+    if (response.type === "validation") {
+      if (pendingRequest.kind !== "validate") {
+        pendingRequest.reject(
+          new Error("worker returned validation output for a render request"),
+        );
+        return;
+      }
+
+      pendingRequest.resolve(response.resultJson);
       return;
     }
 
@@ -76,7 +106,7 @@ export function createRenderWorkerClient(
           configJson: request.configJson ?? "{}",
         };
 
-        pending.set(currentSeq, { resolve, reject });
+        pending.set(currentSeq, { kind: "render", resolve, reject });
 
         try {
           worker.postMessage(message);
@@ -84,6 +114,29 @@ export function createRenderWorkerClient(
           pending.delete(currentSeq);
           reject(
             new Error(`failed to post render request: ${toMessage(error)}`),
+          );
+        }
+      });
+    },
+    validate: (input) => {
+      const seq = nextValidationSeq;
+      nextValidationSeq -= 1;
+
+      return new Promise<string>((resolve, reject) => {
+        const message: WorkerRequestMessage = {
+          type: "validate",
+          seq,
+          input,
+        };
+
+        pending.set(seq, { kind: "validate", resolve, reject });
+
+        try {
+          worker.postMessage(message);
+        } catch (error) {
+          pending.delete(seq);
+          reject(
+            new Error(`failed to post validation request: ${toMessage(error)}`),
           );
         }
       });
