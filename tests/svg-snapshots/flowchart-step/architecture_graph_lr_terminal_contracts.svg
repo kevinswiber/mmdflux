@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 2168.22 922.00" style="max-width: 2168.22px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+    <marker id="crosshead" viewBox="0 0 11.00 11.00" refX="12.00" refY="5.20" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 1,1 l 9,9 M 10,1 l -9,9" stroke="#333" stroke-width="2" />
+    </marker>
+    <marker id="circlehead" viewBox="0 0 10.00 10.00" refX="11.00" refY="5.00" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="5" cy="5" r="5" stroke="#333" stroke-width="1" fill="#333" />
+    </marker>
+    <marker id="open-arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,0 10.00,5.00 0,10.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+    <marker id="diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="#333" />
+    </marker>
+    <marker id="open-diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,13.00)">
+    <g class="nodes">
+      <rect x="248.12" y="80.00" width="114.01" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="305.13" y="107.00" text-anchor="middle" dominant-baseline="middle" fill="#333">builtins</text>
+      <rect x="507.13" y="8.00" width="126.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="570.26" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">diagrams</text>
+      <rect x="1162.44" y="142.00" width="115.87" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1220.37" y="169.00" text-anchor="middle" dominant-baseline="middle" fill="#333">engines</text>
+      <rect x="2056.79" y="254.00" width="103.43" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="2108.51" y="281.00" text-anchor="middle" dominant-baseline="middle" fill="#333">errors</text>
+      <rect x="1863.91" y="440.00" width="107.88" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1917.85" y="467.00" text-anchor="middle" dominant-baseline="middle" fill="#333">format</text>
+      <rect x="828.39" y="564.00" width="129.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="892.91" y="591.00" text-anchor="middle" dominant-baseline="middle" fill="#333">frontends</text>
+      <rect x="1549.61" y="316.00" width="100.09" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1599.66" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">graph</text>
+      <rect x="1162.44" y="316.00" width="122.18" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1223.52" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">mermaid</text>
+      <rect x="1162.44" y="688.00" width="103.06" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1213.96" y="715.00" text-anchor="middle" dominant-baseline="middle" fill="#333">mmds</text>
+      <rect x="1162.44" y="440.00" width="115.87" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1220.37" y="467.00" text-anchor="middle" dominant-baseline="middle" fill="#333">payload</text>
+      <rect x="828.39" y="368.00" width="116.61" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="886.70" y="395.00" text-anchor="middle" dominant-baseline="middle" fill="#333">registry</text>
+      <rect x="1162.44" y="792.00" width="106.03" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1215.45" y="819.00" text-anchor="middle" dominant-baseline="middle" fill="#333">render</text>
+      <rect x="8.00" y="647.00" width="115.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="65.56" y="674.00" text-anchor="middle" dominant-baseline="middle" fill="#333">runtime</text>
+      <rect x="1549.61" y="844.00" width="159.30" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1629.26" y="871.00" text-anchor="middle" dominant-baseline="middle" fill="#333">simplification</text>
+      <rect x="1549.61" y="440.00" width="118.46" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1608.84" y="467.00" text-anchor="middle" dominant-baseline="middle" fill="#333">timeline</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M362.13,88.00 L383.03,88.00 L383.03,52.14 L503.13,52.14" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M362.13,126.00 L362.13,104.18 L1707.33,104.18 L1707.33,97.00 L1541.61,97.00 L1541.61,448.00 L1541.61,461.61 L1859.92,461.61" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M362.13,107.00 L415.16,107.00 L415.16,115.47 L415.16,395.00 L824.39,395.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M633.39,16.00 L1908.05,16.00 L1908.05,-5.00 L1863.91,-5.00 L1863.91,262.00 L2052.79,262.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M633.39,18.80 L1451.59,18.80 L1451.59,15.00 L1154.44,15.00 L1154.44,324.00 L1154.44,338.75 L1545.62,338.75" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M633.39,29.60 L692.70,29.60 L692.70,39.89 L692.70,324.00 L1158.44,324.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M633.39,51.20 L1103.13,51.20 L1103.13,448.00 L1158.44,448.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M633.39,40.40 L633.39,62.00 L802.49,62.00 L802.49,376.00 L824.39,376.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M633.39,54.00 L633.39,35.00 L1451.59,35.00 L1451.59,448.00 L1545.61,448.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1278.30,150.00 L1362.55,150.00 L1362.55,138.00 L1863.91,138.00 L1863.91,281.00 L2052.79,281.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1278.30,188.00 L1278.30,170.76 L1541.61,170.76 L1541.61,432.00 L1541.61,461.61 L1859.92,461.61" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1278.30,169.00 L1278.30,195.58 L1311.83,195.58 L1311.83,343.00 L1545.61,343.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1971.79,448.00 L2098.16,448.00 L2098.16,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M957.44,572.00 L984.34,572.00 L984.34,564.00 L1058.22,564.00 L1058.22,343.00 L1158.44,343.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M957.44,610.00 L1135.54,610.00 L1135.54,696.00 L1158.44,696.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1649.70,324.00 L1649.70,343.00 L1696.81,343.00 L1696.81,300.00 L2052.79,300.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1649.70,362.00 L1677.52,362.00 L1677.52,362.50 L1677.52,486.00 L1859.91,486.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1284.61,324.00 L1292.61,324.00 L1292.61,261.00 L1863.91,261.00 L2064.79,261.00 L2064.79,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1284.61,343.00 L1284.61,362.00 L1545.61,362.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1284.61,362.00 L1317.51,362.00 L1317.51,362.66 L1317.51,467.00 L1545.61,467.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1265.49,696.00 L1265.49,719.91 L1959.93,719.91 L1959.93,747.00 L1855.91,747.00 L1855.91,321.00 L1855.91,308.11 L2135.54,308.11" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1265.49,724.00 L1265.49,700.72 L1479.62,700.72 L1899.87,700.72 L1899.87,498.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1265.49,706.00 L1286.30,706.00 L1286.30,383.00 L1286.30,370.10 L1612.34,370.10" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1265.49,734.00 L1407.55,734.00 L1407.55,871.00 L1545.61,871.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1278.30,448.00 L1286.30,448.00 L1557.61,448.00 L1557.61,374.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1278.30,486.00 L1545.61,486.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M945.00,376.00 L1176.30,376.00 L1176.30,370.90 L1154.44,370.90 L1154.44,321.00 L1154.44,308.03 L2073.48,308.03" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M945.00,395.00 L1048.68,395.00 L1048.68,397.11 L1917.85,397.11 L1917.85,436.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M945.00,414.00 L973.14,414.00 L973.14,467.00 L1158.44,467.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1268.46,810.00 L1710.71,810.00 L1710.71,817.41 L1935.83,817.41 L1935.83,498.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1268.46,800.00 L1286.30,800.00 L1286.30,383.00 L1286.30,370.09 L1637.70,370.09" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1268.46,838.00 L1302.98,838.00 L1302.98,890.00 L1545.61,890.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1268.46,828.00 L1660.08,828.00 L1660.08,498.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,655.00 L142.02,655.00 L142.02,647.00 L142.02,126.00 L244.12,126.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,655.00 L123.12,169.00 L1158.44,169.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,656.00 L1318.96,656.00 L1318.96,647.00 L1318.96,231.00 L1863.91,231.00 L2118.85,231.00 L2118.85,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,674.00 L123.12,647.00 L131.12,647.00 L1871.91,647.00 L1871.91,498.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,687.50 L123.12,591.00 L824.39,591.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,660.50 L612.41,660.50 L612.41,430.00 L1582.97,430.00 L1582.97,374.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,665.00 L1052.10,665.00 L1052.10,362.00 L1158.44,362.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,692.00 L233.45,692.00 L233.45,734.00 L1158.44,734.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,678.50 L123.12,697.02 L233.45,697.02 L233.45,747.00 L820.39,747.00 L820.39,486.00 L1158.44,486.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,669.50 L123.12,701.00 L200.05,701.00 L200.05,767.00 L507.13,767.00 L507.13,414.00 L824.39,414.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,693.00 L123.12,819.00 L1158.44,819.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,693.00 L123.12,680.00 L1395.56,680.00 L1395.56,682.17 L1398.39,682.17 L1398.39,881.00 L1162.44,881.00 L1162.44,852.00 L1545.61,852.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M123.12,683.00 L123.12,701.00 L131.12,701.00 L131.12,901.00 L1154.44,901.00 L1154.44,507.00 L1154.44,494.08 L1553.61,494.08" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1708.91,852.00 L1708.91,871.00 L2144.22,871.00 L2152.22,871.00 L2152.22,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1708.91,890.00 L1963.79,890.00 L1963.79,498.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+    </g>
+  </g>
+</svg>

@@ -4872,3 +4872,241 @@ fn svg_lr_fan_fixtures_no_non_endpoint_crossings_after_forward_fix() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// LR terminal contracts + forward hairpins (plan 0123)
+// ---------------------------------------------------------------------------
+
+/// Assert that the terminal segment of an edge arrives normal to its endpoint
+/// face with at least `min_support` pixels of straight stem.
+///
+/// Uses existing `svg_terminal_approach_face_relaxed` for face detection and
+/// checks axis alignment + stem length of the penultimate→endpoint segment.
+fn assert_edge_terminal_is_face_normal_with_min_support(
+    diagram: &crate::graph::Graph,
+    svg: &str,
+    from: &str,
+    to: &str,
+    min_support: f64,
+) {
+    let edge_idx = edge_index(diagram, from, to);
+
+    // Use command-aware sampling so cubic curves (smooth-step, curved-step)
+    // produce rendered-geometry points rather than raw control points.
+    let d = edge_path_d_for_svg_order(diagram, svg, edge_idx);
+    let commands = parse_svg_path_command_sequence(&d);
+    let points = sample_svg_path_commands(&commands, 64);
+    assert!(
+        points.len() >= 2,
+        "{from}→{to}: path has fewer than 2 points; d={d}"
+    );
+
+    let target_label = node_label(diagram, to);
+    let target_rect = node_rect_for_label(svg, &target_label)
+        .unwrap_or_else(|| panic!("{from}→{to}: target node '{target_label}' rect not found"));
+
+    let end = *points.last().unwrap();
+    let pen = points[points.len() - 2];
+
+    // Use the existing relaxed face detector (looks at approach direction, not
+    // just endpoint position).
+    let face = svg_terminal_approach_face_relaxed(target_rect, &points);
+
+    let dx = (end.0 - pen.0).abs();
+    let dy = (end.1 - pen.1).abs();
+
+    match face {
+        "left" | "right" => {
+            // Terminal segment must be horizontal (dy ≈ 0) with enough stem.
+            assert!(
+                dy <= 1.0,
+                "{from}→{to}: terminal approaches {face} face but stem is not horizontal; \
+                 pen=({:.1},{:.1}) end=({:.1},{:.1}) dy={dy:.1}",
+                pen.0,
+                pen.1,
+                end.0,
+                end.1,
+            );
+            assert!(
+                dx >= min_support,
+                "{from}→{to}: terminal stem on {face} face too short; \
+                 dx={dx:.1} < min_support={min_support}",
+            );
+        }
+        "top" | "bottom" => {
+            // Terminal segment must be vertical (dx ≈ 0) with enough stem.
+            assert!(
+                dx <= 1.0,
+                "{from}→{to}: terminal approaches {face} face but stem is not vertical; \
+                 pen=({:.1},{:.1}) end=({:.1},{:.1}) dx={dx:.1}",
+                pen.0,
+                pen.1,
+                end.0,
+                end.1,
+            );
+            assert!(
+                dy >= min_support,
+                "{from}→{to}: terminal stem on {face} face too short; \
+                 dy={dy:.1} < min_support={min_support}",
+            );
+        }
+        _ => {
+            panic!(
+                "{from}→{to}: could not determine endpoint face; \
+                 face='{face}' end=({:.1},{:.1}) rect={target_rect:?}",
+                end.0, end.1,
+            );
+        }
+    }
+}
+
+/// Assert all sampled path points remain within the SVG viewBox.
+fn sampled_path_stays_within_view_box(
+    points: &[(f64, f64)],
+    view_box: (f64, f64, f64, f64),
+    eps: f64,
+) -> bool {
+    let (min_x, min_y, width, height) = view_box;
+    let max_x = min_x + width;
+    let max_y = min_y + height;
+    points
+        .iter()
+        .all(|&(x, y)| x >= min_x - eps && x <= max_x + eps && y >= min_y - eps && y <= max_y + eps)
+}
+
+/// Convenience wrapper: parse viewBox as (min_x, min_y, width, height).
+fn svg_view_box(svg: &str) -> Option<(f64, f64, f64, f64)> {
+    parse_svg_viewbox(svg)
+}
+
+// -- Plan 0123, Task 1.2: Helper micro-test --
+
+/// Verify the terminal-contract helper works on a known-good edge from the
+/// 0122 fixture where `graph→format` arrives at the left face cleanly.
+#[test]
+fn svg_terminal_contract_helpers_identify_faces_and_terminal_axis() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_intrusion.mmd");
+    let svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+    // graph→format arrives at format's left face with a clean horizontal stem.
+    assert_edge_terminal_is_face_normal_with_min_support(&diagram, &svg, "graph", "format", 8.0);
+}
+
+// -- Plan 0123, Task 1.1: Red tests --
+
+#[test]
+fn svg_lr_architecture_terminal_contracts_step_heavy_targets_are_face_normal_and_have_min_stem() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_terminal_contracts.mmd");
+    let svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    // Edges known to have wrong-face terminals on current HEAD.
+    let checks = [
+        ("mmds", "graph1"),
+        ("render", "graph1"),
+        ("registry", "errors"),
+        ("runtime", "timeline"),
+    ];
+
+    for (from, to) in checks {
+        assert_edge_terminal_is_face_normal_with_min_support(&diagram, &svg, from, to, 8.0);
+    }
+}
+
+/// Same terminal-contract check across all three orthogonal presets (step,
+/// smooth-step, curved-step) to satisfy plan 0123 Phase 1 preset coverage.
+#[test]
+fn svg_lr_architecture_terminal_contracts_all_orthogonal_presets_face_normal() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_terminal_contracts.mmd");
+
+    let presets: &[(RoutingStyle, Curve, &str)] = &[
+        (
+            RoutingStyle::Orthogonal,
+            Curve::Linear(CornerStyle::Sharp),
+            "step",
+        ),
+        (
+            RoutingStyle::Orthogonal,
+            Curve::Linear(CornerStyle::Rounded),
+            "smooth-step",
+        ),
+        (RoutingStyle::Orthogonal, Curve::Basis, "curved-step"),
+    ];
+
+    for &(routing, curve, label) in presets {
+        let svg = render_svg(
+            &diagram,
+            &RenderConfig {
+                routing_style: Some(routing),
+                curve: Some(curve),
+                path_simplification: PathSimplification::None,
+                ..Default::default()
+            },
+        );
+
+        // Check two representative edges per preset.
+        for (from, to) in [("mmds", "graph1"), ("registry", "errors")] {
+            assert_edge_terminal_is_face_normal_with_min_support(&diagram, &svg, from, to, 8.0);
+        }
+        let _ = label; // used in panic context by assert helper
+    }
+}
+
+#[test]
+fn svg_lr_architecture_hairpin_diagrams_to_errors_does_not_exit_viewbox() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_terminal_contracts.mmd");
+    let svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    let view = svg_view_box(&svg).expect("viewBox should exist");
+    let d = edge_path_d_for_svg_order(&diagram, &svg, edge_index(&diagram, "diagrams", "errors"));
+    let sampled = sample_svg_path_commands(&parse_svg_path_command_sequence(&d), 64);
+
+    assert!(
+        sampled_path_stays_within_view_box(&sampled, view, 0.5),
+        "diagrams→errors should not exit viewBox; d={d}"
+    );
+}
+
+#[test]
+fn svg_lr_architecture_hairpin_no_primary_axis_reversal_on_diagrams_to_errors() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_terminal_contracts.mmd");
+    let svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    let points =
+        edge_path_for_svg_order(&diagram, &svg, edge_index(&diagram, "diagrams", "errors"));
+    let has_x_reversal = points.windows(2).any(|w| w[1].0 < w[0].0 - 0.5);
+    assert!(
+        !has_x_reversal,
+        "diagrams→errors should not reverse along x; points={points:?}"
+    );
+}
