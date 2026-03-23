@@ -336,6 +336,7 @@ fn build_orthogonal_path(
             direction,
             target_primary_channel_depth,
         );
+        forward::avoid_forward_node_intrusions(&mut finalized, edge, geometry);
         forward::prefer_secondary_axis_departure_for_angular_sources(
             &mut finalized,
             edge,
