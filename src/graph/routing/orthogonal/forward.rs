@@ -295,19 +295,20 @@ fn splice_horizontal_jog(path: &mut Vec<FPoint>, idx: usize, safe_y: f64, eps: f
     if !points_match(*replacement.last().unwrap(), jog_end) {
         replacement.push(jog_end);
     }
+    let jog_end_idx = idx + replacement.len() - 1;
     path.splice(idx..idx + 2, replacement);
 
     // Prune subsequent points that are collinear at the same x as jog_end,
     // preventing a V-shaped hairpin when the detour y overshoots.
-    while path.len() > idx + 2 {
-        let cur = path[idx + 1]; // jog_end just inserted
-        let next = path[idx + 2];
+    while path.len() > jog_end_idx + 1 {
+        let cur = path[jog_end_idx]; // jog_end
+        let next = path[jog_end_idx + 1];
         if (cur.x - next.x).abs() <= eps && between_inclusive(safe_y, cur.y, next.y, eps) {
             // next is on the same vertical but between jog_end and a further
             // point — remove it so the vertical runs straight through.
             // But only if there's a point AFTER next that continues the path.
-            if path.len() > idx + 3 {
-                path.remove(idx + 2);
+            if path.len() > jog_end_idx + 2 {
+                path.remove(jog_end_idx + 1);
             } else {
                 break;
             }
@@ -332,14 +333,15 @@ fn splice_vertical_jog(path: &mut Vec<FPoint>, idx: usize, safe_x: f64, eps: f64
     if !points_match(*replacement.last().unwrap(), jog_end) {
         replacement.push(jog_end);
     }
+    let jog_end_idx = idx + replacement.len() - 1;
     path.splice(idx..idx + 2, replacement);
 
-    while path.len() > idx + 2 {
-        let cur = path[idx + 1];
-        let next = path[idx + 2];
+    while path.len() > jog_end_idx + 1 {
+        let cur = path[jog_end_idx];
+        let next = path[jog_end_idx + 1];
         if (cur.y - next.y).abs() <= eps && between_inclusive(safe_x, cur.x, next.x, eps) {
-            if path.len() > idx + 3 {
-                path.remove(idx + 2);
+            if path.len() > jog_end_idx + 2 {
+                path.remove(jog_end_idx + 1);
             } else {
                 break;
             }
