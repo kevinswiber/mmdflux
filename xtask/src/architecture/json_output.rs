@@ -79,20 +79,49 @@ pub(crate) fn violation_to_cargo_diagnostic_json(
                 "explanation": null,
             },
             "spans": spans,
-            "children": [{
-                "level": "note",
-                "message": format!("imported symbol: `{}`", violation.symbol),
-                "code": null,
-                "spans": [],
-                "children": [],
-                "rendered": null,
-            }],
+            "children": build_children(violation),
             "rendered": format!(
                 "error[boundaries]: {message}\n  --> imported symbol: `{}`",
                 violation.symbol
             ),
         },
     })
+}
+
+fn build_children(violation: &BoundaryViolation) -> Value {
+    let mut children = vec![json!({
+        "level": "note",
+        "message": format!("imported symbol: `{}`", violation.symbol),
+        "code": null,
+        "spans": [],
+        "children": [],
+        "rendered": null,
+    })];
+
+    if let Some(rule_id) = &violation.rule_id {
+        let rule_type = violation.rule_type.as_deref().unwrap_or("unknown");
+        children.push(json!({
+            "level": "note",
+            "message": format!("rule: {rule_id} ({rule_type})"),
+            "code": null,
+            "spans": [],
+            "children": [],
+            "rendered": null,
+        }));
+    }
+
+    if let Some(detail) = &violation.detail {
+        children.push(json!({
+            "level": "note",
+            "message": detail,
+            "code": null,
+            "spans": [],
+            "children": [],
+            "rendered": null,
+        }));
+    }
+
+    Value::Array(children)
 }
 
 pub(crate) fn emit_violations_json(
@@ -142,6 +171,9 @@ mod tests {
             line_text: Some("use crate::EngineAlgorithmId;".to_string()),
             underline_offset: Some(4),
             underline_len: Some(24),
+            rule_id: None,
+            rule_type: None,
+            detail: None,
         };
 
         let json = violation_to_cargo_diagnostic_json(&violation, &repo_root());
@@ -174,6 +206,9 @@ mod tests {
             line_text: None,
             underline_offset: None,
             underline_len: None,
+            rule_id: None,
+            rule_type: None,
+            detail: None,
         };
 
         let json = violation_to_cargo_diagnostic_json(&violation, &repo_root());
@@ -195,6 +230,9 @@ mod tests {
             line_text: None,
             underline_offset: None,
             underline_len: None,
+            rule_id: None,
+            rule_type: None,
+            detail: None,
         };
 
         let json = violation_to_cargo_diagnostic_json(&violation, &repo_root());
@@ -217,5 +255,71 @@ mod tests {
 
         let json = build_finished_json(false);
         assert_eq!(json["success"], false);
+    }
+
+    #[test]
+    fn violation_with_rule_metadata_includes_rule_note() {
+        let violation = BoundaryViolation {
+            source_boundary: "graph".to_string(),
+            target_boundary: "diagrams".to_string(),
+            symbol: "crate::diagrams::Foo".to_string(),
+            file: Some("src/graph/mod.rs".to_string()),
+            line: Some(10),
+            column: Some(5),
+            line_text: None,
+            underline_offset: None,
+            underline_len: None,
+            rule_id: Some("allow-graph".to_string()),
+            rule_type: Some("allow".to_string()),
+            detail: Some("graph may only depend on errors, format".to_string()),
+        };
+
+        let json = violation_to_cargo_diagnostic_json(&violation, &repo_root());
+        let children = &json["message"]["children"];
+
+        // First child: symbol note (always present)
+        assert!(
+            children[0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("crate::diagrams::Foo")
+        );
+        // Second child: rule note
+        assert!(
+            children[1]["message"]
+                .as_str()
+                .unwrap()
+                .contains("allow-graph")
+        );
+        assert!(children[1]["message"].as_str().unwrap().contains("allow"));
+        // Third child: detail note
+        assert!(
+            children[2]["message"]
+                .as_str()
+                .unwrap()
+                .contains("graph may only depend on")
+        );
+    }
+
+    #[test]
+    fn violation_without_rule_metadata_has_single_child() {
+        let violation = BoundaryViolation {
+            source_boundary: "graph".to_string(),
+            target_boundary: "diagrams".to_string(),
+            symbol: "crate::diagrams::Foo".to_string(),
+            file: None,
+            line: None,
+            column: None,
+            line_text: None,
+            underline_offset: None,
+            underline_len: None,
+            rule_id: None,
+            rule_type: None,
+            detail: None,
+        };
+
+        let json = violation_to_cargo_diagnostic_json(&violation, &repo_root());
+        let children = json["message"]["children"].as_array().unwrap();
+        assert_eq!(children.len(), 1); // only the symbol note
     }
 }

@@ -1,0 +1,39 @@
+version = 1
+
+[modules.errors]
+tags = { layer = "foundation" }
+
+[modules.format]
+tags = { layer = "foundation" }
+
+[modules.graph]
+tags = { layer = "core" }
+
+[modules.render]
+tags = { layer = "output" }
+
+[modules.runtime]
+tags = { layer = "runtime" }
+
+[[rules]]
+id = "core-deps"
+type = "allow"
+
+[rules.config]
+source = "graph"
+allowed = ["errors", "format"]
+
+[[rules]]
+id = "pipeline-layers"
+type = "layers"
+
+[rules.config]
+order = ["errors", "format", "graph", "render", "runtime"]
+
+[[exceptions]]
+id = "legacy-render-graph-cycle"
+rule_id = "pipeline-layers"
+source = "render"
+target = "graph"
+reason = "historical coupling being unwound in plan 0118"
+owner = "kevin"

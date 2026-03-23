@@ -87,6 +87,14 @@ boundaries:
 boundaries-watch:
     cargo xtask architecture host
 
+# Print the semantic boundary dependency graph as Mermaid.
+boundaries-graph:
+    cargo xtask architecture graph
+
+# Explain a specific edge or boundary in the semantic dependency graph.
+boundaries-explain *args:
+    cargo xtask architecture explain {{ args }}
+
 # Build size-optimized release wasm bindings for browser and bundler targets
 wasm-build-release:
     CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 CARGO_PROFILE_RELEASE_LTO=fat CARGO_PROFILE_RELEASE_PANIC=abort wasm-pack build crates/mmdflux-wasm --target web --release --out-dir ../../target/wasm-pkg-web

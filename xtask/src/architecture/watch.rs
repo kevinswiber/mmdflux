@@ -473,7 +473,7 @@ where
             runner.run_once(run_number, &[])
         }
     };
-    boundaries_host.complete_run(initial.report);
+    boundaries_host.complete_run(initial.result);
     let mut last_status = initial.status;
     let mut reruns = 0usize;
 
@@ -497,7 +497,7 @@ where
         run_number += 1;
         boundaries_host.begin_run();
         let outcome = runner.run_once(run_number, &changes);
-        boundaries_host.complete_run(outcome.report);
+        boundaries_host.complete_run(outcome.result);
         last_status = outcome.status;
     }
 
@@ -700,7 +700,7 @@ struct ArchitectureWatchRunner {
 
 struct ArchitectureRunOutcome {
     status: WatchRunStatus,
-    report: super::boundaries::BoundariesRunReport,
+    result: super::boundaries::BoundariesRunResult,
 }
 
 impl ArchitectureWatchRunner {
@@ -718,17 +718,21 @@ impl ArchitectureWatchRunner {
         }
 
         let started = Instant::now();
-        let report = match run_boundaries_watch_report(&mut self.context, self.render) {
-            Ok(report) => report,
-            Err(error) => super::boundaries::BoundariesRunReport {
-                success: false,
-                rendered_output: String::new(),
-                summary: Some(format!("{error:#}")),
-                timings_output: None,
-                violations: Vec::new(),
+        let run_result = match run_boundaries_watch_report(&mut self.context, self.render) {
+            Ok(result) => result,
+            Err(error) => super::boundaries::BoundariesRunResult {
+                report: super::boundaries::BoundariesRunReport {
+                    success: false,
+                    rendered_output: String::new(),
+                    summary: Some(format!("{error:#}")),
+                    timings_output: None,
+                    violations: Vec::new(),
+                },
+                graph: super::boundaries::BoundaryGraph::new(std::collections::BTreeSet::new()),
             },
         };
         let duration = started.elapsed();
+        let report = &run_result.report;
         let status = if report.success {
             WatchRunStatus::Passed
         } else {
@@ -747,11 +751,14 @@ impl ArchitectureWatchRunner {
         if !report.success {
             eprintln!(
                 "[run {run_number}] failure detail for boundaries:\n{}",
-                render_failure_detail(&report)
+                render_failure_detail(report)
             );
         }
 
-        ArchitectureRunOutcome { status, report }
+        ArchitectureRunOutcome {
+            status,
+            result: run_result,
+        }
     }
 }
 

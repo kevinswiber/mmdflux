@@ -1,0 +1,20 @@
+version = 1
+
+[modules]
+graph = {}
+
+[[rules]]
+id = "some-contract"
+type = "allow"
+
+[rules.config]
+source = "graph"
+allowed = []
+
+[[exceptions]]
+id = "bad-exc"
+rule_id = "some-contract"
+source = "nonexistent"
+target = "graph"
+reason = "source does not exist"
+owner = "kevin"

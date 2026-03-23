@@ -54,7 +54,7 @@
     "mmdflux-local": {
       "source": {
         "source": "directory",
-        "path": "../mmdflux-plugin-marketplace"
+        "path": "./mmdflux-plugin-marketplace"
       },
       "autoUpdate": true
     }

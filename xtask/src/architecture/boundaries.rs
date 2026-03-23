@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::io::{IsTerminal, Write};
-use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -24,7 +23,6 @@ use ra_ap_syntax::{AstNode, SyntaxNode, TextRange, TextSize, ast};
 use ra_ap_vfs::{Change, Vfs, VfsPath};
 use serde::{Deserialize, Serialize};
 
-const BOUNDARIES_CONFIG_ENV: &str = "SEMANTIC_BOUNDARIES_CONFIG";
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct SemanticBoundariesSuiteOptions {
     pub(crate) timings: bool,
@@ -32,13 +30,20 @@ pub(crate) struct SemanticBoundariesSuiteOptions {
     pub(crate) verbose: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct BoundariesRunReport {
     pub(crate) success: bool,
     pub(crate) rendered_output: String,
     pub(crate) summary: Option<String>,
     pub(crate) timings_output: Option<String>,
     pub(crate) violations: Vec<BoundaryViolation>,
+}
+
+/// Full result of a boundaries run, including the graph for inspection.
+#[derive(Debug, Clone)]
+pub(crate) struct BoundariesRunResult {
+    pub(crate) report: BoundariesRunReport,
+    pub(crate) graph: BoundaryGraph,
 }
 
 #[derive(Debug, Default)]
@@ -93,14 +98,6 @@ impl SemanticBoundariesContext {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct BoundariesConfig {
-    #[serde(default = "default_boundaries_config_version")]
-    version: u32,
-    #[serde(default)]
-    modules: BTreeMap<String, BTreeSet<String>>,
-}
-
 #[derive(Debug)]
 struct LoadedLibrary {
     krate: HirCrate,
@@ -152,6 +149,12 @@ pub(crate) struct BoundaryViolation {
     pub(crate) line_text: Option<String>,
     pub(crate) underline_offset: Option<usize>,
     pub(crate) underline_len: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) rule_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) rule_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) detail: Option<String>,
 }
 
 impl BoundaryViolation {
@@ -166,26 +169,138 @@ impl BoundaryViolation {
             line_text: sample.location.as_ref().map(|loc| loc.line_text.clone()),
             underline_offset: sample.location.as_ref().map(|loc| loc.underline_offset),
             underline_len: sample.location.as_ref().map(|loc| loc.underline_len),
+            rule_id: None,
+            rule_type: None,
+            detail: None,
         }
     }
 }
 
-#[derive(Debug, Clone)]
-struct DependencySample {
-    source: String,
-    symbol: String,
-    target: String,
-    location: Option<SourceLocation>,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct DependencySample {
+    pub(crate) source: String,
+    pub(crate) symbol: String,
+    pub(crate) target: String,
+    pub(crate) location: Option<SourceLocation>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct SourceLocation {
-    path: String,
-    line: usize,
-    column: usize,
-    line_text: String,
-    underline_offset: usize,
-    underline_len: usize,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct SourceLocation {
+    pub(crate) path: String,
+    pub(crate) line: usize,
+    pub(crate) column: usize,
+    pub(crate) line_text: String,
+    pub(crate) underline_offset: usize,
+    pub(crate) underline_len: usize,
+}
+
+// ---------------------------------------------------------------------------
+// BoundaryGraph — reusable graph artifact for rule evaluation & inspection
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct BoundaryGraph {
+    pub(crate) boundaries: BTreeSet<String>,
+    #[serde(
+        serialize_with = "serialize_edges",
+        deserialize_with = "deserialize_edges"
+    )]
+    pub(crate) edges: BTreeMap<(String, String), BoundaryEdge>,
+}
+
+fn serialize_edges<S: serde::Serializer>(
+    edges: &BTreeMap<(String, String), BoundaryEdge>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    let mut seq = serializer.serialize_seq(Some(edges.len()))?;
+    for ((source, target), edge) in edges {
+        seq.serialize_element(&(source, target, edge))?;
+    }
+    seq.end()
+}
+
+fn deserialize_edges<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<BTreeMap<(String, String), BoundaryEdge>, D::Error> {
+    let entries: Vec<(String, String, BoundaryEdge)> =
+        serde::Deserialize::deserialize(deserializer)?;
+    Ok(entries
+        .into_iter()
+        .map(|(source, target, edge)| ((source, target), edge))
+        .collect())
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct BoundaryEdge {
+    pub(crate) sample: DependencySample,
+    pub(crate) provenance: EdgeProvenance,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) enum EdgeProvenance {
+    ModuleScope,
+    QualifiedPath,
+    Mixed,
+}
+
+impl EdgeProvenance {
+    fn merge(self, other: EdgeProvenance) -> EdgeProvenance {
+        if self == other {
+            self
+        } else {
+            EdgeProvenance::Mixed
+        }
+    }
+}
+
+impl BoundaryGraph {
+    pub(crate) fn new(boundaries: BTreeSet<String>) -> Self {
+        Self {
+            boundaries,
+            edges: BTreeMap::new(),
+        }
+    }
+
+    pub(crate) fn insert_edge(
+        &mut self,
+        source: String,
+        target: String,
+        sample: DependencySample,
+        provenance: EdgeProvenance,
+    ) {
+        let key = (source, target);
+        match self.edges.entry(key) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(BoundaryEdge { sample, provenance });
+            }
+            std::collections::btree_map::Entry::Occupied(mut entry) => {
+                let existing = entry.get_mut();
+                existing.provenance = existing.provenance.merge(provenance);
+                if should_replace_dependency_sample(&existing.sample, &sample) {
+                    existing.sample = sample;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn edge(&self, source: &str, target: &str) -> Option<&BoundaryEdge> {
+        self.edges.get(&(source.to_string(), target.to_string()))
+    }
+
+    /// Convert to the legacy edge map format for rendering code that
+    /// still expects the old shape.
+    pub(crate) fn to_legacy_edge_map(
+        &self,
+    ) -> BTreeMap<String, BTreeMap<String, DependencySample>> {
+        let mut map = BTreeMap::<String, BTreeMap<String, DependencySample>>::new();
+        for ((source, target), edge) in &self.edges {
+            map.entry(source.clone())
+                .or_default()
+                .insert(target.clone(), edge.sample.clone());
+        }
+        map
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -271,7 +386,7 @@ struct QualifiedPathScanBreakdown {
     slowest_module_locator_files: Vec<SlowModuleLocatorFile>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 enum PathResolutionKind {
     Ignored,
     SyntacticFastPath,
@@ -313,7 +428,8 @@ pub(crate) fn run_with_context(
     context: &mut SemanticBoundariesContext,
     options: SemanticBoundariesSuiteOptions,
 ) -> Result<()> {
-    let report = run_with_context_report(context, options)?;
+    let result = run_with_context_report(context, options)?;
+    let report = &result.report;
     if let Some(timings_output) = &report.timings_output {
         eprint!("{timings_output}");
     }
@@ -322,7 +438,7 @@ pub(crate) fn run_with_context(
     }
 
     if options.quiet {
-        anyhow::bail!(quiet_failure_message(&report));
+        anyhow::bail!(quiet_failure_message(report));
     }
 
     eprint!("{}", report.rendered_output);
@@ -337,12 +453,13 @@ pub(crate) fn run_with_context(
 pub(crate) fn run_with_context_report(
     context: &mut SemanticBoundariesContext,
     options: SemanticBoundariesSuiteOptions,
-) -> Result<BoundariesRunReport> {
+) -> Result<BoundariesRunResult> {
     let started = Instant::now();
     let mut timings = TimingBreakdown::default();
 
     let phase_started = Instant::now();
-    let (config_path, boundaries_config) = load_boundaries_config()?;
+    let config_path = super::policy::resolve_policy_path(&repo_root());
+    let arch_policy = super::policy::parse_policy_file(&config_path)?;
     timings.config_load = phase_started.elapsed();
     if !options.quiet && options.verbose {
         log_info(format!(
@@ -350,14 +467,9 @@ pub(crate) fn run_with_context_report(
             display_repo_relative(&config_path)
         ));
     }
-    if boundaries_config.version != 1 {
-        anyhow::bail!(
-            "unsupported semantic boundaries config version {} in {}",
-            boundaries_config.version,
-            config_path.display()
-        );
-    }
-    let policy = boundaries_config.modules;
+    // Extract legacy allow map for downstream rendering compatibility.
+    // This will be replaced by rule-aware rendering in a later task.
+    let policy = arch_policy.extract_allow_map();
 
     if !options.quiet && options.verbose {
         log_info(context.workspace_status());
@@ -369,7 +481,7 @@ pub(crate) fn run_with_context_report(
     let sema = Semantics::new(db);
     let root = loaded.krate.root_module();
 
-    let policy_boundaries: BTreeSet<_> = policy.keys().cloned().collect();
+    let policy_boundaries: BTreeSet<_> = arch_policy.modules.keys().cloned().collect();
     let phase_started = Instant::now();
     let discovered_boundaries = discover_top_level_boundaries(root, db);
     timings.boundary_discovery = phase_started.elapsed();
@@ -406,15 +518,47 @@ pub(crate) fn run_with_context_report(
         declared_boundaries: &policy_boundaries,
         verbose: !options.quiet && options.verbose,
     };
-    let actual = collect_actual_edges(&edge_collection, &mut timings);
+    let boundary_graph = collect_boundary_graph(&edge_collection, &mut timings);
     let phase_started = Instant::now();
-    let violations = find_policy_violations(&policy, &actual);
+    let eval_result = super::rules_eval::evaluate_rules(&boundary_graph, &arch_policy);
+    let mut boundary_violations: Vec<BoundaryViolation> = eval_result
+        .violations
+        .iter()
+        .map(|v| {
+            let mut bv =
+                BoundaryViolation::from_sample(&v.source_boundary, &v.target_boundary, &v.sample);
+            bv.rule_id = Some(v.rule_id.clone());
+            bv.rule_type = Some(v.rule_type.clone());
+            bv.detail = v.detail.clone();
+            bv
+        })
+        .collect();
+    boundary_violations.sort_by(|a, b| {
+        a.file
+            .cmp(&b.file)
+            .then(a.line.cmp(&b.line))
+            .then(a.column.cmp(&b.column))
+            .then(a.source_boundary.cmp(&b.source_boundary))
+            .then(a.target_boundary.cmp(&b.target_boundary))
+    });
     timings.violation_analysis = phase_started.elapsed();
     let phase_started = Instant::now();
     if !options.quiet && options.verbose {
-        report_boundary_results(&policy, &actual);
+        let actual = boundary_graph.to_legacy_edge_map();
+        report_boundary_results(&policy, &arch_policy, &actual);
+        for suppressed in &eval_result.suppressed {
+            log_info(format!(
+                "suppressed: {} -> {} (exception: {})",
+                suppressed.violation.source_boundary,
+                suppressed.violation.target_boundary,
+                suppressed.exception_id,
+            ));
+        }
+        for unused in &eval_result.unused_exceptions {
+            log_info(format!("unused exception: {unused}"));
+        }
     }
-    let report = if violations.is_empty() {
+    let report = if boundary_violations.is_empty() {
         BoundariesRunReport {
             success: true,
             rendered_output: String::new(),
@@ -423,21 +567,18 @@ pub(crate) fn run_with_context_report(
             violations: Vec::new(),
         }
     } else {
-        let boundary_violations = violations
-            .iter()
-            .map(|(source, target, sample)| BoundaryViolation::from_sample(source, target, sample))
-            .collect();
+        let actual = boundary_graph.to_legacy_edge_map();
         BoundariesRunReport {
             success: false,
             rendered_output: render_violation_report(
                 &policy,
-                &violations,
+                &boundary_violations,
                 &actual,
                 options.verbose,
                 &diagnostic_renderer(),
                 false,
             ),
-            summary: Some(format_failure_summary(violations.len())),
+            summary: Some(format_failure_summary(boundary_violations.len())),
             timings_output: None,
             violations: boundary_violations,
         }
@@ -448,36 +589,54 @@ pub(crate) fn run_with_context_report(
         log_info(format!("finished in {:.2}s", timings.total.as_secs_f64()));
     }
 
-    Ok(BoundariesRunReport {
-        timings_output: options.timings.then(|| render_timing_breakdown(&timings)),
-        ..report
+    Ok(BoundariesRunResult {
+        report: BoundariesRunReport {
+            timings_output: options.timings.then(|| render_timing_breakdown(&timings)),
+            ..report
+        },
+        graph: boundary_graph,
     })
 }
 
-fn default_boundaries_config_version() -> u32 {
-    1
-}
+/// Load the library and collect the boundary graph for inspection commands.
+/// Reuses the same semantic analysis as `run_with_context_report` but skips
+/// violation analysis and reporting.
+pub(crate) fn collect_graph_for_inspection(
+    context: &mut SemanticBoundariesContext,
+) -> Result<BoundaryGraph> {
+    let config_path = super::policy::resolve_policy_path(&repo_root());
+    let arch_policy = super::policy::parse_policy_file(&config_path)?;
+    let policy_boundaries: BTreeSet<_> = arch_policy.modules.keys().cloned().collect();
 
-fn load_boundaries_config() -> Result<(PathBuf, BoundariesConfig)> {
-    let path = resolve_boundaries_config_path();
-    let content = std::fs::read_to_string(&path)
-        .with_context(|| format!("failed to read {}", path.display()))?;
-    let config =
-        toml::from_str(&content).with_context(|| format!("failed to parse {}", path.display()))?;
-    Ok((path, config))
-}
+    let loaded = context.load_library()?;
+    let db = loaded.host.raw_database();
+    let sema = Semantics::new(db);
+    let root = loaded.krate.root_module();
 
-fn resolve_boundaries_config_path() -> PathBuf {
-    std::env::var_os(BOUNDARIES_CONFIG_ENV)
-        .map(PathBuf::from)
-        .map(|path| {
-            if path.is_absolute() {
-                path
-            } else {
-                repo_root().join(path)
-            }
-        })
-        .unwrap_or_else(|| repo_root().join("boundaries.toml"))
+    let discovered_boundaries = discover_top_level_boundaries(root, db);
+    let missing: Vec<_> = policy_boundaries
+        .difference(&discovered_boundaries)
+        .cloned()
+        .collect();
+    if !missing.is_empty() {
+        anyhow::bail!(
+            "{} declares missing top-level modules: {:?}",
+            display_repo_relative(&config_path),
+            missing
+        );
+    }
+
+    let edge_collection = EdgeCollectionContext {
+        sema: &sema,
+        vfs: &loaded.vfs,
+        krate: loaded.krate,
+        root,
+        db,
+        declared_boundaries: &policy_boundaries,
+        verbose: false,
+    };
+    let mut timings = TimingBreakdown::default();
+    Ok(collect_boundary_graph(&edge_collection, &mut timings))
 }
 
 fn load_library() -> Result<LoadedLibrary> {
@@ -686,11 +845,11 @@ fn discover_top_level_boundaries(root: Module, db: &RootDatabase) -> BTreeSet<St
         .collect()
 }
 
-fn collect_actual_edges(
+fn collect_boundary_graph(
     ctx: &EdgeCollectionContext<'_>,
     timings: &mut TimingBreakdown,
-) -> BTreeMap<String, BTreeMap<String, DependencySample>> {
-    let mut edges = BTreeMap::<String, BTreeMap<String, DependencySample>>::new();
+) -> BoundaryGraph {
+    let mut graph = BoundaryGraph::new(ctx.declared_boundaries.clone());
 
     if ctx.verbose {
         log_info("collect semantic module-scope edges");
@@ -711,7 +870,7 @@ fn collect_actual_edges(
             &source_boundary,
             ctx.root,
             ctx.db,
-            &mut edges,
+            &mut graph,
         );
     }
     timings.module_scope_scan = phase_started.elapsed();
@@ -720,7 +879,7 @@ fn collect_actual_edges(
         log_info("resolve qualified crate/self/super paths");
     }
     let phase_started = Instant::now();
-    let breakdown = collect_qualified_path_edges(ctx, &mut edges);
+    let breakdown = collect_qualified_path_edges(ctx, &mut graph);
     timings.qualified_path_scan = phase_started.elapsed();
     timings.qualified_path_candidate_file_filtering = breakdown.candidate_file_filtering;
     timings.qualified_path_file_reads = breakdown.file_reads;
@@ -745,7 +904,7 @@ fn collect_actual_edges(
     timings.qualified_path_slowest_files = breakdown.slowest_path_files;
     timings.qualified_path_slowest_module_locator_files = breakdown.slowest_module_locator_files;
 
-    edges
+    graph
 }
 
 fn collect_module_scope_edges(
@@ -753,7 +912,7 @@ fn collect_module_scope_edges(
     source_boundary: &str,
     root: Module,
     db: &RootDatabase,
-    edges: &mut BTreeMap<String, BTreeMap<String, DependencySample>>,
+    graph: &mut BoundaryGraph,
 ) {
     let source_module_path = module_path(module, db);
 
@@ -786,8 +945,7 @@ fn collect_module_scope_edges(
             })
             .unwrap_or_else(|| module_path(target_module, db));
 
-        insert_dependency_sample(
-            edges,
+        graph.insert_edge(
             source_boundary.to_string(),
             target_boundary.clone(),
             DependencySample {
@@ -796,17 +954,18 @@ fn collect_module_scope_edges(
                 target: module_path(target_module, db),
                 location: None,
             },
+            EdgeProvenance::ModuleScope,
         );
     }
 
     for child in module.children(db) {
-        collect_module_scope_edges(child, source_boundary, root, db, edges);
+        collect_module_scope_edges(child, source_boundary, root, db, graph);
     }
 }
 
 fn collect_qualified_path_edges(
     ctx: &EdgeCollectionContext<'_>,
-    edges: &mut BTreeMap<String, BTreeMap<String, DependencySample>>,
+    graph: &mut BoundaryGraph,
 ) -> QualifiedPathScanBreakdown {
     let src_root = AbsPathBuf::assert_utf8(repo_root().join("src"));
     let boundary_names = discover_top_level_boundaries(ctx.root, ctx.db);
@@ -920,7 +1079,7 @@ fn collect_qualified_path_edges(
                 &segments,
                 &file_text,
                 render_relative_path(&segments),
-                edges,
+                graph,
             );
             let elapsed = resolution_started.elapsed();
             match resolution {
@@ -1007,7 +1166,7 @@ fn collect_qualified_path_edges(
                 &segments,
                 &file_text,
                 path.syntax().text().to_string(),
-                edges,
+                graph,
             );
             let elapsed = resolution_started.elapsed();
             match resolution {
@@ -1085,7 +1244,7 @@ fn record_relative_path_edge(
     segments: &[RelativePathSegment],
     file_text: &str,
     symbol: String,
-    edges: &mut BTreeMap<String, BTreeMap<String, DependencySample>>,
+    graph: &mut BoundaryGraph,
 ) -> PathResolutionKind {
     let Some(source_module) = module_locator.locate(scope_node) else {
         return PathResolutionKind::Ignored;
@@ -1128,8 +1287,7 @@ fn record_relative_path_edge(
         return resolution_kind;
     }
 
-    insert_dependency_sample(
-        edges,
+    graph.insert_edge(
         source_boundary,
         target_boundary,
         DependencySample {
@@ -1142,28 +1300,10 @@ fn record_relative_path_edge(
                 path.syntax().text_range(),
             )),
         },
+        EdgeProvenance::QualifiedPath,
     );
 
     resolution_kind
-}
-
-fn insert_dependency_sample(
-    edges: &mut BTreeMap<String, BTreeMap<String, DependencySample>>,
-    source_boundary: String,
-    target_boundary: String,
-    sample: DependencySample,
-) {
-    let target_entry = edges.entry(source_boundary).or_default();
-    match target_entry.entry(target_boundary) {
-        std::collections::btree_map::Entry::Vacant(entry) => {
-            entry.insert(sample);
-        }
-        std::collections::btree_map::Entry::Occupied(mut entry) => {
-            if should_replace_dependency_sample(entry.get(), &sample) {
-                entry.insert(sample);
-            }
-        }
-    }
 }
 
 fn should_replace_dependency_sample(
@@ -1465,52 +1605,9 @@ fn top_level_path_for_offset(root: &SyntaxNode, offset: TextSize) -> Option<ast:
         .find_map(|token| token.parent()?.ancestors().find_map(ast::Path::cast))
 }
 
-fn find_policy_violations(
-    policy: &BTreeMap<String, BTreeSet<String>>,
-    actual: &BTreeMap<String, BTreeMap<String, DependencySample>>,
-) -> Vec<(String, String, DependencySample)> {
-    let mut violations = Vec::new();
-
-    for (source, targets) in actual {
-        let allowed = policy.get(source);
-        for (target, sample) in targets {
-            if !allowed.is_some_and(|deps| deps.contains(target)) {
-                violations.push((source.clone(), target.clone(), sample.clone()));
-            }
-        }
-    }
-
-    violations.sort_by(|left, right| {
-        compare_dependency_samples(&left.2, &right.2)
-            .then(left.0.cmp(&right.0))
-            .then(left.1.cmp(&right.1))
-    });
-    violations
-}
-
-fn compare_dependency_samples(
-    left: &DependencySample,
-    right: &DependencySample,
-) -> std::cmp::Ordering {
-    match (&left.location, &right.location) {
-        (Some(left), Some(right)) => left
-            .path
-            .cmp(&right.path)
-            .then(left.line.cmp(&right.line))
-            .then(left.column.cmp(&right.column)),
-        (Some(_), None) => std::cmp::Ordering::Less,
-        (None, Some(_)) => std::cmp::Ordering::Greater,
-        (None, None) => left
-            .source
-            .cmp(&right.source)
-            .then(left.symbol.cmp(&right.symbol))
-            .then(left.target.cmp(&right.target)),
-    }
-}
-
 fn render_violation_report(
     policy: &BTreeMap<String, BTreeSet<String>>,
-    violations: &[(String, String, DependencySample)],
+    violations: &[BoundaryViolation],
     actual: &BTreeMap<String, BTreeMap<String, DependencySample>>,
     verbose: bool,
     renderer: &Renderer,
@@ -1539,38 +1636,61 @@ fn quiet_failure_message(report: &BoundariesRunReport) -> String {
 }
 
 fn render_violation(
-    source: &str,
-    target: &str,
-    sample: &DependencySample,
+    violation: &BoundaryViolation,
     allowed_targets: Option<&BTreeSet<String>>,
     renderer: &Renderer,
 ) -> String {
+    let source = &violation.source_boundary;
+    let target = &violation.target_boundary;
     let title = format!("forbidden dependency from `{source}` to `{target}`");
     let label = format!("forbidden dependency on `{target}`");
 
     let mut group = Group::with_title(Level::ERROR.primary_title(title).id("boundaries"));
-    if let Some(location) = &sample.location {
-        let span = line_span(location);
+    if let (Some(file), Some(line), Some(line_text)) =
+        (&violation.file, violation.line, &violation.line_text)
+    {
+        let char_start = violation.underline_offset.unwrap_or(0);
+        let char_end = char_start + violation.underline_len.unwrap_or(1);
+        let byte_start = char_offset_to_byte_index(line_text, char_start);
+        let byte_end = char_offset_to_byte_index(line_text, char_end);
+        let min_end = next_char_end_byte_index(line_text, byte_start);
+        let span = byte_start..byte_end.max(min_end);
         group = group.element(
-            Snippet::source(location.line_text.clone())
-                .line_start(location.line)
-                .path(location.path.clone())
+            Snippet::source(line_text.clone())
+                .line_start(line)
+                .path(file.clone())
                 .fold(false)
                 .annotation(AnnotationKind::Primary.span(span).label(label)),
         );
     } else {
         group = group.element(Level::NOTE.message(format!(
-            "observed via {} (`{}` -> {})",
-            sample.source, sample.symbol, sample.target
+            "observed via {} (`{}`)",
+            violation.source_boundary, violation.symbol
         )));
     }
 
-    group = group.element(Level::NOTE.message(format!("imported symbol: `{}`", sample.symbol)));
-    if let Some(allowed_targets) = allowed_targets {
-        let allowed = format_allowed_targets(allowed_targets);
-        group = group.element(Level::HELP.message(format!(
-            "allowed top-level dependencies for `{source}`: {allowed}"
-        )));
+    group = group.element(Level::NOTE.message(format!("imported symbol: `{}`", violation.symbol)));
+
+    // Dispatch help text based on rule type
+    match violation.rule_type.as_deref() {
+        Some("allow") | None => {
+            if let Some(allowed_targets) = allowed_targets {
+                let allowed = format_allowed_targets(allowed_targets);
+                group = group.element(Level::HELP.message(format!(
+                    "allowed top-level dependencies for `{source}`: {allowed}"
+                )));
+            }
+        }
+        Some(_) => {
+            if let Some(detail) = &violation.detail {
+                group = group.element(Level::HELP.message(detail.clone()));
+            }
+            if let Some(rule_id) = &violation.rule_id {
+                let rule_type = violation.rule_type.as_deref().unwrap_or("unknown");
+                group =
+                    group.element(Level::NOTE.message(format!("rule: {rule_id} ({rule_type})")));
+            }
+        }
     }
 
     renderer.render(&[group]).trim_end().to_string()
@@ -1579,18 +1699,19 @@ fn render_violation(
 fn write_violation_report<W: Write>(
     writer: &mut W,
     policy: &BTreeMap<String, BTreeSet<String>>,
-    violations: &[(String, String, DependencySample)],
+    violations: &[BoundaryViolation],
     actual: &BTreeMap<String, BTreeMap<String, DependencySample>>,
     verbose: bool,
     renderer: &Renderer,
     include_summary: bool,
 ) -> std::io::Result<()> {
-    for (index, (source, target, sample)) in violations.iter().enumerate() {
+    for (index, violation) in violations.iter().enumerate() {
         if index > 0 {
             writer.write_all(b"\n")?;
         }
         writer.write_all(
-            render_violation(source, target, sample, policy.get(source), renderer).as_bytes(),
+            render_violation(violation, policy.get(&violation.source_boundary), renderer)
+                .as_bytes(),
         )?;
     }
 
@@ -1665,21 +1786,10 @@ fn format_failure_summary(violation_count: usize) -> String {
     )
 }
 
-fn line_span(location: &SourceLocation) -> Range<usize> {
-    let start = char_offset_to_byte_index(&location.line_text, location.underline_offset);
-    let end = char_offset_to_byte_index(
-        &location.line_text,
-        location.underline_offset + location.underline_len,
-    );
-    let min_end = next_char_end_byte_index(&location.line_text, start);
-    start..end.max(min_end)
-}
-
 fn char_offset_to_byte_index(text: &str, char_offset: usize) -> usize {
     if char_offset == 0 {
         return 0;
     }
-
     text.char_indices()
         .map(|(idx, _)| idx)
         .nth(char_offset)
@@ -1694,10 +1804,12 @@ fn next_char_end_byte_index(text: &str, start: usize) -> usize {
 }
 
 fn report_boundary_results(
-    policy: &BTreeMap<String, BTreeSet<String>>,
+    allow_map: &BTreeMap<String, BTreeSet<String>>,
+    arch_policy: &super::policy::ArchitecturePolicy,
     actual: &BTreeMap<String, BTreeMap<String, DependencySample>>,
 ) {
-    for (boundary, allowed) in policy {
+    // Report allow rule results per boundary
+    for (boundary, allowed) in allow_map {
         let unexpected: Vec<_> = actual
             .get(boundary)
             .into_iter()
@@ -1710,6 +1822,34 @@ fn report_boundary_results(
             eprintln!("[PASS] {boundary}");
         } else {
             eprintln!("[FAIL] {boundary} unexpected: {}", unexpected.join(", "));
+        }
+    }
+
+    // Report non-allow rules
+    for rule in &arch_policy.rules {
+        match &rule.rule {
+            super::policy::RuleKind::Allow(_) => {} // already reported above
+            super::policy::RuleKind::Layers(l) => {
+                eprintln!("[INFO] layers rule {:?}: order = {:?}", rule.id, l.order);
+            }
+            super::policy::RuleKind::Independence(i) => {
+                eprintln!(
+                    "[INFO] independence rule {:?}: members = {:?}",
+                    rule.id, i.members
+                );
+            }
+            super::policy::RuleKind::Protected(p) => {
+                eprintln!(
+                    "[INFO] protected rule {:?}: targets = {:?}, allowed_importers = {:?}",
+                    rule.id, p.targets, p.allowed_importers
+                );
+            }
+            super::policy::RuleKind::Acyclic(a) => {
+                eprintln!(
+                    "[INFO] acyclic rule {:?}: members = {:?}",
+                    rule.id, a.members
+                );
+            }
         }
     }
 }
@@ -1933,10 +2073,14 @@ mod tests {
     use annotate_snippets::renderer::DecorStyle;
 
     use super::{
-        BoundariesRunReport, BoundaryViolation, DependencySample, PendingRefresh,
-        SemanticBoundariesContext, SourceLocation, insert_dependency_sample, quiet_failure_message,
+        BoundariesRunReport, BoundaryGraph, BoundaryViolation, DependencySample, EdgeProvenance,
+        PendingRefresh, SemanticBoundariesContext, SourceLocation, quiet_failure_message,
         render_violation_report, write_violation_report,
     };
+
+    fn test_violation(source: &str, target: &str, sample: DependencySample) -> BoundaryViolation {
+        BoundaryViolation::from_sample(source, target, &sample)
+    }
 
     #[test]
     fn boundary_violation_round_trips_through_json() {
@@ -1950,6 +2094,9 @@ mod tests {
             line_text: Some("use crate::EngineAlgorithmId;".to_string()),
             underline_offset: Some(4),
             underline_len: Some(24),
+            rule_id: None,
+            rule_type: None,
+            detail: None,
         };
 
         let json = serde_json::to_string(&violation).unwrap();
@@ -1969,6 +2116,9 @@ mod tests {
             line_text: None,
             underline_offset: None,
             underline_len: None,
+            rule_id: None,
+            rule_type: None,
+            detail: None,
         };
 
         let json = serde_json::to_string(&violation).unwrap();
@@ -2075,29 +2225,29 @@ mod tests {
 
     #[test]
     fn violation_report_defaults_to_compiler_style_output() {
+        let violations = vec![test_violation(
+            "graph",
+            "diagrams",
+            DependencySample {
+                source: "src/graph/direction_policy.rs".to_string(),
+                symbol: "crate::diagrams::flowchart::compile_to_graph".to_string(),
+                target: "crate::diagrams".to_string(),
+                location: Some(SourceLocation {
+                    path: "src/graph/direction_policy.rs".to_string(),
+                    line: 133,
+                    column: 9,
+                    line_text: "    use crate::diagrams::flowchart::compile_to_graph;".to_string(),
+                    underline_offset: 8,
+                    underline_len: 45,
+                }),
+            },
+        )];
         let report = render_violation_report(
             &BTreeMap::from([(
                 "graph".to_string(),
                 BTreeSet::from(["errors".to_string(), "format".to_string()]),
             )]),
-            &[(
-                "graph".to_string(),
-                "diagrams".to_string(),
-                DependencySample {
-                    source: "src/graph/direction_policy.rs".to_string(),
-                    symbol: "crate::diagrams::flowchart::compile_to_graph".to_string(),
-                    target: "crate::diagrams".to_string(),
-                    location: Some(SourceLocation {
-                        path: "src/graph/direction_policy.rs".to_string(),
-                        line: 133,
-                        column: 9,
-                        line_text: "    use crate::diagrams::flowchart::compile_to_graph;"
-                            .to_string(),
-                        underline_offset: 8,
-                        underline_len: 45,
-                    }),
-                },
-            )],
+            &violations,
             &BTreeMap::new(),
             false,
             &Renderer::plain()
@@ -2119,18 +2269,19 @@ mod tests {
 
     #[test]
     fn violation_report_verbose_includes_edge_dump() {
+        let violations = vec![test_violation(
+            "graph",
+            "diagrams",
+            DependencySample {
+                source: "src/graph/direction_policy.rs".to_string(),
+                symbol: "crate::diagrams::flowchart::compile_to_graph".to_string(),
+                target: "crate::diagrams".to_string(),
+                location: None,
+            },
+        )];
         let report = render_violation_report(
             &BTreeMap::from([("graph".to_string(), BTreeSet::from(["errors".to_string()]))]),
-            &[(
-                "graph".to_string(),
-                "diagrams".to_string(),
-                DependencySample {
-                    source: "src/graph/direction_policy.rs".to_string(),
-                    symbol: "crate::diagrams::flowchart::compile_to_graph".to_string(),
-                    target: "crate::diagrams".to_string(),
-                    location: None,
-                },
-            )],
+            &violations,
             &BTreeMap::from([(
                 "graph".to_string(),
                 BTreeMap::from([(
@@ -2160,9 +2311,9 @@ mod tests {
             "graph".to_string(),
             BTreeSet::from(["errors".to_string(), "format".to_string()]),
         )]);
-        let violations = vec![(
-            "graph".to_string(),
-            "diagrams".to_string(),
+        let violations = vec![test_violation(
+            "graph",
+            "diagrams",
             DependencySample {
                 source: "src/graph/direction_policy.rs".to_string(),
                 symbol: "crate::diagrams::flowchart::compile_to_graph".to_string(),
@@ -2222,9 +2373,9 @@ mod tests {
 
     #[test]
     fn location_backed_samples_replace_module_only_samples() {
-        let mut edges = BTreeMap::new();
-        insert_dependency_sample(
-            &mut edges,
+        let boundaries = BTreeSet::from(["graph".to_string(), "diagrams".to_string()]);
+        let mut graph = BoundaryGraph::new(boundaries);
+        graph.insert_edge(
             "graph".to_string(),
             "diagrams".to_string(),
             DependencySample {
@@ -2233,9 +2384,9 @@ mod tests {
                 target: "crate::diagrams".to_string(),
                 location: None,
             },
+            EdgeProvenance::ModuleScope,
         );
-        insert_dependency_sample(
-            &mut edges,
+        graph.insert_edge(
             "graph".to_string(),
             "diagrams".to_string(),
             DependencySample {
@@ -2251,17 +2402,94 @@ mod tests {
                     underline_len: 45,
                 }),
             },
+            EdgeProvenance::QualifiedPath,
         );
 
-        let sample = edges
-            .get("graph")
-            .and_then(|targets| targets.get("diagrams"))
-            .unwrap();
-        assert_eq!(sample.source, "src/graph/direction_policy.rs");
-        assert!(sample.location.is_some());
+        let edge = graph.edge("graph", "diagrams").unwrap();
+        assert_eq!(edge.sample.source, "src/graph/direction_policy.rs");
+        assert!(edge.sample.location.is_some());
+        assert_eq!(edge.provenance, EdgeProvenance::Mixed);
+    }
+
+    #[test]
+    fn boundary_graph_single_pass_retains_provenance() {
+        let boundaries = BTreeSet::from(["a".to_string(), "b".to_string()]);
+        let mut graph = BoundaryGraph::new(boundaries);
+        graph.insert_edge(
+            "a".to_string(),
+            "b".to_string(),
+            DependencySample {
+                source: "crate::a".to_string(),
+                symbol: "crate::b::Foo".to_string(),
+                target: "crate::b".to_string(),
+                location: None,
+            },
+            EdgeProvenance::ModuleScope,
+        );
+        let edge = graph.edge("a", "b").unwrap();
+        assert_eq!(edge.provenance, EdgeProvenance::ModuleScope);
+    }
+
+    #[test]
+    fn boundary_graph_to_legacy_edge_map_preserves_edge_pairs() {
+        let boundaries = BTreeSet::from(["a".to_string(), "b".to_string(), "c".to_string()]);
+        let mut graph = BoundaryGraph::new(boundaries);
+        graph.insert_edge(
+            "a".to_string(),
+            "b".to_string(),
+            DependencySample {
+                source: "crate::a".to_string(),
+                symbol: "crate::b::X".to_string(),
+                target: "crate::b".to_string(),
+                location: None,
+            },
+            EdgeProvenance::ModuleScope,
+        );
+        graph.insert_edge(
+            "a".to_string(),
+            "c".to_string(),
+            DependencySample {
+                source: "src/a.rs".to_string(),
+                symbol: "crate::c::Y".to_string(),
+                target: "crate::c".to_string(),
+                location: Some(SourceLocation {
+                    path: "src/a.rs".to_string(),
+                    line: 1,
+                    column: 1,
+                    line_text: "use crate::c::Y;".to_string(),
+                    underline_offset: 4,
+                    underline_len: 12,
+                }),
+            },
+            EdgeProvenance::QualifiedPath,
+        );
+
+        let legacy = graph.to_legacy_edge_map();
+        assert_eq!(legacy.len(), 1); // one source boundary: "a"
+        let a_targets = &legacy["a"];
+        assert_eq!(a_targets.len(), 2); // two targets: "b" and "c"
+        assert!(a_targets.contains_key("b"));
+        assert!(a_targets.contains_key("c"));
     }
 
     fn violation_report_fixture() -> BoundariesRunReport {
+        let violations = vec![test_violation(
+            "graph",
+            "diagrams",
+            DependencySample {
+                source: "src/graph/direction_policy.rs".to_string(),
+                symbol: "crate::diagrams::flowchart::compile_to_graph".to_string(),
+                target: "crate::diagrams".to_string(),
+                location: Some(SourceLocation {
+                    path: "src/graph/direction_policy.rs".to_string(),
+                    line: 133,
+                    column: 9,
+                    line_text: "    use crate::diagrams::flowchart::compile_to_graph;".to_string(),
+                    underline_offset: 8,
+                    underline_len: 45,
+                }),
+            },
+        )];
         BoundariesRunReport {
             success: false,
             rendered_output: render_violation_report(
@@ -2269,24 +2497,7 @@ mod tests {
                     "graph".to_string(),
                     BTreeSet::from(["errors".to_string(), "format".to_string()]),
                 )]),
-                &[(
-                    "graph".to_string(),
-                    "diagrams".to_string(),
-                    DependencySample {
-                        source: "src/graph/direction_policy.rs".to_string(),
-                        symbol: "crate::diagrams::flowchart::compile_to_graph".to_string(),
-                        target: "crate::diagrams".to_string(),
-                        location: Some(SourceLocation {
-                            path: "src/graph/direction_policy.rs".to_string(),
-                            line: 133,
-                            column: 9,
-                            line_text: "    use crate::diagrams::flowchart::compile_to_graph;"
-                                .to_string(),
-                            underline_offset: 8,
-                            underline_len: 45,
-                        }),
-                    },
-                )],
+                &violations,
                 &BTreeMap::new(),
                 false,
                 &Renderer::plain()

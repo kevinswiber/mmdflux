@@ -1,6 +1,10 @@
 pub(crate) mod boundaries;
+pub(crate) mod explain;
+pub(crate) mod graph_output;
 pub(crate) mod host;
 pub(crate) mod json_output;
+pub(crate) mod policy;
+pub(crate) mod rules_eval;
 pub(crate) mod watch;
 
 use std::path::{Path, PathBuf};
@@ -16,7 +20,7 @@ pub(crate) struct RenderFlags {
     pub(crate) verbose: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ArchitectureCommand {
     Check {
         render: RenderFlags,
@@ -36,6 +40,14 @@ pub(crate) enum ArchitectureCommand {
     },
     Host {
         render: RenderFlags,
+    },
+    Graph,
+    ExplainEdge {
+        source: String,
+        target: String,
+    },
+    ExplainBoundary {
+        name: String,
     },
 }
 
@@ -105,7 +117,46 @@ pub(crate) fn run(command: ArchitectureCommand) -> Result<()> {
             fast_exit,
         } => run_boundaries_json(render, notify_dirty, fresh, fast_exit),
         ArchitectureCommand::Host { render } => watch::run_host(render, ArchitectureContext::new()),
+        ArchitectureCommand::Graph => run_graph(),
+        ArchitectureCommand::ExplainEdge { source, target } => run_explain_edge(&source, &target),
+        ArchitectureCommand::ExplainBoundary { name } => run_explain_boundary(&name),
     }
+}
+
+/// Try to get the boundary graph from a running host, falling back to local
+/// collection if no host is available.
+fn get_graph_for_inspection() -> Result<boundaries::BoundaryGraph> {
+    let context = ArchitectureContext::new();
+    if let Some(graph) = host::try_request_graph(context.repo_root()) {
+        return Ok(graph);
+    }
+    let mut context = ArchitectureContext::new();
+    boundaries::collect_graph_for_inspection(&mut context.boundaries)
+}
+
+fn run_graph() -> Result<()> {
+    let graph = get_graph_for_inspection()?;
+    let mermaid = graph_output::render_mermaid(&graph);
+    print!("{mermaid}");
+    Ok(())
+}
+
+fn run_explain_edge(source: &str, target: &str) -> Result<()> {
+    let context = ArchitectureContext::new();
+    let graph = get_graph_for_inspection()?;
+    let pol = policy::parse_policy_file(&policy::resolve_policy_path(context.repo_root()))?;
+    let output = explain::explain_edge(&graph, &pol, source, target);
+    print!("{output}");
+    Ok(())
+}
+
+fn run_explain_boundary(name: &str) -> Result<()> {
+    let context = ArchitectureContext::new();
+    let graph = get_graph_for_inspection()?;
+    let pol = policy::parse_policy_file(&policy::resolve_policy_path(context.repo_root()))?;
+    let output = explain::explain_boundary(&graph, &pol, name);
+    print!("{output}");
+    Ok(())
 }
 
 pub(crate) fn run_boundaries_report(
@@ -122,7 +173,7 @@ pub(crate) fn run_boundaries_report(
         Some(report) => Ok(report),
         None => {
             let mut context = ArchitectureContext::new();
-            run_boundaries_watch_report(&mut context, render)
+            run_boundaries_watch_report(&mut context, render).map(|r| r.report)
         }
     }
 }
@@ -153,6 +204,8 @@ Run the semantic module dependency guard.
 Subcommands:
     check            One-shot boundaries check (default if no subcommand)
     host             Run check, then watch and host results for one-shot reuse
+    graph            Print the boundary dependency graph as Mermaid
+    explain          Inspect edges and boundaries (local-only)
 
 Check options:
     --watch, -w      Rerun boundaries when files change (interactive, requires TTY)
@@ -166,13 +219,17 @@ Check options:
 
 Host options:
     --timings, -t    Print phase timing breakdown
-    --verbose, -v    Print verbose diagnostics and debug context"
+    --verbose, -v    Print verbose diagnostics and debug context
+
+Explain usage:
+    explain --edge <source> <target>    Show why an edge exists and which rules govern it
+    explain --boundary <name>           Show what a boundary depends on and what depends on it"
 }
 
 pub(crate) fn run_boundaries_watch_report(
     context: &mut ArchitectureContext,
     render: RenderFlags,
-) -> Result<boundaries::BoundariesRunReport> {
+) -> Result<boundaries::BoundariesRunResult> {
     boundaries::run_with_context_report(
         &mut context.boundaries,
         SemanticBoundariesSuiteOptions {
@@ -341,6 +398,24 @@ where
 
     let args_collected: Vec<String> = args.map(|s| s.as_ref().to_string()).collect();
 
+    // Handle explain early — its positional args would collide with subcommand names.
+    if args_collected.first().map(|s| s.as_str()) == Some("explain") {
+        let explain_args: Vec<&str> = args_collected[1..].iter().map(|s| s.as_str()).collect();
+        return match explain_args.as_slice() {
+            ["--edge", source, target] => Ok(ArchitectureCommand::ExplainEdge {
+                source: source.to_string(),
+                target: target.to_string(),
+            }),
+            ["--boundary", name] => Ok(ArchitectureCommand::ExplainBoundary {
+                name: name.to_string(),
+            }),
+            _ => bail!(
+                "usage: cargo xtask architecture explain --edge <source> <target>\n       \
+                 cargo xtask architecture explain --boundary <name>"
+            ),
+        };
+    }
+
     for arg in &args_collected {
         let arg = arg.as_str();
         match arg {
@@ -355,6 +430,12 @@ where
                     bail!("multiple subcommands provided; unexpected `{arg}`");
                 }
                 subcommand = Some("host");
+            }
+            "graph" => {
+                if subcommand.is_some() {
+                    bail!("multiple subcommands provided; unexpected `{arg}`");
+                }
+                subcommand = Some("graph");
             }
             "--watch" | "-w" => watch = true,
             "--notify-dirty" => notify_dirty = true,
@@ -420,6 +501,12 @@ where
                 fresh,
                 fast_exit,
             })
+        }
+        Some("graph") => {
+            if watch || json || fresh || notify_dirty || status || fast_exit {
+                bail!("`graph` subcommand does not accept check flags");
+            }
+            Ok(ArchitectureCommand::Graph)
         }
         Some(other) => bail!("unknown subcommand `{other}`"),
     }
@@ -540,6 +627,49 @@ mod tests {
     }
 
     #[test]
+    fn graph_subcommand() {
+        let cmd = parse_architecture_args(["architecture", "graph"]).unwrap();
+        assert_eq!(cmd, ArchitectureCommand::Graph);
+    }
+
+    #[test]
+    fn explain_edge_subcommand() {
+        let cmd = parse_architecture_args(["architecture", "explain", "--edge", "graph", "render"])
+            .unwrap();
+        assert_eq!(
+            cmd,
+            ArchitectureCommand::ExplainEdge {
+                source: "graph".to_string(),
+                target: "render".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn explain_boundary_subcommand() {
+        let cmd =
+            parse_architecture_args(["architecture", "explain", "--boundary", "graph"]).unwrap();
+        assert_eq!(
+            cmd,
+            ArchitectureCommand::ExplainBoundary {
+                name: "graph".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn explain_without_args_fails() {
+        assert!(parse_architecture_args(["architecture", "explain"]).is_err());
+    }
+
+    #[test]
+    fn graph_rejects_check_flags() {
+        assert!(parse_architecture_args(["architecture", "graph", "--json"]).is_err());
+        assert!(parse_architecture_args(["architecture", "graph", "--fresh"]).is_err());
+        assert!(parse_architecture_args(["architecture", "graph", "--watch"]).is_err());
+    }
+
+    #[test]
     fn host_subcommand() {
         let cmd = parse_architecture_args(["architecture", "host"]).unwrap();
         assert_eq!(
@@ -606,6 +736,10 @@ mod tests {
         let help = super::help_text();
         assert!(help.contains("check"));
         assert!(help.contains("host"));
+        assert!(help.contains("graph"));
+        assert!(help.contains("explain"));
+        assert!(help.contains("--edge"));
+        assert!(help.contains("--boundary"));
         assert!(!help.contains("--background"));
         assert!(!help.contains("daemon"));
         // "boundaries" is fine in descriptions — just not as a subcommand/alias

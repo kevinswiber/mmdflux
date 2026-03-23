@@ -1,0 +1,12 @@
+version = 1
+
+[modules]
+graph = {}
+
+[[rules]]
+id = "bad-tag"
+type = "protected"
+
+[rules.config]
+targets = { tag = "role", value = "nonexistent" }
+allowed_importers = ["graph"]

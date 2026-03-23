@@ -1,14 +1,13 @@
-# boundaries.toml — semantic module dependency policy
+# boundaries.toml — semantic module dependency policy (v2)
 #
 # Enforces the architecture rules from docs/architecture/dependency-rules.md
-# through the repo-owned `cargo xtask architecture boundaries` checker.
+# through the repo-owned `cargo xtask architecture` checker.
 #
-# Run:   cargo xtask architecture boundaries
-# CI:    cargo run --locked --package xtask -- architecture boundaries
+# Run:   cargo xtask architecture check
+# CI:    cargo run --locked --package xtask -- architecture check
 #
-# Only modules listed in [modules] are evaluated as source boundaries. Omitting a
-# top-level module keeps it out of the source set; imports from checked modules
-# into omitted modules still show up as violations.
+# Boundaries listed below are evaluated as source boundaries. Omitting a
+# top-level module (e.g. internal_tests) keeps it out of the governed set.
 
 version = 1
 
@@ -16,35 +15,190 @@ version = 1
 # for owner-spanning regressions rather than a governed architecture boundary.
 
 [modules]
-errors = []
-format = ["errors"]
-timeline = []
+errors = {}
+format = {}
+timeline = {}
+simplification = {}
+graph = {}
+mermaid = {}
+engines = { tags = { role = "runtime-facade" } }
+render = { tags = { role = "runtime-facade" } }
+payload = {}
+registry = {}
+diagrams = {}
+builtins = { tags = { role = "runtime-facade" } }
+mmds = {}
+frontends = { tags = { role = "runtime-facade" } }
+runtime = {}
 
-simplification = ["errors", "format"]
+# --- Allow rules (one per governed source boundary) ---
+
+[[rules]]
+id = "allow-errors"
+type = "allow"
+[rules.config]
+source = "errors"
+allowed = []
+
+[[rules]]
+id = "allow-format"
+type = "allow"
+[rules.config]
+source = "format"
+allowed = ["errors"]
+
+[[rules]]
+id = "allow-timeline"
+type = "allow"
+[rules.config]
+source = "timeline"
+allowed = []
+
+[[rules]]
+id = "allow-simplification"
+type = "allow"
+[rules.config]
+source = "simplification"
+allowed = ["errors", "format"]
 
 # Must not import render, engines, diagrams, or runtime.
-graph = ["errors", "format"]
-mermaid = ["errors", "graph", "timeline"]
+[[rules]]
+id = "allow-graph"
+type = "allow"
+[rules.config]
+source = "graph"
+allowed = ["errors", "format"]
+
+[[rules]]
+id = "allow-mermaid"
+type = "allow"
+[rules.config]
+source = "mermaid"
+allowed = ["errors", "graph", "timeline"]
 
 # Must not import render, diagrams, or runtime.
-engines = ["errors", "format", "graph"]
+[[rules]]
+id = "allow-engines"
+type = "allow"
+[rules.config]
+source = "engines"
+allowed = ["errors", "format", "graph"]
 
 # Must not import diagrams, config, engines, or runtime.
-render = ["format", "graph", "simplification", "timeline"]
+[[rules]]
+id = "allow-render"
+type = "allow"
+[rules.config]
+source = "render"
+allowed = ["format", "graph", "simplification", "timeline"]
 
-payload = ["graph", "timeline"]
-registry = ["errors", "format", "payload"]
+[[rules]]
+id = "allow-payload"
+type = "allow"
+[rules.config]
+source = "payload"
+allowed = ["graph", "timeline"]
+
+[[rules]]
+id = "allow-registry"
+type = "allow"
+[rules.config]
+source = "registry"
+allowed = ["errors", "format", "payload"]
 
 # Must not import render or engines (stops at into_payload).
-diagrams = ["errors", "graph", "mermaid", "payload", "registry", "timeline"]
-builtins = ["diagrams", "format", "registry"]
+[[rules]]
+id = "allow-diagrams"
+type = "allow"
+[rules.config]
+source = "diagrams"
+allowed = ["errors", "graph", "mermaid", "payload", "registry", "timeline"]
+
+[[rules]]
+id = "allow-builtins"
+type = "allow"
+[rules.config]
+source = "builtins"
+allowed = ["diagrams", "format", "registry"]
 
 # Must not import diagrams, config, engines, render, or runtime.
-mmds = ["errors", "format", "graph", "simplification"]
-frontends = ["mermaid", "mmds"]
+[[rules]]
+id = "allow-mmds"
+type = "allow"
+[rules.config]
+source = "mmds"
+allowed = ["errors", "format", "graph", "simplification"]
 
-runtime = [
+[[rules]]
+id = "allow-frontends"
+type = "allow"
+[rules.config]
+source = "frontends"
+allowed = ["mermaid", "mmds"]
+
+[[rules]]
+id = "allow-runtime"
+type = "allow"
+[rules.config]
+source = "runtime"
+allowed = [
     "builtins", "engines", "errors",
     "format", "frontends", "graph", "mermaid", "mmds",
     "payload", "registry", "render", "simplification", "timeline",
+]
+
+# --- Layers rule (pipeline spine ordering) ---
+# Lower layers must not depend on higher layers.
+
+[[rules]]
+id = "pipeline-layers"
+type = "layers"
+[rules.config]
+order = ["errors", "format", "graph", "engines", "render", "runtime"]
+
+# --- Independence rules (peer isolation) ---
+# These frontends must not depend on each other.
+
+[[rules]]
+id = "parser-independence"
+type = "independence"
+[rules.config]
+members = ["mermaid", "mmds"]
+
+# The three pipeline pillars must not cross-depend.
+[[rules]]
+id = "pipeline-pillar-independence"
+type = "independence"
+[rules.config]
+members = ["engines", "render", "diagrams"]
+
+# --- Protected rules (facade-only access) ---
+# Boundaries tagged role=runtime-facade are only accessible through runtime.
+
+[[rules]]
+id = "protect-runtime-facades"
+type = "protected"
+[rules.config]
+targets = { tag = "role", value = "runtime-facade" }
+allowed_importers = ["runtime"]
+
+# diagrams is accessed only by builtins (which wires it into the registry).
+[[rules]]
+id = "protect-diagrams"
+type = "protected"
+[rules.config]
+targets = ["diagrams"]
+allowed_importers = ["builtins"]
+
+# --- Acyclic rule (DAG guarantee) ---
+# The full boundary graph must be cycle-free.
+
+[[rules]]
+id = "no-boundary-cycles"
+type = "acyclic"
+[rules.config]
+members = [
+    "builtins", "diagrams", "engines", "errors", "format",
+    "frontends", "graph", "mermaid", "mmds", "payload",
+    "registry", "render", "runtime", "simplification", "timeline",
 ]

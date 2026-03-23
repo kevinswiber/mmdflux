@@ -1,0 +1,12 @@
+version = 1
+
+[modules]
+graph = {}
+
+[[rules]]
+id = "bad-ref"
+type = "allow"
+
+[rules.config]
+source = "nonexistent"
+allowed = ["graph"]

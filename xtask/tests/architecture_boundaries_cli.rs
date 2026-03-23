@@ -55,11 +55,7 @@ fn boundaries_falls_back_locally_when_no_host_is_present() {
     let outcome = harness.run(&["architecture", "check"]);
 
     assert_ne!(outcome.status_code, 0);
-    assert!(
-        outcome
-            .output
-            .contains("unsupported semantic boundaries config version 2")
-    );
+    assert!(outcome.output.contains("unsupported policy version: 99"));
 }
 
 #[cfg(unix)]
@@ -71,11 +67,7 @@ fn boundaries_uses_host_when_metadata_and_protocol_match() {
 
     assert_eq!(outcome.status_code, 0);
     assert_eq!(harness.host_requests(), 1);
-    assert!(
-        !outcome
-            .output
-            .contains("unsupported semantic boundaries config version 2")
-    );
+    assert!(!outcome.output.contains("unsupported policy version: 99"));
 }
 
 #[test]
@@ -85,11 +77,7 @@ fn boundaries_falls_back_locally_on_protocol_mismatch() {
     let outcome = harness.run(&["architecture", "check"]);
 
     assert_ne!(outcome.status_code, 0);
-    assert!(
-        outcome
-            .output
-            .contains("unsupported semantic boundaries config version 2")
-    );
+    assert!(outcome.output.contains("unsupported policy version: 99"));
     assert_eq!(harness.host_requests(), 0);
 }
 
@@ -100,11 +88,7 @@ fn boundaries_ignores_host_metadata_from_a_different_worktree() {
     let outcome = harness.run(&["architecture", "check"]);
 
     assert_ne!(outcome.status_code, 0);
-    assert!(
-        outcome
-            .output
-            .contains("unsupported semantic boundaries config version 2")
-    );
+    assert!(outcome.output.contains("unsupported policy version: 99"));
     assert_eq!(harness.host_requests(), 0);
 }
 
@@ -132,11 +116,7 @@ fn boundaries_fresh_bypasses_host_reuse() {
             .output
             .contains("running local boundaries check (--fresh)")
     );
-    assert!(
-        outcome
-            .output
-            .contains("unsupported semantic boundaries config version 2")
-    );
+    assert!(outcome.output.contains("unsupported policy version: 99"));
 }
 
 #[cfg(unix)]
@@ -209,7 +189,7 @@ impl BoundariesCliHarness {
         let discovery_root = unique_temp_dir("xbd-root");
         let config_path = discovery_root.join("invalid-boundaries.toml");
         fs::create_dir_all(&discovery_root).unwrap();
-        fs::write(&config_path, "version = 2\n").unwrap();
+        fs::write(&config_path, "version = 99\n").unwrap();
 
         let metadata_path = host_metadata_path(&discovery_root);
         if let Some(parent) = metadata_path.parent() {
@@ -352,10 +332,10 @@ impl HostFixture {
         self.socket_path = Some(socket_path.clone());
         self.metadata_json = Some(
             serde_json::json!({
-                "protocol_version": 4,
+                "protocol_version": 1,
                 "repo_root": discovery_root,
                 "worktree_id": worktree_id_for_repo(discovery_root),
-                "binary_version": "xtask-boundaries-host-v4",
+                "binary_version": "xtask-boundaries-host-v1",
                 "transport": {
                     "UnixSocket": {
                         "path": socket_path
@@ -421,7 +401,7 @@ fn incompatible_metadata_json(discovery_root: &Path) -> String {
         "protocol_version": 99,
         "repo_root": discovery_root,
         "worktree_id": worktree_id_for_repo(discovery_root),
-        "binary_version": "xtask-boundaries-host-v4",
+        "binary_version": "xtask-boundaries-host-v1",
         "transport": {
             transport_key(): transport_value(discovery_root)
         },
@@ -437,10 +417,10 @@ fn incompatible_metadata_json(discovery_root: &Path) -> String {
 fn foreign_worktree_metadata_json(discovery_root: &Path) -> String {
     let foreign_root = discovery_root.join("foreign-worktree");
     serde_json::json!({
-        "protocol_version": 4,
+        "protocol_version": 1,
         "repo_root": foreign_root,
         "worktree_id": worktree_id_for_repo(&foreign_root),
-        "binary_version": "xtask-boundaries-host-v4",
+        "binary_version": "xtask-boundaries-host-v1",
         "transport": {
             transport_key(): transport_value(&foreign_root)
         },
@@ -455,10 +435,10 @@ fn foreign_worktree_metadata_json(discovery_root: &Path) -> String {
 
 fn stale_transport_metadata_json(discovery_root: &Path) -> String {
     serde_json::json!({
-        "protocol_version": 4,
+        "protocol_version": 1,
         "repo_root": discovery_root,
         "worktree_id": worktree_id_for_repo(discovery_root),
-        "binary_version": "xtask-boundaries-host-v4",
+        "binary_version": "xtask-boundaries-host-v1",
         "transport": {
             "UnixSocket": {
                 "path": host_socket_path(discovery_root)

@@ -42,7 +42,7 @@ fn architecture_watch_noninteractive_preserves_failure_status() {
             .unwrap()
             .as_nanos()
     ));
-    fs::write(&temp_path, "version = 2\n").unwrap();
+    fs::write(&temp_path, "version = 99\n").unwrap();
 
     let run = run_xtask(
         &["architecture", "check", "--watch"],
@@ -52,10 +52,7 @@ fn architecture_watch_noninteractive_preserves_failure_status() {
     let _ = fs::remove_file(&temp_path);
 
     assert_ne!(run.status_code, 0);
-    assert!(
-        run.output
-            .contains("unsupported semantic boundaries config version 2")
-    );
+    assert!(run.output.contains("unsupported policy version: 99"));
     assert!(run.output.contains("last run failed"));
 }
 

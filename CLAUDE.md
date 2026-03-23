@@ -15,7 +15,7 @@ just test                      # Run all tests (nextest, parallel)
 just test-file integration     # Run a specific test file
 just test -E 'test(test_name)' # Run a specific test (nextest filter)
 just lint                      # clippy + fmt check
-just check                     # lint + test
+just check                     # lint + test + architecture
 just build                     # Debug build
 just release                   # Release build
 just boundaries-watch         # Watch semantic architecture boundaries
@@ -35,17 +35,12 @@ See `docs/architecture/dependency-rules.md` for the authoritative module ownersh
 
 When editing imports, top-level wiring, or ownership boundaries, run
 `cargo xtask architecture check` before finishing. During larger boundary
-refactors, consider keeping `just boundaries-watch` running in a separate
-terminal and pay attention to its output while you work. `boundaries-watch`
-runs `cargo xtask architecture host`, which watches for changes and hosts
-results for one-shot `check` reuse in the same worktree. That host reuse
-is optional: the normal one-shot command still falls back to the standalone
-local run when no host is present or when the host is incompatible. Use
-`cargo xtask architecture check --status` to inspect the warm-host state,
-or `cargo xtask architecture check --fresh` to bypass reuse and force a
-local run. Windows contributors should treat the host as optional; the
-transport shape is named-pipe based there, and one-shot client reuse still
-falls back locally today.
+refactors, keep `just boundaries-watch` running in a separate terminal.
+
+Inspection commands:
+- `just boundaries-graph` — print dependency graph as Mermaid
+- `just boundaries-explain --edge <source> <target>` — inspect a specific edge
+- `just boundaries-explain --boundary <name>` — inspect a boundary
 
 Pipeline: **Frontend → Diagrams → Engine → Render**
 
@@ -62,88 +57,6 @@ Input Text → frontends.rs (detect frontend: Mermaid or MMDS)
 1. **Runtime facade**: `render_diagram`, `detect_diagram`, `validate_diagram` + `RenderConfig`, `OutputFormat`, `RenderError` re-exported from `lib.rs`
 2. **Low-level API**: `builtins`, `registry`, `payload`, `graph`, `timeline`, `mmds` for adapter-oriented workflows
 3. **Internal implementation**: `diagrams`, `engines`, `render`, `mermaid` — documented for contributors but not part of the supported contract
-
-### Module Structure
-
-**`src/frontends.rs`** — Source-format detection (Mermaid vs MMDS)
-
-**`src/mermaid/`** — Mermaid source ingestion
-
-- `grammar.pest` — PEG grammar definition
-- `ast.rs` — Flowchart AST types (`ShapeSpec`, `Vertex`, `ConnectorSpec`, `EdgeSpec`, `Statement`)
-- `flowchart.rs` — `parse_flowchart()` entry point
-- `class/`, `sequence/` — Per-type parsers
-- `error.rs` — `ParseError`, `ParseDiagnostic`
-
-**`src/graph/`** — Graph-family IR, float-space geometry, routing, and style
-
-- `diagram.rs` — `Graph` struct (nodes, edges, subgraphs, direction)
-- `node.rs` — `Node` with `Shape` enum
-- `edge.rs` — `Edge` with `Stroke` and `Arrow`
-- `style.rs` — `NodeStyle`, `ColorToken`, style statement parsing
-- `geometry.rs` — `GraphGeometry`, `RoutedGraphGeometry` (float-space layout results)
-- `grid/` — Float-to-grid conversion, grid routing, replay geometry contracts
-- `routing/` — Shared routing helpers (orthogonal routing, float routing)
-- `attachment.rs`, `direction_policy.rs`, `measure.rs`, `projection.rs`, `space.rs`
-
-**`src/diagrams/`** — Diagram type implementations (detect, compile, build payload)
-
-- `flowchart/` — Flowchart: compiler to `graph::Graph`, validation warnings
-- `class/` — Class diagrams: compiler to `graph::Graph`
-- `sequence/` — Sequence diagrams: compiler to `timeline::Sequence`
-
-Diagrams stop at `into_payload()` — they produce a `payload::Diagram`, not rendered output.
-
-**`src/engines/`** — Engine adapters and layout algorithms
-
-- `graph/contracts.rs` — `GraphEngine` trait, `GraphSolveRequest`, `EngineConfig`
-- `graph/flux.rs` — `FluxLayeredEngine` (all formats)
-- `graph/mermaid.rs` — `MermaidLayeredEngine` (SVG/MMDS only)
-- `graph/elk.rs` — ELK subprocess adapter (behind `engine-elk` feature flag)
-- `graph/algorithms/layered/` — Sugiyama hierarchical layout (~95% dagre v0.8.5 parity)
-- `graph/algorithms/layered/kernel/` — Pure graph-agnostic layered engine (internal boundary)
-- `graph/registry.rs` — `GraphEngineRegistry` with `EngineAlgorithmId`
-
-**`src/render/`** — Output production
-
-- `graph/` — Shared graph-family text and SVG emission from `GraphGeometry`
-- `graph/text/` — Text-pipeline edge/node/subgraph rendering
-- `graph/svg/` — SVG-pipeline rendering
-- `diagram/` — Family-local renderers (sequence text)
-- `text/` — Text utilities (`Canvas`, `CharSet`)
-
-**`src/runtime/`** — Pipeline orchestration and config
-
-- `mod.rs` — `render_diagram`, `validate_diagram`, `detect_diagram` facade functions
-- `config.rs` — `RenderConfig`, `LayoutConfig`, `LayoutDirection`, `Ranker`
-- `config_input.rs` — `RuntimeConfigInput` (serde-friendly config for JSON/WASM consumers)
-- `graph_family.rs` — Graph-family solve-result dispatch
-- `mmds.rs` — MMDS replay rendering (hydrate → render dispatch)
-- `payload.rs` — Payload rendering dispatch
-
-**`src/mmds/`** — MMDS interchange format (pure — no render or engines imports)
-
-- `output.rs` — MMDS JSON serialization for graph-family output
-- `detect.rs`, `parse.rs`, `hydrate.rs`, `mermaid.rs`
-
-**Other top-level modules:**
-- `format.rs` — `OutputFormat`, `Curve`, `EdgePreset`, `RoutingStyle`, `ColorWhen`, `TextColorMode`
-- `errors.rs` — `RenderError`, `ParseDiagnostic`
-- `registry.rs` — `DiagramRegistry`, `DiagramInstance`, `ParsedDiagram`, `DiagramFamily`
-- `builtins.rs` — `default_registry()` wiring
-- `payload.rs` — `payload::Diagram` enum (`Flowchart`, `Class`, `Sequence`)
-- `simplification.rs` — Path simplification
-- `timeline/` — `timeline::Sequence` and sequence layout
-
-### Key Data Flow
-
-1. `parse_flowchart(input)` → `Flowchart` AST
-2. `compile_to_graph(&flowchart)` → `graph::Graph` with nodes/edges/subgraphs
-3. `GraphEngine::solve()` → `GraphGeometry` (float coordinates, edge topology)
-4. `route_graph_geometry()` → `RoutedGraphGeometry` (edge paths, attachment ports)
-5. Text: `geometry_to_grid_layout_with_routed()` → `GridLayout` → `route_all_edges()` → `Canvas` → String
-6. SVG: `render_svg_from_routed_geometry()` → SVG string
-7. MMDS: `mmds::output::to_mmds_json_typed_with_routing()` → structured JSON
 
 ## Testing
 

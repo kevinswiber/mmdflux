@@ -1,0 +1,12 @@
+version = 1
+
+[modules]
+graph = {}
+render = {}
+
+[[exceptions]]
+id = "orphan-exception"
+source = "render"
+target = "graph"
+reason = "no rule_id"
+owner = "kevin"

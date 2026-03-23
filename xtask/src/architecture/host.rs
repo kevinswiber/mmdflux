@@ -19,7 +19,7 @@ const HOST_DISCOVERY_ROOT_ENV: &str = "XTASK_BOUNDARIES_HOST_DISCOVERY_ROOT";
 const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
 
-pub(crate) const HOST_PROTOCOL_VERSION: u32 = 4;
+pub(crate) const HOST_PROTOCOL_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum HostTransport {
@@ -52,6 +52,7 @@ pub(crate) enum HostRequest {
     NotifyDirty,
     Status,
     Shutdown,
+    Graph,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,6 +61,7 @@ pub(crate) enum HostResponse {
     NotifyDirtyAck,
     Status(StatusResponse),
     ShuttingDown,
+    Graph(super::boundaries::BoundaryGraph),
     Error {
         retry_locally: bool,
         message: String,
@@ -360,6 +362,7 @@ struct SharedHostSnapshot {
     last_started_at: Option<String>,
     last_finished_at: Option<String>,
     last_report: Option<BoundariesRunReport>,
+    last_graph: Option<super::boundaries::BoundaryGraph>,
 }
 
 impl SharedHostState {
@@ -398,6 +401,7 @@ impl Default for SharedHostSnapshot {
             last_started_at: None,
             last_finished_at: None,
             last_report: None,
+            last_graph: None,
         }
     }
 }
@@ -439,7 +443,10 @@ impl SharedHostState {
         self.inner.updates.notify_all();
     }
 
-    pub(crate) fn complete_run(&self, report: BoundariesRunReport) {
+    pub(crate) fn complete_run(
+        &self,
+        result: crate::architecture::boundaries::BoundariesRunResult,
+    ) {
         let mut snapshot = self
             .inner
             .snapshot
@@ -447,12 +454,13 @@ impl SharedHostState {
             .expect("host state mutex poisoned");
         snapshot.generation += 1;
         snapshot.last_finished_at = Some(unix_timestamp_string());
-        snapshot.freshness = if report.success {
+        snapshot.freshness = if result.report.success {
             HostFreshness::IdleClean
         } else {
             HostFreshness::IdleFailed
         };
-        snapshot.last_report = Some(report);
+        snapshot.last_graph = Some(result.graph);
+        snapshot.last_report = Some(result.report);
         self.inner.updates.notify_all();
     }
 
@@ -548,6 +556,20 @@ impl SharedHostState {
                     None => HostResponse::Error {
                         retry_locally: true,
                         message: "host has no completed boundaries result yet".to_string(),
+                    },
+                }
+            }
+            HostRequest::Graph => {
+                let snapshot = self
+                    .inner
+                    .snapshot
+                    .lock()
+                    .expect("host state mutex poisoned");
+                match snapshot.last_graph.as_ref() {
+                    Some(graph) => HostResponse::Graph(graph.clone()),
+                    None => HostResponse::Error {
+                        retry_locally: true,
+                        message: "host has no boundary graph yet".to_string(),
                     },
                 }
             }
@@ -648,8 +670,11 @@ impl<E: HostEndpoint> ArchitectureHost<E> {
         self.state.begin_run();
     }
 
-    pub(crate) fn complete_run(&self, report: BoundariesRunReport) {
-        self.state.complete_run(report);
+    pub(crate) fn complete_run(
+        &self,
+        result: crate::architecture::boundaries::BoundariesRunResult,
+    ) {
+        self.state.complete_run(result);
     }
 
     pub(crate) fn handle_request(&self, request: HostRequest) -> HostResponse {
@@ -846,6 +871,27 @@ pub(crate) fn try_request_check(
 
     HostCheckResult::RetryLocally {
         reason: "host connection failed after retry".to_string(),
+    }
+}
+
+/// Try to get the boundary graph from a running host. Returns `None` if no
+/// host is available or it hasn't completed a run yet — caller should fall
+/// back to local graph collection.
+pub(crate) fn try_request_graph(repo_root: &Path) -> Option<super::boundaries::BoundaryGraph> {
+    let loaded = match load_metadata_for_repo(repo_root) {
+        Ok(Some(loaded)) => loaded,
+        _ => return None,
+    };
+
+    if let Some(leader) = &loaded.cluster.leader
+        && leader.state == HostState::Warming
+    {
+        return None;
+    }
+
+    match send_request(&loaded.cluster, &HostRequest::Graph) {
+        Ok(HostResponse::Graph(graph)) => Some(graph),
+        _ => None,
     }
 }
 
@@ -1294,7 +1340,7 @@ mod tests {
         HostFreshness, HostMetadata, HostRenderOptions, HostRequest, HostResponse, HostTransport,
         SharedHostState,
     };
-    use crate::architecture::boundaries::BoundariesRunReport;
+    use crate::architecture::boundaries::{BoundariesRunReport, BoundaryGraph};
 
     fn render_options() -> HostRenderOptions {
         HostRenderOptions {
@@ -1396,7 +1442,7 @@ mod tests {
         });
 
         std::thread::sleep(Duration::from_millis(20));
-        host.complete_run(failing_report());
+        host.complete_run(failing_result());
 
         let response = receiver.recv_timeout(Duration::from_secs(1)).unwrap();
         waiting_thread.join().unwrap();
@@ -1418,7 +1464,7 @@ mod tests {
     fn status_request_reports_generation_and_last_outcome() {
         let host = SharedHostState::default();
         host.begin_run();
-        host.complete_run(passing_report());
+        host.complete_run(passing_result());
 
         let status = host.handle_status(render_options());
 
@@ -1434,7 +1480,7 @@ mod tests {
     fn notify_dirty_transitions_idle_to_dirty() {
         let host = SharedHostState::default();
         host.begin_run();
-        host.complete_run(passing_report());
+        host.complete_run(passing_result());
         assert_eq!(
             host.handle_status(render_options()).freshness,
             HostFreshness::IdleClean
@@ -1471,23 +1517,29 @@ mod tests {
         assert!(host.is_shutdown_requested());
     }
 
-    fn passing_report() -> BoundariesRunReport {
-        BoundariesRunReport {
-            success: true,
-            rendered_output: String::new(),
-            summary: None,
-            timings_output: None,
-            violations: Vec::new(),
+    fn passing_result() -> crate::architecture::boundaries::BoundariesRunResult {
+        crate::architecture::boundaries::BoundariesRunResult {
+            report: BoundariesRunReport {
+                success: true,
+                rendered_output: String::new(),
+                summary: None,
+                timings_output: None,
+                violations: Vec::new(),
+            },
+            graph: BoundaryGraph::new(std::collections::BTreeSet::new()),
         }
     }
 
-    fn failing_report() -> BoundariesRunReport {
-        BoundariesRunReport {
-            success: false,
-            rendered_output: "error[boundaries]: forbidden dependency ...".to_string(),
-            summary: Some("error: architecture boundaries failed with 1 violation".to_string()),
-            timings_output: None,
-            violations: Vec::new(),
+    fn failing_result() -> crate::architecture::boundaries::BoundariesRunResult {
+        crate::architecture::boundaries::BoundariesRunResult {
+            report: BoundariesRunReport {
+                success: false,
+                rendered_output: "error[boundaries]: forbidden dependency ...".to_string(),
+                summary: Some("error: architecture boundaries failed with 1 violation".to_string()),
+                timings_output: None,
+                violations: Vec::new(),
+            },
+            graph: BoundaryGraph::new(std::collections::BTreeSet::new()),
         }
     }
 }

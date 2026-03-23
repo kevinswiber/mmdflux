@@ -1,0 +1,26 @@
+version = 1
+
+[modules.engines]
+tags = { role = "runtime-facade" }
+
+[modules.render]
+tags = { role = "runtime-facade" }
+
+[modules.builtins]
+tags = { role = "runtime-facade" }
+
+[modules.runtime]
+[modules.errors]
+
+[[rules]]
+id = "protect-facades"
+type = "protected"
+[rules.config]
+targets = { tag = "role", value = "runtime-facade" }
+allowed_importers = ["runtime"]
+
+[[rules]]
+id = "facade-independence"
+type = "independence"
+[rules.config]
+members = { tag = "role", value = "runtime-facade" }

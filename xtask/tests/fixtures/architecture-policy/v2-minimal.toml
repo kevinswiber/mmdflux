@@ -1,0 +1,15 @@
+version = 1
+
+[modules]
+errors = {}
+format = {}
+graph = {}
+render = {}
+
+[[rules]]
+id = "core-deps"
+type = "allow"
+
+[rules.config]
+source = "graph"
+allowed = ["errors", "format"]

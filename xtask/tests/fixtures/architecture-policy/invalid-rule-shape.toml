@@ -1,0 +1,12 @@
+version = 1
+
+[modules]
+graph = {}
+render = {}
+
+[[rules]]
+id = "missing-type"
+
+[rules.config]
+source = "graph"
+allowed = ["render"]

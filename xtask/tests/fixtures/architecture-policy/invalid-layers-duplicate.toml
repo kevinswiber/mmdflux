@@ -1,0 +1,13 @@
+version = 1
+
+[modules]
+errors = {}
+format = {}
+graph = {}
+
+[[rules]]
+id = "bad-layers"
+type = "layers"
+
+[rules.config]
+order = ["errors", "format", "errors"]
