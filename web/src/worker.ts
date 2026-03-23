@@ -11,6 +11,7 @@ export type {
 interface WasmModule {
   default: () => Promise<void>;
   render: (input: string, format: string, configJson: string) => string;
+  validate: (input: string) => string;
 }
 
 interface RenderRequestHandlerOptions {
@@ -22,7 +23,7 @@ export async function loadWasmModule(): Promise<WasmModule> {
   return (await import("./wasm-pkg/mmdflux_wasm.js")) as unknown as WasmModule;
 }
 
-export function createRenderRequestHandler(
+export function createWorkerRequestHandler(
   options: RenderRequestHandlerOptions,
 ): (message: WorkerRequestMessage) => Promise<void> {
   const loadModule = options.loadWasmModule ?? loadWasmModule;
@@ -41,23 +42,29 @@ export function createRenderRequestHandler(
   };
 
   return async (message: WorkerRequestMessage): Promise<void> => {
-    if (message.type !== "render") {
-      return;
-    }
-
     try {
       const wasmModule = await getWasmModule();
-      const output = wasmModule.render(
-        message.input,
-        message.format,
-        message.configJson,
-      );
+      if (message.type === "render") {
+        const output = wasmModule.render(
+          message.input,
+          message.format,
+          message.configJson,
+        );
 
+        postMessage({
+          type: "result",
+          seq: message.seq,
+          format: message.format,
+          output,
+        });
+        return;
+      }
+
+      const resultJson = wasmModule.validate(message.input);
       postMessage({
-        type: "result",
+        type: "validation",
         seq: message.seq,
-        format: message.format,
-        output,
+        resultJson,
       });
     } catch (error) {
       postMessage({
@@ -105,7 +112,7 @@ function getWorkerScope(scope: unknown): WorkerScope | null {
 
 const workerScope = getWorkerScope(globalThis);
 if (workerScope) {
-  const handler = createRenderRequestHandler({
+  const handler = createWorkerRequestHandler({
     postMessage: (message) => {
       workerScope.postMessage(message);
     },

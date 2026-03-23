@@ -16,6 +16,7 @@ function createFakeRenderClient() {
 
   return {
     render,
+    validate: vi.fn(async () => '{"valid":true}'),
     terminate: vi.fn(),
   } satisfies RenderWorkerClient;
 }
@@ -135,6 +136,7 @@ describe("format-aware controls", () => {
             ? "\u001b[38;2;255;0;0mAlpha\u001b[0m"
             : `${request.format}:${request.input}`,
       })),
+      validate: vi.fn(async () => '{"valid":true}'),
       terminate: vi.fn(),
     } satisfies RenderWorkerClient;
 
