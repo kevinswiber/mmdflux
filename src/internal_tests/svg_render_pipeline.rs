@@ -4615,3 +4615,94 @@ fn svg_renders_tail_label() {
         "SVG should contain tail label text 'src'"
     );
 }
+
+// ---------------------------------------------------------------------------
+// LR forward orthogonal clearance — characterization (plan 0122, task 1.1)
+// ---------------------------------------------------------------------------
+
+/// Characterize the current step-vs-basis split on the architecture-style LR
+/// fixture.  The fixture is a 6-node subgraph derived from the mmdflux
+/// architecture graph where `registry → format` crosses through `render` in
+/// step mode.
+///
+/// Step (orthogonal+sharp) should currently cross the `render` node interior;
+/// basis (polyline+basis) should not.
+#[test]
+fn svg_lr_architecture_repro_characterizes_step_vs_basis() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_intrusion.mmd");
+    let edge_idx = edge_index(&diagram, "registry", "format");
+
+    // Step preset: RoutingStyle::Orthogonal + Curve::Linear(CornerStyle::Sharp)
+    let step_svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    // Basis preset: RoutingStyle::Polyline + Curve::Basis
+    let basis_svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Polyline),
+            curve: Some(Curve::Basis),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    let render_rect =
+        node_rect_for_label(&step_svg, "render").expect("render node should exist in step SVG");
+
+    // Step: axis-aligned segment-rect intersection with the router's own
+    // margin convention (-0.5 expands the rect outward so boundary-touching
+    // segments are caught — matching the router's INTRUSION_MARGIN).
+    let step_points = edge_path_for_svg_order(&diagram, &step_svg, edge_idx);
+    assert!(
+        path_crosses_rect_interior(&step_points, render_rect, -0.5),
+        "step registry→format should cross render; points={step_points:?}, rect={render_rect:?}"
+    );
+
+    // Basis: sample cubic curves densely, then check with a strict interior
+    // margin (1.0 shrinks the rect inward so only true interior hits count).
+    let basis_render =
+        node_rect_for_label(&basis_svg, "render").expect("render node should exist in basis SVG");
+    let basis_d = edge_path_d_for_svg_order(&diagram, &basis_svg, edge_idx);
+    let basis_sampled = sample_svg_path_commands(&parse_svg_path_command_sequence(&basis_d), 64);
+    assert!(
+        !sampled_path_crosses_rect_interior(&basis_sampled, basis_render, 1.0),
+        "basis registry→format should NOT cross render; d={basis_d}"
+    );
+}
+
+/// The step route on the architecture-style LR fixture must be multi-bend
+/// (≥5 SVG path commands) after full orthogonalization, so it exercises the
+/// non-trivial forward routing path rather than the trivial 4-point case.
+#[test]
+fn svg_lr_architecture_repro_step_route_is_multi_bend_after_orthogonalization() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_intrusion.mmd");
+    let step_svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    let d = edge_path_d_for_svg_order(
+        &diagram,
+        &step_svg,
+        edge_index(&diagram, "registry", "format"),
+    );
+    let commands = parse_svg_path_command_sequence(&d);
+    assert!(
+        commands.len() >= 5,
+        "expected a multi-bend path (≥5 commands), got {} commands; d={d}",
+        commands.len()
+    );
+}
