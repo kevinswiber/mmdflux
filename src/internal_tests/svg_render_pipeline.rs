@@ -4705,6 +4705,29 @@ fn svg_lr_architecture_repro_step_route_is_multi_bend_after_orthogonalization() 
 
 /// After the forward avoidance fix, step-preset edges on the architecture-style
 /// LR fixture must no longer cross through unrelated node interiors.
+/// Extract all (label, rect) pairs from an SVG.
+fn extract_all_node_rects(svg: &str) -> Vec<(String, (f64, f64, f64, f64))> {
+    let mut results = Vec::new();
+    for line in svg.lines() {
+        if let Some((_, _, value)) = parse_svg_text_position_and_value(line) {
+            if let Some(rect) = node_rect_for_label(svg, &value) {
+                results.push((value, rect));
+            }
+        }
+    }
+    results.dedup_by(|a, b| a.0 == b.0);
+    results
+}
+
+/// Get the display label for a node ID in a diagram.
+fn node_label(diagram: &crate::graph::Graph, node_id: &str) -> String {
+    diagram
+        .nodes
+        .get(node_id)
+        .map(|n| n.label.clone())
+        .unwrap_or_else(|| node_id.to_string())
+}
+
 #[test]
 fn svg_lr_architecture_repro_step_avoids_render_after_forward_fix() {
     let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_intrusion.mmd");
@@ -4727,4 +4750,125 @@ fn svg_lr_architecture_repro_step_avoids_render_after_forward_fix() {
         !path_crosses_rect_interior(&step_points, render_rect, -0.5),
         "step registry→format should NOT cross render after fix; points={step_points:?}, rect={render_rect:?}"
     );
+}
+
+// ---------------------------------------------------------------------------
+// LR forward orthogonal clearance — multi-preset and hairpin (plan 0122, tasks 2.2/2.3)
+// ---------------------------------------------------------------------------
+
+/// All orthogonal presets (step, smooth-step, curved-step) must avoid the
+/// `render` node interior on the architecture-style LR fixture.
+#[test]
+fn svg_lr_architecture_repro_all_orthogonal_presets_avoid_render() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_intrusion.mmd");
+    let edge_idx = edge_index(&diagram, "registry", "format");
+
+    let presets: &[(RoutingStyle, Curve, &str)] = &[
+        (
+            RoutingStyle::Orthogonal,
+            Curve::Linear(CornerStyle::Sharp),
+            "step",
+        ),
+        (
+            RoutingStyle::Orthogonal,
+            Curve::Linear(CornerStyle::Rounded),
+            "smooth-step",
+        ),
+        (RoutingStyle::Orthogonal, Curve::Basis, "curved-step"),
+    ];
+
+    for &(routing, curve, label) in presets {
+        let svg = render_svg(
+            &diagram,
+            &RenderConfig {
+                routing_style: Some(routing),
+                curve: Some(curve),
+                path_simplification: PathSimplification::None,
+                ..Default::default()
+            },
+        );
+
+        let render_rect = node_rect_for_label(&svg, "render").expect("render node should exist");
+
+        // For basis-curve presets, sample the cubic curves densely.
+        if matches!(curve, Curve::Basis) {
+            let d = edge_path_d_for_svg_order(&diagram, &svg, edge_idx);
+            let sampled = sample_svg_path_commands(&parse_svg_path_command_sequence(&d), 64);
+            assert!(
+                !sampled_path_crosses_rect_interior(&sampled, render_rect, 1.0),
+                "{label} registry→format should NOT cross render; d={d}"
+            );
+        } else {
+            let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
+            assert!(
+                !path_crosses_rect_interior(&points, render_rect, -0.5),
+                "{label} registry→format should NOT cross render; points={points:?}"
+            );
+        }
+    }
+}
+
+/// The LR forward route on the architecture fixture must not contain a
+/// primary-axis reversal (hairpin) after the avoidance fix.
+#[test]
+fn svg_lr_architecture_repro_no_primary_axis_reversal() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_intrusion.mmd");
+    let edge_idx = edge_index(&diagram, "registry", "format");
+
+    let svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    let points = edge_path_for_svg_order(&diagram, &svg, edge_idx);
+    // In LR, primary axis is x.  No consecutive x-coordinates should decrease.
+    let has_x_reversal = points.windows(2).any(|w| w[1].0 < w[0].0 - 0.5);
+    assert!(
+        !has_x_reversal,
+        "registry→format should not have a primary-axis (x) reversal; points={points:?}"
+    );
+}
+
+/// Existing LR fan fixtures must remain free of non-endpoint node crossings
+/// under step routing after the forward avoidance changes.
+#[test]
+fn svg_lr_fan_fixtures_no_non_endpoint_crossings_after_forward_fix() {
+    for fixture in ["fan_in_lr.mmd", "five_fan_out_lr.mmd", "five_fan_in_lr.mmd"] {
+        let diagram = load_flowchart_fixture_diagram(fixture);
+        let svg = render_svg(
+            &diagram,
+            &RenderConfig {
+                routing_style: Some(RoutingStyle::Orthogonal),
+                curve: Some(Curve::Linear(CornerStyle::Sharp)),
+                path_simplification: PathSimplification::None,
+                ..Default::default()
+            },
+        );
+
+        // Check every edge against every non-endpoint node.
+        for edge in &diagram.edges {
+            if edge.stroke == crate::graph::Stroke::Invisible {
+                continue;
+            }
+            let points = edge_path_for_svg_order(&diagram, &svg, edge.index);
+            for (label, rect) in extract_all_node_rects(&svg) {
+                if label == node_label(&diagram, &edge.from)
+                    || label == node_label(&diagram, &edge.to)
+                {
+                    continue;
+                }
+                assert!(
+                    !path_crosses_rect_interior(&points, rect, -0.5),
+                    "{fixture}: edge {}→{} crosses {label}; points={points:?}, rect={rect:?}",
+                    edge.from,
+                    edge.to,
+                );
+            }
+        }
+    }
 }
