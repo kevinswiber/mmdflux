@@ -1,0 +1,64 @@
+graph LR
+    builtins["builtins"]
+    diagrams["diagrams"]
+    engines["engines"]
+    errors["errors"]
+    format["format"]
+    frontends["frontends"]
+    graph1["graph"]
+    mermaid["mermaid"]
+    mmds["mmds"]
+    payload["payload"]
+    registry["registry"]
+    render["render"]
+    runtime["runtime"]
+    simplification["simplification"]
+    timeline["timeline"]
+    builtins --> diagrams
+    builtins --> format
+    builtins --> registry
+    diagrams --> errors
+    diagrams --> graph1
+    diagrams --> mermaid
+    diagrams --> payload
+    diagrams --> registry
+    diagrams --> timeline
+    engines --> errors
+    engines --> format
+    engines --> graph1
+    format --> errors
+    frontends --> mermaid
+    frontends --> mmds
+    graph1 --> errors
+    graph1 --> format
+    mermaid --> errors
+    mermaid --> graph1
+    mermaid --> timeline
+    mmds --> errors
+    mmds --> format
+    mmds --> graph1
+    mmds --> simplification
+    payload --> graph1
+    payload --> timeline
+    registry --> errors
+    registry --> format
+    registry --> payload
+    render --> format
+    render --> graph1
+    render --> simplification
+    render --> timeline
+    runtime --> builtins
+    runtime --> engines
+    runtime --> errors
+    runtime --> format
+    runtime --> frontends
+    runtime --> graph1
+    runtime --> mermaid
+    runtime --> mmds
+    runtime --> payload
+    runtime --> registry
+    runtime --> render
+    runtime --> simplification
+    runtime --> timeline
+    simplification --> errors
+    simplification --> format
