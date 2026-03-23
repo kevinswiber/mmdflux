@@ -109,6 +109,253 @@ pub(super) fn avoid_forward_td_bt_primary_lane_node_intrusion(
     collapse_tiny_forward_td_bt_lateral_jog(path, edge, geometry, direction);
 }
 
+/// General-purpose forward node-intrusion avoidance for any direction and path
+/// length.  Scans all interior segments for non-endpoint node crossings and
+/// inserts cross-axis jogs to detour around blockers.
+///
+/// This complements the TD/BT-specific 4-point avoidance above: it handles
+/// LR/RL directions and multi-bend paths that the canonical function skips.
+pub(super) fn avoid_forward_node_intrusions(
+    path: &mut Vec<FPoint>,
+    edge: &LayoutEdge,
+    geometry: &GraphGeometry,
+) {
+    const INTRUSION_MARGIN: f64 = -0.5;
+    const NODE_CLEARANCE: f64 = 8.0;
+    const EPS: f64 = 0.000_001;
+    const MAX_PASSES: usize = 4;
+
+    if path.len() < 3 {
+        return;
+    }
+
+    for _pass in 0..MAX_PASSES {
+        // Find the first segment that crosses a non-endpoint node.
+        let intrusion = (0..path.len() - 1).find(|&i| {
+            let a = path[i];
+            let b = path[i + 1];
+            geometry.nodes.iter().any(|(nid, node)| {
+                nid != &edge.from
+                    && nid != &edge.to
+                    && super::collision::axis_aligned_segment_crosses_rect_interior(
+                        a,
+                        b,
+                        node.rect,
+                        INTRUSION_MARGIN,
+                    )
+            })
+        });
+        let Some(seg_idx) = intrusion else {
+            return; // No more intrusions — done.
+        };
+
+        let a = path[seg_idx];
+        let b = path[seg_idx + 1];
+
+        // Collect the bounding envelope of all blockers on this segment.
+        let mut env_min_x = f64::INFINITY;
+        let mut env_max_x = f64::NEG_INFINITY;
+        let mut env_min_y = f64::INFINITY;
+        let mut env_max_y = f64::NEG_INFINITY;
+        for (nid, node) in &geometry.nodes {
+            if nid == &edge.from || nid == &edge.to {
+                continue;
+            }
+            if !super::collision::axis_aligned_segment_crosses_rect_interior(
+                a,
+                b,
+                node.rect,
+                INTRUSION_MARGIN,
+            ) {
+                continue;
+            }
+            env_min_x = env_min_x.min(node.rect.x);
+            env_max_x = env_max_x.max(node.rect.x + node.rect.width);
+            env_min_y = env_min_y.min(node.rect.y);
+            env_max_y = env_max_y.max(node.rect.y + node.rect.height);
+        }
+
+        let is_horizontal = (a.y - b.y).abs() <= EPS;
+        let is_vertical = (a.x - b.x).abs() <= EPS;
+
+        if is_horizontal {
+            // Horizontal segment at y = a.y crosses blockers.
+            // Choose safe y: above or below the blocker envelope.
+            let above_y = env_min_y - NODE_CLEARANCE;
+            let below_y = env_max_y + NODE_CLEARANCE;
+            let safe_y = if (a.y - above_y).abs() <= (a.y - below_y).abs() {
+                above_y
+            } else {
+                below_y
+            };
+
+            // Verify the detour horizontal at safe_y is itself clear.
+            let ja = FPoint::new(a.x, safe_y);
+            let jb = FPoint::new(b.x, safe_y);
+            let detour_clear = !geometry.nodes.iter().any(|(nid, node)| {
+                nid != &edge.from
+                    && nid != &edge.to
+                    && super::collision::axis_aligned_segment_crosses_rect_interior(
+                        ja,
+                        jb,
+                        node.rect,
+                        INTRUSION_MARGIN,
+                    )
+            });
+            if !detour_clear {
+                // Try the other side.
+                let alt_y = if safe_y == above_y { below_y } else { above_y };
+                let ja2 = FPoint::new(a.x, alt_y);
+                let jb2 = FPoint::new(b.x, alt_y);
+                let alt_clear = !geometry.nodes.iter().any(|(nid, node)| {
+                    nid != &edge.from
+                        && nid != &edge.to
+                        && super::collision::axis_aligned_segment_crosses_rect_interior(
+                            ja2,
+                            jb2,
+                            node.rect,
+                            INTRUSION_MARGIN,
+                        )
+                });
+                if !alt_clear {
+                    continue; // Both sides blocked — skip this segment.
+                }
+                // Use the alternative.
+                splice_horizontal_jog(path, seg_idx, alt_y, EPS);
+            } else {
+                splice_horizontal_jog(path, seg_idx, safe_y, EPS);
+            }
+        } else if is_vertical {
+            // Vertical segment at x = a.x crosses blockers.
+            let left_x = env_min_x - NODE_CLEARANCE;
+            let right_x = env_max_x + NODE_CLEARANCE;
+            let safe_x = if (a.x - left_x).abs() <= (a.x - right_x).abs() {
+                left_x
+            } else {
+                right_x
+            };
+
+            let ja = FPoint::new(safe_x, a.y);
+            let jb = FPoint::new(safe_x, b.y);
+            let detour_clear = !geometry.nodes.iter().any(|(nid, node)| {
+                nid != &edge.from
+                    && nid != &edge.to
+                    && super::collision::axis_aligned_segment_crosses_rect_interior(
+                        ja,
+                        jb,
+                        node.rect,
+                        INTRUSION_MARGIN,
+                    )
+            });
+            if !detour_clear {
+                let alt_x = if safe_x == left_x { right_x } else { left_x };
+                let ja2 = FPoint::new(alt_x, a.y);
+                let jb2 = FPoint::new(alt_x, b.y);
+                let alt_clear = !geometry.nodes.iter().any(|(nid, node)| {
+                    nid != &edge.from
+                        && nid != &edge.to
+                        && super::collision::axis_aligned_segment_crosses_rect_interior(
+                            ja2,
+                            jb2,
+                            node.rect,
+                            INTRUSION_MARGIN,
+                        )
+                });
+                if !alt_clear {
+                    continue;
+                }
+                splice_vertical_jog(path, seg_idx, alt_x, EPS);
+            } else {
+                splice_vertical_jog(path, seg_idx, safe_x, EPS);
+            }
+        }
+        // After a splice, collapse any collinear interior points and continue
+        // scanning from the top.
+        collapse_collinear_interior_points(path);
+    }
+}
+
+/// Replace a horizontal segment `path[idx]→path[idx+1]` with a 3-segment
+/// detour that jogs to `safe_y`, runs horizontally, then returns.  Subsequent
+/// collinear points at the same x as `path[idx+1]` are pruned so the detour
+/// doesn't create an immediate turnback.
+fn splice_horizontal_jog(path: &mut Vec<FPoint>, idx: usize, safe_y: f64, eps: f64) {
+    let a = path[idx];
+    let b = path[idx + 1];
+    // Build: a → (a.x, safe_y) → (b.x, safe_y)
+    // The point at b is replaced by (b.x, safe_y); the vertical continuation
+    // from (b.x, safe_y) to the next waypoint happens naturally.
+    let mut replacement: Vec<FPoint> = Vec::with_capacity(3);
+    replacement.push(a);
+    let jog_start = FPoint::new(a.x, safe_y);
+    if !points_match(a, jog_start) {
+        replacement.push(jog_start);
+    }
+    let jog_end = FPoint::new(b.x, safe_y);
+    if !points_match(*replacement.last().unwrap(), jog_end) {
+        replacement.push(jog_end);
+    }
+    path.splice(idx..idx + 2, replacement);
+
+    // Prune subsequent points that are collinear at the same x as jog_end,
+    // preventing a V-shaped hairpin when the detour y overshoots.
+    while path.len() > idx + 2 {
+        let cur = path[idx + 1]; // jog_end just inserted
+        let next = path[idx + 2];
+        if (cur.x - next.x).abs() <= eps && between_inclusive(safe_y, cur.y, next.y, eps) {
+            // next is on the same vertical but between jog_end and a further
+            // point — remove it so the vertical runs straight through.
+            // But only if there's a point AFTER next that continues the path.
+            if path.len() > idx + 3 {
+                path.remove(idx + 2);
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+}
+
+/// Replace a vertical segment `path[idx]→path[idx+1]` with a 3-segment
+/// detour that jogs to `safe_x`, runs vertically, then returns.
+fn splice_vertical_jog(path: &mut Vec<FPoint>, idx: usize, safe_x: f64, eps: f64) {
+    let a = path[idx];
+    let b = path[idx + 1];
+    let mut replacement: Vec<FPoint> = Vec::with_capacity(3);
+    replacement.push(a);
+    let jog_start = FPoint::new(safe_x, a.y);
+    if !points_match(a, jog_start) {
+        replacement.push(jog_start);
+    }
+    let jog_end = FPoint::new(safe_x, b.y);
+    if !points_match(*replacement.last().unwrap(), jog_end) {
+        replacement.push(jog_end);
+    }
+    path.splice(idx..idx + 2, replacement);
+
+    while path.len() > idx + 2 {
+        let cur = path[idx + 1];
+        let next = path[idx + 2];
+        if (cur.y - next.y).abs() <= eps && between_inclusive(safe_x, cur.x, next.x, eps) {
+            if path.len() > idx + 3 {
+                path.remove(idx + 2);
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+}
+
+/// True if `v` lies between `a` and `b` (inclusive, within tolerance).
+fn between_inclusive(v: f64, a: f64, b: f64, eps: f64) -> bool {
+    let lo = a.min(b) - eps;
+    let hi = a.max(b) + eps;
+    v >= lo && v <= hi
+}
+
 fn reroute_forward_td_bt_terminal_intrusion_with_safe_vertical_corridor(
     path: &[FPoint],
     edge: &LayoutEdge,

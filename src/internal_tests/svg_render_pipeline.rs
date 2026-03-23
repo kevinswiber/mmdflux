@@ -4620,15 +4620,11 @@ fn svg_renders_tail_label() {
 // LR forward orthogonal clearance — characterization (plan 0122, task 1.1)
 // ---------------------------------------------------------------------------
 
-/// Characterize the current step-vs-basis split on the architecture-style LR
-/// fixture.  The fixture is a 6-node subgraph derived from the mmdflux
-/// architecture graph where `registry → format` crosses through `render` in
-/// step mode.
-///
-/// Step (orthogonal+sharp) should currently cross the `render` node interior;
-/// basis (polyline+basis) should not.
+/// Both step and basis routing must avoid the `render` node interior on the
+/// architecture-style LR fixture.  (Before the forward-avoidance fix, step
+/// crossed render while basis did not.)
 #[test]
-fn svg_lr_architecture_repro_characterizes_step_vs_basis() {
+fn svg_lr_architecture_repro_both_presets_avoid_render() {
     let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_intrusion.mmd");
     let edge_idx = edge_index(&diagram, "registry", "format");
 
@@ -4654,20 +4650,16 @@ fn svg_lr_architecture_repro_characterizes_step_vs_basis() {
         },
     );
 
+    // Step must now avoid render.
     let render_rect =
         node_rect_for_label(&step_svg, "render").expect("render node should exist in step SVG");
-
-    // Step: axis-aligned segment-rect intersection with the router's own
-    // margin convention (-0.5 expands the rect outward so boundary-touching
-    // segments are caught — matching the router's INTRUSION_MARGIN).
     let step_points = edge_path_for_svg_order(&diagram, &step_svg, edge_idx);
     assert!(
-        path_crosses_rect_interior(&step_points, render_rect, -0.5),
-        "step registry→format should cross render; points={step_points:?}, rect={render_rect:?}"
+        !path_crosses_rect_interior(&step_points, render_rect, -0.5),
+        "step registry→format should NOT cross render; points={step_points:?}, rect={render_rect:?}"
     );
 
-    // Basis: sample cubic curves densely, then check with a strict interior
-    // margin (1.0 shrinks the rect inward so only true interior hits count).
+    // Basis was already clean — confirm it stays that way.
     let basis_render =
         node_rect_for_label(&basis_svg, "render").expect("render node should exist in basis SVG");
     let basis_d = edge_path_d_for_svg_order(&diagram, &basis_svg, edge_idx);
@@ -4704,5 +4696,35 @@ fn svg_lr_architecture_repro_step_route_is_multi_bend_after_orthogonalization() 
         commands.len() >= 5,
         "expected a multi-bend path (≥5 commands), got {} commands; d={d}",
         commands.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// LR forward orthogonal clearance — desired behavior (plan 0122, task 2.1)
+// ---------------------------------------------------------------------------
+
+/// After the forward avoidance fix, step-preset edges on the architecture-style
+/// LR fixture must no longer cross through unrelated node interiors.
+#[test]
+fn svg_lr_architecture_repro_step_avoids_render_after_forward_fix() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_intrusion.mmd");
+    let edge_idx = edge_index(&diagram, "registry", "format");
+
+    let step_svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    let render_rect = node_rect_for_label(&step_svg, "render").expect("render node should exist");
+    let step_points = edge_path_for_svg_order(&diagram, &step_svg, edge_idx);
+
+    assert!(
+        !path_crosses_rect_interior(&step_points, render_rect, -0.5),
+        "step registry→format should NOT cross render after fix; points={step_points:?}, rect={render_rect:?}"
     );
 }
