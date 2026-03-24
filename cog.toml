@@ -93,8 +93,33 @@ repository = "mmdflux"
 owner = "kevinswiber"
 authors = []
 
-[monorepo.packages]
-mmdflux-wasm = { path = "crates/mmdflux-wasm", public_api = true }
-xtask = { path = "xtask", public_api = false }
+[monorepo.packages.mmdflux-wasm]
+path = "crates/mmdflux-wasm"
+public_api = true
+
+[monorepo.packages.xtask]
+path = "xtask"
+public_api = false
+
+[monorepo.packages.mmds-core]
+path = "packages/mmds-core"
+public_api = true
+pre_bump_hooks = [
+    "npm version {{version}} --no-git-tag-version",
+]
+
+[monorepo.packages.excalidraw]
+path = "packages/excalidraw"
+public_api = true
+pre_bump_hooks = [
+    "npm version {{version}} --no-git-tag-version",
+]
+
+[monorepo.packages.tldraw]
+path = "packages/tldraw"
+public_api = true
+pre_bump_hooks = [
+    "npm version {{version}} --no-git-tag-version",
+]
 
 [bump_profiles]
