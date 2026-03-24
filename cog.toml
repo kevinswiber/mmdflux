@@ -17,10 +17,7 @@ scopes = ["wasm", "xtask", "web", "mmds-core", "mmds-excalidraw", "mmds-tldraw"]
 pre_bump_hooks = []
 post_bump_hooks = []
 pre_package_bump_hooks = []
-post_package_bump_hooks = [
-    "git push",
-    "git push origin {{package}}-v{{version}}",
-]
+post_package_bump_hooks = []
 
 [git_hooks.commit-msg]
 script = '''#!/bin/sh
