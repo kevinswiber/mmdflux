@@ -49,6 +49,17 @@ type IndexedDrawPathPair = (usize, DrawPath, usize, DrawPath);
 
 const BACKWARD_ROUTE_GAP: usize = 2;
 
+fn effective_rank_sep(diagram: &Graph, config: &GridLayoutConfig) -> f64 {
+    let mut rank_sep = config.rank_sep;
+    if diagram.has_subgraphs() && config.cluster_rank_sep > 0.0 {
+        // The layered solve expands rank separation for cluster graphs.
+        // Grid replay must mirror that effective spacing or text output grows
+        // relative to the unchanged float geometry.
+        rank_sep += config.cluster_rank_sep;
+    }
+    rank_sep
+}
+
 fn is_backward_edge(
     from_bounds: &NodeBounds,
     to_bounds: &NodeBounds,
@@ -138,7 +149,7 @@ pub fn geometry_to_grid_layout_with_routed(
     let ranks_doubled_for_scale = false;
     let (scale_x, scale_y) = compute_grid_scale_factors(
         &node_dims,
-        config.rank_sep,
+        effective_rank_sep(diagram, config),
         config.node_sep,
         config.v_spacing,
         config.h_spacing,

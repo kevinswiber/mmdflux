@@ -1,6 +1,7 @@
 use super::*;
 use crate::graph::grid::GridLayoutConfig;
 use crate::graph::space::FPoint;
+use crate::graph::{Direction, Graph, Subgraph};
 
 fn test_node_bounds(x: usize, y: usize, width: usize, height: usize) -> NodeBounds {
     NodeBounds {
@@ -141,6 +142,24 @@ fn scale_factors_empty_nodes() {
     let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
     assert!(sx.is_finite());
     assert!(sy.is_finite());
+}
+
+#[test]
+fn effective_rank_sep_adds_cluster_spacing_for_subgraphs() {
+    let mut diagram = Graph::new(Direction::TopDown);
+    diagram.subgraphs.insert(
+        "sg".into(),
+        Subgraph {
+            id: "sg".into(),
+            title: "sg".into(),
+            nodes: vec![],
+            parent: None,
+            dir: None,
+        },
+    );
+
+    let config = GridLayoutConfig::default();
+    assert_eq!(effective_rank_sep(&diagram, &config), 75.0);
 }
 
 // =========================================================================
