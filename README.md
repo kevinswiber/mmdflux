@@ -52,6 +52,11 @@ graph TD
        │
        │
        │
+       │
+       │
+       │
+       │
+       │
 ┌──────┼─ Horizontal Section ────────┐
 │      ▼                             │
 │ ┌────────┐  ┌────────┐  ┌────────┐ │
@@ -59,6 +64,12 @@ graph TD
 │ └────────┘  └────────┘  └────────┘ │
 │                     ┌────┘         │
 └─────────────────────┼──────────────┘
+                      │
+                      │
+                      │
+                      │
+                      │
+                      │
                       │
                       │
                       │
@@ -102,14 +113,14 @@ engine handles flowchart/class text, SVG, and MMDS output. Switch to
 
 ## Ecosystem
 
-| Package | Description |
-| ------- | ----------- |
-| [`mmdflux`](https://crates.io/crates/mmdflux) | CLI and Rust library (crates.io) |
-| [`@mmds/wasm`](https://www.npmjs.com/package/@mmds/wasm) | WebAssembly bindings (npm) |
-| [`@mmds/core`](https://www.npmjs.com/package/@mmds/core) | MMDS normalization, traversal, and validation utilities (npm) |
-| [`@mmds/excalidraw`](https://www.npmjs.com/package/@mmds/excalidraw) | MMDS to Excalidraw `.excalidraw` JSON (npm) |
-| [`@mmds/tldraw`](https://www.npmjs.com/package/@mmds/tldraw) | MMDS to tldraw `.tldr` JSON (npm) |
-| [Playground](https://play.mmdflux.com) | Interactive browser editor (WASM-powered) |
+| Package                                                              | Description                                                   |
+| -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [`mmdflux`](https://crates.io/crates/mmdflux)                        | CLI and Rust library (crates.io)                              |
+| [`@mmds/wasm`](https://www.npmjs.com/package/@mmds/wasm)             | WebAssembly bindings (npm)                                    |
+| [`@mmds/core`](https://www.npmjs.com/package/@mmds/core)             | MMDS normalization, traversal, and validation utilities (npm) |
+| [`@mmds/excalidraw`](https://www.npmjs.com/package/@mmds/excalidraw) | MMDS to Excalidraw `.excalidraw` JSON (npm)                   |
+| [`@mmds/tldraw`](https://www.npmjs.com/package/@mmds/tldraw)         | MMDS to tldraw `.tldr` JSON (npm)                             |
+| [Playground](https://play.mmdflux.com)                               | Interactive browser editor (WASM-powered)                     |
 
 ## Install
 
@@ -168,25 +179,25 @@ See more examples in the sections below.
 
 ## Graph-Family Engines
 
-| | `flux-layered` | `mermaid-layered` |
-| --- | --- | --- |
+|            | `flux-layered`                  | `mermaid-layered`         |
+| ---------- | ------------------------------- | ------------------------- |
 | Applies to | Flowchart/class text, SVG, MMDS | Flowchart/class SVG, MMDS |
-| Routing | Orthogonal, polyline, direct | Polyline |
-| Subgraphs | Compound graph (global layout) | Compound graph |
-| Best fit | Deterministic routed output | Mermaid-compatible output |
+| Routing    | Orthogonal, polyline, direct    | Polyline                  |
+| Subgraphs  | Compound graph (global layout)  | Compound graph            |
+| Best fit   | Deterministic routed output     | Mermaid-compatible output |
 
 Sequence diagrams use a separate timeline renderer, currently support text/ascii
 output only, and do not accept `--layout-engine`.
 
 ### SVG edge presets
 
-| Preset | Routing | Curve |
-| --- | --- | --- |
-| `smooth-step` (default) | Orthogonal | Rounded arcs |
-| `curved-step` | Orthogonal | Basis spline |
-| `step` | Orthogonal | Sharp corners |
-| `polyline` | Polyline | Sharp corners |
-| `straight` | Direct | Sharp corners |
+| Preset                  | Routing    | Curve         |
+| ----------------------- | ---------- | ------------- |
+| `smooth-step` (default) | Orthogonal | Rounded arcs  |
+| `curved-step`           | Orthogonal | Basis spline  |
+| `step`                  | Orthogonal | Sharp corners |
+| `polyline`              | Polyline   | Sharp corners |
+| `straight`              | Direct     | Sharp corners |
 
 ```bash
 # Smooth orthogonal corners (default)
