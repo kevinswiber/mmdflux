@@ -33,7 +33,7 @@
     "preview": "vite --config vite.preview.config.ts"
   },
   "dependencies": {
-    "@mmds/core": "0.1.0",
+    "@mmds/core": "^0.1.0",
     "@tldraw/editor": "4.4.0",
     "fractional-indexing": "^3.2.0"
   },
