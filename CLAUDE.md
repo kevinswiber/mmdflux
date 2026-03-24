@@ -14,7 +14,7 @@ Format: `<type>(<optional scope>): <subject>`
 
 Types: `feat`, `fix`, `perf`, `revert`, `docs`, `test`, `build`, `ci`, `refactor`, `chore`, `style`
 
-Scopes: `wasm`, `xtask`, `web`, `mmds-core`, `excalidraw`, `tldraw` (match monorepo packages). Omit scope for changes to the root `mmdflux` crate.
+Scopes: `wasm`, `xtask`, `web`, `mmds-core`, `mmds-excalidraw`, `mmds-tldraw` (match monorepo packages). Omit scope for changes to the root `mmdflux` crate.
 
 Rules:
 - Header must be 100 characters or fewer

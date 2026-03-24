@@ -35,7 +35,7 @@ These scripts tag reports with WASM profile metadata and fail on `dev` vs `relea
 
 - Workflow: `.github/workflows/playground-deploy.yml`
 - Trigger options:
-  - Tag push matching `v*` (for example `v0.9.0`)
+  - `mmdflux-v*` tag push (created by `cog bump --package mmdflux`, e.g. `mmdflux-v2.1.0`)
   - Manual `workflow_dispatch`
 - Deploys to Cloudflare Pages project `mmdflux-play`
 - Production URL: `play.mmdflux.com`
@@ -44,7 +44,7 @@ These scripts tag reports with WASM profile metadata and fail on `dev` vs `relea
 Operator sequence:
 
 1. Ensure `web` tests/build and `just wasm-build` are green locally.
-2. Push a `v*` tag (or run manual dispatch) to start the deploy workflow.
+2. Run `cog bump --package mmdflux` to create and push the `mmdflux-v*` tag (or run manual workflow dispatch).
 3. Confirm the `Build & Deploy Playground` job deploys to Cloudflare Pages.
 
 ## Benchmark Runbook

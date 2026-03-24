@@ -3,28 +3,24 @@ ignore_merge_commits = true
 ignore_fixup_commits = false
 disable_changelog = false
 disable_bump_commit = false
-generate_mono_repository_global_tag = true
+generate_mono_repository_global_tag = false
 generate_mono_repository_package_tags = true
 branch_whitelist = []
 pre = "alpha.*"
 skip_ci = "[skip ci]"
 skip_untracked = false
+tag_prefix = "v"
 
 # Scopes map to monorepo packages. Unscoped commits apply to the root crate.
-scopes = ["wasm", "xtask", "web", "mmds-core", "excalidraw", "tldraw"]
+scopes = ["wasm", "xtask", "web", "mmds-core", "mmds-excalidraw", "mmds-tldraw"]
 
-pre_bump_hooks = [
-    "just lint",
-    "just test",
-    "cargo set-version {{version}}",
-    "cargo set-version --manifest-path crates/mmdflux-wasm/Cargo.toml {{version}}",
-]
-post_bump_hooks = [
-    "git push",
-    "git push origin {{version}}",
-]
+pre_bump_hooks = []
+post_bump_hooks = []
 pre_package_bump_hooks = []
-post_package_bump_hooks = []
+post_package_bump_hooks = [
+    "git push",
+    "git push origin {{package}}-v{{version}}",
+]
 
 [git_hooks.commit-msg]
 script = '''#!/bin/sh
@@ -93,9 +89,19 @@ repository = "mmdflux"
 owner = "kevinswiber"
 authors = []
 
+[monorepo.packages.mmdflux]
+path = "."
+public_api = true
+pre_bump_hooks = [
+    "just lint",
+    "just test",
+    "cargo set-version {{version}}",
+    "cargo set-version --manifest-path crates/mmdflux-wasm/Cargo.toml {{version}}",
+]
+
 [monorepo.packages.mmdflux-wasm]
 path = "crates/mmdflux-wasm"
-public_api = true
+public_api = false
 
 [monorepo.packages.xtask]
 path = "xtask"
@@ -108,15 +114,15 @@ pre_bump_hooks = [
     "npm version {{version}} --no-git-tag-version",
 ]
 
-[monorepo.packages.excalidraw]
-path = "packages/excalidraw"
+[monorepo.packages.mmds-excalidraw]
+path = "packages/mmds-excalidraw"
 public_api = true
 pre_bump_hooks = [
     "npm version {{version}} --no-git-tag-version",
 ]
 
-[monorepo.packages.tldraw]
-path = "packages/tldraw"
+[monorepo.packages.mmds-tldraw]
+path = "packages/mmds-tldraw"
 public_api = true
 pre_bump_hooks = [
     "npm version {{version}} --no-git-tag-version",

@@ -5,7 +5,7 @@ on:
     branches:
       - main
     tags:
-      - "v*"
+      - "mmdflux-v*"
   workflow_dispatch:
 
 permissions:
@@ -70,7 +70,7 @@ jobs:
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "name=main" >> "$GITHUB_OUTPUT"
           elif [[ "${{ github.ref_type }}" == "tag" ]]; then
-            # v2.0.0 → v2-0-0
+            # mmdflux-v2.0.0 → mmdflux-v2-0-0
             echo "name=${GITHUB_REF_NAME//\./-}" >> "$GITHUB_OUTPUT"
           else
             echo "name=head" >> "$GITHUB_OUTPUT"
