@@ -3,8 +3,8 @@
 fail-fast = true
 # Status level: show pass/fail summary only (skip individual pass lines)
 status-level = "fail"
-# Final status: show skipped + failed tests in summary
-final-status-level = "skip"
+# Final status: show only failed tests in summary
+final-status-level = "fail"
 
 [profile.ci]
 # CI: run all tests even if some fail
