@@ -4709,10 +4709,10 @@ fn svg_lr_architecture_repro_step_route_is_multi_bend_after_orthogonalization() 
 fn extract_all_node_rects(svg: &str) -> Vec<(String, (f64, f64, f64, f64))> {
     let mut results = Vec::new();
     for line in svg.lines() {
-        if let Some((_, _, value)) = parse_svg_text_position_and_value(line) {
-            if let Some(rect) = node_rect_for_label(svg, &value) {
-                results.push((value, rect));
-            }
+        if let Some((_, _, value)) = parse_svg_text_position_and_value(line)
+            && let Some(rect) = node_rect_for_label(svg, &value)
+        {
+            results.push((value, rect));
         }
     }
     results.dedup_by(|a, b| a.0 == b.0);
