@@ -108,7 +108,7 @@ export async function main() {
     });
     if (!res.ok) {
       console.error(
-        `Preview server not reachable (${res.status}). Run \`npm run preview\` in packages/tldraw first.`,
+        `Preview server not reachable (${res.status}). Run \`npm run preview\` in packages/mmds-tldraw first.`,
       );
       process.exit(1);
     }
