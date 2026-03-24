@@ -273,7 +273,13 @@ fn text_render_from_solve_produces_output() {
 
 #[test]
 fn text_snapshots_stable_after_geometry_driven_refactor() {
-    for fixture in &["simple.mmd", "chain.mmd", "decision.mmd", "fan_in.mmd"] {
+    for fixture in &[
+        "simple.mmd",
+        "chain.mmd",
+        "decision.mmd",
+        "fan_in.mmd",
+        "subgraph_direction_lr.mmd",
+    ] {
         let path = format!("tests/fixtures/flowchart/{fixture}");
         let input = std::fs::read_to_string(&path).unwrap();
         let output =
