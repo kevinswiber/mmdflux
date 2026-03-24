@@ -343,6 +343,13 @@ fn build_orthogonal_path(
             geometry,
             direction,
         );
+        // Forward reroutes (especially avoid_forward_node_intrusions) can
+        // splice detours that invalidate the terminal support segment.
+        // Re-apply for LR/RL only — TD/BT has its own pre-reroute enforcement
+        // and TD/BT reroutes don't break terminal contracts.
+        if matches!(direction, Direction::LeftRight | Direction::RightLeft) {
+            reapply_terminal_support_after_reroute(&mut finalized, edge, geometry);
+        }
     }
     if !is_backward
         && forward::collapse_forward_source_primary_turnback_hooks(&mut finalized, direction)
@@ -389,6 +396,72 @@ fn build_orthogonal_path(
         }
     }
     finalized
+}
+
+/// Re-apply terminal face-normal + minimum support after forward reroutes.
+///
+/// Detects the endpoint's current face on the target rect and calls
+/// `enforce_terminal_support_normal_to_face` so the last segment approaches
+/// normal to that face with at least `MIN_TERMINAL_SUPPORT` pixels of stem.
+fn reapply_terminal_support_after_reroute(
+    path: &mut Vec<FPoint>,
+    edge: &crate::graph::geometry::LayoutEdge,
+    geometry: &crate::graph::geometry::GraphGeometry,
+) {
+    use self::endpoints::{
+        RectFace, boundary_face_excluding_corners, boundary_face_including_corners,
+        endpoint_rect_and_shape, enforce_terminal_support_normal_to_face,
+    };
+
+    const MIN_TERMINAL_SUPPORT: f64 = 8.0;
+
+    if path.len() < 2 {
+        return;
+    }
+
+    let Some((target_rect, _shape)) =
+        endpoint_rect_and_shape(geometry, &edge.to, edge.to_subgraph.as_deref())
+    else {
+        return;
+    };
+
+    let end = *path.last().unwrap();
+    let rect_face = boundary_face_excluding_corners(end, target_rect, 1.0)
+        .or_else(|| boundary_face_including_corners(end, target_rect, 1.0));
+
+    let Some(rect_face) = rect_face else {
+        return;
+    };
+
+    let face = match rect_face {
+        RectFace::Top => crate::graph::attachment::Face::Top,
+        RectFace::Bottom => crate::graph::attachment::Face::Bottom,
+        RectFace::Left => crate::graph::attachment::Face::Left,
+        RectFace::Right => crate::graph::attachment::Face::Right,
+    };
+
+    // Only re-apply if the terminal segment direction is wrong (not normal to
+    // the face).  If the direction is already correct, leave it alone even if
+    // the support is shorter than the minimum — other pipeline stages may have
+    // intentionally set a shorter stem.
+    let pen = path[path.len() - 2];
+    let eps = 0.5;
+    let direction_already_normal = match face {
+        crate::graph::attachment::Face::Top | crate::graph::attachment::Face::Bottom => {
+            // Normal approach = vertical: dx ≈ 0.
+            (end.x - pen.x).abs() <= eps
+        }
+        crate::graph::attachment::Face::Left | crate::graph::attachment::Face::Right => {
+            // Normal approach = horizontal: dy ≈ 0.
+            (end.y - pen.y).abs() <= eps
+        }
+    };
+    if direction_already_normal {
+        return;
+    }
+
+    enforce_terminal_support_normal_to_face(path, face, MIN_TERMINAL_SUPPORT);
+    collapse_collinear_interior_points(path);
 }
 
 /// Collapse tiny cross-axis jogs in forward orthogonal paths.
