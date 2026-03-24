@@ -32,7 +32,7 @@
     "start": "node dist/cli.js"
   },
   "dependencies": {
-    "@mmds/core": "0.1.0"
+    "@mmds/core": "^0.1.0"
   },
   "keywords": [
     "mermaid",
