@@ -2,7 +2,7 @@
   "private": true,
   "workspaces": [
     "mmds-core",
-    "excalidraw",
-    "tldraw"
+    "mmds-excalidraw",
+    "mmds-tldraw"
   ]
 }

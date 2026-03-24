@@ -48,7 +48,7 @@ mmdflux --format mmds --geometry-level routed diagram.mmd | npx mmds-to-tldraw -
 The `--open` flag sends the diagram to a Vite-based preview server. Start it first:
 
 ```bash
-cd packages/tldraw && npm run preview
+cd packages/mmds-tldraw && npm run preview
 ```
 
 Then in another terminal, pipe MMDS to the converter with `--open`. The CLI POSTs the diagram, receives a content-based ID, and opens `http://localhost:5173/?id=<id>`. Same diagram content yields the same ID, so repeated runs don't create duplicates.
