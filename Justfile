@@ -35,6 +35,10 @@ fix *args: fmt
 fmt *args:
     cargo +nightly fmt --all {{ args }}
 
+# Install git hooks (commit-msg validation via cocogitto)
+setup-hooks:
+    cog install-hook --all --overwrite
+
 # Run the CLI
 run *args:
     cargo run -- {{ args }}

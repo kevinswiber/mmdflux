@@ -1,0 +1,81 @@
+from_latest_tag = false
+ignore_merge_commits = true
+ignore_fixup_commits = false
+disable_changelog = false
+disable_bump_commit = false
+generate_mono_repository_global_tag = true
+generate_mono_repository_package_tags = true
+branch_whitelist = []
+pre = "alpha.*"
+skip_ci = "[skip ci]"
+skip_untracked = false
+
+# Scopes map to monorepo packages. Unscoped commits apply to the root crate.
+scopes = ["wasm", "xtask", "web", "mmds-core", "excalidraw", "tldraw"]
+
+pre_bump_hooks = [
+    "just lint",
+    "just test",
+    "cargo set-version {{version}}",
+    "cargo set-version --manifest-path crates/mmdflux-wasm/Cargo.toml {{version}}",
+]
+post_bump_hooks = [
+    "git push",
+    "git push origin {{version}}",
+]
+pre_package_bump_hooks = []
+post_package_bump_hooks = []
+
+[git_hooks.commit-msg]
+script = '''#!/bin/sh
+set -e
+cog verify --file $1
+
+# Enforce header max 100 characters
+header=$(head -1 "$1")
+if [ ${#header} -gt 100 ]; then
+    echo "error: commit header exceeds 100 characters (${#header})"
+    exit 1
+fi
+
+# Enforce lowercase first letter in subject (strip type and optional scope)
+subject=$(echo "$header" | sed 's/^[a-z]*([^)]*): //' | sed 's/^[a-z]*: //')
+first_char=$(printf '%.1s' "$subject")
+if echo "$first_char" | grep -q '^[A-Z]'; then
+    echo "error: commit subject must start with a lowercase letter"
+    exit 1
+fi
+
+# Enforce no trailing period in subject
+if echo "$header" | grep -q '\.$'; then
+    echo "error: commit subject must not end with a period"
+    exit 1
+fi
+'''
+
+[commit_types]
+feat = { changelog_title = "Features", bump_minor = true, order = 1 }
+fix = { changelog_title = "Bug Fixes", bump_patch = true, order = 2 }
+perf = { changelog_title = "Performance Improvements", order = 3 }
+revert = { changelog_title = "Revert", order = 4 }
+docs = { changelog_title = "Documentation", order = 5 }
+test = { changelog_title = "Tests", omit_from_changelog = true, order = 6 }
+build = { changelog_title = "Build system", omit_from_changelog = true, order = 7 }
+ci = { changelog_title = "Continuous Integration", omit_from_changelog = true, order = 8 }
+refactor = { changelog_title = "Refactoring", order = 9 }
+chore = { changelog_title = "Miscellaneous Chores", omit_from_changelog = true, order = 10 }
+style = { changelog_title = "Style", omit_from_changelog = true, order = 11 }
+
+[changelog]
+path = "CHANGELOG.md"
+template = "remote"
+remote = "github.com"
+repository = "mmdflux"
+owner = "kevinswiber"
+authors = []
+
+[monorepo.packages]
+mmdflux-wasm = { path = "crates/mmdflux-wasm", public_api = true }
+xtask = { path = "xtask", public_api = false }
+
+[bump_profiles]

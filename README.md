@@ -212,6 +212,7 @@ mmdflux --format svg --curve linear-rounded diagram.mmd -o diagram.svg
 
 ## Documentation
 
+- [Developer setup](docs/development/setup.md) — prerequisites and first-time setup
 - [Gallery](docs/gallery.md) — rendered output for 110 fixtures
 - [MMDS specification](docs/mmds.md) — structured JSON format
 - [Edge routing design](docs/edge-routing-heuristics.md) — routing internals

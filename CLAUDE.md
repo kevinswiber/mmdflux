@@ -6,6 +6,26 @@ This file provides guidance to AI code assistants when working with code in this
 
 mmdflux is a Rust CLI tool and library that parses Mermaid diagrams and renders them as text (Unicode/ASCII), SVG, or MMDS JSON. Supported diagram types: flowchart, class, sequence. It converts Mermaid syntax into terminal-friendly visualizations using Unicode box-drawing characters, with support for multiple layout directions (TD, BT, LR, RL), node shapes, edge styles, subgraphs with direction overrides, and structured JSON output (MMDS format).
 
+## Commit Conventions
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), enforced by [cocogitto](https://docs.cocogitto.io/) via a `commit-msg` git hook.
+
+Format: `<type>(<optional scope>): <subject>`
+
+Types: `feat`, `fix`, `perf`, `revert`, `docs`, `test`, `build`, `ci`, `refactor`, `chore`, `style`
+
+Scopes: `wasm`, `xtask`, `web`, `mmds-core`, `excalidraw`, `tldraw` (match monorepo packages). Omit scope for changes to the root `mmdflux` crate.
+
+Rules:
+- Header must be 100 characters or fewer
+- Subject must start with a lowercase letter
+- Subject must not end with a period
+- Use imperative mood ("add feature" not "added feature")
+
+For non-trivial changes, include a body after a blank line explaining **what** changed and **why**. A one-liner is fine for truly simple changes (typo fixes, version bumps), but multi-file changes, bug fixes, and new features should have a body.
+
+Use `cog check` to validate commit history and `cog changelog` to preview changelog output. Use `git commit` (not `cog commit`) for creating commits — the commit-msg hook handles validation automatically.
+
 ## Common Commands
 
 Use `just` (see `Justfile`) for day-to-day work. Tests use `cargo-nextest` for parallel execution.
