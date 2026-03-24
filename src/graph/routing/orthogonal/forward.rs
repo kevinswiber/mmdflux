@@ -275,6 +275,104 @@ pub(super) fn avoid_forward_node_intrusions(
     }
 }
 
+/// Prevent forward edges from transiting through their own target node
+/// interior.  Checks both direct rect crossings and segments on a collision
+/// course (horizontal at a y inside the target's y range heading toward it,
+/// or vertical at an x inside the target's x range).
+pub(super) fn avoid_forward_target_transit(
+    path: &mut Vec<FPoint>,
+    edge: &LayoutEdge,
+    geometry: &GraphGeometry,
+) {
+    use super::endpoints::endpoint_rect_and_shape;
+
+    const INTRUSION_MARGIN: f64 = -0.5;
+    const NODE_CLEARANCE: f64 = 8.0;
+    const EPS: f64 = 0.000_001;
+    const MAX_PASSES: usize = 4;
+
+    if path.len() < 3 {
+        return;
+    }
+
+    let Some((target_rect, _shape)) =
+        endpoint_rect_and_shape(geometry, &edge.to, edge.to_subgraph.as_deref())
+    else {
+        return;
+    };
+
+    let target_top = target_rect.y + INTRUSION_MARGIN;
+    let target_bottom = target_rect.y + target_rect.height - INTRUSION_MARGIN;
+    let target_left = target_rect.x + INTRUSION_MARGIN;
+    let target_right = target_rect.x + target_rect.width - INTRUSION_MARGIN;
+
+    for _pass in 0..MAX_PASSES {
+        let last_seg = path.len().saturating_sub(2);
+
+        let problem = (0..last_seg).find(|&i| {
+            let a = path[i];
+            let b = path[i + 1];
+
+            // Direct interior crossing.
+            if super::collision::axis_aligned_segment_crosses_rect_interior(
+                a,
+                b,
+                target_rect,
+                INTRUSION_MARGIN,
+            ) {
+                return true;
+            }
+
+            // Collision course: horizontal at y inside target y-range.
+            let is_h = (a.y - b.y).abs() <= EPS;
+            if is_h {
+                let y = a.y;
+                let heading_toward = b.x.max(a.x) > target_left;
+                return y > target_top && y < target_bottom && heading_toward;
+            }
+
+            // Collision course: vertical at x inside target x-range.
+            let is_v = (a.x - b.x).abs() <= EPS;
+            if is_v {
+                let x = a.x;
+                let heading_toward = b.y.max(a.y) > target_top;
+                return x > target_left && x < target_right && heading_toward;
+            }
+
+            false
+        });
+        let Some(seg_idx) = problem else {
+            return;
+        };
+
+        let a = path[seg_idx];
+        let b = path[seg_idx + 1];
+        let is_horizontal = (a.y - b.y).abs() <= EPS;
+        let is_vertical = (a.x - b.x).abs() <= EPS;
+
+        if is_horizontal {
+            let above_y = target_rect.y - NODE_CLEARANCE;
+            let below_y = target_rect.y + target_rect.height + NODE_CLEARANCE;
+            let safe_y = if (a.y - above_y).abs() <= (a.y - below_y).abs() {
+                above_y
+            } else {
+                below_y
+            };
+            splice_horizontal_jog(path, seg_idx, safe_y, EPS);
+        } else if is_vertical {
+            let left_x = target_rect.x - NODE_CLEARANCE;
+            let right_x = target_rect.x + target_rect.width + NODE_CLEARANCE;
+            let safe_x = if (a.x - left_x).abs() <= (a.x - right_x).abs() {
+                left_x
+            } else {
+                right_x
+            };
+            splice_vertical_jog(path, seg_idx, safe_x, EPS);
+        }
+        collapse_collinear_interior_points(path);
+    }
+}
+
 /// Collapse primary-axis reversals (overshoot hairpins) in forward orthogonal
 /// paths.
 ///
