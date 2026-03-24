@@ -1,6 +1,6 @@
 [package]
 name = "mmdflux"
-version = "2.0.0"
+version = "2.0.1"
 edition = "2024"
 default-run = "mmdflux"
 description = "Render Mermaid diagrams as Unicode text, ASCII, SVG, and MMDS JSON."

@@ -1,7 +1,7 @@
 from_latest_tag = true
 ignore_merge_commits = true
 ignore_fixup_commits = false
-disable_changelog = true
+disable_changelog = false
 disable_bump_commit = false
 generate_mono_repository_global_tag = false
 generate_mono_repository_package_tags = true
@@ -12,12 +12,15 @@ skip_untracked = false
 tag_prefix = "v"
 
 # Scopes map to monorepo packages. Unscoped commits apply to the root crate.
-scopes = ["wasm", "xtask", "web", "mmds-core", "mmds-excalidraw", "mmds-tldraw"]
+scopes = ["version", "wasm", "xtask", "web", "mmds-core", "mmds-excalidraw", "mmds-tldraw"]
 
 pre_bump_hooks = []
 post_bump_hooks = []
 pre_package_bump_hooks = []
-post_package_bump_hooks = []
+post_package_bump_hooks = [
+    "git push",
+    "git push origin {{package}}-v{{version}}",
+]
 
 [git_hooks.commit-msg]
 script = '''#!/bin/sh
