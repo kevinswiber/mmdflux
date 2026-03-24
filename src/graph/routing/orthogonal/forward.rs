@@ -289,6 +289,7 @@ pub(super) fn avoid_forward_target_transit(
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
+    rank_span: usize,
 ) -> bool {
     use super::endpoints::endpoint_rect_and_shape;
 
@@ -451,7 +452,7 @@ pub(super) fn avoid_forward_target_transit(
     // on the normal left/right target face should not be forced through the
     // topology-preservation path because the text router can consume their
     // simplified H-V-H draw path directly.
-    if !modified && path.len() >= 5 {
+    if !modified && rank_span >= 2 && path.len() >= 5 {
         let flow_face = match direction {
             Direction::LeftRight => RectFace::Left,
             Direction::RightLeft => RectFace::Right,
