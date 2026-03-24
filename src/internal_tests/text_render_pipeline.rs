@@ -457,18 +457,18 @@ mod edge_rendering_regression {
     use std::path::Path;
 
     use crate::diagrams::flowchart::compile_to_graph;
-    use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
     use crate::engines::graph::algorithms::layered::layout_building::layered_config_for_layout;
+    use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
     use crate::engines::graph::contracts::{
         EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
     };
     use crate::engines::graph::flux::FluxLayeredEngine;
-    use crate::graph::measure::default_proportional_text_metrics;
-    use crate::graph::routing::{EdgeRouting, route_graph_geometry};
     use crate::graph::grid::{
         GridLayout, GridLayoutConfig, geometry_to_grid_layout_with_routed, route_edge,
         route_edge_with_probe,
     };
+    use crate::graph::measure::default_proportional_text_metrics;
+    use crate::graph::routing::{EdgeRouting, route_graph_geometry};
     use crate::graph::{Arrow, Direction, Edge, Graph, Node, Stroke};
     use crate::mermaid::parse_flowchart;
     use crate::render::graph::text::{render_all_edges, render_edge};
@@ -618,9 +618,7 @@ mod edge_rendering_regression {
         (first_horizontal && middle_vertical && terminal_horizontal).then_some(path[1].0)
     }
 
-    fn lr_rl_middle_vertical_lane_float(
-        path: &[crate::graph::geometry::FPoint],
-    ) -> Option<f64> {
+    fn lr_rl_middle_vertical_lane_float(path: &[crate::graph::geometry::FPoint]) -> Option<f64> {
         const EPS: f64 = 0.5;
         if path.len() != 4 {
             return None;
@@ -1288,7 +1286,10 @@ mod edge_rendering_regression {
                 .iter()
                 .find(|edge| edge.from == "A" && edge.to == target)
                 .unwrap_or_else(|| panic!("missing text-side routed edge A -> {target}"));
-            text_routed_paths.insert(target.to_string(), rounded_float_path(&text_routed_edge.path));
+            text_routed_paths.insert(
+                target.to_string(),
+                rounded_float_path(&text_routed_edge.path),
+            );
 
             let edge = find_edge(&text_diagram, "A", target);
             let draw_path = text_layout
@@ -1343,7 +1344,10 @@ mod edge_rendering_regression {
             let result =
                 route_edge_with_probe(edge, &layout, Direction::LeftRight, None, None, false)
                     .unwrap_or_else(|| panic!("missing routed text path for A -> {target}"));
-            route_families.insert(target.to_string(), format!("{:?}", result.probe.path_family));
+            route_families.insert(
+                target.to_string(),
+                format!("{:?}", result.probe.path_family),
+            );
             routed_edges.push(result.routed.clone());
 
             let mut edge_canvas = Canvas::new(layout.width, layout.height);
