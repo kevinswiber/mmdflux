@@ -120,7 +120,11 @@ pub(super) fn avoid_forward_node_intrusions(
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
 ) {
-    const INTRUSION_MARGIN: f64 = -0.5;
+    // Margin 0.0 means only segments strictly inside the node rect interior
+    // trigger avoidance.  -0.5 was too aggressive and caught boundary-touching
+    // segments (e.g. shared column edges) causing unnecessary reroutes that
+    // worsened the visual result.
+    const INTRUSION_MARGIN: f64 = 0.0;
     const NODE_CLEARANCE: f64 = 8.0;
     const EPS: f64 = 0.000_001;
     const MAX_PASSES: usize = 4;
