@@ -350,6 +350,9 @@ fn build_orthogonal_path(
         if matches!(direction, Direction::LeftRight | Direction::RightLeft) {
             reapply_terminal_support_after_reroute(&mut finalized, edge, geometry);
         }
+        // Collapse any primary-axis reversals (overshoot hairpins) that
+        // survived routing construction and the avoidance pass.
+        forward::collapse_forward_primary_axis_reversals(&mut finalized, direction);
     }
     if !is_backward
         && forward::collapse_forward_source_primary_turnback_hooks(&mut finalized, direction)

@@ -275,6 +275,123 @@ pub(super) fn avoid_forward_node_intrusions(
     }
 }
 
+/// Collapse primary-axis reversals (overshoot hairpins) in forward orthogonal
+/// paths.
+///
+/// Detects segments where the primary-axis coordinate goes backward, then
+/// removes the overshooting loop by connecting the pre-overshoot point
+/// directly to the post-backtrack continuation at the backtrack coordinate.
+///
+/// Example for LR (primary axis = x):
+///   (a, 16) → (1908, 16) → (1908, -5) → (1864, -5) → (1864, 262) → (target, 262)
+/// becomes:
+///   (a, 16) → (1864, 16) → (1864, 262) → (target, 262)
+pub(super) fn collapse_forward_primary_axis_reversals(
+    path: &mut Vec<FPoint>,
+    direction: Direction,
+) {
+    const EPS: f64 = 0.5;
+    const MAX_PASSES: usize = 4;
+
+    let primary_is_x = matches!(direction, Direction::LeftRight | Direction::RightLeft);
+    let forward_sign: f64 = match direction {
+        Direction::LeftRight | Direction::TopDown => 1.0,
+        Direction::RightLeft | Direction::BottomTop => -1.0,
+    };
+
+    for _pass in 0..MAX_PASSES {
+        if path.len() < 4 {
+            return;
+        }
+
+        // Find the first segment where the primary axis goes backward.
+        let reversal_seg = (0..path.len() - 1).find(|&i| {
+            let delta = if primary_is_x {
+                path[i + 1].x - path[i].x
+            } else {
+                path[i + 1].y - path[i].y
+            };
+            delta * forward_sign < -EPS
+        });
+        let Some(rev_idx) = reversal_seg else {
+            return; // No more reversals.
+        };
+
+        // The overshoot point is path[rev_idx]: the path went too far in the
+        // primary axis, and path[rev_idx]→path[rev_idx+1] goes backward.
+        // Find the backtrack target: the coordinate the path settles at after
+        // the reversal.
+        let backtrack_coord = if primary_is_x {
+            path[rev_idx + 1].x
+        } else {
+            path[rev_idx + 1].y
+        };
+
+        // Find where the path resumes forward progress after the backtrack.
+        // This is the first point after rev_idx whose primary coordinate
+        // is at or past the backtrack coordinate in the forward direction.
+        let resume_idx = (rev_idx + 1..path.len()).find(|&i| {
+            let coord = if primary_is_x { path[i].x } else { path[i].y };
+            let past_backtrack = (coord - backtrack_coord) * forward_sign >= -EPS;
+            // Also must have a DIFFERENT cross-axis from the overshoot point
+            // (otherwise we're still in the reversal loop).
+            let cross_differs = if primary_is_x {
+                (path[i].y - path[rev_idx].y).abs() > EPS
+            } else {
+                (path[i].x - path[rev_idx].x).abs() > EPS
+            };
+            past_backtrack && cross_differs
+        });
+        let Some(resume_idx) = resume_idx else {
+            return; // Can't find resumption point — leave as-is.
+        };
+
+        // Need a pre-reversal point to anchor the collapsed segment.
+        if rev_idx == 0 {
+            return; // First segment reverses — can't collapse without a predecessor.
+        }
+
+        // Collapse: replace path[rev_idx..resume_idx] with a single point
+        // at (backtrack_coord, path[rev_idx-1].cross_axis).
+        let collapsed_point = if primary_is_x {
+            FPoint::new(backtrack_coord, path[rev_idx - 1].y)
+        } else {
+            FPoint::new(path[rev_idx - 1].x, backtrack_coord)
+        };
+
+        // Build the collapsed segment: keep everything before rev_idx,
+        // insert the collapsed point, then continue from resume_idx.
+        let mut new_path: Vec<FPoint> = Vec::with_capacity(path.len());
+        new_path.extend_from_slice(&path[..rev_idx]);
+        if !new_path
+            .last()
+            .is_some_and(|p| points_match(*p, collapsed_point))
+        {
+            new_path.push(collapsed_point);
+        }
+        // Add a connector from the collapsed point to resume point's
+        // cross-axis if needed.
+        let resume_point = path[resume_idx];
+        let connect_point = if primary_is_x {
+            FPoint::new(backtrack_coord, resume_point.y)
+        } else {
+            FPoint::new(resume_point.x, backtrack_coord)
+        };
+        if !new_path
+            .last()
+            .is_some_and(|p| points_match(*p, connect_point))
+        {
+            new_path.push(connect_point);
+        }
+        new_path.extend_from_slice(&path[resume_idx..]);
+
+        // Dedup adjacent identical points.
+        new_path.dedup_by(|a, b| points_match(*a, *b));
+        *path = new_path;
+        collapse_collinear_interior_points(path);
+    }
+}
+
 /// Replace a horizontal segment `path[idx]→path[idx+1]` with a 3-segment
 /// detour that jogs to `safe_y`, runs horizontally, then returns.  Subsequent
 /// collinear points at the same x as `path[idx+1]` are pruned so the detour
