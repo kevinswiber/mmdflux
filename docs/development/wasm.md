@@ -102,7 +102,7 @@ WASM publishing is tag-driven via:
 
 Rules enforced by the workflow:
 
-- Release tags must be `v*` and tag version must equal crate version.
+- Release is triggered by the `mmdflux-v*` tag (created by `cog bump --package mmdflux`). Tag version must equal crate version.
 - Root `Cargo.toml` version and `crates/mmdflux-wasm/Cargo.toml` version must match.
 - Bundler package is published to npm as `@mmds/wasm`.
 

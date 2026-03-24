@@ -3,11 +3,11 @@ name: WASM Release
 on:
   push:
     tags:
-      - "v*"
+      - "mmdflux-v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (for example v1.0.1)"
+        description: "Tag to release (e.g., mmdflux-v2.1.0)"
         required: true
         type: string
 
@@ -51,10 +51,10 @@ jobs:
           fi
 
           TAG="${TAG#refs/tags/}"
-          if [[ "$TAG" != v* ]]; then
-            TAG="v$TAG"
+          if [[ "$TAG" != mmdflux-v* ]]; then
+            TAG="mmdflux-v${TAG#v}"
           fi
-          TAG_VERSION="${TAG#v}"
+          TAG_VERSION="${TAG#mmdflux-v}"
 
           ROOT_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
           WASM_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' crates/mmdflux-wasm/Cargo.toml | head -n1)"

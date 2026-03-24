@@ -3,11 +3,11 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "mmdflux-v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (for example v0.1.0)"
+        description: "Tag to release (e.g., mmdflux-v2.1.0)"
         required: true
         type: string
 
@@ -58,11 +58,11 @@ jobs:
           fi
 
           TAG="${TAG#refs/tags/}"
-          if [[ "$TAG" != v* ]]; then
-            TAG="v$TAG"
+          if [[ "$TAG" != mmdflux-v* ]]; then
+            TAG="mmdflux-v${TAG#v}"
           fi
 
-          VERSION="${TAG#v}"
+          VERSION="${TAG#mmdflux-v}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Resolved tag: $TAG"
@@ -85,7 +85,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          ARCHIVE="mmdflux-${{ steps.meta.outputs.tag }}-${{ matrix.artifact_suffix }}.tar.gz"
+          ARCHIVE="mmdflux-v${{ steps.meta.outputs.version }}-${{ matrix.artifact_suffix }}.tar.gz"
           tar -C "target/${{ matrix.target }}/release" -czf "dist/$ARCHIVE" mmdflux
 
       - name: Package (windows)
@@ -94,7 +94,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/mmdflux.exe" "dist/mmdflux.exe" -Force
-          $Archive = "mmdflux-${{ steps.meta.outputs.tag }}-${{ matrix.artifact_suffix }}.zip"
+          $Archive = "mmdflux-v${{ steps.meta.outputs.version }}-${{ matrix.artifact_suffix }}.zip"
           Compress-Archive -Path "dist/mmdflux.exe" -DestinationPath "dist/$Archive" -Force
           Remove-Item "dist/mmdflux.exe" -Force
 
@@ -126,11 +126,11 @@ jobs:
           fi
 
           TAG="${TAG#refs/tags/}"
-          if [[ "$TAG" != v* ]]; then
-            TAG="v$TAG"
+          if [[ "$TAG" != mmdflux-v* ]]; then
+            TAG="mmdflux-v${TAG#v}"
           fi
 
-          VERSION="${TAG#v}"
+          VERSION="${TAG#mmdflux-v}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Resolved tag: $TAG"
@@ -152,7 +152,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
-          name: mmdflux ${{ steps.meta.outputs.tag }}
+          name: mmdflux v${{ steps.meta.outputs.version }}
           generate_release_notes: true
           overwrite_files: true
           files: |

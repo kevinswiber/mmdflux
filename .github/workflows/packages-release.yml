@@ -3,13 +3,13 @@ name: Packages Release
 on:
   push:
     tags:
-      - "mmds-core-*"
-      - "excalidraw-*"
-      - "tldraw-*"
+      - "mmds-core-v*"
+      - "mmds-excalidraw-v*"
+      - "mmds-tldraw-v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g., mmds-core-0.2.0)"
+        description: "Tag to release (e.g., mmds-core-v0.2.0)"
         required: true
         type: string
 
@@ -45,18 +45,18 @@ jobs:
             TAG="$REF_NAME"
           fi
 
-          if [[ "$TAG" == mmds-core-* ]]; then
+          if [[ "$TAG" == mmds-core-v* ]]; then
             echo "pkg_dir=packages/mmds-core" >> "$GITHUB_OUTPUT"
             echo "npm_name=@mmds/core" >> "$GITHUB_OUTPUT"
-            echo "version=${TAG#mmds-core-}" >> "$GITHUB_OUTPUT"
-          elif [[ "$TAG" == excalidraw-* ]]; then
-            echo "pkg_dir=packages/excalidraw" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG#mmds-core-v}" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" == mmds-excalidraw-v* ]]; then
+            echo "pkg_dir=packages/mmds-excalidraw" >> "$GITHUB_OUTPUT"
             echo "npm_name=@mmds/excalidraw" >> "$GITHUB_OUTPUT"
-            echo "version=${TAG#excalidraw-}" >> "$GITHUB_OUTPUT"
-          elif [[ "$TAG" == tldraw-* ]]; then
-            echo "pkg_dir=packages/tldraw" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG#mmds-excalidraw-v}" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" == mmds-tldraw-v* ]]; then
+            echo "pkg_dir=packages/mmds-tldraw" >> "$GITHUB_OUTPUT"
             echo "npm_name=@mmds/tldraw" >> "$GITHUB_OUTPUT"
-            echo "version=${TAG#tldraw-}" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG#mmds-tldraw-v}" >> "$GITHUB_OUTPUT"
           else
             echo "Unknown tag format: $TAG" >&2
             exit 1
