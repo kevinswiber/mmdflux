@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -71,7 +71,7 @@ jobs:
           wasm-pack --version
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: npm
@@ -158,7 +158,7 @@ jobs:
       - name: Comment preview URL on PR (best-effort)
         if: github.event_name == 'pull_request' && steps.preview_urls.outputs.deployment_url && github.event.pull_request.head.repo.full_name == github.repository
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           PREVIEW_URL: ${{ steps.preview_urls.outputs.deployment_url }}
           PREVIEW_ALIAS_URL: ${{ steps.preview_urls.outputs.alias_url }}

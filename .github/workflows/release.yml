@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Resolve tag and version
         id: meta
@@ -99,7 +99,7 @@ jobs:
           Remove-Item "dist/mmdflux.exe" -Force
 
       - name: Upload packaged artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-${{ matrix.artifact_suffix }}
           path: dist/*
@@ -136,7 +136,7 @@ jobs:
           echo "Resolved tag: $TAG"
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           path: dist
           pattern: release-*
