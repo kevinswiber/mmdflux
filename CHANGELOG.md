@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Fixed
+
+- Fixed LR/RL forward orthogonal edges routing through unrelated node interiors
+  on dense architecture-style graphs. A new general-purpose scan-and-reroute
+  pass (`avoid_forward_node_intrusions`) detours edges around non-endpoint
+  blockers for any direction and path length.
+- Fixed LR/RL terminal face-normal support being invalidated by forward
+  reroutes. A post-reroute enforcement step re-applies the terminal stem
+  contract when the approach direction is wrong, scoped to LR/RL to avoid
+  TD/BT regressions.
+- Fixed forward orthogonal edges overshooting past their target and hairpinning
+  back (primary-axis reversal), including paths that exited the SVG viewBox
+  (e.g. `diagrams → errors` reaching `y < 0` on the architecture graph).
+  A reversal-collapse pass removes the overshoot loop post-construction.
+
 ## v2.0.0
 
 ### Breaking
