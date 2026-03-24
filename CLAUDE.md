@@ -26,6 +26,18 @@ For non-trivial changes, include a body after a blank line explaining **what** c
 
 Use `cog check` to validate commit history and `cog changelog` to preview changelog output. Use `git commit` (not `cog commit`) for creating commits — the commit-msg hook handles validation automatically.
 
+## Branch Conventions
+
+This project uses [Conventional Branch](https://conventional-branch.github.io/), enforced by a `pre-push` git hook.
+Format: `<type>/<description>`
+
+Types: `feat/`, `fix/`, `hotfix/`, `release/`, `chore/`
+
+Rules:
+- Use lowercase letters, numbers, and hyphens only (no underscores or spaces)
+- Include issue numbers when applicable (e.g., `feat/issue-42-add-svg-export`)
+- Keep descriptions concise (e.g., `fix/lr-routing-regression`)
+
 ## Common Commands
 
 Use `just` (see `Justfile`) for day-to-day work. Tests use `cargo-nextest` for parallel execution.

@@ -53,6 +53,25 @@ if echo "$header" | grep -q '\.$'; then
 fi
 '''
 
+[git_hooks.pre-push]
+script = '''#!/bin/sh
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Allow main and detached HEAD
+case "$branch" in
+    main|HEAD) exit 0 ;;
+esac
+
+# Enforce conventional branch format: type/description
+if ! echo "$branch" | grep -qE '^(feat|fix|hotfix|release|chore)/[a-z0-9][a-z0-9.-]*[a-z0-9]$'; then
+    echo "error: branch name '$branch' does not follow Conventional Branch format"
+    echo "  expected: <type>/<description>"
+    echo "  types: feat, fix, hotfix, release, chore"
+    echo "  description: lowercase letters, numbers, and hyphens only"
+    exit 1
+fi
+'''
+
 [commit_types]
 feat = { changelog_title = "Features", bump_minor = true, order = 1 }
 fix = { changelog_title = "Bug Fixes", bump_patch = true, order = 2 }
