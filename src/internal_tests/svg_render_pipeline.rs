@@ -5188,3 +5188,64 @@ fn svg_lr_architecture_hairpin_no_primary_axis_reversal_on_diagrams_to_errors() 
         "diagrams→errors should not reverse along x; points={points:?}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// LR target-node transit avoidance (plan 0124)
+// ---------------------------------------------------------------------------
+
+/// Assert that no segment of an edge path crosses the target node's rect
+/// interior.  Uses `path_crosses_rect_interior` (axis-aligned segment check)
+/// with the caller-provided margin.
+fn assert_edge_does_not_transit_target_rect_interior(
+    diagram: &crate::graph::Graph,
+    svg: &str,
+    from: &str,
+    to: &str,
+    interior_margin: f64,
+) {
+    let edge_idx = edge_index(diagram, from, to);
+    let target_label = node_label(diagram, to);
+    let target_rect = node_rect_for_label(svg, &target_label)
+        .unwrap_or_else(|| panic!("{from}→{to}: target rect '{target_label}' not found"));
+
+    let points = edge_path_for_svg_order(diagram, svg, edge_idx);
+    assert!(points.len() >= 2, "{from}→{to}: expected at least 2 points");
+
+    assert!(
+        !path_crosses_rect_interior(&points, target_rect, interior_margin),
+        "{from}→{to}: route crosses target node '{target_label}' interior; \
+         points={points:?}, rect={target_rect:?}"
+    );
+}
+
+// -- Plan 0124, Task 1.1: Red tests --
+
+#[test]
+fn svg_lr_architecture_target_transit_mermaid_to_errors_does_not_cross_errors_interior() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_terminal_contracts.mmd");
+    let svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+    assert_edge_does_not_transit_target_rect_interior(&diagram, &svg, "mermaid", "errors", -0.5);
+}
+
+#[test]
+fn svg_lr_architecture_target_transit_runtime_to_errors_does_not_cross_errors_interior() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_terminal_contracts.mmd");
+    let svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+    assert_edge_does_not_transit_target_rect_interior(&diagram, &svg, "runtime", "errors", -0.5);
+}

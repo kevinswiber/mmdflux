@@ -453,18 +453,24 @@ mod owner_local_fixture_regressions {
 }
 
 mod edge_rendering_regression {
+    use std::collections::HashMap;
     use std::path::Path;
 
-    use crate::engines::graph::algorithms::layered::MeasurementMode;
+    use crate::diagrams::flowchart::compile_to_graph;
     use crate::engines::graph::algorithms::layered::layout_building::layered_config_for_layout;
+    use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
     use crate::engines::graph::contracts::{
         EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
     };
     use crate::engines::graph::flux::FluxLayeredEngine;
     use crate::graph::grid::{
         GridLayout, GridLayoutConfig, geometry_to_grid_layout_with_routed, route_edge,
+        route_edge_with_probe,
     };
+    use crate::graph::measure::default_proportional_text_metrics;
+    use crate::graph::routing::{EdgeRouting, route_graph_geometry};
     use crate::graph::{Arrow, Direction, Edge, Graph, Node, Stroke};
+    use crate::mermaid::parse_flowchart;
     use crate::render::graph::text::{render_all_edges, render_edge};
     use crate::render::text::canvas::Canvas;
     use crate::render::text::chars::CharSet;
@@ -502,6 +508,16 @@ mod edge_rendering_regression {
         )
     }
 
+    fn flux_layout_config() -> EngineConfig {
+        EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig {
+            greedy_switch: true,
+            model_order_tiebreak: true,
+            variable_rank_spacing: true,
+            track_reversed_chains: true,
+            ..crate::engines::graph::algorithms::layered::LayoutConfig::default()
+        })
+    }
+
     /// Render a `Diagram` through the full text pipeline (engine + grid + text render).
     fn render_diagram_to_text(diagram: &Graph) -> String {
         let layout = compute_layout(diagram, &GridLayoutConfig::default());
@@ -527,6 +543,99 @@ mod edge_rendering_regression {
     fn render_flowchart_input(input: &str) -> String {
         crate::render_diagram(input, OutputFormat::Text, &RenderConfig::default())
             .expect("input render should succeed")
+    }
+
+    fn flowchart_fixture_input(name: &str) -> String {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("flowchart")
+            .join(name);
+        std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("Failed to read fixture {}: {}", path.display(), error))
+    }
+
+    fn flowchart_fixture_diagram(name: &str) -> Graph {
+        let input = flowchart_fixture_input(name);
+        let parsed = parse_flowchart(&input).expect("flowchart fixture should parse");
+        compile_to_graph(&parsed)
+    }
+
+    fn compute_layout_with_mode(
+        diagram: &Graph,
+        config: &GridLayoutConfig,
+        measurement_mode: MeasurementMode,
+    ) -> (crate::graph::geometry::RoutedGraphGeometry, GridLayout) {
+        let engine = FluxLayeredEngine::text();
+        let request = GraphSolveRequest::new(
+            measurement_mode,
+            GraphGeometryContract::Canonical,
+            crate::graph::GeometryLevel::Layout,
+            None,
+        );
+        let result = engine
+            .solve(
+                diagram,
+                &EngineConfig::Layered(layered_config_for_layout(diagram, config)),
+                &request,
+            )
+            .expect("fixture solve failed");
+        let routed = route_graph_geometry(diagram, &result.geometry, EdgeRouting::OrthogonalRoute);
+        let layout =
+            geometry_to_grid_layout_with_routed(diagram, &result.geometry, Some(&routed), config);
+        (routed, layout)
+    }
+
+    fn route_fixture_with_svg_layout(
+        name: &str,
+    ) -> (Graph, crate::graph::geometry::RoutedGraphGeometry) {
+        let diagram = flowchart_fixture_diagram(name);
+        let geom = run_layered_layout(
+            &MeasurementMode::Proportional(default_proportional_text_metrics()),
+            &diagram,
+            &flux_layout_config(),
+        )
+        .expect("SVG-side fixture solve failed");
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        (diagram, routed)
+    }
+
+    fn find_edge<'a>(diagram: &'a Graph, from: &str, to: &str) -> &'a Edge {
+        diagram
+            .edges
+            .iter()
+            .find(|edge| edge.from == from && edge.to == to)
+            .unwrap_or_else(|| panic!("missing edge {from} -> {to}"))
+    }
+
+    fn lr_rl_middle_vertical_lane_draw(path: &[(usize, usize)]) -> Option<usize> {
+        if path.len() != 4 {
+            return None;
+        }
+        let first_horizontal = path[0].1 == path[1].1 && path[0].0 != path[1].0;
+        let middle_vertical = path[1].0 == path[2].0 && path[1].1 != path[2].1;
+        let terminal_horizontal = path[2].1 == path[3].1 && path[2].0 != path[3].0;
+        (first_horizontal && middle_vertical && terminal_horizontal).then_some(path[1].0)
+    }
+
+    fn lr_rl_middle_vertical_lane_float(path: &[crate::graph::geometry::FPoint]) -> Option<f64> {
+        const EPS: f64 = 0.5;
+        if path.len() != 4 {
+            return None;
+        }
+        let first_horizontal =
+            (path[0].y - path[1].y).abs() <= EPS && (path[0].x - path[1].x).abs() > EPS;
+        let middle_vertical =
+            (path[1].x - path[2].x).abs() <= EPS && (path[1].y - path[2].y).abs() > EPS;
+        let terminal_horizontal =
+            (path[2].y - path[3].y).abs() <= EPS && (path[2].x - path[3].x).abs() > EPS;
+        (first_horizontal && middle_vertical && terminal_horizontal).then_some(path[1].x)
+    }
+
+    fn rounded_float_path(path: &[crate::graph::geometry::FPoint]) -> Vec<(i32, i32)> {
+        path.iter()
+            .map(|point| (point.x.round() as i32, point.y.round() as i32))
+            .collect()
     }
 
     // === Tests using compute_layout (route_edge / render_edge) ===
@@ -1107,6 +1216,186 @@ mod edge_rendering_regression {
         assert!(
             line_count < 40,
             "multiple_cycles.mmd should be compact, got {line_count} lines"
+        );
+    }
+
+    #[test]
+    fn text_five_fan_out_lr_does_not_gain_extra_terminal_tail_rows() {
+        let output = render_flowchart_fixture("five_fan_out_lr.mmd");
+        let lines: Vec<&str> = output.lines().collect();
+        let last_non_empty = lines
+            .iter()
+            .rposition(|line| !line.trim().is_empty())
+            .expect("five_fan_out_lr should render at least one row");
+        let target_e_bottom = lines
+            .iter()
+            .rposition(|line| line.contains("└──────────┘"))
+            .expect("five_fan_out_lr should render a bottom border for Target E");
+
+        assert_eq!(
+            last_non_empty, target_e_bottom,
+            "five_fan_out_lr should end at Target E's bottom border instead of leaving a dangling tail row\n{output}"
+        );
+    }
+
+    #[test]
+    fn text_five_fan_out_lr_keeps_direct_fanout_channels_for_inner_targets() {
+        let output = render_flowchart_fixture("five_fan_out_lr.mmd");
+        let forward_arrowheads = output.chars().filter(|&ch| ch == '►').count();
+        let upward_arrowheads = output.chars().filter(|&ch| ch == '▲').count();
+
+        assert_eq!(
+            forward_arrowheads, 5,
+            "five_fan_out_lr should keep one forward arrowhead per target instead of detouring inner branches through sibling columns\n{output}"
+        );
+        assert_eq!(
+            upward_arrowheads, 0,
+            "five_fan_out_lr should not need upward arrowheads when LR fan-out branches stay on their direct channels\n{output}"
+        );
+    }
+
+    #[test]
+    fn text_five_fan_in_lr_does_not_leave_a_dangling_bottom_stem() {
+        let output = render_flowchart_fixture("five_fan_in_lr.mmd");
+
+        assert_eq!(
+            output.lines().last(),
+            Some("└───┘"),
+            "five_fan_in_lr should end at E's bottom border instead of leaving a dangling bottom stem\n{output}"
+        );
+        assert_eq!(
+            output.chars().filter(|&ch| ch == '▲').count(),
+            0,
+            "five_fan_in_lr should not need upward arrowheads when the LR fan-in stays on the compact text route\n{output}"
+        );
+    }
+
+    #[test]
+    fn five_fan_out_lr_grid_projection_keeps_svg_source_centric_lane_order() {
+        let config = GridLayoutConfig::default();
+        let (_, svg_routed) = route_fixture_with_svg_layout("five_fan_out_lr.mmd");
+
+        let text_diagram = flowchart_fixture_diagram("five_fan_out_lr.mmd");
+        let (text_routed, text_layout) =
+            compute_layout_with_mode(&text_diagram, &config, MeasurementMode::Grid);
+
+        let mut svg_lanes = HashMap::new();
+        let mut svg_paths = HashMap::new();
+        let mut text_routed_paths = HashMap::new();
+        let mut draw_paths = HashMap::new();
+        let mut draw_lanes = HashMap::new();
+        let mut text_path_families = HashMap::new();
+
+        for target in ["B", "C", "E", "F"] {
+            let svg_edge = svg_routed
+                .edges
+                .iter()
+                .find(|edge| edge.from == "A" && edge.to == target)
+                .unwrap_or_else(|| panic!("missing SVG-side routed edge A -> {target}"));
+            svg_paths.insert(target.to_string(), rounded_float_path(&svg_edge.path));
+            if let Some(lane) = lr_rl_middle_vertical_lane_float(&svg_edge.path) {
+                svg_lanes.insert(target.to_string(), lane);
+            }
+
+            let text_routed_edge = text_routed
+                .edges
+                .iter()
+                .find(|edge| edge.from == "A" && edge.to == target)
+                .unwrap_or_else(|| panic!("missing text-side routed edge A -> {target}"));
+            text_routed_paths.insert(
+                target.to_string(),
+                rounded_float_path(&text_routed_edge.path),
+            );
+
+            let edge = find_edge(&text_diagram, "A", target);
+            let draw_path = text_layout
+                .routed_edge_paths
+                .get(&edge.index)
+                .unwrap_or_else(|| panic!("missing draw path for A -> {target}"))
+                .clone();
+            draw_paths.insert(target.to_string(), draw_path.clone());
+            if let Some(lane) = lr_rl_middle_vertical_lane_draw(&draw_path) {
+                draw_lanes.insert(target.to_string(), lane);
+            }
+
+            let probe =
+                route_edge_with_probe(edge, &text_layout, Direction::LeftRight, None, None, false)
+                    .unwrap_or_else(|| panic!("missing text route probe for A -> {target}"));
+            text_path_families.insert(target.to_string(), format!("{:?}", probe.probe.path_family));
+        }
+
+        assert_eq!(
+            svg_lanes.len(),
+            4,
+            "fixture sanity failed: SVG-side routed geometry should keep H-V-H lanes for the four off-center fan-out edges.\nsvg_paths={svg_paths:?}"
+        );
+        assert_eq!(
+            draw_lanes.len(),
+            4,
+            "five_fan_out_lr text/grid projection should keep the same H-V-H lane shape as the SVG-side routed geometry.\nsvg_paths={svg_paths:?}\ntext_routed_paths={text_routed_paths:?}\ndraw_paths={draw_paths:?}\ntext_path_families={text_path_families:?}"
+        );
+
+        let b_lane = *draw_lanes.get("B").expect("draw lane for A -> B");
+        let c_lane = *draw_lanes.get("C").expect("draw lane for A -> C");
+        let e_lane = *draw_lanes.get("E").expect("draw lane for A -> E");
+        let f_lane = *draw_lanes.get("F").expect("draw lane for A -> F");
+        assert!(
+            b_lane < c_lane && f_lane < e_lane && c_lane == e_lane && b_lane == f_lane,
+            "five_fan_out_lr text/grid projection should preserve the source-centric outer/inner lane ordering from the SVG-side route.\nsvg_lanes={svg_lanes:?}\ndraw_lanes={draw_lanes:?}\nsvg_paths={svg_paths:?}\ntext_routed_paths={text_routed_paths:?}\ndraw_paths={draw_paths:?}\ntext_path_families={text_path_families:?}"
+        );
+    }
+
+    #[test]
+    fn five_fan_out_lr_text_route_probe_preserves_forward_fanout_branches() {
+        let config = GridLayoutConfig::default();
+        let diagram = flowchart_fixture_diagram("five_fan_out_lr.mmd");
+        let (_, layout) = compute_layout_with_mode(&diagram, &config, MeasurementMode::Grid);
+        let charset = CharSet::unicode();
+        let mut individual_forward_arrowheads = 0usize;
+        let mut route_families = HashMap::new();
+        let mut routed_edges = Vec::new();
+
+        for target in ["B", "C", "D", "E", "F"] {
+            let edge = find_edge(&diagram, "A", target);
+            let result =
+                route_edge_with_probe(edge, &layout, Direction::LeftRight, None, None, false)
+                    .unwrap_or_else(|| panic!("missing routed text path for A -> {target}"));
+            route_families.insert(
+                target.to_string(),
+                format!("{:?}", result.probe.path_family),
+            );
+            routed_edges.push(result.routed.clone());
+
+            let mut edge_canvas = Canvas::new(layout.width, layout.height);
+            render_edge(
+                &mut edge_canvas,
+                routed_edges.last().expect("just pushed routed edge"),
+                &charset,
+                Direction::LeftRight,
+            );
+            let edge_output = edge_canvas.to_string();
+            let edge_forward_arrowheads = edge_output.chars().filter(|&ch| ch == '►').count();
+            assert_eq!(
+                edge_forward_arrowheads, 1,
+                "five_fan_out_lr should keep A -> {target} on a forward text route instead of flipping it into a synthetic backward branch.\nroute_family={:?}\nedge_output=\n{edge_output}",
+                result.probe.path_family
+            );
+            individual_forward_arrowheads += edge_forward_arrowheads;
+        }
+
+        let mut combined_canvas = Canvas::new(layout.width, layout.height);
+        render_all_edges(
+            &mut combined_canvas,
+            &routed_edges,
+            &charset,
+            Direction::LeftRight,
+        );
+        let combined_output = combined_canvas.to_string();
+        let combined_forward_arrowheads = combined_output.chars().filter(|&ch| ch == '►').count();
+
+        assert_eq!(
+            combined_forward_arrowheads, individual_forward_arrowheads,
+            "five_fan_out_lr combined text edge painting should preserve every forward arrowhead from the routed fan-out edges after the text route probe keeps them forward.\nroute_families={route_families:?}\ncombined_output=\n{combined_output}"
         );
     }
 }

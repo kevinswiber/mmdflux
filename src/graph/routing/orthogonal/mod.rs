@@ -112,7 +112,7 @@ pub fn route_edges_orthogonal(
                 .targets_with_backward_inbound
                 .contains(&edge.to);
             let rank_span = fan::edge_rank_span(geometry, edge).unwrap_or(0);
-            let mut path = build_orthogonal_path(
+            let (mut path, target_transit_avoided) = build_orthogonal_path(
                 edge,
                 geometry,
                 route_direction,
@@ -175,7 +175,7 @@ pub fn route_edges_orthogonal(
                 to_subgraph: edge.to_subgraph.clone(),
                 source_port: None,
                 target_port: None,
-                preserve_orthogonal_topology: false,
+                preserve_orthogonal_topology: target_transit_avoided,
             }
         })
         .collect();
@@ -232,7 +232,7 @@ fn build_orthogonal_path(
     target_overflowed: bool,
     target_has_backward_conflict: bool,
     rank_span: usize,
-) -> Vec<FPoint> {
+) -> (Vec<FPoint>, bool) {
     let (backward_source_face_override, backward_target_face_override) =
         backward::backward_td_bt_face_overrides(
             edge,
@@ -294,6 +294,7 @@ fn build_orthogonal_path(
     forward::collapse_source_turnback_spikes(&mut normalized);
     let base_finalized = normalize_orthogonal_route_contracts(&normalized, direction);
     let mut finalized = base_finalized.clone();
+    let mut target_transit_avoided = false;
     if !is_backward {
         let stagger_depth = target_primary_channel_depth.or(source_primary_channel_depth);
         let pre_stagger = finalized.clone();
@@ -353,6 +354,21 @@ fn build_orthogonal_path(
         // Collapse any primary-axis reversals (overshoot hairpins) that
         // survived routing construction and the avoidance pass.
         forward::collapse_forward_primary_axis_reversals(&mut finalized, direction);
+        // Prevent routes from transiting through the target node interior.
+        // Runs after hairpin collapse since collapse can create new segments
+        // that cross the target.
+        target_transit_avoided = if matches!(direction, Direction::LeftRight | Direction::RightLeft)
+        {
+            forward::avoid_forward_target_transit(
+                &mut finalized,
+                edge,
+                geometry,
+                direction,
+                rank_span,
+            )
+        } else {
+            false
+        };
     }
     if !is_backward
         && forward::collapse_forward_source_primary_turnback_hooks(&mut finalized, direction)
@@ -398,7 +414,7 @@ fn build_orthogonal_path(
             finalized = normalize_orthogonal_route_contracts(&finalized, direction);
         }
     }
-    finalized
+    (finalized, target_transit_avoided)
 }
 
 /// Re-apply terminal face-normal + minimum support after forward reroutes.
@@ -443,23 +459,22 @@ fn reapply_terminal_support_after_reroute(
         RectFace::Right => crate::graph::attachment::Face::Right,
     };
 
-    // Only re-apply if the terminal segment direction is wrong (not normal to
-    // the face).  If the direction is already correct, leave it alone even if
-    // the support is shorter than the minimum — other pipeline stages may have
-    // intentionally set a shorter stem.
+    // Only re-apply if the terminal segment is wrong: either not axis-aligned
+    // with the face, or approaching from the wrong side (e.g., approaching
+    // bottom face from above instead of below).
     let pen = path[path.len() - 2];
     let eps = 0.5;
-    let direction_already_normal = match face {
-        crate::graph::attachment::Face::Top | crate::graph::attachment::Face::Bottom => {
-            // Normal approach = vertical: dx ≈ 0.
-            (end.x - pen.x).abs() <= eps
+    let terminal_correct = match face {
+        crate::graph::attachment::Face::Top => (end.x - pen.x).abs() <= eps && pen.y < end.y - eps,
+        crate::graph::attachment::Face::Bottom => {
+            (end.x - pen.x).abs() <= eps && pen.y > end.y + eps
         }
-        crate::graph::attachment::Face::Left | crate::graph::attachment::Face::Right => {
-            // Normal approach = horizontal: dy ≈ 0.
-            (end.y - pen.y).abs() <= eps
+        crate::graph::attachment::Face::Left => (end.y - pen.y).abs() <= eps && pen.x < end.x - eps,
+        crate::graph::attachment::Face::Right => {
+            (end.y - pen.y).abs() <= eps && pen.x > end.x + eps
         }
     };
-    if direction_already_normal {
+    if terminal_correct {
         return;
     }
 
