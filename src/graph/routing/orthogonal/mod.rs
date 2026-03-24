@@ -359,7 +359,7 @@ fn build_orthogonal_path(
         // that cross the target.
         target_transit_avoided = if matches!(direction, Direction::LeftRight | Direction::RightLeft)
         {
-            forward::avoid_forward_target_transit(&mut finalized, edge, geometry)
+            forward::avoid_forward_target_transit(&mut finalized, edge, geometry, direction)
         } else {
             false
         };

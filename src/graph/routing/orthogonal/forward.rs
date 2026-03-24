@@ -288,6 +288,7 @@ pub(super) fn avoid_forward_target_transit(
     path: &mut Vec<FPoint>,
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
+    direction: Direction,
 ) -> bool {
     use super::endpoints::endpoint_rect_and_shape;
 
@@ -445,48 +446,53 @@ pub(super) fn avoid_forward_target_transit(
         }
     }
 
-    // Even if we didn't modify the path, check if the current topology
-    // protects against target transit.  The SVG renderer's terminal-elbow
-    // collapse can undo a detour that earlier routing steps built.  If
-    // collapsing the short terminal elbow would re-create a transit after
-    // re-orthogonalization, flag the path for topology preservation.
+    // Only preserve unmodified terminal elbows when the edge approaches the
+    // target from a non-flow face. Benign LR/RL fan-out edges that already end
+    // on the normal left/right target face should not be forced through the
+    // topology-preservation path because the text router can consume their
+    // simplified H-V-H draw path directly.
     if !modified && path.len() >= 5 {
-        let n = path.len();
-        let before_pre = path[n - 4];
-        let elbow = path[n - 2];
-        let end = path[n - 1];
-        let terminal_leg = ((elbow.x - end.x).powi(2) + (elbow.y - end.y).powi(2)).sqrt();
-        if terminal_leg < 14.0 && terminal_leg > EPS {
-            // The SVG renderer collapses the elbow and creates a diagonal.
-            // Re-orthogonalization would produce two axis-aligned segments
-            // from before_pre to end.  Check both possible orthogonal paths.
-            let elbow_a = FPoint::new(end.x, before_pre.y);
-            let elbow_b = FPoint::new(before_pre.x, end.y);
-            let crosses_a = super::collision::axis_aligned_segment_crosses_rect_interior(
-                before_pre,
-                elbow_a,
-                target_rect,
-                INTRUSION_MARGIN,
-            ) || super::collision::axis_aligned_segment_crosses_rect_interior(
-                elbow_a,
-                end,
-                target_rect,
-                INTRUSION_MARGIN,
-            );
-            let crosses_b = super::collision::axis_aligned_segment_crosses_rect_interior(
-                before_pre,
-                elbow_b,
-                target_rect,
-                INTRUSION_MARGIN,
-            ) || super::collision::axis_aligned_segment_crosses_rect_interior(
-                elbow_b,
-                end,
-                target_rect,
-                INTRUSION_MARGIN,
-            );
-            // If either re-orthogonalization would transit the target, protect.
-            if crosses_a || crosses_b {
-                modified = true;
+        let flow_face = match direction {
+            Direction::LeftRight => RectFace::Left,
+            Direction::RightLeft => RectFace::Right,
+            _ => return modified,
+        };
+        let end = *path.last().expect("path len checked");
+        let end_face = boundary_face_including_corners(end, target_rect, 2.0);
+        if end_face.is_none_or(|face| face != flow_face) {
+            let n = path.len();
+            let before_pre = path[n - 4];
+            let elbow = path[n - 2];
+            let end = path[n - 1];
+            let terminal_leg = ((elbow.x - end.x).powi(2) + (elbow.y - end.y).powi(2)).sqrt();
+            if terminal_leg < 14.0 && terminal_leg > EPS {
+                let elbow_a = FPoint::new(end.x, before_pre.y);
+                let elbow_b = FPoint::new(before_pre.x, end.y);
+                let crosses_a = super::collision::axis_aligned_segment_crosses_rect_interior(
+                    before_pre,
+                    elbow_a,
+                    target_rect,
+                    INTRUSION_MARGIN,
+                ) || super::collision::axis_aligned_segment_crosses_rect_interior(
+                    elbow_a,
+                    end,
+                    target_rect,
+                    INTRUSION_MARGIN,
+                );
+                let crosses_b = super::collision::axis_aligned_segment_crosses_rect_interior(
+                    before_pre,
+                    elbow_b,
+                    target_rect,
+                    INTRUSION_MARGIN,
+                ) || super::collision::axis_aligned_segment_crosses_rect_interior(
+                    elbow_b,
+                    end,
+                    target_rect,
+                    INTRUSION_MARGIN,
+                );
+                if crosses_a || crosses_b {
+                    modified = true;
+                }
             }
         }
     }
