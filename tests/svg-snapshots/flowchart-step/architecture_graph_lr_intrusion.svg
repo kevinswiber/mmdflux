@@ -35,7 +35,7 @@
       <text x="404.71" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">timeline</text>
     </g>
     <g class="edgePaths">
-      <path d="M445.56,54.00 L477.75,54.00 L477.75,161.00 L509.94,161.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M445.56,54.00 L445.56,62.00 L497.94,62.00 L497.94,161.00 L509.94,161.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M280.64,158.00 L310.37,158.00 L310.37,166.00 L310.37,199.00 L509.94,199.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M280.64,120.00 L293.52,120.00 L293.52,112.00 L293.52,54.00 L341.47,54.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M280.64,139.00 L341.47,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

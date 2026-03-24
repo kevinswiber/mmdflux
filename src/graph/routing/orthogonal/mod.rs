@@ -112,7 +112,7 @@ pub fn route_edges_orthogonal(
                 .targets_with_backward_inbound
                 .contains(&edge.to);
             let rank_span = fan::edge_rank_span(geometry, edge).unwrap_or(0);
-            let mut path = build_orthogonal_path(
+            let (mut path, target_transit_avoided) = build_orthogonal_path(
                 edge,
                 geometry,
                 route_direction,
@@ -175,7 +175,7 @@ pub fn route_edges_orthogonal(
                 to_subgraph: edge.to_subgraph.clone(),
                 source_port: None,
                 target_port: None,
-                preserve_orthogonal_topology: false,
+                preserve_orthogonal_topology: target_transit_avoided,
             }
         })
         .collect();
@@ -232,7 +232,7 @@ fn build_orthogonal_path(
     target_overflowed: bool,
     target_has_backward_conflict: bool,
     rank_span: usize,
-) -> Vec<FPoint> {
+) -> (Vec<FPoint>, bool) {
     let (backward_source_face_override, backward_target_face_override) =
         backward::backward_td_bt_face_overrides(
             edge,
@@ -294,6 +294,7 @@ fn build_orthogonal_path(
     forward::collapse_source_turnback_spikes(&mut normalized);
     let base_finalized = normalize_orthogonal_route_contracts(&normalized, direction);
     let mut finalized = base_finalized.clone();
+    let mut target_transit_avoided = false;
     if !is_backward {
         let stagger_depth = target_primary_channel_depth.or(source_primary_channel_depth);
         let pre_stagger = finalized.clone();
@@ -356,9 +357,12 @@ fn build_orthogonal_path(
         // Prevent routes from transiting through the target node interior.
         // Runs after hairpin collapse since collapse can create new segments
         // that cross the target.
-        if matches!(direction, Direction::LeftRight | Direction::RightLeft) {
-            forward::avoid_forward_target_transit(&mut finalized, edge, geometry);
-        }
+        target_transit_avoided = if matches!(direction, Direction::LeftRight | Direction::RightLeft)
+        {
+            forward::avoid_forward_target_transit(&mut finalized, edge, geometry)
+        } else {
+            false
+        };
     }
     if !is_backward
         && forward::collapse_forward_source_primary_turnback_hooks(&mut finalized, direction)
@@ -404,7 +408,7 @@ fn build_orthogonal_path(
             finalized = normalize_orthogonal_route_contracts(&finalized, direction);
         }
     }
-    finalized
+    (finalized, target_transit_avoided)
 }
 
 /// Re-apply terminal face-normal + minimum support after forward reroutes.

@@ -276,14 +276,19 @@ pub(super) fn avoid_forward_node_intrusions(
 }
 
 /// Prevent forward edges from transiting through their own target node
-/// interior.  Checks both direct rect crossings and segments on a collision
-/// course (horizontal at a y inside the target's y range heading toward it,
-/// or vertical at an x inside the target's x range).
+/// interior.  Detects non-terminal segments that cross the target rect and
+/// splices detours around it.  Also handles the terminal segment when the
+/// penultimate-to-endpoint approach passes through the target interior
+/// (e.g. a vertical drop from above to the bottom face).
+///
+/// Returns `true` if the path was modified, signalling that the caller
+/// should set `preserve_orthogonal_topology` to prevent the SVG renderer
+/// from collapsing the detour.
 pub(super) fn avoid_forward_target_transit(
     path: &mut Vec<FPoint>,
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
-) {
+) -> bool {
     use super::endpoints::endpoint_rect_and_shape;
 
     const INTRUSION_MARGIN: f64 = -0.5;
@@ -292,57 +297,33 @@ pub(super) fn avoid_forward_target_transit(
     const MAX_PASSES: usize = 4;
 
     if path.len() < 3 {
-        return;
+        return false;
     }
 
     let Some((target_rect, _shape)) =
         endpoint_rect_and_shape(geometry, &edge.to, edge.to_subgraph.as_deref())
     else {
-        return;
+        return false;
     };
 
-    let target_top = target_rect.y + INTRUSION_MARGIN;
-    let target_bottom = target_rect.y + target_rect.height - INTRUSION_MARGIN;
-    let target_left = target_rect.x + INTRUSION_MARGIN;
-    let target_right = target_rect.x + target_rect.width - INTRUSION_MARGIN;
+    let mut modified = false;
 
+    // Fix non-terminal segments that cross the target interior.
     for _pass in 0..MAX_PASSES {
         let last_seg = path.len().saturating_sub(2);
 
         let problem = (0..last_seg).find(|&i| {
             let a = path[i];
             let b = path[i + 1];
-
-            // Direct interior crossing.
-            if super::collision::axis_aligned_segment_crosses_rect_interior(
+            super::collision::axis_aligned_segment_crosses_rect_interior(
                 a,
                 b,
                 target_rect,
                 INTRUSION_MARGIN,
-            ) {
-                return true;
-            }
-
-            // Collision course: horizontal at y inside target y-range.
-            let is_h = (a.y - b.y).abs() <= EPS;
-            if is_h {
-                let y = a.y;
-                let heading_toward = b.x.max(a.x) > target_left;
-                return y > target_top && y < target_bottom && heading_toward;
-            }
-
-            // Collision course: vertical at x inside target x-range.
-            let is_v = (a.x - b.x).abs() <= EPS;
-            if is_v {
-                let x = a.x;
-                let heading_toward = b.y.max(a.y) > target_top;
-                return x > target_left && x < target_right && heading_toward;
-            }
-
-            false
+            )
         });
         let Some(seg_idx) = problem else {
-            return;
+            break;
         };
 
         let a = path[seg_idx];
@@ -370,7 +351,147 @@ pub(super) fn avoid_forward_target_transit(
             splice_vertical_jog(path, seg_idx, safe_x, EPS);
         }
         collapse_collinear_interior_points(path);
+        modified = true;
     }
+
+    // Fix terminal segment: if the penultimate-to-endpoint segment crosses
+    // the target interior AND approaches from the wrong side of the endpoint
+    // face, splice a detour that approaches from outside the target.
+    //
+    // Normal approaches (e.g. horizontal to the left face in LR) naturally
+    // enter the target at the endpoint boundary — those are correct and must
+    // not be modified.
+    if path.len() >= 3 {
+        let last = path.len() - 1;
+        let pen = path[last - 1];
+        let end = path[last];
+
+        let terminal_crosses = super::collision::axis_aligned_segment_crosses_rect_interior(
+            pen,
+            end,
+            target_rect,
+            INTRUSION_MARGIN,
+        );
+
+        // Determine if the approach comes from the wrong side of the face.
+        let wrong_side_approach = terminal_crosses && {
+            let face_tol = 2.0;
+            let near_top = (end.y - target_rect.y).abs() <= face_tol;
+            let near_bottom = (end.y - (target_rect.y + target_rect.height)).abs() <= face_tol;
+            let near_left = (end.x - target_rect.x).abs() <= face_tol;
+            let near_right = (end.x - (target_rect.x + target_rect.width)).abs() <= face_tol;
+
+            if near_top {
+                pen.y > end.y + EPS // approaching top from below = wrong
+            } else if near_bottom {
+                pen.y < end.y - EPS // approaching bottom from above = wrong
+            } else if near_left {
+                pen.x > end.x + EPS // approaching left from right = wrong
+            } else if near_right {
+                pen.x < end.x - EPS // approaching right from left = wrong
+            } else {
+                // Endpoint not near any face — treat as wrong-side.
+                true
+            }
+        };
+
+        if wrong_side_approach {
+            let is_v = (pen.x - end.x).abs() <= EPS;
+            let is_h = (pen.y - end.y).abs() <= EPS;
+
+            if is_v {
+                let left_x = target_rect.x - NODE_CLEARANCE;
+                let right_x = target_rect.x + target_rect.width + NODE_CLEARANCE;
+                let safe_x = if (pen.x - left_x).abs() <= (pen.x - right_x).abs() {
+                    left_x
+                } else {
+                    right_x
+                };
+                let approach_y = if end.y > target_rect.y + target_rect.height / 2.0 {
+                    target_rect.y + target_rect.height + NODE_CLEARANCE
+                } else {
+                    target_rect.y - NODE_CLEARANCE
+                };
+                let jog1 = FPoint::new(safe_x, pen.y);
+                let jog2 = FPoint::new(safe_x, approach_y);
+                let jog3 = FPoint::new(end.x, approach_y);
+                path.insert(last, jog3);
+                path.insert(last, jog2);
+                path.insert(last, jog1);
+                collapse_collinear_interior_points(path);
+                modified = true;
+            } else if is_h {
+                let above_y = target_rect.y - NODE_CLEARANCE;
+                let below_y = target_rect.y + target_rect.height + NODE_CLEARANCE;
+                let safe_y = if (pen.y - above_y).abs() <= (pen.y - below_y).abs() {
+                    above_y
+                } else {
+                    below_y
+                };
+                let approach_x = if end.x > target_rect.x + target_rect.width / 2.0 {
+                    target_rect.x + target_rect.width + NODE_CLEARANCE
+                } else {
+                    target_rect.x - NODE_CLEARANCE
+                };
+                let jog1 = FPoint::new(pen.x, safe_y);
+                let jog2 = FPoint::new(approach_x, safe_y);
+                let jog3 = FPoint::new(approach_x, end.y);
+                path.insert(last, jog3);
+                path.insert(last, jog2);
+                path.insert(last, jog1);
+                collapse_collinear_interior_points(path);
+                modified = true;
+            }
+        }
+    }
+
+    // Even if we didn't modify the path, check if the current topology
+    // protects against target transit.  The SVG renderer's terminal-elbow
+    // collapse can undo a detour that earlier routing steps built.  If
+    // collapsing the short terminal elbow would re-create a transit after
+    // re-orthogonalization, flag the path for topology preservation.
+    if !modified && path.len() >= 5 {
+        let n = path.len();
+        let before_pre = path[n - 4];
+        let elbow = path[n - 2];
+        let end = path[n - 1];
+        let terminal_leg = ((elbow.x - end.x).powi(2) + (elbow.y - end.y).powi(2)).sqrt();
+        if terminal_leg < 14.0 && terminal_leg > EPS {
+            // The SVG renderer collapses the elbow and creates a diagonal.
+            // Re-orthogonalization would produce two axis-aligned segments
+            // from before_pre to end.  Check both possible orthogonal paths.
+            let elbow_a = FPoint::new(end.x, before_pre.y);
+            let elbow_b = FPoint::new(before_pre.x, end.y);
+            let crosses_a = super::collision::axis_aligned_segment_crosses_rect_interior(
+                before_pre,
+                elbow_a,
+                target_rect,
+                INTRUSION_MARGIN,
+            ) || super::collision::axis_aligned_segment_crosses_rect_interior(
+                elbow_a,
+                end,
+                target_rect,
+                INTRUSION_MARGIN,
+            );
+            let crosses_b = super::collision::axis_aligned_segment_crosses_rect_interior(
+                before_pre,
+                elbow_b,
+                target_rect,
+                INTRUSION_MARGIN,
+            ) || super::collision::axis_aligned_segment_crosses_rect_interior(
+                elbow_b,
+                end,
+                target_rect,
+                INTRUSION_MARGIN,
+            );
+            // If either re-orthogonalization would transit the target, protect.
+            if crosses_a || crosses_b {
+                modified = true;
+            }
+        }
+    }
+
+    modified
 }
 
 /// Collapse primary-axis reversals (overshoot hairpins) in forward orthogonal
