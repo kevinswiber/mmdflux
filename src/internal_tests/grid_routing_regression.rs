@@ -347,14 +347,16 @@ fn subgraph_direction_mixed_b_to_c_avoids_direct_centerline_route() {
         .subgraph_bounds
         .get("bt_group")
         .expect("subgraph_direction_mixed should contain bt_group");
+    let lr_right = lr_group.x + lr_group.width.saturating_sub(1);
+    let bt_right = bt_group.x + bt_group.width.saturating_sub(1);
+    let min_outer_lane_x = lr_right.max(bt_right).saturating_add(2);
     let vertical_lane = result
         .routed
         .segments
         .iter()
         .find_map(|segment| match segment {
             Segment::Vertical { x, y_start, y_end }
-                if *x >= lr_group.x + lr_group.width.saturating_sub(4)
-                    && *x >= bt_group.x + bt_group.width.saturating_sub(4)
+                if *x >= min_outer_lane_x
                     && *y_start.min(y_end) <= lr_group.y + lr_group.height.saturating_sub(2)
                     && *y_start.max(y_end) > bt_group.y =>
             {
@@ -364,7 +366,25 @@ fn subgraph_direction_mixed_b_to_c_avoids_direct_centerline_route() {
         });
     assert!(
         vertical_lane.is_some(),
-        "B -> C should keep a long exterior vertical lane spanning between the two subgraphs: {:?}",
+        "B -> C should keep a long exterior vertical lane clear of both subgraph borders: {:?}",
+        result.routed
+    );
+
+    let rides_visible_border = result.routed.segments.iter().any(|segment| {
+        matches!(
+            segment,
+            Segment::Vertical { x, y_start, y_end }
+                if (*x == lr_right
+                    || *x == lr_right.saturating_add(1)
+                    || *x == bt_right
+                    || *x == bt_right.saturating_add(1))
+                    && *y_start.min(y_end) <= lr_group.y + lr_group.height.saturating_sub(2)
+                    && *y_start.max(y_end) > bt_group.y
+        )
+    });
+    assert!(
+        !rides_visible_border,
+        "B -> C should not keep its long vertical support on either subgraph's visible right border: {:?}",
         result.routed
     );
 }

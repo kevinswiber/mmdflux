@@ -32,7 +32,9 @@ pub fn render_text_from_grid_layout(
         _ => CharSet::unicode(),
     };
 
-    let mut canvas = Canvas::new(layout.width, layout.height);
+    let routed_edges = route_all_edges(&diagram.edges, layout, diagram.direction);
+    let (canvas_width, canvas_height) = required_canvas_size(layout, &routed_edges);
+    let mut canvas = Canvas::new(canvas_width, canvas_height);
 
     if !layout.subgraph_bounds.is_empty() {
         subgraph::render_subgraph_borders(&mut canvas, &layout.subgraph_bounds, &charset);
@@ -47,7 +49,6 @@ pub fn render_text_from_grid_layout(
         }
     }
 
-    let routed_edges = route_all_edges(&diagram.edges, layout, diagram.direction);
     edge::render_all_edges_with_labels(
         &mut canvas,
         &routed_edges,
@@ -68,6 +69,43 @@ pub fn render_text_from_grid_layout(
     } else {
         canvas.to_string()
     }
+}
+
+fn required_canvas_size(layout: &GridLayout, routed_edges: &[RoutedEdge]) -> (usize, usize) {
+    let mut width = layout.width.max(1);
+    let mut height = layout.height.max(1);
+
+    for bounds in layout.node_bounds.values() {
+        width = width.max(bounds.x + bounds.width);
+        height = height.max(bounds.y + bounds.height);
+    }
+
+    for bounds in layout.subgraph_bounds.values() {
+        width = width.max(bounds.x + bounds.width);
+        height = height.max(bounds.y + bounds.height);
+    }
+
+    for routed in routed_edges {
+        width = width.max(routed.start.x.saturating_add(1));
+        height = height.max(routed.start.y.saturating_add(1));
+        width = width.max(routed.end.x.saturating_add(1));
+        height = height.max(routed.end.y.saturating_add(1));
+
+        for segment in &routed.segments {
+            match *segment {
+                Segment::Vertical { x, y_start, y_end } => {
+                    width = width.max(x.saturating_add(1));
+                    height = height.max(y_start.max(y_end).saturating_add(1));
+                }
+                Segment::Horizontal { y, x_start, x_end } => {
+                    width = width.max(x_start.max(x_end).saturating_add(1));
+                    height = height.max(y.saturating_add(1));
+                }
+            }
+        }
+    }
+
+    (width, height)
 }
 
 fn apply_subgraph_border_junctions(

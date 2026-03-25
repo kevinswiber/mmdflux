@@ -42,6 +42,14 @@ pub(super) fn route_inter_subgraph_edge_via_outer_lane(
             } else {
                 NodeFace::Left
             };
+            let lane_x = outer_vertical_lane_x(
+                layout,
+                from_subgraph,
+                to_subgraph,
+                lane_x,
+                src_face,
+                tgt_face,
+            );
             (
                 (lane_x, ep.to_bounds.center_y()),
                 Some(clamp_to_face(
@@ -70,6 +78,14 @@ pub(super) fn route_inter_subgraph_edge_via_outer_lane(
             } else {
                 NodeFace::Top
             };
+            let lane_y = outer_horizontal_lane_y(
+                layout,
+                from_subgraph,
+                to_subgraph,
+                lane_y,
+                src_face,
+                tgt_face,
+            );
             (
                 (ep.to_bounds.center_x(), lane_y),
                 Some(clamp_to_face(
@@ -101,6 +117,68 @@ pub(super) fn route_inter_subgraph_edge_via_outer_lane(
             src_first_vertical: overrides.src_first_vertical,
         },
     )
+}
+
+fn outer_vertical_lane_x(
+    layout: &GridLayout,
+    from_subgraph: &str,
+    to_subgraph: &str,
+    lane_x: usize,
+    src_face: NodeFace,
+    tgt_face: NodeFace,
+) -> usize {
+    match (src_face, tgt_face) {
+        (NodeFace::Right, NodeFace::Right) => {
+            let min_clear_x = [from_subgraph, to_subgraph]
+                .into_iter()
+                .filter_map(|subgraph_id| layout.subgraph_bounds.get(subgraph_id))
+                .map(|bounds| bounds.x + bounds.width + 1)
+                .max()
+                .unwrap_or(lane_x);
+            lane_x.max(min_clear_x)
+        }
+        (NodeFace::Left, NodeFace::Left) => {
+            let max_clear_x = [from_subgraph, to_subgraph]
+                .into_iter()
+                .filter_map(|subgraph_id| layout.subgraph_bounds.get(subgraph_id))
+                .map(|bounds| bounds.x.saturating_sub(2))
+                .min()
+                .unwrap_or(lane_x);
+            lane_x.min(max_clear_x)
+        }
+        _ => lane_x,
+    }
+}
+
+fn outer_horizontal_lane_y(
+    layout: &GridLayout,
+    from_subgraph: &str,
+    to_subgraph: &str,
+    lane_y: usize,
+    src_face: NodeFace,
+    tgt_face: NodeFace,
+) -> usize {
+    match (src_face, tgt_face) {
+        (NodeFace::Bottom, NodeFace::Bottom) => {
+            let min_clear_y = [from_subgraph, to_subgraph]
+                .into_iter()
+                .filter_map(|subgraph_id| layout.subgraph_bounds.get(subgraph_id))
+                .map(|bounds| bounds.y + bounds.height + 1)
+                .max()
+                .unwrap_or(lane_y);
+            lane_y.max(min_clear_y)
+        }
+        (NodeFace::Top, NodeFace::Top) => {
+            let max_clear_y = [from_subgraph, to_subgraph]
+                .into_iter()
+                .filter_map(|subgraph_id| layout.subgraph_bounds.get(subgraph_id))
+                .map(|bounds| bounds.y.saturating_sub(2))
+                .min()
+                .unwrap_or(lane_y);
+            lane_y.min(max_clear_y)
+        }
+        _ => lane_y,
+    }
 }
 
 pub(super) fn route_edge_from_draw_path(

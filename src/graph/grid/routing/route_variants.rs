@@ -7,8 +7,8 @@ use super::attachment_resolution::{
 };
 use super::orthogonal::{
     add_connector_segment, build_orthogonal_path_for_direction,
-    build_orthogonal_path_with_waypoints, ensure_terminal_face_support,
-    entry_direction_from_segments,
+    build_orthogonal_path_with_waypoints, ensure_source_face_launch_support,
+    ensure_terminal_face_support, entry_direction_from_segments,
 };
 use super::types::{
     AttachDirection, EdgeEndpoints, Point, RoutedEdge, RoutingOverrides, Segment, build_routed_edge,
@@ -139,6 +139,9 @@ pub(super) fn route_edge_with_waypoints(
         ));
     }
 
+    if edge.arrow_start == Arrow::None && matches!(src_face, NodeFace::Left | NodeFace::Right) {
+        ensure_source_face_launch_support(&mut segments, start, src_face);
+    }
     ensure_terminal_face_support(&mut segments, start, end, tgt_face);
     let entry_direction = entry_direction_from_segments(&segments);
 
@@ -203,6 +206,9 @@ pub(super) fn route_backward_with_synthetic_waypoints(
         edge.arrow_start != Arrow::None,
     ));
 
+    if edge.arrow_start == Arrow::None && matches!(src_face, NodeFace::Left | NodeFace::Right) {
+        ensure_source_face_launch_support(&mut segments, start, src_face);
+    }
     ensure_terminal_face_support(&mut segments, start, end, tgt_face);
     let entry_direction = entry_direction_from_segments(&segments);
 
@@ -327,6 +333,9 @@ pub(super) fn route_edge_direct(
         ));
     }
 
+    if edge.arrow_start == Arrow::None && matches!(src_face, NodeFace::Left | NodeFace::Right) {
+        ensure_source_face_launch_support(&mut segments, start, src_face);
+    }
     ensure_terminal_face_support(&mut segments, start, end, tgt_face);
 
     let entry_direction = if start == end {

@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::graph::geometry::{FPoint, FRect, GraphGeometry, LayoutEdge, PositionedNode};
+use crate::graph::grid::{AttachDirection, GridLayout, Point, RoutedEdge, Segment};
 use crate::graph::{Direction, Edge, Graph, Node, Shape};
 use crate::render::graph::{TextRenderOptions, render_text_from_geometry};
 
@@ -72,4 +73,42 @@ fn smoke_graph_geometry() -> (Graph, GraphGeometry) {
     };
 
     (diagram, geometry)
+}
+
+#[test]
+fn required_canvas_size_includes_post_route_overhang() {
+    let layout = GridLayout {
+        width: 21,
+        height: 25,
+        ..GridLayout::default()
+    };
+    let routed = RoutedEdge {
+        edge: Edge::new("B", "C"),
+        start: Point::new(17, 7),
+        end: Point::new(12, 27),
+        segments: vec![
+            Segment::Horizontal {
+                y: 7,
+                x_start: 17,
+                x_end: 22,
+            },
+            Segment::Vertical {
+                x: 22,
+                y_start: 7,
+                y_end: 27,
+            },
+            Segment::Horizontal {
+                y: 27,
+                x_start: 22,
+                x_end: 12,
+            },
+        ],
+        source_connection: Some(AttachDirection::Left),
+        entry_direction: AttachDirection::Right,
+        is_backward: false,
+        is_self_edge: false,
+    };
+
+    let (width, height) = super::required_canvas_size(&layout, &[routed]);
+    assert_eq!((width, height), (23, 28));
 }
