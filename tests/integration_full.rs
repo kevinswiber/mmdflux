@@ -18,14 +18,32 @@ fn render_flowchart_svg(input: &str) -> String {
     render_diagram(input, OutputFormat::Svg, &RenderConfig::default()).expect("should render svg")
 }
 
-fn render_flowchart_svg_fixture(name: &str) -> String {
+fn load_flowchart_fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("fixtures")
         .join("flowchart")
         .join(name);
-    let input = fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
+    fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()))
+}
+
+fn render_flowchart_text_fixture(name: &str) -> String {
+    let input = load_flowchart_fixture(name);
+    render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+        .expect("flowchart fixture should render through supported text path")
+}
+
+fn render_flowchart_text_fixture_as_td(name: &str) -> String {
+    let input = load_flowchart_fixture(name)
+        .replacen("graph LR", "graph TD", 1)
+        .replacen("flowchart LR", "flowchart TD", 1);
+    render_diagram(&input, OutputFormat::Text, &RenderConfig::default())
+        .expect("TD-converted flowchart fixture should render through supported text path")
+}
+
+fn render_flowchart_svg_fixture(name: &str) -> String {
+    let input = load_flowchart_fixture(name);
     render_diagram(&input, OutputFormat::Svg, &RenderConfig::default())
         .expect("flowchart fixture should render through supported SVG path")
 }
@@ -169,5 +187,61 @@ fn generated_mermaid_from_mmds_renders_through_registry() {
 fn subgraph_endpoint_fixture_set_renders_through_direct_and_mmds_paths() {
     for case in ["subgraph_as_node_edge", "subgraph_to_subgraph_edge"] {
         assert_direct_and_mmds_svg_smoke(case);
+    }
+}
+
+#[test]
+fn issue_58_lr_fixtures_preserve_node_borders() {
+    let cases = [
+        ("git_workflow.mmd", vec!["┐┐", "┌└"]),
+        ("backward_loop_lr.mmd", vec!["└└"]),
+        (
+            "architecture_graph_lr_terminal_contracts.mmd",
+            vec!["┐┐", "└──────────┘│", "└─────────┘│"],
+        ),
+    ];
+
+    for (fixture, forbidden) in cases {
+        let rendered = render_flowchart_text_fixture(fixture);
+        for pattern in forbidden {
+            assert!(
+                !rendered.contains(pattern),
+                "fixture {fixture} should not contain border-collision pattern {pattern:?}\n{rendered}"
+            );
+        }
+    }
+}
+
+#[test]
+fn issue_58_td_dense_fixture_preserves_node_borders() {
+    let rendered =
+        render_flowchart_text_fixture_as_td("architecture_graph_lr_terminal_contracts.mmd");
+
+    for pattern in ["┐┐", "│ registry │┐", "└──────────┘│", "└─────────┘│"]
+    {
+        assert!(
+            !rendered.contains(pattern),
+            "TD variant should not contain border-collision pattern {pattern:?}\n{rendered}"
+        );
+    }
+}
+
+#[test]
+fn subgraph_direction_mixed_cross_boundary_edge_stays_off_borders() {
+    let rendered = render_flowchart_text_fixture("subgraph_direction_mixed.mmd");
+
+    for pattern in ["┌─ Bottom to Top ─┤", "│      │ C │◄─────┤"] {
+        assert!(
+            !rendered.contains(pattern),
+            "subgraph_direction_mixed should not ride a subgraph border with pattern {pattern:?}\n{rendered}"
+        );
+    }
+
+    for pattern in ["│  │ A │─►│ B │───┼─┐", "│      │ C │◄─────┼───┘"]
+    {
+        assert!(
+            rendered.contains(pattern),
+            "subgraph_direction_mixed should keep the exterior continuation visible with pattern {pattern:?}\n{rendered}"
+        );
     }
 }
