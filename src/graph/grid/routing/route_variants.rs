@@ -8,10 +8,11 @@ use super::attachment_resolution::{
 use super::orthogonal::{
     add_connector_segment, build_orthogonal_path_for_direction,
     build_orthogonal_path_with_waypoints, ensure_source_face_launch_support,
-    ensure_terminal_face_support, entry_direction_from_segments,
+    ensure_terminal_face_support,
 };
 use super::types::{
-    AttachDirection, EdgeEndpoints, Point, RoutedEdge, RoutingOverrides, Segment, build_routed_edge,
+    EdgeEndpoints, Point, RoutedEdge, RoutingOverrides, Segment, build_routed_edge,
+    entry_direction_from_face,
 };
 use crate::graph::{Arrow, Direction, Edge};
 
@@ -143,7 +144,7 @@ pub(super) fn route_edge_with_waypoints(
         ensure_source_face_launch_support(&mut segments, start, src_face);
     }
     ensure_terminal_face_support(&mut segments, start, end, tgt_face);
-    let entry_direction = entry_direction_from_segments(&segments);
+    let entry_direction = entry_direction_from_face(tgt_face);
 
     if std::env::var("MMDFLUX_DEBUG_ROUTE_SEGMENTS").is_ok_and(|v| v == "1") {
         eprintln!(
@@ -210,7 +211,7 @@ pub(super) fn route_backward_with_synthetic_waypoints(
         ensure_source_face_launch_support(&mut segments, start, src_face);
     }
     ensure_terminal_face_support(&mut segments, start, end, tgt_face);
-    let entry_direction = entry_direction_from_segments(&segments);
+    let entry_direction = entry_direction_from_face(tgt_face);
 
     Some(build_routed_edge(
         edge,
@@ -338,16 +339,7 @@ pub(super) fn route_edge_direct(
     }
     ensure_terminal_face_support(&mut segments, start, end, tgt_face);
 
-    let entry_direction = if start == end {
-        match direction {
-            Direction::TopDown => AttachDirection::Top,
-            Direction::BottomTop => AttachDirection::Bottom,
-            Direction::LeftRight => AttachDirection::Left,
-            Direction::RightLeft => AttachDirection::Right,
-        }
-    } else {
-        entry_direction_from_segments(&segments)
-    };
+    let entry_direction = entry_direction_from_face(tgt_face);
 
     Some(build_routed_edge(
         edge,

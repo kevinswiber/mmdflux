@@ -139,6 +139,22 @@ fn source_connection_direction(face: NodeFace) -> AttachDirection {
     }
 }
 
+/// Map a target face to the entry direction for arrow drawing.
+///
+/// The entry direction tells the renderer which face the edge enters through,
+/// so it can select the correct arrow character (e.g. Left → ►).  This is
+/// authoritative — deriving the direction from the last segment's geometry
+/// can disagree when `ensure_terminal_face_support` falls back to the
+/// original path.
+pub(super) fn entry_direction_from_face(face: NodeFace) -> AttachDirection {
+    match face {
+        NodeFace::Top => AttachDirection::Top,
+        NodeFace::Bottom => AttachDirection::Bottom,
+        NodeFace::Left => AttachDirection::Left,
+        NodeFace::Right => AttachDirection::Right,
+    }
+}
+
 pub(super) fn build_routed_edge(
     edge: &Edge,
     start: Point,

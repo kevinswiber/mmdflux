@@ -1,6 +1,6 @@
 use super::super::attachments::LARGE_HORIZONTAL_OFFSET_THRESHOLD as SHARED_LARGE_HORIZONTAL_OFFSET_THRESHOLD;
 use super::super::intersect::NodeFace;
-use super::types::{AttachDirection, Point, Segment};
+use super::types::{Point, Segment};
 use crate::graph::Direction;
 
 pub(super) fn ensure_terminal_face_support(
@@ -204,18 +204,6 @@ pub(super) fn add_connector_segment(
             x_start: bx,
             x_end: offset.x,
         });
-    }
-}
-
-pub(super) fn entry_direction_from_segments(segments: &[Segment]) -> AttachDirection {
-    match segments.iter().rev().find(|segment| segment.length() > 0) {
-        Some(Segment::Vertical { y_start, y_end, .. }) if *y_end > *y_start => AttachDirection::Top,
-        Some(Segment::Vertical { .. }) => AttachDirection::Bottom,
-        Some(Segment::Horizontal { x_start, x_end, .. }) if *x_end > *x_start => {
-            AttachDirection::Left
-        }
-        Some(Segment::Horizontal { .. }) => AttachDirection::Right,
-        None => AttachDirection::Top,
     }
 }
 
