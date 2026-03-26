@@ -35,8 +35,8 @@
       <path d="M222.43,62.00 L222.43,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="66.12" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">owns</text>
-      <text x="222.43" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
+      <text x="66.12" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">owns</text>
+      <text x="222.43" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
       <text x="84.12" y="149.12" text-anchor="middle" dominant-baseline="middle" fill="#333">*</text>
       <text x="84.12" y="73.88" text-anchor="middle" dominant-baseline="middle" fill="#333">1</text>
       <text x="240.43" y="149.12" text-anchor="middle" dominant-baseline="middle" fill="#333">*</text>

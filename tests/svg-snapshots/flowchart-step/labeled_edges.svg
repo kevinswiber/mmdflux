@@ -40,11 +40,11 @@
       <path d="M327.04,512.80 L339.04,512.80 L339.04,188.00 L162.58,188.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="108.35" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">initialize</text>
-      <text x="87.44" y="252.00" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
-      <text x="66.77" y="409.30" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="108.35" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">initialize</text>
+      <text x="95.49" y="252.00" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
+      <text x="65.97" y="423.17" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <text x="231.58" y="362.23" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <text x="339.04" y="266.17" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <text x="339.04" y="268.17" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>
 </svg>

@@ -36,7 +36,7 @@
       <path d="M75.49,313.06 L75.49,350.06 L75.49,408.06" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="75.49" y="350.06" text-anchor="middle" dominant-baseline="middle" fill="#333">ok</text>
+      <text x="75.49" y="360.56" text-anchor="middle" dominant-baseline="middle" fill="#333">ok</text>
     </g>
   </g>
 </svg>

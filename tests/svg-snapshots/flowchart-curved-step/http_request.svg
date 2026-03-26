@@ -44,10 +44,10 @@
       <path d="M352.16,632.20 L441.49,632.20 L441.49,582.44 C441.49,532.67 441.49,433.14 441.49,333.60 C441.49,234.07 441.49,134.53 441.49,84.77 L441.49,35.00 L320.89,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="266.29" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Request</text>
-      <text x="99.80" y="449.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
-      <text x="335.55" y="478.70" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
-      <text x="441.49" y="315.97" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
+      <text x="266.29" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Request</text>
+      <text x="99.80" y="378.96" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <text x="335.55" y="427.58" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
+      <text x="441.49" y="317.97" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
     </g>
   </g>
 </svg>

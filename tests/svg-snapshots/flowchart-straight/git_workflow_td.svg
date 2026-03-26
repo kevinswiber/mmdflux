@@ -37,10 +37,10 @@
       <path d="M164.51,469.00 L174.51,469.00 L174.51,35.00 L163.13,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="86.26" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
-      <text x="86.26" y="227.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
-      <text x="86.26" y="380.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
-      <text x="172.51" y="249.31" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
+      <text x="86.26" y="97.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
+      <text x="86.26" y="237.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
+      <text x="86.26" y="390.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
+      <text x="174.51" y="251.31" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
     </g>
   </g>
 </svg>

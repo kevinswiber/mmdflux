@@ -54,10 +54,10 @@
       <path d="M182.38,620.28 L182.38,623.06 C182.38,625.84 182.38,631.39 186.99,636.39 C191.60,641.39 200.83,645.84 205.44,650.73 C210.05,655.62 210.05,660.95 210.05,663.62 L210.05,666.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="449.77" y="275.78" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
-      <text x="156.83" y="246.78" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
-      <text x="543.45" y="140.41" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <text x="300.45" y="525.03" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <text x="432.80" y="178.99" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <text x="156.83" y="210.07" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <text x="543.45" y="142.41" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="300.45" y="523.03" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>

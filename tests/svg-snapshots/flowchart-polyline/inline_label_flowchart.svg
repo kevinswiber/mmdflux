@@ -92,14 +92,14 @@
     </g>
     <g class="edgeLabels">
       <text x="344.18" y="608.88" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <text x="620.23" y="653.57" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="599.47" y="621.27" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <text x="484.81" y="881.16" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
-      <text x="723.91" y="920.09" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
+      <text x="713.66" y="892.17" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
       <text x="643.00" y="1563.74" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
       <text x="563.45" y="1560.54" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <text x="89.60" y="417.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
+      <text x="89.60" y="437.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
       <text x="295.33" y="465.89" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
-      <text x="748.85" y="1346.59" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
+      <text x="748.85" y="1388.56" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>
   </g>
 </svg>

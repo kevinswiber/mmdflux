@@ -37,9 +37,9 @@
       <path d="M164.51,469.00 L183.13,469.00 L183.13,432.83 C183.13,396.67 183.13,324.33 183.13,252.00 C183.13,179.67 183.13,107.33 183.13,71.17 L183.13,35.00 L163.13,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="86.26" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
-      <text x="86.26" y="227.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
-      <text x="86.26" y="380.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
+      <text x="86.26" y="97.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
+      <text x="86.26" y="237.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
+      <text x="86.26" y="390.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
       <text x="183.13" y="251.31" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
     </g>
   </g>

@@ -91,15 +91,15 @@
       <path d="M412.63,1819.26 L412.63,1865.26" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="268.80" y="624.57" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <text x="620.23" y="653.57" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <text x="455.10" y="891.09" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
-      <text x="723.91" y="920.09" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
+      <text x="295.06" y="551.07" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <text x="620.23" y="588.61" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="455.10" y="833.52" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
+      <text x="723.91" y="864.25" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
       <text x="635.47" y="1585.25" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
       <text x="545.84" y="1526.71" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <text x="50.80" y="439.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
       <text x="287.26" y="486.26" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
-      <text x="748.85" y="1346.59" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
+      <text x="748.85" y="1392.29" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>
   </g>
 </svg>

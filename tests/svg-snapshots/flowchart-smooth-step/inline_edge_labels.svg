@@ -39,10 +39,10 @@
       <path d="M57.58,521.00 L57.58,616.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="57.58" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <text x="57.58" y="252.00" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
-      <text x="57.58" y="405.00" text-anchor="middle" dominant-baseline="middle" fill="#333">final step</text>
-      <text x="57.58" y="558.00" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <text x="57.58" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="57.58" y="262.50" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <text x="57.58" y="415.50" text-anchor="middle" dominant-baseline="middle" fill="#333">final step</text>
+      <text x="57.58" y="568.50" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>

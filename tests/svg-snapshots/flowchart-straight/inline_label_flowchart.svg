@@ -97,7 +97,7 @@
       <text x="682.00" y="905.51" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
       <text x="643.00" y="1563.74" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
       <text x="529.77" y="1547.11" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <text x="89.60" y="417.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
+      <text x="89.60" y="437.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
       <text x="279.33" y="456.81" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
       <text x="707.61" y="1399.01" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>

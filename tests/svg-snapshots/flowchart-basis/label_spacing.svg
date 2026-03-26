@@ -34,7 +34,7 @@
     </g>
     <g class="edgeLabels">
       <text x="42.45" y="102.75" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
-      <text x="161.36" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <text x="161.36" y="102.75" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
     </g>
   </g>
 </svg>

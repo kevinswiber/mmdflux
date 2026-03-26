@@ -10,54 +10,10 @@ use crate::graph::measure::ProportionalTextMetrics;
 use crate::graph::routing::compute_end_label_positions;
 use crate::graph::{Graph, Stroke};
 
-const LABEL_ANCHOR_REVALIDATION_MAX_DISTANCE: f64 = 2.0;
 const LABEL_POINT_EPS: f64 = 0.000_001;
-
-fn revalidate_svg_label_anchor(candidate: Point, rendered_path: Option<&[Point]>) -> Point {
-    let Some(path) = rendered_path else {
-        return candidate;
-    };
-    if path.is_empty() {
-        return candidate;
-    }
-
-    let drift = distance_point_to_svg_path(candidate, path);
-    if drift <= LABEL_ANCHOR_REVALIDATION_MAX_DISTANCE {
-        return candidate;
-    }
-    svg_path_midpoint(path).unwrap_or(candidate)
-}
 
 fn point_distance_svg(a: Point, b: Point) -> f64 {
     ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt()
-}
-
-fn distance_point_to_svg_segment(point: Point, a: Point, b: Point) -> f64 {
-    let dx = b.x - a.x;
-    let dy = b.y - a.y;
-    let seg_len_sq = dx * dx + dy * dy;
-    if seg_len_sq <= LABEL_POINT_EPS {
-        return point_distance_svg(point, a);
-    }
-    let projection = ((point.x - a.x) * dx + (point.y - a.y) * dy) / seg_len_sq;
-    let t = projection.clamp(0.0, 1.0);
-    let closest = Point {
-        x: a.x + t * dx,
-        y: a.y + t * dy,
-    };
-    point_distance_svg(point, closest)
-}
-
-fn distance_point_to_svg_path(point: Point, path: &[Point]) -> f64 {
-    if path.is_empty() {
-        return f64::INFINITY;
-    }
-    if path.len() == 1 {
-        return point_distance_svg(point, path[0]);
-    }
-    path.windows(2)
-        .map(|segment| distance_point_to_svg_segment(point, segment[0], segment[1]))
-        .fold(f64::INFINITY, f64::min)
 }
 
 fn svg_path_midpoint(path: &[Point]) -> Option<Point> {
@@ -132,22 +88,24 @@ pub(super) fn render_edge_labels(
         } else {
             false
         };
-        let use_precomputed =
-            edge.from_subgraph.is_none() && edge.to_subgraph.is_none() && !cross_boundary;
-        let position = if use_precomputed {
-            label_positions.get(&edge_idx).copied()
-        } else {
-            None
-        }
-        .or_else(|| fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths))
-        .map(|candidate| {
-            revalidate_svg_label_anchor(
-                candidate,
-                rendered_edge_paths
-                    .get(&edge_idx)
-                    .map(|path| path.as_slice()),
-            )
-        });
+        // Prefer the arc-length midpoint of the rendered path when available,
+        // since the layout engine's precomputed label position may not correspond
+        // to the visual midpoint of the final edge path.
+        let position = rendered_edge_paths
+            .get(&edge_idx)
+            .and_then(|path| svg_path_midpoint(path))
+            .or_else(|| {
+                let use_precomputed =
+                    edge.from_subgraph.is_none() && edge.to_subgraph.is_none() && !cross_boundary;
+                if use_precomputed {
+                    label_positions.get(&edge_idx).copied()
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths)
+            });
         let Some(point) = position else {
             continue;
         };
@@ -243,29 +201,7 @@ pub(super) fn precomputed_label_positions(geom: &GraphGeometry) -> HashMap<usize
 
 #[cfg(test)]
 mod tests {
-    use super::{Point, revalidate_svg_label_anchor, svg_path_midpoint};
-
-    #[test]
-    fn revalidate_svg_label_anchor_keeps_nearby_anchor() {
-        let candidate = Point { x: 5.0, y: 1.0 };
-        let path = [Point { x: 0.0, y: 0.0 }, Point { x: 10.0, y: 0.0 }];
-
-        assert_eq!(
-            revalidate_svg_label_anchor(candidate, Some(&path)),
-            candidate
-        );
-    }
-
-    #[test]
-    fn revalidate_svg_label_anchor_falls_back_to_path_midpoint_when_drifted() {
-        let candidate = Point { x: 50.0, y: 25.0 };
-        let path = [Point { x: 0.0, y: 0.0 }, Point { x: 10.0, y: 0.0 }];
-
-        assert_eq!(
-            revalidate_svg_label_anchor(candidate, Some(&path)),
-            Point { x: 5.0, y: 0.0 }
-        );
-    }
+    use super::{Point, svg_path_midpoint};
 
     #[test]
     fn svg_path_midpoint_handles_multi_segment_paths_by_distance() {

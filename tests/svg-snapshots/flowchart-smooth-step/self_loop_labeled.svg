@@ -34,8 +34,8 @@
       <path d="M58.20,212.40 L58.20,307.40" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="143.90" y="162.20" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
-      <text x="58.20" y="249.40" text-anchor="middle" dominant-baseline="middle" fill="#333">done</text>
+      <text x="143.90" y="159.46" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <text x="58.20" y="259.90" text-anchor="middle" dominant-baseline="middle" fill="#333">done</text>
     </g>
   </g>
 </svg>

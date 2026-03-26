@@ -56,7 +56,7 @@
     <g class="edgeLabels">
       <text x="367.67" y="243.35" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
       <text x="195.16" y="247.60" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
-      <text x="539.45" y="140.41" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="541.45" y="142.41" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <text x="342.31" y="586.67" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>

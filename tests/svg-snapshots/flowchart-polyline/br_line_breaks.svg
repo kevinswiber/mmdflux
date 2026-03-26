@@ -37,8 +37,8 @@
       <path d="M61.85,214.00 L61.85,263.00 L61.85,333.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="61.85" y="251.00" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <text x="61.85" y="275.00" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <text x="61.85" y="261.50" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="61.85" y="285.50" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>
