@@ -1,0 +1,28 @@
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Processing : submit
+    state Processing {
+        direction LR
+        [*] --> Validating
+        Validating --> Executing : valid
+        Validating --> Failed : invalid
+        Executing --> [*]
+        Failed --> [*]
+    }
+    Processing --> Done : complete
+    Processing --> Error : fail
+    state fork_state <<fork>>
+    Error --> fork_state
+    fork_state --> Retry
+    fork_state --> Log
+    state join_state <<join>>
+    Retry --> join_state
+    Log --> join_state
+    join_state --> Idle
+    state check <<choice>>
+    Done --> check
+    check --> Archived : old
+    check --> Active : recent
+    Active : Currently active item
+    Archived --> [*]
+    Active --> Idle : reset
