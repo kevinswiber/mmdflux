@@ -27,6 +27,7 @@ pub(in crate::runtime) fn render_payload(
             graph_family::render_graph_family("flowchart", &graph, format, config)
         }
         Diagram::Class(graph) => graph_family::render_graph_family("class", &graph, format, config),
+        Diagram::State(graph) => graph_family::render_graph_family("state", &graph, format, config),
         Diagram::Sequence(model) => {
             let seq_layout = layout::layout(&model);
             let charset = match format {
@@ -49,6 +50,10 @@ fn annotate_graph_payload_ids(payload: Diagram) -> Diagram {
         Diagram::Class(mut graph) => {
             annotate_node_ids(&mut graph);
             Diagram::Class(graph)
+        }
+        Diagram::State(mut graph) => {
+            annotate_node_ids(&mut graph);
+            Diagram::State(graph)
         }
         other => other,
     }

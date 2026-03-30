@@ -6,3 +6,4 @@
 pub mod class;
 pub mod flowchart;
 pub mod sequence;
+pub mod state;

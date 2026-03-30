@@ -1,0 +1,6 @@
+stateDiagram-v2
+    [*] --> Active
+    Active : The system is active
+    Active --> Idle : timeout
+    Idle : Waiting for input
+    Idle --> [*]

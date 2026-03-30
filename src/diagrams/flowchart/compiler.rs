@@ -184,41 +184,12 @@ fn resolve_subgraph_edges(diagram: &mut Graph) {
     }
 }
 
-/// Find a non-compound child node within a subgraph.
-///
-/// Walks the subgraph's children, returning the first leaf node that is not
-/// itself a subgraph. Returns `None` for empty subgraphs or nonexistent IDs.
-///
-/// This is the Rust equivalent of Mermaid's `findNonClusterChild()`.
-pub fn find_non_cluster_child(diagram: &Graph, subgraph_id: &str) -> Option<String> {
-    let sg = diagram.subgraphs.get(subgraph_id)?;
-    sg.nodes.iter().find(|id| !diagram.is_subgraph(id)).cloned()
+fn find_non_cluster_child(diagram: &Graph, subgraph_id: &str) -> Option<String> {
+    diagram.find_non_cluster_child(subgraph_id)
 }
 
-/// Find a sink node in a subgraph — a non-cluster child that has no successors
-/// within the subgraph.  Used when the subgraph is the **source** of an edge
-/// so the target ends up ranked after the entire subgraph, not beside internal
-/// nodes.  Falls back to `find_non_cluster_child` if every node has a successor.
 fn find_subgraph_sink(diagram: &Graph, subgraph_id: &str) -> Option<String> {
-    let sg = diagram.subgraphs.get(subgraph_id)?;
-    let sg_node_set: HashSet<&str> = sg.nodes.iter().map(|s| s.as_str()).collect();
-    let non_cluster: Vec<&str> = sg
-        .nodes
-        .iter()
-        .filter(|id| !diagram.is_subgraph(id))
-        .map(|s| s.as_str())
-        .collect();
-
-    // A sink has no outgoing edges to other nodes within the subgraph.
-    let sink = non_cluster.iter().find(|&&node| {
-        !diagram
-            .edges
-            .iter()
-            .any(|e| e.from == node && sg_node_set.contains(e.to.as_str()) && e.to != node)
-    });
-
-    sink.map(|s| s.to_string())
-        .or_else(|| find_non_cluster_child(diagram, subgraph_id))
+    diagram.find_subgraph_sink(subgraph_id)
 }
 
 fn collect_node_ids(statements: &[Statement]) -> Vec<String> {

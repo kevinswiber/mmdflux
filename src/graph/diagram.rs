@@ -95,6 +95,41 @@ impl Graph {
         self.subgraphs.contains_key(id)
     }
 
+    /// Find the first non-compound (leaf) child node within a subgraph.
+    ///
+    /// Returns `None` for empty subgraphs or nonexistent IDs.
+    /// This is the Rust equivalent of Mermaid's `findNonClusterChild()`.
+    pub fn find_non_cluster_child(&self, subgraph_id: &str) -> Option<String> {
+        let sg = self.subgraphs.get(subgraph_id)?;
+        sg.nodes.iter().find(|id| !self.is_subgraph(id)).cloned()
+    }
+
+    /// Find a sink node in a subgraph — a non-cluster child with no successors
+    /// within the subgraph.  Used when the subgraph is the **source** of an edge
+    /// so the target ends up ranked after the entire subgraph.
+    /// Falls back to `find_non_cluster_child` if every node has a successor.
+    pub fn find_subgraph_sink(&self, subgraph_id: &str) -> Option<String> {
+        let sg = self.subgraphs.get(subgraph_id)?;
+        let sg_node_set: std::collections::HashSet<&str> =
+            sg.nodes.iter().map(|s| s.as_str()).collect();
+        let non_cluster: Vec<&str> = sg
+            .nodes
+            .iter()
+            .filter(|id| !self.is_subgraph(id))
+            .map(|s| s.as_str())
+            .collect();
+
+        let sink = non_cluster.iter().find(|&&node| {
+            !self
+                .edges
+                .iter()
+                .any(|e| e.from == node && sg_node_set.contains(e.to.as_str()) && e.to != node)
+        });
+
+        sink.map(|s| s.to_string())
+            .or_else(|| self.find_non_cluster_child(subgraph_id))
+    }
+
     /// Return the IDs of subgraphs whose parent is `parent_id`.
     pub fn subgraph_children(&self, parent_id: &str) -> Vec<&String> {
         self.subgraphs
@@ -147,6 +182,7 @@ impl Graph {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::graph::Shape;
 
     #[test]
     fn test_subgraph_construction() {
@@ -201,5 +237,124 @@ mod tests {
             },
         );
         assert!(diagram.has_subgraphs());
+    }
+
+    fn graph_with_subgraph() -> Graph {
+        let mut g = Graph::new(Direction::TopDown);
+        g.add_node(Node::new("A").with_shape(Shape::Round));
+        g.add_node(Node::new("B").with_shape(Shape::Round));
+        g.add_edge(Edge::new("A", "B"));
+        g.subgraphs.insert(
+            "sg1".to_string(),
+            Subgraph {
+                id: "sg1".to_string(),
+                title: "Group".to_string(),
+                nodes: vec!["A".to_string(), "B".to_string()],
+                parent: None,
+                dir: None,
+            },
+        );
+        g
+    }
+
+    #[test]
+    fn find_non_cluster_child_returns_leaf_node() {
+        let g = graph_with_subgraph();
+        let child = g.find_non_cluster_child("sg1");
+        assert!(child.is_some());
+        assert!(child.as_deref() == Some("A") || child.as_deref() == Some("B"));
+    }
+
+    #[test]
+    fn find_non_cluster_child_skips_nested_subgraphs() {
+        let mut g = graph_with_subgraph();
+        // Add a nested subgraph as a child of sg1.
+        g.subgraphs.insert(
+            "inner".to_string(),
+            Subgraph {
+                id: "inner".to_string(),
+                title: "Inner".to_string(),
+                nodes: vec!["A".to_string()],
+                parent: Some("sg1".to_string()),
+                dir: None,
+            },
+        );
+        // "inner" is a subgraph, so it should be skipped; "A" or "B" returned.
+        g.subgraphs.get_mut("sg1").unwrap().nodes = vec!["inner".to_string(), "B".to_string()];
+        let child = g.find_non_cluster_child("sg1");
+        assert_eq!(child.as_deref(), Some("B"));
+    }
+
+    #[test]
+    fn find_non_cluster_child_empty_subgraph() {
+        let mut g = Graph::new(Direction::TopDown);
+        g.subgraphs.insert(
+            "sg1".to_string(),
+            Subgraph {
+                id: "sg1".to_string(),
+                title: "Empty".to_string(),
+                nodes: vec![],
+                parent: None,
+                dir: None,
+            },
+        );
+        assert!(g.find_non_cluster_child("sg1").is_none());
+    }
+
+    #[test]
+    fn find_non_cluster_child_nonexistent_subgraph() {
+        let g = Graph::new(Direction::TopDown);
+        assert!(g.find_non_cluster_child("nope").is_none());
+    }
+
+    #[test]
+    fn find_subgraph_sink_prefers_node_without_successors() {
+        let mut g = Graph::new(Direction::TopDown);
+        g.add_node(Node::new("A").with_shape(Shape::Round));
+        g.add_node(Node::new("B").with_shape(Shape::Round));
+        g.add_node(Node::new("C").with_shape(Shape::Round));
+        g.add_edge(Edge::new("A", "B"));
+        // A has successor B inside sg1; B has successor C inside sg1; C has no successors.
+        g.add_edge(Edge::new("B", "C"));
+        g.subgraphs.insert(
+            "sg1".to_string(),
+            Subgraph {
+                id: "sg1".to_string(),
+                title: "Group".to_string(),
+                nodes: vec!["A".to_string(), "B".to_string(), "C".to_string()],
+                parent: None,
+                dir: None,
+            },
+        );
+        let sink = g.find_subgraph_sink("sg1");
+        assert_eq!(sink.as_deref(), Some("C"));
+    }
+
+    #[test]
+    fn find_subgraph_sink_falls_back_to_first_child() {
+        // All nodes have successors inside — falls back to find_non_cluster_child.
+        let mut g = Graph::new(Direction::TopDown);
+        g.add_node(Node::new("A").with_shape(Shape::Round));
+        g.add_node(Node::new("B").with_shape(Shape::Round));
+        g.add_edge(Edge::new("A", "B"));
+        g.add_edge(Edge::new("B", "A"));
+        g.subgraphs.insert(
+            "sg1".to_string(),
+            Subgraph {
+                id: "sg1".to_string(),
+                title: "Cycle".to_string(),
+                nodes: vec!["A".to_string(), "B".to_string()],
+                parent: None,
+                dir: None,
+            },
+        );
+        let sink = g.find_subgraph_sink("sg1");
+        assert!(sink.is_some()); // falls back to first non-cluster child
+    }
+
+    #[test]
+    fn find_subgraph_sink_nonexistent() {
+        let g = Graph::new(Direction::TopDown);
+        assert!(g.find_subgraph_sink("nope").is_none());
     }
 }

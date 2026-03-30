@@ -113,6 +113,9 @@
 //!     Diagram::Class(graph) => {
 //!         println!("class diagram with {} nodes", graph.nodes.len());
 //!     }
+//!     Diagram::State(graph) => {
+//!         println!("state diagram with {} nodes", graph.nodes.len());
+//!     }
 //!     Diagram::Sequence(seq) => {
 //!         println!("sequence with {} participants", seq.participants.len());
 //!     }

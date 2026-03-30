@@ -13,4 +13,6 @@ pub enum Diagram {
     Class(crate::graph::Graph),
     /// Sequence diagram payload.
     Sequence(crate::timeline::Sequence),
+    /// State diagram payload (graph-family).
+    State(crate::graph::Graph),
 }

@@ -8,6 +8,7 @@ pub mod class;
 pub mod error;
 pub mod flowchart;
 pub mod sequence;
+pub mod state;
 
 pub use ast::*;
 pub use error::*;
@@ -21,6 +22,7 @@ pub enum DiagramType {
     Flowchart,
     Class,
     Sequence,
+    State,
 }
 
 /// Detect the Mermaid logical diagram type from the first significant keyword.
@@ -37,6 +39,7 @@ pub fn detect_diagram_type(input: &str) -> Option<DiagramType> {
         "graph" | "flowchart" => Some(DiagramType::Flowchart),
         "classdiagram" => Some(DiagramType::Class),
         "sequencediagram" => Some(DiagramType::Sequence),
+        "statediagram-v2" => Some(DiagramType::State),
         _ => None,
     }
 }
@@ -58,6 +61,10 @@ mod tests {
         assert_eq!(
             detect_diagram_type("sequenceDiagram\nparticipant A"),
             Some(DiagramType::Sequence)
+        );
+        assert_eq!(
+            detect_diagram_type("stateDiagram-v2\n[*] --> Idle"),
+            Some(DiagramType::State)
         );
     }
 }
