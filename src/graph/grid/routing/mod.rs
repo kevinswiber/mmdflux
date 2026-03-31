@@ -189,10 +189,11 @@ fn route_edge_with_probe_cached<'a>(
     }
     let draw_path_rejection = draw_path_attempt.rejection;
 
-    // Check for waypoints from normalization — works for both forward and backward long edges
-    let allow_waypoints = edge.from_subgraph.is_none() && edge.to_subgraph.is_none();
-    if allow_waypoints
-        && let Some(wps) = layout.edge_waypoints.get(&edge.index)
+    // Check for waypoints from normalization — works for both forward and backward long edges.
+    // Also allow waypoints for subgraph-as-node edges: when the source or target is a
+    // subgraph, the probe router only produces local face-attachment segments and can't
+    // fill the gap between the subgraph border and a distant external node.
+    if let Some(wps) = layout.edge_waypoints.get(&edge.index)
         && !wps.is_empty()
     {
         let is_backward = is_backward_edge(&from_bounds, &to_bounds, diagram_direction);
@@ -379,7 +380,7 @@ pub fn route_all_edges(
                 })
                 .unwrap_or((None, None, None, false));
             let edge_dir = layout.effective_edge_direction(&edge.from, &edge.to, diagram_direction);
-            route_edge_with_probe_cached(
+            let result = route_edge_with_probe_cached(
                 edge,
                 layout,
                 edge_dir,
@@ -388,8 +389,8 @@ pub fn route_all_edges(
                 tgt_face_override,
                 src_first_vertical,
                 node_containing_subgraph.as_ref(),
-            )
-            .map(|result| result.routed)
+            );
+            result.map(|result| result.routed)
         })
         .collect();
 
