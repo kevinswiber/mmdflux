@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 159.89 376.00" style="max-width: 159.89px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+    <marker id="crosshead" viewBox="0 0 11.00 11.00" refX="12.00" refY="5.20" markerWidth="11.00" markerHeight="11.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 1,1 l 9,9 M 10,1 l -9,9" stroke="#333" stroke-width="2" />
+    </marker>
+    <marker id="circlehead" viewBox="0 0 12.00 12.00" refX="11.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="6" cy="6" r="5" stroke="#333" stroke-width="1" fill="white" />
+    </marker>
+    <marker id="open-arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,0 10.00,5.00 0,10.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+    <marker id="diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="#333" />
+    </marker>
+    <marker id="open-diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
+    </marker>
+    <marker id="er-only-one" viewBox="0 0 18.00 18.00" refX="15.00" refY="9.00" markerWidth="18.00" markerHeight="18.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 3,0 L 3,18 M 9,0 L 9,18" stroke="#333" stroke-width="1" fill="none" />
+    </marker>
+    <marker id="er-zero-or-one" viewBox="0 0 30.00 18.00" refX="27.00" refY="9.00" markerWidth="30.00" markerHeight="18.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="9" cy="9" r="6" stroke="#333" stroke-width="1" fill="white" />
+      <path d="M 21,0 L 21,18" stroke="#333" stroke-width="1" fill="none" />
+    </marker>
+    <marker id="er-one-or-more" viewBox="0 0 45.00 36.00" refX="27.00" refY="18.00" markerWidth="45.00" markerHeight="36.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 3,9 L 3,27 M 9,18 Q 27,0 45,18 Q 27,36 9,18" stroke="#333" stroke-width="1" fill="none" />
+    </marker>
+    <marker id="er-zero-or-more" viewBox="0 0 57.00 36.00" refX="39.00" refY="18.00" markerWidth="57.00" markerHeight="36.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="9" cy="18" r="6" stroke="#333" stroke-width="1" fill="white" />
+      <path d="M 21,18 Q 39,0 57,18 Q 39,36 21,18" stroke="#333" stroke-width="1" fill="none" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="nodes">
+      <rect x="12.27" y="8.00" width="135.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="79.95" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">CUSTOMER</text>
+      <rect x="8.00" y="314.00" width="143.89" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="79.95" y="341.00" text-anchor="middle" dominant-baseline="middle" fill="#333">LINE-ITEM</text>
+      <rect x="27.67" y="161.00" width="104.54" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="79.95" y="188.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ORDER</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M79.95,68.00 L79.95,151.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#er-only-one)" marker-end="url(#er-zero-or-more)" />
+      <path d="M79.95,221.00 L79.95,306.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#er-only-one)" marker-end="url(#er-one-or-more)" />
+    </g>
+    <g class="edgeLabels">
+      <text x="79.95" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">places</text>
+      <text x="79.95" y="252.00" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
+      <text x="97.95" y="149.12" text-anchor="middle" dominant-baseline="middle" fill="#333">}o</text>
+      <text x="97.95" y="73.88" text-anchor="middle" dominant-baseline="middle" fill="#333">||</text>
+      <text x="97.95" y="302.12" text-anchor="middle" dominant-baseline="middle" fill="#333">}|</text>
+      <text x="97.95" y="226.88" text-anchor="middle" dominant-baseline="middle" fill="#333">||</text>
+    </g>
+  </g>
+</svg>

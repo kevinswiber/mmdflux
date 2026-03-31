@@ -29,6 +29,7 @@ pub(in crate::runtime) fn render_payload(
         }
         Diagram::Class(graph) => graph_family::render_graph_family("class", &graph, format, config),
         Diagram::State(graph) => graph_family::render_graph_family("state", &graph, format, config),
+        Diagram::ER(graph) => graph_family::render_graph_family("er", &graph, format, config),
         Diagram::Sequence(model) => match format {
             OutputFormat::Svg => {
                 let metrics = measure::default_proportional_text_metrics();
@@ -66,6 +67,10 @@ fn annotate_graph_payload_ids(payload: Diagram) -> Diagram {
         Diagram::State(mut graph) => {
             annotate_node_ids(&mut graph);
             Diagram::State(graph)
+        }
+        Diagram::ER(mut graph) => {
+            annotate_node_ids(&mut graph);
+            Diagram::ER(graph)
         }
         other => other,
     }

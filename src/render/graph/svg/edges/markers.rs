@@ -335,6 +335,10 @@ fn marker_id_for_arrow(arrow: Arrow) -> Option<&'static str> {
         Arrow::OpenTriangle => Some("open-arrowhead"),
         Arrow::Diamond => Some("diamondhead"),
         Arrow::OpenDiamond => Some("open-diamondhead"),
+        Arrow::OnlyOne => Some("er-only-one"),
+        Arrow::ZeroOrOne => Some("er-zero-or-one"),
+        Arrow::OneOrMore => Some("er-one-or-more"),
+        Arrow::ZeroOrMore => Some("er-zero-or-more"),
         Arrow::None => None,
     }
 }
@@ -343,6 +347,10 @@ fn marker_offset_for_arrow(arrow: Arrow) -> f64 {
     match arrow {
         Arrow::Normal | Arrow::OpenTriangle => 4.0,
         Arrow::Diamond | Arrow::OpenDiamond => 5.0,
+        Arrow::OnlyOne => 6.0,
+        Arrow::ZeroOrOne => 8.0,
+        Arrow::OneOrMore => 8.0,
+        Arrow::ZeroOrMore => 10.0,
         Arrow::Cross | Arrow::Circle | Arrow::None => 0.0,
     }
 }

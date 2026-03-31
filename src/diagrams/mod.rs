@@ -4,6 +4,7 @@
 //! a `definition()` function for registry registration.
 
 pub mod class;
+pub mod er;
 pub mod flowchart;
 pub mod sequence;
 pub mod state;

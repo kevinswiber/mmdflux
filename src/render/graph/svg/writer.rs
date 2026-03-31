@@ -132,5 +132,100 @@ pub(super) fn render_defs(writer: &mut SvgWriter, scale: f64) {
     writer.push_line(&polygon);
     writer.end_tag("</marker>");
 
+    // ER: Only-one marker (two parallel vertical lines)
+    let er_vb = 18.0;
+    let er_marker_size = 18.0 * scale;
+    let marker = format!(
+        "<marker id=\"er-only-one\" viewBox=\"0 0 {size} {size}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+        size = fmt_f64(er_vb),
+        ref_x = fmt_f64(15.0),
+        ref_y = fmt_f64(9.0),
+        mw = fmt_f64(er_marker_size),
+        mh = fmt_f64(er_marker_size)
+    );
+    writer.start_tag(&marker);
+    let path = format!(
+        "<path d=\"M 3,0 L 3,18 M 9,0 L 9,18\" stroke=\"{color}\" stroke-width=\"1\" fill=\"none\" />",
+        color = STROKE_COLOR
+    );
+    writer.push_line(&path);
+    writer.end_tag("</marker>");
+
+    // ER: Zero-or-one marker (circle + vertical line)
+    let zo_vb_w = 30.0;
+    let zo_vb_h = 18.0;
+    let zo_marker_w = 30.0 * scale;
+    let zo_marker_h = 18.0 * scale;
+    let marker = format!(
+        "<marker id=\"er-zero-or-one\" viewBox=\"0 0 {w} {h}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+        w = fmt_f64(zo_vb_w),
+        h = fmt_f64(zo_vb_h),
+        ref_x = fmt_f64(27.0),
+        ref_y = fmt_f64(9.0),
+        mw = fmt_f64(zo_marker_w),
+        mh = fmt_f64(zo_marker_h)
+    );
+    writer.start_tag(&marker);
+    let circle = format!(
+        "<circle cx=\"9\" cy=\"9\" r=\"6\" stroke=\"{color}\" stroke-width=\"1\" fill=\"white\" />",
+        color = STROKE_COLOR
+    );
+    writer.push_line(&circle);
+    let line = format!(
+        "<path d=\"M 21,0 L 21,18\" stroke=\"{color}\" stroke-width=\"1\" fill=\"none\" />",
+        color = STROKE_COLOR
+    );
+    writer.push_line(&line);
+    writer.end_tag("</marker>");
+
+    // ER: One-or-more marker (crow's foot + vertical line)
+    let om_vb_w = 45.0;
+    let om_vb_h = 36.0;
+    let om_marker_w = 45.0 * scale;
+    let om_marker_h = 36.0 * scale;
+    let marker = format!(
+        "<marker id=\"er-one-or-more\" viewBox=\"0 0 {w} {h}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+        w = fmt_f64(om_vb_w),
+        h = fmt_f64(om_vb_h),
+        ref_x = fmt_f64(27.0),
+        ref_y = fmt_f64(18.0),
+        mw = fmt_f64(om_marker_w),
+        mh = fmt_f64(om_marker_h)
+    );
+    writer.start_tag(&marker);
+    let path = format!(
+        "<path d=\"M 3,9 L 3,27 M 9,18 Q 27,0 45,18 Q 27,36 9,18\" stroke=\"{color}\" stroke-width=\"1\" fill=\"none\" />",
+        color = STROKE_COLOR
+    );
+    writer.push_line(&path);
+    writer.end_tag("</marker>");
+
+    // ER: Zero-or-more marker (crow's foot + circle)
+    let zm_vb_w = 57.0;
+    let zm_vb_h = 36.0;
+    let zm_marker_w = 57.0 * scale;
+    let zm_marker_h = 36.0 * scale;
+    let marker = format!(
+        "<marker id=\"er-zero-or-more\" viewBox=\"0 0 {w} {h}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+        w = fmt_f64(zm_vb_w),
+        h = fmt_f64(zm_vb_h),
+        ref_x = fmt_f64(39.0),
+        ref_y = fmt_f64(18.0),
+        mw = fmt_f64(zm_marker_w),
+        mh = fmt_f64(zm_marker_h)
+    );
+    writer.start_tag(&marker);
+    let circle = format!(
+        "<circle cx=\"9\" cy=\"18\" r=\"6\" stroke=\"{color}\" stroke-width=\"1\" fill=\"white\" />",
+        color = STROKE_COLOR
+    );
+    writer.push_line(&circle);
+    let path = format!(
+        "<path d=\"M 21,18 Q 39,0 57,18 Q 39,36 21,18\" stroke=\"{color}\" stroke-width=\"1\" fill=\"none\" />",
+        color = STROKE_COLOR
+    );
+    writer.push_line(&path);
+    writer.end_tag("</marker>");
+
     writer.end_tag("</defs>");
 }

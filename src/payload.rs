@@ -15,4 +15,6 @@ pub enum Diagram {
     Sequence(crate::timeline::Sequence),
     /// State diagram payload (graph-family).
     State(crate::graph::Graph),
+    /// ER diagram payload (graph-family).
+    ER(crate::graph::Graph),
 }

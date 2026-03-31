@@ -1,0 +1,23 @@
+             ┌─────────────────┐
+             │    CUSTOMER     │
+             ├─────────────────┤
+             │ string name PK  │
+             │ string email UK │
+             │ int age         │
+             └─────────────────┘
+                      │
+                   || │
+                      │
+                      │
+                   places
+                      │
+                   }o │
+                      │
+┌──────────────────────────────────────────┐
+│                  ORDER                   │
+├──────────────────────────────────────────┤
+│ int id PK                                │
+│ date created                             │
+│ string status                            │
+│ int customer_id FK "references CUSTOMER" │
+└──────────────────────────────────────────┘

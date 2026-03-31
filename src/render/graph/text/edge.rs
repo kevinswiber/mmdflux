@@ -924,6 +924,7 @@ fn draw_arrow_with_entry(
         (Arrow::OpenTriangle, AttachDirection::Right) => charset.arrow_open_left,
         (Arrow::Diamond, _) => charset.arrow_diamond,
         (Arrow::OpenDiamond, _) => charset.arrow_open_diamond,
+        (Arrow::OnlyOne | Arrow::ZeroOrOne | Arrow::OneOrMore | Arrow::ZeroOrMore, _) => return,
         (Arrow::None, _) => return,
     };
 

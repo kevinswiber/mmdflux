@@ -38,6 +38,14 @@ pub enum Arrow {
     Diamond,
     /// Open (hollow) diamond: ◇ (aggregation)
     OpenDiamond,
+    /// ER: exactly one (two vertical lines) ||
+    OnlyOne,
+    /// ER: zero or one (circle + vertical line) o|
+    ZeroOrOne,
+    /// ER: one or more (crow's foot + vertical line) }|
+    OneOrMore,
+    /// ER: zero or more (crow's foot + circle) }o
+    ZeroOrMore,
 }
 
 /// An edge connecting two nodes.

@@ -18,6 +18,20 @@
     <marker id="open-diamondhead" viewBox="0 0 12.00 12.00" refX="6.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <polygon points="0,6.00 6.00,0 12.00,6.00 6.00,12.00" fill="white" stroke="#333" stroke-width="1" />
     </marker>
+    <marker id="er-only-one" viewBox="0 0 18.00 18.00" refX="15.00" refY="9.00" markerWidth="18.00" markerHeight="18.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 3,0 L 3,18 M 9,0 L 9,18" stroke="#333" stroke-width="1" fill="none" />
+    </marker>
+    <marker id="er-zero-or-one" viewBox="0 0 30.00 18.00" refX="27.00" refY="9.00" markerWidth="30.00" markerHeight="18.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="9" cy="9" r="6" stroke="#333" stroke-width="1" fill="white" />
+      <path d="M 21,0 L 21,18" stroke="#333" stroke-width="1" fill="none" />
+    </marker>
+    <marker id="er-one-or-more" viewBox="0 0 45.00 36.00" refX="27.00" refY="18.00" markerWidth="45.00" markerHeight="36.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 3,9 L 3,27 M 9,18 Q 27,0 45,18 Q 27,36 9,18" stroke="#333" stroke-width="1" fill="none" />
+    </marker>
+    <marker id="er-zero-or-more" viewBox="0 0 57.00 36.00" refX="39.00" refY="18.00" markerWidth="57.00" markerHeight="36.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="9" cy="18" r="6" stroke="#333" stroke-width="1" fill="white" />
+      <path d="M 21,18 Q 39,0 57,18 Q 39,36 21,18" stroke="#333" stroke-width="1" fill="none" />
+    </marker>
   </defs>
   <g transform="translate(-64.45,0.00)">
     <g class="clusters">
