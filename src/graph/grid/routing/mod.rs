@@ -218,18 +218,26 @@ fn route_edge_with_probe_cached<'a>(
             (from_bounds.x + from_bounds.width, to_bounds.x)
         };
 
+        // The arrowhead is drawn at the `end` point.  Place it one row/col
+        // before the target face so it doesn't land on a node or subgraph
+        // border cell (which would be skipped or nudged by draw_arrow).
+        let arrow_end = if primary_end > primary_start + 1 {
+            primary_end - 1
+        } else {
+            primary_end
+        };
         if primary_end > primary_start {
             let segment = if is_vertical {
                 Segment::Vertical {
                     x: cross,
                     y_start: primary_start + 1,
-                    y_end: primary_end,
+                    y_end: arrow_end,
                 }
             } else {
                 Segment::Horizontal {
                     y: cross,
                     x_start: primary_start + 1,
-                    x_end: primary_end,
+                    x_end: arrow_end,
                 }
             };
             let entry_dir = if is_vertical {
@@ -245,7 +253,7 @@ fn route_edge_with_probe_cached<'a>(
                 },
                 end: Point {
                     x: cross,
-                    y: primary_end,
+                    y: arrow_end,
                 },
                 segments: vec![segment],
                 source_connection: Some(if is_vertical {
