@@ -2058,10 +2058,7 @@ fn display_repo_relative(path: &Path) -> String {
 }
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("xtask should live at the workspace root")
-        .to_path_buf()
+    crate::repo_root()
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 use std::io::{BufRead, BufReader, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, bail};
@@ -156,10 +156,7 @@ fn extract_build_finished_success(line: &str) -> Option<bool> {
 }
 
 fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("xtask crate should live under the repository root")
-        .to_path_buf()
+    crate::repo_root()
 }
 
 #[cfg(test)]

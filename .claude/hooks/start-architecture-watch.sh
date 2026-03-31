@@ -10,12 +10,15 @@ if [ -z "$session_id" ]; then
     session_id=$$
 fi
 
-pidfile="/tmp/mmdflux-arch-watch-${session_id}.pid"
-logfile="/tmp/mmdflux-arch-watch-${session_id}.log"
+# Include a hash of the project dir so each worktree gets its own host.
+project_hash=$(printf '%s' "$CLAUDE_PROJECT_DIR" | shasum -a 256 | cut -c1-12)
+pidfile="/tmp/mmdflux-arch-watch-${session_id}-${project_hash}.pid"
+logfile="/tmp/mmdflux-arch-watch-${session_id}-${project_hash}.log"
 
-# Persist session_id for stop hook (only works in SessionStart context)
+# Persist identifiers for stop hook (only works in SessionStart context)
 if [ -n "$CLAUDE_ENV_FILE" ]; then
     echo "export MMDFLUX_ARCH_SESSION_ID=$session_id" >> "$CLAUDE_ENV_FILE"
+    echo "export MMDFLUX_ARCH_PROJECT_HASH=$project_hash" >> "$CLAUDE_ENV_FILE"
 fi
 
 # Don't double-start

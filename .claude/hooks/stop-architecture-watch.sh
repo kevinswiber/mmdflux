@@ -4,9 +4,20 @@
 
 input=$(cat)
 session_id=$(echo "$input" | jq -r '.session_id // empty')
+project_hash="${MMDFLUX_ARCH_PROJECT_HASH:-}"
 
+# Try session+project-specific cleanup first
+if [ -n "$session_id" ] && [ -n "$project_hash" ]; then
+    pidfile="/tmp/mmdflux-arch-watch-${session_id}-${project_hash}.pid"
+    if [ -f "$pidfile" ]; then
+        kill "$(cat "$pidfile")" 2>/dev/null || true
+        rm -f "$pidfile" "/tmp/mmdflux-arch-watch-${session_id}-${project_hash}.log"
+        exit 0
+    fi
+fi
+
+# Try legacy (session-only) cleanup for hosts started before the hash change
 if [ -n "$session_id" ]; then
-    # Try session-specific cleanup first
     pidfile="/tmp/mmdflux-arch-watch-${session_id}.pid"
     if [ -f "$pidfile" ]; then
         kill "$(cat "$pidfile")" 2>/dev/null || true

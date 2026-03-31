@@ -14,9 +14,11 @@ if [[ "$file_path" != *.rs ]]; then
     exit 0
 fi
 
-# If no watcher is running, restart it for next time
+# If no watcher is running for THIS project dir, restart it for next time.
+# PID files encode a hash of the project dir so worktrees don't collide.
+project_hash=$(printf '%s' "$CLAUDE_PROJECT_DIR" | shasum -a 256 | cut -c1-12)
 watcher_alive=false
-for pidfile in /tmp/mmdflux-arch-watch-*.pid; do
+for pidfile in /tmp/mmdflux-arch-watch-*-"${project_hash}".pid; do
     [ -f "$pidfile" ] || continue
     if kill -0 "$(cat "$pidfile")" 2>/dev/null; then
         watcher_alive=true

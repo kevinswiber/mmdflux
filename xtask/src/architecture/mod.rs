@@ -364,10 +364,7 @@ fn run_boundaries(
 }
 
 fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("xtask crate should live under the repository root")
-        .to_path_buf()
+    crate::repo_root()
 }
 
 fn parse_command_args<I, S>(args: I, expected_command: &str) -> Result<ArchitectureCommand>
