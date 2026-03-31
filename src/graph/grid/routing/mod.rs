@@ -245,16 +245,33 @@ fn route_edge_with_probe_cached<'a>(
             } else {
                 AttachDirection::Left
             };
+            let (start_pt, end_pt) = if is_vertical {
+                (
+                    Point {
+                        x: cross,
+                        y: primary_start,
+                    },
+                    Point {
+                        x: cross,
+                        y: arrow_end,
+                    },
+                )
+            } else {
+                (
+                    Point {
+                        x: primary_start,
+                        y: cross,
+                    },
+                    Point {
+                        x: arrow_end,
+                        y: cross,
+                    },
+                )
+            };
             let routed = RoutedEdge {
                 edge: edge.clone(),
-                start: Point {
-                    x: cross,
-                    y: primary_start,
-                },
-                end: Point {
-                    x: cross,
-                    y: arrow_end,
-                },
+                start: start_pt,
+                end: end_pt,
                 segments: vec![segment],
                 source_connection: Some(if is_vertical {
                     AttachDirection::Bottom
