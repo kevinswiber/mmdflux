@@ -189,10 +189,86 @@ fn route_edge_with_probe_cached<'a>(
     }
     let draw_path_rejection = draw_path_attempt.rejection;
 
-    // Check for waypoints from normalization — works for both forward and backward long edges.
-    // Also allow waypoints for subgraph-as-node edges: when the source or target is a
-    // subgraph, the probe router only produces local face-attachment segments and can't
-    // fill the gap between the subgraph border and a distant external node.
+    // For subgraph-as-node edges, synthesize a straight vertical route.
+    // The probe router only produces local face-attachment segments and can't
+    // fill the gap between a subgraph border and a distant external node.
+    // Construct the segments directly instead of using the waypoint router,
+    // which struggles with large subgraph source bounds.
+    if (edge.from_subgraph.is_some() || edge.to_subgraph.is_some())
+        && !is_backward_edge(&from_bounds, &to_bounds, diagram_direction)
+    {
+        let is_vertical = matches!(diagram_direction, Direction::TopDown | Direction::BottomTop);
+
+        // Pick the cross-axis column: use the non-subgraph node's center.
+        let cross = if is_vertical {
+            if edge.from_subgraph.is_some() {
+                to_bounds.x + to_bounds.width / 2
+            } else {
+                from_bounds.x + from_bounds.width / 2
+            }
+        } else if edge.from_subgraph.is_some() {
+            to_bounds.y + to_bounds.height / 2
+        } else {
+            from_bounds.y + from_bounds.height / 2
+        };
+
+        let (primary_start, primary_end) = if is_vertical {
+            (from_bounds.y + from_bounds.height, to_bounds.y)
+        } else {
+            (from_bounds.x + from_bounds.width, to_bounds.x)
+        };
+
+        if primary_end > primary_start {
+            let segment = if is_vertical {
+                Segment::Vertical {
+                    x: cross,
+                    y_start: primary_start + 1,
+                    y_end: primary_end,
+                }
+            } else {
+                Segment::Horizontal {
+                    y: cross,
+                    x_start: primary_start + 1,
+                    x_end: primary_end,
+                }
+            };
+            let entry_dir = if is_vertical {
+                AttachDirection::Top
+            } else {
+                AttachDirection::Left
+            };
+            let routed = RoutedEdge {
+                edge: edge.clone(),
+                start: Point {
+                    x: cross,
+                    y: primary_start,
+                },
+                end: Point {
+                    x: cross,
+                    y: primary_end,
+                },
+                segments: vec![segment],
+                source_connection: Some(if is_vertical {
+                    AttachDirection::Bottom
+                } else {
+                    AttachDirection::Right
+                }),
+                entry_direction: entry_dir,
+                is_backward: false,
+                is_self_edge: false,
+            };
+            return Some(route_result(
+                routed,
+                TextPathFamily::WaypointFallback,
+                draw_path_rejection,
+                layout,
+                edge,
+                node_containing_subgraph,
+            ));
+        }
+    }
+
+    // Check for waypoints from normalization — works for both forward and backward long edges
     if let Some(wps) = layout.edge_waypoints.get(&edge.index)
         && !wps.is_empty()
     {
