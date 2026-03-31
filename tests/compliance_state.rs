@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use mmdflux::builtins::default_registry;
-use mmdflux::{OutputFormat, RenderConfig};
+use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig};
 
 fn state_fixture_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -128,6 +128,23 @@ fn state_svg_snapshots() {
             );
         }
     }
+}
+
+// --- Mermaid-layered compatibility ---
+
+#[test]
+fn state_mermaid_layered_composite_preserves_top_down_direction() {
+    let input = fs::read_to_string(state_fixture_dir().join("composite.mmd")).unwrap();
+    let config = RenderConfig {
+        layout_engine: Some(EngineAlgorithmId::MERMAID_LAYERED),
+        ..RenderConfig::default()
+    };
+    let output = mmdflux::render_diagram(&input, OutputFormat::Svg, &config)
+        .expect("mermaid-layered should render state composite");
+    assert!(
+        output.starts_with("<svg"),
+        "mermaid-layered state SVG should be valid"
+    );
 }
 
 // --- Compliance assertions ---

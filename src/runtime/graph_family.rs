@@ -4,7 +4,7 @@ use crate::engines::graph::algorithms::layered::MeasurementMode;
 use crate::engines::graph::contracts::GraphGeometryContract;
 use crate::engines::graph::{
     EngineAlgorithmId, EngineConfig, EngineId, GraphSolveRequest, GraphSolveResult,
-    solve_graph_family,
+    SubgraphDirectionPolicy, solve_graph_family,
 };
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
@@ -35,7 +35,7 @@ pub(in crate::runtime) fn render_graph_family(
             .routing_style
             .or_else(|| config.edge_preset.map(|preset| preset.expand().0)),
     )?;
-    let request = graph_solve_request_for(format, config);
+    let request = graph_solve_request_for(format, config, diagram_id);
     let engine_config = EngineConfig::Layered(config.layout.clone().into());
     let engine_id = resolve_graph_engine_for_request(engine_id, &request);
     let result = solve_graph_family(diagram, engine_id, &engine_config, &request)?;
@@ -67,7 +67,18 @@ pub(in crate::runtime) fn render_graph_family(
     }
 }
 
-fn graph_solve_request_for(format: OutputFormat, config: &RenderConfig) -> GraphSolveRequest {
+fn subgraph_direction_policy_for(diagram_id: &str) -> SubgraphDirectionPolicy {
+    match diagram_id {
+        "flowchart" => SubgraphDirectionPolicy::AlternateAxes,
+        _ => SubgraphDirectionPolicy::Preserve,
+    }
+}
+
+fn graph_solve_request_for(
+    format: OutputFormat,
+    config: &RenderConfig,
+    diagram_id: &str,
+) -> GraphSolveRequest {
     let routing_style = config
         .routing_style
         .or_else(|| config.edge_preset.map(|preset| preset.expand().0));
@@ -76,6 +87,7 @@ fn graph_solve_request_for(format: OutputFormat, config: &RenderConfig) -> Graph
         geometry_contract_for_format(format),
         config.geometry_level,
         routing_style,
+        subgraph_direction_policy_for(diagram_id),
     )
 }
 
@@ -185,6 +197,7 @@ mod tests {
             GraphGeometryContract::Canonical,
             GeometryLevel::Layout,
             None,
+            Default::default(),
         );
         let result = solve_graph_family(
             &diagram,

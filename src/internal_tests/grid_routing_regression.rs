@@ -44,6 +44,7 @@ fn compute_layout(diagram: &Graph, config: &GridLayoutConfig) -> GridLayout {
         GraphGeometryContract::Canonical,
         GeometryLevel::Layout,
         None,
+        Default::default(),
     );
     let result = engine
         .solve(

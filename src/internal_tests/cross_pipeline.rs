@@ -64,6 +64,7 @@ fn default_grid_request(
         GraphGeometryContract::Canonical,
         level,
         routing_style,
+        Default::default(),
     )
 }
 
@@ -81,6 +82,7 @@ fn default_proportional_request(
         geometry_contract,
         level,
         routing_style,
+        Default::default(),
     )
 }
 

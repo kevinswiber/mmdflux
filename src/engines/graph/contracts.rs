@@ -25,6 +25,16 @@ impl From<LayoutConfig> for EngineConfig {
     }
 }
 
+/// How the engine should handle subgraph directions that are not explicitly set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SubgraphDirectionPolicy {
+    /// Alternate subgraph direction axes (TD↔LR). Matches Mermaid flowchart behavior.
+    #[default]
+    AlternateAxes,
+    /// Preserve declared directions; no automatic alternation.
+    Preserve,
+}
+
 /// Request parameters for a `GraphEngine::solve()` call.
 #[derive(Debug, Clone)]
 pub struct GraphSolveRequest {
@@ -36,6 +46,8 @@ pub struct GraphSolveRequest {
     pub geometry_level: GeometryLevel,
     /// Routing style requested by the caller (after preset resolution).
     pub routing_style: Option<RoutingStyle>,
+    /// How the engine should handle implicit subgraph directions.
+    pub subgraph_direction_policy: SubgraphDirectionPolicy,
 }
 
 /// Float-geometry contract requested from the engine.
@@ -54,12 +66,14 @@ impl GraphSolveRequest {
         geometry_contract: GraphGeometryContract,
         geometry_level: GeometryLevel,
         routing_style: Option<RoutingStyle>,
+        subgraph_direction_policy: SubgraphDirectionPolicy,
     ) -> Self {
         Self {
             measurement_mode,
             geometry_contract,
             geometry_level,
             routing_style,
+            subgraph_direction_policy,
         }
     }
 }

@@ -491,6 +491,7 @@ mod edge_rendering_regression {
             GraphGeometryContract::Canonical,
             crate::graph::GeometryLevel::Layout,
             None,
+            Default::default(),
         );
         let result = engine
             .solve(
@@ -572,6 +573,7 @@ mod edge_rendering_regression {
             GraphGeometryContract::Canonical,
             crate::graph::GeometryLevel::Layout,
             None,
+            Default::default(),
         );
         let result = engine
             .solve(

@@ -26,6 +26,7 @@ fn compute_layout(diagram: &Graph, config: &GridLayoutConfig) -> GridLayout {
         GraphGeometryContract::Canonical,
         crate::graph::GeometryLevel::Layout,
         None,
+        Default::default(),
     );
     let result = engine
         .solve(

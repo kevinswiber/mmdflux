@@ -11,7 +11,7 @@ use crate::engines::graph::algorithms::layered::{
 };
 use crate::engines::graph::{
     EngineAlgorithmId, EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
-    GraphSolveResult,
+    GraphSolveResult, SubgraphDirectionPolicy,
 };
 use crate::errors::RenderError;
 use crate::graph::geometry::RoutedGraphGeometry;
@@ -132,7 +132,12 @@ impl GraphEngine for MermaidLayeredEngine {
             });
         }
 
-        let compat_diagram = apply_mermaid_subgraph_direction_policy(diagram);
+        let compat_diagram = match request.subgraph_direction_policy {
+            SubgraphDirectionPolicy::AlternateAxes => {
+                apply_mermaid_subgraph_direction_policy(diagram)
+            }
+            SubgraphDirectionPolicy::Preserve => None,
+        };
         let diagram = compat_diagram.as_ref().unwrap_or(diagram);
 
         let mode = request.measurement_mode.clone();

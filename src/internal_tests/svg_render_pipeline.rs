@@ -25,6 +25,7 @@ fn render_svg(diagram: &crate::graph::Graph, config: &RenderConfig) -> String {
         config
             .routing_style
             .or_else(|| config.edge_preset.map(|preset| preset.expand().0)),
+        Default::default(),
     );
     let result = engine
         .solve(
@@ -54,6 +55,7 @@ fn solve_visual_geometry(
         config
             .routing_style
             .or_else(|| config.edge_preset.map(|preset| preset.expand().0)),
+        Default::default(),
     );
     engine
         .solve(

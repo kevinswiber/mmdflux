@@ -27,6 +27,7 @@ fn solve_request_fields_round_trip() {
         GraphGeometryContract::Canonical,
         GeometryLevel::Layout,
         None,
+        Default::default(),
     );
     assert!(matches!(req.measurement_mode, MeasurementMode::Grid));
     assert_eq!(req.geometry_contract, GraphGeometryContract::Canonical);
@@ -40,6 +41,7 @@ fn solve_request_new_preserves_visual_proportional_fields() {
         GraphGeometryContract::Visual,
         GeometryLevel::Routed,
         None,
+        Default::default(),
     );
     assert!(matches!(
         req.measurement_mode,
@@ -57,6 +59,7 @@ fn solve_request_new_keeps_routing_style_independent_of_geometry_contract() {
         GraphGeometryContract::Canonical,
         GeometryLevel::Routed,
         Some(RoutingStyle::Direct),
+        Default::default(),
     );
     assert!(matches!(
         req.measurement_mode,
@@ -73,6 +76,7 @@ fn grid_request(level: GeometryLevel, routing_style: Option<RoutingStyle>) -> Gr
         GraphGeometryContract::Canonical,
         level,
         routing_style,
+        Default::default(),
     )
 }
 
@@ -87,6 +91,7 @@ fn proportional_request(
         geometry_contract,
         level,
         routing_style,
+        Default::default(),
     )
 }
 
