@@ -462,9 +462,10 @@ fn host_metadata_path(discovery_root: &Path) -> PathBuf {
 }
 
 fn host_socket_path(discovery_root: &Path) -> PathBuf {
-    discovery_root
-        .join(WORKTREE_TARGET_DIR)
-        .join(XTASK_TARGET_DIR)
+    let base = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    base.join("mmdflux-xtask")
         .join(worktree_id_for_repo(discovery_root))
         .join(HOST_SOCKET_FILE)
 }

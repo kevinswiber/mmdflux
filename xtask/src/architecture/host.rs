@@ -299,16 +299,27 @@ pub(crate) fn host_metadata_path(repo_root: &Path, worktree_id: &str) -> PathBuf
     host_worktree_dir(repo_root, worktree_id).join(HOST_METADATA_FILE)
 }
 
-pub(crate) fn host_transport_for_repo(repo_root: &Path, worktree_id: &str) -> HostTransport {
+pub(crate) fn host_transport_for_repo(_repo_root: &Path, worktree_id: &str) -> HostTransport {
     if cfg!(windows) {
         HostTransport::NamedPipe {
             name: format!("{WINDOWS_PIPE_PREFIX}{worktree_id}"),
         }
     } else {
         HostTransport::UnixSocket {
-            path: host_worktree_dir(repo_root, worktree_id).join(HOST_SOCKET_FILE),
+            path: socket_dir(worktree_id).join(HOST_SOCKET_FILE),
         }
     }
+}
+
+/// Base directory for the Unix socket. Prefers `XDG_RUNTIME_DIR` (per-user,
+/// tmpfs-backed, cleaned on logout) and falls back to `std::env::temp_dir()`
+/// (typically `/tmp`). This keeps socket paths well under the ~104-byte
+/// `SUN_LEN` limit on macOS, regardless of how deeply nested the worktree is.
+fn socket_dir(worktree_id: &str) -> PathBuf {
+    let base = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    base.join("mmdflux-xtask").join(worktree_id)
 }
 
 pub(crate) fn worktree_id_for_repo(repo_root: &Path) -> String {
@@ -1338,7 +1349,7 @@ mod tests {
 
     use super::{
         HostFreshness, HostMetadata, HostRenderOptions, HostRequest, HostResponse, HostTransport,
-        SharedHostState,
+        SharedHostState, socket_dir,
     };
     use crate::architecture::boundaries::{BoundariesRunReport, BoundaryGraph};
 
@@ -1364,14 +1375,17 @@ mod tests {
                 .join("architecture-host.json")
         );
         match &metadata.transport {
-            HostTransport::UnixSocket { path } => assert_eq!(
-                path,
-                &repo_root
-                    .join("target")
-                    .join("xtask")
-                    .join(&metadata.worktree_id)
-                    .join("architecture.sock")
-            ),
+            HostTransport::UnixSocket { path } => {
+                let expected = socket_dir(&metadata.worktree_id).join("architecture.sock");
+                assert_eq!(path, &expected);
+                // Socket path must stay under macOS SUN_LEN (104 bytes).
+                assert!(
+                    path.as_os_str().len() < 104,
+                    "socket path too long ({} bytes): {}",
+                    path.as_os_str().len(),
+                    path.display()
+                );
+            }
             HostTransport::NamedPipe { name } => {
                 assert!(name.contains(&metadata.worktree_id));
             }
