@@ -241,7 +241,6 @@ pub(crate) fn center_override_subgraphs(diagram: &Graph, layout: &mut layered::L
         if !is_dir_override && !is_sg_as_node {
             continue;
         }
-
         let Some(sg_bounds) = layout.subgraph_bounds.get(sg_id).copied() else {
             continue;
         };
@@ -365,13 +364,20 @@ pub(crate) fn center_override_subgraphs(diagram: &Graph, layout: &mut layered::L
             if let Some(rect) = layout.nodes.get(&layered::NodeId(node_id.clone())) {
                 let node_cy = rect.y + rect.height / 2.0;
                 let node_cx = rect.x + rect.width / 2.0;
-                let inside_primary = if horizontal {
-                    node_cy >= member_primary_min && node_cy <= member_primary_max
-                } else {
-                    node_cx >= member_primary_min && node_cx <= member_primary_max
-                };
-                if inside_primary {
-                    continue;
+                // Skip nodes overlapping the subgraph on the primary axis —
+                // shifting them would cause collisions with internal members.
+                // For subgraph-as-node endpoints this guard is too aggressive:
+                // tall subgraphs swallow successor nodes that are clearly
+                // outside, so only apply it for direction-override subgraphs.
+                if is_dir_override {
+                    let inside_primary = if horizontal {
+                        node_cy >= member_primary_min && node_cy <= member_primary_max
+                    } else {
+                        node_cx >= member_primary_min && node_cx <= member_primary_max
+                    };
+                    if inside_primary {
+                        continue;
+                    }
                 }
                 let cross = if horizontal { node_cx } else { node_cy };
                 let primary = if horizontal { node_cy } else { node_cx };
@@ -457,23 +463,39 @@ pub(crate) fn center_override_subgraphs(diagram: &Graph, layout: &mut layered::L
                 }
             } else {
                 // Subgraph-as-node: shift external nodes toward the subgraph
-                // center (existing behavior).
-                let delta = sg_center - centroid;
-                if delta.abs() >= 1.0 {
-                    let primary_dist = eligible
-                        .iter()
-                        .map(|(_, _, p)| (*p - member_primary_center).abs())
-                        .fold(f64::INFINITY, f64::min);
-                    for (id, _, _) in &eligible {
-                        if let Some(&(_, existing_dist)) = node_shifts.get(id) {
-                            if primary_dist < existing_dist {
-                                node_shifts.insert(id.clone(), (delta, primary_dist));
-                            }
-                        } else {
-                            node_shifts.insert(id.clone(), (delta, primary_dist));
+                // center.  Predecessors and successors are on opposite sides
+                // of the subgraph, so compute independent centroids for each
+                // group to avoid the combined centroid washing out the shift.
+                let apply_group_shift =
+                    |group: &[(String, f64, f64)], shifts: &mut HashMap<String, (f64, f64)>| {
+                        if group.is_empty() {
+                            return;
                         }
-                    }
-                }
+                        let group_centroid =
+                            group.iter().map(|(_, c, _)| *c).sum::<f64>() / group.len() as f64;
+                        let delta = sg_center - group_centroid;
+                        if delta.abs() < 1.0 {
+                            return;
+                        }
+                        let primary_dist = group
+                            .iter()
+                            .map(|(_, _, p)| (*p - member_primary_center).abs())
+                            .fold(f64::INFINITY, f64::min);
+                        for (id, _, _) in group {
+                            if let Some(&(_, existing_dist)) = shifts.get(id) {
+                                if primary_dist < existing_dist {
+                                    shifts.insert(id.clone(), (delta, primary_dist));
+                                }
+                            } else {
+                                shifts.insert(id.clone(), (delta, primary_dist));
+                            }
+                        }
+                    };
+                let (eligible_preds, eligible_succs): (Vec<_>, Vec<_>) = eligible
+                    .into_iter()
+                    .partition(|(id, _, _)| pred_set.contains(id.as_str()));
+                apply_group_shift(&eligible_preds, &mut node_shifts);
+                apply_group_shift(&eligible_succs, &mut node_shifts);
             }
         }
     }
