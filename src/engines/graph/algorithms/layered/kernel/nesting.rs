@@ -23,6 +23,18 @@ pub(crate) fn tree_depths(lg: &LayoutGraph) -> HashMap<usize, i32> {
     depths
 }
 
+/// Check if `node` is a descendant of `ancestor` in the parent hierarchy.
+fn is_descendant(lg: &LayoutGraph, node: usize, ancestor: usize) -> bool {
+    let mut current = lg.parents[node];
+    while let Some(p) = current {
+        if p == ancestor {
+            return true;
+        }
+        current = lg.parents[p];
+    }
+    false
+}
+
 fn compute_depth(lg: &LayoutGraph, node: usize, depth: i32, depths: &mut HashMap<usize, i32>) {
     depths.insert(node, depth);
     for (i, parent) in lg.parents.iter().enumerate() {
@@ -51,6 +63,9 @@ pub fn run(lg: &mut LayoutGraph) {
     let height = max_depth - 1;
     let node_sep = if height > 0 { 2 * height + 1 } else { 1 };
     lg.node_rank_factor = Some(node_sep);
+
+    // Capture original edge count before any nesting edges are added.
+    let orig_edge_count = lg.edges.len();
 
     // Multiply ALL existing edge minlens by node_sep (ref: nesting-graph.js:41)
     for minlen in &mut lg.edge_minlens {
@@ -116,6 +131,31 @@ pub fn run(lg: &mut LayoutGraph) {
     }
 
     // Note: dagre.js does not add sibling-compound separation edges here.
+
+    // Add exit constraints: for edges where the source is inside a compound
+    // but the target is outside, constrain the target to be ranked after the
+    // compound's bottom border.  Without this, the ranker may place external
+    // successors at a rank inside the compound span (same rank as an internal
+    // node), causing them to render inside the subgraph box.
+    for ei in 0..orig_edge_count {
+        let (from, to, _) = lg.edges[ei];
+        let from_parent = lg.parents[from];
+        let Some(compound_idx) = from_parent else {
+            continue;
+        };
+        if !lg.compound_nodes.contains(&compound_idx) {
+            continue;
+        }
+        // Check target is outside this compound.
+        let to_inside = is_descendant(lg, to, compound_idx);
+        if to_inside {
+            continue;
+        }
+        if let Some(&bot_idx) = lg.border_bottom.get(&compound_idx) {
+            let e = lg.add_nesting_edge_with_minlen(bot_idx, to, 0.0, 1);
+            lg.nesting_edges.insert(e);
+        }
+    }
 
     // Create root node connecting to all top-level nodes and compound border_tops
     let root_id = NodeId("_nesting_root".to_string());
