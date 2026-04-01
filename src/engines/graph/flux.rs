@@ -15,7 +15,51 @@ use crate::engines::graph::{
 use crate::errors::RenderError;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
-use crate::graph::{GeometryLevel, Graph};
+use crate::graph::{Direction, GeometryLevel, Graph};
+
+/// Inject perpendicular direction overrides on invisible note-group subgraphs.
+///
+/// The compiler creates note groups with `dir: None` (engine-agnostic). Flux
+/// wants perpendicular overrides so notes are positioned to the side of their
+/// states rather than inline along the main flow direction.
+fn apply_note_group_direction_overrides(diagram: &Graph) -> Option<Graph> {
+    let perpendicular = |dir: Direction| match dir {
+        Direction::TopDown | Direction::BottomTop => Direction::LeftRight,
+        Direction::LeftRight | Direction::RightLeft => Direction::TopDown,
+    };
+
+    let needs_override = diagram
+        .subgraphs
+        .values()
+        .any(|sg| sg.invisible && sg.dir.is_none());
+
+    if !needs_override {
+        return None;
+    }
+
+    let mut adjusted = diagram.clone();
+    // Collect overrides before mutating, to avoid borrow conflict.
+    let overrides: Vec<(String, Direction)> = adjusted
+        .subgraphs
+        .values()
+        .filter(|sg| sg.invisible && sg.dir.is_none())
+        .map(|sg| {
+            let parent_dir = sg
+                .parent
+                .as_ref()
+                .and_then(|pid| diagram.subgraphs.get(pid))
+                .and_then(|psg| psg.dir)
+                .unwrap_or(diagram.direction);
+            (sg.id.clone(), perpendicular(parent_dir))
+        })
+        .collect();
+    for (id, dir) in overrides {
+        if let Some(sg) = adjusted.subgraphs.get_mut(&id) {
+            sg.dir = Some(dir);
+        }
+    }
+    Some(adjusted)
+}
 
 /// Flux-layered engine: native graph-family layout plus native routing.
 pub struct FluxLayeredEngine;
@@ -236,6 +280,11 @@ impl GraphEngine for FluxLayeredEngine {
         config: &EngineConfig,
         request: &GraphSolveRequest,
     ) -> Result<GraphSolveResult, RenderError> {
+        // Inject perpendicular direction overrides on note groups so notes
+        // are positioned to the side of their states, not inline.
+        let adjusted = apply_note_group_direction_overrides(diagram);
+        let diagram = adjusted.as_ref().unwrap_or(diagram);
+
         let mode = request.measurement_mode.clone();
 
         let EngineConfig::Layered(ref input_cfg) = *config;

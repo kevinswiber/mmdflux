@@ -39,8 +39,10 @@ pub fn compile(model: &StateModel) -> Graph {
 /// Create invisible compound subgraphs for note annotations.
 ///
 /// For each note in `graph.notes`, wraps the target state + a new `NoteRect`
-/// node in an invisible subgraph with a perpendicular direction override and
-/// a dotted edge. The layout engine positions them as a unit.
+/// node in an invisible subgraph with a dotted edge. The subgraph has no
+/// direction override (`dir: None`) so it inherits the parent direction.
+/// Engines that want perpendicular note positioning (e.g. flux-layered) can
+/// inject direction overrides as a pre-processing step.
 ///
 /// If a state already has a note group (from a previous note), the new note
 /// node is added to the existing group instead of creating a nested one.
@@ -99,12 +101,6 @@ fn create_note_groups(graph: &mut Graph) {
                 parent_sg.nodes[pos] = group_id.clone();
             }
 
-            // Direction perpendicular to main graph direction.
-            let group_dir = match graph.direction {
-                Direction::TopDown | Direction::BottomTop => Some(Direction::LeftRight),
-                Direction::LeftRight | Direction::RightLeft => Some(Direction::TopDown),
-            };
-
             graph.subgraphs.insert(
                 group_id.clone(),
                 Subgraph {
@@ -112,7 +108,7 @@ fn create_note_groups(graph: &mut Graph) {
                     title: String::new(),
                     nodes: vec![state_id.to_string(), note_node_id.clone()],
                     parent: state_parent,
-                    dir: group_dir,
+                    dir: None,
                     invisible: true,
                 },
             );
@@ -803,7 +799,7 @@ stateDiagram-v2
             .expect("invisible note group should exist");
         assert!(group.nodes.contains(&"Active".to_string()));
         assert!(group.nodes.contains(&note_node.id));
-        assert_eq!(group.dir, Some(Direction::LeftRight)); // perpendicular to TD
+        assert_eq!(group.dir, None); // no override; engines inject if needed
 
         // Active is re-parented into the note group.
         assert_eq!(
