@@ -1025,4 +1025,59 @@ mod owner_local_fixture_regressions {
             b_cx
         );
     }
+
+    #[test]
+    fn backward_port_spread_draw_paths_have_distinct_source_rows() {
+        let (diagram, layout) = routed_text_layout_for_fixture("backward_port_spread.mmd");
+
+        let e_bounds = &layout.node_bounds["E"];
+        eprintln!(
+            "E bounds: x={} y={} w={} h={} center_y={}",
+            e_bounds.x,
+            e_bounds.y,
+            e_bounds.width,
+            e_bounds.height,
+            e_bounds.y + e_bounds.height / 2
+        );
+
+        // Print all backward draw paths from E
+        for edge in &diagram.edges {
+            if let Some(draw_path) = layout.routed_edge_paths.get(&edge.index)
+                && edge.from == "E"
+            {
+                eprintln!(
+                    "Edge {} (E -> {}): draw_path = {:?}",
+                    edge.index, edge.to, draw_path
+                );
+            }
+        }
+
+        // Collect right-face backward edges (those with horizontal first segment)
+        let mut right_face_starts: Vec<(String, usize)> = Vec::new();
+        for edge in &diagram.edges {
+            if let Some(draw_path) = layout.routed_edge_paths.get(&edge.index)
+                && edge.from == "E"
+                && draw_path.len() >= 2
+            {
+                let (x0, y0) = draw_path[0];
+                let (x1, _y1) = draw_path[1];
+                // Horizontal first segment = right face departure
+                if x1 > x0 {
+                    right_face_starts.push((edge.to.clone(), y0));
+                }
+            }
+        }
+
+        if right_face_starts.len() >= 2 {
+            let mut ys: Vec<usize> = right_face_starts.iter().map(|(_, y)| *y).collect();
+            ys.sort();
+            ys.dedup();
+            assert!(
+                ys.len() >= 2,
+                "backward draw paths from E's right face should have distinct grid-y \
+                 start positions, but all start at the same row. Paths: {:?}",
+                right_face_starts
+            );
+        }
+    }
 }

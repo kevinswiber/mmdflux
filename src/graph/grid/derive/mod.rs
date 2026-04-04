@@ -378,6 +378,12 @@ pub fn geometry_to_grid_layout_with_routed(
             }
         }
     }
+    spread_colocated_backward_draw_path_sources(
+        routed.map(|r| r.edges.as_slice()),
+        &node_bounds,
+        &mut routed_edge_paths,
+        direction,
+    );
     compact_vertical_criss_cross_draw_paths(
         diagram,
         &node_bounds,
@@ -741,6 +747,145 @@ pub fn geometry_to_grid_layout_with_routed(
         subgraph_bounds,
         self_edges,
         node_directions,
+    }
+}
+
+/// Spread backward draw path source points that collapsed to the same grid
+/// cell during float→grid quantization.
+///
+/// The float-space routing spreads co-located backward source ports by
+/// `MIN_PORT_SPACING` (12px), but a single grid cell spans ~18 float pixels,
+/// so the spread can round to the same cell.  This pass detects co-located
+/// backward draw path starts and shifts them by 1 grid row/column so they
+/// render as distinct departure points in text output.
+fn spread_colocated_backward_draw_path_sources(
+    routed_edges: Option<&[crate::graph::geometry::RoutedEdgeGeometry]>,
+    node_bounds: &HashMap<String, NodeBounds>,
+    draw_paths: &mut HashMap<usize, DrawPath>,
+    direction: Direction,
+) {
+    let Some(edges) = routed_edges else {
+        return;
+    };
+
+    // Group backward edges by source node.
+    let mut backward_by_source: HashMap<&str, Vec<usize>> = HashMap::new();
+    for edge in edges {
+        if edge.is_backward && draw_paths.contains_key(&edge.index) {
+            backward_by_source
+                .entry(&edge.from)
+                .or_default()
+                .push(edge.index);
+        }
+    }
+
+    let is_vertical = matches!(direction, Direction::TopDown | Direction::BottomTop);
+
+    for (source_id, indices) in &backward_by_source {
+        if indices.len() <= 1 {
+            continue;
+        }
+        let Some(bounds) = node_bounds.get(*source_id) else {
+            continue;
+        };
+
+        // Sub-group by co-located start AND second point — edges that share
+        // the same first two grid points truly overlap on their departure
+        // segment.  Edges that share only the start but diverge immediately
+        // are already visually distinct and don't need spreading.
+        let mut colocated: Vec<Vec<usize>> = Vec::new();
+        for &idx in indices {
+            let Some(path) = draw_paths.get(&idx) else {
+                continue;
+            };
+            if path.len() < 2 {
+                continue;
+            }
+            let key = (path[0], path[1]);
+            let found = colocated.iter_mut().find(|group| {
+                draw_paths
+                    .get(&group[0])
+                    .is_some_and(|p| p.len() >= 2 && p[0] == key.0 && p[1] == key.1)
+            });
+            if let Some(group) = found {
+                group.push(idx);
+            } else {
+                colocated.push(vec![idx]);
+            }
+        }
+
+        for group in &colocated {
+            if group.len() <= 1 {
+                continue;
+            }
+
+            // Sort by departure segment length (inner corridors first).
+            let mut sorted: Vec<(usize, usize)> = group
+                .iter()
+                .filter_map(|&idx| {
+                    let path = draw_paths.get(&idx)?;
+                    if path.len() < 2 {
+                        return None;
+                    }
+                    let (x0, y0) = path[0];
+                    let (x1, y1) = path[1];
+                    let dep_len = if is_vertical {
+                        x1.abs_diff(x0)
+                    } else {
+                        y1.abs_diff(y0)
+                    };
+                    Some((idx, dep_len))
+                })
+                .collect();
+            sorted.sort_by_key(|&(idx, len)| (len, idx));
+
+            // Compute the spread zone on the face (1 grid cell per edge).
+            let count = sorted.len();
+            let face_center = if is_vertical {
+                bounds.y + bounds.height / 2
+            } else {
+                bounds.x + bounds.width / 2
+            };
+            let (face_min, face_max) = if is_vertical {
+                (bounds.y + 1, bounds.y + bounds.height.saturating_sub(1))
+            } else {
+                (bounds.x + 1, bounds.x + bounds.width.saturating_sub(1))
+            };
+
+            // If face is too narrow to spread, skip.
+            if face_max <= face_min || count > face_max - face_min + 1 {
+                continue;
+            }
+
+            // Center the spread zone around face_center.
+            let half = (count - 1) / 2;
+            let zone_start = face_center.saturating_sub(half).max(face_min);
+            let zone_end = (zone_start + count - 1).min(face_max);
+            let zone_start = zone_end + 1 - count; // re-anchor if clamped
+
+            for (slot, &(idx, _)) in sorted.iter().enumerate() {
+                let new_coord = zone_start + slot;
+                let Some(path) = draw_paths.get_mut(&idx) else {
+                    continue;
+                };
+                if path.is_empty() {
+                    continue;
+                }
+                let (old_x, old_y) = path[0];
+                if is_vertical {
+                    path[0] = (old_x, new_coord);
+                    // Propagate to adjacent point if axis-aligned.
+                    if path.len() >= 2 && path[1].1 == old_y {
+                        path[1].1 = new_coord;
+                    }
+                } else {
+                    path[0] = (new_coord, old_y);
+                    if path.len() >= 2 && path[1].0 == old_x {
+                        path[1].0 = new_coord;
+                    }
+                }
+            }
+        }
     }
 }
 
