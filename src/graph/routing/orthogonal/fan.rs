@@ -374,6 +374,151 @@ pub(super) fn fan_out_source_stagger_context(
     }
 }
 
+/// Spread backward edge source ports that share the exact same departure
+/// point.  Runs as a post-processing step after all paths are routed so the
+/// actual departure face is known.  Only adjusts edges that truly overlap —
+/// edges already on different faces or at different positions are left alone.
+pub(super) fn spread_colocated_backward_source_ports(
+    routed: &mut [crate::graph::geometry::RoutedEdgeGeometry],
+    geometry: &crate::graph::geometry::GraphGeometry,
+) {
+    use super::path_utils::points_match;
+    use crate::graph::space::FPoint;
+
+    const CORNER_INSET: f64 = 4.0;
+    // Minimum spacing between adjacent ports (px).
+    const MIN_PORT_SPACING: f64 = 12.0;
+
+    // Group backward edges by (source node, rounded start point).
+    let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
+    for (idx, edge) in routed.iter().enumerate() {
+        if !edge.is_backward || edge.path.len() < 2 {
+            continue;
+        }
+        groups.entry(edge.from.clone()).or_default().push(idx);
+    }
+
+    for edge_indices in groups.values() {
+        if edge_indices.len() <= 1 {
+            continue;
+        }
+
+        // Sub-group by co-located start point (same departure point within epsilon).
+        let mut colocated: Vec<Vec<usize>> = Vec::new();
+        for &idx in edge_indices {
+            let start = routed[idx].path[0];
+            let found = colocated.iter_mut().find(|group| {
+                let representative = routed[group[0]].path[0];
+                points_match(start, representative)
+            });
+            if let Some(group) = found {
+                group.push(idx);
+            } else {
+                colocated.push(vec![idx]);
+            }
+        }
+
+        for group in &colocated {
+            if group.len() <= 1 {
+                continue;
+            }
+
+            let representative_idx = group[0];
+            let start = routed[representative_idx].path[0];
+            let next = routed[representative_idx].path[1];
+
+            // Determine departure axis: horizontal first segment means
+            // vertical face (left/right), vertical means horizontal face
+            // (top/bottom).  Spread along the face's free axis.
+            let dx = (start.x - next.x).abs();
+            let dy = (start.y - next.y).abs();
+            let spread_along_y = dx > dy; // horizontal departure → spread y
+            let source_id = &routed[representative_idx].from;
+
+            let source_rect =
+                if let Some(sg_id) = routed[representative_idx].from_subgraph.as_deref() {
+                    geometry.subgraphs.get(sg_id).map(|sg| sg.rect)
+                } else {
+                    geometry.nodes.get(source_id).map(|node| node.rect)
+                };
+            let Some(sr) = source_rect else {
+                continue;
+            };
+
+            let (face_min, face_max) = if spread_along_y {
+                (sr.y + CORNER_INSET, sr.y + sr.height - CORNER_INSET)
+            } else {
+                (sr.x + CORNER_INSET, sr.x + sr.width - CORNER_INSET)
+            };
+
+            if face_max <= face_min {
+                continue;
+            }
+
+            // Sort by departure segment length (distance from source face to
+            // corridor lane).  Inner corridors (shorter departure) get ports
+            // nearer the start of the face (top for TD/BT right-face, left
+            // for LR/RL bottom-face) so departure segments nest without
+            // crossing: shorter horizontal/vertical segments sit inside
+            // longer ones.
+            let mut sorted_group: Vec<(usize, f64)> = group
+                .iter()
+                .map(|&idx| {
+                    let departure_len = if routed[idx].path.len() >= 2 {
+                        let p0 = routed[idx].path[0];
+                        let p1 = routed[idx].path[1];
+                        if spread_along_y {
+                            (p1.x - p0.x).abs()
+                        } else {
+                            (p1.y - p0.y).abs()
+                        }
+                    } else {
+                        0.0
+                    };
+                    (idx, departure_len)
+                })
+                .collect();
+            sorted_group.sort_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
+
+            // Local adjustment (Schulze et al. 2013, §2 Figure 4b): cluster
+            // ports in a compact zone near face center rather than spanning
+            // the full face.  Combined with departure-length sorting this
+            // keeps inner corridors nested inside outer ones.
+            let count = sorted_group.len();
+            let anchor = (face_min + face_max) / 2.0;
+            let half_span = (count as f64 - 1.0) * MIN_PORT_SPACING / 2.0;
+            let zone_start = (anchor - half_span).max(face_min);
+            let zone_end = (anchor + half_span).min(face_max);
+
+            for (slot, &(idx, _)) in sorted_group.iter().enumerate() {
+                let new_coord = if count <= 1 {
+                    anchor
+                } else {
+                    zone_start + (zone_end - zone_start) * slot as f64 / (count - 1) as f64
+                };
+                let old_start = routed[idx].path[0];
+
+                if spread_along_y {
+                    routed[idx].path[0] = FPoint::new(old_start.x, new_coord);
+                    // Propagate to aligned adjacent point.
+                    if routed[idx].path.len() >= 2
+                        && (routed[idx].path[1].y - old_start.y).abs() < 0.01
+                    {
+                        routed[idx].path[1].y = new_coord;
+                    }
+                } else {
+                    routed[idx].path[0] = FPoint::new(new_coord, old_start.y);
+                    if routed[idx].path.len() >= 2
+                        && (routed[idx].path[1].x - old_start.x).abs() < 0.01
+                    {
+                        routed[idx].path[1].x = new_coord;
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn adaptive_fan_in_primary_face_capacity(direction: Direction, target_rect: &FRect) -> usize {
     let baseline_capacity = fan_in_primary_face_capacity(direction);
     let face_span = match direction {
