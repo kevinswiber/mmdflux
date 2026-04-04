@@ -46,7 +46,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mmdflux/mmdflux.git",
+    "url": "git+https://github.com/kevinswiber/mmdflux.git",
     "directory": "packages/mmds-core"
   },
   "engines": {
