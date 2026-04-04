@@ -23,6 +23,7 @@
       <path d="M62.63,280.00 L62.63,326.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="131.30" y="85.00" width="42.89" height="28.00" fill="white" />
       <text x="152.75" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>

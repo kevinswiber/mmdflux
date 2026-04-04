@@ -237,6 +237,7 @@ fn render_node_label(
             TextRenderStyle {
                 color: text_color,
                 extra_attrs: text_dynamic_attrs.as_str(),
+                background: None,
             },
         );
         return;

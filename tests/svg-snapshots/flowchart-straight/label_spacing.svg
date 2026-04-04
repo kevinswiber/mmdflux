@@ -18,7 +18,9 @@
       <path d="M101.91,62.00 L159.30,157.57" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="51.76" y="95.79" width="42.89" height="28.00" fill="white" />
       <text x="73.21" y="109.79" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <rect x="102.57" y="95.79" width="56.07" height="28.00" fill="white" />
       <text x="130.61" y="109.79" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
     </g>
   </g>

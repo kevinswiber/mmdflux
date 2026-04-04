@@ -19,7 +19,9 @@
       <path d="M42.45,215.00 L42.45,261.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="14.14" y="95.50" width="56.63" height="28.00" fill="white" />
       <text x="42.45" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">path 1</text>
+      <rect x="14.14" y="95.50" width="56.63" height="28.00" fill="white" />
       <text x="42.45" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">path 2</text>
     </g>
   </g>

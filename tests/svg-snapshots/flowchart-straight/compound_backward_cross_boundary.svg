@@ -47,14 +47,23 @@
       <path d="M260.91,1022.06 L350.14,1022.06 L350.14,362.50 L340.14,362.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="164.63" y="205.67" width="62.57" height="28.00" fill="white" />
       <text x="195.92" y="219.67" text-anchor="middle" dominant-baseline="middle" fill="#333">request</text>
+      <rect x="293.51" y="200.51" width="52.73" height="28.00" fill="white" />
       <text x="319.87" y="214.51" text-anchor="middle" dominant-baseline="middle" fill="#333">health</text>
+      <rect x="234.87" y="469.44" width="39.55" height="28.00" fill="white" />
       <text x="254.65" y="483.44" text-anchor="middle" dominant-baseline="middle" fill="#333">read</text>
+      <rect x="288.52" y="426.15" width="77.04" height="28.00" fill="white" />
       <text x="327.05" y="440.15" text-anchor="middle" dominant-baseline="middle" fill="#333">fast path</text>
+      <rect x="162.58" y="420.95" width="46.05" height="28.00" fill="white" />
       <text x="185.60" y="434.95" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
+      <rect x="208.86" y="654.86" width="50.13" height="28.00" fill="white" />
       <text x="233.93" y="668.86" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
+      <rect x="280.75" y="670.58" width="27.12" height="28.00" fill="white" />
       <text x="294.31" y="684.58" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
+      <rect x="191.69" y="918.38" width="73.70" height="28.00" fill="white" />
       <text x="228.54" y="932.38" text-anchor="middle" dominant-baseline="middle" fill="#333">response</text>
+      <rect x="328.70" y="717.90" width="42.89" height="28.00" fill="white" />
       <text x="350.14" y="731.90" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>

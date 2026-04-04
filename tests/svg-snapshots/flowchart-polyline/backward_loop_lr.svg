@@ -35,7 +35,9 @@
       <path d="M1345.87,139.00 L1388.13,139.00 L1451.39,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="1107.77" y="143.00" width="34.73" height="28.00" fill="white" />
       <text x="1125.13" y="157.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Fail</text>
+      <rect x="1366.87" y="125.00" width="42.52" height="28.00" fill="white" />
       <text x="1388.13" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Pass</text>
     </g>
   </g>

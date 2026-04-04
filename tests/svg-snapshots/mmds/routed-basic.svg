@@ -19,6 +19,7 @@
       <path d="M60.00,60.00 L77.76,95.53 Q80.00,100.00 76.46,103.54 L62.83,117.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="67.46" y="86.00" width="25.08" height="28.00" fill="white" />
       <text x="80.00" y="100.00" text-anchor="middle" dominant-baseline="middle" fill="#333">go</text>
     </g>
   </g>

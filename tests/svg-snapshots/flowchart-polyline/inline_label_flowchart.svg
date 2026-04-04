@@ -76,14 +76,23 @@
       <path d="M412.63,1819.26 L412.63,1865.26" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="331.64" y="594.88" width="25.08" height="28.00" fill="white" />
       <text x="344.18" y="608.88" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="603.43" y="639.57" width="33.61" height="28.00" fill="white" />
       <text x="620.23" y="653.57" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="463.73" y="867.16" width="42.15" height="28.00" fill="white" />
       <text x="484.81" y="881.16" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
+      <rect x="698.56" y="906.09" width="50.69" height="28.00" fill="white" />
       <text x="723.91" y="920.09" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
+      <rect x="630.46" y="1549.74" width="25.08" height="28.00" fill="white" />
       <text x="643.00" y="1563.74" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="546.64" y="1546.54" width="33.61" height="28.00" fill="white" />
       <text x="563.45" y="1560.54" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="76.04" y="403.76" width="27.12" height="28.00" fill="white" />
       <text x="89.60" y="417.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
+      <rect x="273.98" y="451.89" width="42.71" height="28.00" fill="white" />
       <text x="295.33" y="465.89" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
+      <rect x="726.84" y="1332.59" width="44.01" height="28.00" fill="white" />
       <text x="748.85" y="1346.59" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>
   </g>

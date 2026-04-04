@@ -47,14 +47,23 @@
       <path d="M260.91,1022.06 L268.91,1022.06 L282.45,1022.06 C295.99,1022.06 323.07,1022.06 336.60,912.14 C350.14,802.21 350.14,582.35 349.81,472.43 C349.48,362.50 348.81,362.50 348.48,362.50 L348.14,362.50 L340.14,362.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="97.75" y="170.50" width="62.57" height="28.00" fill="white" />
       <text x="129.03" y="184.50" text-anchor="middle" dominant-baseline="middle" fill="#333">request</text>
+      <rect x="317.90" y="199.50" width="52.73" height="28.00" fill="white" />
       <text x="344.27" y="213.50" text-anchor="middle" dominant-baseline="middle" fill="#333">health</text>
+      <rect x="214.15" y="471.50" width="39.55" height="28.00" fill="white" />
       <text x="233.93" y="485.50" text-anchor="middle" dominant-baseline="middle" fill="#333">read</text>
+      <rect x="314.65" y="451.50" width="77.04" height="28.00" fill="white" />
       <text x="353.17" y="465.50" text-anchor="middle" dominant-baseline="middle" fill="#333">fast path</text>
+      <rect x="144.18" y="409.08" width="46.05" height="28.00" fill="white" />
       <text x="167.21" y="423.08" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
+      <rect x="208.86" y="654.86" width="50.13" height="28.00" fill="white" />
       <text x="233.93" y="668.86" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
+      <rect x="339.62" y="565.00" width="27.12" height="28.00" fill="white" />
       <text x="353.17" y="579.00" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
+      <rect x="197.07" y="907.86" width="73.70" height="28.00" fill="white" />
       <text x="233.93" y="921.86" text-anchor="middle" dominant-baseline="middle" fill="#333">response</text>
+      <rect x="328.70" y="717.90" width="42.89" height="28.00" fill="white" />
       <text x="350.14" y="731.90" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>

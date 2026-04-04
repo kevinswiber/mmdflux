@@ -39,9 +39,13 @@
       <path d="M461.94,541.28 L461.94,549.28 L461.94,554.12 C461.94,558.95 461.94,568.62 437.04,587.79 C412.14,606.95 362.34,635.63 337.44,649.96 L312.54,664.30 L305.61,668.29" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="428.33" y="261.78" width="42.89" height="28.00" fill="white" />
       <text x="449.77" y="275.78" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <rect x="151.60" y="225.70" width="56.07" height="28.00" fill="white" />
       <text x="179.63" y="239.70" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <rect x="522.64" y="126.41" width="33.61" height="28.00" fill="white" />
       <text x="539.45" y="140.41" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="449.41" y="564.28" width="25.08" height="28.00" fill="white" />
       <text x="461.94" y="578.28" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>

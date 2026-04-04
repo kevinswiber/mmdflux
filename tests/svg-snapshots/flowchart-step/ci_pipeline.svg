@@ -30,7 +30,9 @@
       <path d="M786.81,110.84 L786.81,139.00 L957.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="827.66" y="21.00" width="61.27" height="28.00" fill="white" />
       <text x="858.29" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
+      <rect x="816.15" y="125.00" width="84.28" height="28.00" fill="white" />
       <text x="858.29" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
     </g>
   </g>

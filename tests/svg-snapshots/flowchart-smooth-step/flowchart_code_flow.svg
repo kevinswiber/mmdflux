@@ -436,12 +436,19 @@
       <path d="M11070.44,1460.19 L11070.44,1477.49 Q11070.44,1482.49 11075.44,1482.49 L11104.73,1482.49 Q11109.73,1482.49 11109.73,1487.49 L11109.73,1615.19" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="9400.37" y="422.21" width="159.45" height="28.00" fill="white" />
       <text x="9480.10" y="436.21" text-anchor="middle" dominant-baseline="middle" fill="#333">Checks /^\s*graph/</text>
+      <rect x="9651.52" y="436.71" width="188.96" height="28.00" fill="white" />
       <text x="9746.00" y="450.71" text-anchor="middle" dominant-baseline="middle" fill="#333">Checks /^\s*flowchart/</text>
+      <rect x="9902.30" y="451.21" width="219.21" height="28.00" fill="white" />
       <text x="10011.91" y="465.21" text-anchor="middle" dominant-baseline="middle" fill="#333">Checks /^\s*flowchart-elk/</text>
+      <rect x="9642.24" y="651.89" width="33.98" height="28.00" fill="white" />
       <text x="9659.23" y="665.89" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <rect x="9729.01" y="730.95" width="33.98" height="28.00" fill="white" />
       <text x="9746.00" y="744.95" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <rect x="9815.79" y="627.67" width="33.98" height="28.00" fill="white" />
       <text x="9832.78" y="641.67" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <rect x="370.73" y="1617.19" width="137.18" height="28.00" fill="white" />
       <text x="439.32" y="1631.19" text-anchor="middle" dominant-baseline="middle" fill="#333">Preprocesses src</text>
     </g>
   </g>

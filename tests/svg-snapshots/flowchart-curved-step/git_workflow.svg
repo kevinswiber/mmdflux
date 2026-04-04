@@ -22,9 +22,13 @@
       <path d="M924.69,62.00 L924.69,86.00 L854.37,86.00 C784.05,86.00 643.42,86.00 502.78,86.00 C362.15,86.00 221.51,86.00 151.19,86.00 L80.87,86.00 L80.87,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="174.75" y="21.00" width="61.27" height="28.00" fill="white" />
       <text x="205.38" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
+      <rect x="432.11" y="21.00" width="89.29" height="28.00" fill="white" />
       <text x="476.76" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
+      <rect x="730.63" y="21.00" width="69.80" height="28.00" fill="white" />
       <text x="765.53" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
+      <rect x="473.78" y="72.00" width="62.01" height="28.00" fill="white" />
       <text x="504.78" y="86.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
     </g>
   </g>

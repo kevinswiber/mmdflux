@@ -54,12 +54,19 @@
       <path d="M757.95,62.00 L757.95,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="-3.31" y="110.50" width="91.52" height="28.00" fill="white" />
       <text x="42.45" y="124.50" text-anchor="middle" dominant-baseline="middle" fill="#333">association</text>
+      <rect x="127.76" y="125.00" width="67.21" height="28.00" fill="white" />
       <text x="161.36" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">directed</text>
+      <rect x="235.81" y="125.00" width="88.92" height="28.00" fill="white" />
       <text x="280.27" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">inheritance</text>
+      <rect x="351.19" y="125.00" width="95.97" height="28.00" fill="white" />
       <text x="399.18" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">composition</text>
+      <rect x="471.68" y="125.00" width="92.82" height="28.00" fill="white" />
       <text x="518.09" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">aggregation</text>
+      <rect x="590.31" y="125.00" width="93.38" height="28.00" fill="white" />
       <text x="637.00" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">dependency</text>
+      <rect x="707.27" y="139.50" width="101.36" height="28.00" fill="white" />
       <text x="757.95" y="153.50" text-anchor="middle" dominant-baseline="middle" fill="#333">directed dep</text>
     </g>
   </g>

@@ -24,9 +24,13 @@
       <path d="M57.58,521.00 L57.58,554.00 L57.58,556.75 C57.58,559.50 57.58,565.00 57.58,570.50 C57.58,576.00 57.58,581.50 57.58,584.25 L57.58,587.00 L57.58,616.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="40.77" y="85.00" width="33.61" height="28.00" fill="white" />
       <text x="57.58" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="36.13" y="238.00" width="42.89" height="28.00" fill="white" />
       <text x="57.58" y="252.00" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <rect x="17.39" y="391.00" width="80.38" height="28.00" fill="white" />
       <text x="57.58" y="405.00" text-anchor="middle" dominant-baseline="middle" fill="#333">final step</text>
+      <rect x="45.04" y="544.00" width="25.08" height="28.00" fill="white" />
       <text x="57.58" y="558.00" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>

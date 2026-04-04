@@ -76,14 +76,23 @@
       <path d="M412.63,1819.26 L412.63,1822.04 C412.63,1824.81 412.63,1830.37 412.63,1835.37 C412.63,1840.37 412.63,1844.81 412.63,1849.70 C412.63,1854.59 412.63,1859.92 412.63,1862.59 L412.63,1865.26" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="256.26" y="610.57" width="25.08" height="28.00" fill="white" />
       <text x="268.80" y="624.57" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="603.43" y="639.57" width="33.61" height="28.00" fill="white" />
       <text x="620.23" y="653.57" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="434.02" y="877.09" width="42.15" height="28.00" fill="white" />
       <text x="455.10" y="891.09" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
+      <rect x="698.56" y="906.09" width="50.69" height="28.00" fill="white" />
       <text x="723.91" y="920.09" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
+      <rect x="665.19" y="1528.99" width="25.08" height="28.00" fill="white" />
       <text x="677.73" y="1542.99" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="529.03" y="1512.71" width="33.61" height="28.00" fill="white" />
       <text x="545.84" y="1526.71" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="39.24" y="423.76" width="27.12" height="28.00" fill="white" />
       <text x="52.80" y="437.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
+      <rect x="265.90" y="472.26" width="42.71" height="28.00" fill="white" />
       <text x="287.26" y="486.26" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
+      <rect x="720.21" y="1384.92" width="44.01" height="28.00" fill="white" />
       <text x="742.22" y="1398.92" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>
   </g>

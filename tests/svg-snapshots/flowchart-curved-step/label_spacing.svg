@@ -18,7 +18,9 @@
       <path d="M128.36,62.00 L128.36,80.00 L128.36,89.83 C128.36,99.67 128.36,119.33 133.86,129.17 C139.36,139.00 150.36,139.00 155.86,139.00 L161.36,139.00 L161.36,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="37.51" y="95.50" width="42.89" height="28.00" fill="white" />
       <text x="58.95" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <rect x="116.83" y="95.50" width="56.07" height="28.00" fill="white" />
       <text x="144.86" y="109.50" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
     </g>
   </g>

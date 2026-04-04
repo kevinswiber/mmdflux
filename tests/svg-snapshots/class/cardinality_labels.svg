@@ -20,11 +20,17 @@
       <path d="M222.43,62.00 L222.43,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="42.82" y="70.50" width="46.60" height="28.00" fill="white" />
       <text x="66.12" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">owns</text>
+      <rect x="187.52" y="99.50" width="69.80" height="28.00" fill="white" />
       <text x="222.43" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
+      <rect x="75.85" y="135.12" width="16.54" height="28.00" fill="white" />
       <text x="84.12" y="149.12" text-anchor="middle" dominant-baseline="middle" fill="#333">*</text>
+      <rect x="75.85" y="59.88" width="16.54" height="28.00" fill="white" />
       <text x="84.12" y="73.88" text-anchor="middle" dominant-baseline="middle" fill="#333">1</text>
+      <rect x="232.16" y="135.12" width="16.54" height="28.00" fill="white" />
       <text x="240.43" y="149.12" text-anchor="middle" dominant-baseline="middle" fill="#333">*</text>
+      <rect x="223.25" y="59.88" width="34.36" height="28.00" fill="white" />
       <text x="240.43" y="73.88" text-anchor="middle" dominant-baseline="middle" fill="#333">0..1</text>
     </g>
   </g>

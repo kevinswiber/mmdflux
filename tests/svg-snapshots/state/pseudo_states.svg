@@ -39,7 +39,9 @@
       <path d="M153.85,591.00 L153.85,597.40 Q153.85,602.40 148.85,602.40 L122.80,602.40 Q117.80,602.40 117.80,607.40 L117.80,637.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="29.39" y="446.50" width="33.61" height="28.00" fill="white" />
       <text x="46.20" y="460.50" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="160.06" y="475.50" width="25.08" height="28.00" fill="white" />
       <text x="172.60" y="489.50" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>

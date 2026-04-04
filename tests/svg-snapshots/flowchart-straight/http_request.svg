@@ -29,9 +29,13 @@
       <path d="M352.16,632.20 L437.49,632.20 L437.49,35.00 L320.89,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="211.44" y="85.00" width="109.71" height="28.00" fill="white" />
       <text x="266.29" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Request</text>
+      <rect x="146.53" y="427.85" width="33.98" height="28.00" fill="white" />
       <text x="163.52" y="441.85" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <rect x="299.90" y="435.86" width="25.45" height="28.00" fill="white" />
       <text x="312.62" y="449.86" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
+      <rect x="377.07" y="301.97" width="120.84" height="28.00" fill="white" />
       <text x="437.49" y="315.97" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
     </g>
   </g>

@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use super::text::{TextRenderStyle, render_text_centered};
+use super::text::{BackgroundStyle, TextRenderStyle, render_text_centered};
 use super::{GraphSvgPalette, Point, dynamic_css_attrs};
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::measure::ProportionalTextMetrics;
@@ -114,6 +114,15 @@ pub(super) fn render_edge_labels(
         "graph-edge-text",
         &["fill:var(--_text);"],
     );
+    let bg_dynamic_attrs = dynamic_css_attrs(
+        palette.dynamic_css,
+        "graph-edge-label-bg",
+        &["fill:var(--bg);"],
+    );
+    let bg_style = BackgroundStyle {
+        fill: &palette.edge_label_background,
+        extra_attrs: bg_dynamic_attrs.as_str(),
+    };
 
     writer.start_group("edgeLabels");
 
@@ -169,6 +178,10 @@ pub(super) fn render_edge_labels(
             TextRenderStyle {
                 color: &palette.edge_label_text,
                 extra_attrs: dynamic_attrs.as_str(),
+                background: Some(BackgroundStyle {
+                    fill: bg_style.fill,
+                    extra_attrs: bg_style.extra_attrs,
+                }),
             },
         );
     }
@@ -202,6 +215,10 @@ pub(super) fn render_edge_labels(
                 TextRenderStyle {
                     color: &palette.edge_label_text,
                     extra_attrs: dynamic_attrs.as_str(),
+                    background: Some(BackgroundStyle {
+                        fill: bg_style.fill,
+                        extra_attrs: bg_style.extra_attrs,
+                    }),
                 },
             );
         }
@@ -218,6 +235,10 @@ pub(super) fn render_edge_labels(
                 TextRenderStyle {
                     color: &palette.edge_label_text,
                     extra_attrs: dynamic_attrs.as_str(),
+                    background: Some(BackgroundStyle {
+                        fill: bg_style.fill,
+                        extra_attrs: bg_style.extra_attrs,
+                    }),
                 },
             );
         }

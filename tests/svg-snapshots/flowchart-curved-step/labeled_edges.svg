@@ -25,10 +25,15 @@
       <path d="M327.04,512.80 L339.04,512.80 L339.04,485.73 C339.04,458.67 339.04,404.53 339.04,350.40 C339.04,296.27 339.04,242.13 339.04,215.07 L339.04,188.00 L162.58,188.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="72.71" y="85.00" width="71.29" height="28.00" fill="white" />
       <text x="108.35" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">initialize</text>
+      <rect x="55.61" y="236.00" width="75.74" height="28.00" fill="white" />
       <text x="93.49" y="250.00" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
+      <rect x="49.96" y="395.30" width="33.61" height="28.00" fill="white" />
       <text x="66.77" y="409.30" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="219.05" y="348.23" width="25.08" height="28.00" fill="white" />
       <text x="231.58" y="362.23" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="317.59" y="252.17" width="42.89" height="28.00" fill="white" />
       <text x="339.04" y="266.17" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>

@@ -22,7 +22,9 @@
       <path d="M277.44,403.36 L287.44,403.36 L287.44,35.00 L145.62,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
+      <rect x="61.46" y="307.23" width="33.98" height="28.00" fill="white" />
       <text x="78.46" y="321.23" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <rect x="162.02" y="293.62" width="25.45" height="28.00" fill="white" />
       <text x="174.74" y="307.62" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
     </g>
   </g>
