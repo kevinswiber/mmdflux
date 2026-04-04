@@ -293,7 +293,7 @@ pub(in crate::graph::routing) fn node_in_scope(
     node_parent == parent_id
 }
 
-pub(super) fn has_backward_corridor_obstructions(
+pub(in crate::graph::routing) fn has_backward_corridor_obstructions(
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
@@ -358,7 +358,10 @@ pub(crate) fn build_backward_orthogonal_channel_path(
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
+    corridor_lane_slot: Option<usize>,
 ) -> Option<Vec<FPoint>> {
+    use super::super::backward_deconflict::LANE_SPACING;
+
     const CHANNEL_CLEARANCE: f64 = 12.0;
 
     let from_node = geometry.nodes.get(&edge.from)?;
@@ -366,6 +369,8 @@ pub(crate) fn build_backward_orthogonal_channel_path(
     let tr = geometry.nodes.get(&edge.to)?.rect;
     let scope_parent = from_node.parent.as_deref();
     let sg_rect = shared_parent_subgraph_rect(edge, geometry);
+
+    let slot_offset = corridor_lane_slot.unwrap_or(0) as f64 * LANE_SPACING;
 
     match direction {
         Direction::TopDown | Direction::BottomTop => {
@@ -391,6 +396,7 @@ pub(crate) fn build_backward_orthogonal_channel_path(
                     lane_x = lane_x.max(node_right + CHANNEL_CLEARANCE);
                 }
             }
+            lane_x += slot_offset;
             // Cap at subgraph right boundary when both endpoints share a parent.
             if let Some(sg) = sg_rect {
                 lane_x = lane_x.min(sg.x + sg.width - CHANNEL_CLEARANCE);
@@ -428,6 +434,7 @@ pub(crate) fn build_backward_orthogonal_channel_path(
                     lane_y = lane_y.max(node_bottom + CHANNEL_CLEARANCE);
                 }
             }
+            lane_y += slot_offset;
             // Cap at subgraph bottom boundary when both endpoints share a parent.
             if let Some(sg) = sg_rect {
                 lane_y = lane_y.min(sg.y + sg.height - CHANNEL_CLEARANCE);
@@ -1855,6 +1862,10 @@ pub(super) struct BackwardFinalizeOptions<'a> {
     pub(super) source_face_override: Option<Face>,
     pub(super) target_face_override: Option<Face>,
     pub(super) base_finalized: &'a [FPoint],
+    /// Corridor lane slot assigned by the deconfliction pre-pass.
+    /// `Some(n)` when this edge shares a corridor compartment with
+    /// other backward edges and needs offset `n * LANE_SPACING`.
+    pub(super) corridor_lane_slot: Option<usize>,
 }
 
 pub(super) fn finalize_backward_path(
@@ -1869,6 +1880,7 @@ pub(super) fn finalize_backward_path(
         source_face_override,
         target_face_override,
         base_finalized,
+        corridor_lane_slot,
     } = options;
     let mut compact_short_backward = false;
     let use_channel_path = geometry.enhanced_backward_routing
@@ -1876,7 +1888,7 @@ pub(super) fn finalize_backward_path(
 
     if use_channel_path {
         if let Some(channel_path) =
-            build_backward_orthogonal_channel_path(edge, geometry, direction)
+            build_backward_orthogonal_channel_path(edge, geometry, direction, corridor_lane_slot)
         {
             *path = channel_path;
         }

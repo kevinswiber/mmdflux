@@ -65,6 +65,11 @@ pub fn route_edges_orthogonal(
         fan::fan_in_target_overflow_context(geometry, geometry.direction, diagram.edges.len());
     let fan_out_source_stagger =
         fan::fan_out_source_stagger_context(geometry, geometry.direction, diagram.edges.len());
+    let backward_corridor_ctx =
+        super::backward_deconflict::compute_backward_corridor_context_orthogonal(
+            geometry,
+            geometry.direction,
+        );
     let override_nodes = build_override_node_map(diagram);
     let mut routed: Vec<RoutedEdgeGeometry> = geometry
         .edges
@@ -112,6 +117,7 @@ pub fn route_edges_orthogonal(
                 .targets_with_backward_inbound
                 .contains(&edge.to);
             let rank_span = fan::edge_rank_span(geometry, edge).unwrap_or(0);
+            let corridor_lane_slot = backward_corridor_ctx.slot_for(edge.index).map(|s| s.slot);
             let (mut path, target_transit_avoided) = build_orthogonal_path(
                 edge,
                 geometry,
@@ -125,6 +131,7 @@ pub fn route_edges_orthogonal(
                 target_overflowed,
                 target_has_backward_conflict,
                 rank_span,
+                corridor_lane_slot,
             );
 
             // Offset backward edge source port from the forward arrival port
@@ -234,6 +241,7 @@ fn build_orthogonal_path(
     target_overflowed: bool,
     target_has_backward_conflict: bool,
     rank_span: usize,
+    corridor_lane_slot: Option<usize>,
 ) -> (Vec<FPoint>, bool) {
     let (backward_source_face_override, backward_target_face_override) =
         backward::backward_td_bt_face_overrides(
@@ -388,6 +396,7 @@ fn build_orthogonal_path(
                 source_face_override: backward_source_face_override,
                 target_face_override: backward_target_face_override,
                 base_finalized: &base_finalized,
+                corridor_lane_slot,
             },
         );
     }

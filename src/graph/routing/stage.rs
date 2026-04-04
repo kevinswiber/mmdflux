@@ -1,5 +1,6 @@
 //! Graph-family route execution and path shaping helpers.
 
+use super::backward_deconflict;
 use super::float_core::compute_port_attachments_from_geometry;
 use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
 use super::orthogonal::{OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal};
@@ -48,30 +49,13 @@ pub fn route_graph_geometry(
             edges
         }
         EdgeRouting::DirectRoute | EdgeRouting::EngineProvided | EdgeRouting::PolylineRoute => {
-            let backward_lane_indices: Vec<usize> = {
-                let mut counter = 0usize;
-                geometry
-                    .edges
-                    .iter()
-                    .map(|edge| {
-                        if geometry.reversed_edges.contains(&edge.index)
-                            && geometry.enhanced_backward_routing
-                        {
-                            let idx = counter;
-                            counter += 1;
-                            idx
-                        } else {
-                            0
-                        }
-                    })
-                    .collect()
-            };
+            let backward_corridor_ctx =
+                backward_deconflict::compute_backward_corridor_context(geometry, diagram.direction);
 
             geometry
                 .edges
                 .iter()
-                .enumerate()
-                .map(|(i, edge)| {
+                .map(|edge| {
                     let edge_direction = effective_edge_direction(
                         &geometry.node_directions,
                         &edge.from,
@@ -107,7 +91,7 @@ pub fn route_graph_geometry(
                             edge,
                             geometry,
                             edge_direction,
-                            backward_lane_indices[i],
+                            backward_corridor_ctx.slot_for(edge.index),
                         )
                     } else if needs_short_offset {
                         apply_short_backward_port_offset(path, edge, geometry, edge_direction)
@@ -349,10 +333,11 @@ pub(crate) fn build_backward_channel_path(
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
-    backward_lane_index: usize,
+    corridor_slot: Option<&backward_deconflict::BackwardCorridorSlot>,
 ) -> Vec<FPoint> {
+    use super::backward_deconflict::LANE_SPACING;
+
     const CHANNEL_CLEARANCE: f64 = 8.0;
-    const LANE_SPACING: f64 = 8.0;
 
     let from_node = geometry.nodes.get(&edge.from);
     let to_node = geometry.nodes.get(&edge.to);
@@ -366,8 +351,6 @@ pub(crate) fn build_backward_channel_path(
     let scope_parent = from_node.and_then(|n| n.parent.as_deref());
     let sg_rect = super::orthogonal::backward::shared_parent_subgraph_rect(edge, geometry);
 
-    let lane_offset = CHANNEL_CLEARANCE + (backward_lane_index as f64) * LANE_SPACING;
-
     match direction {
         Direction::TopDown | Direction::BottomTop => {
             let source_face_x = sr.x + sr.width;
@@ -375,25 +358,37 @@ pub(crate) fn build_backward_channel_path(
             let source_cy = sr.center_y();
             let target_cy = tr.center_y();
 
-            let face_envelope = source_face_x.max(target_face_x);
-            let (min_y, max_y) = source_target_rank_range_y(from_rect, to_rect);
-            let mut lane_x = face_envelope + lane_offset;
-            for node in geometry.nodes.values() {
-                if node.id == edge.from || node.id == edge.to {
-                    continue;
+            let lane_x = if let Some(slot) = corridor_slot {
+                // Use pre-computed compartment base lane + per-edge slot offset.
+                let mut lx = slot.base_lane + (slot.slot as f64) * LANE_SPACING;
+                if let Some(sg) = sg_rect {
+                    lx = lx.min(sg.x + sg.width - CHANNEL_CLEARANCE);
                 }
-                if !super::orthogonal::backward::node_in_scope(&node.id, scope_parent, geometry) {
-                    continue;
+                lx
+            } else {
+                // Fallback: independent computation (single backward edge).
+                let face_envelope = source_face_x.max(target_face_x);
+                let (min_y, max_y) = source_target_rank_range_y(from_rect, to_rect);
+                let mut lx = face_envelope + CHANNEL_CLEARANCE;
+                for node in geometry.nodes.values() {
+                    if node.id == edge.from || node.id == edge.to {
+                        continue;
+                    }
+                    if !super::orthogonal::backward::node_in_scope(&node.id, scope_parent, geometry)
+                    {
+                        continue;
+                    }
+                    let cy = node.rect.center_y();
+                    let node_right = node.rect.x + node.rect.width;
+                    if cy >= min_y && cy <= max_y {
+                        lx = lx.max(node_right + CHANNEL_CLEARANCE);
+                    }
                 }
-                let cy = node.rect.center_y();
-                let node_right = node.rect.x + node.rect.width;
-                if cy >= min_y && cy <= max_y {
-                    lane_x = lane_x.max(node_right + lane_offset);
+                if let Some(sg) = sg_rect {
+                    lx = lx.min(sg.x + sg.width - CHANNEL_CLEARANCE);
                 }
-            }
-            if let Some(sg) = sg_rect {
-                lane_x = lane_x.min(sg.x + sg.width - CHANNEL_CLEARANCE);
-            }
+                lx
+            };
 
             vec![
                 FPoint::new(source_face_x, source_cy),
@@ -408,27 +403,37 @@ pub(crate) fn build_backward_channel_path(
             let source_cx = sr.center_x();
             let target_cx = tr.center_x();
 
-            let face_envelope = source_face_y.max(target_face_y);
-            let corridor_top = sr.y.min(tr.y);
-            let (min_x, max_x) = source_target_rank_range_x(from_rect, to_rect);
-            let mut lane_y = face_envelope + lane_offset;
-            for node in geometry.nodes.values() {
-                if node.id == edge.from || node.id == edge.to {
-                    continue;
+            let lane_y = if let Some(slot) = corridor_slot {
+                let mut ly = slot.base_lane + (slot.slot as f64) * LANE_SPACING;
+                if let Some(sg) = sg_rect {
+                    ly = ly.min(sg.y + sg.height - CHANNEL_CLEARANCE);
                 }
-                if !super::orthogonal::backward::node_in_scope(&node.id, scope_parent, geometry) {
-                    continue;
+                ly
+            } else {
+                let face_envelope = source_face_y.max(target_face_y);
+                let corridor_top = sr.y.min(tr.y);
+                let (min_x, max_x) = source_target_rank_range_x(from_rect, to_rect);
+                let mut ly = face_envelope + CHANNEL_CLEARANCE;
+                for node in geometry.nodes.values() {
+                    if node.id == edge.from || node.id == edge.to {
+                        continue;
+                    }
+                    if !super::orthogonal::backward::node_in_scope(&node.id, scope_parent, geometry)
+                    {
+                        continue;
+                    }
+                    let cx = node.rect.center_x();
+                    let node_bottom = node.rect.y + node.rect.height;
+                    if cx >= min_x && cx <= max_x && node.rect.y < ly && node_bottom > corridor_top
+                    {
+                        ly = ly.max(node_bottom + CHANNEL_CLEARANCE);
+                    }
                 }
-                let cx = node.rect.center_x();
-                let node_bottom = node.rect.y + node.rect.height;
-                if cx >= min_x && cx <= max_x && node.rect.y < lane_y && node_bottom > corridor_top
-                {
-                    lane_y = lane_y.max(node_bottom + lane_offset);
+                if let Some(sg) = sg_rect {
+                    ly = ly.min(sg.y + sg.height - CHANNEL_CLEARANCE);
                 }
-            }
-            if let Some(sg) = sg_rect {
-                lane_y = lane_y.min(sg.y + sg.height - CHANNEL_CLEARANCE);
-            }
+                ly
+            };
 
             vec![
                 FPoint::new(source_cx, source_face_y),

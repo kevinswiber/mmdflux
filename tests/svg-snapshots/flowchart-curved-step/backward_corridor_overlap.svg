@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 227.82 278.00" style="max-width: 227.82px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="nodes">
+      <rect x="126.91" y="8.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="161.36" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      <rect x="8.00" y="112.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="42.45" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+      <rect x="126.91" y="112.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="161.36" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      <rect x="67.45" y="216.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="101.91" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M134.91,62.00 L134.91,64.78 C134.91,67.56 134.91,73.11 123.91,78.11 C112.91,83.11 90.91,87.56 79.91,92.44 C68.91,97.33 68.91,102.67 68.91,105.33 L68.91,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M187.82,62.00 L187.82,64.78 C187.82,67.56 187.82,73.11 183.41,78.11 C179.00,83.11 170.18,87.56 165.77,92.44 C161.36,97.33 161.36,102.67 161.36,105.33 L161.36,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M57.89,166.00 L57.89,168.78 C57.89,171.56 57.89,177.11 60.82,182.11 C63.74,187.11 69.60,191.56 72.53,196.44 C75.45,201.33 75.45,206.67 75.45,209.33 L75.45,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M145.93,166.00 L145.93,168.78 C145.93,171.56 145.93,177.11 143.00,182.11 C140.07,187.11 134.22,191.56 131.29,196.44 C128.36,201.33 128.36,206.67 128.36,209.33 L128.36,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M136.36,243.00 L219.82,243.00 L219.82,225.67 C219.82,208.33 219.82,173.67 219.82,139.00 C219.82,104.33 219.82,69.67 219.82,52.33 L219.82,35.00 L199.82,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M136.36,243.00 L207.82,243.00 L207.82,234.33 C207.82,225.67 207.82,208.33 207.82,191.00 C207.82,173.67 207.82,156.33 207.82,147.67 L207.82,139.00 L80.91,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="edgeLabels">
+    </g>
+  </g>
+</svg>

@@ -7,6 +7,7 @@
 //! - `EngineProvided`: Use engine-provided paths directly.
 //! - `OrthogonalRoute`: Produce axis-aligned (right-angle) edge paths.
 
+pub(crate) mod backward_deconflict;
 mod float_core;
 mod labels;
 mod orthogonal;
@@ -487,6 +488,7 @@ mod tests {
             &geom.edges[0],
             &geom,
             crate::graph::Direction::TopDown,
+            None,
         )
         .expect("backward channel path should be constructed");
 
@@ -498,6 +500,131 @@ mod tests {
                 FPoint::new(72.0, 10.0),
                 FPoint::new(40.0, 10.0),
             ]
+        );
+    }
+
+    #[test]
+    fn backward_corridor_deconflict_assigns_distinct_lanes_td() {
+        use super::backward_deconflict;
+
+        // Two backward edges (C→A and C→B) share the same corridor in TD.
+        // Node Mid sits between source and targets, creating obstructions.
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(0.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(60.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "Mid".into(),
+            PositionedNode {
+                id: "Mid".into(),
+                rect: FRect::new(20.0, 45.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "Mid".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "C".into(),
+            PositionedNode {
+                id: "C".into(),
+                rect: FRect::new(30.0, 100.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "C".into(),
+                parent: None,
+            },
+        );
+
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![
+                LayoutEdge {
+                    index: 0,
+                    from: "C".into(),
+                    to: "A".into(),
+                    waypoints: vec![],
+                    label_position: None,
+                    label_side: None,
+                    from_subgraph: None,
+                    to_subgraph: None,
+                    layout_path_hint: None,
+                    preserve_orthogonal_topology: false,
+                },
+                LayoutEdge {
+                    index: 1,
+                    from: "C".into(),
+                    to: "B".into(),
+                    waypoints: vec![],
+                    label_position: None,
+                    label_side: None,
+                    from_subgraph: None,
+                    to_subgraph: None,
+                    layout_path_hint: None,
+                    preserve_orthogonal_topology: false,
+                },
+            ],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(0.0, 0.0, 120.0, 120.0),
+            reversed_edges: vec![0, 1],
+            engine_hints: None,
+            grid_projection: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: true,
+        };
+
+        let ctx = backward_deconflict::compute_backward_corridor_context(
+            &geom,
+            crate::graph::Direction::TopDown,
+        );
+
+        // Both edges should be in the context with distinct slots.
+        let slot0 = ctx.slot_for(0).expect("edge 0 should have a corridor slot");
+        let slot1 = ctx.slot_for(1).expect("edge 1 should have a corridor slot");
+
+        // They share the same base lane but have different slot indices.
+        assert_eq!(slot0.base_lane, slot1.base_lane);
+        assert_ne!(slot0.slot, slot1.slot);
+
+        // Verify the orthogonal channel paths produce distinct corridors.
+        let path0 = super::orthogonal::backward::build_backward_orthogonal_channel_path(
+            &geom.edges[0],
+            &geom,
+            crate::graph::Direction::TopDown,
+            Some(slot0.slot),
+        )
+        .expect("path for edge 0");
+
+        let path1 = super::orthogonal::backward::build_backward_orthogonal_channel_path(
+            &geom.edges[1],
+            &geom,
+            crate::graph::Direction::TopDown,
+            Some(slot1.slot),
+        )
+        .expect("path for edge 1");
+
+        // The corridor lane x-coordinates (path[1].x) must differ.
+        assert_ne!(
+            path0[1].x, path1[1].x,
+            "backward corridors must have distinct lane positions"
         );
     }
 
