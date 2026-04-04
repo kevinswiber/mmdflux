@@ -492,6 +492,10 @@ fn flux_layout_profile_all_routing_styles_use_enhanced_profile() {
             profile.always_compound_ordering,
             "{routing:?} profile should always use compound ordering sweeps"
         );
+        assert!(
+            profile.backward_edge_side_grouping,
+            "{routing:?} profile should enable backward_edge_side_grouping"
+        );
     }
 }
 
@@ -522,9 +526,16 @@ fn adaptive_reversed_chain_policy_relaxes_for_inline_label_crowding() {
             adapt_flux_profile_for_reversed_chain_crowding(&mode, &diagram, routing, &profile)
                 .expect("adaptive profile should succeed");
 
+        // With VEIL backward-edge side grouping active, the crowding that
+        // previously triggered relaxation is eliminated by moving backward
+        // dummies to the right side. The adapted profile preserves both flags.
         assert!(
-            !adapted.track_reversed_chains,
-            "{routing:?} should relax reversed-chain tracking for inline_label_flowchart crowding"
+            adapted.track_reversed_chains,
+            "{routing:?} should preserve reversed-chain tracking (VEIL reduces crowding)"
+        );
+        assert!(
+            adapted.backward_edge_side_grouping,
+            "{routing:?} should preserve backward_edge_side_grouping (VEIL reduces crowding)"
         );
     }
 }

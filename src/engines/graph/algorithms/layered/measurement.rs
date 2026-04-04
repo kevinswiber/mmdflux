@@ -127,6 +127,7 @@ pub fn run_layered_layout(
     lc.per_edge_label_spacing = layered_cfg.per_edge_label_spacing;
     lc.label_side_selection = layered_cfg.label_side_selection;
     lc.label_dummy_strategy = layered_cfg.label_dummy_strategy;
+    lc.backward_edge_side_grouping = layered_cfg.backward_edge_side_grouping;
 
     let direction = diagram.direction;
     let mut result = match mode {

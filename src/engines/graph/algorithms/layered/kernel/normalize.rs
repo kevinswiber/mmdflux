@@ -147,6 +147,7 @@ pub(crate) fn run(
         new_chain_weights.push(1.0);
         new_chain_is_reversed.push(is_reversed);
 
+        chain.reversed = is_reversed;
         graph.dummy_chains.push(chain);
     }
 
@@ -826,6 +827,59 @@ mod tests {
             "All 3 chain edges from the reversed long edge should be in reversed_edges, \
              got {} reversed edges total",
             chain_edge_count
+        );
+    }
+
+    #[test]
+    fn reversed_long_edge_chain_is_marked_reversed() {
+        // Graph: A -> B -> C -> D, and D -> A (backward edge spanning 3 ranks).
+        // After acyclic, D -> A is reversed. The resulting dummy chain should have reversed=true.
+        let mut lg = create_test_graph(
+            &["A", "B", "C", "D"],
+            &[("A", "B"), ("B", "C"), ("C", "D"), ("D", "A")],
+        );
+        acyclic::run(&mut lg);
+        rank::run(&mut lg, &LayoutConfig::default());
+        rank::normalize(&mut lg);
+
+        let edge_labels = HashMap::new();
+        run(&mut lg, &edge_labels, false);
+
+        assert_eq!(
+            lg.dummy_chains.len(),
+            1,
+            "one long edge should be normalized"
+        );
+        assert!(
+            lg.dummy_chains[0].reversed,
+            "chain from reversed edge should have reversed=true"
+        );
+    }
+
+    #[test]
+    fn forward_long_edge_chain_is_not_marked_reversed() {
+        // Graph: A -> B -> C -> D and A -> D (forward, spanning 3 ranks).
+        // A -> D is forward, so its chain should have reversed=false.
+        let mut lg = create_test_graph(
+            &["A", "B", "C", "D"],
+            &[("A", "B"), ("B", "C"), ("C", "D"), ("A", "D")],
+        );
+        acyclic::run(&mut lg);
+        rank::run(&mut lg, &LayoutConfig::default());
+        rank::normalize(&mut lg);
+
+        let edge_labels = HashMap::new();
+        run(&mut lg, &edge_labels, false);
+
+        // A -> D spans 3 ranks and is forward
+        let forward_chain = lg
+            .dummy_chains
+            .iter()
+            .find(|c| !c.reversed)
+            .expect("should have a forward chain");
+        assert!(
+            !forward_chain.reversed,
+            "chain from forward edge should have reversed=false"
         );
     }
 }

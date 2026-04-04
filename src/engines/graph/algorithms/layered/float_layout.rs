@@ -37,6 +37,7 @@ pub(crate) fn build_float_layout_with_flags(
         layered_config.per_edge_label_spacing = flags.per_edge_label_spacing;
         layered_config.label_side_selection = flags.label_side_selection;
         layered_config.label_dummy_strategy = flags.label_dummy_strategy;
+        layered_config.backward_edge_side_grouping = flags.backward_edge_side_grouping;
     }
     let mut layout = build_layered_layout_with_config(
         diagram,

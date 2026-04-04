@@ -120,6 +120,7 @@ pub struct LayoutConfig {
     pub label_side_selection: bool,
     pub label_dummy_strategy: LabelDummyStrategy,
     pub edge_label_spacing: f64,
+    pub backward_edge_side_grouping: bool,
 }
 
 impl Default for LayoutConfig {
@@ -142,6 +143,7 @@ impl Default for LayoutConfig {
             label_side_selection: false,
             label_dummy_strategy: LabelDummyStrategy::default(),
             edge_label_spacing: 2.0,
+            backward_edge_side_grouping: false,
         }
     }
 }
@@ -175,6 +177,7 @@ impl From<LayoutConfig> for crate::engines::graph::algorithms::layered::LayoutCo
             label_side_selection: value.label_side_selection,
             label_dummy_strategy: value.label_dummy_strategy.into(),
             edge_label_spacing: value.edge_label_spacing,
+            backward_edge_side_grouping: value.backward_edge_side_grouping,
         }
     }
 }
@@ -205,6 +208,7 @@ impl From<crate::engines::graph::algorithms::layered::LayoutConfig> for LayoutCo
             label_side_selection: value.label_side_selection,
             label_dummy_strategy: value.label_dummy_strategy.into(),
             edge_label_spacing: value.edge_label_spacing,
+            backward_edge_side_grouping: value.backward_edge_side_grouping,
         }
     }
 }

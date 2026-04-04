@@ -38,6 +38,7 @@ pub(crate) fn flux_layout_profile(
         per_edge_label_spacing: true,
         label_side_selection: true,
         label_dummy_strategy: LabelDummyStrategy::WidestLayer,
+        backward_edge_side_grouping: true,
         ..input_cfg.clone()
     }
 }
@@ -207,6 +208,7 @@ pub(crate) fn adapt_flux_profile_for_reversed_chain_crowding(
 
     let mut relaxed = profile.clone();
     relaxed.track_reversed_chains = false;
+    relaxed.backward_edge_side_grouping = false;
     let relaxed_cfg = EngineConfig::Layered(relaxed.clone());
     let relaxed_geometry = run_layered_layout(mode, diagram, &relaxed_cfg)?;
     let relaxed_score = edge_crowding_score(diagram, &relaxed_geometry, edge_routing);

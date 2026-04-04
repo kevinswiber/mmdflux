@@ -483,6 +483,7 @@ fn get_border_predecessor_order(
 /// Recursively sort nodes within a compound parent at a given rank.
 ///
 /// Matches dagre's sort-subgraph.js: sortSubgraph(g, v, cg, biasRight).
+#[allow(clippy::too_many_arguments)]
 fn sort_subgraph(
     graph: &LayoutGraph,
     parent: Option<usize>,
@@ -491,20 +492,30 @@ fn sort_subgraph(
     fixed_layer_nodes: &[usize],
     cg: &ConstraintGraph,
     bias_right: bool,
+    backward_dummies: &HashSet<usize>,
 ) -> SortResult {
     // 1. Get children of parent at this rank
     let children = get_children_at_rank(graph, parent, rank);
 
-    // 2. Identify and strip border nodes
+    // 2. Identify and strip border nodes + backward dummies
     let (bl, br) = get_borders_at_rank(graph, parent, rank);
+    let pinned_backward: Vec<usize> = children
+        .iter()
+        .copied()
+        .filter(|n| backward_dummies.contains(n))
+        .collect();
     let movable: Vec<usize> = if let (Some(bl_node), Some(br_node)) = (bl, br) {
         children
             .iter()
             .copied()
-            .filter(|&n| n != bl_node && n != br_node)
+            .filter(|&n| n != bl_node && n != br_node && !backward_dummies.contains(&n))
             .collect()
     } else {
         children
+            .iter()
+            .copied()
+            .filter(|n| !backward_dummies.contains(n))
+            .collect()
     };
 
     // 3. Compute barycenters for movable nodes
@@ -522,6 +533,7 @@ fn sort_subgraph(
                 fixed_layer_nodes,
                 cg,
                 bias_right,
+                backward_dummies,
             );
             if let Some(sub_bc) = sub_result.barycenter {
                 merge_barycenters(entry, sub_bc, sub_result.weight.unwrap_or(0.0));
@@ -538,6 +550,13 @@ fn sort_subgraph(
 
     // 7. Sort
     let mut result = sort_entries(&resolved, bias_right, graph);
+
+    // 7b. Append pinned backward dummies after sorted movable nodes
+    if !pinned_backward.is_empty() {
+        let mut pb_sorted = pinned_backward;
+        pb_sorted.sort_by_key(|&n| graph.order[n]);
+        result.vs.extend(pb_sorted);
+    }
 
     // 8. Re-insert borders and compute aggregate barycenter
     if let (Some(bl_node), Some(br_node)) = (bl, br) {
@@ -652,7 +671,7 @@ pub(crate) fn effective_edges_weighted_filtered(graph: &LayoutGraph) -> Vec<(usi
 /// for crossing minimization than arbitrary insertion order.
 ///
 /// Reference: Gansner et al., "A Technique for Drawing Directed Graphs"
-fn init_order(graph: &mut LayoutGraph, layers: &[Vec<usize>]) {
+fn init_order(graph: &mut LayoutGraph, layers: &[Vec<usize>], backward_dummies: &HashSet<usize>) {
     let edges = effective_edges_weighted_filtered(graph);
     let n = graph.node_ids.len();
 
@@ -709,6 +728,30 @@ fn init_order(graph: &mut LayoutGraph, layers: &[Vec<usize>]) {
             }
         }
     }
+
+    // Post-DFS: push backward dummies to the end (highest order) of each rank.
+    // This is VEIL's pre-sorting phase. Relative order within each group
+    // (forward and backward) is preserved for chain coherence.
+    if !backward_dummies.is_empty() {
+        for layer in layers {
+            let mut sorted: Vec<usize> = layer.clone();
+            sorted.sort_by_key(|&n| graph.order[n]);
+
+            let mut non_backward = Vec::new();
+            let mut backward = Vec::new();
+            for &node in &sorted {
+                if backward_dummies.contains(&node) {
+                    backward.push(node);
+                } else {
+                    non_backward.push(node);
+                }
+            }
+
+            for (i, &node) in non_backward.iter().chain(backward.iter()).enumerate() {
+                graph.order[node] = i;
+            }
+        }
+    }
 }
 
 /// Build layer vectors sorted by node order.
@@ -720,6 +763,31 @@ fn layers_sorted_by_order(layers: &[Vec<usize>], graph: &LayoutGraph) -> Vec<Vec
     layers
 }
 
+/// Configuration for the ordering phase.
+pub(crate) struct OrderingOptions {
+    pub greedy_switch: bool,
+    pub always_compound_ordering: bool,
+    pub backward_edge_side_grouping: bool,
+}
+
+/// Build a set of node indices for backward-edge dummy nodes.
+///
+/// A dummy node is "backward" if it belongs to a `DummyChain` with `reversed == true`.
+/// This set is computed once at ordering start and passed by reference throughout.
+fn build_backward_dummy_set(graph: &LayoutGraph) -> HashSet<usize> {
+    let mut set = HashSet::new();
+    for chain in &graph.dummy_chains {
+        if chain.reversed {
+            for dummy_id in &chain.dummy_ids {
+                if let Some(&idx) = graph.node_index.get(dummy_id) {
+                    set.insert(idx);
+                }
+            }
+        }
+    }
+    set
+}
+
 /// Run crossing reduction using Dagre-style adaptive ordering.
 ///
 /// Matches Dagre's `order()` function in `lib/order/index.js`:
@@ -728,27 +796,38 @@ fn layers_sorted_by_order(layers: &[Vec<usize>], graph: &LayoutGraph) -> Vec<Vec
 /// - Alternating left/right bias (pattern: false, false, true, true)
 /// - Best-order tracking across iterations
 /// - Terminates after 4 consecutive non-improving iterations
+#[allow(dead_code)] // Used by tests in sibling modules (bk, position, regression_tests)
 pub fn run(graph: &mut LayoutGraph, enable_greedy_switch: bool) {
-    run_with_options(graph, enable_greedy_switch, false);
+    run_with_options(
+        graph,
+        &OrderingOptions {
+            greedy_switch: enable_greedy_switch,
+            always_compound_ordering: false,
+            backward_edge_side_grouping: false,
+        },
+    );
 }
 
-/// Run crossing reduction with optional "always compound" sweep behavior.
+/// Run crossing reduction with structured options.
 ///
-/// When `always_compound_ordering` is `true`, the constraint-graph based
+/// When `options.always_compound_ordering` is `true`, the constraint-graph based
 /// `sort_subgraph` pipeline is used for every sweep, even on flat graphs.
 /// When `false`, flat graphs use the classic `reorder_layer` sweeps.
-pub fn run_with_options(
-    graph: &mut LayoutGraph,
-    enable_greedy_switch: bool,
-    always_compound_ordering: bool,
-) {
+pub fn run_with_options(graph: &mut LayoutGraph, options: &OrderingOptions) {
     let layers = rank::by_rank_filtered(graph, |node| graph.is_position_node(node));
     if layers.len() < 2 {
         return;
     }
 
+    // Build backward dummy index (empty when feature disabled)
+    let backward_dummies = if options.backward_edge_side_grouping {
+        build_backward_dummy_set(graph)
+    } else {
+        HashSet::new()
+    };
+
     // DFS-based initial ordering
-    init_order(graph, &layers);
+    init_order(graph, &layers, &backward_dummies);
     debug_dump_order(graph, "after init_order");
 
     // Rebuild layers sorted by the new DFS order
@@ -765,18 +844,25 @@ pub fn run_with_options(
     // last_best increments every iteration, resets to 0 on strict improvement
     let mut i: usize = 0;
     let mut last_best: usize = 0;
-    let use_compound_sweeps = always_compound_ordering || !graph.compound_nodes.is_empty();
+    let use_compound_sweeps = options.always_compound_ordering || !graph.compound_nodes.is_empty();
 
     while last_best < 4 {
         let bias_right = (i % 4) >= 2;
 
         if use_compound_sweeps {
             let downward = !i.is_multiple_of(2); // odd = down, even = up
-            sweep_compound(graph, &layers, &edges, bias_right, downward);
+            sweep_compound(
+                graph,
+                &layers,
+                &edges,
+                bias_right,
+                downward,
+                &backward_dummies,
+            );
         } else if i.is_multiple_of(2) {
-            sweep_up(graph, &layers, &edges, bias_right);
+            sweep_up(graph, &layers, &edges, bias_right, &backward_dummies);
         } else {
-            sweep_down(graph, &layers, &edges, bias_right);
+            sweep_down(graph, &layers, &edges, bias_right, &backward_dummies);
         }
 
         let cc = count_all_crossings(graph, &layers, &edges);
@@ -814,14 +900,14 @@ pub fn run_with_options(
     }
 
     // Post-pass: greedy switch refinement (two-sided, never increases crossings)
-    if enable_greedy_switch {
+    if options.greedy_switch {
         if debug_order() {
             let before = count_all_crossings(graph, &layers, &edges);
-            greedy_switch(graph, &layers, &edges);
+            greedy_switch(graph, &layers, &edges, &backward_dummies);
             let after = count_all_crossings(graph, &layers, &edges);
             eprintln!("[order] greedy_switch: {before} -> {after} crossings");
         } else {
-            greedy_switch(graph, &layers, &edges);
+            greedy_switch(graph, &layers, &edges, &backward_dummies);
         }
     }
 
@@ -839,6 +925,7 @@ fn sweep_compound(
     edges: &[(usize, usize, f64)],
     bias_right: bool,
     downward: bool,
+    backward_dummies: &HashSet<usize>,
 ) {
     let mut cg = ConstraintGraph::new();
 
@@ -891,6 +978,7 @@ fn sweep_compound(
             fixed_layer,
             &cg,
             bias_right,
+            backward_dummies,
         );
 
         // Assign order from sorted result
@@ -907,11 +995,20 @@ fn sweep_down(
     layers: &[Vec<usize>],
     edges: &[(usize, usize, f64)],
     bias_right: bool,
+    backward_dummies: &HashSet<usize>,
 ) {
     for i in 1..layers.len() {
         let fixed = &layers[i - 1];
         let free = &layers[i];
-        reorder_layer(graph, fixed, free, edges, true, bias_right);
+        reorder_layer(
+            graph,
+            fixed,
+            free,
+            edges,
+            true,
+            bias_right,
+            backward_dummies,
+        );
     }
 }
 
@@ -920,11 +1017,20 @@ fn sweep_up(
     layers: &[Vec<usize>],
     edges: &[(usize, usize, f64)],
     bias_right: bool,
+    backward_dummies: &HashSet<usize>,
 ) {
     for i in (0..layers.len() - 1).rev() {
         let fixed = &layers[i + 1];
         let free = &layers[i];
-        reorder_layer(graph, fixed, free, edges, false, bias_right);
+        reorder_layer(
+            graph,
+            fixed,
+            free,
+            edges,
+            false,
+            bias_right,
+            backward_dummies,
+        );
     }
 }
 
@@ -940,12 +1046,20 @@ fn reorder_layer(
     edges: &[(usize, usize, f64)],
     downward: bool,
     bias_right: bool,
+    backward_dummies: &HashSet<usize>,
 ) {
+    // Partition backward dummies out of the movable set (VEIL pinning).
+    // They retain their rightmost positions and are re-appended after sorting.
+    let (pinned, movable): (Vec<usize>, Vec<usize>) = free
+        .iter()
+        .copied()
+        .partition(|n| backward_dummies.contains(n));
+
     // Step 1: Compute weighted barycenters, partition into sortable/unsortable
     let mut sortable: Vec<(usize, f64, usize)> = Vec::new(); // (node, barycenter, original_pos)
     let mut unsortable: Vec<(usize, usize)> = Vec::new(); // (node, original_pos)
 
-    for (original_pos, &node) in free.iter().enumerate() {
+    for (original_pos, &node) in movable.iter().enumerate() {
         let neighbor_weights: Vec<(usize, f64)> = if downward {
             edges
                 .iter()
@@ -1028,6 +1142,13 @@ fn reorder_layer(
     // Drain any remaining unsortable entries
     while let Some((node, _)) = unsortable.pop() {
         result.push(node);
+    }
+
+    // Append pinned backward dummies at the end, preserving their relative order
+    if !pinned.is_empty() {
+        let mut pinned_sorted = pinned;
+        pinned_sorted.sort_by_key(|&n| graph.order[n]);
+        result.extend(pinned_sorted);
     }
 
     // Step 5: Assign new order positions
@@ -1207,7 +1328,12 @@ impl AdjacencyIndex {
 /// neighboring layers, guaranteeing no swap increases total crossings.
 ///
 /// Repeats until a full pass makes no improvement.
-fn greedy_switch(graph: &mut LayoutGraph, layers: &[Vec<usize>], edges: &[(usize, usize, f64)]) {
+fn greedy_switch(
+    graph: &mut LayoutGraph,
+    layers: &[Vec<usize>],
+    edges: &[(usize, usize, f64)],
+    backward_dummies: &HashSet<usize>,
+) {
     let adj = AdjacencyIndex::build(graph, edges);
     let mut improved = true;
     while improved {
@@ -1224,6 +1350,11 @@ fn greedy_switch(graph: &mut LayoutGraph, layers: &[Vec<usize>], edges: &[(usize
                 // Skip swaps between nodes with different parents
                 // (preserves subgraph contiguity constraints)
                 if graph.parents[node_a] != graph.parents[node_b] {
+                    continue;
+                }
+
+                // Skip swaps involving backward dummies (VEIL pinning protection)
+                if backward_dummies.contains(&node_a) || backward_dummies.contains(&node_b) {
                     continue;
                 }
 
@@ -1436,7 +1567,7 @@ mod tests {
         let c = lg.node_index[&NodeId::from("C")];
 
         // Left bias (bias_right = false)
-        reorder_layer(&mut lg, fixed, free, &edges, true, false);
+        reorder_layer(&mut lg, fixed, free, &edges, true, false, &HashSet::new());
         let left_order_b = lg.order[b];
         let left_order_c = lg.order[c];
 
@@ -1446,7 +1577,7 @@ mod tests {
         }
 
         // Right bias (bias_right = true)
-        reorder_layer(&mut lg, fixed, free, &edges, true, true);
+        reorder_layer(&mut lg, fixed, free, &edges, true, true, &HashSet::new());
         let right_order_b = lg.order[b];
         let right_order_c = lg.order[c];
 
@@ -1484,7 +1615,7 @@ mod tests {
         rank::normalize(&mut lg);
 
         let layers = rank::by_rank(&lg);
-        init_order(&mut lg, &layers);
+        init_order(&mut lg, &layers, &HashSet::new());
 
         // All nodes should have valid consecutive order values per layer
         let layers = rank::by_rank(&lg);
@@ -1515,7 +1646,7 @@ mod tests {
         rank::normalize(&mut lg);
 
         let layers = rank::by_rank(&lg);
-        init_order(&mut lg, &layers);
+        init_order(&mut lg, &layers, &HashSet::new());
 
         // All nodes should have valid order values, no panics
         let layers = rank::by_rank(&lg);
@@ -1737,7 +1868,7 @@ mod tests {
         let edges = effective_edges_weighted_filtered(&lg);
         let fixed = vec![x, y];
         let free = vec![a, b, c];
-        reorder_layer(&mut lg, &fixed, &free, &edges, true, false);
+        reorder_layer(&mut lg, &fixed, &free, &edges, true, false, &HashSet::new());
 
         assert_eq!(lg.order[a], 0);
         assert_eq!(lg.order[b], 1);
@@ -1813,7 +1944,7 @@ mod tests {
         let fixed = vec![x, y];
         let free = vec![a, b];
 
-        reorder_layer(&mut lg, &fixed, &free, &edges, true, false);
+        reorder_layer(&mut lg, &fixed, &free, &edges, true, false, &HashSet::new());
 
         assert_eq!(
             lg.order[a], 0,
@@ -2449,7 +2580,16 @@ mod tests {
         let fixed = vec![x];
         let cg = ConstraintGraph::new();
 
-        let result = sort_subgraph(&lg, None, lg.ranks[a], &edges, &fixed, &cg, false);
+        let result = sort_subgraph(
+            &lg,
+            None,
+            lg.ranks[a],
+            &edges,
+            &fixed,
+            &cg,
+            false,
+            &HashSet::new(),
+        );
 
         // Both A and B have the same barycenter (0.0), so order by i
         assert_eq!(result.vs.len(), 2);
@@ -2465,7 +2605,7 @@ mod tests {
 
         // Set up initial ordering
         let layers = rank::by_rank_filtered(&lg, |node| lg.is_position_node(node));
-        init_order(&mut lg, &layers);
+        init_order(&mut lg, &layers, &HashSet::new());
         let layers = layers_sorted_by_order(&layers, &lg);
         let edges = effective_edges_weighted_filtered(&lg);
 
@@ -2489,7 +2629,16 @@ mod tests {
             let fixed = &layers[layer_idx - 1];
             let cg = ConstraintGraph::new();
 
-            let result = sort_subgraph(&lg, Some(sg1_idx), rank, &edges, fixed, &cg, false);
+            let result = sort_subgraph(
+                &lg,
+                Some(sg1_idx),
+                rank,
+                &edges,
+                fixed,
+                &cg,
+                false,
+                &HashSet::new(),
+            );
 
             // Border left should be first, border right should be last
             if result.vs.len() >= 2 {
@@ -2874,7 +3023,7 @@ mod tests {
         let before = count_all_crossings(&lg, &layers, &edges);
         assert_eq!(before, 1, "Should have 1 crossing before greedy switch");
 
-        greedy_switch(&mut lg, &layers, &edges);
+        greedy_switch(&mut lg, &layers, &edges, &HashSet::new());
 
         let after = count_all_crossings(&lg, &layers, &edges);
         assert_eq!(after, 0, "Should have 0 crossings after greedy switch");
@@ -2908,7 +3057,7 @@ mod tests {
         let edges = effective_edges_weighted_filtered(&lg);
         let order_before: Vec<usize> = lg.order.clone();
 
-        greedy_switch(&mut lg, &layers, &edges);
+        greedy_switch(&mut lg, &layers, &edges, &HashSet::new());
 
         assert_eq!(
             lg.order, order_before,
@@ -2936,7 +3085,7 @@ mod tests {
         let layers = rank::by_rank_filtered(&lg, |node| lg.is_position_node(node));
         let edges = effective_edges_weighted_filtered(&lg);
 
-        greedy_switch(&mut lg, &layers, &edges);
+        greedy_switch(&mut lg, &layers, &edges, &HashSet::new());
 
         // Verify consecutive orders per layer
         for layer in &layers {
@@ -2974,7 +3123,7 @@ mod tests {
         let edges = effective_edges_weighted_filtered(&lg);
         let before = count_all_crossings(&lg, &layers, &edges);
 
-        greedy_switch(&mut lg, &layers, &edges);
+        greedy_switch(&mut lg, &layers, &edges, &HashSet::new());
 
         let after = count_all_crossings(&lg, &layers, &edges);
         assert!(
@@ -3008,7 +3157,7 @@ mod tests {
         let edges = effective_edges_weighted_filtered(&lg);
 
         // Should terminate (convergence guaranteed since each swap strictly reduces crossings)
-        greedy_switch(&mut lg, &layers, &edges);
+        greedy_switch(&mut lg, &layers, &edges, &HashSet::new());
 
         let cc = count_all_crossings(&lg, &layers, &edges);
         // K_3,3 has minimum crossing number 1; optimal for bipartite layout is 3
@@ -3132,7 +3281,7 @@ mod tests {
         let edges = effective_edges_weighted_filtered(&lg);
 
         let before = count_all_crossings(&lg, &layers, &edges);
-        greedy_switch(&mut lg, &layers, &edges);
+        greedy_switch(&mut lg, &layers, &edges, &HashSet::new());
         let after = count_all_crossings(&lg, &layers, &edges);
 
         // Should still reduce crossings in flat graphs
@@ -3157,7 +3306,7 @@ mod tests {
         rank::normalize(&mut lg);
 
         let layers = rank::by_rank(&lg);
-        init_order(&mut lg, &layers);
+        init_order(&mut lg, &layers, &HashSet::new());
 
         let a = lg.node_index[&NodeId::from("A")];
         let b = lg.node_index[&NodeId::from("B")];
@@ -3185,7 +3334,7 @@ mod tests {
         rank::normalize(&mut lg);
 
         let layers = rank::by_rank(&lg);
-        init_order(&mut lg, &layers);
+        init_order(&mut lg, &layers, &HashSet::new());
 
         let a = lg.node_index[&NodeId::from("A")];
         let b = lg.node_index[&NodeId::from("B")];
@@ -3214,7 +3363,7 @@ mod tests {
         rank::normalize(&mut lg);
 
         let layers = rank::by_rank(&lg);
-        init_order(&mut lg, &layers);
+        init_order(&mut lg, &layers, &HashSet::new());
 
         let c = lg.node_index[&NodeId::from("C")];
         let b = lg.node_index[&NodeId::from("B")];
@@ -3254,7 +3403,7 @@ mod tests {
         rank::normalize(&mut lg);
 
         let layers = rank::by_rank(&lg);
-        init_order(&mut lg, &layers);
+        init_order(&mut lg, &layers, &HashSet::new());
 
         let b = lg.node_index[&NodeId::from("B")];
         let c = lg.node_index[&NodeId::from("C")];
@@ -3294,7 +3443,7 @@ mod tests {
         let free = vec![b, c];
 
         // With bias_right = false, model_order should put B before C
-        reorder_layer(&mut lg, &fixed, &free, &edges, true, false);
+        reorder_layer(&mut lg, &fixed, &free, &edges, true, false, &HashSet::new());
         assert_eq!(
             lg.order[b], 0,
             "B (lower model_order) should be first. Got B={}, C={}",
@@ -3305,7 +3454,7 @@ mod tests {
         // Reset and test with bias_right = true -- model_order should STILL win over bias
         lg.order[b] = 0;
         lg.order[c] = 1;
-        reorder_layer(&mut lg, &fixed, &free, &edges, true, true);
+        reorder_layer(&mut lg, &fixed, &free, &edges, true, true, &HashSet::new());
         assert_eq!(
             lg.order[b], 0,
             "B (lower model_order) should still be first even with bias_right=true. Got B={}, C={}",
@@ -3344,7 +3493,7 @@ mod tests {
         let fixed = vec![a, b];
         let free = vec![c, d];
 
-        reorder_layer(&mut lg, &fixed, &free, &edges, true, false);
+        reorder_layer(&mut lg, &fixed, &free, &edges, true, false, &HashSet::new());
 
         // C has barycenter 0 (connected to A), D has barycenter 1 (connected to B)
         // Barycenter should win over model_order
@@ -3356,5 +3505,188 @@ mod tests {
             lg.order[d], 1,
             "D (barycenter=1) should be second despite lower model_order"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Backward edge side grouping tests (VEIL ordering)
+    // -----------------------------------------------------------------------
+
+    /// Helper: build a graph with a cycle, run through acyclic + rank + normalize,
+    /// then run ordering with backward_edge_side_grouping enabled or disabled.
+    fn setup_cycle_graph_and_order(
+        nodes: &[&str],
+        edges_list: &[(&str, &str)],
+        side_grouping: bool,
+    ) -> LayoutGraph {
+        use crate::engines::graph::algorithms::layered::{acyclic, normalize};
+
+        let mut graph: DiGraph<()> = DiGraph::new();
+        for &n in nodes {
+            graph.add_node(n, ());
+        }
+        for &(from, to) in edges_list {
+            graph.add_edge(from, to);
+        }
+
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, _| (10.0, 10.0));
+        acyclic::run(&mut lg);
+        rank::run(&mut lg, &LayoutConfig::default());
+        rank::normalize(&mut lg);
+        normalize::run(&mut lg, &std::collections::HashMap::new(), false);
+
+        run_with_options(
+            &mut lg,
+            &OrderingOptions {
+                greedy_switch: false,
+                always_compound_ordering: false,
+                backward_edge_side_grouping: side_grouping,
+            },
+        );
+        lg
+    }
+
+    #[test]
+    fn backward_dummy_set_contains_reversed_chain_dummies() {
+        use crate::engines::graph::algorithms::layered::{acyclic, normalize};
+
+        let mut graph: DiGraph<()> = DiGraph::new();
+        for &n in &["A", "B", "C", "D"] {
+            graph.add_node(n, ());
+        }
+        for &(from, to) in &[("A", "B"), ("B", "C"), ("C", "D"), ("D", "A")] {
+            graph.add_edge(from, to);
+        }
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, _| (10.0, 10.0));
+        acyclic::run(&mut lg);
+        rank::run(&mut lg, &LayoutConfig::default());
+        rank::normalize(&mut lg);
+        normalize::run(&mut lg, &std::collections::HashMap::new(), false);
+
+        let backward_set = build_backward_dummy_set(&lg);
+
+        // Should have backward dummies from the reversed D->A chain
+        assert!(
+            !backward_set.is_empty(),
+            "cycle graph should have backward dummies"
+        );
+
+        // Forward dummies (if any) should not be in the set
+        for chain in &lg.dummy_chains {
+            if !chain.reversed {
+                for dummy_id in &chain.dummy_ids {
+                    if let Some(&idx) = lg.node_index.get(dummy_id) {
+                        assert!(
+                            !backward_set.contains(&idx),
+                            "forward chain dummy should not be in backward set"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn backward_dummy_set_empty_when_no_cycles() {
+        use crate::engines::graph::algorithms::layered::{acyclic, normalize};
+
+        let mut graph: DiGraph<()> = DiGraph::new();
+        for &n in &["A", "B", "C"] {
+            graph.add_node(n, ());
+        }
+        for &(from, to) in &[("A", "B"), ("B", "C")] {
+            graph.add_edge(from, to);
+        }
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, _| (10.0, 10.0));
+        acyclic::run(&mut lg);
+        rank::run(&mut lg, &LayoutConfig::default());
+        rank::normalize(&mut lg);
+        normalize::run(&mut lg, &std::collections::HashMap::new(), false);
+
+        let backward_set = build_backward_dummy_set(&lg);
+        assert!(
+            backward_set.is_empty(),
+            "acyclic graph should have no backward dummies"
+        );
+    }
+
+    #[test]
+    fn side_grouping_places_backward_dummies_at_rank_end() {
+        // A -> B -> C -> D -> A (cycle)
+        let lg = setup_cycle_graph_and_order(
+            &["A", "B", "C", "D"],
+            &[("A", "B"), ("B", "C"), ("C", "D"), ("D", "A")],
+            true,
+        );
+
+        let backward_set = build_backward_dummy_set(&lg);
+        assert!(
+            !backward_set.is_empty(),
+            "should have backward dummies from cycle"
+        );
+
+        // For each rank that contains both backward and non-backward position nodes,
+        // verify backward dummies have higher order.
+        let layers = rank::by_rank_filtered(&lg, |node| lg.is_position_node(node));
+        for layer in &layers {
+            let max_non_backward = layer
+                .iter()
+                .filter(|&&n| !backward_set.contains(&n))
+                .map(|&n| lg.order[n])
+                .max();
+            let min_backward = layer
+                .iter()
+                .filter(|&&n| backward_set.contains(&n))
+                .map(|&n| lg.order[n])
+                .min();
+            if let (Some(max_fwd), Some(min_bwd)) = (max_non_backward, min_backward) {
+                assert!(
+                    min_bwd > max_fwd,
+                    "backward dummies should have higher order than forward nodes in same rank; \
+                     max_forward={max_fwd}, min_backward={min_bwd}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn side_grouping_disabled_matches_baseline() {
+        // Same graph, same seed, but with feature disabled — should match baseline
+        let lg_disabled = setup_cycle_graph_and_order(
+            &["A", "B", "C", "D"],
+            &[("A", "B"), ("B", "C"), ("C", "D"), ("D", "A")],
+            false,
+        );
+
+        // Run baseline (using the `run` shim)
+        let lg_baseline = {
+            use crate::engines::graph::algorithms::layered::{acyclic, normalize};
+            let mut graph: DiGraph<()> = DiGraph::new();
+            for &n in &["A", "B", "C", "D"] {
+                graph.add_node(n, ());
+            }
+            for &(from, to) in &[("A", "B"), ("B", "C"), ("C", "D"), ("D", "A")] {
+                graph.add_edge(from, to);
+            }
+            let mut lg = LayoutGraph::from_digraph(&graph, |_, _| (10.0, 10.0));
+            acyclic::run(&mut lg);
+            rank::run(&mut lg, &LayoutConfig::default());
+            rank::normalize(&mut lg);
+            normalize::run(&mut lg, &std::collections::HashMap::new(), false);
+            run(&mut lg, false);
+            lg
+        };
+
+        // Orders should be identical
+        for (i, (a, b)) in lg_disabled
+            .order
+            .iter()
+            .zip(lg_baseline.order.iter())
+            .enumerate()
+        {
+            assert_eq!(
+                a, b,
+                "order mismatch at index {i}: disabled={a}, baseline={b}"
+            );
+        }
     }
 }

@@ -216,6 +216,8 @@ pub struct DummyChain {
     pub dummy_ids: Vec<NodeId>,
     /// Index of the label dummy within dummy_ids (if any).
     pub label_dummy_index: Option<usize>,
+    /// Whether this chain was created from a reversed (backward) edge.
+    pub reversed: bool,
 }
 
 impl DummyChain {
@@ -225,6 +227,7 @@ impl DummyChain {
             edge_index,
             dummy_ids: Vec::new(),
             label_dummy_index: None,
+            reversed: false,
         }
     }
 
@@ -328,6 +331,9 @@ pub struct LayoutConfig {
 
     /// Gap between edge stroke and label text (in layout units).
     pub edge_label_spacing: f64,
+
+    /// Group backward edge dummies to one side during ordering (flux-layered only).
+    pub backward_edge_side_grouping: bool,
 }
 
 impl LayoutConfig {
@@ -363,6 +369,7 @@ impl Default for LayoutConfig {
             label_side_selection: false,
             label_dummy_strategy: LabelDummyStrategy::default(),
             edge_label_spacing: 2.0,
+            backward_edge_side_grouping: false,
         }
     }
 }
@@ -509,6 +516,26 @@ mod tests {
     fn label_dummy_strategy_variants() {
         let _ = LabelDummyStrategy::Midpoint;
         let _ = LabelDummyStrategy::WidestLayer;
+    }
+
+    #[test]
+    fn dummy_chain_defaults_to_not_reversed() {
+        let chain = DummyChain::new(0);
+        assert!(!chain.reversed);
+    }
+
+    #[test]
+    fn layout_config_default_has_side_grouping_disabled() {
+        let config = LayoutConfig::default();
+        assert!(!config.backward_edge_side_grouping);
+    }
+
+    #[test]
+    fn dummy_chain_reversed_can_be_set() {
+        let mut chain = DummyChain::new(5);
+        chain.reversed = true;
+        assert!(chain.reversed);
+        assert_eq!(chain.edge_index, 5);
     }
 
     #[test]
