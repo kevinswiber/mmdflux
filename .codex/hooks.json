@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "./.codex/hooks/start-architecture-watch.sh",
-            "timeout": 5
+            "timeout": 50
           }
         ]
       }
