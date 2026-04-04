@@ -82,11 +82,6 @@ jobs:
           cache: npm
           cache-dependency-path: packages/package-lock.json
 
-      - name: Upgrade npm for trusted publishing compatibility
-        run: |
-          npm install -g npm@^11.5.1
-          npm --version
-
       - name: Install dependencies
         working-directory: packages
         run: npm ci
