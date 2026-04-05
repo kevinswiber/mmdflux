@@ -384,6 +384,12 @@ pub fn geometry_to_grid_layout_with_routed(
         &mut routed_edge_paths,
         direction,
     );
+    spread_colocated_backward_draw_path_targets(
+        routed.map(|r| r.edges.as_slice()),
+        &node_bounds,
+        &mut routed_edge_paths,
+        direction,
+    );
     compact_vertical_criss_cross_draw_paths(
         diagram,
         &node_bounds,
@@ -882,6 +888,167 @@ fn spread_colocated_backward_draw_path_sources(
                     path[0] = (new_coord, old_y);
                     if path.len() >= 2 && path[1].0 == old_x {
                         path[1].0 = new_coord;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Spread backward draw path target points that collapsed to the same grid
+/// cell during float→grid quantization.
+///
+/// Mirrors `spread_colocated_backward_draw_path_sources` but operates on the
+/// last path point (arrival at target) rather than the first (departure from
+/// source).
+fn spread_colocated_backward_draw_path_targets(
+    routed_edges: Option<&[crate::graph::geometry::RoutedEdgeGeometry]>,
+    node_bounds: &HashMap<String, NodeBounds>,
+    draw_paths: &mut HashMap<usize, DrawPath>,
+    direction: Direction,
+) {
+    let Some(edges) = routed_edges else {
+        return;
+    };
+
+    // Group backward edges by target node.
+    let mut backward_by_target: HashMap<&str, Vec<usize>> = HashMap::new();
+    for edge in edges {
+        if edge.is_backward && draw_paths.contains_key(&edge.index) {
+            backward_by_target
+                .entry(&edge.to)
+                .or_default()
+                .push(edge.index);
+        }
+    }
+
+    let is_vertical = matches!(direction, Direction::TopDown | Direction::BottomTop);
+
+    for (target_id, indices) in &backward_by_target {
+        if indices.len() <= 1 {
+            continue;
+        }
+        let Some(bounds) = node_bounds.get(*target_id) else {
+            continue;
+        };
+
+        // Sub-group by co-located last point only — edges approaching from
+        // different corridors still converge to the same arrival cell.
+        let mut colocated: Vec<Vec<usize>> = Vec::new();
+        for &idx in indices {
+            let Some(path) = draw_paths.get(&idx) else {
+                continue;
+            };
+            if path.len() < 2 {
+                continue;
+            }
+            let n = path.len();
+            let key = path[n - 1];
+            let found = colocated.iter_mut().find(|group| {
+                draw_paths
+                    .get(&group[0])
+                    .is_some_and(|p| !p.is_empty() && p[p.len() - 1] == key)
+            });
+            if let Some(group) = found {
+                group.push(idx);
+            } else {
+                colocated.push(vec![idx]);
+            }
+        }
+
+        for group in &colocated {
+            if group.len() <= 1 {
+                continue;
+            }
+
+            // Sort by source distance from target along the primary
+            // axis — farther sources get ports nearer the start of the
+            // face so approach segments nest without crossing.
+            let descending = matches!(direction, Direction::TopDown | Direction::LeftRight);
+            let mut sorted: Vec<(usize, usize)> = group
+                .iter()
+                .filter_map(|&idx| {
+                    let source_id = edges.iter().find(|e| e.index == idx).map(|e| &e.from)?;
+                    let source_bounds = node_bounds.get(source_id.as_str())?;
+                    let source_main = if is_vertical {
+                        source_bounds.y + source_bounds.height / 2
+                    } else {
+                        source_bounds.x + source_bounds.width / 2
+                    };
+                    Some((idx, source_main))
+                })
+                .collect();
+            sorted.sort_by(|a, b| {
+                let ord = a.1.cmp(&b.1);
+                let ord = if descending { ord.reverse() } else { ord };
+                ord.then_with(|| a.0.cmp(&b.0))
+            });
+
+            let count = sorted.len();
+            let face_center = if is_vertical {
+                bounds.y + bounds.height / 2
+            } else {
+                bounds.x + bounds.width / 2
+            };
+            // Use the full face including border rows — backward edge
+            // arrivals can attach at any position along the face.
+            let (face_min, face_max) = if is_vertical {
+                (bounds.y, bounds.y + bounds.height.saturating_sub(1))
+            } else {
+                (bounds.x, bounds.x + bounds.width.saturating_sub(1))
+            };
+
+            if face_max <= face_min || count > face_max - face_min + 1 {
+                continue;
+            }
+
+            let half = (count - 1) / 2;
+            let zone_start = face_center.saturating_sub(half).max(face_min);
+            let zone_end = (zone_start + count - 1).min(face_max);
+            let zone_start = zone_end + 1 - count;
+
+            for (slot, &(idx, _)) in sorted.iter().enumerate() {
+                let new_coord = zone_start + slot;
+                let Some(path) = draw_paths.get_mut(&idx) else {
+                    continue;
+                };
+                let n = path.len();
+                if n == 0 {
+                    continue;
+                }
+                let (old_x, old_y) = path[n - 1];
+                if is_vertical {
+                    path[n - 1] = (old_x, new_coord);
+                    if n >= 2 && path[n - 2].1 == old_y {
+                        // Horizontal last segment — already normal to the
+                        // vertical face.  Just propagate the new y.
+                        path[n - 2].1 = new_coord;
+                    } else if n >= 2 {
+                        // Vertical last segment on a vertical face.  Push
+                        // the corridor outward by 1 cell and insert a
+                        // horizontal approach point.
+                        let (pen_x, _pen_y) = path[n - 2];
+                        let outward_x = if pen_x >= old_x {
+                            pen_x.max(old_x + 1)
+                        } else {
+                            pen_x.min(old_x.saturating_sub(1))
+                        };
+                        path[n - 2].0 = outward_x;
+                        path.insert(n - 1, (outward_x, new_coord));
+                    }
+                } else {
+                    path[n - 1] = (new_coord, old_y);
+                    if n >= 2 && path[n - 2].0 == old_x {
+                        path[n - 2].0 = new_coord;
+                    } else if n >= 2 {
+                        let (_pen_x, pen_y) = path[n - 2];
+                        let outward_y = if pen_y >= old_y {
+                            pen_y.max(old_y + 1)
+                        } else {
+                            pen_y.min(old_y.saturating_sub(1))
+                        };
+                        path[n - 2].1 = outward_y;
+                        path.insert(n - 1, (new_coord, outward_y));
                     }
                 }
             }

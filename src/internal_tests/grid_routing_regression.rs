@@ -1080,4 +1080,53 @@ mod owner_local_fixture_regressions {
             );
         }
     }
+
+    #[test]
+    fn backward_port_spread_draw_paths_have_distinct_target_rows() {
+        let (diagram, layout) = routed_text_layout_for_fixture("backward_target_spread.mmd");
+
+        let target_id = "Alpha";
+        let alpha_bounds = &layout.node_bounds[target_id];
+        eprintln!(
+            "Alpha bounds: x={} y={} w={} h={} center_y={}",
+            alpha_bounds.x,
+            alpha_bounds.y,
+            alpha_bounds.width,
+            alpha_bounds.height,
+            alpha_bounds.y + alpha_bounds.height / 2
+        );
+
+        // Collect backward draw paths targeting Alpha
+        let mut arrivals: Vec<(String, (usize, usize))> = Vec::new();
+        for edge in &diagram.edges {
+            if let Some(draw_path) = layout.routed_edge_paths.get(&edge.index)
+                && edge.to == target_id
+                && draw_path.len() >= 2
+            {
+                let n = draw_path.len();
+                let last = draw_path[n - 1];
+                let pen = draw_path[n - 2];
+                eprintln!(
+                    "Edge {} ({} -> Alpha): draw_path = {:?}",
+                    edge.index, edge.from, draw_path
+                );
+                // Horizontal last segment = arriving at side face
+                if last.0 != pen.0 {
+                    arrivals.push((edge.from.clone(), last));
+                }
+            }
+        }
+
+        if arrivals.len() >= 2 {
+            let mut endpoints: Vec<(usize, usize)> = arrivals.iter().map(|(_, p)| *p).collect();
+            endpoints.sort();
+            endpoints.dedup();
+            assert!(
+                endpoints.len() >= 2,
+                "backward draw paths to Alpha's face should have distinct \
+                 end positions, but all end at the same cell. Paths: {:?}",
+                arrivals
+            );
+        }
+    }
 }

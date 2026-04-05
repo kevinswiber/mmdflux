@@ -191,6 +191,7 @@ pub fn route_edges_orthogonal(
     overlap::resolve_forward_lr_rl_criss_cross_overlaps(diagram, geometry, &mut routed);
     overlap::resolve_forward_lr_rl_parallel_vertical_overlaps(diagram, geometry, &mut routed);
     fan::spread_colocated_backward_source_ports(&mut routed, geometry);
+    fan::spread_colocated_backward_target_ports(&mut routed, geometry);
     routed
 }
 

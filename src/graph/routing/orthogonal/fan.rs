@@ -519,6 +519,188 @@ pub(super) fn spread_colocated_backward_source_ports(
     }
 }
 
+/// Spread backward edge target ports that share the exact same arrival
+/// point.  Mirrors `spread_colocated_backward_source_ports` but operates on
+/// the last path point (arrival) rather than the first (departure).
+pub(super) fn spread_colocated_backward_target_ports(
+    routed: &mut [crate::graph::geometry::RoutedEdgeGeometry],
+    geometry: &crate::graph::geometry::GraphGeometry,
+) {
+    use super::path_utils::points_match;
+    use crate::graph::space::FPoint;
+
+    const CORNER_INSET: f64 = 4.0;
+    const MIN_PORT_SPACING: f64 = 12.0;
+
+    // Group backward edges by target node.
+    let mut groups: HashMap<String, Vec<usize>> = HashMap::new();
+    for (idx, edge) in routed.iter().enumerate() {
+        if !edge.is_backward || edge.path.len() < 2 {
+            continue;
+        }
+        groups.entry(edge.to.clone()).or_default().push(idx);
+    }
+
+    for edge_indices in groups.values() {
+        if edge_indices.len() <= 1 {
+            continue;
+        }
+
+        // Sub-group by co-located arrival point (same last point within
+        // epsilon).  Unlike the source side, we only check the final point —
+        // edges approaching from different corridors still converge to the
+        // same arrowhead position and need spreading.
+        let mut colocated: Vec<Vec<usize>> = Vec::new();
+        for &idx in edge_indices {
+            let n = routed[idx].path.len();
+            let end = routed[idx].path[n - 1];
+            let found = colocated.iter_mut().find(|group| {
+                let rn = routed[group[0]].path.len();
+                let rep_end = routed[group[0]].path[rn - 1];
+                points_match(end, rep_end)
+            });
+            if let Some(group) = found {
+                group.push(idx);
+            } else {
+                colocated.push(vec![idx]);
+            }
+        }
+
+        for group in &colocated {
+            if group.len() <= 1 {
+                continue;
+            }
+
+            let representative_idx = group[0];
+            let n = routed[representative_idx].path.len();
+            let end = routed[representative_idx].path[n - 1];
+            let target_id = &routed[representative_idx].to;
+
+            let target_rect = if let Some(sg_id) = routed[representative_idx].to_subgraph.as_deref()
+            {
+                geometry.subgraphs.get(sg_id).map(|sg| sg.rect)
+            } else {
+                geometry.nodes.get(target_id).map(|node| node.rect)
+            };
+            let Some(tr) = target_rect else {
+                continue;
+            };
+
+            // Determine which face the arrival point sits on by checking
+            // proximity to each edge of the target rect.
+            let dx_left = (end.x - tr.x).abs();
+            let dx_right = (end.x - (tr.x + tr.width)).abs();
+            let dy_top = (end.y - tr.y).abs();
+            let dy_bottom = (end.y - (tr.y + tr.height)).abs();
+            let min_dist = dx_left.min(dx_right).min(dy_top).min(dy_bottom);
+            // On a vertical face (left/right) → spread along y;
+            // on a horizontal face (top/bottom) → spread along x.
+            let spread_along_y =
+                (dx_left - min_dist).abs() < 0.5 || (dx_right - min_dist).abs() < 0.5;
+
+            let (face_min, face_max) = if spread_along_y {
+                (tr.y + CORNER_INSET, tr.y + tr.height - CORNER_INSET)
+            } else {
+                (tr.x + CORNER_INSET, tr.x + tr.width - CORNER_INSET)
+            };
+
+            if face_max <= face_min {
+                continue;
+            }
+
+            // Sort by source distance from target along the primary
+            // axis — farther sources get ports nearer the start of the
+            // face so approach segments nest without crossing.
+            let mut sorted_group: Vec<(usize, f64)> = group
+                .iter()
+                .map(|&idx| {
+                    let source_id = &routed[idx].from;
+                    let source_main = geometry
+                        .nodes
+                        .get(source_id)
+                        .map(|n| match geometry.direction {
+                            crate::graph::Direction::TopDown
+                            | crate::graph::Direction::BottomTop => n.rect.y + n.rect.height / 2.0,
+                            crate::graph::Direction::LeftRight
+                            | crate::graph::Direction::RightLeft => n.rect.x + n.rect.width / 2.0,
+                        })
+                        .unwrap_or(0.0);
+                    (idx, source_main)
+                })
+                .collect();
+            // Descending for TD/LR (farther = higher value = top port),
+            // ascending for BT/RL (farther = lower value = top port).
+            let descending = matches!(
+                geometry.direction,
+                crate::graph::Direction::TopDown | crate::graph::Direction::LeftRight
+            );
+            sorted_group.sort_by(|a, b| {
+                let ord = a.1.total_cmp(&b.1);
+                let ord = if descending { ord.reverse() } else { ord };
+                ord.then_with(|| a.0.cmp(&b.0))
+            });
+
+            let count = sorted_group.len();
+            let anchor = (face_min + face_max) / 2.0;
+            let half_span = (count as f64 - 1.0) * MIN_PORT_SPACING / 2.0;
+            let zone_start = (anchor - half_span).max(face_min);
+            let zone_end = (anchor + half_span).min(face_max);
+
+            // Minimum offset from the face for a proper approach stub.
+            const APPROACH_STUB: f64 = 8.0;
+
+            for (slot, &(idx, _)) in sorted_group.iter().enumerate() {
+                let new_coord = if count <= 1 {
+                    anchor
+                } else {
+                    zone_start + (zone_end - zone_start) * slot as f64 / (count - 1) as f64
+                };
+                let pn = routed[idx].path.len();
+                let old_end = routed[idx].path[pn - 1];
+
+                if spread_along_y {
+                    routed[idx].path[pn - 1] = FPoint::new(old_end.x, new_coord);
+                    // Propagate to penultimate point if axis-aligned
+                    // (horizontal segment on vertical face — already normal).
+                    if pn >= 2 && (routed[idx].path[pn - 2].y - old_end.y).abs() < 0.01 {
+                        routed[idx].path[pn - 2].y = new_coord;
+                    } else if pn >= 2 {
+                        // Penultimate has a different y: the last segment is
+                        // vertical (parallel to the face, not normal).  Push the
+                        // corridor outward and insert a horizontal approach stub.
+                        let pen = routed[idx].path[pn - 2];
+                        let outward_x = if pen.x >= old_end.x {
+                            pen.x.max(old_end.x + APPROACH_STUB)
+                        } else {
+                            pen.x.min(old_end.x - APPROACH_STUB)
+                        };
+                        routed[idx].path[pn - 2].x = outward_x;
+                        routed[idx]
+                            .path
+                            .insert(pn - 1, FPoint::new(outward_x, new_coord));
+                    }
+                } else {
+                    routed[idx].path[pn - 1] = FPoint::new(new_coord, old_end.y);
+                    if pn >= 2 && (routed[idx].path[pn - 2].x - old_end.x).abs() < 0.01 {
+                        routed[idx].path[pn - 2].x = new_coord;
+                    } else if pn >= 2 {
+                        let pen = routed[idx].path[pn - 2];
+                        let outward_y = if pen.y >= old_end.y {
+                            pen.y.max(old_end.y + APPROACH_STUB)
+                        } else {
+                            pen.y.min(old_end.y - APPROACH_STUB)
+                        };
+                        routed[idx].path[pn - 2].y = outward_y;
+                        routed[idx]
+                            .path
+                            .insert(pn - 1, FPoint::new(new_coord, outward_y));
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn adaptive_fan_in_primary_face_capacity(direction: Direction, target_rect: &FRect) -> usize {
     let baseline_capacity = fan_in_primary_face_capacity(direction);
     let face_span = match direction {
