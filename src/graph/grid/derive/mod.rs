@@ -390,6 +390,11 @@ pub fn geometry_to_grid_layout_with_routed(
         &mut routed_edge_paths,
         direction,
     );
+    deconflict_backward_corridor_columns(
+        routed.map(|r| r.edges.as_slice()),
+        &mut routed_edge_paths,
+        direction,
+    );
     compact_vertical_criss_cross_draw_paths(
         diagram,
         &node_bounds,
@@ -795,10 +800,9 @@ fn spread_colocated_backward_draw_path_sources(
             continue;
         };
 
-        // Sub-group by co-located start AND second point — edges that share
-        // the same first two grid points truly overlap on their departure
-        // segment.  Edges that share only the start but diverge immediately
-        // are already visually distinct and don't need spreading.
+        // Sub-group by co-located start point.  Edges sharing the same
+        // departure cell need spreading even when their corridor positions
+        // differ — the visual departure point is still the same face cell.
         let mut colocated: Vec<Vec<usize>> = Vec::new();
         for &idx in indices {
             let Some(path) = draw_paths.get(&idx) else {
@@ -807,11 +811,11 @@ fn spread_colocated_backward_draw_path_sources(
             if path.len() < 2 {
                 continue;
             }
-            let key = (path[0], path[1]);
+            let key = path[0];
             let found = colocated.iter_mut().find(|group| {
                 draw_paths
                     .get(&group[0])
-                    .is_some_and(|p| p.len() >= 2 && p[0] == key.0 && p[1] == key.1)
+                    .is_some_and(|p| !p.is_empty() && p[0] == key)
             });
             if let Some(group) = found {
                 group.push(idx);
@@ -852,10 +856,13 @@ fn spread_colocated_backward_draw_path_sources(
             } else {
                 bounds.x + bounds.width / 2
             };
+            // Use the full face including border rows — backward edge
+            // departures can attach at any position along the face,
+            // matching the target-side spreading behaviour.
             let (face_min, face_max) = if is_vertical {
-                (bounds.y + 1, bounds.y + bounds.height.saturating_sub(1))
+                (bounds.y, bounds.y + bounds.height.saturating_sub(1))
             } else {
-                (bounds.x + 1, bounds.x + bounds.width.saturating_sub(1))
+                (bounds.x, bounds.x + bounds.width.saturating_sub(1))
             };
 
             // If face is too narrow to spread, skip.
@@ -1051,6 +1058,143 @@ fn spread_colocated_backward_draw_path_targets(
                         path.insert(n - 1, (new_coord, outward_y));
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Deconflict backward edge corridor columns that collapsed to the same grid
+/// cell during float-to-grid conversion.
+///
+/// The float-space corridor deconfliction assigns lanes 8 px apart, but the
+/// grid scale can map multiple lanes to the same draw column.  This function
+/// detects same-target backward edges whose vertical corridor segments share
+/// a grid column and spreads them 1 cell apart.
+fn deconflict_backward_corridor_columns(
+    routed_edges: Option<&[crate::graph::geometry::RoutedEdgeGeometry]>,
+    draw_paths: &mut HashMap<usize, DrawPath>,
+    direction: Direction,
+) {
+    let Some(edges) = routed_edges else {
+        return;
+    };
+
+    let is_vertical = matches!(direction, Direction::TopDown | Direction::BottomTop);
+
+    // Group backward edges by target node.
+    let mut backward_by_target: HashMap<&str, Vec<usize>> = HashMap::new();
+    for edge in edges {
+        if edge.is_backward && draw_paths.contains_key(&edge.index) {
+            backward_by_target
+                .entry(&edge.to)
+                .or_default()
+                .push(edge.index);
+        }
+    }
+
+    for indices in backward_by_target.values() {
+        if indices.len() <= 1 {
+            continue;
+        }
+
+        // Extract the corridor coordinate for each edge.
+        // For TD/BT the corridor is the x-coordinate of the vertical segment
+        // (path[1].0 == path[2].0 for a 4-point H-V-H path).
+        // For LR/RL the corridor is the y-coordinate of the horizontal segment
+        // (path[1].1 == path[2].1 for a 4-point V-H-V path).
+        struct CorridorInfo {
+            edge_index: usize,
+            corridor_coord: usize,
+            span: usize,
+            /// Index of the first corridor point in the path.
+            p1: usize,
+            /// Index of the second corridor point in the path.
+            p2: usize,
+        }
+
+        let mut infos: Vec<CorridorInfo> = Vec::new();
+        for &idx in indices {
+            let Some(path) = draw_paths.get(&idx) else {
+                continue;
+            };
+            if path.len() < 4 {
+                continue;
+            }
+            // Identify the corridor segment: two consecutive points sharing
+            // the corridor axis coordinate.
+            let mut found = None;
+            for i in 0..path.len() - 1 {
+                let shares_axis = if is_vertical {
+                    path[i].0 == path[i + 1].0 && path[i].1 != path[i + 1].1
+                } else {
+                    path[i].1 == path[i + 1].1 && path[i].0 != path[i + 1].0
+                };
+                if shares_axis {
+                    let coord = if is_vertical { path[i].0 } else { path[i].1 };
+                    let span = if is_vertical {
+                        path[i].1.abs_diff(path[i + 1].1)
+                    } else {
+                        path[i].0.abs_diff(path[i + 1].0)
+                    };
+                    // Prefer the longest such segment (the corridor, not a stub).
+                    if found
+                        .as_ref()
+                        .is_none_or(|f: &(usize, usize, usize, usize)| span > f.3)
+                    {
+                        found = Some((i, i + 1, coord, span));
+                    }
+                }
+            }
+            if let Some((p1, p2, corridor_coord, span)) = found {
+                infos.push(CorridorInfo {
+                    edge_index: idx,
+                    corridor_coord,
+                    span,
+                    p1,
+                    p2,
+                });
+            }
+        }
+
+        if infos.len() <= 1 {
+            continue;
+        }
+
+        // Check if any corridors share the same column.
+        infos.sort_by_key(|info| (info.corridor_coord, info.span));
+        let has_collision = infos
+            .windows(2)
+            .any(|w| w[0].corridor_coord == w[1].corridor_coord);
+        if !has_collision {
+            continue;
+        }
+
+        // Sort by span ascending (shorter span = inner slot) to match the
+        // float-level deconfliction order.
+        infos.sort_by_key(|info| (info.span, info.edge_index));
+
+        // Assign distinct columns starting from the minimum corridor coord.
+        let base = infos.iter().map(|i| i.corridor_coord).min().unwrap();
+        for (slot, info) in infos.iter().enumerate() {
+            let new_coord = base + slot;
+            if new_coord == info.corridor_coord {
+                continue;
+            }
+            let path = draw_paths.get_mut(&info.edge_index).unwrap();
+            if is_vertical {
+                path[info.p1].0 = new_coord;
+                path[info.p2].0 = new_coord;
+                // Also update adjacent horizontal segments if they share the
+                // old corridor coordinate.
+                if info.p1 > 0 && path[info.p1 - 1].1 == path[info.p1].1 {
+                    // horizontal segment before corridor — leave the source end
+                }
+                if info.p2 + 1 < path.len() && path[info.p2 + 1].1 == path[info.p2].1 {
+                    // horizontal segment after corridor — leave the target end
+                }
+            } else {
+                path[info.p1].1 = new_coord;
+                path[info.p2].1 = new_coord;
             }
         }
     }

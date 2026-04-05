@@ -221,7 +221,12 @@ fn build_one_descriptor(
 // Base lane computation (mirrors existing logic in stage.rs / backward.rs)
 // ---------------------------------------------------------------------------
 
-const CHANNEL_CLEARANCE: f64 = 12.0;
+/// Minimum clearance between the target face envelope and the innermost
+/// corridor lane (slot 0).  Must be at least as large as the SVG marker
+/// offset's minimum endpoint support (arrowhead pullback 4 px + minimum
+/// visible stem 12 px = 16 px) so the SVG renderer does not push slot 0
+/// outward and break the uniform lane spacing.
+const CHANNEL_CLEARANCE: f64 = 16.0;
 
 fn compute_base_lane_td_bt(
     edge: &LayoutEdge,
