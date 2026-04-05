@@ -106,7 +106,12 @@ fails with an error.
 Tag targeting is supported on list-typed fields where order doesn't matter:
 `allow.allowed`, `protected.targets`, `protected.allowed_importers`,
 `independence.members`, `acyclic.members`. It is not supported on
-`allow.source` (single boundary) or `layers.order` (order matters).
+`allow.source` (single selector) or `layers.order` (order matters).
+
+When a rule field accepts an explicit boundary name, it also accepts an exact
+module-path selector such as `render::text`. Module-path selectors match that
+module and its descendants. Tags still expand only to top-level boundaries,
+because tags are declared on `modules.<name>` entries.
 
 ## Rule Types
 
@@ -128,8 +133,9 @@ the most common rule type — one per governed boundary.
 
 **Fields:**
 
-- `source` — the boundary being governed (single name, always explicit)
-- `allowed` — boundaries that `source` may depend on (list or tag reference)
+- `source` — the selector being governed (single explicit boundary or
+  module-path selector)
+- `allowed` — selectors that `source` may depend on (list or tag reference)
 
 ### layers
 
@@ -151,12 +157,33 @@ position boundary is a violation. Edges involving boundaries not in the
 
 **Fields:**
 
-- `order` — boundaries from lowest to highest (always explicit, no tag
+- `order` — selectors from lowest to highest (always explicit, no tag
   support — order matters)
 
 **Example violation:** If `graph` (position 2) depends on `runtime`
 (position 5), the violation detail says:
 `graph (layer 2) must not depend on runtime (layer 5)`
+
+The same `layers` rule also accepts exact module-path selectors. This is for
+intra-boundary structure such as `render::text` versus `render::graph`.
+
+```toml
+[[rules]]
+id = "render-submodule-layers"
+type = "layers"
+[rules.config]
+order = ["render::text", "render::svg", "render::graph", "render::timeline"]
+```
+
+Each `order` entry may be either a top-level boundary name like `graph` or an
+exact module-path selector like `render::text`. A module-path selector matches
+that module and its descendants. When `layers.order` contains any `::`
+selectors, the checker evaluates the rule against the exact module graph and
+normalizes each edge to the longest matching selector on both sides.
+
+**Example violation:** If `render::text::canvas` depends on `render::graph`,
+the violation detail says:
+`render::text (layer 0) must not depend on render::graph (layer 2)`
 
 ### protected
 
@@ -177,11 +204,14 @@ Any edge _to_ a protected target from a source not in `allowed_importers`
 is a violation. This catches violations from new modules that haven't been
 added to the allow list yet.
 
+`targets` and `allowed_importers` may be top-level boundaries, exact
+module-path selectors, or tag expansions.
+
 **Fields:**
 
-- `targets` — boundaries whose access is restricted (list or tag reference)
-- `allowed_importers` — only these boundaries may import the targets (list
-  or tag reference)
+- `targets` — selectors whose access is restricted (list or tag reference)
+- `allowed_importers` — only these selectors may import the targets (list or
+  tag reference)
 
 ### independence
 
@@ -196,7 +226,8 @@ members = ["mermaid", "mmds"]
 ```
 
 Any direct edge between group members (in either direction) is a violation.
-Edges to/from modules outside the group are ignored.
+Edges to/from modules outside the group are ignored. `members` may be
+top-level boundaries, exact module-path selectors, or tag expansions.
 
 **Fields:**
 
@@ -219,8 +250,9 @@ members = [
 ]
 ```
 
-Uses DFS-based cycle detection restricted to the member set. If a cycle is
-found, the violation detail includes the deterministic cycle path:
+Uses DFS-based cycle detection restricted to the member set. `members` may be
+top-level boundaries, exact module-path selectors, or tag expansions. If a
+cycle is found, the violation detail includes the deterministic cycle path:
 `cycle: a -> b -> c -> a`
 
 Cycles are normalized (rotated so the lexicographically smallest element is
@@ -228,7 +260,7 @@ first) and deduplicated for stable output.
 
 **Fields:**
 
-- `members` — boundaries that must form a DAG (list or tag reference)
+- `members` — selectors that must form a DAG (list or tag reference)
 
 ## Exceptions
 

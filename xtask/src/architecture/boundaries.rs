@@ -421,7 +421,13 @@ struct EdgeCollectionContext<'a> {
     root: Module,
     db: &'a RootDatabase,
     declared_boundaries: &'a BTreeSet<String>,
+    exact_module_paths: Option<&'a BTreeSet<String>>,
     verbose: bool,
+}
+
+struct CollectedDependencyGraphs {
+    boundary_graph: BoundaryGraph,
+    exact_module_graph: Option<BoundaryGraph>,
 }
 
 pub(crate) fn run_with_context(
@@ -509,6 +515,13 @@ pub(crate) fn run_with_context_report(
             policy_boundaries.len()
         ));
     }
+    let exact_module_paths = if arch_policy.uses_module_path_selectors() {
+        let exact_module_paths = discover_module_paths(root, db);
+        validate_declared_module_paths(&arch_policy, &exact_module_paths, &config_path)?;
+        Some(exact_module_paths)
+    } else {
+        None
+    };
     let edge_collection = EdgeCollectionContext {
         sema: &sema,
         vfs: &loaded.vfs,
@@ -516,11 +529,16 @@ pub(crate) fn run_with_context_report(
         root,
         db,
         declared_boundaries: &policy_boundaries,
+        exact_module_paths: exact_module_paths.as_ref(),
         verbose: !options.quiet && options.verbose,
     };
-    let boundary_graph = collect_boundary_graph(&edge_collection, &mut timings);
+    let collected_graphs = collect_dependency_graphs(&edge_collection, &mut timings);
     let phase_started = Instant::now();
-    let eval_result = super::rules_eval::evaluate_rules(&boundary_graph, &arch_policy);
+    let eval_result = super::rules_eval::evaluate_rules_with_module_graph(
+        &collected_graphs.boundary_graph,
+        collected_graphs.exact_module_graph.as_ref(),
+        &arch_policy,
+    );
     let mut boundary_violations: Vec<BoundaryViolation> = eval_result
         .violations
         .iter()
@@ -544,7 +562,7 @@ pub(crate) fn run_with_context_report(
     timings.violation_analysis = phase_started.elapsed();
     let phase_started = Instant::now();
     if !options.quiet && options.verbose {
-        let actual = boundary_graph.to_legacy_edge_map();
+        let actual = collected_graphs.boundary_graph.to_legacy_edge_map();
         report_boundary_results(&policy, &arch_policy, &actual);
         for suppressed in &eval_result.suppressed {
             log_info(format!(
@@ -567,7 +585,7 @@ pub(crate) fn run_with_context_report(
             violations: Vec::new(),
         }
     } else {
-        let actual = boundary_graph.to_legacy_edge_map();
+        let actual = collected_graphs.boundary_graph.to_legacy_edge_map();
         BoundariesRunReport {
             success: false,
             rendered_output: render_violation_report(
@@ -594,7 +612,7 @@ pub(crate) fn run_with_context_report(
             timings_output: options.timings.then(|| render_timing_breakdown(&timings)),
             ..report
         },
-        graph: boundary_graph,
+        graph: collected_graphs.boundary_graph,
     })
 }
 
@@ -633,10 +651,11 @@ pub(crate) fn collect_graph_for_inspection(
         root,
         db,
         declared_boundaries: &policy_boundaries,
+        exact_module_paths: None,
         verbose: false,
     };
     let mut timings = TimingBreakdown::default();
-    Ok(collect_boundary_graph(&edge_collection, &mut timings))
+    Ok(collect_dependency_graphs(&edge_collection, &mut timings).boundary_graph)
 }
 
 fn load_library() -> Result<LoadedLibrary> {
@@ -845,11 +864,148 @@ fn discover_top_level_boundaries(root: Module, db: &RootDatabase) -> BTreeSet<St
         .collect()
 }
 
-fn collect_boundary_graph(
+fn discover_module_paths(root: Module, db: &RootDatabase) -> BTreeSet<String> {
+    let mut module_paths = BTreeSet::new();
+    for module in root.children(db) {
+        collect_module_paths(module, db, &mut module_paths);
+    }
+    module_paths
+}
+
+fn collect_module_paths(module: Module, db: &RootDatabase, module_paths: &mut BTreeSet<String>) {
+    let module_path = module_selector_path(module, db);
+    if !module_path.is_empty() {
+        module_paths.insert(module_path);
+    }
+    for child in module.children(db) {
+        collect_module_paths(child, db, module_paths);
+    }
+}
+
+fn validate_declared_module_paths(
+    policy: &super::policy::ArchitecturePolicy,
+    discovered_paths: &BTreeSet<String>,
+    config_path: &Path,
+) -> Result<()> {
+    let mut missing = Vec::new();
+    for selector in policy_module_path_selectors(policy) {
+        if !discovered_paths.contains(&selector.path) {
+            missing.push(format!("{} ({})", selector.path, selector.context));
+        }
+    }
+    if missing.is_empty() {
+        return Ok(());
+    }
+
+    anyhow::bail!(
+        "{} declares missing module paths: {:?}",
+        display_repo_relative(config_path),
+        missing
+    );
+}
+
+struct PolicyModuleSelector {
+    path: String,
+    context: String,
+}
+
+fn policy_module_path_selectors(
+    policy: &super::policy::ArchitecturePolicy,
+) -> Vec<PolicyModuleSelector> {
+    let mut selectors = Vec::new();
+    for rule in &policy.rules {
+        match &rule.rule {
+            super::policy::RuleKind::Allow(allow) => {
+                push_module_selector(
+                    &mut selectors,
+                    &allow.source,
+                    format!("rule {} source", rule.id),
+                );
+                for allowed in &allow.allowed {
+                    push_module_selector(
+                        &mut selectors,
+                        allowed,
+                        format!("rule {} allowed", rule.id),
+                    );
+                }
+            }
+            super::policy::RuleKind::Layers(layers) => {
+                for member in &layers.order {
+                    push_module_selector(&mut selectors, member, format!("rule {} order", rule.id));
+                }
+            }
+            super::policy::RuleKind::Protected(protected) => {
+                for target in &protected.targets {
+                    push_module_selector(
+                        &mut selectors,
+                        target,
+                        format!("rule {} targets", rule.id),
+                    );
+                }
+                for importer in &protected.allowed_importers {
+                    push_module_selector(
+                        &mut selectors,
+                        importer,
+                        format!("rule {} allowed_importers", rule.id),
+                    );
+                }
+            }
+            super::policy::RuleKind::Independence(independence) => {
+                for member in &independence.members {
+                    push_module_selector(
+                        &mut selectors,
+                        member,
+                        format!("rule {} members", rule.id),
+                    );
+                }
+            }
+            super::policy::RuleKind::Acyclic(acyclic) => {
+                for member in &acyclic.members {
+                    push_module_selector(
+                        &mut selectors,
+                        member,
+                        format!("rule {} members", rule.id),
+                    );
+                }
+            }
+        }
+    }
+    for exception in &policy.exceptions {
+        push_module_selector(
+            &mut selectors,
+            &exception.source,
+            format!("exception {} source", exception.id),
+        );
+        push_module_selector(
+            &mut selectors,
+            &exception.target,
+            format!("exception {} target", exception.id),
+        );
+    }
+    selectors
+}
+
+fn push_module_selector(
+    selectors: &mut Vec<PolicyModuleSelector>,
+    selector: &str,
+    context: String,
+) {
+    if selector.contains("::") {
+        selectors.push(PolicyModuleSelector {
+            path: selector.to_string(),
+            context,
+        });
+    }
+}
+
+fn collect_dependency_graphs(
     ctx: &EdgeCollectionContext<'_>,
     timings: &mut TimingBreakdown,
-) -> BoundaryGraph {
-    let mut graph = BoundaryGraph::new(ctx.declared_boundaries.clone());
+) -> CollectedDependencyGraphs {
+    let mut graphs = CollectedDependencyGraphs {
+        boundary_graph: BoundaryGraph::new(ctx.declared_boundaries.clone()),
+        exact_module_graph: ctx.exact_module_paths.cloned().map(BoundaryGraph::new),
+    };
 
     if ctx.verbose {
         log_info("collect semantic module-scope edges");
@@ -870,7 +1026,7 @@ fn collect_boundary_graph(
             &source_boundary,
             ctx.root,
             ctx.db,
-            &mut graph,
+            &mut graphs,
         );
     }
     timings.module_scope_scan = phase_started.elapsed();
@@ -879,7 +1035,7 @@ fn collect_boundary_graph(
         log_info("resolve qualified crate/self/super paths");
     }
     let phase_started = Instant::now();
-    let breakdown = collect_qualified_path_edges(ctx, &mut graph);
+    let breakdown = collect_qualified_path_edges(ctx, &mut graphs);
     timings.qualified_path_scan = phase_started.elapsed();
     timings.qualified_path_candidate_file_filtering = breakdown.candidate_file_filtering;
     timings.qualified_path_file_reads = breakdown.file_reads;
@@ -904,7 +1060,7 @@ fn collect_boundary_graph(
     timings.qualified_path_slowest_files = breakdown.slowest_path_files;
     timings.qualified_path_slowest_module_locator_files = breakdown.slowest_module_locator_files;
 
-    graph
+    graphs
 }
 
 fn collect_module_scope_edges(
@@ -912,8 +1068,9 @@ fn collect_module_scope_edges(
     source_boundary: &str,
     root: Module,
     db: &RootDatabase,
-    graph: &mut BoundaryGraph,
+    graphs: &mut CollectedDependencyGraphs,
 ) {
+    let source_selector_path = module_selector_path(module, db);
     let source_module_path = module_path(module, db);
 
     for (_name, scope_def) in module.scope(db, None) {
@@ -933,10 +1090,7 @@ fn collect_module_scope_edges(
         let Some(target_boundary) = top_level_boundary(target_module, root, db) else {
             continue;
         };
-        if target_boundary == source_boundary {
-            continue;
-        }
-
+        let target_selector_path = module_selector_path(target_module, db);
         let symbol = def
             .canonical_path(db, Edition::CURRENT)
             .or_else(|| {
@@ -944,28 +1098,46 @@ fn collect_module_scope_edges(
                     .map(|name| name.display(db, Edition::CURRENT).to_string())
             })
             .unwrap_or_else(|| module_path(target_module, db));
+        let sample = DependencySample {
+            source: source_module_path.clone(),
+            symbol,
+            target: module_path(target_module, db),
+            location: None,
+        };
 
-        graph.insert_edge(
+        if let Some(exact_graph) = &mut graphs.exact_module_graph
+            && !source_selector_path.is_empty()
+            && !target_selector_path.is_empty()
+            && source_selector_path != target_selector_path
+        {
+            exact_graph.insert_edge(
+                source_selector_path.clone(),
+                target_selector_path,
+                sample.clone(),
+                EdgeProvenance::ModuleScope,
+            );
+        }
+
+        if target_boundary == source_boundary {
+            continue;
+        }
+
+        graphs.boundary_graph.insert_edge(
             source_boundary.to_string(),
-            target_boundary.clone(),
-            DependencySample {
-                source: source_module_path.clone(),
-                symbol,
-                target: module_path(target_module, db),
-                location: None,
-            },
+            target_boundary,
+            sample,
             EdgeProvenance::ModuleScope,
         );
     }
 
     for child in module.children(db) {
-        collect_module_scope_edges(child, source_boundary, root, db, graph);
+        collect_module_scope_edges(child, source_boundary, root, db, graphs);
     }
 }
 
 fn collect_qualified_path_edges(
     ctx: &EdgeCollectionContext<'_>,
-    graph: &mut BoundaryGraph,
+    graphs: &mut CollectedDependencyGraphs,
 ) -> QualifiedPathScanBreakdown {
     let src_root = AbsPathBuf::assert_utf8(repo_root().join("src"));
     let boundary_names = discover_top_level_boundaries(ctx.root, ctx.db);
@@ -1079,7 +1251,7 @@ fn collect_qualified_path_edges(
                 &segments,
                 &file_text,
                 render_relative_path(&segments),
-                graph,
+                graphs,
             );
             let elapsed = resolution_started.elapsed();
             match resolution {
@@ -1166,7 +1338,7 @@ fn collect_qualified_path_edges(
                 &segments,
                 &file_text,
                 path.syntax().text().to_string(),
-                graph,
+                graphs,
             );
             let elapsed = resolution_started.elapsed();
             match resolution {
@@ -1244,7 +1416,7 @@ fn record_relative_path_edge(
     segments: &[RelativePathSegment],
     file_text: &str,
     symbol: String,
-    graph: &mut BoundaryGraph,
+    graphs: &mut CollectedDependencyGraphs,
 ) -> PathResolutionKind {
     let Some(source_module) = module_locator.locate(scope_node) else {
         return PathResolutionKind::Ignored;
@@ -1255,7 +1427,13 @@ fn record_relative_path_edge(
     if !declared_boundaries.contains(&source_boundary) {
         return PathResolutionKind::Ignored;
     }
+    let source_selector_path = module_selector_path(source_module, db);
     let source_module_segments = module_segments(source_module, db);
+    let mut resolved_target_module = if graphs.exact_module_graph.is_some() {
+        resolve_target_module(sema, path, db, krate)
+    } else {
+        None
+    };
 
     let (target_boundary, target_path, resolution_kind) = if let Some(target_boundary) =
         syntactic_target_boundary(
@@ -1270,12 +1448,16 @@ fn record_relative_path_edge(
             PathResolutionKind::SyntacticFastPath,
         )
     } else {
-        let Some(target_module) = resolve_target_module(sema, path, db, krate) else {
+        let Some(target_module) = resolved_target_module
+            .take()
+            .or_else(|| resolve_target_module(sema, path, db, krate))
+        else {
             return PathResolutionKind::Ignored;
         };
         let Some(target_boundary) = top_level_boundary(target_module, root, db) else {
             return PathResolutionKind::Ignored;
         };
+        resolved_target_module = Some(target_module);
         (
             target_boundary,
             module_path(target_module, db),
@@ -1283,23 +1465,42 @@ fn record_relative_path_edge(
         )
     };
 
+    let sample = DependencySample {
+        source: display_repo_relative(abs_path),
+        symbol,
+        target: target_path,
+        location: Some(source_location_for_range(
+            abs_path,
+            file_text,
+            path.syntax().text_range(),
+        )),
+    };
+
+    if let (Some(exact_graph), Some(target_module)) =
+        (&mut graphs.exact_module_graph, resolved_target_module)
+    {
+        let target_selector_path = module_selector_path(target_module, db);
+        if !source_selector_path.is_empty()
+            && !target_selector_path.is_empty()
+            && source_selector_path != target_selector_path
+        {
+            exact_graph.insert_edge(
+                source_selector_path,
+                target_selector_path,
+                sample.clone(),
+                EdgeProvenance::QualifiedPath,
+            );
+        }
+    }
+
     if target_boundary == source_boundary {
         return resolution_kind;
     }
 
-    graph.insert_edge(
+    graphs.boundary_graph.insert_edge(
         source_boundary,
         target_boundary,
-        DependencySample {
-            source: display_repo_relative(abs_path),
-            symbol,
-            target: target_path,
-            location: Some(source_location_for_range(
-                abs_path,
-                file_text,
-                path.syntax().text_range(),
-            )),
-        },
+        sample,
         EdgeProvenance::QualifiedPath,
     );
 
@@ -1431,6 +1632,10 @@ fn module_path(module: Module, db: &RootDatabase) -> String {
     } else {
         format!("crate::{}", segments.join("::"))
     }
+}
+
+fn module_selector_path(module: Module, db: &RootDatabase) -> String {
+    module_segments(module, db).join("::")
 }
 
 fn module_segments(module: Module, db: &RootDatabase) -> Vec<String> {

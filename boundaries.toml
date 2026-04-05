@@ -92,6 +92,20 @@ type = "allow"
 source = "render"
 allowed = ["format", "graph", "simplification", "timeline"]
 
+# Shared text/SVG helpers sit below the family-specific renderers.
+[[rules]]
+id = "render-submodule-layers"
+type = "layers"
+[rules.config]
+order = ["render::text", "render::svg", "render::graph", "render::timeline"]
+
+# Shared render utility layers should not depend on each other directly.
+[[rules]]
+id = "render-shared-submodules-independent"
+type = "independence"
+[rules.config]
+members = ["render::text", "render::svg"]
+
 [[rules]]
 id = "allow-payload"
 type = "allow"

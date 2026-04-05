@@ -81,7 +81,11 @@ collapsed back into singleton roots:
 
 4. **render/ owns output production** — All rendering code lives under
    `src/render/`. There is no top-level `formats/` ownership boundary and no
-   graph render tree under `src/graph/`.
+   graph render tree under `src/graph/`. Within `render/`, the shared
+   `render::text` and `render::svg` utility layers stay foundational and
+   independent of each other: `render::graph` and `render::timeline` may
+   depend on them, but not the other way around, and `render::text` and
+   `render::svg` must not directly depend on each other either.
 
 5. **render::graph owns geometry-based graph-family emitters** — Shared
    graph-family text and SVG emission lives under `src/render/graph/` and

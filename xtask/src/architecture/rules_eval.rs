@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::architecture::boundaries::{BoundaryGraph, DependencySample};
 use crate::architecture::policy::{ArchitecturePolicy, RuleKind, RuleSpec};
@@ -38,8 +38,17 @@ pub(crate) struct SuppressedViolation {
 // Evaluate all rules against a boundary graph
 // ---------------------------------------------------------------------------
 
+#[cfg(test)]
 pub(crate) fn evaluate_rules(
     graph: &BoundaryGraph,
+    policy: &ArchitecturePolicy,
+) -> EvaluationResult {
+    evaluate_rules_with_module_graph(graph, None, policy)
+}
+
+pub(crate) fn evaluate_rules_with_module_graph(
+    graph: &BoundaryGraph,
+    module_graph: Option<&BoundaryGraph>,
     policy: &ArchitecturePolicy,
 ) -> EvaluationResult {
     let mut all_violations = Vec::new();
@@ -48,6 +57,7 @@ pub(crate) fn evaluate_rules(
             RuleKind::Allow(allow) => {
                 evaluate_allow(
                     graph,
+                    module_graph,
                     rule,
                     &allow.source,
                     &allow.allowed,
@@ -55,11 +65,18 @@ pub(crate) fn evaluate_rules(
                 );
             }
             RuleKind::Layers(layers) => {
-                evaluate_layers(graph, rule, &layers.order, &mut all_violations);
+                evaluate_layers(
+                    graph,
+                    module_graph,
+                    rule,
+                    &layers.order,
+                    &mut all_violations,
+                );
             }
             RuleKind::Protected(prot) => {
                 evaluate_protected(
                     graph,
+                    module_graph,
                     rule,
                     &prot.targets,
                     &prot.allowed_importers,
@@ -67,15 +84,58 @@ pub(crate) fn evaluate_rules(
                 );
             }
             RuleKind::Independence(ind) => {
-                evaluate_independence(graph, rule, &ind.members, &mut all_violations);
+                evaluate_independence(graph, module_graph, rule, &ind.members, &mut all_violations);
             }
             RuleKind::Acyclic(acyc) => {
-                evaluate_acyclic(graph, rule, &acyc.members, &mut all_violations);
+                evaluate_acyclic(
+                    graph,
+                    module_graph,
+                    rule,
+                    &acyc.members,
+                    &mut all_violations,
+                );
             }
         }
     }
 
     apply_exceptions(all_violations, &policy.exceptions)
+}
+
+fn uses_module_path_selector(selector: &str) -> bool {
+    selector.contains("::")
+}
+
+fn list_uses_module_path_selectors(selectors: &[String]) -> bool {
+    selectors
+        .iter()
+        .any(|selector| uses_module_path_selector(selector))
+}
+
+fn selector_matches(selector: &str, actual_path: &str) -> bool {
+    actual_path == selector
+        || actual_path
+            .strip_prefix(selector)
+            .is_some_and(|suffix| suffix.starts_with("::"))
+}
+
+fn longest_matching_selector(actual_path: &str, selectors: &[String]) -> Option<String> {
+    selectors
+        .iter()
+        .filter(|selector| selector_matches(selector, actual_path))
+        .max_by_key(|selector| selector.len())
+        .cloned()
+}
+
+fn select_graph<'a>(
+    graph: &'a BoundaryGraph,
+    module_graph: Option<&'a BoundaryGraph>,
+    uses_module_paths: bool,
+) -> Option<&'a BoundaryGraph> {
+    if uses_module_paths {
+        module_graph
+    } else {
+        Some(graph)
+    }
 }
 
 fn apply_exceptions(
@@ -123,21 +183,40 @@ fn apply_exceptions(
 
 fn evaluate_allow(
     graph: &BoundaryGraph,
+    module_graph: Option<&BoundaryGraph>,
     rule: &RuleSpec,
     source: &str,
     allowed: &[String],
     violations: &mut Vec<Violation>,
 ) {
+    let uses_module_paths =
+        uses_module_path_selector(source) || list_uses_module_path_selectors(allowed);
+    let Some(graph) = select_graph(graph, module_graph, uses_module_paths) else {
+        return;
+    };
     let allowed_set: BTreeSet<&str> = allowed.iter().map(|s| s.as_str()).collect();
     for ((edge_source, edge_target), edge) in &graph.edges {
-        if edge_source != source {
+        if (!uses_module_paths && edge_source != source)
+            || (uses_module_paths && !selector_matches(source, edge_source))
+        {
             continue;
         }
-        if !allowed_set.contains(edge_target.as_str()) {
+        let is_allowed = if uses_module_paths {
+            allowed
+                .iter()
+                .any(|selector| selector_matches(selector, edge_target))
+        } else {
+            allowed_set.contains(edge_target.as_str())
+        };
+        if !is_allowed {
             violations.push(Violation {
                 rule_id: rule.id.clone(),
                 rule_type: "allow".to_string(),
-                source_boundary: edge_source.clone(),
+                source_boundary: if uses_module_paths {
+                    source.to_string()
+                } else {
+                    edge_source.clone()
+                },
                 target_boundary: edge_target.clone(),
                 sample: edge.sample.clone(),
                 detail: None,
@@ -152,10 +231,16 @@ fn evaluate_allow(
 
 fn evaluate_layers(
     graph: &BoundaryGraph,
+    module_graph: Option<&BoundaryGraph>,
     rule: &RuleSpec,
     order: &[String],
     violations: &mut Vec<Violation>,
 ) {
+    let uses_module_paths = list_uses_module_path_selectors(order);
+    let Some(graph) = select_graph(graph, module_graph, uses_module_paths) else {
+        return;
+    };
+
     // Build a position map: boundary name -> index in the layer order.
     // Lower index = lower layer. A boundary at index i may only depend on
     // boundaries at index j where j < i.
@@ -166,23 +251,42 @@ fn evaluate_layers(
         .collect();
 
     for ((edge_source, edge_target), edge) in &graph.edges {
-        let Some(&source_pos) = positions.get(edge_source.as_str()) else {
+        let source_selector = if uses_module_paths {
+            longest_matching_selector(edge_source, order)
+        } else {
+            Some(edge_source.clone())
+        };
+        let Some(source_selector) = source_selector else {
             continue; // edge source not in this layer set — not governed
         };
-        let Some(&target_pos) = positions.get(edge_target.as_str()) else {
+        let target_selector = if uses_module_paths {
+            longest_matching_selector(edge_target, order)
+        } else {
+            Some(edge_target.clone())
+        };
+        let Some(target_selector) = target_selector else {
             continue; // edge target not in this layer set — not governed
+        };
+        if source_selector == target_selector {
+            continue;
+        }
+        let Some(&source_pos) = positions.get(source_selector.as_str()) else {
+            continue;
+        };
+        let Some(&target_pos) = positions.get(target_selector.as_str()) else {
+            continue;
         };
         if target_pos >= source_pos {
             // Depending on same layer or higher layer is a violation
             violations.push(Violation {
                 rule_id: rule.id.clone(),
                 rule_type: "layers".to_string(),
-                source_boundary: edge_source.clone(),
-                target_boundary: edge_target.clone(),
+                source_boundary: source_selector.clone(),
+                target_boundary: target_selector.clone(),
                 sample: edge.sample.clone(),
                 detail: Some(format!(
                     "{} (layer {}) must not depend on {} (layer {})",
-                    edge_source, source_pos, edge_target, target_pos
+                    source_selector, source_pos, target_selector, target_pos
                 )),
             });
         }
@@ -195,30 +299,50 @@ fn evaluate_layers(
 
 fn evaluate_protected(
     graph: &BoundaryGraph,
+    module_graph: Option<&BoundaryGraph>,
     rule: &RuleSpec,
     targets: &[String],
     allowed_importers: &[String],
     violations: &mut Vec<Violation>,
 ) {
+    let uses_module_paths = list_uses_module_path_selectors(targets)
+        || list_uses_module_path_selectors(allowed_importers);
+    let Some(graph) = select_graph(graph, module_graph, uses_module_paths) else {
+        return;
+    };
     let target_set: BTreeSet<&str> = targets.iter().map(|s| s.as_str()).collect();
     let allowed_set: BTreeSet<&str> = allowed_importers.iter().map(|s| s.as_str()).collect();
 
     for ((edge_source, edge_target), edge) in &graph.edges {
-        if !target_set.contains(edge_target.as_str()) {
+        let target_selector = if uses_module_paths {
+            longest_matching_selector(edge_target, targets)
+        } else if target_set.contains(edge_target.as_str()) {
+            Some(edge_target.clone())
+        } else {
+            None
+        };
+        let Some(target_selector) = target_selector else {
             continue; // edge target is not protected by this rule
-        }
-        if allowed_set.contains(edge_source.as_str()) {
+        };
+        let is_allowed = if uses_module_paths {
+            allowed_importers
+                .iter()
+                .any(|selector| selector_matches(selector, edge_source))
+        } else {
+            allowed_set.contains(edge_source.as_str())
+        };
+        if is_allowed {
             continue; // source is an authorized importer
         }
         violations.push(Violation {
             rule_id: rule.id.clone(),
             rule_type: "protected".to_string(),
             source_boundary: edge_source.clone(),
-            target_boundary: edge_target.clone(),
+            target_boundary: target_selector.clone(),
             sample: edge.sample.clone(),
             detail: Some(format!(
                 "{} is not an allowed importer of protected boundary {}",
-                edge_source, edge_target
+                edge_source, target_selector
             )),
         });
     }
@@ -230,23 +354,53 @@ fn evaluate_protected(
 
 fn evaluate_independence(
     graph: &BoundaryGraph,
+    module_graph: Option<&BoundaryGraph>,
     rule: &RuleSpec,
     members: &[String],
     violations: &mut Vec<Violation>,
 ) {
+    let uses_module_paths = list_uses_module_path_selectors(members);
+    let Some(graph) = select_graph(graph, module_graph, uses_module_paths) else {
+        return;
+    };
     let member_set: BTreeSet<&str> = members.iter().map(|s| s.as_str()).collect();
 
     for ((edge_source, edge_target), edge) in &graph.edges {
-        if member_set.contains(edge_source.as_str()) && member_set.contains(edge_target.as_str()) {
+        let source_selector = if uses_module_paths {
+            longest_matching_selector(edge_source, members)
+        } else if member_set.contains(edge_source.as_str()) {
+            Some(edge_source.clone())
+        } else {
+            None
+        };
+        let Some(source_selector) = source_selector else {
+            continue;
+        };
+        let target_selector = if uses_module_paths {
+            longest_matching_selector(edge_target, members)
+        } else if member_set.contains(edge_target.as_str()) {
+            Some(edge_target.clone())
+        } else {
+            None
+        };
+        let Some(target_selector) = target_selector else {
+            continue;
+        };
+        if source_selector == target_selector {
+            continue;
+        }
+        if member_set.contains(source_selector.as_str())
+            && member_set.contains(target_selector.as_str())
+        {
             violations.push(Violation {
                 rule_id: rule.id.clone(),
                 rule_type: "independence".to_string(),
-                source_boundary: edge_source.clone(),
-                target_boundary: edge_target.clone(),
+                source_boundary: source_selector.clone(),
+                target_boundary: target_selector.clone(),
                 sample: edge.sample.clone(),
                 detail: Some(format!(
                     "{} and {} must be independent (no direct dependencies)",
-                    edge_source, edge_target
+                    source_selector, target_selector
                 )),
             });
         }
@@ -259,23 +413,52 @@ fn evaluate_independence(
 
 fn evaluate_acyclic(
     graph: &BoundaryGraph,
+    module_graph: Option<&BoundaryGraph>,
     rule: &RuleSpec,
     members: &[String],
     violations: &mut Vec<Violation>,
 ) {
-    let member_set: BTreeSet<&str> = members.iter().map(|s| s.as_str()).collect();
+    let uses_module_paths = list_uses_module_path_selectors(members);
+    let Some(graph) = select_graph(graph, module_graph, uses_module_paths) else {
+        return;
+    };
+    let member_set: BTreeSet<String> = members.iter().cloned().collect();
 
-    // Build adjacency list restricted to members
-    let mut adj: std::collections::BTreeMap<&str, Vec<&str>> = std::collections::BTreeMap::new();
-    for member in &member_set {
-        adj.entry(member).or_default();
+    let mut adj: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut samples: BTreeMap<(String, String), DependencySample> = BTreeMap::new();
+    for member in members {
+        adj.entry(member.clone()).or_default();
     }
-    for (source, target) in graph.edges.keys() {
-        if member_set.contains(source.as_str()) && member_set.contains(target.as_str()) {
-            adj.entry(source.as_str())
-                .or_default()
-                .push(target.as_str());
+    for ((source, target), edge) in &graph.edges {
+        let source_selector = if uses_module_paths {
+            longest_matching_selector(source, members)
+        } else if member_set.contains(source) {
+            Some(source.clone())
+        } else {
+            None
+        };
+        let Some(source_selector) = source_selector else {
+            continue;
+        };
+        let target_selector = if uses_module_paths {
+            longest_matching_selector(target, members)
+        } else if member_set.contains(target) {
+            Some(target.clone())
+        } else {
+            None
+        };
+        let Some(target_selector) = target_selector else {
+            continue;
+        };
+        if source_selector == target_selector {
+            continue;
         }
+        adj.entry(source_selector.clone())
+            .or_default()
+            .push(target_selector.clone());
+        samples
+            .entry((source_selector, target_selector))
+            .or_insert_with(|| edge.sample.clone());
     }
 
     // DFS-based cycle detection
@@ -286,33 +469,36 @@ fn evaluate_acyclic(
         Black,
     }
 
-    let mut color: std::collections::BTreeMap<&str, Color> =
-        member_set.iter().map(|&m| (m, Color::White)).collect();
-    let mut path: Vec<&str> = Vec::new();
+    let mut color: BTreeMap<String, Color> = member_set
+        .iter()
+        .cloned()
+        .map(|m| (m, Color::White))
+        .collect();
+    let mut path: Vec<String> = Vec::new();
 
-    fn dfs<'a>(
-        node: &'a str,
-        adj: &std::collections::BTreeMap<&'a str, Vec<&'a str>>,
-        color: &mut std::collections::BTreeMap<&'a str, Color>,
-        path: &mut Vec<&'a str>,
+    fn dfs(
+        node: String,
+        adj: &BTreeMap<String, Vec<String>>,
+        color: &mut BTreeMap<String, Color>,
+        path: &mut Vec<String>,
         cycles: &mut Vec<Vec<String>>,
     ) {
-        color.insert(node, Color::Gray);
-        path.push(node);
+        color.insert(node.clone(), Color::Gray);
+        path.push(node.clone());
 
-        if let Some(neighbors) = adj.get(node) {
-            for &next in neighbors {
+        if let Some(neighbors) = adj.get(&node) {
+            for next in neighbors {
                 match color.get(next) {
                     Some(Color::Gray) => {
                         // Found a cycle. Extract the cycle path starting from `next`.
-                        let cycle_start = path.iter().position(|&n| n == next).unwrap();
+                        let cycle_start = path.iter().position(|n| n == next).unwrap();
                         let mut cycle: Vec<String> =
                             path[cycle_start..].iter().map(|s| s.to_string()).collect();
                         cycle.push(next.to_string()); // close the cycle
                         cycles.push(cycle);
                     }
                     Some(Color::White) | None => {
-                        dfs(next, adj, color, path, cycles);
+                        dfs(next.clone(), adj, color, path, cycles);
                     }
                     Some(Color::Black) => {}
                 }
@@ -324,9 +510,9 @@ fn evaluate_acyclic(
     }
 
     let mut cycles: Vec<Vec<String>> = Vec::new();
-    for &node in &member_set {
+    for node in &member_set {
         if color.get(node) == Some(&Color::White) {
-            dfs(node, &adj, &mut color, &mut path, &mut cycles);
+            dfs(node.clone(), &adj, &mut color, &mut path, &mut cycles);
         }
     }
 
@@ -359,9 +545,9 @@ fn evaluate_acyclic(
         // Use the first edge in the cycle as the representative sample
         let source = &cycle[0];
         let target = &cycle[1];
-        let sample = graph
-            .edge(source, target)
-            .map(|e| e.sample.clone())
+        let sample = samples
+            .get(&(source.clone(), target.clone()))
+            .cloned()
             .unwrap_or_else(|| DependencySample {
                 source: format!("crate::{source}"),
                 symbol: format!("crate::{target}"),
@@ -431,11 +617,21 @@ mod tests {
         graph
     }
 
+    fn empty_graph() -> BoundaryGraph {
+        BoundaryGraph::new(BTreeSet::new())
+    }
+
     fn allow_policy(source: &str, allowed: &[&str]) -> ArchitecturePolicy {
         let mut boundaries = BTreeMap::new();
-        boundaries.insert(source.to_string(), Default::default());
+        boundaries.insert(
+            source.split("::").next().unwrap_or(source).to_string(),
+            Default::default(),
+        );
         for dep in allowed {
-            boundaries.insert(dep.to_string(), Default::default());
+            boundaries.insert(
+                dep.split("::").next().unwrap_or(dep).to_string(),
+                Default::default(),
+            );
         }
         ArchitecturePolicy {
             version: 1,
@@ -452,10 +648,11 @@ mod tests {
     }
 
     fn layers_policy(order: &[&str]) -> ArchitecturePolicy {
-        let boundaries = order
-            .iter()
-            .map(|name| (name.to_string(), Default::default()))
-            .collect();
+        let mut boundaries = BTreeMap::new();
+        for name in order {
+            let root = name.split("::").next().unwrap_or(name);
+            boundaries.entry(root.to_string()).or_default();
+        }
         ArchitecturePolicy {
             version: 1,
             modules: boundaries,
@@ -497,6 +694,19 @@ mod tests {
         let policy = allow_policy("runtime", &["graph"]);
         let violations = evaluate_rules(&graph, &policy).violations;
         assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn allow_rule_reports_disallowed_edge_for_module_paths() {
+        let graph = graph_with_edge("render::graph::emit", "render::timeline::layout");
+        let policy = allow_policy("render::graph", &["render::text", "render::svg"]);
+
+        let violations =
+            evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy).violations;
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].source_boundary, "render::graph");
+        assert_eq!(violations[0].target_boundary, "render::timeline::layout");
     }
 
     // -- layers rule tests --
@@ -551,12 +761,66 @@ mod tests {
         assert!(violations.iter().all(|v| v.source_boundary == "errors"));
     }
 
+    #[test]
+    fn layers_rule_reports_upward_dependency_for_module_paths() {
+        let graph = graph_with_edge("render::text::canvas", "render::graph");
+        let policy = layers_policy(&[
+            "render::text",
+            "render::svg",
+            "render::graph",
+            "render::timeline",
+        ]);
+
+        let violations =
+            evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy).violations;
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].rule_type, "layers");
+        assert_eq!(violations[0].source_boundary, "render::text");
+        assert_eq!(violations[0].target_boundary, "render::graph");
+    }
+
+    #[test]
+    fn layers_rule_allows_downward_dependency_for_module_paths() {
+        let graph = graph_with_edge("render::graph::text", "render::text::canvas");
+        let policy = layers_policy(&[
+            "render::text",
+            "render::svg",
+            "render::graph",
+            "render::timeline",
+        ]);
+
+        let violations =
+            evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy).violations;
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn layers_rule_ignores_edges_outside_the_declared_module_set_for_module_paths() {
+        let graph = graph_with_edge("render::text::canvas", "graph::measure");
+        let policy = layers_policy(&[
+            "render::text",
+            "render::svg",
+            "render::graph",
+            "render::timeline",
+        ]);
+
+        let violations =
+            evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy).violations;
+
+        assert!(violations.is_empty());
+    }
+
     // -- protected rule tests --
 
     fn protected_policy(targets: &[&str], allowed_importers: &[&str]) -> ArchitecturePolicy {
         let mut boundaries = BTreeMap::new();
         for name in targets.iter().chain(allowed_importers.iter()) {
-            boundaries.insert(name.to_string(), Default::default());
+            boundaries.insert(
+                name.split("::").next().unwrap_or(name).to_string(),
+                Default::default(),
+            );
         }
         ArchitecturePolicy {
             version: 1,
@@ -609,13 +873,29 @@ mod tests {
         assert!(violations.is_empty());
     }
 
+    #[test]
+    fn protected_rule_rejects_unauthorized_importer_for_module_paths() {
+        let graph = graph_with_edge("render::timeline::draw", "render::text::layout");
+        let policy = protected_policy(&["render::text"], &["render::graph", "render::text"]);
+
+        let violations =
+            evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy).violations;
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].source_boundary, "render::timeline::draw");
+        assert_eq!(violations[0].target_boundary, "render::text");
+    }
+
     // -- independence rule tests --
 
     fn independence_policy(members: &[&str]) -> ArchitecturePolicy {
-        let boundaries = members
-            .iter()
-            .map(|name| (name.to_string(), Default::default()))
-            .collect();
+        let mut boundaries = BTreeMap::new();
+        for name in members {
+            boundaries.insert(
+                name.split("::").next().unwrap_or(name).to_string(),
+                Default::default(),
+            );
+        }
         ArchitecturePolicy {
             version: 1,
             modules: boundaries,
@@ -659,13 +939,29 @@ mod tests {
         assert!(violations.is_empty());
     }
 
+    #[test]
+    fn independence_rule_rejects_peer_dependency_for_module_paths() {
+        let graph = graph_with_edge("render::graph::emit", "render::timeline::layout");
+        let policy = independence_policy(&["render::graph", "render::timeline"]);
+
+        let violations =
+            evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy).violations;
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].source_boundary, "render::graph");
+        assert_eq!(violations[0].target_boundary, "render::timeline");
+    }
+
     // -- acyclic rule tests --
 
     fn acyclic_policy(members: &[&str]) -> ArchitecturePolicy {
-        let boundaries = members
-            .iter()
-            .map(|name| (name.to_string(), Default::default()))
-            .collect();
+        let mut boundaries = BTreeMap::new();
+        for name in members {
+            boundaries.insert(
+                name.split("::").next().unwrap_or(name).to_string(),
+                Default::default(),
+            );
+        }
         ArchitecturePolicy {
             version: 1,
             modules: boundaries,
@@ -720,6 +1016,23 @@ mod tests {
         policy.modules.insert("x".to_string(), Default::default());
         let violations = evaluate_rules(&graph, &policy).violations;
         assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn acyclic_rule_detects_cycle_for_module_paths() {
+        let graph = graph_with_edges(&[
+            ("render::graph::emit", "render::timeline::layout"),
+            ("render::timeline::draw", "render::graph::helpers"),
+        ]);
+        let policy = acyclic_policy(&["render::graph", "render::timeline"]);
+
+        let violations =
+            evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy).violations;
+
+        assert_eq!(violations.len(), 1);
+        let detail = violations[0].detail.as_ref().unwrap();
+        assert!(detail.contains("render::graph"));
+        assert!(detail.contains("render::timeline"));
     }
 
     // -- exception tests --

@@ -36,6 +36,14 @@ impl ArchitecturePolicy {
         }
         map
     }
+
+    pub(crate) fn uses_module_path_selectors(&self) -> bool {
+        self.rules.iter().any(rule_uses_module_path_selectors)
+            || self.exceptions.iter().any(|exception| {
+                uses_module_path_selector(&exception.source)
+                    || uses_module_path_selector(&exception.target)
+            })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -234,9 +242,9 @@ fn parse_rule(raw: &RawRuleSpec, boundaries: &BTreeMap<String, ModuleSpec>) -> R
             let source: String = get_config_string(&raw.config, "source", &raw.id)?;
             let allowed =
                 get_config_string_array_or_tag(&raw.config, "allowed", &raw.id, boundaries)?;
-            ensure_boundary_exists(&source, boundaries, &raw.id)?;
+            ensure_module_reference_root_exists(&source, boundaries, &raw.id)?;
             for dep in &allowed {
-                ensure_boundary_exists(dep, boundaries, &raw.id)?;
+                ensure_module_reference_root_exists(dep, boundaries, &raw.id)?;
             }
             Ok(RuleKind::Allow(AllowRule { source, allowed }))
         }
@@ -245,7 +253,7 @@ fn parse_rule(raw: &RawRuleSpec, boundaries: &BTreeMap<String, ModuleSpec>) -> R
             let order: Vec<String> = get_config_string_array(&raw.config, "order", &raw.id)?;
             check_no_duplicates(&order, "order", &raw.id)?;
             for boundary in &order {
-                ensure_boundary_exists(boundary, boundaries, &raw.id)?;
+                ensure_module_reference_root_exists(boundary, boundaries, &raw.id)?;
             }
             Ok(RuleKind::Layers(LayersRule { order }))
         }
@@ -259,10 +267,10 @@ fn parse_rule(raw: &RawRuleSpec, boundaries: &BTreeMap<String, ModuleSpec>) -> R
                 boundaries,
             )?;
             for t in &targets {
-                ensure_boundary_exists(t, boundaries, &raw.id)?;
+                ensure_module_reference_root_exists(t, boundaries, &raw.id)?;
             }
             for i in &allowed_importers {
-                ensure_boundary_exists(i, boundaries, &raw.id)?;
+                ensure_module_reference_root_exists(i, boundaries, &raw.id)?;
             }
             Ok(RuleKind::Protected(ProtectedRule {
                 targets,
@@ -273,7 +281,7 @@ fn parse_rule(raw: &RawRuleSpec, boundaries: &BTreeMap<String, ModuleSpec>) -> R
             let members =
                 get_config_string_array_or_tag(&raw.config, "members", &raw.id, boundaries)?;
             for m in &members {
-                ensure_boundary_exists(m, boundaries, &raw.id)?;
+                ensure_module_reference_root_exists(m, boundaries, &raw.id)?;
             }
             Ok(RuleKind::Independence(IndependenceRule { members }))
         }
@@ -281,7 +289,7 @@ fn parse_rule(raw: &RawRuleSpec, boundaries: &BTreeMap<String, ModuleSpec>) -> R
             let members =
                 get_config_string_array_or_tag(&raw.config, "members", &raw.id, boundaries)?;
             for m in &members {
-                ensure_boundary_exists(m, boundaries, &raw.id)?;
+                ensure_module_reference_root_exists(m, boundaries, &raw.id)?;
             }
             Ok(RuleKind::Acyclic(AcyclicRule { members }))
         }
@@ -314,8 +322,8 @@ fn validate_exception(
     let reason = raw.reason.unwrap_or_default();
     let owner = raw.owner.unwrap_or_default();
 
-    ensure_boundary_exists(&source, boundaries, &format!("exception {:?}", raw.id))?;
-    ensure_boundary_exists(&target, boundaries, &format!("exception {:?}", raw.id))?;
+    ensure_module_reference_root_exists(&source, boundaries, &format!("exception {:?}", raw.id))?;
+    ensure_module_reference_root_exists(&target, boundaries, &format!("exception {:?}", raw.id))?;
 
     Ok(ExceptionSpec {
         id: raw.id,
@@ -340,6 +348,49 @@ fn ensure_boundary_exists(
         bail!("{context}: unknown boundary {name:?}");
     }
     Ok(())
+}
+
+fn ensure_module_reference_root_exists(
+    name: &str,
+    boundaries: &BTreeMap<String, ModuleSpec>,
+    context: &str,
+) -> Result<()> {
+    let mut segments = name.split("::");
+    let Some(root) = segments.next().filter(|segment| !segment.is_empty()) else {
+        bail!("{context}: invalid module path {name:?}");
+    };
+    if segments.any(|segment| segment.is_empty()) {
+        bail!("{context}: invalid module path {name:?}");
+    }
+    ensure_boundary_exists(root, boundaries, context)
+}
+
+fn uses_module_path_selector(selector: &str) -> bool {
+    selector.contains("::")
+}
+
+fn list_uses_module_path_selectors(selectors: &[String]) -> bool {
+    selectors
+        .iter()
+        .any(|selector| uses_module_path_selector(selector))
+}
+
+fn rule_uses_module_path_selectors(rule: &RuleSpec) -> bool {
+    match &rule.rule {
+        RuleKind::Allow(allow) => {
+            uses_module_path_selector(&allow.source)
+                || list_uses_module_path_selectors(&allow.allowed)
+        }
+        RuleKind::Layers(layers) => list_uses_module_path_selectors(&layers.order),
+        RuleKind::Protected(protected) => {
+            list_uses_module_path_selectors(&protected.targets)
+                || list_uses_module_path_selectors(&protected.allowed_importers)
+        }
+        RuleKind::Independence(independence) => {
+            list_uses_module_path_selectors(&independence.members)
+        }
+        RuleKind::Acyclic(acyclic) => list_uses_module_path_selectors(&acyclic.members),
+    }
 }
 
 fn check_no_duplicates(items: &[String], field: &str, rule_id: &str) -> Result<()> {
@@ -477,6 +528,34 @@ mod tests {
         assert_eq!(policy.exceptions[0].source, "render");
         assert_eq!(policy.exceptions[0].target, "graph");
         assert_eq!(policy.exceptions[0].owner, "kevin");
+    }
+
+    #[test]
+    fn parse_layers_rule_with_module_paths() {
+        let toml = "\
+            version = 1\n\
+            [modules.render]\n\
+            \n\
+            [[rules]]\n\
+            id = \"render-submodule-layers\"\n\
+            type = \"layers\"\n\
+            [rules.config]\n\
+            order = [\"render::text\", \"render::svg\", \"render::graph\", \"render::timeline\"]\n\
+        ";
+
+        let policy = parse_policy_str(toml).unwrap();
+        match &policy.rules[0].rule {
+            RuleKind::Layers(rule) => assert_eq!(
+                rule.order,
+                vec![
+                    "render::text".to_string(),
+                    "render::svg".to_string(),
+                    "render::graph".to_string(),
+                    "render::timeline".to_string(),
+                ]
+            ),
+            other => panic!("expected layers rule, found {other:?}"),
+        }
     }
 
     // -- v1 shape tests --
