@@ -79,9 +79,11 @@ pub fn route_graph_geometry(
                     } else {
                         path
                     };
+                    let corridor_slot = backward_corridor_ctx.slot_for(edge.index);
                     let needs_channel = is_backward
                         && geometry.enhanced_backward_routing
-                        && has_corridor_obstructions(edge, geometry, edge_direction);
+                        && (has_corridor_obstructions(edge, geometry, edge_direction)
+                            || corridor_slot.is_some());
                     let needs_short_offset = is_backward
                         && (geometry.enhanced_backward_routing
                             || edge_direction != diagram.direction);
@@ -91,7 +93,7 @@ pub fn route_graph_geometry(
                             edge,
                             geometry,
                             edge_direction,
-                            backward_corridor_ctx.slot_for(edge.index),
+                            corridor_slot,
                         )
                     } else if needs_short_offset {
                         apply_short_backward_port_offset(path, edge, geometry, edge_direction)
@@ -126,9 +128,34 @@ pub fn route_graph_geometry(
                         preserve_orthogonal_topology: false,
                     }
                 })
-                .collect()
+                .collect::<Vec<_>>()
         }
     };
+
+    // Spread co-located backward edge ports for non-orthogonal presets.
+    // The orthogonal path does this internally.  EngineProvided is excluded
+    // because its contract is to preserve engine-supplied geometry.
+    let mut edges = edges;
+    if matches!(
+        edge_routing,
+        EdgeRouting::DirectRoute | EdgeRouting::PolylineRoute
+    ) {
+        super::orthogonal::fan::spread_colocated_backward_source_ports(&mut edges, geometry);
+        super::orthogonal::fan::spread_colocated_backward_target_ports(&mut edges, geometry);
+
+        // Recompute label anchors for backward edges whose paths were
+        // mutated by the spreading pass.
+        for edge in edges.iter_mut().filter(|e| e.is_backward) {
+            edge.label_position = if edge.path.len() >= 2 {
+                arc_length_midpoint(&edge.path)
+            } else {
+                edge.label_position
+            };
+            let (head, tail) = compute_end_labels_for_edge(diagram, edge.index, &edge.path);
+            edge.head_label_position = head;
+            edge.tail_label_position = tail;
+        }
+    }
 
     let self_edges: Vec<RoutedSelfEdge> = geometry
         .self_edges

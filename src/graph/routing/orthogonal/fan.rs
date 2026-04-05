@@ -378,7 +378,7 @@ pub(super) fn fan_out_source_stagger_context(
 /// point.  Runs as a post-processing step after all paths are routed so the
 /// actual departure face is known.  Only adjusts edges that truly overlap —
 /// edges already on different faces or at different positions are left alone.
-pub(super) fn spread_colocated_backward_source_ports(
+pub(in crate::graph::routing) fn spread_colocated_backward_source_ports(
     routed: &mut [crate::graph::geometry::RoutedEdgeGeometry],
     geometry: &crate::graph::geometry::GraphGeometry,
 ) {
@@ -522,7 +522,7 @@ pub(super) fn spread_colocated_backward_source_ports(
 /// Spread backward edge target ports that share the exact same arrival
 /// point.  Mirrors `spread_colocated_backward_source_ports` but operates on
 /// the last path point (arrival) rather than the first (departure).
-pub(super) fn spread_colocated_backward_target_ports(
+pub(in crate::graph::routing) fn spread_colocated_backward_target_ports(
     routed: &mut [crate::graph::geometry::RoutedEdgeGeometry],
     geometry: &crate::graph::geometry::GraphGeometry,
 ) {

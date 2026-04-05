@@ -24,6 +24,8 @@ pub(crate) const LANE_SPACING: f64 = 8.0;
 struct CorridorDescriptor {
     /// Index into `geometry.edges`.
     edge_index: usize,
+    /// Target node id.
+    target: String,
     /// Shared parent subgraph of both endpoints (None = top level).
     scope_parent: Option<String>,
     /// Primary-axis lower bound of the corridor (y for TD/BT, x for LR/RL).
@@ -43,7 +45,8 @@ pub(crate) struct BackwardCorridorSlot {
     pub(crate) slot: usize,
 }
 
-/// Per-edge corridor slot assignments for all backward edges with obstructions.
+/// Per-edge corridor slot assignments for all backward edges that participate
+/// in corridor deconfliction (obstructed edges and same-target edges).
 #[derive(Debug, Default)]
 pub(crate) struct BackwardCorridorContext {
     slots: HashMap<usize, BackwardCorridorSlot>,
@@ -107,29 +110,61 @@ pub(crate) fn compute_backward_corridor_context_orthogonal(
 // ---------------------------------------------------------------------------
 
 /// Build corridor descriptors for all backward edges (DirectRoute path).
+///
+/// Includes edges with corridor obstructions *and* edges that share a target
+/// with another backward edge (even without obstructions).
 fn build_descriptors(geometry: &GraphGeometry, direction: Direction) -> Vec<CorridorDescriptor> {
+    let mut backward_target_counts: HashMap<&str, usize> = HashMap::new();
+    for edge in &geometry.edges {
+        if geometry.reversed_edges.contains(&edge.index) {
+            *backward_target_counts.entry(&edge.to).or_default() += 1;
+        }
+    }
+
     geometry
         .edges
         .iter()
         .filter(|edge| {
             geometry.reversed_edges.contains(&edge.index)
-                && has_corridor_obstructions(edge, geometry, direction)
+                && (has_corridor_obstructions(edge, geometry, direction)
+                    || backward_target_counts
+                        .get(edge.to.as_str())
+                        .copied()
+                        .unwrap_or(0)
+                        >= 2)
         })
         .filter_map(|edge| build_one_descriptor(edge, geometry, direction))
         .collect()
 }
 
 /// Build corridor descriptors for all backward edges (OrthogonalRoute path).
+///
+/// Includes edges with corridor obstructions *and* edges that share a target
+/// with another backward edge (even without obstructions), so that same-target
+/// edges receive distinct corridor lane slots.
 fn build_descriptors_orthogonal(
     geometry: &GraphGeometry,
     direction: Direction,
 ) -> Vec<CorridorDescriptor> {
+    // Pre-scan: find targets with 2+ backward inbound edges.
+    let mut backward_target_counts: HashMap<&str, usize> = HashMap::new();
+    for edge in &geometry.edges {
+        if geometry.reversed_edges.contains(&edge.index) {
+            *backward_target_counts.entry(&edge.to).or_default() += 1;
+        }
+    }
+
     geometry
         .edges
         .iter()
         .filter(|edge| {
             geometry.reversed_edges.contains(&edge.index)
-                && has_backward_corridor_obstructions(edge, geometry, direction)
+                && (has_backward_corridor_obstructions(edge, geometry, direction)
+                    || backward_target_counts
+                        .get(edge.to.as_str())
+                        .copied()
+                        .unwrap_or(0)
+                        >= 2)
         })
         .filter_map(|edge| build_one_descriptor(edge, geometry, direction))
         .collect()
@@ -159,6 +194,7 @@ fn build_one_descriptor(
             let base_lane = compute_base_lane_td_bt(edge, geometry, &sr, &tr, sg_rect);
             Some(CorridorDescriptor {
                 edge_index: edge.index,
+                target: edge.to.clone(),
                 scope_parent,
                 span_min,
                 span_max,
@@ -171,6 +207,7 @@ fn build_one_descriptor(
             let base_lane = compute_base_lane_lr_rl(edge, geometry, &sr, &tr, sg_rect);
             Some(CorridorDescriptor {
                 edge_index: edge.index,
+                target: edge.to.clone(),
                 scope_parent,
                 span_min,
                 span_max,
@@ -270,7 +307,8 @@ fn compute_base_lane_lr_rl(
 /// Group corridor descriptors into compartments.
 ///
 /// Two edges are in the same compartment when they share the same
-/// `scope_parent` and their primary-axis spans overlap.
+/// `scope_parent` and their primary-axis spans overlap, **or** when
+/// they share the same target node (regardless of span overlap).
 fn group_into_compartments(
     mut descriptors: Vec<CorridorDescriptor>,
 ) -> Vec<Vec<CorridorDescriptor>> {
@@ -303,7 +341,46 @@ fn group_into_compartments(
         }
     }
     compartments.push(current_group);
+
+    // Merge compartments that share a target node.  Edges from widely
+    // separated sources produce non-overlapping spans but still need
+    // distinct corridor lanes when they converge on the same target.
+    merge_compartments_by_shared_target(&mut compartments);
+
     compartments
+}
+
+/// Merge any compartments that share at least one target node.
+fn merge_compartments_by_shared_target(compartments: &mut Vec<Vec<CorridorDescriptor>>) {
+    // Build target → compartment-index mapping; when a target appears in
+    // two compartments, merge the later one into the earlier one.
+    loop {
+        let mut target_to_comp: HashMap<&str, usize> = HashMap::new();
+        let mut merge_pair: Option<(usize, usize)> = None;
+
+        for (ci, comp) in compartments.iter().enumerate() {
+            for desc in comp {
+                if let Some(&earlier) = target_to_comp.get(desc.target.as_str()) {
+                    if earlier != ci {
+                        merge_pair = Some((earlier, ci));
+                        break;
+                    }
+                } else {
+                    target_to_comp.insert(&desc.target, ci);
+                }
+            }
+            if merge_pair.is_some() {
+                break;
+            }
+        }
+
+        if let Some((keep, remove)) = merge_pair {
+            let removed = compartments.remove(remove);
+            compartments[keep].extend(removed);
+        } else {
+            break;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -364,8 +441,27 @@ mod tests {
         span_max: f64,
         base_lane: f64,
     ) -> CorridorDescriptor {
+        desc_with_target(
+            edge_index,
+            &format!("t{edge_index}"),
+            scope_parent,
+            span_min,
+            span_max,
+            base_lane,
+        )
+    }
+
+    fn desc_with_target(
+        edge_index: usize,
+        target: &str,
+        scope_parent: Option<&str>,
+        span_min: f64,
+        span_max: f64,
+        base_lane: f64,
+    ) -> CorridorDescriptor {
         CorridorDescriptor {
             edge_index,
+            target: target.to_string(),
             scope_parent: scope_parent.map(String::from),
             span_min,
             span_max,
@@ -465,5 +561,80 @@ mod tests {
     fn edges_without_entry_return_none() {
         let ctx = BackwardCorridorContext::default();
         assert!(ctx.slot_for(42).is_none());
+    }
+
+    // -- same-target compartment merging ---------------------------------------
+
+    #[test]
+    fn same_target_non_overlapping_spans_merge_into_one_compartment() {
+        // Edges 0 and 1 share target "Alpha" but have non-overlapping spans.
+        // The same-target merge pass should combine them.
+        let descriptors = vec![
+            desc_with_target(0, "Alpha", None, 10.0, 50.0, 200.0),
+            desc_with_target(1, "Alpha", None, 100.0, 200.0, 210.0),
+        ];
+        let compartments = group_into_compartments(descriptors);
+        assert_eq!(compartments.len(), 1);
+        assert_eq!(compartments[0].len(), 2);
+    }
+
+    #[test]
+    fn same_target_three_edges_all_merged() {
+        // Three edges targeting "Alpha" from widely separated sources.
+        let descriptors = vec![
+            desc_with_target(0, "Alpha", None, 10.0, 50.0, 200.0),
+            desc_with_target(1, "Alpha", None, 80.0, 120.0, 205.0),
+            desc_with_target(2, "Alpha", None, 200.0, 300.0, 210.0),
+        ];
+        let compartments = group_into_compartments(descriptors);
+        assert_eq!(compartments.len(), 1);
+        assert_eq!(compartments[0].len(), 3);
+    }
+
+    #[test]
+    fn different_targets_stay_separate() {
+        // Edges targeting different nodes stay in separate compartments.
+        let descriptors = vec![
+            desc_with_target(0, "Alpha", None, 10.0, 50.0, 200.0),
+            desc_with_target(1, "Bravo", None, 100.0, 200.0, 210.0),
+        ];
+        let compartments = group_into_compartments(descriptors);
+        assert_eq!(compartments.len(), 2);
+    }
+
+    #[test]
+    fn same_target_merges_across_span_groups() {
+        // Edge 0 targets Alpha (span 10-50), edge 1 targets Bravo (span 40-90),
+        // edge 2 targets Alpha (span 200-300).
+        // Sweep groups: {0, 1} (overlapping spans) and {2}.
+        // Same-target merge should combine {0, 1} and {2} because edges 0
+        // and 2 share target Alpha.
+        let descriptors = vec![
+            desc_with_target(0, "Alpha", None, 10.0, 50.0, 200.0),
+            desc_with_target(1, "Bravo", None, 40.0, 90.0, 205.0),
+            desc_with_target(2, "Alpha", None, 200.0, 300.0, 210.0),
+        ];
+        let compartments = group_into_compartments(descriptors);
+        assert_eq!(compartments.len(), 1);
+        assert_eq!(compartments[0].len(), 3);
+    }
+
+    #[test]
+    fn same_target_merged_compartment_gets_slots() {
+        // Two same-target edges with non-overlapping spans should both
+        // receive distinct slots after merging.
+        let descriptors = vec![
+            desc_with_target(0, "Alpha", None, 10.0, 50.0, 200.0),
+            desc_with_target(1, "Alpha", None, 100.0, 200.0, 210.0),
+        ];
+        let compartments = group_into_compartments(descriptors);
+        let ctx = build_context_from_compartments(&compartments);
+
+        let slot0 = ctx.slot_for(0).expect("edge 0 should have a slot");
+        let slot1 = ctx.slot_for(1).expect("edge 1 should have a slot");
+        assert_ne!(slot0.slot, slot1.slot);
+        // Base lane should be max of 200 and 210.
+        assert!((slot0.base_lane - 210.0).abs() < 0.01);
+        assert!((slot1.base_lane - 210.0).abs() < 0.01);
     }
 }

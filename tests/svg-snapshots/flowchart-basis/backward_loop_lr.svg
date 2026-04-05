@@ -35,7 +35,7 @@
       <path d="M1345.87,139.00 L1353.87,139.00 L1359.58,139.00 C1365.29,139.00 1376.71,139.00 1391.63,139.00 C1406.55,139.00 1424.97,139.00 1434.18,139.00 L1443.39,139.00 L1451.39,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
-      <text x="1127.13" y="157.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Fail</text>
+      <text x="1125.13" y="157.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Fail</text>
       <text x="1388.13" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Pass</text>
     </g>
   </g>

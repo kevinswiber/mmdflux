@@ -489,6 +489,7 @@ mod tests {
             &geom,
             crate::graph::Direction::TopDown,
             None,
+            None,
         )
         .expect("backward channel path should be constructed");
 
@@ -610,6 +611,7 @@ mod tests {
             &geom,
             crate::graph::Direction::TopDown,
             Some(slot0.slot),
+            Some(slot0.base_lane),
         )
         .expect("path for edge 0");
 
@@ -618,6 +620,7 @@ mod tests {
             &geom,
             crate::graph::Direction::TopDown,
             Some(slot1.slot),
+            Some(slot1.base_lane),
         )
         .expect("path for edge 1");
 

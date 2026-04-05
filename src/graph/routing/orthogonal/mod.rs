@@ -117,7 +117,9 @@ pub fn route_edges_orthogonal(
                 .targets_with_backward_inbound
                 .contains(&edge.to);
             let rank_span = fan::edge_rank_span(geometry, edge).unwrap_or(0);
-            let corridor_lane_slot = backward_corridor_ctx.slot_for(edge.index).map(|s| s.slot);
+            let corridor_slot = backward_corridor_ctx.slot_for(edge.index);
+            let corridor_lane_slot = corridor_slot.map(|s| s.slot);
+            let corridor_base_lane = corridor_slot.map(|s| s.base_lane);
             let (mut path, target_transit_avoided) = build_orthogonal_path(
                 edge,
                 geometry,
@@ -132,6 +134,7 @@ pub fn route_edges_orthogonal(
                 target_has_backward_conflict,
                 rank_span,
                 corridor_lane_slot,
+                corridor_base_lane,
             );
 
             // Offset backward edge source port from the forward arrival port
@@ -244,6 +247,7 @@ fn build_orthogonal_path(
     target_has_backward_conflict: bool,
     rank_span: usize,
     corridor_lane_slot: Option<usize>,
+    corridor_base_lane: Option<f64>,
 ) -> (Vec<FPoint>, bool) {
     let (backward_source_face_override, backward_target_face_override) =
         backward::backward_td_bt_face_overrides(
@@ -399,6 +403,7 @@ fn build_orthogonal_path(
                 target_face_override: backward_target_face_override,
                 base_finalized: &base_finalized,
                 corridor_lane_slot,
+                corridor_base_lane,
             },
         );
     }

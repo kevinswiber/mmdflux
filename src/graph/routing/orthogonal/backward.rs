@@ -359,6 +359,7 @@ pub(crate) fn build_backward_orthogonal_channel_path(
     geometry: &GraphGeometry,
     direction: Direction,
     corridor_lane_slot: Option<usize>,
+    corridor_base_lane: Option<f64>,
 ) -> Option<Vec<FPoint>> {
     use super::super::backward_deconflict::LANE_SPACING;
 
@@ -379,23 +380,28 @@ pub(crate) fn build_backward_orthogonal_channel_path(
             let source_cy = sr.center_y();
             let target_cy = tr.center_y();
 
-            let face_envelope = source_right.max(target_right);
-            let min_y = sr.y.min(tr.y);
-            let max_y = (sr.y + sr.height).max(tr.y + tr.height);
-            let mut lane_x = face_envelope + CHANNEL_CLEARANCE;
-            for node in geometry.nodes.values() {
-                if node.id == edge.from || node.id == edge.to {
-                    continue;
+            let mut lane_x = if let Some(base) = corridor_base_lane {
+                base
+            } else {
+                let face_envelope = source_right.max(target_right);
+                let min_y = sr.y.min(tr.y);
+                let max_y = (sr.y + sr.height).max(tr.y + tr.height);
+                let mut lx = face_envelope + CHANNEL_CLEARANCE;
+                for node in geometry.nodes.values() {
+                    if node.id == edge.from || node.id == edge.to {
+                        continue;
+                    }
+                    if !node_in_scope(&node.id, scope_parent, geometry) {
+                        continue;
+                    }
+                    let cy = node.rect.center_y();
+                    let node_right = node.rect.x + node.rect.width;
+                    if cy >= min_y && cy <= max_y {
+                        lx = lx.max(node_right + CHANNEL_CLEARANCE);
+                    }
                 }
-                if !node_in_scope(&node.id, scope_parent, geometry) {
-                    continue;
-                }
-                let cy = node.rect.center_y();
-                let node_right = node.rect.x + node.rect.width;
-                if cy >= min_y && cy <= max_y {
-                    lane_x = lane_x.max(node_right + CHANNEL_CLEARANCE);
-                }
-            }
+                lx
+            };
             lane_x += slot_offset;
             // Cap at subgraph right boundary when both endpoints share a parent.
             if let Some(sg) = sg_rect {
@@ -415,25 +421,30 @@ pub(crate) fn build_backward_orthogonal_channel_path(
             let source_cx = sr.center_x();
             let target_cx = tr.center_x();
 
-            let face_envelope = source_bottom.max(target_bottom);
-            let min_x = sr.x.min(tr.x);
-            let max_x = (sr.x + sr.width).max(tr.x + tr.width);
-            let corridor_top = sr.y.min(tr.y);
-            let mut lane_y = face_envelope + CHANNEL_CLEARANCE;
-            for node in geometry.nodes.values() {
-                if node.id == edge.from || node.id == edge.to {
-                    continue;
+            let mut lane_y = if let Some(base) = corridor_base_lane {
+                base
+            } else {
+                let face_envelope = source_bottom.max(target_bottom);
+                let min_x = sr.x.min(tr.x);
+                let max_x = (sr.x + sr.width).max(tr.x + tr.width);
+                let corridor_top = sr.y.min(tr.y);
+                let mut ly = face_envelope + CHANNEL_CLEARANCE;
+                for node in geometry.nodes.values() {
+                    if node.id == edge.from || node.id == edge.to {
+                        continue;
+                    }
+                    if !node_in_scope(&node.id, scope_parent, geometry) {
+                        continue;
+                    }
+                    let cx = node.rect.center_x();
+                    let node_bottom = node.rect.y + node.rect.height;
+                    if cx >= min_x && cx <= max_x && node.rect.y < ly && node_bottom > corridor_top
+                    {
+                        ly = ly.max(node_bottom + CHANNEL_CLEARANCE);
+                    }
                 }
-                if !node_in_scope(&node.id, scope_parent, geometry) {
-                    continue;
-                }
-                let cx = node.rect.center_x();
-                let node_bottom = node.rect.y + node.rect.height;
-                if cx >= min_x && cx <= max_x && node.rect.y < lane_y && node_bottom > corridor_top
-                {
-                    lane_y = lane_y.max(node_bottom + CHANNEL_CLEARANCE);
-                }
-            }
+                ly
+            };
             lane_y += slot_offset;
             // Cap at subgraph bottom boundary when both endpoints share a parent.
             if let Some(sg) = sg_rect {
@@ -1866,6 +1877,10 @@ pub(super) struct BackwardFinalizeOptions<'a> {
     /// `Some(n)` when this edge shares a corridor compartment with
     /// other backward edges and needs offset `n * LANE_SPACING`.
     pub(super) corridor_lane_slot: Option<usize>,
+    /// Compartment base lane from the deconfliction pre-pass.
+    /// When set, `build_backward_orthogonal_channel_path` uses this
+    /// instead of computing the lane independently.
+    pub(super) corridor_base_lane: Option<f64>,
 }
 
 pub(super) fn finalize_backward_path(
@@ -1881,15 +1896,21 @@ pub(super) fn finalize_backward_path(
         target_face_override,
         base_finalized,
         corridor_lane_slot,
+        corridor_base_lane,
     } = options;
     let mut compact_short_backward = false;
     let use_channel_path = geometry.enhanced_backward_routing
-        && has_backward_corridor_obstructions(edge, geometry, direction);
+        && (has_backward_corridor_obstructions(edge, geometry, direction)
+            || corridor_lane_slot.is_some());
 
     if use_channel_path {
-        if let Some(channel_path) =
-            build_backward_orthogonal_channel_path(edge, geometry, direction, corridor_lane_slot)
-        {
+        if let Some(channel_path) = build_backward_orthogonal_channel_path(
+            edge,
+            geometry,
+            direction,
+            corridor_lane_slot,
+            corridor_base_lane,
+        ) {
             *path = channel_path;
         }
     } else {
