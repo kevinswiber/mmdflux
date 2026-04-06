@@ -12,48 +12,64 @@
 
 set -euo pipefail
 
-SCALE=2
-BG="white"
-
-# Query terminal background color via OSC 11 (works in Ghostty, Kitty, WezTerm, etc.)
-# Returns perceived luminance 0-255, or 255 (light) on failure.
+# Query terminal background luminance via OSC 11.
+# Uses Perl for reliable terminal I/O (TCSAFLUSH prevents response leaking).
+# Returns perceived luminance 0-254 on success, or 255 on failure.
 query_bg_lum() {
-    [[ -t 1 ]] || { echo 255; return; }
+    perl -e '
+        use strict;
+        use POSIX qw(:termios_h);
+        open(my $tty, "+<", "/dev/tty") or do { print 255; exit };
+        my $fd = fileno($tty);
+        my $old = POSIX::Termios->new();
+        $old->getattr($fd) or do { print 255; exit };
+        my $raw = POSIX::Termios->new();
+        $raw->getattr($fd);
+        $raw->setlflag($raw->getlflag & ~(ECHO | ICANON));
+        $raw->setcc(VMIN, 0);
+        $raw->setcc(VTIME, 0);
+        $raw->setattr($fd, TCSANOW);
+        syswrite($tty, "\e]11;?\e\\");
+        my $resp = "";
+        vec(my $rin = "", $fd, 1) = 1;
+        if (select(my $rout = $rin, undef, undef, 0.5)) {
+            sysread($tty, $resp, 256);
+        }
+        $old->setattr($fd, TCSAFLUSH);
+        close($tty);
+        if ($resp =~ /rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)/i) {
+            my @c = map { hex(substr($_, 0, 2)) } ($1, $2, $3);
+            printf "%d", int(($c[0]*299 + $c[1]*587 + $c[2]*114) / 1000);
+        } else {
+            print 255;
+        }
+    ' 2>/dev/null || echo 255
+}
 
-    local old_stty response
-    old_stty=$(stty -g 2>/dev/null) || { echo 255; return; }
-    stty raw -echo min 0 time 0
-
-    # OSC 11 query: ESC ] 11 ; ? ST
-    printf '\033]11;?\033\\' >/dev/tty
-
-    # Read response with short timeout; terminals terminate with BEL or ST
-    response=""
-    IFS= read -r -t 0.3 -d $'\a' response </dev/tty 2>/dev/null \
-        || IFS= read -r -t 0.3 response </dev/tty 2>/dev/null \
-        || true
-
-    stty "$old_stty" 2>/dev/null
-
-    # Parse rgb:RRRR/GGGG/BBBB (16-bit components; take upper byte)
-    if [[ "$response" =~ rgb:([0-9a-fA-F]+)/([0-9a-fA-F]+)/([0-9a-fA-F]+) ]]; then
-        local r g b
-        r=$(( 16#${BASH_REMATCH[1]:0:2} ))
-        g=$(( 16#${BASH_REMATCH[2]:0:2} ))
-        b=$(( 16#${BASH_REMATCH[3]:0:2} ))
-        echo $(( (r * 299 + g * 587 + b * 114) / 1000 ))
+# Detect dark mode: try OSC 11, then macOS system appearance, default to light.
+detect_dark_mode() {
+    local lum
+    lum=$(query_bg_lum)
+    if (( lum < 128 )); then
+        echo dark
+    elif (( lum < 255 )); then
+        echo light
+    elif [[ "$(uname -s)" == "Darwin" ]] \
+         && defaults read -g AppleInterfaceStyle &>/dev/null; then
+        echo dark
     else
-        echo 255
+        echo light
     fi
 }
 
-lum=$(query_bg_lum)
-if (( lum < 128 )); then
-    BG="black"
+if [[ "$(detect_dark_mode)" == "dark" ]]; then
+    SVG_THEME="dracula"
+else
+    SVG_THEME="zinc-light"
 fi
 
 # Default mmdflux flags (can be overridden by passing them explicitly)
-MMDFLUX_DEFAULTS=(-f svg --edge-preset step)
+MMDFLUX_DEFAULTS=(-f svg --edge-preset step --svg-theme "$SVG_THEME")
 
 # Split args: optional file, then optional -- extra-flags
 FILE=""
@@ -69,11 +85,10 @@ if [[ $# -gt 0 && "$1" == "--" ]]; then
     EXTRA_ARGS=("$@")
 fi
 
-# Pick display command: kitten icat in Kitty (graphics protocol), chafa elsewhere
+# Display pipeline: Kitty needs SVG→PNG via rsvg-convert; chafa handles SVG natively
+USE_KITTY=false
 if [[ -n "${KITTY_WINDOW_ID:-}" ]]; then
-    DISPLAY_CMD=(kitten icat)
-else
-    DISPLAY_CMD=(chafa)
+    USE_KITTY=true
 fi
 
 # Remove defaults that the user explicitly overrides
@@ -107,7 +122,13 @@ else
     INPUT_CMD=(cat)
 fi
 
-"${INPUT_CMD[@]}" \
-    | cargo run -q -- "${MERGED_ARGS[@]}" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
-    | rsvg-convert --background-color="$BG" -z "$SCALE" \
-    | "${DISPLAY_CMD[@]}"
+if $USE_KITTY; then
+    "${INPUT_CMD[@]}" \
+        | cargo run -q -- "${MERGED_ARGS[@]}" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
+        | rsvg-convert -z 2 \
+        | kitten icat
+else
+    "${INPUT_CMD[@]}" \
+        | cargo run -q -- "${MERGED_ARGS[@]}" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
+        | chafa
+fi
