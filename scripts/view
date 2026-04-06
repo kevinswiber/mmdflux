@@ -12,47 +12,123 @@
 
 set -euo pipefail
 
-# Query terminal background luminance via OSC 11.
-# Uses Perl for reliable terminal I/O (TCSAFLUSH prevents response leaking).
-# Returns perceived luminance 0-254 on success, or 255 on failure.
+# Query terminal background luminance via OSC 11 on /dev/tty.
+#
+# The script is often used in a pipeline (`cat a.svg | scripts/view`), so stdin
+# is not the terminal. We have to talk to /dev/tty directly, temporarily switch
+# it into a raw-ish mode, and then restore it with TCSAFLUSH so any unread OSC
+# reply bytes are discarded before echo is re-enabled.
+#
+# Bash `read` is the wrong tool here:
+# - delimiter-based reads lose ST-terminated replies (`ESC \`) if the first read
+#   is waiting for BEL;
+# - macOS bash 3.2 does not support fractional `read -t`;
+# - `stty` cannot restore with TCSAFLUSH, so partial replies can leak visibly.
+#
+# Returns perceived luminance 0-255 on success, or -1 on failure.
 query_bg_lum() {
-    perl -e '
-        use strict;
-        use POSIX qw(:termios_h);
-        open(my $tty, "+<", "/dev/tty") or do { print 255; exit };
-        my $fd = fileno($tty);
-        my $old = POSIX::Termios->new();
-        $old->getattr($fd) or do { print 255; exit };
-        my $raw = POSIX::Termios->new();
-        $raw->getattr($fd);
-        $raw->setlflag($raw->getlflag & ~(ECHO | ICANON));
-        $raw->setcc(VMIN, 0);
-        $raw->setcc(VTIME, 0);
-        $raw->setattr($fd, TCSANOW);
-        syswrite($tty, "\e]11;?\e\\");
-        my $resp = "";
-        vec(my $rin = "", $fd, 1) = 1;
-        if (select(my $rout = $rin, undef, undef, 0.5)) {
-            sysread($tty, $resp, 256);
-        }
-        $old->setattr($fd, TCSAFLUSH);
-        close($tty);
-        if ($resp =~ /rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)/i) {
-            my @c = map { hex(substr($_, 0, 2)) } ($1, $2, $3);
-            printf "%d", int(($c[0]*299 + $c[1]*587 + $c[2]*114) / 1000);
-        } else {
-            print 255;
-        }
-    ' 2>/dev/null || echo 255
+    perl <<'PERL' 2>/dev/null || echo -1
+use strict;
+use warnings;
+use POSIX qw(:termios_h);
+use Time::HiRes qw(time);
+
+my $FAIL = -1;
+
+sub normalize_component {
+    my ($component) = @_;
+
+    return undef unless defined $component && $component =~ /\A[0-9a-f]+\z/i;
+
+    # Terminals commonly report either 8-bit rr/gg/bb or 16-bit rrrr/gggg/bbbb
+    # components. Scale any width back to 0..255 so luminance is comparable.
+    my $value = hex($component);
+    my $max = (16 ** length($component)) - 1;
+
+    return undef if $max <= 0;
+    return int(($value * 255 / $max) + 0.5);
 }
 
-# Detect dark mode: try OSC 11, then macOS system appearance, default to light.
+open(my $tty, "+<", "/dev/tty") or do {
+    print $FAIL;
+    exit 0;
+};
+
+my $fd = fileno($tty);
+my $old = POSIX::Termios->new();
+$old->getattr($fd) or do {
+    print $FAIL;
+    exit 0;
+};
+
+my $raw = POSIX::Termios->new();
+$raw->getattr($fd);
+$raw->setlflag($raw->getlflag & ~(ECHO | ICANON));
+$raw->setcc(VMIN, 0);
+$raw->setcc(VTIME, 0);
+$raw->setattr($fd, TCSANOW) or do {
+    print $FAIL;
+    exit 0;
+};
+
+my $ok = eval {
+    # Query default background color using an ST-terminated OSC 11 sequence.
+    my $written = syswrite($tty, "\e]11;?\e\\");
+    die "short write" unless defined $written;
+
+    my $resp = "";
+    my $deadline = time() + 0.5;
+
+    # Read until we see a complete OSC terminator or the deadline expires.
+    while (length($resp) < 1024) {
+        my $remaining = $deadline - time();
+        last if $remaining <= 0;
+
+        vec(my $rin = "", $fd, 1) = 1;
+        my $ready = select(my $rout = $rin, undef, undef, $remaining);
+        last unless $ready;
+
+        my $chunk = "";
+        my $read = sysread($tty, $chunk, 256);
+        last unless defined $read && $read > 0;
+
+        $resp .= $chunk;
+        last if $resp =~ /\a|\e\\/;
+    }
+
+    if ($resp =~ /rgb:([0-9a-f]+)\/([0-9a-f]+)\/([0-9a-f]+)/i) {
+        my @rgb = map { normalize_component($_) } ($1, $2, $3);
+        if (grep { !defined $_ } @rgb) {
+            print $FAIL;
+        } else {
+            printf "%d", int(($rgb[0] * 299 + $rgb[1] * 587 + $rgb[2] * 114) / 1000);
+        }
+    } else {
+        print $FAIL;
+    }
+
+    1;
+};
+
+# TCSAFLUSH is the critical piece: restore cooked mode and discard any unread
+# OSC response bytes atomically so the terminal never echoes them back later.
+$old->setattr($fd, TCSAFLUSH);
+close($tty);
+
+if (!$ok) {
+    print $FAIL;
+}
+PERL
+}
+
+# Detect dark mode: prefer the terminal's reported background, then fall back to
+# macOS system appearance as a heuristic when the terminal does not answer.
 detect_dark_mode() {
     local lum
     lum=$(query_bg_lum)
-    if (( lum < 128 )); then
+    if (( lum >= 0 && lum < 128 )); then
         echo dark
-    elif (( lum < 255 )); then
+    elif (( lum >= 0 )); then
         echo light
     elif [[ "$(uname -s)" == "Darwin" ]] \
          && defaults read -g AppleInterfaceStyle &>/dev/null; then
