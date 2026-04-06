@@ -17,6 +17,7 @@ members = ["crates/mmdflux-wasm", "xtask"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }
+libc = { version = "0.2", optional = true }
 pest = "2.7"
 pest_derive = "2.7"
 serde = { version = "1", features = ["derive"] }
@@ -27,7 +28,7 @@ thiserror = "2"
 # Keep CLI behavior by default while allowing library/WASM users to opt out.
 default = ["cli"]
 # CLI-only dependency surface.
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:libc"]
 engine-elk = []
 
 [[bin]]

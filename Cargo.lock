@@ -1372,6 +1372,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "jsonschema",
+ "libc",
  "pest",
  "pest_derive",
  "predicates",

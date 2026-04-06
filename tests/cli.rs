@@ -81,6 +81,42 @@ fn cli_accepts_svg_theme_flags_for_svg_output() {
 }
 
 #[test]
+fn cli_accepts_svg_theme_auto_without_a_custom_map() {
+    mmdflux()
+        .args(["--format", "svg", "--svg-theme-auto"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("<svg"));
+}
+
+#[test]
+fn cli_accepts_svg_theme_auto_with_a_custom_map() {
+    mmdflux()
+        .args([
+            "--format",
+            "svg",
+            "--svg-theme-auto=light:default,dark:dracula",
+        ])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("<svg"));
+}
+
+#[test]
+fn cli_rejects_svg_theme_auto_when_svg_theme_is_also_set() {
+    mmdflux()
+        .args(["--format", "svg", "--svg-theme", "dark", "--svg-theme-auto"])
+        .write_stdin("graph TD\nA-->B")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "the argument '--svg-theme <SVG_THEME>' cannot be used with '--svg-theme-auto[=<MAP>]'",
+        ));
+}
+
+#[test]
 fn cli_rejects_invalid_svg_theme_mode() {
     mmdflux()
         .args(["--format", "svg", "--svg-theme-mode", "animated"])

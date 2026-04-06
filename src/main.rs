@@ -1,11 +1,17 @@
 //! mmdflux CLI — Mermaid diagram to text/SVG renderer.
 
+mod cli_svg_theme_auto;
+
 use std::ffi::OsStr;
 use std::io::{self, IsTerminal, Read};
 use std::path::PathBuf;
 use std::{env, fmt, fs};
 
 use clap::{Parser, ValueEnum};
+use cli_svg_theme_auto::{
+    SVG_THEME_AUTO_DEFAULT_SPEC, SvgThemeAutoMap, detect_macos_terminal_appearance,
+    detect_terminal_appearance, select_auto_theme_name,
+};
 use mmdflux::format::{Curve, EdgePreset, RoutingStyle};
 use mmdflux::graph::GeometryLevel;
 use mmdflux::simplification::PathSimplification;
@@ -123,7 +129,7 @@ impl fmt::Display for ValidationDiagnostic {
     }
 }
 
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(name = "mmdflux")]
 #[command(version)]
 #[command(about = "Convert Mermaid diagrams to text, SVG, or MMDS JSON")]
@@ -190,6 +196,18 @@ struct Cli {
     /// Named SVG theme to resolve before slot overrides.
     #[arg(long)]
     svg_theme: Option<String>,
+
+    /// Select a concrete SVG theme from terminal appearance before slot overrides.
+    /// Accepts light:<theme>,dark:<theme>; if omitted, defaults to light:default,dark:dark.
+    #[arg(
+        long,
+        conflicts_with = "svg_theme",
+        require_equals = true,
+        num_args = 0..=1,
+        default_missing_value = SVG_THEME_AUTO_DEFAULT_SPEC,
+        value_name = "MAP"
+    )]
+    svg_theme_auto: Option<SvgThemeAutoMap>,
 
     /// SVG theme output mode (static or dynamic).
     #[arg(long, value_enum)]
@@ -394,8 +412,9 @@ fn resolve_text_color_mode(
     ColorWhen::Auto.resolve(stdout_is_terminal)
 }
 
-fn svg_theme_from_cli(cli: &Cli) -> Option<SvgThemeConfig> {
-    let has_theme_input = cli.svg_theme.is_some()
+fn has_svg_theme_input(cli: &Cli) -> bool {
+    cli.svg_theme.is_some()
+        || cli.svg_theme_auto.is_some()
         || cli.svg_theme_mode.is_some()
         || cli.svg_theme_bg.is_some()
         || cli.svg_theme_fg.is_some()
@@ -403,14 +422,27 @@ fn svg_theme_from_cli(cli: &Cli) -> Option<SvgThemeConfig> {
         || cli.svg_theme_accent.is_some()
         || cli.svg_theme_muted.is_some()
         || cli.svg_theme_surface.is_some()
-        || cli.svg_theme_border.is_some();
+        || cli.svg_theme_border.is_some()
+}
 
-    if !has_theme_input {
+fn svg_theme_from_cli_with_appearance(
+    cli: &Cli,
+    terminal_appearance: Option<cli_svg_theme_auto::TerminalAppearance>,
+    macos_appearance: Option<cli_svg_theme_auto::TerminalAppearance>,
+) -> Option<SvgThemeConfig> {
+    if !has_svg_theme_input(cli) {
         return None;
     }
 
+    let name = match (&cli.svg_theme, &cli.svg_theme_auto) {
+        (_, Some(map)) => {
+            Some(select_auto_theme_name(map, terminal_appearance, macos_appearance).to_string())
+        }
+        (theme, None) => theme.clone(),
+    };
+
     Some(SvgThemeConfig {
-        name: cli.svg_theme.clone(),
+        name,
         mode: cli.svg_theme_mode.map(Into::into).unwrap_or_default(),
         bg: cli.svg_theme_bg.clone(),
         fg: cli.svg_theme_fg.clone(),
@@ -420,6 +452,14 @@ fn svg_theme_from_cli(cli: &Cli) -> Option<SvgThemeConfig> {
         surface: cli.svg_theme_surface.clone(),
         border: cli.svg_theme_border.clone(),
     })
+}
+
+fn svg_theme_from_cli(cli: &Cli) -> Option<SvgThemeConfig> {
+    svg_theme_from_cli_with_appearance(
+        cli,
+        detect_terminal_appearance(),
+        detect_macos_terminal_appearance(),
+    )
 }
 
 fn main() -> io::Result<()> {
@@ -584,7 +624,18 @@ fn main() -> io::Result<()> {
 mod tests {
     use std::ffi::OsStr;
 
+    use clap::error::ErrorKind;
+    use cli_svg_theme_auto::TerminalAppearance;
+
     use super::*;
+
+    fn parse_cli(args: &[&str]) -> Cli {
+        Cli::try_parse_from(args).expect("CLI args should parse")
+    }
+
+    fn render_svg_with_config(input: &str, config: RenderConfig) -> String {
+        render_diagram(input, OutputFormat::Svg, &config).expect("SVG render should succeed")
+    }
 
     #[test]
     fn color_auto_defaults_to_plain_when_stdout_is_not_a_terminal() {
@@ -628,5 +679,115 @@ mod tests {
             resolve_text_color_mode(Some(ColorWhen::Auto), true, Some(OsStr::new("1"))),
             TextColorMode::Ansi
         );
+    }
+
+    #[test]
+    fn cli_parses_bare_svg_theme_auto_as_default_map() {
+        let cli = parse_cli(&["mmdflux", "--svg-theme-auto"]);
+        assert_eq!(cli.svg_theme_auto, Some(SvgThemeAutoMap::default()));
+    }
+
+    #[test]
+    fn cli_parses_custom_svg_theme_auto_map() {
+        let cli = parse_cli(&["mmdflux", "--svg-theme-auto=dark:dracula, light:zinc-light"]);
+        assert_eq!(
+            cli.svg_theme_auto,
+            Some(SvgThemeAutoMap {
+                light: "zinc-light".to_string(),
+                dark: "dracula".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn cli_rejects_invalid_svg_theme_auto_maps() {
+        for value in [
+            "",
+            "light:default",
+            "light:default,dark:dark,dark:dracula",
+            "light:default,auto:dark",
+            "light:,dark:dark",
+        ] {
+            let error = Cli::try_parse_from(["mmdflux", &format!("--svg-theme-auto={value}")])
+                .expect_err("invalid svg auto theme map should fail");
+            assert_eq!(error.kind(), ErrorKind::ValueValidation);
+        }
+    }
+
+    #[test]
+    fn cli_rejects_svg_theme_and_svg_theme_auto_together() {
+        let error = Cli::try_parse_from(["mmdflux", "--svg-theme", "dark", "--svg-theme-auto"])
+            .expect_err("conflicting theme sources should fail");
+        assert_eq!(error.kind(), ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
+    fn svg_theme_auto_resolves_to_explicit_theme_with_slot_overrides() {
+        let cli = parse_cli(&[
+            "mmdflux",
+            "--svg-theme-auto=light:zinc-light,dark:dracula",
+            "--svg-theme-mode",
+            "dynamic",
+            "--svg-theme-accent",
+            "#7dd3fc",
+        ]);
+
+        let theme = svg_theme_from_cli_with_appearance(
+            &cli,
+            Some(TerminalAppearance::Dark),
+            Some(TerminalAppearance::Light),
+        )
+        .expect("theme should resolve");
+
+        assert_eq!(theme.name.as_deref(), Some("dracula"));
+        assert_eq!(theme.mode, SvgThemeMode::Dynamic);
+        assert_eq!(theme.accent.as_deref(), Some("#7dd3fc"));
+    }
+
+    #[test]
+    fn svg_theme_auto_falls_back_from_terminal_to_macos_to_light_map() {
+        let cli = parse_cli(&["mmdflux", "--svg-theme-auto=light:zinc-light,dark:dracula"]);
+
+        let mac_dark =
+            svg_theme_from_cli_with_appearance(&cli, None, Some(TerminalAppearance::Dark))
+                .expect("theme should resolve");
+        assert_eq!(mac_dark.name.as_deref(), Some("dracula"));
+
+        let fallback_light =
+            svg_theme_from_cli_with_appearance(&cli, None, None).expect("theme should resolve");
+        assert_eq!(fallback_light.name.as_deref(), Some("zinc-light"));
+    }
+
+    #[test]
+    fn svg_theme_auto_suppresses_mermaid_theme_hints() {
+        let input = "%%{init: {\"theme\": \"forest\"}}%%\ngraph TD\nA-->B\n";
+        let cli = parse_cli(&["mmdflux", "--svg-theme-auto=light:default,dark:dark"]);
+
+        let auto_theme = svg_theme_from_cli_with_appearance(
+            &cli,
+            Some(TerminalAppearance::Dark),
+            Some(TerminalAppearance::Light),
+        )
+        .expect("theme should resolve");
+
+        let auto_output = render_svg_with_config(
+            input,
+            RenderConfig {
+                svg_theme: Some(auto_theme),
+                ..RenderConfig::default()
+            },
+        );
+        let explicit_output = render_svg_with_config(
+            input,
+            RenderConfig {
+                svg_theme: Some(SvgThemeConfig {
+                    name: Some("dark".to_string()),
+                    ..SvgThemeConfig::default()
+                }),
+                ..RenderConfig::default()
+            },
+        );
+
+        assert_eq!(auto_output, explicit_output);
     }
 }

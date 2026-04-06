@@ -151,6 +151,9 @@ mmdflux --format svg diagram.mmd -o diagram.svg
 # SVG output with a named theme
 mmdflux --format svg --svg-theme dark diagram.mmd -o diagram.svg
 
+# SVG output with terminal-aware light/dark theme selection
+mmdflux --format svg --svg-theme-auto diagram.mmd -o diagram.svg
+
 # Browser-oriented SVG with CSS variables plus hex fallbacks
 mmdflux --format svg --svg-theme dark --svg-theme-mode dynamic diagram.mmd -o diagram.svg
 
@@ -210,10 +213,12 @@ mmdflux --format svg --curve linear-rounded diagram.mmd -o diagram.svg
 SVG theming is opt-in and affects SVG output only.
 
 - **Explicit config wins.** CLI flags and `RenderConfig.svg_theme` take precedence over Mermaid source hints.
+- **Auto-theme is explicit.** `--svg-theme-auto` resolves to a concrete named theme before render, so Mermaid source hints stay suppressed when auto-theme is enabled.
 - **Mermaid hints are supported.** `config.theme` in YAML frontmatter and `%%{init: {"theme": "..."}}%%` both select a named SVG theme when no explicit SVG theme is supplied.
 - **Unthemed output stays available.** If no explicit theme or Mermaid hint is present, SVG rendering keeps the existing unthemed palette.
 - **Static mode is the default.** Static mode emits concrete hex colors for maximum rasterizer compatibility.
 - **Dynamic mode is additive.** `--svg-theme-mode dynamic` emits the same hex fallbacks plus root CSS variables and a `<style>` block for browser embedding.
+- **Default auto-theme mapping is `light:default,dark:dark`.** Override it with `--svg-theme-auto=light:zinc-light,dark:dracula` when a different light/dark pair is a better fit.
 
 ### Built-in themes
 

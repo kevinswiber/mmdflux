@@ -198,6 +198,16 @@ fn runtime_config_input_parses_nested_svg_theme() {
 }
 
 #[test]
+fn runtime_config_input_rejects_cli_only_svg_theme_auto_field() {
+    use mmdflux::RuntimeConfigInput;
+
+    let err =
+        serde_json::from_str::<RuntimeConfigInput>(r#"{"svgThemeAuto":"light:default,dark:dark"}"#)
+            .unwrap_err();
+    assert!(err.to_string().contains("unknown field"));
+}
+
+#[test]
 fn wasm_adapter_contains_no_private_config_mirror_types() {
     let source = std::fs::read_to_string("crates/mmdflux-wasm/src/lib.rs").unwrap();
     assert!(
