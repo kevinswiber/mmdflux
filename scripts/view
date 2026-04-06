@@ -4,6 +4,8 @@
 #
 # Defaults: -f svg --edge-preset step
 # Override any default by passing it explicitly after --
+# Set MMDFLUX_VIEW_RENDERER=chafa or MMDFLUX_VIEW_RENDERER=kitty to force a renderer.
+# Otherwise the script prefers chafa when installed, then falls back to kitten+rsvg-convert.
 #
 # Examples:
 #   scripts/view tests/fixtures/flowchart/simple.mmd
@@ -32,11 +34,7 @@ if [[ $# -gt 0 && "$1" == "--" ]]; then
     EXTRA_ARGS=("$@")
 fi
 
-# Display pipeline: Kitty needs SVG→PNG via rsvg-convert; chafa handles SVG natively
-USE_KITTY=false
-if [[ -n "${KITTY_WINDOW_ID:-}" ]]; then
-    USE_KITTY=true
-fi
+VIEW_RENDERER="${MMDFLUX_VIEW_RENDERER:-auto}"
 
 MERGED_ARGS=()
 
@@ -71,11 +69,87 @@ else
     INPUT_CMD=(cat)
 fi
 
-if $USE_KITTY; then
+kitty_target_raster_size() {
+    local window_size width height target_width target_height
+    window_size="$(kitten icat --print-window-size 2>/dev/null || true)"
+    width="${window_size%%x*}"
+    height="${window_size##*x}"
+
+    if [[ "$width" =~ ^[0-9]+$ ]] && [[ "$height" =~ ^[0-9]+$ ]] && (( width > 0 )) && (( height > 0 )); then
+        # Oversample to give icat a denser raster to downscale. Cap the raster
+        # size so very large HiDPI displays do not create excessive images.
+        target_width=$(( width * 2 ))
+        target_height=$(( height * 2 ))
+        if (( target_width > 4096 )); then
+            target_width=4096
+        fi
+        if (( target_height > 4096 )); then
+            target_height=4096
+        fi
+
+        printf '%s %s\n' "$target_width" "$target_height"
+        return 0
+    fi
+
+    return 1
+}
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+resolve_view_renderer() {
+    case "$VIEW_RENDERER" in
+        auto)
+            if command_exists chafa; then
+                printf '%s\n' chafa
+            elif command_exists kitten && command_exists rsvg-convert; then
+                printf '%s\n' kitty
+            else
+                echo "scripts/view: no supported renderer found; install chafa or both kitten and rsvg-convert" >&2
+                exit 1
+            fi
+            ;;
+        chafa)
+            if ! command_exists chafa; then
+                echo "scripts/view: MMDFLUX_VIEW_RENDERER=chafa requires chafa to be installed" >&2
+                exit 1
+            fi
+            printf '%s\n' chafa
+            ;;
+        kitty)
+            if ! command_exists kitten || ! command_exists rsvg-convert; then
+                echo "scripts/view: MMDFLUX_VIEW_RENDERER=kitty requires both kitten and rsvg-convert" >&2
+                exit 1
+            fi
+            printf '%s\n' kitty
+            ;;
+        *)
+            echo "scripts/view: unsupported MMDFLUX_VIEW_RENDERER=$VIEW_RENDERER (expected auto, chafa, or kitty)" >&2
+            exit 1
+            ;;
+    esac
+}
+
+VIEW_RENDERER="$(resolve_view_renderer)"
+
+if [[ "$VIEW_RENDERER" == "kitty" ]]; then
+    KITTEN_WIDTH=""
+    KITTEN_HEIGHT=""
+    if KITTEN_SIZE="$(kitty_target_raster_size || true)"; then
+        KITTEN_WIDTH="${KITTEN_SIZE%% *}"
+        KITTEN_HEIGHT="${KITTEN_SIZE##* }"
+    fi
+
+    RSVG_ARGS=()
+    if [[ -n "$KITTEN_WIDTH" && -n "$KITTEN_HEIGHT" ]]; then
+        RSVG_ARGS=(--width "$KITTEN_WIDTH" --height "$KITTEN_HEIGHT" --keep-aspect-ratio)
+    fi
+
     "${INPUT_CMD[@]}" \
         | cargo run -q -- "${MERGED_ARGS[@]}" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
-        | rsvg-convert -z 2 \
-        | kitten icat
+        | rsvg-convert "${RSVG_ARGS[@]}" \
+        | kitten icat --stdin=yes --fit=both --scale-up
 else
     "${INPUT_CMD[@]}" \
         | cargo run -q -- "${MERGED_ARGS[@]}" ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
