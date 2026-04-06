@@ -1,6 +1,7 @@
 //! mmdflux CLI — Mermaid diagram to text/SVG renderer.
 
-mod cli_svg_theme_auto;
+mod svg_theme_auto;
+mod terminal_appearance;
 
 use std::ffi::OsStr;
 use std::io::{self, IsTerminal, Read};
@@ -8,10 +9,6 @@ use std::path::PathBuf;
 use std::{env, fmt, fs};
 
 use clap::{Parser, ValueEnum};
-use cli_svg_theme_auto::{
-    SVG_THEME_AUTO_DEFAULT_SPEC, SvgThemeAutoMap, detect_macos_terminal_appearance,
-    detect_terminal_appearance, select_auto_theme_name,
-};
 use mmdflux::format::{Curve, EdgePreset, RoutingStyle};
 use mmdflux::graph::GeometryLevel;
 use mmdflux::simplification::PathSimplification;
@@ -21,6 +18,10 @@ use mmdflux::{
     validate_diagram,
 };
 use serde::{Deserialize, Serialize};
+use svg_theme_auto::{SVG_THEME_AUTO_DEFAULT_SPEC, SvgThemeAutoMap, select_auto_theme_name};
+use terminal_appearance::{
+    TerminalAppearance, detect_macos_terminal_appearance, detect_terminal_appearance,
+};
 
 const CURVE_CANONICAL_VALUES: &str = "basis, linear, linear-sharp, linear-rounded";
 const CURVE_ARG_HELP: &str = "SVG curve style (basis, linear, linear-sharp, or linear-rounded). \
@@ -427,8 +428,8 @@ fn has_svg_theme_input(cli: &Cli) -> bool {
 
 fn svg_theme_from_cli_with_appearance(
     cli: &Cli,
-    terminal_appearance: Option<cli_svg_theme_auto::TerminalAppearance>,
-    macos_appearance: Option<cli_svg_theme_auto::TerminalAppearance>,
+    terminal_appearance: Option<TerminalAppearance>,
+    macos_appearance: Option<TerminalAppearance>,
 ) -> Option<SvgThemeConfig> {
     if !has_svg_theme_input(cli) {
         return None;
@@ -625,7 +626,6 @@ mod tests {
     use std::ffi::OsStr;
 
     use clap::error::ErrorKind;
-    use cli_svg_theme_auto::TerminalAppearance;
 
     use super::*;
 
