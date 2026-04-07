@@ -88,9 +88,9 @@ impl FromStr for SvgThemeAutoMap {
 pub(crate) fn select_auto_theme_name(
     map: &SvgThemeAutoMap,
     terminal_appearance: Option<TerminalAppearance>,
-    macos_appearance: Option<TerminalAppearance>,
+    os_appearance: Option<TerminalAppearance>,
 ) -> &str {
-    match terminal_appearance.or(macos_appearance) {
+    match terminal_appearance.or(os_appearance) {
         Some(TerminalAppearance::Dark) => map.dark.as_str(),
         Some(TerminalAppearance::Light) | None => map.light.as_str(),
     }
@@ -140,7 +140,7 @@ mod tests {
     }
 
     #[test]
-    fn select_auto_theme_name_prefers_terminal_then_macos_then_light() {
+    fn select_auto_theme_name_prefers_terminal_then_os_then_light() {
         let map = SvgThemeAutoMap {
             light: "default".to_string(),
             dark: "dark".to_string(),

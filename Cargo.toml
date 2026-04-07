@@ -24,11 +24,21 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_IO",
+    "Win32_System_Threading",
+], optional = true }
+
 [features]
 # Keep CLI behavior by default while allowing library/WASM users to opt out.
 default = ["cli"]
 # CLI-only dependency surface.
-cli = ["dep:clap", "dep:libc"]
+cli = ["dep:clap", "dep:libc", "dep:windows-sys"]
 engine-elk = []
 
 [[bin]]

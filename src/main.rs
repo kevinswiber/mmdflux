@@ -19,9 +19,7 @@ use mmdflux::{
 };
 use serde::{Deserialize, Serialize};
 use svg_theme_auto::{SVG_THEME_AUTO_DEFAULT_SPEC, SvgThemeAutoMap, select_auto_theme_name};
-use terminal_appearance::{
-    TerminalAppearance, detect_macos_terminal_appearance, detect_terminal_appearance,
-};
+use terminal_appearance::{TerminalAppearance, detect_os_appearance, detect_terminal_appearance};
 
 const CURVE_CANONICAL_VALUES: &str = "basis, linear, linear-sharp, linear-rounded";
 const CURVE_ARG_HELP: &str = "SVG curve style (basis, linear, linear-sharp, or linear-rounded). \
@@ -429,7 +427,7 @@ fn has_svg_theme_input(cli: &Cli) -> bool {
 fn svg_theme_from_cli_with_appearance(
     cli: &Cli,
     terminal_appearance: Option<TerminalAppearance>,
-    macos_appearance: Option<TerminalAppearance>,
+    os_appearance: Option<TerminalAppearance>,
 ) -> Option<SvgThemeConfig> {
     if !has_svg_theme_input(cli) {
         return None;
@@ -437,7 +435,7 @@ fn svg_theme_from_cli_with_appearance(
 
     let name = match (&cli.svg_theme, &cli.svg_theme_auto) {
         (_, Some(map)) => {
-            Some(select_auto_theme_name(map, terminal_appearance, macos_appearance).to_string())
+            Some(select_auto_theme_name(map, terminal_appearance, os_appearance).to_string())
         }
         (theme, None) => theme.clone(),
     };
@@ -456,11 +454,7 @@ fn svg_theme_from_cli_with_appearance(
 }
 
 fn svg_theme_from_cli(cli: &Cli) -> Option<SvgThemeConfig> {
-    svg_theme_from_cli_with_appearance(
-        cli,
-        detect_terminal_appearance(),
-        detect_macos_terminal_appearance(),
-    )
+    svg_theme_from_cli_with_appearance(cli, detect_terminal_appearance(), detect_os_appearance())
 }
 
 fn main() -> io::Result<()> {
@@ -745,7 +739,7 @@ mod tests {
     }
 
     #[test]
-    fn svg_theme_auto_falls_back_from_terminal_to_macos_to_light_map() {
+    fn svg_theme_auto_falls_back_from_terminal_to_os_to_light_map() {
         let cli = parse_cli(&["mmdflux", "--svg-theme-auto=light:zinc-light,dark:dracula"]);
 
         let mac_dark =
