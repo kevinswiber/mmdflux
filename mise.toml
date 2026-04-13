@@ -23,7 +23,10 @@ node = {
 python = "3.12"
 "cargo:cargo-edit" = "0.13"
 "cargo:cargo-nextest" = "0.9"
-"cargo:cocogitto" = "6.5"
+"cargo:cocogitto" = {
+  postinstall = "cog install-hook --all --overwrite",
+  version = "6.5",
+}
 "cargo:wasm-pack" = "0.14"
 github-cli = "2"
 jq = "1.7"
