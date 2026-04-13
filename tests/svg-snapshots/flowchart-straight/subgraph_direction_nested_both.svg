@@ -11,6 +11,11 @@
       <rect class="subgraph" x="216.36" y="145.00" width="98.91" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="265.82" y="149.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Inner BT</text>
     </g>
+    <g class="edgePaths">
+      <path d="M265.82,280.00 L265.82,234.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M121.91,301.78 L227.38,311.84" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M184.14,62.00 L89.08,276.34" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="231.36" y="280.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="265.82" y="307.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
@@ -20,11 +25,6 @@
       <text x="87.45" y="307.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
       <rect x="149.68" y="8.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="184.14" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M265.82,280.00 L265.82,234.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M121.91,301.78 L227.38,311.84" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M184.14,62.00 L89.08,276.34" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

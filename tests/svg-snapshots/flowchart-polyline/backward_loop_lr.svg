@@ -5,6 +5,17 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M142.05,87.00 L188.05,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M355.99,106.44 L402.10,117.38" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M355.99,66.02 L402.12,54.22" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M548.40,35.00 L626.51,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M580.51,139.00 L630.51,139.00 L868.10,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M822.10,62.00 L869.27,109.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1074.27,126.17 L1099.27,123.00 L1172.01,130.20" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1175.99,157.00 L1125.13,157.00 L1078.27,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1345.87,139.00 L1388.13,139.00 L1451.39,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="8.00" y="60.00" width="134.05" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="75.03" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Narratives</text>
@@ -22,17 +33,6 @@
       <text x="1260.93" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Quality Checks</text>
       <rect x="1455.39" y="112.00" width="179.71" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="1545.24" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production Code</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M142.05,87.00 L188.05,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M355.99,106.44 L402.10,117.38" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M355.99,66.02 L402.12,54.22" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M548.40,35.00 L626.51,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M580.51,139.00 L630.51,139.00 L868.10,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M822.10,62.00 L869.27,109.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M1074.27,126.17 L1099.27,123.00 L1172.01,130.20" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M1175.99,157.00 L1125.13,157.00 L1078.27,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M1345.87,139.00 L1388.13,139.00 L1451.39,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <rect x="1107.77" y="143.00" width="34.73" height="28.00" fill="white" />

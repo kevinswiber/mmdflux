@@ -13,6 +13,10 @@
       <rect class="subgraph" x="48.00" y="385.00" width="160.71" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="128.36" y="389.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Primitives</text>
     </g>
+    <g class="edgePaths">
+      <path d="M128.36,316.00 L128.36,412.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M128.36,112.00 L128.36,258.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="72.84" y="58.00" width="111.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="128.36" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Painter</text>
@@ -20,10 +24,6 @@
       <text x="128.36" y="443.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rectangle</text>
       <rect x="69.22" y="262.00" width="118.28" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="128.36" y="289.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Triangle</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M128.36,316.00 L128.36,412.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M128.36,112.00 L128.36,258.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

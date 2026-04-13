@@ -5,6 +5,12 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M71.04,62.00 L155.60,110.02" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M247.11,62.00 L162.55,110.02" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M159.07,166.00 L75.80,214.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M159.07,166.00 L242.35,214.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="8.00" y="8.00" width="126.07" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="71.04" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source 1</text>
@@ -16,12 +22,6 @@
       <text x="72.34" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output 1</text>
       <rect x="184.07" y="216.00" width="123.48" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="245.81" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output 2</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M71.04,62.00 L155.60,110.02" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M247.11,62.00 L162.55,110.02" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M159.07,166.00 L75.80,214.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M159.07,166.00 L242.35,214.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

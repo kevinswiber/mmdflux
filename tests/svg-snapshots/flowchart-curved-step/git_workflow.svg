@@ -5,6 +5,12 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M153.75,35.00 L188.17,35.00 L191.04,35.00 C193.91,35.00 199.64,35.00 205.38,35.00 C211.12,35.00 216.85,35.00 219.72,35.00 L222.59,35.00 L253.01,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M411.11,35.00 L463.21,35.00 L467.55,35.00 C471.89,35.00 480.58,35.00 489.26,35.00 C497.94,35.00 506.63,35.00 510.97,35.00 L515.31,35.00 L563.41,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M709.63,35.00 L755.23,35.00 L759.03,35.00 C762.83,35.00 770.43,35.00 778.03,35.00 C785.63,35.00 793.23,35.00 797.03,35.00 L800.83,35.00 L842.43,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M924.69,62.00 L924.69,86.00 L854.37,86.00 C784.05,86.00 643.42,86.00 502.78,86.00 C362.15,86.00 221.51,86.00 151.19,86.00 L80.87,86.00 L80.87,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="567.41" y="8.00" width="142.22" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="638.52" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Local Repo</text>
@@ -14,12 +20,6 @@
       <text x="334.06" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Area</text>
       <rect x="8.00" y="8.00" width="145.75" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="80.87" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Working Dir</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M153.75,35.00 L188.17,35.00 L191.04,35.00 C193.91,35.00 199.64,35.00 205.38,35.00 C211.12,35.00 216.85,35.00 219.72,35.00 L222.59,35.00 L253.01,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M411.11,35.00 L463.21,35.00 L467.55,35.00 C471.89,35.00 480.58,35.00 489.26,35.00 C497.94,35.00 506.63,35.00 510.97,35.00 L515.31,35.00 L563.41,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M709.63,35.00 L755.23,35.00 L759.03,35.00 C762.83,35.00 770.43,35.00 778.03,35.00 C785.63,35.00 793.23,35.00 797.03,35.00 L800.83,35.00 L842.43,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M924.69,62.00 L924.69,86.00 L854.37,86.00 C784.05,86.00 643.42,86.00 502.78,86.00 C362.15,86.00 221.51,86.00 151.19,86.00 L80.87,86.00 L80.87,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <rect x="174.75" y="21.00" width="61.27" height="28.00" fill="white" />

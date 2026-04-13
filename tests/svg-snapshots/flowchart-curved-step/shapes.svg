@@ -5,6 +5,10 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M94.89,62.00 L94.89,64.78 C94.89,67.56 94.89,73.11 94.89,78.11 C94.89,83.11 94.89,87.56 94.89,92.44 C94.89,97.33 94.89,102.67 94.89,105.33 L94.89,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M94.89,166.00 L94.89,168.78 C94.89,171.56 94.89,177.11 94.89,182.11 C94.89,187.11 94.89,191.56 94.89,196.44 C94.89,201.33 94.89,206.67 94.89,209.33 L94.89,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <polygon points="94.89,216.00 173.76,294.88 94.89,373.75 16.01,294.88" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="94.89" y="294.88" text-anchor="middle" dominant-baseline="middle" fill="#333">Diamond Node</text>
@@ -12,10 +16,6 @@
       <text x="94.89" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rectangle Node</text>
       <rect x="28.29" y="112.00" width="133.19" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="94.89" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rounded Node</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M94.89,62.00 L94.89,64.78 C94.89,67.56 94.89,73.11 94.89,78.11 C94.89,83.11 94.89,87.56 94.89,92.44 C94.89,97.33 94.89,102.67 94.89,105.33 L94.89,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M94.89,166.00 L94.89,168.78 C94.89,171.56 94.89,177.11 94.89,182.11 C94.89,187.11 94.89,191.56 94.89,196.44 C94.89,201.33 94.89,206.67 94.89,209.33 L94.89,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

@@ -5,6 +5,14 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M130.55,87.00 L133.32,87.00 C136.10,87.00 141.66,87.00 147.21,87.00 C152.77,87.00 158.32,87.00 163.21,87.00 C168.10,87.00 172.32,87.00 174.44,87.00 L176.55,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M275.81,87.00 L278.59,87.00 C281.37,87.00 286.92,87.00 292.48,87.00 C298.03,87.00 303.59,87.00 308.48,87.00 C313.37,87.00 317.59,87.00 319.70,87.00 L321.81,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M460.79,87.00 L463.57,87.00 C466.35,87.00 471.90,87.00 477.46,87.00 C483.02,87.00 488.57,87.00 493.46,87.00 C498.35,87.00 502.57,87.00 504.68,87.00 L506.79,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M650.42,87.00 L653.19,87.00 C655.97,87.00 661.53,87.00 667.08,87.00 C672.64,87.00 678.19,87.00 683.08,87.00 C687.97,87.00 692.19,87.00 694.30,87.00 L696.42,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M792.60,68.95 L799.79,65.44 L810.21,60.37 C820.62,55.29 841.45,45.15 866.48,40.07 C891.50,35.00 920.72,35.00 935.33,35.00 L949.93,35.00 L957.93,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M793.82,103.83 L801.14,107.05 L813.25,112.38 C825.36,117.70 849.58,128.35 874.38,133.68 C899.17,139.00 924.55,139.00 937.24,139.00 L949.93,139.00 L957.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="180.55" y="60.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="228.18" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Build</text>
@@ -20,14 +28,6 @@
       <text x="1036.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Env</text>
       <rect x="325.81" y="60.00" width="134.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="393.30" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Run Tests</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M130.55,87.00 L133.32,87.00 C136.10,87.00 141.66,87.00 147.21,87.00 C152.77,87.00 158.32,87.00 163.21,87.00 C168.10,87.00 172.32,87.00 174.44,87.00 L176.55,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M275.81,87.00 L278.59,87.00 C281.37,87.00 286.92,87.00 292.48,87.00 C298.03,87.00 303.59,87.00 308.48,87.00 C313.37,87.00 317.59,87.00 319.70,87.00 L321.81,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M460.79,87.00 L463.57,87.00 C466.35,87.00 471.90,87.00 477.46,87.00 C483.02,87.00 488.57,87.00 493.46,87.00 C498.35,87.00 502.57,87.00 504.68,87.00 L506.79,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M650.42,87.00 L653.19,87.00 C655.97,87.00 661.53,87.00 667.08,87.00 C672.64,87.00 678.19,87.00 683.08,87.00 C687.97,87.00 692.19,87.00 694.30,87.00 L696.42,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M792.60,68.95 L799.79,65.44 L810.21,60.37 C820.62,55.29 841.45,45.15 866.48,40.07 C891.50,35.00 920.72,35.00 935.33,35.00 L949.93,35.00 L957.93,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M793.82,103.83 L801.14,107.05 L813.25,112.38 C825.36,117.70 849.58,128.35 874.38,133.68 C899.17,139.00 924.55,139.00 937.24,139.00 L949.93,139.00 L957.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <rect x="840.72" y="21.00" width="61.27" height="28.00" fill="white" />

@@ -5,6 +5,10 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M75.45,62.00 L75.45,73.30 Q75.45,78.30 70.45,78.30 L47.45,78.30 Q42.45,78.30 42.45,83.30 L42.45,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M128.36,62.00 L128.36,73.30 Q128.36,78.30 133.36,78.30 L156.36,78.30 Q161.36,78.30 161.36,83.30 L161.36,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="67.45" y="8.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="101.91" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
@@ -12,10 +16,6 @@
       <text x="42.45" y="188.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
       <rect x="126.91" y="161.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="161.36" y="188.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M75.45,62.00 L75.45,73.30 Q75.45,78.30 70.45,78.30 L47.45,78.30 Q42.45,78.30 42.45,83.30 L42.45,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M128.36,62.00 L128.36,73.30 Q128.36,78.30 133.36,78.30 L156.36,78.30 Q161.36,78.30 161.36,83.30 L161.36,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <rect x="21.01" y="70.50" width="42.89" height="28.00" fill="white" />

@@ -5,6 +5,11 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M119.60,35.00 L165.60,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M289.92,35.00 L335.92,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M434.07,35.00 L480.07,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="8.00" y="8.00" width="111.60" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="63.80" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Lasaña</text>
@@ -14,11 +19,6 @@
       <text x="386.99" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Ñoño</text>
       <rect x="484.07" y="8.00" width="91.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="529.84" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Über</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M119.60,35.00 L165.60,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M289.92,35.00 L335.92,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M434.07,35.00 L480.07,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

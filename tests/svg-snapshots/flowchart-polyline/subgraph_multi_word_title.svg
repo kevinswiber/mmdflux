@@ -9,6 +9,12 @@
       <rect class="subgraph" x="28.00" y="131.00" width="163.87" height="308.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="109.93" y="135.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Data Processing Pipeline</text>
     </g>
+    <g class="edgePaths">
+      <path d="M109.93,216.00 L109.93,262.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M109.93,320.00 L109.93,366.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M109.93,62.00 L109.93,112.00 L109.93,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M109.93,424.00 L109.93,474.00 L109.93,520.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="53.76" y="162.00" width="112.34" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="109.93" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Extract</text>
@@ -20,12 +26,6 @@
       <text x="109.93" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source</text>
       <rect x="43.00" y="266.00" width="133.87" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="109.93" y="293.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Transform</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M109.93,216.00 L109.93,262.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M109.93,320.00 L109.93,366.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M109.93,62.00 L109.93,112.00 L109.93,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M109.93,424.00 L109.93,474.00 L109.93,520.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

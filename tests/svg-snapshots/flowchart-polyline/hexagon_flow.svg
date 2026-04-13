@@ -5,6 +5,11 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M115.32,166.00 L82.48,212.73" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M134.30,62.00 L134.30,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M153.27,166.00 L186.12,212.73" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <polygon points="94.78,112.00 173.81,112.00 200.15,139.00 173.81,166.00 94.78,166.00 68.44,139.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="134.30" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
@@ -14,11 +19,6 @@
       <text x="134.30" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Input</text>
       <rect x="164.40" y="216.00" width="85.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="207.39" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Log</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M115.32,166.00 L82.48,212.73" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M134.30,62.00 L134.30,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M153.27,166.00 L186.12,212.73" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

@@ -11,6 +11,10 @@
       <rect class="subgraph" x="48.00" y="181.00" width="147.54" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="121.77" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Inner</text>
     </g>
+    <g class="edgePaths">
+      <path d="M121.77,266.00 L121.77,268.78 C121.77,271.56 121.77,277.11 121.77,282.67 C121.77,288.22 121.77,293.78 121.77,298.67 C121.77,303.56 121.77,307.78 121.77,309.89 L121.77,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M121.77,112.00 L121.77,120.00 L121.77,127.00 C121.77,134.00 121.77,148.00 121.77,161.33 C121.77,174.67 121.77,187.33 121.77,193.67 L121.77,200.00 L121.77,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="74.14" y="58.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="121.77" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
@@ -18,10 +22,6 @@
       <text x="121.77" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
       <rect x="78.78" y="316.00" width="85.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="121.77" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M121.77,266.00 L121.77,268.78 C121.77,271.56 121.77,277.11 121.77,282.67 C121.77,288.22 121.77,293.78 121.77,298.67 C121.77,303.56 121.77,307.78 121.77,309.89 L121.77,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M121.77,112.00 L121.77,120.00 L121.77,127.00 C121.77,134.00 121.77,148.00 121.77,161.33 C121.77,174.67 121.77,187.33 121.77,193.67 L121.77,200.00 L121.77,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

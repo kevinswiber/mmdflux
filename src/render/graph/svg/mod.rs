@@ -241,9 +241,8 @@ fn render_svg_with_geometry_context(
     render_defs(&mut writer, scale, &palette, &used_marker_ids);
     writer.start_group_transform(offset_x, offset_y);
     render_subgraphs(&mut writer, diagram, geom, &metrics, scale, &palette);
-    // Render nodes before edges so arrowhead markers draw on top of node fills,
-    // preventing the white node background from hiding arrowheads.
-    render_nodes(&mut writer, diagram, geom, &metrics, scale, &palette);
+    // Keep node fills and borders above edge paths so crossing routes are
+    // visually occluded instead of drawing through node bodies.
     render_edges(
         &mut writer,
         diagram,
@@ -253,6 +252,7 @@ fn render_svg_with_geometry_context(
         scale,
         &palette,
     );
+    render_nodes(&mut writer, diagram, geom, &metrics, scale, &palette);
     render_edge_labels(
         &mut writer,
         diagram,

@@ -5,6 +5,13 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M157.77,62.00 L157.77,108.00" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M126.49,226.77 L75.31,295.06 L75.31,353.06" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M189.06,226.77 L240.24,295.06 L240.24,353.06" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M96.72,411.06 L133.88,457.92" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M218.83,411.06 L181.67,457.92" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <polygon points="157.77,112.00 230.80,185.03 157.77,258.06 84.75,185.03" fill="#ececff" stroke="#9370db" stroke-width="1.00" stroke-linejoin="round" />
       <text x="157.77" y="185.03" text-anchor="middle" dominant-baseline="middle" fill="#333333">Check Input</text>
@@ -16,13 +23,6 @@
       <text x="75.31" y="384.06" text-anchor="middle" dominant-baseline="middle" fill="#333333">process-A</text>
       <rect x="110.14" y="8.00" width="95.26" height="54.00" fill="#f9f" stroke="#9370db" stroke-width="1.00" stroke-linejoin="round" />
       <text x="157.77" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333333">Start</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M157.77,62.00 L157.77,108.00" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M126.49,226.77 L75.31,295.06 L75.31,353.06" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M189.06,226.77 L240.24,295.06 L240.24,353.06" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M96.72,411.06 L133.88,457.92" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M218.83,411.06 L181.67,457.92" stroke="#333333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <rect x="62.06" y="270.12" width="42.89" height="28.00" fill="#ffffff" />

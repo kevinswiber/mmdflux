@@ -9,6 +9,10 @@
       <rect class="subgraph" x="28.00" y="27.00" width="137.88" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="96.94" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Process</text>
     </g>
+    <g class="edgePaths">
+      <path d="M96.94,112.00 L96.94,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M96.94,216.00 L96.94,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="49.31" y="58.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="96.94" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
@@ -16,10 +20,6 @@
       <text x="96.94" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Middle</text>
       <rect x="53.95" y="316.00" width="85.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="96.94" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M96.94,112.00 L96.94,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M96.94,216.00 L96.94,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

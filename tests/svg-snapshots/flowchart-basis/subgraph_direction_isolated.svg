@@ -9,6 +9,11 @@
       <rect class="subgraph" x="28.00" y="35.00" width="336.73" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="196.36" y="39.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Horizontal</text>
     </g>
+    <g class="edgePaths">
+      <path d="M111.91,93.00 L114.69,93.00 C117.46,93.00 123.02,93.00 128.58,93.00 C134.13,93.00 139.69,93.00 144.58,93.00 C149.46,93.00 153.69,93.00 155.80,93.00 L157.91,93.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M230.82,93.00 L233.60,93.00 C236.37,93.00 241.93,93.00 247.48,93.00 C253.04,93.00 258.60,93.00 263.48,93.00 C268.37,93.00 272.60,93.00 274.71,93.00 L276.82,93.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M399.73,112.00 L392.01,114.10 L362.73,122.09 C333.46,130.07 274.91,146.03 245.64,160.35 C216.36,174.67 216.36,187.33 216.36,193.67 L216.36,200.00 L216.36,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="43.00" y="66.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="77.45" y="93.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
@@ -20,11 +25,6 @@
       <text x="434.18" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
       <rect x="181.91" y="212.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="216.36" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">E</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M111.91,93.00 L114.69,93.00 C117.46,93.00 123.02,93.00 128.58,93.00 C134.13,93.00 139.69,93.00 144.58,93.00 C149.46,93.00 153.69,93.00 155.80,93.00 L157.91,93.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M230.82,93.00 L233.60,93.00 C236.37,93.00 241.93,93.00 247.48,93.00 C253.04,93.00 258.60,93.00 263.48,93.00 C268.37,93.00 272.60,93.00 274.71,93.00 L276.82,93.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M399.73,112.00 L392.01,114.10 L362.73,122.09 C333.46,130.07 274.91,146.03 245.64,160.35 C216.36,174.67 216.36,187.33 216.36,193.67 L216.36,200.00 L216.36,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

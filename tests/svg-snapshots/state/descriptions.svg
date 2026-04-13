@@ -5,6 +5,11 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M104.29,22.00 L104.29,68.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M104.29,126.00 L104.29,221.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M104.29,279.00 L104.29,325.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="8.00" y="72.00" width="192.59" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="104.29" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">The system is active</text>
@@ -15,11 +20,6 @@
       <text x="104.29" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
       <circle cx="104.29" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="104.29" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-    </g>
-    <g class="edgePaths">
-      <path d="M104.29,22.00 L104.29,68.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M104.29,126.00 L104.29,221.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M104.29,279.00 L104.29,325.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <rect x="72.73" y="149.00" width="63.12" height="28.00" fill="white" />

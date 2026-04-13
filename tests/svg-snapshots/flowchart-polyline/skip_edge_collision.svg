@@ -5,6 +5,12 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M95.63,62.00 L75.70,108.33" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M62.50,166.00 L62.50,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M74.12,270.00 L94.05,316.33" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M122.94,62.00 L152.00,112.00 L152.00,216.00 L117.77,316.21" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="59.62" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="107.25" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
@@ -14,12 +20,6 @@
       <text x="62.50" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Step 2</text>
       <rect x="64.26" y="320.00" width="85.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="107.25" y="347.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M95.63,62.00 L75.70,108.33" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M62.50,166.00 L62.50,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M74.12,270.00 L94.05,316.33" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M122.94,62.00 L152.00,112.00 L152.00,216.00 L117.77,316.21" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

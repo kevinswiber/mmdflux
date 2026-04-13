@@ -5,6 +5,11 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M78.37,262.00 L78.37,302.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
+      <path d="M210.24,62.00 L210.24,102.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
+      <path d="M78.37,42.00 L78.37,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#circlehead)" />
+    </g>
     <g class="nodes">
       <rect x="8.00" y="112.00" width="140.74" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="78.37" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Class01</text>
@@ -17,11 +22,6 @@
       <text x="78.37" y="324.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
       <text x="210.24" y="124.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
       <text x="78.37" y="20.00" text-anchor="middle" dominant-baseline="middle" fill="#333">foo</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M78.37,262.00 L78.37,302.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
-      <path d="M210.24,62.00 L210.24,102.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#circlehead)" />
-      <path d="M78.37,42.00 L78.37,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#circlehead)" />
     </g>
     <g class="edgeLabels">
     </g>

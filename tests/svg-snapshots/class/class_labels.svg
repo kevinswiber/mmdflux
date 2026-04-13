@@ -5,14 +5,14 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M98.23,62.00 L98.23,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="8.37" y="161.00" width="179.71" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="98.23" y="188.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Code Repository</text>
       <rect x="8.00" y="8.00" width="180.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="98.23" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Application User</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M98.23,62.00 L98.23,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <rect x="74.18" y="85.00" width="48.09" height="28.00" fill="white" />

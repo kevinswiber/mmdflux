@@ -11,6 +11,10 @@
       <rect class="subgraph" x="48.00" y="181.00" width="309.88" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="202.94" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US East</text>
     </g>
+    <g class="edgePaths">
+      <path d="M202.94,62.00 L202.94,70.00 L202.94,73.56 C202.94,77.11 202.94,84.22 202.94,92.67 C202.94,101.11 202.94,110.89 202.94,118.67 C202.94,126.44 202.94,132.22 202.94,135.11 L202.94,138.00 L202.94,146.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M202.94,296.00 L202.94,304.00 L202.94,309.33 C202.94,314.67 202.94,325.33 202.94,337.33 C202.94,349.33 202.94,362.67 202.94,374.00 C202.94,385.33 202.94,394.67 202.94,399.33 L202.94,404.00 L202.94,412.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="152.34" y="8.00" width="101.20" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="202.94" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Client</text>
@@ -20,10 +24,6 @@
       <text x="120.47" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server1</text>
       <rect x="227.94" y="212.00" width="114.94" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="285.41" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server2</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M202.94,62.00 L202.94,70.00 L202.94,73.56 C202.94,77.11 202.94,84.22 202.94,92.67 C202.94,101.11 202.94,110.89 202.94,118.67 C202.94,126.44 202.94,132.22 202.94,135.11 L202.94,138.00 L202.94,146.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M202.94,296.00 L202.94,304.00 L202.94,309.33 C202.94,314.67 202.94,325.33 202.94,337.33 C202.94,349.33 202.94,362.67 202.94,374.00 C202.94,385.33 202.94,394.67 202.94,399.33 L202.94,404.00 L202.94,412.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

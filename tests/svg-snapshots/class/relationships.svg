@@ -8,6 +8,11 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M65.47,215.00 L65.47,310.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M65.47,373.00 L65.47,467.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#diamondhead)" />
+      <path d="M65.47,62.00 L65.47,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="16.54" y="314.00" width="97.86" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="65.47" y="341.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Order</text>
@@ -17,11 +22,6 @@
       <text x="65.47" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Service</text>
       <rect x="19.51" y="161.00" width="91.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="65.47" y="188.00" text-anchor="middle" dominant-baseline="middle" fill="#333">User</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M65.47,215.00 L65.47,310.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M65.47,373.00 L65.47,467.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#diamondhead)" />
-      <path d="M65.47,62.00 L65.47,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <rect x="37.80" y="238.00" width="55.33" height="28.00" fill="white" />

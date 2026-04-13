@@ -5,6 +5,10 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M110.75,163.00 L110.75,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-start="url(#open-arrowhead)" />
+      <path d="M270.96,163.00 L270.96,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-start="url(#open-arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="8.00" y="208.00" width="165.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="90.62" y="235.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ConsoleLogger</text>
@@ -16,10 +20,6 @@
       <line x1="105.08" y1="83.00" x2="276.63" y2="83.00" stroke="#333" stroke-width="1.00" />
       <line x1="105.08" y1="107.00" x2="276.63" y2="107.00" stroke="#333" stroke-width="1.00" />
       <text x="120.08" y="131.00" text-anchor="start" dominant-baseline="middle" fill="#333">+log(message)</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M110.75,163.00 L110.75,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-start="url(#open-arrowhead)" />
-      <path d="M270.96,163.00 L270.96,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-start="url(#open-arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

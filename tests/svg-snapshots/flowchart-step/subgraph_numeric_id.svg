@@ -11,6 +11,11 @@
       <rect class="subgraph" x="28.00" y="335.00" width="98.91" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="77.45" y="339.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Phase 2</text>
     </g>
+    <g class="edgePaths">
+      <path d="M77.45,112.00 L77.45,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M77.45,420.00 L77.45,466.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M77.45,216.00 L77.45,362.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="43.00" y="58.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="77.45" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
@@ -20,11 +25,6 @@
       <text x="77.45" y="393.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
       <rect x="43.00" y="470.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="77.45" y="497.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M77.45,112.00 L77.45,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M77.45,420.00 L77.45,466.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M77.45,216.00 L77.45,362.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

@@ -5,6 +5,11 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M255.16,206.79 L255.16,212.40 Q255.16,217.40 250.16,217.40 L194.06,217.40 Q189.06,217.40 189.06,222.40 L189.06,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
+      <path d="M336.20,211.00 L336.20,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
+      <path d="M417.24,206.81 L417.24,212.40 Q417.24,217.40 422.24,217.40 L477.11,217.40 Q482.11,217.40 482.11,222.40 L482.11,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="252.10" y="8.00" width="168.20" height="198.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="336.20" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Animal</text>
@@ -33,11 +38,6 @@
       <text x="489.11" y="331.00" text-anchor="start" dominant-baseline="middle" fill="#333">+bool is_wild</text>
       <line x1="474.11" y1="355.00" x2="633.96" y2="355.00" stroke="#333" stroke-width="1.00" />
       <text x="489.11" y="379.00" text-anchor="start" dominant-baseline="middle" fill="#333">+run()</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M255.16,206.79 L255.16,212.40 Q255.16,217.40 250.16,217.40 L194.06,217.40 Q189.06,217.40 189.06,222.40 L189.06,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
-      <path d="M336.20,211.00 L336.20,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
-      <path d="M417.24,206.81 L417.24,212.40 Q417.24,217.40 422.24,217.40 L477.11,217.40 Q482.11,217.40 482.11,222.40 L482.11,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

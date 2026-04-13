@@ -5,6 +5,10 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M117.38,22.00 L117.38,68.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M117.38,174.00 L117.38,220.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="8.00" y="72.00" width="218.76" height="102.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="117.38" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Listening on port 8080</text>
@@ -15,10 +19,6 @@
       <text x="117.38" y="238.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
       <circle cx="117.38" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="117.38" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-    </g>
-    <g class="edgePaths">
-      <path d="M117.38,22.00 L117.38,68.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M117.38,174.00 L117.38,220.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

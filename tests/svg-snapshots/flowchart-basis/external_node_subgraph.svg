@@ -13,6 +13,12 @@
       <rect class="subgraph" x="48.00" y="181.00" width="175.00" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="135.50" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US West Region</text>
     </g>
+    <g class="edgePaths">
+      <path d="M370.51,266.00 L370.51,268.78 C370.51,271.56 370.51,277.11 370.51,282.67 C370.51,288.22 370.51,293.78 370.51,298.67 C370.51,303.56 370.51,307.78 370.51,309.89 L370.51,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M135.50,266.00 L135.50,268.78 C135.50,271.56 135.50,277.11 135.50,282.67 C135.50,288.22 135.50,293.78 135.50,298.67 C135.50,303.56 135.50,307.78 135.50,309.89 L135.50,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M294.21,62.00 L300.90,66.38 L312.50,73.99 C324.10,81.59 347.30,96.79 358.91,112.73 C370.51,128.67 370.51,145.33 370.51,160.00 C370.51,174.67 370.51,187.33 370.51,193.67 L370.51,200.00 L370.51,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M211.80,62.00 L205.11,66.38 L193.51,73.99 C181.91,81.59 158.71,96.79 147.10,112.73 C135.50,128.67 135.50,145.33 135.50,160.00 C135.50,174.67 135.50,187.33 135.50,193.67 L135.50,200.00 L135.50,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="298.00" y="212.00" width="145.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="370.51" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Web Server</text>
@@ -24,12 +30,6 @@
       <text x="135.50" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">App Server</text>
       <rect x="170.39" y="8.00" width="165.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="253.00" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Load Balancer</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M370.51,266.00 L370.51,268.78 C370.51,271.56 370.51,277.11 370.51,282.67 C370.51,288.22 370.51,293.78 370.51,298.67 C370.51,303.56 370.51,307.78 370.51,309.89 L370.51,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M135.50,266.00 L135.50,268.78 C135.50,271.56 135.50,277.11 135.50,282.67 C135.50,288.22 135.50,293.78 135.50,298.67 C135.50,303.56 135.50,307.78 135.50,309.89 L135.50,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M294.21,62.00 L300.90,66.38 L312.50,73.99 C324.10,81.59 347.30,96.79 358.91,112.73 C370.51,128.67 370.51,145.33 370.51,160.00 C370.51,174.67 370.51,187.33 370.51,193.67 L370.51,200.00 L370.51,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M211.80,62.00 L205.11,66.38 L193.51,73.99 C181.91,81.59 158.71,96.79 147.10,112.73 C135.50,128.67 135.50,145.33 135.50,160.00 C135.50,174.67 135.50,187.33 135.50,193.67 L135.50,200.00 L135.50,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

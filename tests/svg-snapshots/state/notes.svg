@@ -5,6 +5,11 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M207.82,28.00 L207.82,42.00 Q207.82,47.00 212.82,47.00 L304.78,47.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5.00" />
+      <path d="M207.82,66.00 L219.92,66.00 Q223.92,66.00 223.92,70.00 L223.92,70.00 Q223.92,74.00 227.92,74.00 L257.78,74.00 Q262.78,74.00 262.78,79.00 L262.78,139.15 Q262.78,144.15 267.78,144.15 L300.78,144.15" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M254.78,163.00 L304.78,163.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5.00" />
+    </g>
     <g class="nodes">
       <rect x="8.00" y="20.00" width="199.82" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="107.91" y="47.00" text-anchor="middle" dominant-baseline="middle" fill="#333">The state with a note</text>
@@ -15,11 +20,6 @@
       <text x="342.98" y="163.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State2</text>
       <rect x="8.00" y="136.00" width="246.78" height="54.00" fill="#fff5ad" stroke="#aaaa33" stroke-width="1.00" />
       <text x="131.39" y="163.00" text-anchor="middle" dominant-baseline="middle" fill="#333">This is the note to the left.</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M207.82,28.00 L207.82,42.00 Q207.82,47.00 212.82,47.00 L304.78,47.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5.00" />
-      <path d="M207.82,66.00 L219.92,66.00 Q223.92,66.00 223.92,70.00 L223.92,70.00 Q223.92,74.00 227.92,74.00 L257.78,74.00 Q262.78,74.00 262.78,79.00 L262.78,139.15 Q262.78,144.15 267.78,144.15 L300.78,144.15" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M254.78,163.00 L304.78,163.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5.00" />
     </g>
     <g class="edgeLabels">
     </g>

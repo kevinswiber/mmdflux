@@ -11,6 +11,11 @@
       <rect class="subgraph" x="48.00" y="189.00" width="336.73" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="216.36" y="193.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Horizontal Inner</text>
     </g>
+    <g class="edgePaths">
+      <path d="M131.91,247.00 L177.91,247.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M250.82,247.00 L296.82,247.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M97.45,112.00 L97.45,216.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="63.00" y="220.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="97.45" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
@@ -20,11 +25,6 @@
       <text x="335.27" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
       <rect x="63.00" y="58.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="97.45" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M131.91,247.00 L177.91,247.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M250.82,247.00 L296.82,247.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M97.45,112.00 L97.45,216.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

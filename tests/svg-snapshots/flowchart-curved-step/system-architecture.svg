@@ -13,6 +13,17 @@
       <rect class="subgraph" x="539.66" y="17.17" width="190.04" height="383.58" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="634.68" y="21.17" text-anchor="middle" dominant-baseline="hanging" fill="#333">Service Layer</text>
     </g>
+    <g class="edgePaths">
+      <path d="M179.59,110.35 L179.59,111.68 C179.59,113.01 179.59,115.68 190.36,125.30 C201.14,134.93 222.69,151.50 233.46,159.79 L244.24,168.08" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M197.41,258.79 L197.41,257.46 C197.41,256.13 197.41,253.46 205.23,245.51 C213.05,237.56 228.70,224.33 236.53,217.72 L244.35,211.10" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M404.66,170.52 L422.66,170.52 L440.99,170.52 C459.33,170.52 495.99,170.52 514.33,154.63 C532.66,138.74 532.66,106.96 532.66,91.07 L532.66,75.17 L550.66,75.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M404.66,189.52 L454.66,189.52 L458.83,189.52 C462.99,189.52 471.33,189.52 479.66,189.52 C487.99,189.52 496.33,189.52 500.49,189.52 L504.66,189.52 L550.66,189.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M404.66,208.52 L422.66,208.52 L422.66,233.56 C422.66,258.60 422.66,308.68 440.99,333.72 C459.33,358.75 495.99,358.75 514.33,358.75 L532.66,358.75 L550.66,358.75" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M708.76,75.17 L760.74,75.17 L765.07,75.17 C769.40,75.17 778.07,75.17 786.73,75.17 C795.39,75.17 804.06,75.17 808.39,75.17 L812.72,75.17 L860.70,75.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M708.76,189.52 L760.74,189.52 L765.07,189.52 C769.40,189.52 778.07,189.52 786.73,189.52 C795.39,189.52 804.06,189.52 808.39,189.52 L812.72,189.52 L860.70,189.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M714.70,339.75 L732.70,339.75 L751.03,339.75 C769.37,339.75 806.03,339.75 824.37,333.81 C842.70,327.86 842.70,315.96 842.70,310.02 L842.70,304.07 L860.70,304.07" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M714.70,377.75 L732.70,377.75 L751.03,377.75 C769.37,377.75 806.03,377.75 824.37,383.70 C842.70,389.65 842.70,401.54 842.70,407.49 L842.70,413.44 L860.70,413.44" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="58.00" y="64.35" width="121.59" height="54.00" rx="27.00" ry="27.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="118.79" y="91.35" text-anchor="middle" dominant-baseline="middle" fill="#333">Web App</text>
@@ -37,17 +48,6 @@
       <text x="911.81" y="309.44" text-anchor="middle" dominant-baseline="middle" fill="#333">Order DB</text>
       <rect x="864.70" y="386.44" width="172.81" height="54.00" rx="27.00" ry="27.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="951.11" y="413.44" text-anchor="middle" dominant-baseline="middle" fill="#333">Message Queue</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M179.59,110.35 L179.59,111.68 C179.59,113.01 179.59,115.68 190.36,125.30 C201.14,134.93 222.69,151.50 233.46,159.79 L244.24,168.08" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M197.41,258.79 L197.41,257.46 C197.41,256.13 197.41,253.46 205.23,245.51 C213.05,237.56 228.70,224.33 236.53,217.72 L244.35,211.10" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M404.66,170.52 L422.66,170.52 L440.99,170.52 C459.33,170.52 495.99,170.52 514.33,154.63 C532.66,138.74 532.66,106.96 532.66,91.07 L532.66,75.17 L550.66,75.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M404.66,189.52 L454.66,189.52 L458.83,189.52 C462.99,189.52 471.33,189.52 479.66,189.52 C487.99,189.52 496.33,189.52 500.49,189.52 L504.66,189.52 L550.66,189.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M404.66,208.52 L422.66,208.52 L422.66,233.56 C422.66,258.60 422.66,308.68 440.99,333.72 C459.33,358.75 495.99,358.75 514.33,358.75 L532.66,358.75 L550.66,358.75" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M708.76,75.17 L760.74,75.17 L765.07,75.17 C769.40,75.17 778.07,75.17 786.73,75.17 C795.39,75.17 804.06,75.17 808.39,75.17 L812.72,75.17 L860.70,75.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M708.76,189.52 L760.74,189.52 L765.07,189.52 C769.40,189.52 778.07,189.52 786.73,189.52 C795.39,189.52 804.06,189.52 808.39,189.52 L812.72,189.52 L860.70,189.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M714.70,339.75 L732.70,339.75 L751.03,339.75 C769.37,339.75 806.03,339.75 824.37,333.81 C842.70,327.86 842.70,315.96 842.70,310.02 L842.70,304.07 L860.70,304.07" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M714.70,377.75 L732.70,377.75 L751.03,377.75 C769.37,377.75 806.03,377.75 824.37,383.70 C842.70,389.65 842.70,401.54 842.70,407.49 L842.70,413.44 L860.70,413.44" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

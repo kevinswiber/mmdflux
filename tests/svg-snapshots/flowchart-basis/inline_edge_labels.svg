@@ -5,6 +5,12 @@
     </marker>
   </defs>
   <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M57.58,62.00 L57.58,70.00 L57.58,74.83 C57.58,79.67 57.58,89.33 57.58,102.50 C57.58,115.67 57.58,132.33 57.58,140.67 L57.58,149.00 L57.58,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M57.58,215.00 L57.58,223.00 L57.58,227.83 C57.58,232.67 57.58,242.33 57.58,255.50 C57.58,268.67 57.58,285.33 57.58,293.67 L57.58,302.00 L57.58,310.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
+      <path d="M57.58,368.00 L57.58,376.00 L57.58,380.83 C57.58,385.67 57.58,395.33 57.58,408.50 C57.58,421.67 57.58,438.33 57.58,446.67 L57.58,455.00 L57.58,463.00" stroke="#333" stroke-width="2.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M57.58,521.00 L57.58,529.00 L57.58,533.83 C57.58,538.67 57.58,548.33 57.58,561.50 C57.58,574.67 57.58,591.33 57.58,599.67 L57.58,608.00 L57.58,616.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="9.95" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="57.58" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
@@ -16,12 +22,6 @@
       <text x="57.58" y="494.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
       <rect x="11.62" y="620.00" width="91.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="57.58" y="647.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Stop</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M57.58,62.00 L57.58,70.00 L57.58,74.83 C57.58,79.67 57.58,89.33 57.58,102.50 C57.58,115.67 57.58,132.33 57.58,140.67 L57.58,149.00 L57.58,157.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M57.58,215.00 L57.58,223.00 L57.58,227.83 C57.58,232.67 57.58,242.33 57.58,255.50 C57.58,268.67 57.58,285.33 57.58,293.67 L57.58,302.00 L57.58,310.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
-      <path d="M57.58,368.00 L57.58,376.00 L57.58,380.83 C57.58,385.67 57.58,395.33 57.58,408.50 C57.58,421.67 57.58,438.33 57.58,446.67 L57.58,455.00 L57.58,463.00" stroke="#333" stroke-width="2.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M57.58,521.00 L57.58,529.00 L57.58,533.83 C57.58,538.67 57.58,548.33 57.58,561.50 C57.58,574.67 57.58,591.33 57.58,599.67 L57.58,608.00 L57.58,616.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
       <rect x="40.77" y="85.00" width="33.61" height="28.00" fill="white" />

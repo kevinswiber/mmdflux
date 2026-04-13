@@ -9,15 +9,15 @@
       <rect class="subgraph" x="28.00" y="27.00" width="133.06" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="94.53" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Group</text>
     </g>
+    <g class="edgePaths">
+      <path d="M94.53,112.00 L94.53,114.78 C94.53,117.56 94.53,123.11 94.53,128.11 C94.53,133.11 94.53,137.56 94.53,142.44 C94.53,147.33 94.53,152.67 94.53,155.33 L94.53,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M114.53,162.00 L114.53,137.00 L115.80,137.00 C117.07,137.00 119.62,137.00 122.16,137.00 C124.70,137.00 127.25,137.00 128.52,137.00 L129.79,137.00 L129.79,116.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="47.27" y="58.00" width="94.52" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="94.53" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node</text>
       <rect x="43.00" y="162.00" width="103.06" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="94.53" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node2</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M94.53,112.00 L94.53,114.78 C94.53,117.56 94.53,123.11 94.53,128.11 C94.53,133.11 94.53,137.56 94.53,142.44 C94.53,147.33 94.53,152.67 94.53,155.33 L94.53,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M114.53,162.00 L114.53,137.00 L115.80,137.00 C117.07,137.00 119.62,137.00 122.16,137.00 C124.70,137.00 127.25,137.00 128.52,137.00 L129.79,137.00 L129.79,116.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

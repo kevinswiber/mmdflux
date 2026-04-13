@@ -9,15 +9,15 @@
       <rect class="subgraph" x="28.00" y="35.00" width="277.58" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="166.79" y="39.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Group</text>
     </g>
+    <g class="edgePaths">
+      <path d="M137.52,83.28 L183.52,83.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M187.52,107.04 L141.52,107.04" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="43.00" y="66.00" width="94.52" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="90.26" y="93.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node</text>
       <rect x="187.52" y="66.00" width="103.06" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="239.05" y="93.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node2</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M137.52,83.28 L183.52,83.28" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M187.52,107.04 L141.52,107.04" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

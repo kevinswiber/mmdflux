@@ -5233,6 +5233,32 @@ fn svg_lr_architecture_terminal_contracts_step_heavy_targets_are_face_normal_and
     }
 }
 
+#[test]
+fn svg_issue_91_edges_emit_before_nodes_for_occlusion() {
+    let diagram = load_flowchart_fixture_diagram("architecture_graph_lr_terminal_contracts.mmd");
+    let svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    let edge_group = svg
+        .find("<g class=\"edgePaths\">")
+        .expect("SVG should emit an edgePaths group");
+    let node_group = svg
+        .find("<g class=\"nodes\">")
+        .expect("SVG should emit a nodes group");
+
+    assert!(
+        edge_group < node_group,
+        "edge paths should be emitted before nodes so node fills occlude crossing routes"
+    );
+}
+
 /// Verify terminal contract across all orthogonal presets.  Step gets the
 /// strict axis-alignment + min-support check.  Smooth-step and curved-step
 /// share the same routing but their SVG curve rendering distorts the terminal

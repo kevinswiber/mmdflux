@@ -11,14 +11,14 @@
       <rect class="subgraph" x="48.00" y="77.00" width="98.91" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="97.45" y="81.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Inner</text>
     </g>
+    <g class="edgePaths">
+      <path d="M97.45,162.00 L97.45,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="63.00" y="108.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="97.45" y="135.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
       <rect x="63.00" y="212.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="97.45" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M97.45,162.00 L97.45,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

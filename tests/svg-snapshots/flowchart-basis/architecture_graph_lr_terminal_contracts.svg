@@ -5,38 +5,6 @@
     </marker>
   </defs>
   <g transform="translate(0.00,13.00)">
-    <g class="nodes">
-      <rect x="248.12" y="80.00" width="114.01" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="305.13" y="107.00" text-anchor="middle" dominant-baseline="middle" fill="#333">builtins</text>
-      <rect x="507.13" y="8.00" width="126.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="570.26" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">diagrams</text>
-      <rect x="1162.44" y="142.00" width="115.87" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1220.37" y="169.00" text-anchor="middle" dominant-baseline="middle" fill="#333">engines</text>
-      <rect x="2056.79" y="254.00" width="103.43" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="2108.51" y="281.00" text-anchor="middle" dominant-baseline="middle" fill="#333">errors</text>
-      <rect x="1863.91" y="440.00" width="107.88" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1917.85" y="467.00" text-anchor="middle" dominant-baseline="middle" fill="#333">format</text>
-      <rect x="828.39" y="564.00" width="129.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="892.91" y="591.00" text-anchor="middle" dominant-baseline="middle" fill="#333">frontends</text>
-      <rect x="1549.61" y="316.00" width="100.09" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1599.66" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">graph</text>
-      <rect x="1162.44" y="316.00" width="122.18" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1223.52" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">mermaid</text>
-      <rect x="1162.44" y="688.00" width="103.06" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1213.96" y="715.00" text-anchor="middle" dominant-baseline="middle" fill="#333">mmds</text>
-      <rect x="1162.44" y="440.00" width="115.87" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1220.37" y="467.00" text-anchor="middle" dominant-baseline="middle" fill="#333">payload</text>
-      <rect x="828.39" y="368.00" width="116.61" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="886.70" y="395.00" text-anchor="middle" dominant-baseline="middle" fill="#333">registry</text>
-      <rect x="1162.44" y="792.00" width="106.03" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1215.45" y="819.00" text-anchor="middle" dominant-baseline="middle" fill="#333">render</text>
-      <rect x="8.00" y="647.00" width="115.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="65.56" y="674.00" text-anchor="middle" dominant-baseline="middle" fill="#333">runtime</text>
-      <rect x="1549.61" y="844.00" width="159.30" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1629.26" y="871.00" text-anchor="middle" dominant-baseline="middle" fill="#333">simplification</text>
-      <rect x="1549.61" y="440.00" width="118.46" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1608.84" y="467.00" text-anchor="middle" dominant-baseline="middle" fill="#333">timeline</text>
-    </g>
     <g class="edgePaths">
       <path d="M362.13,91.52 L370.19,91.52 C378.24,91.52 394.36,91.52 410.47,84.96 C426.58,78.39 442.69,65.27 458.13,58.71 C473.58,52.14 488.36,52.14 495.74,52.14 L503.13,52.14" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M362.13,104.18 L370.12,103.78 L392.96,102.65 C415.79,101.52 461.46,99.26 537.84,98.13 C614.22,97.00 721.31,97.00 830.52,97.00 C939.74,97.00 1051.09,97.00 1171.29,97.00 C1291.49,97.00 1420.55,97.00 1536.11,152.69 C1651.67,208.38 1753.74,319.77 1804.77,375.46 L1855.80,431.15 L1861.20,437.05" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
@@ -86,6 +54,38 @@
       <path d="M123.12,701.00 L127.36,707.78 L147.49,739.99 C167.62,772.19 207.87,836.59 271.16,868.80 C334.46,901.00 420.80,901.00 517.51,901.00 C614.22,901.00 721.31,901.00 830.52,901.00 C939.74,901.00 1051.09,901.00 1169.91,834.62 C1288.74,768.23 1415.04,635.46 1478.19,569.08 L1541.34,502.69 L1546.85,496.90" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M1708.91,871.00 L1716.91,871.00 L1741.41,871.00 C1765.91,871.00 1814.91,871.00 1870.91,779.06 C1926.91,687.12 1989.90,503.23 2021.40,411.29 L2052.90,319.35 L2055.50,311.78" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M1708.91,844.00 L1717.52,844.00 C1726.13,844.00 1743.35,844.00 1760.57,785.67 C1777.80,727.33 1795.02,610.67 1811.57,552.33 C1828.13,494.00 1844.02,494.00 1851.96,494.00 L1859.91,494.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="248.12" y="80.00" width="114.01" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="305.13" y="107.00" text-anchor="middle" dominant-baseline="middle" fill="#333">builtins</text>
+      <rect x="507.13" y="8.00" width="126.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="570.26" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">diagrams</text>
+      <rect x="1162.44" y="142.00" width="115.87" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1220.37" y="169.00" text-anchor="middle" dominant-baseline="middle" fill="#333">engines</text>
+      <rect x="2056.79" y="254.00" width="103.43" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="2108.51" y="281.00" text-anchor="middle" dominant-baseline="middle" fill="#333">errors</text>
+      <rect x="1863.91" y="440.00" width="107.88" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1917.85" y="467.00" text-anchor="middle" dominant-baseline="middle" fill="#333">format</text>
+      <rect x="828.39" y="564.00" width="129.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="892.91" y="591.00" text-anchor="middle" dominant-baseline="middle" fill="#333">frontends</text>
+      <rect x="1549.61" y="316.00" width="100.09" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1599.66" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">graph</text>
+      <rect x="1162.44" y="316.00" width="122.18" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1223.52" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">mermaid</text>
+      <rect x="1162.44" y="688.00" width="103.06" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1213.96" y="715.00" text-anchor="middle" dominant-baseline="middle" fill="#333">mmds</text>
+      <rect x="1162.44" y="440.00" width="115.87" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1220.37" y="467.00" text-anchor="middle" dominant-baseline="middle" fill="#333">payload</text>
+      <rect x="828.39" y="368.00" width="116.61" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="886.70" y="395.00" text-anchor="middle" dominant-baseline="middle" fill="#333">registry</text>
+      <rect x="1162.44" y="792.00" width="106.03" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1215.45" y="819.00" text-anchor="middle" dominant-baseline="middle" fill="#333">render</text>
+      <rect x="8.00" y="647.00" width="115.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="65.56" y="674.00" text-anchor="middle" dominant-baseline="middle" fill="#333">runtime</text>
+      <rect x="1549.61" y="844.00" width="159.30" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1629.26" y="871.00" text-anchor="middle" dominant-baseline="middle" fill="#333">simplification</text>
+      <rect x="1549.61" y="440.00" width="118.46" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1608.84" y="467.00" text-anchor="middle" dominant-baseline="middle" fill="#333">timeline</text>
     </g>
     <g class="edgeLabels">
     </g>

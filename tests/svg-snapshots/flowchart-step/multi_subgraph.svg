@@ -11,6 +11,11 @@
       <rect class="subgraph" x="407.54" y="12.00" width="264.22" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="539.65" y="16.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Backend</text>
     </g>
+    <g class="edgePaths">
+      <path d="M135.82,70.00 L181.82,70.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M528.94,70.00 L574.94,70.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M272.54,70.00 L418.54,70.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="58.00" y="43.00" width="77.82" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="96.91" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">UI</text>
@@ -20,11 +25,6 @@
       <text x="475.74" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server</text>
       <rect x="578.94" y="43.00" width="77.82" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="617.85" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">DB</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M135.82,70.00 L181.82,70.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M528.94,70.00 L574.94,70.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M272.54,70.00 L418.54,70.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>

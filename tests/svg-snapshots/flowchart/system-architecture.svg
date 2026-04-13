@@ -13,6 +13,17 @@
       <rect class="subgraph" x="539.66" y="17.17" width="190.04" height="383.58" fill="none" stroke="#888" stroke-width="1.00" />
       <text x="634.68" y="21.17" text-anchor="middle" dominant-baseline="hanging" fill="#333">Service Layer</text>
     </g>
+    <g class="edgePaths">
+      <path d="M179.59,110.35 L188.77,110.35 Q192.77,110.35 192.77,114.35 L192.77,118.35 L192.77,165.52 Q192.77,170.52 197.77,170.52 L243.41,170.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M197.41,258.79 L204.81,258.79 Q208.81,258.79 208.81,254.79 L208.81,250.79 L208.81,213.52 Q208.81,208.52 213.81,208.52 L243.41,208.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M404.66,170.52 L421.06,170.52 Q426.06,170.52 426.06,165.52 L426.06,80.17 Q426.06,75.17 431.06,75.17 L550.66,75.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M404.66,189.52 L550.66,189.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M404.66,208.52 L421.06,208.52 Q426.06,208.52 426.06,213.52 L426.06,353.75 Q426.06,358.75 431.06,358.75 L550.66,358.75" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M708.76,75.17 L860.70,75.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M708.76,189.52 L860.70,189.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M714.70,339.75 L731.10,339.75 Q736.10,339.75 736.10,334.75 L736.10,309.07 Q736.10,304.07 741.10,304.07 L860.70,304.07" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M714.70,377.75 L731.10,377.75 Q736.10,377.75 736.10,382.75 L736.10,408.44 Q736.10,413.44 741.10,413.44 L860.70,413.44" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
     <g class="nodes">
       <rect x="58.00" y="64.35" width="121.59" height="54.00" rx="27.00" ry="27.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="118.79" y="91.35" text-anchor="middle" dominant-baseline="middle" fill="#333">Web App</text>
@@ -37,17 +48,6 @@
       <text x="911.81" y="309.44" text-anchor="middle" dominant-baseline="middle" fill="#333">Order DB</text>
       <rect x="864.70" y="386.44" width="172.81" height="54.00" rx="27.00" ry="27.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="951.11" y="413.44" text-anchor="middle" dominant-baseline="middle" fill="#333">Message Queue</text>
-    </g>
-    <g class="edgePaths">
-      <path d="M179.59,110.35 L188.77,110.35 Q192.77,110.35 192.77,114.35 L192.77,118.35 L192.77,165.52 Q192.77,170.52 197.77,170.52 L243.41,170.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M197.41,258.79 L204.81,258.79 Q208.81,258.79 208.81,254.79 L208.81,250.79 L208.81,213.52 Q208.81,208.52 213.81,208.52 L243.41,208.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M404.66,170.52 L421.06,170.52 Q426.06,170.52 426.06,165.52 L426.06,80.17 Q426.06,75.17 431.06,75.17 L550.66,75.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M404.66,189.52 L550.66,189.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M404.66,208.52 L421.06,208.52 Q426.06,208.52 426.06,213.52 L426.06,353.75 Q426.06,358.75 431.06,358.75 L550.66,358.75" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M708.76,75.17 L860.70,75.17" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M708.76,189.52 L860.70,189.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M714.70,339.75 L731.10,339.75 Q736.10,339.75 736.10,334.75 L736.10,309.07 Q736.10,304.07 741.10,304.07 L860.70,304.07" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M714.70,377.75 L731.10,377.75 Q736.10,377.75 736.10,382.75 L736.10,408.44 Q736.10,413.44 741.10,413.44 L860.70,413.44" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="edgeLabels">
     </g>
