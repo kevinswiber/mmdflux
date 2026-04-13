@@ -1,6 +1,6 @@
 //! Graph-family route execution and path shaping helpers.
 
-use super::backward_deconflict;
+use super::backward_corridor;
 use super::float_core::compute_port_attachments_from_geometry;
 use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
 use super::orthogonal::{OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal};
@@ -49,8 +49,10 @@ pub fn route_graph_geometry(
             edges
         }
         EdgeRouting::DirectRoute | EdgeRouting::EngineProvided | EdgeRouting::PolylineRoute => {
-            let backward_corridor_ctx =
-                backward_deconflict::compute_backward_corridor_context(geometry, diagram.direction);
+            let backward_corridor_ctx = backward_corridor::compute_direct_backward_corridor_context(
+                geometry,
+                diagram.direction,
+            );
 
             geometry
                 .edges
@@ -82,8 +84,11 @@ pub fn route_graph_geometry(
                     let corridor_slot = backward_corridor_ctx.slot_for(edge.index);
                     let needs_channel = is_backward
                         && geometry.enhanced_backward_routing
-                        && (has_corridor_obstructions(edge, geometry, edge_direction)
-                            || corridor_slot.is_some());
+                        && (backward_corridor::has_direct_corridor_obstructions(
+                            edge,
+                            geometry,
+                            edge_direction,
+                        ) || corridor_slot.is_some());
                     let needs_short_offset = is_backward
                         && (geometry.enhanced_backward_routing
                             || edge_direction != diagram.direction);
@@ -307,62 +312,14 @@ pub(crate) fn apply_short_backward_port_offset(
     }
 }
 
-pub(crate) fn has_corridor_obstructions(
-    edge: &LayoutEdge,
-    geometry: &GraphGeometry,
-    direction: Direction,
-) -> bool {
-    let from_rect = geometry.nodes.get(&edge.from).map(|n| n.rect);
-    let to_rect = geometry.nodes.get(&edge.to).map(|n| n.rect);
-
-    let (Some(sr), Some(tr)) = (from_rect, to_rect) else {
-        return false;
-    };
-
-    match direction {
-        Direction::TopDown | Direction::BottomTop => {
-            let corridor_left = sr.x.min(tr.x);
-            let corridor_right = (sr.x + sr.width).max(tr.x + tr.width);
-            let (min_y, max_y) = source_target_rank_range_y(from_rect, to_rect);
-            geometry.nodes.values().any(|node| {
-                if node.id == edge.from || node.id == edge.to {
-                    return false;
-                }
-                let cy = node.rect.center_y();
-                let node_right = node.rect.x + node.rect.width;
-                cy > min_y
-                    && cy < max_y
-                    && node.rect.x < corridor_right
-                    && node_right > corridor_left
-            })
-        }
-        Direction::LeftRight | Direction::RightLeft => {
-            let corridor_top = sr.y.min(tr.y);
-            let corridor_bottom = (sr.y + sr.height).max(tr.y + tr.height);
-            let (min_x, max_x) = source_target_rank_range_x(from_rect, to_rect);
-            geometry.nodes.values().any(|node| {
-                if node.id == edge.from || node.id == edge.to {
-                    return false;
-                }
-                let cx = node.rect.center_x();
-                let node_bottom = node.rect.y + node.rect.height;
-                cx > min_x
-                    && cx < max_x
-                    && node.rect.y < corridor_bottom
-                    && node_bottom > corridor_top
-            })
-        }
-    }
-}
-
 pub(crate) fn build_backward_channel_path(
     path: Vec<FPoint>,
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
     direction: Direction,
-    corridor_slot: Option<&backward_deconflict::BackwardCorridorSlot>,
+    corridor_slot: Option<&backward_corridor::BackwardCorridorSlot>,
 ) -> Vec<FPoint> {
-    use super::backward_deconflict::LANE_SPACING;
+    use super::backward_corridor::LANE_SPACING;
 
     const CHANNEL_CLEARANCE: f64 = 8.0;
 
@@ -376,7 +333,7 @@ pub(crate) fn build_backward_channel_path(
     };
 
     let scope_parent = from_node.and_then(|n| n.parent.as_deref());
-    let sg_rect = super::orthogonal::backward::shared_parent_subgraph_rect(edge, geometry);
+    let sg_rect = backward_corridor::shared_parent_subgraph_rect(edge, geometry);
 
     match direction {
         Direction::TopDown | Direction::BottomTop => {
@@ -401,8 +358,7 @@ pub(crate) fn build_backward_channel_path(
                     if node.id == edge.from || node.id == edge.to {
                         continue;
                     }
-                    if !super::orthogonal::backward::node_in_scope(&node.id, scope_parent, geometry)
-                    {
+                    if !backward_corridor::node_in_scope(&node.id, scope_parent, geometry) {
                         continue;
                     }
                     let cy = node.rect.center_y();
@@ -445,8 +401,7 @@ pub(crate) fn build_backward_channel_path(
                     if node.id == edge.from || node.id == edge.to {
                         continue;
                     }
-                    if !super::orthogonal::backward::node_in_scope(&node.id, scope_parent, geometry)
-                    {
+                    if !backward_corridor::node_in_scope(&node.id, scope_parent, geometry) {
                         continue;
                     }
                     let cx = node.rect.center_x();

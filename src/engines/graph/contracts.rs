@@ -6,10 +6,19 @@
 //! callers that manage graph-family solves directly.
 
 use super::{EngineAlgorithmCapabilities, EngineAlgorithmId, LayoutConfig};
-use crate::engines::graph::algorithms::layered::MeasurementMode;
 use crate::errors::RenderError;
 use crate::format::RoutingStyle;
 use crate::graph::GeometryLevel;
+
+/// Measurement mode controls whether layout uses grid-cell dimensions or
+/// proportional float-space dimensions for node sizing.
+#[derive(Debug, Clone)]
+pub enum MeasurementMode {
+    /// Grid-cell dimensions for discrete grid replay.
+    Grid,
+    /// Proportional dimensions for unitless float-space geometry.
+    Proportional(crate::graph::measure::ProportionalTextMetrics),
+}
 
 /// Engine-specific configuration envelope.
 #[derive(Debug, Clone)]

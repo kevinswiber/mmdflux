@@ -7,7 +7,7 @@
 //! - `EngineProvided`: Use engine-provided paths directly.
 //! - `OrthogonalRoute`: Produce axis-aligned (right-angle) edge paths.
 
-pub(crate) mod backward_deconflict;
+mod backward_corridor;
 mod float_core;
 mod labels;
 mod orthogonal;
@@ -506,7 +506,7 @@ mod tests {
 
     #[test]
     fn backward_corridor_deconflict_assigns_distinct_lanes_td() {
-        use super::backward_deconflict;
+        use super::backward_corridor;
 
         // Two backward edges (C→A and C→B) share the same corridor in TD.
         // Node Mid sits between source and targets, creating obstructions.
@@ -592,7 +592,7 @@ mod tests {
             enhanced_backward_routing: true,
         };
 
-        let ctx = backward_deconflict::compute_backward_corridor_context(
+        let ctx = backward_corridor::compute_direct_backward_corridor_context(
             &geom,
             crate::graph::Direction::TopDown,
         );
@@ -629,6 +629,189 @@ mod tests {
             path0[1].x, path1[1].x,
             "backward corridors must have distinct lane positions"
         );
+    }
+
+    #[test]
+    fn backward_corridor_orthogonal_context_assigns_distinct_lanes_td() {
+        use super::backward_corridor;
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(0.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(60.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "Mid".into(),
+            PositionedNode {
+                id: "Mid".into(),
+                rect: FRect::new(20.0, 45.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "Mid".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "C".into(),
+            PositionedNode {
+                id: "C".into(),
+                rect: FRect::new(30.0, 100.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "C".into(),
+                parent: None,
+            },
+        );
+
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![
+                LayoutEdge {
+                    index: 0,
+                    from: "C".into(),
+                    to: "A".into(),
+                    waypoints: vec![],
+                    label_position: None,
+                    label_side: None,
+                    from_subgraph: None,
+                    to_subgraph: None,
+                    layout_path_hint: None,
+                    preserve_orthogonal_topology: false,
+                },
+                LayoutEdge {
+                    index: 1,
+                    from: "C".into(),
+                    to: "B".into(),
+                    waypoints: vec![],
+                    label_position: None,
+                    label_side: None,
+                    from_subgraph: None,
+                    to_subgraph: None,
+                    layout_path_hint: None,
+                    preserve_orthogonal_topology: false,
+                },
+            ],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(0.0, 0.0, 120.0, 120.0),
+            reversed_edges: vec![0, 1],
+            engine_hints: None,
+            grid_projection: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: true,
+        };
+
+        let ctx = backward_corridor::compute_orthogonal_backward_corridor_context(
+            &geom,
+            crate::graph::Direction::TopDown,
+        );
+        let slot0 = ctx.slot_for(0).expect("edge 0 should have a corridor slot");
+        let slot1 = ctx.slot_for(1).expect("edge 1 should have a corridor slot");
+
+        assert_eq!(slot0.base_lane, slot1.base_lane);
+        assert_ne!(slot0.slot, slot1.slot);
+    }
+
+    #[test]
+    fn backward_corridor_scope_helpers_respect_shared_parent() {
+        use super::backward_corridor;
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(0.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: Some("sg".into()),
+            },
+        );
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(60.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: Some("sg".into()),
+            },
+        );
+        nodes.insert(
+            "Outside".into(),
+            PositionedNode {
+                id: "Outside".into(),
+                rect: FRect::new(120.0, 0.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "Outside".into(),
+                parent: None,
+            },
+        );
+
+        let mut subgraphs = HashMap::new();
+        subgraphs.insert(
+            "sg".into(),
+            SubgraphGeometry {
+                id: "sg".into(),
+                rect: FRect::new(-10.0, -10.0, 140.0, 80.0),
+                title: "Group".into(),
+                depth: 0,
+            },
+        );
+
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![LayoutEdge {
+                index: 0,
+                from: "A".into(),
+                to: "B".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+                preserve_orthogonal_topology: false,
+            }],
+            subgraphs,
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(-10.0, -10.0, 200.0, 120.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            grid_projection: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: true,
+        };
+
+        assert_eq!(
+            backward_corridor::shared_parent_subgraph_rect(&geom.edges[0], &geom),
+            Some(FRect::new(-10.0, -10.0, 140.0, 80.0))
+        );
+        assert!(backward_corridor::node_in_scope("A", Some("sg"), &geom));
+        assert!(!backward_corridor::node_in_scope(
+            "Outside",
+            Some("sg"),
+            &geom
+        ));
+        assert!(backward_corridor::node_in_scope("Outside", None, &geom));
     }
 
     #[test]

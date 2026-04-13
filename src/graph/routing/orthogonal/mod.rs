@@ -66,7 +66,7 @@ pub fn route_edges_orthogonal(
     let fan_out_source_stagger =
         fan::fan_out_source_stagger_context(geometry, geometry.direction, diagram.edges.len());
     let backward_corridor_ctx =
-        super::backward_deconflict::compute_backward_corridor_context_orthogonal(
+        super::backward_corridor::compute_orthogonal_backward_corridor_context(
             geometry,
             geometry.direction,
         );

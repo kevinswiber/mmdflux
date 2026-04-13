@@ -6,25 +6,15 @@ use super::layout_building::{
 };
 use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds};
 use crate::engines::graph::EngineConfig;
+use crate::engines::graph::contracts::MeasurementMode;
 use crate::errors::RenderError;
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::grid::{GridLayoutConfig, GridRanker};
 use crate::graph::measure::{
-    ProportionalTextMetrics, grid_edge_label_dimensions, grid_node_dimensions,
-    proportional_node_dimensions,
+    grid_edge_label_dimensions, grid_node_dimensions, proportional_node_dimensions,
 };
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::{Direction, Edge, Graph, Node};
-
-/// Measurement mode controls whether layout uses grid-cell dimensions or
-/// proportional float-space dimensions for node sizing.
-#[derive(Debug, Clone)]
-pub enum MeasurementMode {
-    /// Grid-cell dimensions for discrete grid replay.
-    Grid,
-    /// Proportional dimensions for unitless float-space geometry.
-    Proportional(ProportionalTextMetrics),
-}
 
 /// Build a flowchart `GridLayoutConfig` from layered-engine settings.
 ///

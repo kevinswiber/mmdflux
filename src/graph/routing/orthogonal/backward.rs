@@ -15,6 +15,9 @@ use crate::graph::attachment::{
     prefer_backward_side_channel,
 };
 use crate::graph::geometry::{GraphGeometry, LayoutEdge};
+use crate::graph::routing::backward_corridor::{
+    LANE_SPACING, has_orthogonal_corridor_obstructions, node_in_scope, shared_parent_subgraph_rect,
+};
 use crate::graph::space::{FPoint, FRect};
 
 pub(super) fn reroute_skip_backward_lane_for_node_clearance(
@@ -264,96 +267,6 @@ pub(super) fn avoid_backward_td_bt_vertical_lane_node_intrusion(
     }
 }
 
-/// If both edge endpoints share the same parent subgraph, return that
-/// subgraph's rect.  Used to constrain backward edge routing channels
-/// to the interior of the containing subgraph.
-pub(in crate::graph::routing) fn shared_parent_subgraph_rect(
-    edge: &LayoutEdge,
-    geometry: &GraphGeometry,
-) -> Option<FRect> {
-    let from_parent = geometry.nodes.get(&edge.from)?.parent.as_deref()?;
-    let to_parent = geometry.nodes.get(&edge.to)?.parent.as_deref()?;
-    if from_parent != to_parent {
-        return None;
-    }
-    geometry.subgraphs.get(from_parent).map(|sg| sg.rect)
-}
-
-/// Check if a node belongs to the given parent subgraph (or has no
-/// parent when `parent_id` is None).
-pub(in crate::graph::routing) fn node_in_scope(
-    node_id: &str,
-    parent_id: Option<&str>,
-    geometry: &GraphGeometry,
-) -> bool {
-    let node_parent = geometry
-        .nodes
-        .get(node_id)
-        .and_then(|n| n.parent.as_deref());
-    node_parent == parent_id
-}
-
-pub(in crate::graph::routing) fn has_backward_corridor_obstructions(
-    edge: &LayoutEdge,
-    geometry: &GraphGeometry,
-    direction: Direction,
-) -> bool {
-    let from_rect = geometry.nodes.get(&edge.from).map(|n| n.rect);
-    let to_rect = geometry.nodes.get(&edge.to).map(|n| n.rect);
-
-    let (Some(sr), Some(tr)) = (from_rect, to_rect) else {
-        return false;
-    };
-
-    let scope_parent = geometry
-        .nodes
-        .get(&edge.from)
-        .and_then(|n| n.parent.as_deref());
-
-    match direction {
-        Direction::TopDown | Direction::BottomTop => {
-            let corridor_left = sr.x.min(tr.x);
-            let corridor_right = (sr.x + sr.width).max(tr.x + tr.width);
-            let min_y = sr.y.min(tr.y);
-            let max_y = (sr.y + sr.height).max(tr.y + tr.height);
-            geometry.nodes.values().any(|node| {
-                if node.id == edge.from || node.id == edge.to {
-                    return false;
-                }
-                if !node_in_scope(&node.id, scope_parent, geometry) {
-                    return false;
-                }
-                let cy = node.rect.center_y();
-                let node_right = node.rect.x + node.rect.width;
-                cy > min_y
-                    && cy < max_y
-                    && node.rect.x < corridor_right
-                    && node_right > corridor_left
-            })
-        }
-        Direction::LeftRight | Direction::RightLeft => {
-            let corridor_top = sr.y.min(tr.y);
-            let corridor_bottom = (sr.y + sr.height).max(tr.y + tr.height);
-            let min_x = sr.x.min(tr.x);
-            let max_x = (sr.x + sr.width).max(tr.x + tr.width);
-            geometry.nodes.values().any(|node| {
-                if node.id == edge.from || node.id == edge.to {
-                    return false;
-                }
-                if !node_in_scope(&node.id, scope_parent, geometry) {
-                    return false;
-                }
-                let cx = node.rect.center_x();
-                let node_bottom = node.rect.y + node.rect.height;
-                cx > min_x
-                    && cx < max_x
-                    && node.rect.y < corridor_bottom
-                    && node_bottom > corridor_top
-            })
-        }
-    }
-}
-
 pub(crate) fn build_backward_orthogonal_channel_path(
     edge: &LayoutEdge,
     geometry: &GraphGeometry,
@@ -361,8 +274,6 @@ pub(crate) fn build_backward_orthogonal_channel_path(
     corridor_lane_slot: Option<usize>,
     corridor_base_lane: Option<f64>,
 ) -> Option<Vec<FPoint>> {
-    use super::super::backward_deconflict::LANE_SPACING;
-
     const CHANNEL_CLEARANCE: f64 = 12.0;
 
     let from_node = geometry.nodes.get(&edge.from)?;
@@ -1900,7 +1811,7 @@ pub(super) fn finalize_backward_path(
     } = options;
     let mut compact_short_backward = false;
     let use_channel_path = geometry.enhanced_backward_routing
-        && (has_backward_corridor_obstructions(edge, geometry, direction)
+        && (has_orthogonal_corridor_obstructions(edge, geometry, direction)
             || corridor_lane_slot.is_some());
 
     if use_channel_path {
