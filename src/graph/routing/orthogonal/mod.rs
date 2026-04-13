@@ -26,12 +26,12 @@ use self::path_utils::{
     build_contracted_path, collapse_collinear_interior_points, light_normalize,
     revalidate_label_anchor, snap_path_to_grid,
 };
-use super::super::direction_policy::{
-    build_override_node_map, cross_boundary_edge_direction, effective_edge_direction,
-};
 use super::float_core::normalize_orthogonal_route_contracts;
 use super::labels::compute_end_labels_for_edge;
 use crate::graph::attachment::Face;
+use crate::graph::direction_policy::{
+    build_override_node_map, cross_boundary_edge_direction, effective_edge_direction,
+};
 use crate::graph::geometry::{GraphGeometry, RoutedEdgeGeometry};
 use crate::graph::space::FPoint;
 use crate::graph::{Direction, Graph};
