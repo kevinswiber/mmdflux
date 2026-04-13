@@ -6,32 +6,27 @@ _.path = [
 ]
 
 [tools]
-rust = {
-  components = [
-    "clippy",
-    "rustfmt",
-  ],
-  targets = [
-    "wasm32-unknown-unknown",
-  ],
-  version = "nightly",
-}
-node = {
-  corepack = true,
-  version = "lts",
-}
 python = "3.12"
-"cargo:cargo-edit" = "0.13"
-"cargo:cargo-nextest" = "0.9"
-"cargo:cocogitto" = {
-  postinstall = "cog install-hook --all --overwrite",
-  version = "6.5",
-}
-"cargo:wasm-pack" = "0.14"
-github-cli = "2"
-jq = "1.7"
-just = "1.46"
-"npm:@mermaid-js/mermaid-cli" = "11"
+github-cli = "latest"
+jq = "latest"
+just = "latest"
+"cargo:cargo-edit" = "latest"
+"cargo:cargo-nextest" = "latest"
+"cargo:wasm-pack" = "latest"
+"npm:@mermaid-js/mermaid-cli" = "latest"
+
+[tools.rust]
+version = "nightly"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]
+
+[tools.node]
+version = "lts"
+corepack = true
+
+[tools."cargo:cocogitto"]
+version = "6.5"
+postinstall = "cog install-hook --all --overwrite"
 
 [settings]
 experimental = true
