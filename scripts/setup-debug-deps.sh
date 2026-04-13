@@ -49,9 +49,6 @@ else
 
   echo "Building mermaid..."
   (cd "$DEPS_DIR/mermaid" && pnpm run build)
-
-  echo "Copying mermaid patch scripts..."
-  cp "$REPO_ROOT/scripts/mermaid-patches/"* "$DEPS_DIR/mermaid/scripts/"
 fi
 
 echo ""
