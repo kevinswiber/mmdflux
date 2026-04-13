@@ -10,16 +10,14 @@ git clone git@github.com:kevinswiber/mmdflux.git
 cd mmdflux
 
 # Install all tools (Rust nightly, Node, Python, cargo bins, etc.)
+# Git hooks are installed automatically as part of cocogitto setup.
 mise install
-
-# Install git hooks (enforces Conventional Commits)
-just setup-hooks
 
 # Verify everything works
 just check
 ```
 
-mise reads `mise.toml` at the project root and installs everything automatically. The stable Rust toolchain is managed separately by `rust-toolchain.toml` via rustup.
+mise reads `mise.toml` at the project root and installs everything automatically, including git hooks for Conventional Commits enforcement. The stable Rust toolchain is managed separately by `rust-toolchain.toml` via rustup.
 
 ## Manual setup
 
