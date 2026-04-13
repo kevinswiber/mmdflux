@@ -14,10 +14,6 @@ just = "latest"
 "cargo:wasm-pack" = "latest"
 "npm:@mermaid-js/mermaid-cli" = "latest"
 
-[tools.rust]
-version = "nightly"
-components = ["clippy", "rustfmt"]
-targets = ["wasm32-unknown-unknown"]
 
 [tools.node]
 version = "lts"
