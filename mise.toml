@@ -1,0 +1,31 @@
+[env]
+_.path = [
+  "{{config_root}}/target/release",
+  "{{config_root}}/target/debug",
+  "{{config_root}}/packages/node_modules/.bin",
+]
+
+[tools]
+rust = {
+  components = [
+    "clippy",
+    "rustfmt",
+  ],
+  targets = [
+    "wasm32-unknown-unknown",
+  ],
+  version = "nightly",
+}
+node = {
+  corepack = true,
+  version = "lts",
+}
+python = "3.12"
+"cargo:cargo-nextest" = "0.9"
+"cargo:cocogitto" = "6.5"
+"cargo:wasm-pack" = "0.14"
+github-cli = "2"
+just = "1.46"
+
+[settings]
+experimental = true
