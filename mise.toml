@@ -25,7 +25,9 @@ python = "3.12"
 "cargo:cocogitto" = "6.5"
 "cargo:wasm-pack" = "0.14"
 github-cli = "2"
+jq = "1.7"
 just = "1.46"
+"npm:@mermaid-js/mermaid-cli" = "11"
 
 [settings]
 experimental = true
