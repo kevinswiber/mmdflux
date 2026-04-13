@@ -9,14 +9,47 @@ use crate::mermaid::{
     Statement, StrokeSpec, Vertex,
 };
 
+type ClassDefRegistry = HashMap<String, NodeStyle>;
+
 /// Build a Diagram from a parsed Flowchart.
 pub fn compile_to_graph(flowchart: &Flowchart) -> Graph {
     let direction = convert_direction(flowchart.direction);
     let mut diagram = Graph::new(direction);
     let mut node_styles = HashMap::new();
-    process_statements(&mut diagram, &flowchart.statements, None, &mut node_styles);
+    let class_defs = collect_class_defs(&flowchart.statements);
+    process_statements(
+        &mut diagram,
+        &flowchart.statements,
+        None,
+        &mut node_styles,
+        &class_defs,
+    );
+    apply_default_class(&mut diagram, &node_styles, &class_defs);
     resolve_subgraph_edges(&mut diagram);
     diagram
+}
+
+/// Collect all classDef definitions (recursively into subgraphs) before processing.
+fn collect_class_defs(statements: &[Statement]) -> ClassDefRegistry {
+    let mut defs = HashMap::new();
+    collect_class_defs_recursive(statements, &mut defs);
+    defs
+}
+
+fn collect_class_defs_recursive(statements: &[Statement], defs: &mut ClassDefRegistry) {
+    for stmt in statements {
+        match stmt {
+            Statement::ClassDef(cd) => {
+                defs.entry(cd.class_name.clone())
+                    .and_modify(|existing| *existing = existing.merge(&cd.style))
+                    .or_insert_with(|| cd.style.clone());
+            }
+            Statement::Subgraph(sg) => {
+                collect_class_defs_recursive(&sg.statements, defs);
+            }
+            _ => {}
+        }
+    }
 }
 
 fn process_statements(
@@ -24,10 +57,18 @@ fn process_statements(
     statements: &[Statement],
     parent_subgraph: Option<&str>,
     node_styles: &mut HashMap<String, NodeStyle>,
+    class_defs: &ClassDefRegistry,
 ) {
     for statement in statements {
         match statement {
             Statement::Vertex(vertex) => {
+                resolve_class_annotation(
+                    diagram,
+                    node_styles,
+                    class_defs,
+                    &vertex.id,
+                    &vertex.class_name,
+                );
                 add_vertex_to_diagram(
                     diagram,
                     vertex,
@@ -36,11 +77,25 @@ fn process_statements(
                 );
             }
             Statement::Edge(edge_spec) => {
+                resolve_class_annotation(
+                    diagram,
+                    node_styles,
+                    class_defs,
+                    &edge_spec.from.id,
+                    &edge_spec.from.class_name,
+                );
                 add_vertex_to_diagram(
                     diagram,
                     &edge_spec.from,
                     parent_subgraph,
                     node_styles.get(&edge_spec.from.id),
+                );
+                resolve_class_annotation(
+                    diagram,
+                    node_styles,
+                    class_defs,
+                    &edge_spec.to.id,
+                    &edge_spec.to.class_name,
                 );
                 add_vertex_to_diagram(
                     diagram,
@@ -52,7 +107,13 @@ fn process_statements(
                 diagram.add_edge(edge);
             }
             Statement::Subgraph(sg_spec) => {
-                process_statements(diagram, &sg_spec.statements, Some(&sg_spec.id), node_styles);
+                process_statements(
+                    diagram,
+                    &sg_spec.statements,
+                    Some(&sg_spec.id),
+                    node_styles,
+                    class_defs,
+                );
                 let node_ids = collect_node_ids(&sg_spec.statements);
                 diagram.subgraphs.insert(
                     sg_spec.id.clone(),
@@ -69,6 +130,53 @@ fn process_statements(
             }
             Statement::NodeStyle(style_stmt) => {
                 merge_node_style(diagram, node_styles, &style_stmt.node_id, &style_stmt.style);
+            }
+            Statement::ClassDef(_) => {
+                // Already collected in pass 1.
+            }
+            Statement::ClassApply(apply) => {
+                if let Some(style) = class_defs.get(&apply.class_name) {
+                    for node_id in &apply.node_ids {
+                        merge_node_style(diagram, node_styles, node_id, style);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Resolve a `:::className` annotation by looking up the class in the registry
+/// and merging its style into the node's accumulated styles.
+fn resolve_class_annotation(
+    diagram: &mut Graph,
+    node_styles: &mut HashMap<String, NodeStyle>,
+    class_defs: &ClassDefRegistry,
+    node_id: &str,
+    class_name: &Option<String>,
+) {
+    if let Some(cn) = class_name
+        && let Some(style) = class_defs.get(cn)
+    {
+        merge_node_style(diagram, node_styles, node_id, style);
+    }
+}
+
+/// Apply `classDef default` to every node that has no explicit class styling.
+fn apply_default_class(
+    diagram: &mut Graph,
+    node_styles: &HashMap<String, NodeStyle>,
+    class_defs: &ClassDefRegistry,
+) {
+    if let Some(default_style) = class_defs.get("default") {
+        let unstyled: Vec<String> = diagram
+            .nodes
+            .keys()
+            .filter(|id| !node_styles.contains_key(*id))
+            .cloned()
+            .collect();
+        for node_id in unstyled {
+            if let Some(node) = diagram.nodes.get_mut(&node_id) {
+                node.style = default_style.merge(&node.style);
             }
         }
     }
@@ -223,7 +331,7 @@ fn collect_node_ids_inner(
             Statement::Subgraph(sg) => {
                 collect_node_ids_inner(&sg.statements, result, seen);
             }
-            Statement::NodeStyle(_) => {}
+            Statement::NodeStyle(_) | Statement::ClassDef(_) | Statement::ClassApply(_) => {}
         }
     }
 }
@@ -1095,6 +1203,45 @@ mod tests {
                     .any(|edge| edge.from == "B" && edge.to == "C")
             );
         }
+    }
+
+    #[test]
+    fn classdef_default_applies_to_unclassified_nodes() {
+        let flowchart =
+            parse_flowchart("graph TD\nclassDef default fill:#f00\nA --> B\nB:::custom --> C\nclassDef custom fill:#0f0\n").unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        // A and C have no explicit class — should get the default fill.
+        assert_eq!(
+            diagram.nodes["A"].style.fill.as_ref().unwrap().raw(),
+            "#f00"
+        );
+        assert_eq!(
+            diagram.nodes["C"].style.fill.as_ref().unwrap().raw(),
+            "#f00"
+        );
+        // B has explicit :::custom — should NOT get the default.
+        assert_eq!(
+            diagram.nodes["B"].style.fill.as_ref().unwrap().raw(),
+            "#0f0"
+        );
+    }
+
+    #[test]
+    fn classdef_multi_class_names() {
+        let flowchart =
+            parse_flowchart("graph TD\nclassDef a,b fill:#f00\nA:::a --> B:::b --> C\n").unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        assert_eq!(
+            diagram.nodes["A"].style.fill.as_ref().unwrap().raw(),
+            "#f00"
+        );
+        assert_eq!(
+            diagram.nodes["B"].style.fill.as_ref().unwrap().raw(),
+            "#f00"
+        );
+        assert!(diagram.nodes["C"].style.fill.is_none());
     }
 
     fn compile_fixture_diagram(name: &str) -> Graph {

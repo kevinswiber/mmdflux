@@ -4,16 +4,12 @@
 //! missing subgraph `end` keywords, and strict-mode parse failures.
 
 use crate::errors::ParseDiagnostic;
-use crate::graph::style::parse_node_style_statement;
+use crate::graph::style::{parse_classdef_statement, parse_node_style_statement};
 use crate::mermaid::{ParseOptions, parse_flowchart_with_options, strip_theme_only_compat_syntax};
 
 const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
 
 const UNSUPPORTED_KEYWORDS: &[(&str, &str)] = &[
-    (
-        "classDef ",
-        "classDef statements are parsed but ignored in rendering",
-    ),
     (
         "click ",
         "click statements are not applicable in text/ASCII output",
@@ -47,6 +43,17 @@ fn collect_unsupported_warnings(input: &str) -> Vec<ParseDiagnostic> {
             continue;
         }
 
+        // classDef: warn on unsupported CSS properties
+        if ci_starts_with(trimmed, "classDef ") {
+            warnings.extend(collect_classdef_warnings(trimmed, line_num + 1));
+            continue;
+        }
+
+        // class: now supported, skip
+        if ci_starts_with(trimmed, "class ") && !ci_starts_with(trimmed, "classDef") {
+            continue;
+        }
+
         for &(prefix, message) in UNSUPPORTED_KEYWORDS {
             if ci_starts_with(trimmed, prefix) {
                 warnings.push(ParseDiagnostic::warning(
@@ -57,18 +64,24 @@ fn collect_unsupported_warnings(input: &str) -> Vec<ParseDiagnostic> {
                 break;
             }
         }
-
-        // "class " needs special handling to avoid matching "classDef"
-        if ci_starts_with(trimmed, "class ") && !ci_starts_with(trimmed, "classDef") {
-            warnings.push(ParseDiagnostic::warning(
-                Some(line_num + 1),
-                Some(1),
-                "class statements are parsed but ignored in rendering".to_string(),
-            ));
-        }
     }
 
     warnings
+}
+
+fn collect_classdef_warnings(line: &str, line_num: usize) -> Vec<ParseDiagnostic> {
+    match parse_classdef_statement(line) {
+        Some(parsed) => parsed
+            .issues
+            .into_iter()
+            .map(|issue| ParseDiagnostic::warning(Some(line_num), Some(1), issue.message()))
+            .collect(),
+        None => vec![ParseDiagnostic::warning(
+            Some(line_num),
+            Some(1),
+            "classDef statements must use the form `classDef className key:value,...`".to_string(),
+        )],
+    }
 }
 
 fn collect_style_warnings(line: &str, line_num: usize) -> Vec<ParseDiagnostic> {
@@ -205,11 +218,25 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_keyword_classdef() {
+    fn classdef_no_longer_warned_as_unsupported() {
         let input = "graph TD\n  classDef foo fill:#f00\n  A --> B\n";
         let warnings = collect_unsupported_warnings(input);
-        assert!(!warnings.is_empty());
-        assert!(warnings[0].message.contains("classDef"));
+        assert!(
+            !warnings.iter().any(|w| w.message.contains("classDef")),
+            "classDef with valid properties should not produce warnings: {:?}",
+            warnings
+        );
+    }
+
+    #[test]
+    fn classdef_unsupported_property_warned() {
+        let input = "graph TD\n  classDef foo fill:#f00,font-size:14px\n  A:::foo\n";
+        let warnings = collect_unsupported_warnings(input);
+        assert!(
+            warnings.iter().any(|w| w.message.contains("font-size")),
+            "unsupported property in classDef should warn: {:?}",
+            warnings
+        );
     }
 
     #[test]
@@ -221,11 +248,14 @@ mod tests {
     }
 
     #[test]
-    fn class_statement_warned() {
+    fn class_statement_no_longer_warned() {
         let input = "graph TD\n  class A foo\n  A --> B\n";
         let warnings = collect_unsupported_warnings(input);
-        assert!(!warnings.is_empty());
-        assert!(warnings[0].message.contains("class statements"));
+        assert!(
+            !warnings.iter().any(|w| w.message.contains("class")),
+            "class statements should not produce warnings: {:?}",
+            warnings
+        );
     }
 
     #[test]
@@ -245,7 +275,7 @@ mod tests {
 
     #[test]
     fn collect_all_includes_strict_and_unsupported() {
-        let input = "%%{init: {}}%%\ngraph TD\n  classDef foo fill:#f00\n  A --> B\n";
+        let input = "%%{init: {}}%%\ngraph TD\n  click A callback\n  A --> B\n";
         let all = collect_all_warnings(input);
         assert!(
             all.len() >= 2,

@@ -11,13 +11,13 @@
       <path d="M133.16,195.63 L137.86,195.63 C142.56,195.63 151.96,195.63 156.66,216.67 C161.36,237.71 161.36,279.79 161.36,300.84 L161.36,321.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="54.28" y="8.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <rect x="54.28" y="8.00" width="95.26" height="54.00" fill="#ff0" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="101.91" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
       <polygon points="101.91,112.00 159.35,169.44 101.91,226.88 44.47,169.44" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="101.91" y="169.44" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
-      <rect x="8.00" y="325.88" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <rect x="8.00" y="325.88" width="68.91" height="54.00" fill="#0f0" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="42.45" y="352.88" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
-      <rect x="126.91" y="325.88" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <rect x="126.91" y="325.88" width="68.91" height="54.00" fill="#f00" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="161.36" y="352.88" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
     </g>
     <g class="edgeLabels">

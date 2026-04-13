@@ -1,0 +1,10 @@
+stateDiagram-v2
+    classDef active fill:#bfb,stroke:#0a0
+    classDef error fill:#fbb,stroke:#a00
+
+    [*] --> Idle
+    Idle --> Processing:::active
+    Processing --> Error:::error
+    Processing --> Done:::active
+    Error --> [*]
+    Done --> [*]

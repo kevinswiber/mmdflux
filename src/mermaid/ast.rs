@@ -127,6 +127,8 @@ pub struct Vertex {
     pub id: String,
     /// Optional shape with label text.
     pub shape: Option<ShapeSpec>,
+    /// Optional class name from `:::className` annotation.
+    pub class_name: Option<String>,
 }
 
 impl Vertex {
@@ -135,6 +137,7 @@ impl Vertex {
         Self {
             id: id.into(),
             shape: None,
+            class_name: None,
         }
     }
 
@@ -143,6 +146,7 @@ impl Vertex {
         Self {
             id: id.into(),
             shape: Some(shape),
+            class_name: None,
         }
     }
 }
@@ -233,6 +237,24 @@ pub struct NodeStyleStatement {
     pub style: NodeStyle,
 }
 
+/// A `classDef className fill:#f9f,stroke:#333` statement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassDefStatement {
+    /// The class name.
+    pub class_name: String,
+    /// Resolved style properties.
+    pub style: NodeStyle,
+}
+
+/// A `class nodeA,nodeB className` statement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassApplyStatement {
+    /// Node IDs to apply the class to.
+    pub node_ids: Vec<String>,
+    /// The class name to apply.
+    pub class_name: String,
+}
+
 /// A statement in the flowchart AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
@@ -244,6 +266,10 @@ pub enum Statement {
     Subgraph(SubgraphSpec),
     /// A flowchart node style declaration.
     NodeStyle(NodeStyleStatement),
+    /// A `classDef` class definition.
+    ClassDef(ClassDefStatement),
+    /// A `class` statement applying a class to nodes.
+    ClassApply(ClassApplyStatement),
 }
 
 #[cfg(test)]
@@ -271,6 +297,7 @@ mod tests {
             statements: vec![Statement::Vertex(Vertex {
                 id: "A".to_string(),
                 shape: None,
+                class_name: None,
             })],
             dir: None,
         };

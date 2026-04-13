@@ -513,6 +513,21 @@ fn serialize_node_style_extension(style: &NodeStyle) -> Map<String, Value> {
     if let Some(color) = &style.color {
         payload.insert("color".to_string(), Value::String(color.raw().to_string()));
     }
+    if let Some(v) = &style.font_style {
+        payload.insert("font-style".to_string(), Value::String(v.clone()));
+    }
+    if let Some(v) = &style.font_weight {
+        payload.insert("font-weight".to_string(), Value::String(v.clone()));
+    }
+    if let Some(v) = &style.stroke_width {
+        payload.insert("stroke-width".to_string(), Value::String(v.clone()));
+    }
+    if let Some(v) = &style.stroke_dasharray {
+        payload.insert("stroke-dasharray".to_string(), Value::String(v.clone()));
+    }
+    if let Some(v) = &style.rx {
+        payload.insert("rx".to_string(), Value::String(v.clone()));
+    }
     payload
 }
 

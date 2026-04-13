@@ -966,12 +966,10 @@ fn node_rect_for_label(svg: &str, label: &str) -> Option<(f64, f64, f64, f64)> {
         (value == label).then_some((x, y))
     })?;
 
+    // Find the smallest rect containing the text (avoids matching subgraph backgrounds).
     svg.lines()
-        .find_map(|line| {
-            if !line.contains("<rect ")
-                || !line.contains("stroke=\"#333\"")
-                || !line.contains("fill=\"white\"")
-            {
+        .filter_map(|line| {
+            if !line.contains("<rect ") || !line.contains("stroke=") {
                 return None;
             }
             let x = parse_attr_f64(line, "x")?;
@@ -985,12 +983,10 @@ fn node_rect_for_label(svg: &str, label: &str) -> Option<(f64, f64, f64, f64)> {
                 None
             }
         })
+        .min_by(|a, b| (a.2 * a.3).partial_cmp(&(b.2 * b.3)).unwrap())
         .or_else(|| {
             svg.lines().find_map(|line| {
-                if !line.contains("<polygon ")
-                    || !line.contains("stroke=\"#333\"")
-                    || !line.contains("fill=\"white\"")
-                {
+                if !line.contains("<polygon ") || !line.contains("stroke=") {
                     return None;
                 }
                 let points = parse_attr_value(line, "points")?;

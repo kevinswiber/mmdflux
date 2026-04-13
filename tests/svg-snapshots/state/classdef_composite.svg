@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 116.46 258.00" style="max-width: 116.46px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(-20.00,-19.00)">
+    <g class="clusters">
+      <rect class="subgraph" x="28.00" y="27.00" width="100.46" height="242.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="78.23" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">outer</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M78.23,72.00 L78.23,118.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M78.23,176.00 L78.23,222.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="43.00" y="122.00" width="70.46" height="54.00" rx="5.00" ry="5.00" fill="#ff0" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="78.23" y="149.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Inner</text>
+      <circle cx="78.23" cy="240.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <circle cx="78.23" cy="240.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="78.23" y="240.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <circle cx="78.23" cy="65.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="78.23" y="65.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+    </g>
+    <g class="edgeLabels">
+    </g>
+  </g>
+</svg>

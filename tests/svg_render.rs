@@ -494,3 +494,119 @@ fn positioned_mmds_payload_honors_explicit_svg_theme() {
     assert!(svg.contains("fill=\"#1f2020\""), "{svg}");
     assert!(svg.contains("stroke=\"#cccccc\""), "{svg}");
 }
+
+// --- classDef / class / ::: styling ---
+
+#[test]
+fn classdef_annotation_svg_has_fill_colors() {
+    let input = include_str!("fixtures/flowchart/compat_class_annotation.mmd");
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("fill=\"#ff0\""),
+        "expected highlight fill: {svg}"
+    );
+    assert!(
+        svg.contains("fill=\"#0f0\""),
+        "expected success fill: {svg}"
+    );
+    assert!(svg.contains("fill=\"#f00\""), "expected error fill: {svg}");
+}
+
+#[test]
+fn classdef_class_stmt_svg_has_colors() {
+    let input = include_str!("fixtures/flowchart/classdef_class_stmt.mmd");
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("fill=\"#f00\""),
+        "expected fill from class statement: {svg}"
+    );
+}
+
+#[test]
+fn classdef_precedence_style_wins() {
+    let input = include_str!("fixtures/flowchart/classdef_precedence.mmd");
+    let svg = render_svg(input, &RenderConfig::default());
+    // B should have fill="#0f0" (style overrides classDef)
+    assert!(
+        svg.contains("fill=\"#0f0\""),
+        "style should override classDef: {svg}"
+    );
+    // A should still have classDef fill
+    assert!(
+        svg.contains("fill=\"#ddd\""),
+        "classDef fill should apply to A: {svg}"
+    );
+}
+
+#[test]
+fn state_classdef_basic_svg_has_colors() {
+    let input = include_str!("fixtures/state/classdef_basic.mmd");
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("fill=\"#bfb\""),
+        "expected active fill in SVG: {svg}"
+    );
+    assert!(
+        svg.contains("fill=\"#fbb\""),
+        "expected error fill in SVG: {svg}"
+    );
+}
+
+#[test]
+fn state_classdef_composite_svg_has_colors() {
+    let input = include_str!("fixtures/state/classdef_composite.mmd");
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("fill=\"#ff0\""),
+        "expected highlight fill in SVG: {svg}"
+    );
+}
+
+// --- Extended CSS properties ---
+
+#[test]
+fn svg_node_with_font_weight() {
+    let input = "graph TD\n  classDef bold font-weight:bold\n  A:::bold\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("font-weight=\"bold\""),
+        "expected font-weight in SVG: {svg}"
+    );
+}
+
+#[test]
+fn svg_node_with_stroke_width() {
+    let input = "graph TD\n  classDef thick stroke-width:3px\n  A:::thick\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("stroke-width=\"3px\""),
+        "expected stroke-width in SVG: {svg}"
+    );
+}
+
+#[test]
+fn svg_node_with_rx() {
+    let input = "graph TD\n  classDef rounded rx:10\n  A[Box]:::rounded\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(svg.contains("rx=\"10\""), "expected rx in SVG: {svg}");
+}
+
+#[test]
+fn svg_node_with_stroke_dasharray() {
+    let input = "graph TD\n  classDef dashed stroke-dasharray:5,3\n  A:::dashed\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("stroke-dasharray=\"5,3\""),
+        "expected stroke-dasharray in SVG: {svg}"
+    );
+}
+
+#[test]
+fn svg_node_with_font_style() {
+    let input = "graph TD\n  classDef italic font-style:italic\n  A:::italic\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("font-style=\"italic\""),
+        "expected font-style in SVG: {svg}"
+    );
+}

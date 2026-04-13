@@ -412,6 +412,26 @@
         "color": {
           "type": "string",
           "description": "Raw color token for node label text."
+        },
+        "font-style": {
+          "type": "string",
+          "description": "CSS font-style value (e.g. italic)."
+        },
+        "font-weight": {
+          "type": "string",
+          "description": "CSS font-weight value (e.g. bold, 700)."
+        },
+        "stroke-width": {
+          "type": "string",
+          "description": "CSS stroke-width value (e.g. 4px)."
+        },
+        "stroke-dasharray": {
+          "type": "string",
+          "description": "SVG stroke-dasharray value (e.g. 5,3)."
+        },
+        "rx": {
+          "type": "string",
+          "description": "SVG rx (border-radius) value."
         }
       },
       "additionalProperties": false

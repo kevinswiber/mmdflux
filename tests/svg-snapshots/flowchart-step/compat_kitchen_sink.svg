@@ -17,9 +17,9 @@
       <text x="157.77" y="185.03" text-anchor="middle" dominant-baseline="middle" fill="#333333">Check Input</text>
       <rect x="110.51" y="461.06" width="94.52" height="54.00" fill="#ececff" stroke="#9370db" stroke-width="1.00" stroke-linejoin="round" />
       <text x="157.77" y="488.06" text-anchor="middle" dominant-baseline="middle" fill="#333333">Done</text>
-      <rect x="192.61" y="357.06" width="95.26" height="54.00" fill="#ececff" stroke="#9370db" stroke-width="1.00" stroke-linejoin="round" />
+      <rect x="192.61" y="357.06" width="95.26" height="54.00" fill="#f00" stroke="#9370db" stroke-width="1.00" stroke-linejoin="round" />
       <text x="240.24" y="384.06" text-anchor="middle" dominant-baseline="middle" fill="#333333">Error</text>
-      <rect x="8.00" y="357.06" width="134.61" height="54.00" fill="#ececff" stroke="#9370db" stroke-width="1.00" stroke-linejoin="round" />
+      <rect x="8.00" y="357.06" width="134.61" height="54.00" fill="#0f0" stroke="#9370db" stroke-width="1.00" stroke-linejoin="round" />
       <text x="75.31" y="384.06" text-anchor="middle" dominant-baseline="middle" fill="#333333">process-A</text>
       <rect x="110.14" y="8.00" width="95.26" height="54.00" fill="#f9f" stroke="#9370db" stroke-width="1.00" stroke-linejoin="round" />
       <text x="157.77" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333333">Start</text>

@@ -246,7 +246,16 @@ fn parse_node_style_extension(style_object: &Map<String, Value>) -> NodeStyle {
         fill: parse_node_style_color(style_object, "fill"),
         stroke: parse_node_style_color(style_object, "stroke"),
         color: parse_node_style_color(style_object, "color"),
+        font_style: parse_node_style_string(style_object, "font_style"),
+        font_weight: parse_node_style_string(style_object, "font_weight"),
+        stroke_width: parse_node_style_string(style_object, "stroke_width"),
+        stroke_dasharray: parse_node_style_string(style_object, "stroke_dasharray"),
+        rx: parse_node_style_string(style_object, "rx"),
     }
+}
+
+fn parse_node_style_string(style_object: &Map<String, Value>, key: &str) -> Option<String> {
+    style_object.get(key)?.as_str().map(|s| s.to_string())
 }
 
 fn parse_node_style_color(style_object: &Map<String, Value>, key: &str) -> Option<ColorToken> {

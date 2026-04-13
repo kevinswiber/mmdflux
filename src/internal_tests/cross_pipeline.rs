@@ -2028,24 +2028,24 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_policy_
             Some((parse_attr_f64(line, "x")?, parse_attr_f64(line, "y")?))
         })?;
 
-        svg.lines().find_map(|line| {
-            if !line.contains("<rect ")
-                || !line.contains("stroke=\"#333\"")
-                || !line.contains("fill=\"white\"")
-            {
-                return None;
-            }
-            let x = parse_attr_f64(line, "x")?;
-            let y = parse_attr_f64(line, "y")?;
-            let width = parse_attr_f64(line, "width")?;
-            let height = parse_attr_f64(line, "height")?;
-            let inside = text_x >= x && text_x <= x + width && text_y >= y && text_y <= y + height;
-            if inside {
-                Some((x, y, width, height))
-            } else {
-                None
-            }
-        })
+        svg.lines()
+            .filter_map(|line| {
+                if !line.contains("<rect ") || !line.contains("stroke=") {
+                    return None;
+                }
+                let x = parse_attr_f64(line, "x")?;
+                let y = parse_attr_f64(line, "y")?;
+                let width = parse_attr_f64(line, "width")?;
+                let height = parse_attr_f64(line, "height")?;
+                let inside =
+                    text_x >= x && text_x <= x + width && text_y >= y && text_y <= y + height;
+                if inside {
+                    Some((x, y, width, height))
+                } else {
+                    None
+                }
+            })
+            .min_by(|a, b| (a.2 * a.3).partial_cmp(&(b.2 * b.3)).unwrap())
     }
 
     fn svg_point_face(rect: (f64, f64, f64, f64), point: (f64, f64)) -> &'static str {

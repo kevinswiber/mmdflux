@@ -6,11 +6,13 @@ use pest::Parser;
 use pest_derive::Parser;
 
 use super::ast::{
-    ArrowHead, ConnectorSpec, Direction, EdgeSpec, NodeStyleStatement, ShapeSpec, Statement,
-    StrokeSpec, SubgraphSpec, Vertex,
+    ArrowHead, ClassApplyStatement, ClassDefStatement, ConnectorSpec, Direction, EdgeSpec,
+    NodeStyleStatement, ShapeSpec, Statement, StrokeSpec, SubgraphSpec, Vertex,
 };
 use super::error::ParseError;
-use crate::graph::style::parse_node_style_statement;
+use crate::graph::style::{
+    parse_class_apply_statement, parse_classdef_statement_multi, parse_node_style_statement,
+};
 
 #[derive(Parser)]
 #[grammar = "mermaid/grammar.pest"]
@@ -34,7 +36,10 @@ impl Flowchart {
                     result.push(&e.from);
                     result.push(&e.to);
                 }
-                Statement::Subgraph(_) | Statement::NodeStyle(_) => {}
+                Statement::Subgraph(_)
+                | Statement::NodeStyle(_)
+                | Statement::ClassDef(_)
+                | Statement::ClassApply(_) => {}
             }
         }
         result
@@ -239,10 +244,34 @@ fn parse_statement(
     pair: pest::iterators::Pair<Rule>,
     subgraph_counter: &mut usize,
 ) -> Vec<Statement> {
-    if let Some(style_statement) = parse_node_style_statement(pair.as_str()) {
+    let raw = pair.as_str();
+
+    if let Some(style_statement) = parse_node_style_statement(raw) {
         return vec![Statement::NodeStyle(NodeStyleStatement {
             node_id: style_statement.node_id,
             style: style_statement.style,
+        })];
+    }
+
+    {
+        let classdefs = parse_classdef_statement_multi(raw);
+        if !classdefs.is_empty() {
+            return classdefs
+                .into_iter()
+                .map(|cd| {
+                    Statement::ClassDef(ClassDefStatement {
+                        class_name: cd.class_name,
+                        style: cd.style,
+                    })
+                })
+                .collect();
+        }
+    }
+
+    if let Some(class_apply) = parse_class_apply_statement(raw) {
+        return vec![Statement::ClassApply(ClassApplyStatement {
+            node_ids: class_apply.node_ids,
+            class_name: class_apply.class_name,
         })];
     }
 
@@ -311,12 +340,31 @@ fn parse_subgraph(pair: pest::iterators::Pair<Rule>, counter: &mut usize) -> Sub
             Rule::subgraph_body_line => {
                 for body_inner in inner.into_inner() {
                     if body_inner.as_rule() == Rule::statement {
-                        if let Some(style_statement) =
-                            parse_node_style_statement(body_inner.as_str())
-                        {
+                        let raw = body_inner.as_str();
+
+                        if let Some(style_statement) = parse_node_style_statement(raw) {
                             body_statements.push(Statement::NodeStyle(NodeStyleStatement {
                                 node_id: style_statement.node_id,
                                 style: style_statement.style,
+                            }));
+                            continue;
+                        }
+
+                        let classdefs = parse_classdef_statement_multi(raw);
+                        if !classdefs.is_empty() {
+                            for cd in classdefs {
+                                body_statements.push(Statement::ClassDef(ClassDefStatement {
+                                    class_name: cd.class_name,
+                                    style: cd.style,
+                                }));
+                            }
+                            continue;
+                        }
+
+                        if let Some(class_apply) = parse_class_apply_statement(raw) {
+                            body_statements.push(Statement::ClassApply(ClassApplyStatement {
+                                node_ids: class_apply.node_ids,
+                                class_name: class_apply.class_name,
                             }));
                             continue;
                         }
@@ -597,6 +645,7 @@ fn normalize_edge_label(raw: &str) -> Option<String> {
 fn parse_node(pair: pest::iterators::Pair<Rule>) -> Vertex {
     let mut id = String::new();
     let mut shape = None;
+    let mut class_name = None;
 
     for inner in pair.into_inner() {
         match inner.as_rule() {
@@ -606,11 +655,21 @@ fn parse_node(pair: pest::iterators::Pair<Rule>) -> Vertex {
             Rule::shape => {
                 shape = parse_shape(inner);
             }
+            Rule::class_annotation => {
+                class_name = inner
+                    .into_inner()
+                    .find(|p| p.as_rule() == Rule::class_name)
+                    .map(|p| p.as_str().to_string());
+            }
             _ => {}
         }
     }
 
-    Vertex { id, shape }
+    Vertex {
+        id,
+        shape,
+        class_name,
+    }
 }
 
 fn parse_shape(pair: pest::iterators::Pair<Rule>) -> Option<ShapeSpec> {

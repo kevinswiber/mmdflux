@@ -4,8 +4,9 @@
 //! `[*]` markers become `SmallCircle` (source) or `FramedCircle` (target) nodes.
 //! Composite states become subgraphs with optional direction overrides.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use crate::graph::style::NodeStyle;
 use crate::graph::{Arrow, Direction, Edge, Graph, Node, NotePosition, Shape, Stroke, Subgraph};
 use crate::mermaid::state::{
     StateDecl, StateModel, StateStatement, StateStereotype, StateTransition,
@@ -18,21 +19,94 @@ use crate::mermaid::state::{
 /// `FramedCircle` (when a target).
 pub fn compile(model: &StateModel) -> Graph {
     let mut graph = Graph::new(direction_from_str(model.direction.as_deref()));
-    let mut seen_nodes: HashSet<String> = HashSet::new();
-    let mut note_counter: usize = 0;
+    let class_defs = collect_class_defs(&model.statements);
+    let mut state = CompileState {
+        seen_nodes: HashSet::new(),
+        note_counter: 0,
+        node_styles: HashMap::new(),
+        class_defs: &class_defs,
+    };
 
-    process_statements(
-        &mut graph,
-        &mut seen_nodes,
-        &mut note_counter,
-        &model.statements,
-        None,
-        "__root",
-    );
+    process_statements(&mut graph, &mut state, &model.statements, None, "__root");
+
+    apply_default_class(&mut graph, &state.node_styles, state.class_defs);
 
     resolve_subgraph_edges(&mut graph);
 
     graph
+}
+
+/// First pass: collect all classDef definitions (including inside composites).
+fn collect_class_defs(statements: &[StateStatement]) -> HashMap<String, NodeStyle> {
+    let mut defs = HashMap::new();
+    collect_class_defs_recursive(statements, &mut defs);
+    defs
+}
+
+fn collect_class_defs_recursive(
+    statements: &[StateStatement],
+    defs: &mut HashMap<String, NodeStyle>,
+) {
+    for stmt in statements {
+        match stmt {
+            StateStatement::ClassDef(cd) => {
+                defs.entry(cd.class_name.clone())
+                    .and_modify(|e| *e = e.merge(&cd.style))
+                    .or_insert_with(|| cd.style.clone());
+            }
+            StateStatement::State(decl) if !decl.children.is_empty() => {
+                collect_class_defs_recursive(&decl.children, defs);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Merge a style into a node, creating or updating the node's style.
+fn merge_node_style(
+    graph: &mut Graph,
+    node_styles: &mut HashMap<String, NodeStyle>,
+    node_id: &str,
+    style: &NodeStyle,
+) {
+    let merged = node_styles
+        .entry(node_id.to_string())
+        .and_modify(|existing| *existing = existing.merge(style))
+        .or_insert_with(|| style.clone())
+        .clone();
+
+    if let Some(node) = graph.nodes.get_mut(node_id) {
+        node.style = merged;
+    }
+}
+
+/// Apply `classDef default` to every node that has no explicit class styling.
+fn apply_default_class(
+    graph: &mut Graph,
+    node_styles: &HashMap<String, NodeStyle>,
+    class_defs: &HashMap<String, NodeStyle>,
+) {
+    if let Some(default_style) = class_defs.get("default") {
+        let unstyled: Vec<String> = graph
+            .nodes
+            .keys()
+            .filter(|id| !node_styles.contains_key(*id))
+            .cloned()
+            .collect();
+        for node_id in unstyled {
+            if let Some(node) = graph.nodes.get_mut(&node_id) {
+                node.style = default_style.merge(&node.style);
+            }
+        }
+    }
+}
+
+/// Mutable compilation state threaded through recursive statement processing.
+struct CompileState<'a> {
+    seen_nodes: HashSet<String>,
+    note_counter: usize,
+    node_styles: HashMap<String, NodeStyle>,
+    class_defs: &'a HashMap<String, NodeStyle>,
 }
 
 /// Create a standalone note node with a constraint edge to its target state.
@@ -93,8 +167,7 @@ fn direction_from_str(dir: Option<&str>) -> Direction {
 /// or the composite state ID when inside a `state { }` block.
 fn process_statements(
     graph: &mut Graph,
-    seen_nodes: &mut HashSet<String>,
-    note_counter: &mut usize,
+    state: &mut CompileState,
     statements: &[StateStatement],
     parent_subgraph: Option<&str>,
     scope: &str,
@@ -102,32 +175,67 @@ fn process_statements(
     for stmt in statements {
         match stmt {
             StateStatement::Transition(t) => {
-                add_transition(graph, seen_nodes, t, parent_subgraph, scope);
+                add_transition(graph, &mut state.seen_nodes, t, parent_subgraph, scope);
+                // Resolve ::: class annotations on endpoints.
+                if let Some(class_name) = &t.from_class
+                    && t.from != "[*]"
+                    && let Some(style) = state.class_defs.get(class_name.as_str())
+                {
+                    let style = style.clone();
+                    merge_node_style(graph, &mut state.node_styles, &t.from, &style);
+                }
+                if let Some(class_name) = &t.to_class
+                    && t.to != "[*]"
+                    && let Some(style) = state.class_defs.get(class_name.as_str())
+                {
+                    let style = style.clone();
+                    merge_node_style(graph, &mut state.node_styles, &t.to, &style);
+                }
             }
             StateStatement::State(decl) => {
-                process_state_decl(
-                    graph,
-                    seen_nodes,
-                    note_counter,
-                    decl,
-                    parent_subgraph,
-                    scope,
-                );
+                process_state_decl(graph, state, decl, parent_subgraph, scope);
             }
             StateStatement::Direction(_) => {
                 // Handled at the composite level during subgraph creation.
             }
             StateStatement::Note(note) => {
-                // Create note node and constraint edge inline so the edge
-                // appears at the same position as in the source, preserving
-                // the layout engine's edge-order-based ranking.
-                ensure_implicit_node(graph, seen_nodes, &note.state_id, parent_subgraph);
+                ensure_implicit_node(
+                    graph,
+                    &mut state.seen_nodes,
+                    &note.state_id,
+                    parent_subgraph,
+                );
                 let position = match note.position {
                     crate::mermaid::state::NotePosition::Right => NotePosition::Right,
                     crate::mermaid::state::NotePosition::Left => NotePosition::Left,
                 };
-                add_note_node(graph, &note.state_id, &note.text, position, *note_counter);
-                *note_counter += 1;
+                add_note_node(
+                    graph,
+                    &note.state_id,
+                    &note.text,
+                    position,
+                    state.note_counter,
+                );
+                state.note_counter += 1;
+            }
+            StateStatement::ClassDef(_) => {
+                // Collected in first pass.
+            }
+            StateStatement::Style(style_stmt) => {
+                merge_node_style(
+                    graph,
+                    &mut state.node_styles,
+                    &style_stmt.node_id,
+                    &style_stmt.style,
+                );
+            }
+            StateStatement::ClassApply(apply) => {
+                if let Some(style) = state.class_defs.get(&apply.class_name) {
+                    let style = style.clone();
+                    for node_id in &apply.node_ids {
+                        merge_node_style(graph, &mut state.node_styles, node_id, &style);
+                    }
+                }
             }
         }
     }
@@ -137,8 +245,7 @@ fn process_statements(
 /// handle descriptions, and recurse into composite children.
 fn process_state_decl(
     graph: &mut Graph,
-    seen_nodes: &mut HashSet<String>,
-    note_counter: &mut usize,
+    state: &mut CompileState,
     decl: &StateDecl,
     parent_subgraph: Option<&str>,
     _scope: &str,
@@ -157,8 +264,7 @@ fn process_state_decl(
         let child_ids = collect_child_node_ids(&decl.children, &decl.id);
         process_statements(
             graph,
-            seen_nodes,
-            note_counter,
+            state,
             &decl.children,
             Some(&decl.id),
             &decl.id, // new scope for [*] coalescing
@@ -185,7 +291,15 @@ fn process_state_decl(
         graph.subgraph_order.push(decl.id.clone());
     } else {
         // Simple state node.
-        ensure_state_node_with_decl(graph, seen_nodes, decl, parent_subgraph);
+        ensure_state_node_with_decl(graph, &mut state.seen_nodes, decl, parent_subgraph);
+    }
+
+    // Apply :::className from declaration (e.g. `state Running:::active`).
+    if let Some(class_name) = &decl.class_name
+        && let Some(style) = state.class_defs.get(class_name.as_str())
+    {
+        let style = style.clone();
+        merge_node_style(graph, &mut state.node_styles, &decl.id, &style);
     }
 }
 
@@ -776,5 +890,96 @@ stateDiagram-v2
             .find(|n| n.shape == Shape::NoteRect)
             .expect("note node should exist");
         assert_eq!(note_node.label, "Line one\nLine two");
+    }
+
+    #[test]
+    fn compiler_classdef_applied_via_class_statement() {
+        let input = "\
+stateDiagram-v2
+    classDef active fill:#bfb,stroke:#0a0
+    [*] --> Idle
+    class Idle active";
+        let graph = compile_state(input);
+        let node = &graph.nodes["Idle"];
+        assert_eq!(node.style.fill.as_ref().unwrap().raw(), "#bfb");
+        assert_eq!(node.style.stroke.as_ref().unwrap().raw(), "#0a0");
+    }
+
+    #[test]
+    fn compiler_classdef_applied_via_triple_colon() {
+        let input = "\
+stateDiagram-v2
+    classDef active fill:#bfb
+    [*] --> Running:::active";
+        let graph = compile_state(input);
+        let node = &graph.nodes["Running"];
+        assert_eq!(node.style.fill.as_ref().unwrap().raw(), "#bfb");
+    }
+
+    #[test]
+    fn compiler_style_overrides_classdef() {
+        let input = "\
+stateDiagram-v2
+    classDef foo fill:#f00
+    [*] --> A
+    class A foo
+    style A fill:#0f0";
+        let graph = compile_state(input);
+        assert_eq!(graph.nodes["A"].style.fill.as_ref().unwrap().raw(), "#0f0");
+    }
+
+    #[test]
+    fn compiler_style_statement_direct() {
+        let input = "\
+stateDiagram-v2
+    [*] --> Idle
+    style Idle fill:#bfb";
+        let graph = compile_state(input);
+        assert_eq!(
+            graph.nodes["Idle"].style.fill.as_ref().unwrap().raw(),
+            "#bfb"
+        );
+    }
+
+    #[test]
+    fn compiler_undefined_class_silently_ignored() {
+        let input = "stateDiagram-v2\n    [*] --> Idle:::nonexistent";
+        let graph = compile_state(input);
+        assert!(graph.nodes["Idle"].style.is_empty());
+    }
+
+    #[test]
+    fn classdef_default_applies_to_unclassified_nodes() {
+        let input = "stateDiagram-v2\n    classDef default fill:#f00\n    classDef active fill:#0f0\n    [*] --> Idle\n    Idle --> Running:::active";
+        let graph = compile_state(input);
+
+        // Idle has no explicit class — should get the default fill.
+        assert_eq!(
+            graph.nodes["Idle"].style.fill.as_ref().unwrap().raw(),
+            "#f00"
+        );
+        // Running has explicit :::active — should NOT get the default.
+        assert_eq!(
+            graph.nodes["Running"].style.fill.as_ref().unwrap().raw(),
+            "#0f0"
+        );
+    }
+
+    #[test]
+    fn state_decl_class_annotation_applied() {
+        let input = "stateDiagram-v2\n    classDef active fill:#0f0\n    state Running:::active";
+        let graph = compile_state(input);
+        assert_eq!(
+            graph.nodes["Running"].style.fill.as_ref().unwrap().raw(),
+            "#0f0"
+        );
+    }
+
+    #[test]
+    fn state_decl_alias_class_annotation_applied() {
+        let input =
+            "stateDiagram-v2\n    classDef active fill:#0f0\n    state \"Running\" as R:::active";
+        let graph = compile_state(input);
+        assert_eq!(graph.nodes["R"].style.fill.as_ref().unwrap().raw(), "#0f0");
     }
 }

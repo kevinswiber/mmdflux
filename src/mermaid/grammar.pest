@@ -72,9 +72,9 @@ shape = {
     shape_rect | shape_round | shape_diamond | shape_config
 }
 
-// Class annotation: :::className (parsed and discarded)
+// Class annotation: :::className
 class_name = @{ (LETTER | NUMBER | "_" | "-")+ }
-class_annotation = _{ ":::" ~ class_name }
+class_annotation = { ":::" ~ class_name }
 
 // Node definition: identifier with optional shape and optional class annotation
 node = { identifier ~ shape? ~ class_annotation? }
@@ -184,8 +184,8 @@ direction_kw = @{ ^"direction" ~ !(LETTER | NUMBER | "_") }
 direction_value = @{ (^"TD" | ^"TB" | ^"BT" | ^"LR" | ^"RL") }
 
 style_stmt = _{ style_kw ~ style_rest }
-classdef_stmt = _{ classdef_kw ~ style_rest }
-class_stmt = _{ class_kw ~ style_rest }
+classdef_stmt = { classdef_kw ~ style_rest }
+class_stmt = { class_kw ~ style_rest }
 click_stmt = _{ click_kw ~ style_rest }
 linkstyle_stmt = _{ linkstyle_kw ~ style_rest }
 direction_stmt = { direction_kw ~ direction_value }

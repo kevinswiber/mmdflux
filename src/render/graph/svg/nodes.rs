@@ -17,6 +17,11 @@ struct ResolvedSvgNodeStyle<'a> {
     fill: Option<&'a str>,
     stroke: Option<&'a str>,
     text: Option<&'a str>,
+    font_style: Option<&'a str>,
+    font_weight: Option<&'a str>,
+    stroke_width: Option<&'a str>,
+    stroke_dasharray: Option<&'a str>,
+    rx: Option<&'a str>,
 }
 
 impl<'a> ResolvedSvgNodeStyle<'a> {
@@ -25,6 +30,11 @@ impl<'a> ResolvedSvgNodeStyle<'a> {
             fill: node.style.fill.as_ref().map(|color| color.raw()),
             stroke: node.style.stroke.as_ref().map(|color| color.raw()),
             text: node.style.color.as_ref().map(|color| color.raw()),
+            font_style: node.style.font_style.as_deref(),
+            font_weight: node.style.font_weight.as_deref(),
+            stroke_width: node.style.stroke_width.as_deref(),
+            stroke_dasharray: node.style.stroke_dasharray.as_deref(),
+            rx: node.style.rx.as_deref(),
         }
     }
 
@@ -226,6 +236,13 @@ fn render_node_label(
             &["fill:var(--_text);"],
         )
     };
+    let mut font_attrs = text_dynamic_attrs;
+    if let Some(fw) = context.style.font_weight {
+        write!(font_attrs, " font-weight=\"{fw}\"").unwrap();
+    }
+    if let Some(fs) = context.style.font_style {
+        write!(font_attrs, " font-style=\"{fs}\"").unwrap();
+    }
 
     if !has_separator {
         render_text_centered(
@@ -236,7 +253,7 @@ fn render_node_label(
             context.scale,
             TextRenderStyle {
                 color: text_color,
-                extra_attrs: text_dynamic_attrs.as_str(),
+                extra_attrs: font_attrs.as_str(),
                 background: None,
             },
         );
@@ -281,7 +298,7 @@ fn render_node_label(
                 x = fmt_f64(left_x),
                 y = fmt_f64(line_y),
                 color = text_color,
-                dynamic_attrs = text_dynamic_attrs.as_str(),
+                dynamic_attrs = font_attrs.as_str(),
                 text = escape_text(line_text)
             );
             writer.push_line(&line);
@@ -292,7 +309,7 @@ fn render_node_label(
                 x = fmt_f64(center.x),
                 y = fmt_f64(line_y),
                 color = text_color,
-                dynamic_attrs = text_dynamic_attrs.as_str(),
+                dynamic_attrs = font_attrs.as_str(),
                 text = escape_text(line_text)
             );
             writer.push_line(&line);
@@ -310,7 +327,8 @@ fn render_node_shape(
     palette: &GraphSvgPalette,
 ) {
     let rect = scale_rect(rect, scale);
-    let stroke_width = fmt_f64(1.0 * scale);
+    let default_stroke_width = fmt_f64(1.0 * scale);
+    let stroke_width = node_style.stroke_width.unwrap_or(&default_stroke_width);
     let fill = node_style.fill_or(&palette.node_fill);
     let stroke = node_style.stroke_or(&palette.node_stroke);
     let mut dynamic_declarations = Vec::new();
@@ -325,36 +343,47 @@ fn render_node_shape(
         "graph-node-shape",
         &dynamic_declarations,
     );
+    let dasharray_attr = node_style
+        .stroke_dasharray
+        .map(|v| format!(" stroke-dasharray=\"{v}\""))
+        .unwrap_or_default();
     let style = format!(
-        " fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" stroke-linejoin=\"round\"{dynamic_attrs}",
+        " fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" stroke-linejoin=\"round\"{dasharray_attr}{dynamic_attrs}",
         fill = fill,
         stroke = stroke,
         stroke_width = stroke_width,
+        dasharray_attr = dasharray_attr,
         dynamic_attrs = dynamic_attrs
     );
 
     match node.shape {
         Shape::Rectangle => {
+            let rx_attr = node_style
+                .rx
+                .map(|v| format!(" rx=\"{v}\" ry=\"{v}\""))
+                .unwrap_or_default();
             let line = format!(
-                "<rect x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\"{style} />",
+                "<rect x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\"{rx_attr}{style} />",
                 x = fmt_f64(rect.x),
                 y = fmt_f64(rect.y),
                 w = fmt_f64(rect.width),
                 h = fmt_f64(rect.height),
+                rx_attr = rx_attr,
                 style = style
             );
             writer.push_line(&line);
         }
         Shape::Round => {
-            let radius = 5.0 * scale;
+            let default_radius = fmt_f64(5.0 * scale);
+            let rx_val = node_style.rx.unwrap_or(&default_radius);
             let line = format!(
                 "<rect x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\" rx=\"{rx}\" ry=\"{ry}\"{style} />",
                 x = fmt_f64(rect.x),
                 y = fmt_f64(rect.y),
                 w = fmt_f64(rect.width),
                 h = fmt_f64(rect.height),
-                rx = fmt_f64(radius),
-                ry = fmt_f64(radius),
+                rx = rx_val,
+                ry = rx_val,
                 style = style
             );
             writer.push_line(&line);

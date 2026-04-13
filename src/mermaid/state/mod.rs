@@ -4,6 +4,10 @@
 //! Supports states, transitions, `[*]` pseudo-states, composite `state { }`
 //! blocks, stereotypes, direction overrides, and state descriptions.
 
+use crate::graph::style::{
+    parse_class_apply_statement, parse_classdef_statement_multi, parse_node_style_statement,
+};
+use crate::mermaid::ast::{ClassApplyStatement, ClassDefStatement, NodeStyleStatement};
 use crate::mermaid::flowchart::strip_frontmatter;
 
 /// Parsed state diagram model.
@@ -26,6 +30,12 @@ pub enum StateStatement {
     Direction(String),
     /// Note attached to a state.
     Note(StateNote),
+    /// A `style NODE ...` declaration.
+    Style(NodeStyleStatement),
+    /// A `classDef className ...` declaration.
+    ClassDef(ClassDefStatement),
+    /// A `class nodeA,nodeB className` declaration.
+    ClassApply(ClassApplyStatement),
 }
 
 /// A note attached to a state.
@@ -59,6 +69,8 @@ pub struct StateDecl {
     pub stereotype: Option<StateStereotype>,
     /// Child statements (for composite states).
     pub children: Vec<StateStatement>,
+    /// Optional class name from `:::className` annotation.
+    pub class_name: Option<String>,
 }
 
 /// State stereotypes (UML notation).
@@ -78,6 +90,10 @@ pub struct StateTransition {
     pub to: String,
     /// Optional transition label.
     pub label: Option<String>,
+    /// Optional `:::className` annotation on the source state.
+    pub from_class: Option<String>,
+    /// Optional `:::className` annotation on the target state.
+    pub to_class: Option<String>,
 }
 
 /// Parse a `stateDiagram-v2` input into a [`StateModel`].
@@ -144,6 +160,39 @@ fn parse_body(
 
         // Discard known unimplemented directives.
         if is_discardable(trimmed) {
+            *pos += 1;
+            continue;
+        }
+
+        // classDef statement (supports multi-class: `classDef a,b fill:#f00`).
+        let classdefs = parse_classdef_statement_multi(trimmed);
+        if !classdefs.is_empty() {
+            for cd in classdefs {
+                statements.push(StateStatement::ClassDef(ClassDefStatement {
+                    class_name: cd.class_name,
+                    style: cd.style,
+                }));
+            }
+            *pos += 1;
+            continue;
+        }
+
+        // style statement.
+        if let Some(parsed) = parse_node_style_statement(trimmed) {
+            statements.push(StateStatement::Style(NodeStyleStatement {
+                node_id: parsed.node_id,
+                style: parsed.style,
+            }));
+            *pos += 1;
+            continue;
+        }
+
+        // class apply statement (must come after classDef check).
+        if let Some(parsed) = parse_class_apply_statement(trimmed) {
+            statements.push(StateStatement::ClassApply(ClassApplyStatement {
+                node_ids: parsed.node_ids,
+                class_name: parsed.class_name,
+            }));
             *pos += 1;
             continue;
         }
@@ -286,12 +335,7 @@ fn strip_inline_comment(line: &str) -> &str {
 /// Check if a line is a known-discardable directive.
 fn is_discardable(line: &str) -> bool {
     let lower = line.to_lowercase();
-    lower.starts_with("classdef ")
-        || lower.starts_with("style ")
-        || lower.starts_with("class ")
-        || lower.starts_with("click ")
-        || lower.starts_with("acctitle")
-        || lower.starts_with("accdescr")
+    lower.starts_with("click ") || lower.starts_with("acctitle") || lower.starts_with("accdescr")
 }
 
 /// Strip a case-insensitive keyword prefix followed by whitespace.
@@ -315,17 +359,35 @@ fn normalize_direction(token: &str) -> Option<String> {
     }
 }
 
+/// Strip a `:::className` suffix from a state identifier.
+fn strip_class_annotation(id: &str) -> (&str, Option<&str>) {
+    if let Some(pos) = id.find(":::") {
+        let base = id[..pos].trim();
+        let class = id[pos + 3..].trim();
+        if class.is_empty() {
+            (base, None)
+        } else {
+            (base, Some(class))
+        }
+    } else {
+        (id, None)
+    }
+}
+
 /// Try to parse a transition line: `from --> to` or `from --> to : label`.
 fn try_parse_transition(line: &str) -> Option<StateTransition> {
     let arrow_pos = line.find("-->")?;
-    let from = line[..arrow_pos].trim();
+    let from_raw = line[..arrow_pos].trim();
     let rest = line[arrow_pos + 3..].trim();
 
-    if from.is_empty() || rest.is_empty() {
+    if from_raw.is_empty() || rest.is_empty() {
         return None;
     }
 
-    let (to, label) = if let Some(colon_pos) = rest.find(':') {
+    let (from, from_class) = strip_class_annotation(from_raw);
+
+    // Use find_description_colon to skip `:::` class annotations.
+    let (to_raw, label) = if let Some(colon_pos) = find_description_colon(rest) {
         let to = rest[..colon_pos].trim();
         let label = rest[colon_pos + 1..].trim();
         (
@@ -340,6 +402,8 @@ fn try_parse_transition(line: &str) -> Option<StateTransition> {
         (rest, None)
     };
 
+    let (to, to_class) = strip_class_annotation(to_raw);
+
     if to.is_empty() {
         return None;
     }
@@ -348,6 +412,8 @@ fn try_parse_transition(line: &str) -> Option<StateTransition> {
         from: from.to_string(),
         to: to.to_string(),
         label,
+        from_class: from_class.map(|s| s.to_string()),
+        to_class: to_class.map(|s| s.to_string()),
     })
 }
 
@@ -357,9 +423,13 @@ fn try_parse_inline_description(line: &str) -> Option<StateDecl> {
     if line.to_lowercase().starts_with("state ") {
         return None;
     }
-    let colon_pos = line.find(':')?;
-    let id = line[..colon_pos].trim();
+    // Find the first `:` that is NOT part of `:::`.
+    let colon_pos = find_description_colon(line)?;
+    let id_raw = line[..colon_pos].trim();
     let description = line[colon_pos + 1..].trim();
+
+    // Strip `:::className` from the identifier.
+    let (id, class) = strip_class_annotation(id_raw);
 
     // Id must be a valid identifier (no spaces, not empty, not [*]).
     if id.is_empty() || id.contains(' ') || id == "[*]" || description.is_empty() {
@@ -372,7 +442,30 @@ fn try_parse_inline_description(line: &str) -> Option<StateDecl> {
         alias: None,
         stereotype: None,
         children: Vec::new(),
+        class_name: class.map(|s| s.to_string()),
     })
+}
+
+/// Find the position of a description colon (`:`) that is not part of `:::`.
+fn find_description_colon(line: &str) -> Option<usize> {
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b':' {
+            // Skip `:::` (class annotation).
+            if i + 2 < bytes.len() && bytes[i + 1] == b':' && bytes[i + 2] == b':' {
+                i += 3;
+                // Skip the class name after `:::`.
+                while i < bytes.len() && bytes[i] != b':' && bytes[i] != b' ' {
+                    i += 1;
+                }
+                continue;
+            }
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Try to parse an explicit state declaration: `state "Desc" as alias`,
@@ -389,6 +482,14 @@ fn try_parse_state_decl(line: &str) -> Option<StateDecl> {
             // Strip trailing `{` if present (composite with alias).
             a.trim().trim_end_matches('{').trim().to_string()
         });
+        // Strip :::className from alias (e.g. `state "Running" as R:::active`).
+        let (alias, class_name) = match &alias {
+            Some(a) => {
+                let (base, cls) = strip_class_annotation(a);
+                (Some(base.to_string()), cls.map(|s| s.to_string()))
+            }
+            None => (None, None),
+        };
         let id = alias.clone().unwrap_or_else(|| description.clone());
         return Some(StateDecl {
             id,
@@ -396,14 +497,18 @@ fn try_parse_state_decl(line: &str) -> Option<StateDecl> {
             alias,
             stereotype: None,
             children: Vec::new(),
+            class_name,
         });
     }
 
     // `state id ...`
-    let id = rest.split(|c: char| c.is_whitespace() || c == '{').next()?;
-    if id.is_empty() {
+    let id_raw = rest.split(|c: char| c.is_whitespace() || c == '{').next()?;
+    if id_raw.is_empty() {
         return None;
     }
+
+    // Strip :::className from id (e.g. `state Running:::active`).
+    let (id, class_name) = strip_class_annotation(id_raw);
 
     // Check for stereotype: `state id <<fork>>` or `state id [[fork]]` etc.
     let stereotype = if rest.contains("<<fork>>") || rest.contains("[[fork]]") {
@@ -422,6 +527,7 @@ fn try_parse_state_decl(line: &str) -> Option<StateDecl> {
         alias: None,
         stereotype,
         children: Vec::new(),
+        class_name: class_name.map(|s| s.to_string()),
     })
 }
 
@@ -586,7 +692,7 @@ stateDiagram-v2
     }
 
     #[test]
-    fn parse_discards_classdef_style() {
+    fn parse_captures_classdef_style_class() {
         let input = "\
 stateDiagram-v2
     classDef badState fill:red
@@ -594,7 +700,17 @@ stateDiagram-v2
     style Active fill:green
     A --> B";
         let model = parse_state_diagram(input).unwrap();
-        assert_eq!(model.statements.len(), 1); // only the transition
+        assert_eq!(model.statements.len(), 4); // classDef + class + style + transition
+        assert!(matches!(&model.statements[0], StateStatement::ClassDef(_)));
+        assert!(matches!(
+            &model.statements[1],
+            StateStatement::ClassApply(_)
+        ));
+        assert!(matches!(&model.statements[2], StateStatement::Style(_)));
+        assert!(matches!(
+            &model.statements[3],
+            StateStatement::Transition(_)
+        ));
     }
 
     #[test]
@@ -695,5 +811,75 @@ stateDiagram-v2
         assert_eq!(note.state_id, "State1");
         assert_eq!(note.position, NotePosition::Right);
         assert_eq!(note.text, "Line one\nLine two");
+    }
+
+    #[test]
+    fn parse_transition_with_class_annotation_to() {
+        let input = "stateDiagram-v2\n    [*] --> Active:::running\n";
+        let model = parse_state_diagram(input).unwrap();
+        let StateStatement::Transition(t) = &model.statements[0] else {
+            panic!("expected transition");
+        };
+        assert_eq!(t.to, "Active");
+        assert_eq!(t.to_class, Some("running".to_string()));
+        assert_eq!(t.from_class, None);
+    }
+
+    #[test]
+    fn parse_transition_with_class_annotation_from() {
+        let input = "stateDiagram-v2\n    Active:::running --> Done\n";
+        let model = parse_state_diagram(input).unwrap();
+        let StateStatement::Transition(t) = &model.statements[0] else {
+            panic!("expected transition");
+        };
+        assert_eq!(t.from, "Active");
+        assert_eq!(t.from_class, Some("running".to_string()));
+        assert_eq!(t.to_class, None);
+    }
+
+    #[test]
+    fn parse_transition_no_class_annotation() {
+        let input = "stateDiagram-v2\n    [*] --> Active\n";
+        let model = parse_state_diagram(input).unwrap();
+        let StateStatement::Transition(t) = &model.statements[0] else {
+            panic!("expected transition");
+        };
+        assert_eq!(t.from_class, None);
+        assert_eq!(t.to_class, None);
+    }
+
+    #[test]
+    fn parse_still_discards_click() {
+        let input = "stateDiagram-v2\n    click Idle callback\n    [*] --> Idle\n";
+        let model = parse_state_diagram(input).unwrap();
+        assert_eq!(model.statements.len(), 1);
+        assert!(matches!(
+            &model.statements[0],
+            StateStatement::Transition(_)
+        ));
+    }
+
+    #[test]
+    fn parse_state_decl_class_annotation() {
+        let input = "stateDiagram-v2\n    state Running:::active\n";
+        let model = parse_state_diagram(input).unwrap();
+        assert_eq!(model.statements.len(), 1);
+        let StateStatement::State(decl) = &model.statements[0] else {
+            panic!("expected state decl");
+        };
+        assert_eq!(decl.id, "Running");
+        assert_eq!(decl.class_name.as_deref(), Some("active"));
+    }
+
+    #[test]
+    fn parse_state_decl_alias_class_annotation() {
+        let input = "stateDiagram-v2\n    state \"Running\" as R:::active\n";
+        let model = parse_state_diagram(input).unwrap();
+        assert_eq!(model.statements.len(), 1);
+        let StateStatement::State(decl) = &model.statements[0] else {
+            panic!("expected state decl");
+        };
+        assert_eq!(decl.id, "R");
+        assert_eq!(decl.class_name.as_deref(), Some("active"));
     }
 }

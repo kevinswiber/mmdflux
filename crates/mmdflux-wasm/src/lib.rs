@@ -259,7 +259,8 @@ mod tests {
 
     #[test]
     fn validate_returns_warning_for_classdef_statement() {
-        let result = validate("graph TD\nA --> B\nclassDef highlight fill:#ff0");
+        // classDef with an unsupported property produces a warning.
+        let result = validate("graph TD\nA --> B\nclassDef highlight opacity:0.5");
         let value: serde_json::Value = serde_json::from_str(&result).unwrap();
         assert_eq!(value["valid"], true);
         let diagnostics = value["diagnostics"].as_array().unwrap();
@@ -269,8 +270,17 @@ mod tests {
             diagnostics[0]["message"]
                 .as_str()
                 .unwrap()
-                .contains("classDef")
+                .contains("opacity")
         );
+    }
+
+    #[test]
+    fn validate_returns_no_diagnostics_for_supported_classdef() {
+        // classDef with only supported properties produces no diagnostics.
+        let result = validate("graph TD\nA --> B\nclassDef highlight fill:#ff0");
+        let value: serde_json::Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(value["valid"], true);
+        assert!(value.get("diagnostics").is_none());
     }
 
     #[test]
