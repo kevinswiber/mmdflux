@@ -4,31 +4,31 @@ default:
 
 # Run all tests
 test *args:
-    cargo nextest run {{ args }}
+    cargo +stable nextest run {{ args }}
 
 # Run all tests (CI mode: no fail-fast, verbose)
 test-ci *args:
-    cargo nextest run --profile ci {{ args }}
+    cargo +stable nextest run --profile ci {{ args }}
 
 # Run a specific test file (e.g. just test-file integration)
 test-file name *args:
-    cargo nextest run --test {{ name }} {{ args }}
+    cargo +stable nextest run --test {{ name }} {{ args }}
 
 # Build (debug)
 build *args:
-    cargo build {{ args }}
+    cargo +stable build {{ args }}
 
 # Build (release)
 release *args:
-    cargo build --release {{ args }}
+    cargo +stable build --release {{ args }}
 
 # Run clippy, architecture boundaries, and fmt check
 lint: fmt-check
-    cargo xtask lint
+    cargo +stable xtask lint
 
 # Run clippy with auto-fix
 fix *args: fmt
-    cargo clippy --fix --workspace --all-targets --all-features --allow-dirty --allow-staged -- -D warnings {{ args }}
+    cargo +stable clippy --fix --workspace --all-targets --all-features --allow-dirty --allow-staged -- -D warnings {{ args }}
 
 # Format code
 fmt *args:
@@ -43,7 +43,7 @@ setup-hooks:
 
 # Run the CLI
 run *args:
-    cargo run -- {{ args }}
+    cargo +stable run -- {{ args }}
 
 # Generate a Mermaid dependency map for the Rust crate
 module-map *args:
@@ -71,7 +71,7 @@ module-map-pivot-dag module *args:
 
 # Run MMDS conformance checks (semantic/layout/visual tiers)
 conformance *args:
-    cargo nextest run --test mmds_conformance --success-output immediate {{ args }}
+    cargo +stable nextest run --test mmds_conformance --success-output immediate {{ args }}
 
 # Check that everything compiles, passes lint, tests, and architecture policy
 check: lint test
@@ -83,23 +83,23 @@ wasm-build:
 
 # Run the full repo architecture suite.
 architecture:
-    cargo xtask architecture
+    cargo +stable xtask architecture
 
 # Run the semantic boundaries check.
 architecture-check:
-    cargo xtask architecture check
+    cargo +stable xtask architecture check
 
 # Watch semantic boundaries during larger refactors and host results for one-shot reuse.
 architecture-host:
-    cargo xtask architecture host
+    cargo +stable xtask architecture host
 
 # Print the semantic boundary dependency graph as Mermaid.
 architecture-graph:
-    cargo xtask architecture graph
+    cargo +stable xtask architecture graph
 
 # Explain a specific edge or boundary in the semantic dependency graph.
 architecture-explain *args:
-    cargo xtask architecture explain {{ args }}
+    cargo +stable xtask architecture explain {{ args }}
 
 # Build size-optimized release wasm bindings for browser and bundler targets
 wasm-build-release:
