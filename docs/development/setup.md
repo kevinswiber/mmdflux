@@ -1,8 +1,29 @@
 # Developer Setup
 
-## Prerequisites
+## Quick start with mise
 
-Install the following tools before working on mmdflux:
+The fastest way to get a complete dev environment is with [mise](https://mise.jdx.dev/):
+
+```bash
+# Clone the repo
+git clone git@github.com:kevinswiber/mmdflux.git
+cd mmdflux
+
+# Install all tools (Rust nightly, Node, Python, cargo bins, etc.)
+mise install
+
+# Install git hooks (enforces Conventional Commits)
+just setup-hooks
+
+# Verify everything works
+just check
+```
+
+mise reads `mise.toml` at the project root and installs everything automatically. The stable Rust toolchain is managed separately by `rust-toolchain.toml` via rustup.
+
+## Manual setup
+
+If you prefer to manage tools yourself, install the following:
 
 | Tool | Purpose | Install |
 |------|---------|---------|
@@ -10,15 +31,17 @@ Install the following tools before working on mmdflux:
 | [just](https://github.com/casey/just) | Task runner | `cargo install just` or `brew install just` |
 | [cargo-nextest](https://nexte.st/) | Parallel test runner | `cargo install cargo-nextest` |
 | [cocogitto](https://docs.cocogitto.io/) 6.5.0 | Conventional Commits enforcement | `cargo install cocogitto@6.5.0` |
+| [cargo-edit](https://github.com/killercup/cargo-edit) | `cargo set-version` used by release hooks | `cargo install cargo-edit` |
+| [jq](https://jqlang.github.io/jq/) | JSON processing in scripts and hooks | `brew install jq` or system package manager |
 
 Optional (for specific workflows):
 
 | Tool | Purpose | Install |
 |------|---------|---------|
 | [wasm-pack](https://rustwasm.github.io/wasm-pack/) | WebAssembly builds | `cargo install wasm-pack` |
-| [Node.js](https://nodejs.org/) | Dagre debug scripts, web playground | via nvm or brew |
-| [cargo-edit](https://github.com/killercup/cargo-edit) | `cargo set-version` used by release hooks | `cargo install cargo-edit` |
+| [Node.js](https://nodejs.org/) | MMDS packages, dagre debug scripts | via nvm or brew |
 | [gh](https://cli.github.com/) | GitHub CLI for CI checks and release assets | `brew install gh` |
+| [@mermaid-js/mermaid-cli](https://github.com/mermaid-js/mermaid-cli) | Mermaid parity comparison | `npm install -g @mermaid-js/mermaid-cli` |
 
 ## First-time setup
 

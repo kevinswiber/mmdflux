@@ -21,6 +21,7 @@ node = {
   version = "lts",
 }
 python = "3.12"
+"cargo:cargo-edit" = "0.13"
 "cargo:cargo-nextest" = "0.9"
 "cargo:cocogitto" = "6.5"
 "cargo:wasm-pack" = "0.14"
