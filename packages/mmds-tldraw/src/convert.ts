@@ -136,6 +136,70 @@ function toPoints(
   return path.map(([x, y]) => ({ x: x * scale, y: y * scale }));
 }
 
+function toLineShapePoints(points: Point[]) {
+  const first = points[0];
+  const linePoints: Record<
+    string,
+    { id: string; index: IndexKey; x: number; y: number }
+  > = {};
+  for (let i = 0; i < points.length; i++) {
+    const id = `a${i + 1}`;
+    linePoints[id] = {
+      id,
+      index: id as IndexKey,
+      x: points[i].x - first.x,
+      y: points[i].y - first.y,
+    };
+  }
+  return linePoints;
+}
+
+function midpointOfPath(path: Point[]): Point | undefined {
+  if (path.length === 0) return undefined;
+  if (path.length === 1) return path[0];
+
+  let total = 0;
+  const segmentLengths: number[] = [];
+  for (let i = 1; i < path.length; i++) {
+    const len = distance(path[i - 1], path[i]);
+    segmentLengths.push(len);
+    total += len;
+  }
+
+  if (total === 0) return path[Math.floor(path.length / 2)];
+
+  let remaining = total / 2;
+  for (let i = 1; i < path.length; i++) {
+    const segmentLength = segmentLengths[i - 1];
+    if (remaining <= segmentLength) {
+      const a = path[i - 1];
+      const b = path[i];
+      const t = segmentLength === 0 ? 0 : remaining / segmentLength;
+      return {
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+      };
+    }
+    remaining -= segmentLength;
+  }
+
+  return path[path.length - 1];
+}
+
+function synthesizeSelfLoopPath(nodeRect: Rect): Point[] {
+  const right = nodeRect.x + nodeRect.w;
+  const loopWidth = Math.max(32, nodeRect.w * 0.45);
+  const top = nodeRect.y + nodeRect.h * 0.25;
+  const bottom = nodeRect.y + nodeRect.h * 0.75;
+
+  return [
+    { x: right, y: top },
+    { x: right + loopWidth, y: top },
+    { x: right + loopWidth, y: bottom },
+    { x: right, y: bottom },
+  ];
+}
+
 // Approximate char width for tldraw "draw" font at size "m" (~16px).
 // Ensures single-line labels don't wrap awkwardly when mmdflux sizes differ from tldraw metrics.
 const CHAR_WIDTH_EST = 14;
@@ -1186,8 +1250,116 @@ export function convertToTldraw(
     const src = normalized.node_by_id.get(edge.source);
     const tgt = normalized.node_by_id.get(edge.target);
     if (!src || !tgt) continue;
+    const srcRect = nodeRectById.get(edge.source);
+    const isSelfLoop = edge.source === edge.target;
 
     const routedPoints = toPoints(edge.path, positionScale);
+    if (isSelfLoop) {
+      const loopPath =
+        routedPoints.length >= 2
+          ? routedPoints
+          : srcRect
+            ? synthesizeSelfLoopPath(srcRect)
+            : [];
+
+      if (loopPath.length >= 2) {
+        const loopLinePoints =
+          loopPath.length > 2 ? loopPath.slice(0, -1) : loopPath;
+        const dash = mapDash(edge.stroke);
+        const size = mapSize(edge.stroke);
+
+        if (loopLinePoints.length >= 2) {
+          shapeRecords.push(
+            lineShape({
+              id: toShapeId("edgeloop", edge.id),
+              parentId: pageId,
+              x: loopLinePoints[0].x,
+              y: loopLinePoints[0].y,
+              dash,
+              color: "black",
+              size,
+              points: toLineShapePoints(loopLinePoints),
+            }),
+          );
+        }
+
+        const arrowStart = loopPath[Math.max(loopPath.length - 2, 0)];
+        const arrowEnd = loopPath[loopPath.length - 1];
+        shapeRecords.push({
+          id: edgeShapeId,
+          typeName: "shape",
+          type: "arrow",
+          parentId: pageId,
+          index: "",
+          x: arrowStart.x,
+          y: arrowStart.y,
+          rotation: 0,
+          isLocked: false,
+          opacity: 1,
+          props: {
+            kind: "arc",
+            labelColor: "black",
+            color: "black",
+            fill: "none",
+            dash,
+            size,
+            arrowheadStart: edge.is_backward
+              ? mapArrowhead(edge.arrow_end)
+              : mapArrowhead(edge.arrow_start),
+            arrowheadEnd: edge.is_backward
+              ? mapArrowhead(edge.arrow_start)
+              : mapArrowhead(edge.arrow_end),
+            font: "draw",
+            start: { x: 0, y: 0 },
+            end: {
+              x: arrowEnd.x - arrowStart.x,
+              y: arrowEnd.y - arrowStart.y,
+            },
+            bend: 0,
+            richText: toRichText(""),
+            labelPosition: 0.5,
+            scale: 1,
+            elbowMidPoint: 0.5,
+          },
+          meta: {},
+        } as TLRecord);
+
+        if (edge.label) {
+          const labelPos = edge.label_position
+            ? {
+                x: edge.label_position.x * positionScale,
+                y: edge.label_position.y * positionScale,
+              }
+            : (midpointOfPath(loopPath) ?? arrowStart);
+          shapeRecords.push({
+            id: toShapeId("edgelbl", edge.id),
+            typeName: "shape",
+            type: "text",
+            parentId: pageId,
+            index: "",
+            x: labelPos.x + 8,
+            y: labelPos.y - 12,
+            rotation: 0,
+            isLocked: false,
+            opacity: 1,
+            props: {
+              color: "black",
+              size: "s",
+              font: "draw",
+              textAlign: "start",
+              w: 200,
+              richText: toRichText(transformLabel(edge.label)),
+              scale: 1,
+              autoSize: true,
+            },
+            meta: {},
+          } as TLRecord);
+        }
+
+        continue;
+      }
+    }
+
     const hasRoutedPath = routedPoints.length >= 2;
     const start =
       routedPoints.length >= 2

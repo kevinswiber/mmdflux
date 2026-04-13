@@ -254,18 +254,27 @@ fn build_output(
             };
 
             // Add routed fields only at routed level
-            if let Some(routed) = routed
-                && let Some(re) = routed.edges.iter().find(|e| e.index == i)
-            {
-                let full_path: Vec<[f64; 2]> = re.path.iter().map(|p| [p.x, p.y]).collect();
-                mmds_edge.path = Some(
-                    path_simplification
-                        .simplify_with_coords(&full_path, |point| (point[0], point[1])),
-                );
-                mmds_edge.label_position = re.label_position.map(|p| Position { x: p.x, y: p.y });
-                mmds_edge.is_backward = Some(re.is_backward);
-                mmds_edge.source_port = re.source_port.as_ref().map(edge_port_to_mmds);
-                mmds_edge.target_port = re.target_port.as_ref().map(edge_port_to_mmds);
+            if let Some(routed) = routed {
+                if let Some(re) = routed.edges.iter().find(|e| e.index == i) {
+                    let full_path: Vec<[f64; 2]> = re.path.iter().map(|p| [p.x, p.y]).collect();
+                    mmds_edge.path = Some(
+                        path_simplification
+                            .simplify_with_coords(&full_path, |point| (point[0], point[1])),
+                    );
+                    mmds_edge.label_position =
+                        re.label_position.map(|p| Position { x: p.x, y: p.y });
+                    mmds_edge.is_backward = Some(re.is_backward);
+                    mmds_edge.source_port = re.source_port.as_ref().map(edge_port_to_mmds);
+                    mmds_edge.target_port = re.target_port.as_ref().map(edge_port_to_mmds);
+                } else if let Some(self_edge) = routed.self_edges.iter().find(|e| e.edge_index == i)
+                {
+                    let full_path: Vec<[f64; 2]> =
+                        self_edge.path.iter().map(|p| [p.x, p.y]).collect();
+                    mmds_edge.path = Some(
+                        path_simplification
+                            .simplify_with_coords(&full_path, |point| (point[0], point[1])),
+                    );
+                }
             }
 
             mmds_edge

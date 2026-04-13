@@ -2022,6 +2022,104 @@ test("state diagram fixture produces parseable .tldr", () => {
   assert.ok(filledGeos.length >= 1, "should have filled start/end markers");
 });
 
+test("state self-loop without a routed path still emits visible loop records", () => {
+  const mmds = {
+    version: 1,
+    geometry_level: "layout",
+    metadata: { diagram_type: "state", direction: "TD" },
+    nodes: [
+      {
+        id: "Processing",
+        label: "Processing",
+        position: { x: 120, y: 80 },
+        size: { width: 120, height: 48 },
+        shape: "round",
+      },
+    ],
+    edges: [
+      {
+        id: "e0",
+        source: "Processing",
+        target: "Processing",
+        label: "retry",
+      },
+    ],
+  };
+
+  const file = toTldrawFile(mmds);
+  assertParses(file);
+
+  const loopPath = file.records.find(
+    (record) =>
+      record.typeName === "shape" && record.id === "shape:edgeloop_e0",
+  );
+  const arrow = file.records.find(
+    (record) => record.typeName === "shape" && record.id === "shape:edge_e0",
+  );
+  const label = file.records.find(
+    (record) => record.typeName === "shape" && record.id === "shape:edgelbl_e0",
+  );
+
+  assert.ok(loopPath, "expected a visible loop line for the self-transition");
+  assert.ok(arrow, "expected an arrowhead segment for the self-transition");
+  assert.ok(label, "expected a text label for the self-transition");
+  assert.notEqual(arrow.props.end.x, 0);
+  assert.match(JSON.stringify(label.props.richText), /retry/);
+});
+
+test("state self-loop with a routed path preserves routed loop geometry", () => {
+  const mmds = {
+    version: 1,
+    geometry_level: "routed",
+    metadata: { diagram_type: "state", direction: "TD" },
+    nodes: [
+      {
+        id: "Processing",
+        label: "Processing",
+        position: { x: 120, y: 80 },
+        size: { width: 120, height: 48 },
+        shape: "round",
+      },
+    ],
+    edges: [
+      {
+        id: "e0",
+        source: "Processing",
+        target: "Processing",
+        label: "retry",
+        path: [
+          [180, 70],
+          [220, 70],
+          [220, 120],
+          [180, 120],
+        ],
+      },
+    ],
+  };
+
+  const file = toTldrawFile(mmds);
+  assertParses(file);
+
+  const loopPath = file.records.find(
+    (record) =>
+      record.typeName === "shape" && record.id === "shape:edgeloop_e0",
+  );
+  const arrow = file.records.find(
+    (record) => record.typeName === "shape" && record.id === "shape:edge_e0",
+  );
+
+  assert.ok(loopPath, "expected the routed self-loop polyline to be preserved");
+  assert.equal(Object.keys(loopPath.props.points).length, 3);
+  assert.ok(loopPath.props.points.a2.x > 0);
+  assert.equal(loopPath.props.points.a2.y, 0);
+  assert.equal(loopPath.props.points.a3.x, loopPath.props.points.a2.x);
+  assert.ok(loopPath.props.points.a3.y > 0);
+  assert.ok(arrow.x > loopPath.x);
+  assert.ok(arrow.y >= loopPath.y);
+  assert.ok(arrow.props.end.x < 0);
+  assert.equal(arrow.props.end.y, 0);
+});
+
 // ── Sequence diagram tldraw conversion ──────────────────────────────
 
 test("sequence diagram produces valid tldraw file", () => {

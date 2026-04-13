@@ -1330,6 +1330,29 @@ fn state_mmds_has_nodes_and_edges() {
 }
 
 #[test]
+fn state_self_transition_routed_mmds_includes_self_edge_path() {
+    let input = "stateDiagram-v2\n    [*] --> Processing\n    Processing --> Processing : retry\n    Processing --> Done\n    Done --> [*]";
+    let output = render_json_with_level(input, GeometryLevel::Routed);
+    let json: Value = serde_json::from_str(&output).unwrap();
+
+    let self_edge = json["edges"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|edge| edge["source"] == edge["target"])
+        .expect("expected routed MMDS to include a self-transition edge");
+
+    let path = self_edge["path"]
+        .as_array()
+        .expect("expected routed self-transition to serialize a path");
+    assert!(
+        path.len() >= 4,
+        "expected routed self-transition path to contain loop geometry, got {path:?}"
+    );
+    assert_eq!(self_edge["label"], "retry");
+}
+
+#[test]
 fn mmds_layout_output_omits_edge_paths_regardless_of_engine() {
     let input = "graph TD\nA-->B";
     let config = RenderConfig {
