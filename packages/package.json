@@ -4,5 +4,6 @@
     "mmds-core",
     "mmds-excalidraw",
     "mmds-tldraw"
-  ]
+  ],
+  "packageManager": "npm@11.12.1+sha512.cdca14b85d647b3192028d02aadbe82d75f79a446aceea9874be98e6d768f20ebd3555770a48d0e9906106007877bbc690f715e9372f2e2dc644a3c3157fb14c"
 }
