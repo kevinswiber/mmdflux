@@ -206,13 +206,53 @@ allowed_importers = ["builtins"]
 
 # --- Acyclic rule (DAG guarantee) ---
 # The full boundary graph must be cycle-free.
+# The "*" wildcard expands to every discovered module at all depths.
+# Parent/child edges (mod.rs ↔ child) are skipped — these are a normal
+# Rust structural pattern. Any non-structural cycle must be documented
+# as an explicit exception below.
 
 [[rules]]
 id = "no-boundary-cycles"
 type = "acyclic"
 [rules.config]
-members = [
-    "builtins", "diagrams", "engines", "errors", "format",
-    "frontends", "graph", "mermaid", "mmds", "payload",
-    "registry", "render", "runtime", "simplification", "timeline",
-]
+members = ["*"]
+skip_parent_child = true
+
+# --- Exceptions (known, documented non-structural cycles) ---
+
+# The routing pipeline has bidirectional algorithmic dependencies
+# between peer submodules: stage ↔ backward_deconflict ↔ orthogonal.
+# These are genuine cross-peer cycles, not parent/child edges.
+[[exceptions]]
+id = "routing-backward-deconflict-stage"
+rule_id = "no-boundary-cycles"
+source = "graph::routing::backward_deconflict"
+target = "graph::routing::stage"
+reason = "backward_deconflict imports has_corridor_obstructions from stage"
+owner = "kevin"
+
+[[exceptions]]
+id = "routing-orthogonal-backward-deconflict"
+rule_id = "no-boundary-cycles"
+source = "graph::routing::orthogonal"
+target = "graph::routing::backward_deconflict"
+reason = "orthogonal router calls backward_deconflict for corridor context"
+owner = "kevin"
+
+[[exceptions]]
+id = "routing-backward-deconflict-orthogonal-backward"
+rule_id = "no-boundary-cycles"
+source = "graph::routing::backward_deconflict"
+target = "graph::routing::orthogonal::backward"
+reason = "backward_deconflict imports corridor helpers from orthogonal::backward"
+owner = "kevin"
+
+# measurement uses EngineConfig from contracts, contracts re-exports from
+# the layered algorithm module — a peer cycle within the engine internals.
+[[exceptions]]
+id = "engines-measurement-contracts"
+rule_id = "no-boundary-cycles"
+source = "engines::graph::algorithms::layered::measurement"
+target = "engines::graph::contracts"
+reason = "measurement imports EngineConfig which is defined in contracts"
+owner = "kevin"

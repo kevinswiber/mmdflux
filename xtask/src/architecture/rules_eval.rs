@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::architecture::boundaries::{BoundaryGraph, DependencySample};
-use crate::architecture::policy::{ArchitecturePolicy, RuleKind, RuleSpec};
+use crate::architecture::policy::{self, ArchitecturePolicy, RuleKind, RuleSpec};
 
 // ---------------------------------------------------------------------------
 // Violation — the output of rule evaluation
@@ -92,6 +92,7 @@ pub(crate) fn evaluate_rules_with_module_graph(
                     module_graph,
                     rule,
                     &acyc.members,
+                    acyc.skip_parent_child,
                     &mut all_violations,
                 );
             }
@@ -102,7 +103,7 @@ pub(crate) fn evaluate_rules_with_module_graph(
 }
 
 fn uses_module_path_selector(selector: &str) -> bool {
-    selector.contains("::")
+    selector.contains("::") || selector == policy::WILDCARD_ALL
 }
 
 fn list_uses_module_path_selectors(selectors: &[String]) -> bool {
@@ -126,13 +127,23 @@ fn longest_matching_selector(actual_path: &str, selectors: &[String]) -> Option<
         .cloned()
 }
 
+/// Returns true if one selector is a direct ancestor of the other
+/// (e.g. `"foo"` and `"foo::bar"`, or `"a::b"` and `"a::b::c"`).
+fn is_parent_child(a: &str, b: &str) -> bool {
+    b.starts_with(a) && b[a.len()..].starts_with("::")
+        || a.starts_with(b) && a[b.len()..].starts_with("::")
+}
+
 fn select_graph<'a>(
     graph: &'a BoundaryGraph,
     module_graph: Option<&'a BoundaryGraph>,
     uses_module_paths: bool,
 ) -> Option<&'a BoundaryGraph> {
     if uses_module_paths {
-        module_graph
+        // Prefer the module graph when available; fall back to the boundary
+        // graph so that the "*" wildcard still works at boundary granularity
+        // when no module-path selectors triggered a full module scan.
+        module_graph.or(Some(graph))
     } else {
         Some(graph)
     }
@@ -416,12 +427,23 @@ fn evaluate_acyclic(
     module_graph: Option<&BoundaryGraph>,
     rule: &RuleSpec,
     members: &[String],
+    skip_parent_child: bool,
     violations: &mut Vec<Violation>,
 ) {
     let uses_module_paths = list_uses_module_path_selectors(members);
     let Some(graph) = select_graph(graph, module_graph, uses_module_paths) else {
         return;
     };
+
+    // Expand the "*" wildcard to every node in the graph.
+    let expanded: Vec<String>;
+    let members = if members.iter().any(|m| m == policy::WILDCARD_ALL) {
+        expanded = graph.boundaries.iter().cloned().collect();
+        &expanded[..]
+    } else {
+        members
+    };
+
     let member_set: BTreeSet<String> = members.iter().cloned().collect();
 
     let mut adj: BTreeMap<String, Vec<String>> = BTreeMap::new();
@@ -451,6 +473,9 @@ fn evaluate_acyclic(
             continue;
         };
         if source_selector == target_selector {
+            continue;
+        }
+        if skip_parent_child && is_parent_child(&source_selector, &target_selector) {
             continue;
         }
         adj.entry(source_selector.clone())
@@ -969,6 +994,7 @@ mod tests {
                 id: "no-cycles".to_string(),
                 rule: RuleKind::Acyclic(crate::architecture::policy::AcyclicRule {
                     members: members.iter().map(|s| s.to_string()).collect(),
+                    skip_parent_child: false,
                 }),
             }],
             exceptions: Vec::new(),
@@ -1163,5 +1189,99 @@ mod tests {
         let policy = crate::architecture::policy::parse_policy_file(&path).unwrap();
         assert!(!policy.modules.is_empty());
         assert!(!policy.rules.is_empty());
+    }
+
+    #[test]
+    fn acyclic_wildcard_expands_to_all_graph_nodes() {
+        // The "*" wildcard should expand to all boundaries in the graph,
+        // detecting cycles without enumerating members explicitly.
+        let graph = graph_with_edges(&[("a", "b"), ("b", "c"), ("c", "a")]);
+        let policy = acyclic_policy(&["*"]);
+        let result = evaluate_rules(&graph, &policy);
+        assert_eq!(result.violations.len(), 1);
+        let detail = result.violations[0].detail.as_ref().unwrap();
+        assert!(detail.contains("a"), "cycle should include a: {detail}");
+        assert!(detail.contains("b"), "cycle should include b: {detail}");
+        assert!(detail.contains("c"), "cycle should include c: {detail}");
+    }
+
+    #[test]
+    fn acyclic_wildcard_passes_for_dag() {
+        let graph = graph_with_edges(&[("a", "b"), ("b", "c"), ("a", "c")]);
+        let policy = acyclic_policy(&["*"]);
+        let result = evaluate_rules(&graph, &policy);
+        assert!(result.violations.is_empty());
+    }
+
+    #[test]
+    fn acyclic_wildcard_with_module_paths() {
+        // "*" should expand to all nodes in the module graph too.
+        let graph = graph_with_edges(&[
+            ("render::svg::edges", "render::svg::edges::markers"),
+            ("render::svg::edges::markers", "render::svg::edges"),
+        ]);
+        let mut policy = acyclic_policy(&["*"]);
+        // Add "render" to modules so the policy is structurally valid
+        policy
+            .modules
+            .insert("render".to_string(), Default::default());
+        let result = evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy);
+        assert_eq!(result.violations.len(), 1);
+        let detail = result.violations[0].detail.as_ref().unwrap();
+        assert!(
+            detail.contains("render::svg::edges"),
+            "cycle should include edges: {detail}"
+        );
+    }
+
+    #[test]
+    fn acyclic_skip_parent_child_ignores_structural_cycles() {
+        // Parent/child cycles (mod.rs ↔ child) should be skipped.
+        let graph = graph_with_edges(&[
+            ("render::svg::edges", "render::svg::edges::markers"),
+            ("render::svg::edges::markers", "render::svg::edges"),
+        ]);
+        let mut policy = acyclic_policy(&["*"]);
+        policy
+            .modules
+            .insert("render".to_string(), Default::default());
+        // Enable skip_parent_child on the rule
+        if let RuleKind::Acyclic(ref mut acyc) = policy.rules[0].rule {
+            acyc.skip_parent_child = true;
+        }
+        let result = evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy);
+        assert!(
+            result.violations.is_empty(),
+            "parent/child cycle should be skipped, got: {:?}",
+            result.violations
+        );
+    }
+
+    #[test]
+    fn acyclic_skip_parent_child_still_catches_peer_cycles() {
+        // Non-parent/child cycles should still be detected.
+        let graph = graph_with_edges(&[
+            ("graph::routing", "graph::grid"),
+            ("graph::grid", "graph::routing"),
+        ]);
+        let mut policy = acyclic_policy(&["*"]);
+        policy
+            .modules
+            .insert("graph".to_string(), Default::default());
+        if let RuleKind::Acyclic(ref mut acyc) = policy.rules[0].rule {
+            acyc.skip_parent_child = true;
+        }
+        let result = evaluate_rules_with_module_graph(&empty_graph(), Some(&graph), &policy);
+        assert_eq!(result.violations.len(), 1, "peer cycle should be caught");
+    }
+
+    #[test]
+    fn is_parent_child_helper() {
+        assert!(super::is_parent_child("foo", "foo::bar"));
+        assert!(super::is_parent_child("foo::bar", "foo"));
+        assert!(super::is_parent_child("a::b", "a::b::c::d"));
+        assert!(!super::is_parent_child("foo", "foobar"));
+        assert!(!super::is_parent_child("foo::bar", "foo::baz"));
+        assert!(!super::is_parent_child("foo", "foo"));
     }
 }

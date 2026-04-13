@@ -32,7 +32,7 @@ if ! $watcher_alive; then
 fi
 
 cd "$CLAUDE_PROJECT_DIR" || exit 0
-output=$(cargo xtask architecture check 2>&1)
+output=$(cargo +stable xtask architecture check 2>&1)
 status=$?
 if [ $status -ne 0 ]; then
     echo "$output" >&2

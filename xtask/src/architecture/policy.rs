@@ -102,6 +102,11 @@ pub(crate) struct IndependenceRule {
 pub(crate) struct AcyclicRule {
     /// Boundaries that must form a DAG (no dependency cycles among them).
     pub(crate) members: Vec<String>,
+    /// When true, edges between a parent module and its direct children
+    /// (e.g. `foo` → `foo::bar`) are excluded from cycle detection.
+    /// This filters the common Rust pattern where `mod.rs` defines
+    /// utilities imported by children via `use super::`.
+    pub(crate) skip_parent_child: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -291,7 +296,15 @@ fn parse_rule(raw: &RawRuleSpec, boundaries: &BTreeMap<String, ModuleSpec>) -> R
             for m in &members {
                 ensure_module_reference_root_exists(m, boundaries, &raw.id)?;
             }
-            Ok(RuleKind::Acyclic(AcyclicRule { members }))
+            let skip_parent_child = raw
+                .config
+                .get("skip_parent_child")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            Ok(RuleKind::Acyclic(AcyclicRule {
+                members,
+                skip_parent_child,
+            }))
         }
         other => bail!("rule {:?} has unknown type {:?}", raw.id, other),
     }
@@ -350,11 +363,22 @@ fn ensure_boundary_exists(
     Ok(())
 }
 
+/// The wildcard token `"*"` expands to all discovered module paths at
+/// evaluation time.  It is legal anywhere a module reference is accepted.
+pub(crate) const WILDCARD_ALL: &str = "*";
+
+fn is_wildcard(name: &str) -> bool {
+    name == WILDCARD_ALL
+}
+
 fn ensure_module_reference_root_exists(
     name: &str,
     boundaries: &BTreeMap<String, ModuleSpec>,
     context: &str,
 ) -> Result<()> {
+    if is_wildcard(name) {
+        return Ok(());
+    }
     let mut segments = name.split("::");
     let Some(root) = segments.next().filter(|segment| !segment.is_empty()) else {
         bail!("{context}: invalid module path {name:?}");
@@ -366,7 +390,7 @@ fn ensure_module_reference_root_exists(
 }
 
 fn uses_module_path_selector(selector: &str) -> bool {
-    selector.contains("::")
+    selector.contains("::") || is_wildcard(selector)
 }
 
 fn list_uses_module_path_selectors(selectors: &[String]) -> bool {
@@ -730,5 +754,26 @@ mod tests {
         let err = parse_fixture("invalid-version.toml").unwrap_err();
         let msg = format!("{err:?}");
         assert!(msg.contains("unsupported policy version"), "got: {msg}");
+    }
+
+    #[test]
+    fn parse_acyclic_wildcard_member() {
+        let toml = "\
+            version = 1\n\
+            [modules.a]\n\
+            [modules.b]\n\
+            \n\
+            [[rules]]\n\
+            id = \"no-cycles\"\n\
+            type = \"acyclic\"\n\
+            [rules.config]\n\
+            members = [\"*\"]\n\
+        ";
+        let policy = parse_policy_str(toml).unwrap();
+        match &policy.rules[0].rule {
+            RuleKind::Acyclic(rule) => assert_eq!(rule.members, vec!["*"]),
+            other => panic!("expected acyclic rule, found {other:?}"),
+        }
+        assert!(policy.uses_module_path_selectors());
     }
 }

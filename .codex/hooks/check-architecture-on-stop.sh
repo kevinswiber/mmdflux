@@ -62,9 +62,9 @@ if printf '%s\n' "$delta_lines" | grep -Eq '(^.. src/.*\.rs$)|(^.. src/.*\.rs ->
 fi
 
 if [ "$watched_rust_change" = "true" ]; then
-    architecture_cmd=(cargo xtask architecture check)
+    architecture_cmd=(cargo +stable xtask architecture check)
 else
-    architecture_cmd=(cargo xtask architecture check --fresh)
+    architecture_cmd=(cargo +stable xtask architecture check --fresh)
 fi
 
 {
