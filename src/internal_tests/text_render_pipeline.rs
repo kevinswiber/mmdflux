@@ -458,9 +458,9 @@ mod edge_rendering_regression {
 
     use crate::diagrams::flowchart::compile_to_graph;
     use crate::engines::graph::algorithms::layered::layout_building::layered_config_for_layout;
-    use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
+    use crate::engines::graph::algorithms::layered::run_layered_layout;
     use crate::engines::graph::contracts::{
-        EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
+        EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, MeasurementMode,
     };
     use crate::engines::graph::flux::FluxLayeredEngine;
     use crate::graph::grid::{

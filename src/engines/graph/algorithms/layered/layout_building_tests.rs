@@ -7,7 +7,9 @@ use super::kernel::{
 use super::layout_building::{build_layered_layout, compute_sublayouts, layered_config_for_layout};
 use crate::diagrams::flowchart::compile_to_graph;
 use crate::engines::graph::EngineConfig;
-use crate::engines::graph::contracts::{GraphEngine, GraphGeometryContract, GraphSolveRequest};
+use crate::engines::graph::contracts::{
+    GraphEngine, GraphGeometryContract, GraphSolveRequest, MeasurementMode,
+};
 use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::graph::grid::{GridLayout, GridLayoutConfig, geometry_to_grid_layout_with_routed};
 use crate::graph::measure::{grid_edge_label_dimensions, grid_node_dimensions};
@@ -22,7 +24,7 @@ fn compile_diagram(input: &str) -> Graph {
 fn compute_layout(diagram: &Graph, config: &GridLayoutConfig) -> GridLayout {
     let engine = FluxLayeredEngine::text();
     let request = GraphSolveRequest::new(
-        super::MeasurementMode::Grid,
+        MeasurementMode::Grid,
         GraphGeometryContract::Canonical,
         crate::graph::GeometryLevel::Layout,
         None,

@@ -26,5 +26,3 @@ pub(crate) use kernel::{acyclic, border, nesting, order, rank};
 pub use kernel::{graph, normalize, support, types};
 pub(crate) use measurement::layout_config_from_layered;
 pub use measurement::run_layered_layout;
-
-pub use crate::engines::graph::contracts::MeasurementMode;

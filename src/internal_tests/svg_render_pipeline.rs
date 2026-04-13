@@ -4,8 +4,10 @@ use std::path::Path;
 
 use crate::diagrams::flowchart::compile_to_graph;
 use crate::engines::graph::EngineConfig;
-use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
-use crate::engines::graph::contracts::{GraphEngine, GraphGeometryContract, GraphSolveRequest};
+use crate::engines::graph::algorithms::layered::run_layered_layout;
+use crate::engines::graph::contracts::{
+    GraphEngine, GraphGeometryContract, GraphSolveRequest, MeasurementMode,
+};
 use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::format::{CornerStyle, Curve, RoutingStyle};
 use crate::graph::Stroke;

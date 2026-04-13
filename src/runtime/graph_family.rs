@@ -1,7 +1,6 @@
 //! Runtime rendering for graph-family payloads.
 
-use crate::engines::graph::algorithms::layered::MeasurementMode;
-use crate::engines::graph::contracts::GraphGeometryContract;
+use crate::engines::graph::contracts::{GraphGeometryContract, MeasurementMode};
 use crate::engines::graph::{
     EngineAlgorithmId, EngineConfig, EngineId, GraphSolveRequest, GraphSolveResult,
     SubgraphDirectionPolicy, solve_graph_family,

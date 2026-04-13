@@ -7,8 +7,9 @@
 use std::collections::HashMap;
 
 use crate::engines::graph::algorithms::layered::{
-    LayoutConfig, MeasurementMode, build_float_layout_with_flags, layout_config_from_layered,
+    LayoutConfig, build_float_layout_with_flags, layout_config_from_layered,
 };
+use crate::engines::graph::contracts::MeasurementMode;
 use crate::engines::graph::{
     EngineAlgorithmId, EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
     GraphSolveResult, SubgraphDirectionPolicy,

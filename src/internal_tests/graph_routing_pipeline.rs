@@ -9,7 +9,8 @@ use std::path::Path;
 
 use crate::diagrams::flowchart::compile_to_graph;
 use crate::engines::graph::EngineConfig;
-use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
+use crate::engines::graph::algorithms::layered::run_layered_layout;
+use crate::engines::graph::contracts::MeasurementMode;
 use crate::graph::geometry::*;
 use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};

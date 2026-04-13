@@ -5,9 +5,10 @@
 //! routing behavior.
 
 use crate::engines::graph::algorithms::layered::{
-    LabelDummyStrategy, LayoutConfig, MeasurementMode, build_float_layout_with_flags,
-    layout_config_from_layered, run_layered_layout,
+    LabelDummyStrategy, LayoutConfig, build_float_layout_with_flags, layout_config_from_layered,
+    run_layered_layout,
 };
+use crate::engines::graph::contracts::MeasurementMode;
 use crate::engines::graph::{
     EngineAlgorithmId, EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
     GraphSolveResult,

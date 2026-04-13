@@ -4,7 +4,8 @@
 //! mmds must not import from engines, even in tests.
 
 use crate::engines::graph::EngineConfig;
-use crate::engines::graph::algorithms::layered::{MeasurementMode, run_layered_layout};
+use crate::engines::graph::algorithms::layered::run_layered_layout;
+use crate::engines::graph::contracts::MeasurementMode;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{GeometryLevel, Graph};

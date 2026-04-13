@@ -10,11 +10,10 @@ use std::path::Path;
 
 use crate::builtins::default_registry;
 use crate::engines::graph::algorithms::layered::{
-    Direction as LayeredDirection, LayoutConfig as LayeredConfig, MeasurementMode, Ranker,
-    run_layered_layout,
+    Direction as LayeredDirection, LayoutConfig as LayeredConfig, Ranker, run_layered_layout,
 };
 use crate::engines::graph::contracts::{
-    EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest,
+    EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, MeasurementMode,
 };
 use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::format::{EdgePreset, RoutingStyle};

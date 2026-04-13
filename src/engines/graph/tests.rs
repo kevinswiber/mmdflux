@@ -1,6 +1,7 @@
 use super::algorithms::layered::{
-    DiGraph, LabelDummyStrategy, LayoutConfig, MeasurementMode, layout, run_layered_layout,
+    DiGraph, LabelDummyStrategy, LayoutConfig, layout, run_layered_layout,
 };
+use super::contracts::MeasurementMode;
 use super::flux::{
     FluxLayeredEngine, adapt_flux_profile_for_reversed_chain_crowding, flux_layout_profile,
 };
