@@ -47,27 +47,27 @@ run *args:
 
 # Generate a Mermaid dependency map for the Rust crate
 module-map *args:
-    ./scripts/generate-rust-module-deps.py {{ args }}
+    ./scripts/module-deps/flowchart.mjs {{ args }}
 
 # Generate a Mermaid C4 dependency map for the Rust crate
 module-map-c4 *args:
-    ./scripts/generate-rust-module-deps-c4.py {{ args }}
+    ./scripts/module-deps/c4.mjs {{ args }}
 
 # Generate a Mermaid SCC-condensed dependency DAG for the Rust crate
 module-map-scc *args:
-    ./scripts/generate-rust-module-deps-scc.py {{ args }}
+    ./scripts/module-deps/scc.mjs {{ args }}
 
 # Generate an outbound dependency tree rooted at a module
 module-map-outbound module *args:
-    python3 ./scripts/generate-rust-module-deps-pivot.py --module {{ module }} --direction outbound --mode tree {{ args }}
+    ./scripts/module-deps/pivot.mjs --module {{ module }} --direction outbound --mode tree {{ args }}
 
 # Generate an inbound dependency tree rooted at a module
 module-map-inbound module *args:
-    python3 ./scripts/generate-rust-module-deps-pivot.py --module {{ module }} --direction inbound --mode tree {{ args }}
+    ./scripts/module-deps/pivot.mjs --module {{ module }} --direction inbound --mode tree {{ args }}
 
 # Generate a pivoted SCC-condensed dependency DAG around a module
 module-map-pivot-dag module *args:
-    python3 ./scripts/generate-rust-module-deps-pivot.py --module {{ module }} --direction both --mode dag --condense-scc {{ args }}
+    ./scripts/module-deps/pivot.mjs --module {{ module }} --direction both --mode dag --condense-scc {{ args }}
 
 # Run MMDS conformance checks (semantic/layout/visual tiers)
 conformance *args:

@@ -6,7 +6,6 @@ _.path = [
 ]
 
 [tools]
-python = "3.12"
 github-cli = "latest"
 jq = "latest"
 just = "latest"
