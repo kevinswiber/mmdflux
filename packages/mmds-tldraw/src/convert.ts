@@ -382,6 +382,7 @@ function computeAdaptiveGrowthRatio(
 ): number {
   let maxRatio = 1.0;
   for (const node of nodes) {
+    if (node.shape === "fork_join" && !node.label?.trim()) continue;
     const label = node.label ?? node.id;
     const tldrawMinWidth = tldrawEnforcedMinWidth(label);
     const scaledMmdsWidth = node.size.width * sizeScale;
@@ -401,17 +402,20 @@ function scaleNodeRect(
   let width = Math.max(8, node.size.width * sizeScale);
   let height = Math.max(8, node.size.height * sizeScale);
 
-  // Ensure minimum size for label so text doesn't wrap to single chars per line.
-  const minW = tldrawEnforcedMinWidth(node.label);
-  const minH = tldrawEnforcedMinHeight(node.label);
-  if (width < minW || height < minH) {
-    width = Math.max(width, minW);
-    height = Math.max(height, minH);
-    // Diamonds need square aspect; ellipses often look better square for short labels.
-    if (node.shape === "diamond") {
-      const side = Math.max(width, height);
-      width = side;
-      height = side;
+  // Unlabeled fork/join bars use exact MMDS dimensions — skip label-based minimums.
+  if (!(node.shape === "fork_join" && !node.label?.trim())) {
+    // Ensure minimum size for label so text doesn't wrap to single chars per line.
+    const minW = tldrawEnforcedMinWidth(node.label);
+    const minH = tldrawEnforcedMinHeight(node.label);
+    if (width < minW || height < minH) {
+      width = Math.max(width, minW);
+      height = Math.max(height, minH);
+      // Diamonds need square aspect; ellipses often look better square for short labels.
+      if (node.shape === "diamond") {
+        const side = Math.max(width, height);
+        width = side;
+        height = side;
+      }
     }
   }
 
@@ -444,11 +448,15 @@ function autoPositionScale(
 
   // Pre-compute fixed (scale-independent) node sizes.
   const sizes = nodes.map((n) => {
-    let w = Math.max(n.size.width * sizeScale, tldrawEnforcedMinWidth(n.label));
-    let h = Math.max(
-      n.size.height * sizeScale,
-      tldrawEnforcedMinHeight(n.label),
-    );
+    let w = n.size.width * sizeScale;
+    let h = n.size.height * sizeScale;
+    if (n.shape === "fork_join" && !n.label?.trim()) {
+      w = Math.max(w, 8);
+      h = Math.max(h, 8);
+    } else {
+      w = Math.max(w, tldrawEnforcedMinWidth(n.label));
+      h = Math.max(h, tldrawEnforcedMinHeight(n.label));
+    }
     if (n.shape === "diamond") {
       const side = Math.max(w, h);
       w = side;
@@ -566,6 +574,8 @@ function mapGeoShape(mmdsShape: string): GeoStyle {
       return "arrow-right";
     case "crossed_circle":
       return "x-box";
+    case "fork_join":
+      return "rectangle";
     case "round":
     case "circle":
     case "double_circle":

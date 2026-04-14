@@ -207,6 +207,7 @@ pub fn proportional_node_dimensions(
         Shape::SmallCircle => (14.0, 14.0),
         Shape::FramedCircle => (28.0, 28.0),
         Shape::CrossedCircle => (60.0, 60.0),
+        Shape::ForkJoin if node.label.trim().is_empty() => (70.0, 7.0),
         Shape::TextBlock => (label_w, label_h),
         _ => (
             label_w + metrics.node_padding_x * 2.0,

@@ -376,7 +376,7 @@ fn render_node_shape(
     node: &Node,
     rect: &Rect,
     scale: f64,
-    direction: Direction,
+    _direction: Direction,
     node_style: ResolvedSvgNodeStyle<'_>,
     palette: &GraphSvgPalette,
 ) {
@@ -903,39 +903,17 @@ fn render_node_shape(
             // Borderless: only text will be drawn.
         }
         Shape::ForkJoin => {
-            if matches!(direction, Direction::LeftRight | Direction::RightLeft) {
-                // Vertical bar for horizontal flow
-                let x = rect.x + rect.width / 2.0;
-                let stroke = format!(
-                    " stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" stroke-linecap=\"square\"",
-                    stroke = stroke,
-                    stroke_width = fmt_f64((rect.width * 0.3).max(3.0 * scale))
-                );
-                let line = format!(
-                    "<line x1=\"{x}\" y1=\"{y1}\" x2=\"{x}\" y2=\"{y2}\"{stroke} />",
-                    x = fmt_f64(x),
-                    y1 = fmt_f64(rect.y),
-                    y2 = fmt_f64(rect.y + rect.height),
-                    stroke = stroke
-                );
-                writer.push_line(&line);
-            } else {
-                // Horizontal bar for vertical flow
-                let y = rect.y + rect.height / 2.0;
-                let stroke = format!(
-                    " stroke=\"{stroke}\" stroke-width=\"{stroke_width}\" stroke-linecap=\"square\"",
-                    stroke = stroke,
-                    stroke_width = fmt_f64((rect.height * 0.3).max(3.0 * scale))
-                );
-                let line = format!(
-                    "<line x1=\"{x1}\" y1=\"{y}\" x2=\"{x2}\" y2=\"{y}\"{stroke} />",
-                    x1 = fmt_f64(rect.x),
-                    x2 = fmt_f64(rect.x + rect.width),
-                    y = fmt_f64(y),
-                    stroke = stroke
-                );
-                writer.push_line(&line);
-            }
+            let bar = format!(
+                "<rect x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{sw}\" stroke-linejoin=\"round\" />",
+                x = fmt_f64(rect.x),
+                y = fmt_f64(rect.y),
+                w = fmt_f64(rect.width),
+                h = fmt_f64(rect.height),
+                fill = node_style.fill_or(stroke),
+                stroke = stroke,
+                sw = stroke_width,
+            );
+            writer.push_line(&bar);
         }
     }
 }
