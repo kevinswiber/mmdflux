@@ -484,10 +484,13 @@ mod lr_routing {
         );
     }
 
-    fn assert_has_left_arrow(output: &str) {
+    fn assert_has_backward_arrow(output: &str) {
         assert!(
-            output.contains('◄') || output.contains('<'),
-            "LR backward edge should have left-pointing arrow, got:\n{}",
+            output.contains('◄')
+                || output.contains('<')
+                || output.contains('▲')
+                || output.contains('▼'),
+            "LR backward edge should have an arrow (◄, <, ▲, or ▼), got:\n{}",
             output
         );
     }
@@ -525,7 +528,7 @@ mod lr_routing {
         assert!(output.contains("Start"), "Should contain Start node");
         assert!(output.contains("Middle"), "Should contain Middle node");
         assert!(output.contains("End"), "Should contain End node");
-        assert_has_left_arrow(&output);
+        assert_has_backward_arrow(&output);
     }
 
     #[test]

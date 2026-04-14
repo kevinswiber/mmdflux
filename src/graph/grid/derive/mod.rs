@@ -1081,121 +1081,114 @@ fn deconflict_backward_corridor_columns(
 
     let is_vertical = matches!(direction, Direction::TopDown | Direction::BottomTop);
 
-    // Group backward edges by target node.
-    let mut backward_by_target: HashMap<&str, Vec<usize>> = HashMap::new();
+    // Extract corridor info for ALL backward edges, regardless of target.
+    // For TD/BT the corridor is the x-coordinate of the vertical segment
+    // (path[1].0 == path[2].0 for a 4-point H-V-H path).
+    // For LR/RL the corridor is the y-coordinate of the horizontal segment
+    // (path[1].1 == path[2].1 for a 4-point V-H-V path).
+    struct CorridorInfo {
+        edge_index: usize,
+        corridor_coord: usize,
+        span: usize,
+        /// Index of the first corridor point in the path.
+        p1: usize,
+        /// Index of the second corridor point in the path.
+        p2: usize,
+    }
+
+    let mut infos: Vec<CorridorInfo> = Vec::new();
     for edge in edges {
-        if edge.is_backward && draw_paths.contains_key(&edge.index) {
-            backward_by_target
-                .entry(&edge.to)
-                .or_default()
-                .push(edge.index);
+        if !edge.is_backward || !draw_paths.contains_key(&edge.index) {
+            continue;
+        }
+        let Some(path) = draw_paths.get(&edge.index) else {
+            continue;
+        };
+        if path.len() < 4 {
+            continue;
+        }
+        // Identify the corridor segment: two consecutive points sharing
+        // the corridor axis coordinate.
+        let mut found = None;
+        for i in 0..path.len() - 1 {
+            let shares_axis = if is_vertical {
+                path[i].0 == path[i + 1].0 && path[i].1 != path[i + 1].1
+            } else {
+                path[i].1 == path[i + 1].1 && path[i].0 != path[i + 1].0
+            };
+            if shares_axis {
+                let coord = if is_vertical { path[i].0 } else { path[i].1 };
+                let span = if is_vertical {
+                    path[i].1.abs_diff(path[i + 1].1)
+                } else {
+                    path[i].0.abs_diff(path[i + 1].0)
+                };
+                // Prefer the longest such segment (the corridor, not a stub).
+                if found
+                    .as_ref()
+                    .is_none_or(|f: &(usize, usize, usize, usize)| span > f.3)
+                {
+                    found = Some((i, i + 1, coord, span));
+                }
+            }
+        }
+        if let Some((p1, p2, corridor_coord, span)) = found {
+            infos.push(CorridorInfo {
+                edge_index: edge.index,
+                corridor_coord,
+                span,
+                p1,
+                p2,
+            });
         }
     }
 
-    for indices in backward_by_target.values() {
-        if indices.len() <= 1 {
-            continue;
+    if infos.len() <= 1 {
+        return;
+    }
+
+    // Sort by corridor coordinate, then by span ascending (shorter span =
+    // inner slot) to match the float-level deconfliction order.
+    infos.sort_by_key(|info| (info.corridor_coord, info.span, info.edge_index));
+
+    // Minimum gap between adjacent corridor rows/columns.  Must be >= 2
+    // so that the terminal vertical/horizontal stub and arrowhead of one
+    // corridor don't land on the adjacent corridor's row, which would cause
+    // arrow-collision label displacement.
+    const MIN_CORRIDOR_GAP: usize = 2;
+
+    let has_collision = infos
+        .windows(2)
+        .any(|w| w[1].corridor_coord < w[0].corridor_coord + MIN_CORRIDOR_GAP);
+    if !has_collision {
+        return;
+    }
+
+    // Sweep: assign distinct corridor coords with the required gap.  When
+    // an edge's coord is too close to the previous assignment, push it
+    // forward.  This handles both same-target and cross-target collisions,
+    // and cascading pushes if spreading one group encroaches on the next.
+    let mut mutations: Vec<(usize, usize, usize, usize)> = Vec::new();
+    let mut last_assigned: Option<usize> = None;
+    for info in &infos {
+        let new_coord = match last_assigned {
+            Some(last) if info.corridor_coord < last + MIN_CORRIDOR_GAP => last + MIN_CORRIDOR_GAP,
+            _ => info.corridor_coord,
+        };
+        last_assigned = Some(new_coord);
+        if new_coord != info.corridor_coord {
+            mutations.push((info.edge_index, info.p1, info.p2, new_coord));
         }
+    }
 
-        // Extract the corridor coordinate for each edge.
-        // For TD/BT the corridor is the x-coordinate of the vertical segment
-        // (path[1].0 == path[2].0 for a 4-point H-V-H path).
-        // For LR/RL the corridor is the y-coordinate of the horizontal segment
-        // (path[1].1 == path[2].1 for a 4-point V-H-V path).
-        struct CorridorInfo {
-            edge_index: usize,
-            corridor_coord: usize,
-            span: usize,
-            /// Index of the first corridor point in the path.
-            p1: usize,
-            /// Index of the second corridor point in the path.
-            p2: usize,
-        }
-
-        let mut infos: Vec<CorridorInfo> = Vec::new();
-        for &idx in indices {
-            let Some(path) = draw_paths.get(&idx) else {
-                continue;
-            };
-            if path.len() < 4 {
-                continue;
-            }
-            // Identify the corridor segment: two consecutive points sharing
-            // the corridor axis coordinate.
-            let mut found = None;
-            for i in 0..path.len() - 1 {
-                let shares_axis = if is_vertical {
-                    path[i].0 == path[i + 1].0 && path[i].1 != path[i + 1].1
-                } else {
-                    path[i].1 == path[i + 1].1 && path[i].0 != path[i + 1].0
-                };
-                if shares_axis {
-                    let coord = if is_vertical { path[i].0 } else { path[i].1 };
-                    let span = if is_vertical {
-                        path[i].1.abs_diff(path[i + 1].1)
-                    } else {
-                        path[i].0.abs_diff(path[i + 1].0)
-                    };
-                    // Prefer the longest such segment (the corridor, not a stub).
-                    if found
-                        .as_ref()
-                        .is_none_or(|f: &(usize, usize, usize, usize)| span > f.3)
-                    {
-                        found = Some((i, i + 1, coord, span));
-                    }
-                }
-            }
-            if let Some((p1, p2, corridor_coord, span)) = found {
-                infos.push(CorridorInfo {
-                    edge_index: idx,
-                    corridor_coord,
-                    span,
-                    p1,
-                    p2,
-                });
-            }
-        }
-
-        if infos.len() <= 1 {
-            continue;
-        }
-
-        // Check if any corridors share the same column.
-        infos.sort_by_key(|info| (info.corridor_coord, info.span));
-        let has_collision = infos
-            .windows(2)
-            .any(|w| w[0].corridor_coord == w[1].corridor_coord);
-        if !has_collision {
-            continue;
-        }
-
-        // Sort by span ascending (shorter span = inner slot) to match the
-        // float-level deconfliction order.
-        infos.sort_by_key(|info| (info.span, info.edge_index));
-
-        // Assign distinct columns starting from the minimum corridor coord.
-        let base = infos.iter().map(|i| i.corridor_coord).min().unwrap();
-        for (slot, info) in infos.iter().enumerate() {
-            let new_coord = base + slot;
-            if new_coord == info.corridor_coord {
-                continue;
-            }
-            let path = draw_paths.get_mut(&info.edge_index).unwrap();
-            if is_vertical {
-                path[info.p1].0 = new_coord;
-                path[info.p2].0 = new_coord;
-                // Also update adjacent horizontal segments if they share the
-                // old corridor coordinate.
-                if info.p1 > 0 && path[info.p1 - 1].1 == path[info.p1].1 {
-                    // horizontal segment before corridor — leave the source end
-                }
-                if info.p2 + 1 < path.len() && path[info.p2 + 1].1 == path[info.p2].1 {
-                    // horizontal segment after corridor — leave the target end
-                }
-            } else {
-                path[info.p1].1 = new_coord;
-                path[info.p2].1 = new_coord;
-            }
+    for (edge_index, p1, p2, new_coord) in mutations {
+        let path = draw_paths.get_mut(&edge_index).unwrap();
+        if is_vertical {
+            path[p1].0 = new_coord;
+            path[p2].0 = new_coord;
+        } else {
+            path[p1].1 = new_coord;
+            path[p2].1 = new_coord;
         }
     }
 }

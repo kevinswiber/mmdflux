@@ -484,6 +484,7 @@ fn draw_edge_label_with_tracking(
         label_width,
         charset,
         &[arrow_pos, arrow_start_pos],
+        false,
     );
 
     Some(PlacedLabel {
@@ -609,13 +610,37 @@ fn find_safe_label_position(
     check_edge_collision: bool,
     charset: &CharSet,
 ) -> (usize, usize) {
+    find_safe_label_position_inner(
+        canvas,
+        base,
+        label_size,
+        direction,
+        placed_labels,
+        check_edge_collision,
+        true,
+        charset,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn find_safe_label_position_inner(
+    canvas: &Canvas,
+    base: (usize, usize),
+    label_size: (usize, usize),
+    direction: Direction,
+    placed_labels: &[PlacedLabel],
+    check_edge_collision: bool,
+    check_arrow_collision: bool,
+    charset: &CharSet,
+) -> (usize, usize) {
     let (base_x, base_y) = base;
     let (label_width, label_height) = label_size;
     let has_collision = |x, y| {
         label_collides_with_node(canvas, x, y, label_width, label_height)
             || (check_edge_collision
                 && label_collides_with_edge(canvas, x, y, label_width, label_height))
-            || label_collides_with_arrow(canvas, x, y, label_width, label_height, charset)
+            || (check_arrow_collision
+                && label_collides_with_arrow(canvas, x, y, label_width, label_height, charset))
             || placed_labels
                 .iter()
                 .any(|p| p.overlaps(x, y, label_width, label_height))
@@ -1076,9 +1101,37 @@ pub fn render_all_edges_with_labels(
                 None
             };
 
-            let placed = if routed.is_self_edge || routed.is_backward {
-                // For backward edges, compute label position from actual routed path
-                // Center on midpoint, then run collision avoidance like forward edges
+            let placed = if routed.is_backward {
+                // For backward edges, compute label position from actual routed path.
+                // Corridor labels may overlap arrowheads from other edges, so
+                // disable arrow-collision avoidance and allow overwriting arrows.
+                if let Some(midpoint) = calc_label_position(&routed.segments) {
+                    let base_x = midpoint.x.saturating_sub(label_width / 2);
+                    let base_y = label_top_for_center(midpoint.y, label_height);
+                    let (safe_x, safe_y) = find_safe_label_position_inner(
+                        canvas,
+                        (base_x, base_y),
+                        (label_width, label_height),
+                        diagram_direction,
+                        &placed_labels,
+                        false,
+                        false,
+                        charset,
+                    );
+                    draw_label_direct(canvas, label, safe_x, safe_y, charset, true)
+                } else {
+                    draw_edge_label_with_tracking(
+                        canvas,
+                        routed,
+                        label,
+                        diagram_direction,
+                        &placed_labels,
+                        charset,
+                    )
+                }
+            } else if routed.is_self_edge {
+                // Self-edges use midpoint positioning but preserve normal
+                // arrow-collision avoidance to avoid clobbering their own arrows.
                 if let Some(midpoint) = calc_label_position(&routed.segments) {
                     let base_x = midpoint.x.saturating_sub(label_width / 2);
                     let base_y = label_top_for_center(midpoint.y, label_height);
@@ -1091,7 +1144,7 @@ pub fn render_all_edges_with_labels(
                         false,
                         charset,
                     );
-                    draw_label_direct(canvas, label, safe_x, safe_y, charset)
+                    draw_label_direct(canvas, label, safe_x, safe_y, charset, false)
                 } else {
                     draw_edge_label_with_tracking(
                         canvas,
@@ -1117,7 +1170,7 @@ pub fn render_all_edges_with_labels(
                     false,
                     charset,
                 );
-                draw_label_direct(canvas, label, safe_x, safe_y, charset)
+                draw_label_direct(canvas, label, safe_x, safe_y, charset, false)
             } else if stale_precomputed_anchor {
                 if let Some(midpoint) = calc_label_position(&routed.segments) {
                     let base_x = midpoint.x.saturating_sub(label_width / 2);
@@ -1131,7 +1184,7 @@ pub fn render_all_edges_with_labels(
                         false,
                         charset,
                     );
-                    draw_label_direct(canvas, label, safe_x, safe_y, charset)
+                    draw_label_direct(canvas, label, safe_x, safe_y, charset, false)
                 } else {
                     draw_edge_label_with_tracking(
                         canvas,
@@ -1183,7 +1236,7 @@ pub fn render_all_edges_with_labels(
                 false,
                 charset,
             );
-            if let Some(p) = draw_label_direct(canvas, label, safe_x, safe_y, charset) {
+            if let Some(p) = draw_label_direct(canvas, label, safe_x, safe_y, charset, false) {
                 placed_labels.push(p);
             }
         }
@@ -1200,7 +1253,7 @@ pub fn render_all_edges_with_labels(
                 false,
                 charset,
             );
-            if let Some(p) = draw_label_direct(canvas, label, safe_x, safe_y, charset) {
+            if let Some(p) = draw_label_direct(canvas, label, safe_x, safe_y, charset, false) {
                 placed_labels.push(p);
             }
         }
@@ -1212,6 +1265,7 @@ pub fn render_all_edges_with_labels(
 /// Used for backward edge labels where the position is already computed
 /// relative to the routed path. Expands the canvas if the label would
 /// extend beyond the current bounds.
+#[allow(clippy::too_many_arguments)]
 fn write_label_block(
     canvas: &mut Canvas,
     lines: &[&str],
@@ -1220,6 +1274,7 @@ fn write_label_block(
     block_width: usize,
     charset: &CharSet,
     blocked_points: &[(usize, usize)],
+    overwrite_arrows: bool,
 ) {
     for (line_idx, line) in lines.iter().enumerate() {
         let row_y = y + line_idx;
@@ -1233,10 +1288,10 @@ fn write_label_block(
             {
                 continue;
             }
-            if canvas
-                .get(cell_x, row_y)
-                .is_some_and(|cell| !cell.is_node && !charset.is_arrow(cell.ch))
-            {
+            let can_write = canvas.get(cell_x, row_y).is_some_and(|cell| {
+                !cell.is_node && (overwrite_arrows || !charset.is_arrow(cell.ch))
+            });
+            if can_write {
                 canvas.set(cell_x, row_y, ch);
             }
         }
@@ -1249,6 +1304,7 @@ fn draw_label_direct(
     x: usize,
     y: usize,
     charset: &CharSet,
+    overwrite_arrows: bool,
 ) -> Option<PlacedLabel> {
     let block = label_block(label);
     let label_width = block.width;
@@ -1260,7 +1316,16 @@ fn draw_label_direct(
         canvas.expand_width(needed_width);
     }
 
-    write_label_block(canvas, &block.lines, x, y, label_width, charset, &[]);
+    write_label_block(
+        canvas,
+        &block.lines,
+        x,
+        y,
+        label_width,
+        charset,
+        &[],
+        overwrite_arrows,
+    );
 
     Some(PlacedLabel {
         x,

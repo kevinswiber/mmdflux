@@ -215,7 +215,7 @@ pub(crate) fn should_prefer_shared_backward_route_for_text(
 ) -> bool {
     match direction {
         Direction::LeftRight | Direction::RightLeft => {
-            draw_path.len() >= 6 && draw_waypoint_count(draw_path) >= 4
+            draw_path.len() >= 4 && draw_waypoint_count(draw_path) >= 2
         }
         Direction::TopDown | Direction::BottomTop => true,
     }

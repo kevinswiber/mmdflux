@@ -32,6 +32,11 @@ pub(super) fn ensure_terminal_face_support(
             let anchor = points[pre_end_idx];
             let adjusted_anchor = Point::new(anchor.x, support.y);
             points[pre_end_idx] = adjusted_anchor;
+            // When the adjusted anchor moved away from start, re-insert
+            // start so the path still connects to the source launch point.
+            if pre_end_idx == 0 && adjusted_anchor != start {
+                points.insert(0, start);
+            }
             if adjusted_anchor.x != end.x {
                 points.insert(points.len() - 1, Point::new(end.x, support.y));
             }
@@ -40,6 +45,9 @@ pub(super) fn ensure_terminal_face_support(
             let anchor = points[pre_end_idx];
             let adjusted_anchor = Point::new(support.x, anchor.y);
             points[pre_end_idx] = adjusted_anchor;
+            if pre_end_idx == 0 && adjusted_anchor != start {
+                points.insert(0, start);
+            }
             if adjusted_anchor.y != end.y {
                 points.insert(points.len() - 1, Point::new(support.x, end.y));
             }
