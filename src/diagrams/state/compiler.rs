@@ -6,7 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::graph::style::NodeStyle;
+use crate::graph::style::{ColorToken, NodeStyle};
 use crate::graph::{Arrow, Direction, Edge, Graph, Node, NotePosition, Shape, Stroke, Subgraph};
 use crate::mermaid::state::{
     StateDecl, StateModel, StateStatement, StateStereotype, StateTransition,
@@ -129,6 +129,7 @@ fn add_note_node(
         .with_label(text)
         .with_shape(Shape::NoteRect);
     note_node.parent = state_parent.clone();
+    note_node.style = note_style();
     graph.add_node(note_node);
 
     // Add note to the same parent subgraph's children list.
@@ -149,6 +150,13 @@ fn add_note_node(
             .with_stroke(Stroke::Dashed)
             .with_arrows(Arrow::None, Arrow::None),
     );
+}
+
+fn note_style() -> NodeStyle {
+    NodeStyle::default()
+        .with_fill(ColorToken::parse("#fff5ad").unwrap())
+        .with_stroke(ColorToken::parse("#aaaa33").unwrap())
+        .with_color(ColorToken::parse("#333").unwrap())
 }
 
 fn direction_from_str(dir: Option<&str>) -> Direction {

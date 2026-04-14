@@ -251,15 +251,123 @@ function transformLabel(label: string): string {
     .join("\n");
 }
 
-/** Return fill/color overrides for shapes that should be filled (state start markers, fork/join bars). */
+/** Return fill/color overrides for shapes that should be filled. */
 function mapNodeFill(shape: string): { fill?: string; color?: string } {
   switch (shape) {
     case "small_circle":
     case "fork_join":
       return { fill: "solid", color: "black" };
+    case "note_rect":
+      return { fill: "solid", color: "yellow" };
     default:
       return {};
   }
+}
+
+/** Parse a hex color string (#RGB or #RRGGBB) into [r, g, b], or null. */
+function parseHex(hex: string): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{3,8})$/i.exec(hex);
+  if (!m) return null;
+  const h = m[1];
+  if (h.length === 3) {
+    return [
+      parseInt(h[0] + h[0], 16),
+      parseInt(h[1] + h[1], 16),
+      parseInt(h[2] + h[2], 16),
+    ];
+  }
+  if (h.length >= 6) {
+    return [
+      parseInt(h.slice(0, 2), 16),
+      parseInt(h.slice(2, 4), 16),
+      parseInt(h.slice(4, 6), 16),
+    ];
+  }
+  return null;
+}
+
+/** Map a hex color to the nearest tldraw named color using hue-based matching. */
+function hexToTldrawColor(hex: string): string | null {
+  const rgb = parseHex(hex);
+  if (!rgb) return null;
+  const [r, g, b] = rgb;
+
+  const max = Math.max(r, g, b) / 255;
+  const min = Math.min(r, g, b) / 255;
+  const l = (max + min) / 2;
+  const d = max - min;
+
+  // Achromatic — match on lightness
+  if (d < 0.05) {
+    if (l > 0.75) return "white";
+    if (l < 0.25) return "black";
+    return "grey";
+  }
+
+  // Compute hue in degrees
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  let h: number;
+  if (max === rn) h = ((gn - bn) / d) % 6;
+  else if (max === gn) h = (bn - rn) / d + 2;
+  else h = (rn - gn) / d + 4;
+  h = h * 60;
+  if (h < 0) h += 360;
+
+  const s = d / (1 - Math.abs(2 * l - 1));
+
+  // Map hue ranges to tldraw palette names
+  if (h < 15 || h >= 345) return s > 0.4 ? "red" : "light-red";
+  if (h < 40) return "orange";
+  if (h < 75) return "yellow";
+  if (h < 160) return s > 0.4 ? "green" : "light-green";
+  if (h < 260) return s > 0.4 ? "blue" : "light-blue";
+  if (h < 345) return s > 0.4 ? "violet" : "light-violet";
+  return "black";
+}
+
+interface NodeStyleOverrides {
+  fill?: string;
+  color?: string;
+  labelColor?: string;
+}
+
+/**
+ * Parse per-node style overrides from the `org.mmdflux.node-style.v1` extension.
+ * Maps hex fill/stroke/color values to the nearest tldraw named colors.
+ */
+function parseNodeStyleExtension(
+  extensions?: Record<string, unknown>,
+): Map<string, NodeStyleOverrides> {
+  const result = new Map<string, NodeStyleOverrides>();
+  if (!extensions) return result;
+
+  const ext = extensions["org.mmdflux.node-style.v1"] as
+    | { nodes?: Record<string, Record<string, string>> }
+    | undefined;
+  if (!ext?.nodes) return result;
+
+  for (const [nodeId, style] of Object.entries(ext.nodes)) {
+    const overrides: NodeStyleOverrides = {};
+    if (style.fill) {
+      const mapped = hexToTldrawColor(style.fill);
+      if (mapped) {
+        overrides.fill = "solid";
+        overrides.color = mapped;
+      }
+    }
+    if (style.color) {
+      const mapped = hexToTldrawColor(style.color);
+      if (mapped) {
+        overrides.labelColor = mapped;
+      }
+    }
+    if (overrides.fill || overrides.color || overrides.labelColor) {
+      result.set(nodeId, overrides);
+    }
+  }
+  return result;
 }
 
 /**
@@ -470,8 +578,10 @@ function mapGeoShape(mmdsShape: string): GeoStyle {
   }
 }
 
-function mapDash(stroke: string): "solid" | "dotted" {
-  return stroke === "dotted" ? "dotted" : "solid";
+function mapDash(stroke: string): "solid" | "dashed" | "dotted" {
+  if (stroke === "dotted") return "dotted";
+  if (stroke === "dashed") return "dashed";
+  return "solid";
 }
 
 function mapSize(stroke: string): "m" | "l" {
@@ -1040,6 +1150,8 @@ export function convertToTldraw(
     return convertSequenceToTldraw(mmds, scale);
   }
 
+  const nodeStyleOverrides = parseNodeStyleExtension(normalized.extensions);
+
   const adaptiveRatio = computeAdaptiveGrowthRatio(normalized.nodes, scale);
   const nodeSpacing = options.nodeSpacing ?? adaptiveRatio;
   const positionScale = autoPositionScale(
@@ -1227,7 +1339,8 @@ export function convertToTldraw(
       } as TLRecord);
     } else {
       const geo = mapGeoShape(node.shape);
-      const fillOverrides = mapNodeFill(node.shape);
+      const extOverrides = nodeStyleOverrides.get(node.id);
+      const shapeFallback = mapNodeFill(node.shape);
       geoByShapeId.set(shapeId, geo);
       shapeRecords.push({
         ...common,
@@ -1240,9 +1353,9 @@ export function convertToTldraw(
           h: absRect.h,
           growY: 0,
           scale: 1,
-          labelColor: "black",
-          color: fillOverrides.color ?? "black",
-          fill: fillOverrides.fill ?? "none",
+          labelColor: extOverrides?.labelColor ?? "black",
+          color: extOverrides?.color ?? shapeFallback.color ?? "black",
+          fill: extOverrides?.fill ?? shapeFallback.fill ?? "none",
           size: "m",
           font: "draw",
           align: "middle",

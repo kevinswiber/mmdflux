@@ -1,7 +1,12 @@
 export type MmdsDirection = "TD" | "BT" | "LR" | "RL";
 export type MmdsGeometryLevel = "layout" | "routed";
 
-export type MmdsEdgeStroke = "solid" | "dotted" | "thick" | "invisible";
+export type MmdsEdgeStroke =
+  | "solid"
+  | "dashed"
+  | "dotted"
+  | "thick"
+  | "invisible";
 export type MmdsArrow =
   | "none"
   | "normal"

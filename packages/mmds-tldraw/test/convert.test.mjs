@@ -2003,6 +2003,101 @@ test("state fork_join gets filled style", () => {
   assert.equal(geo.props.color, "black");
 });
 
+test("note_rect with node-style extension gets yellow fill from extension", () => {
+  const mmds = {
+    version: 2,
+    metadata: { diagram_type: "state" },
+    profiles: ["mmds-core-v1", "mmdflux-node-style-v1"],
+    extensions: {
+      "org.mmdflux.node-style.v1": {
+        nodes: {
+          n1: { fill: "#fff5ad", stroke: "#aaaa33", color: "#333" },
+        },
+      },
+    },
+    nodes: [
+      {
+        id: "n1",
+        label: "A note",
+        position: { x: 150, y: 50 },
+        size: { width: 80, height: 30 },
+        shape: "note_rect",
+      },
+    ],
+    edges: [],
+  };
+  const converted = convertToTldraw(mmds);
+  const geo = converted.records.find(
+    (r) => r.typeName === "shape" && r.type === "geo",
+  );
+  assert.ok(geo);
+  assert.equal(geo.props.fill, "solid");
+  assert.equal(geo.props.color, "yellow");
+  assert.equal(geo.props.labelColor, "black");
+});
+
+test("note_rect without extension falls back to yellow fill", () => {
+  const mmds = {
+    version: 2,
+    metadata: { diagram_type: "state" },
+    nodes: [
+      {
+        id: "n1",
+        label: "A note",
+        position: { x: 150, y: 50 },
+        size: { width: 80, height: 30 },
+        shape: "note_rect",
+      },
+    ],
+    edges: [],
+  };
+  const converted = convertToTldraw(mmds);
+  const geo = converted.records.find(
+    (r) => r.typeName === "shape" && r.type === "geo",
+  );
+  assert.ok(geo);
+  assert.equal(geo.props.fill, "solid");
+  assert.equal(geo.props.color, "yellow");
+});
+
+test("dashed edge stroke produces dashed arrow", () => {
+  const mmds = {
+    version: 2,
+    metadata: { diagram_type: "state" },
+    nodes: [
+      {
+        id: "s1",
+        label: "S1",
+        position: { x: 0, y: 50 },
+        size: { width: 60, height: 30 },
+      },
+      {
+        id: "n1",
+        label: "A note",
+        position: { x: 150, y: 50 },
+        size: { width: 80, height: 30 },
+        shape: "note_rect",
+      },
+    ],
+    edges: [
+      {
+        id: "e0",
+        source: "s1",
+        target: "n1",
+        stroke: "dashed",
+        arrow_start: "none",
+        arrow_end: "none",
+      },
+    ],
+  };
+  const converted = convertToTldraw(mmds);
+  const arrow = converted.records.find(
+    (r) => r.typeName === "shape" && r.type === "arrow",
+  );
+  assert.ok(arrow);
+  assert.equal(arrow.props.dash, "dashed");
+});
+
 test("invisible subgraphs are not rendered as frames", () => {
   const mmds = {
     version: 2,

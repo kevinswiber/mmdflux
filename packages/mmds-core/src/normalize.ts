@@ -22,6 +22,7 @@ const DEFAULT_MINLEN = 1;
 
 const EDGE_STROKES = new Set<MmdsEdgeStroke>([
   "solid",
+  "dashed",
   "dotted",
   "thick",
   "invisible",
