@@ -562,8 +562,8 @@ mod tests {
     use crate::mermaid::state::parse_state_diagram;
 
     fn compile_state(input: &str) -> Graph {
-        let model = parse_state_diagram(input).unwrap();
-        compile(&model)
+        let result = parse_state_diagram(input).unwrap();
+        compile(&result.model)
     }
 
     #[test]

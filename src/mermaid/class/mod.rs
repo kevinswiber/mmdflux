@@ -8,6 +8,19 @@ pub mod ast;
 
 use ast::{ClassDecl, ClassModel, ClassNamespace, ClassRelation, ClassRelationType};
 
+use crate::errors::ParseDiagnostic;
+
+/// Result of parsing a class diagram.
+///
+/// Contains the parsed model and any warnings collected during parsing.
+#[derive(Debug)]
+pub struct ClassParseResult {
+    /// Parsed class model.
+    pub model: ClassModel,
+    /// Warnings collected during parsing (e.g., skipped lines).
+    pub warnings: Vec<ParseDiagnostic>,
+}
+
 /// Ensure a class exists in the classes list, merging metadata if it already does.
 ///
 /// Uses `class_index` to track position of each class in `classes` for O(1) lookup.
@@ -61,7 +74,7 @@ fn namespace_id(parent: Option<&str>, name: &str) -> String {
 /// Expects the input to start with `classDiagram` (case-insensitive).
 pub fn parse_class_diagram(
     input: &str,
-) -> Result<ClassModel, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<ClassParseResult, Box<dyn std::error::Error + Send + Sync>> {
     let mut classes: Vec<ClassDecl> = Vec::new();
     let mut relations: Vec<ClassRelation> = Vec::new();
     let mut direction: Option<String> = None;
@@ -69,15 +82,16 @@ pub fn parse_class_diagram(
     let mut namespace_stack: Vec<OpenNamespace> = Vec::new();
     let mut class_index: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
+    let mut warnings: Vec<ParseDiagnostic> = Vec::new();
 
-    let mut lines = input.lines().peekable();
+    let mut lines = input.lines().enumerate().peekable();
 
     // Skip frontmatter
-    if let Some(first) = lines.peek()
+    if let Some((_, first)) = lines.peek()
         && first.trim() == "---"
     {
         lines.next();
-        for line in lines.by_ref() {
+        for (_, line) in lines.by_ref() {
             if line.trim() == "---" {
                 break;
             }
@@ -86,7 +100,7 @@ pub fn parse_class_diagram(
 
     // Skip leading comments and whitespace, then consume header
     let mut found_header = false;
-    while let Some(line) = lines.peek() {
+    while let Some((_, line)) = lines.peek() {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with("%%") {
             lines.next();
@@ -111,7 +125,7 @@ pub fn parse_class_diagram(
     let mut current_annotations: Vec<String> = Vec::new();
     let mut current_members: Vec<String> = Vec::new();
 
-    for line in lines {
+    for (line_num, line) in lines {
         let trimmed = line.trim();
 
         // Skip empty lines and comments
@@ -265,7 +279,12 @@ pub fn parse_class_diagram(
             }
         }
 
-        // Permissive: skip unrecognized lines (style, note, click, etc.)
+        // Permissive: skip unrecognized lines but collect a warning
+        warnings.push(ParseDiagnostic::warning(
+            Some(line_num + 1), // 1-indexed
+            None,
+            format!("skipped unrecognized line: {trimmed}"),
+        ));
     }
 
     // Handle unclosed class body
@@ -289,11 +308,14 @@ pub fn parse_class_diagram(
         });
     }
 
-    Ok(ClassModel {
-        classes,
-        relations,
-        direction,
-        namespaces,
+    Ok(ClassParseResult {
+        model: ClassModel {
+            classes,
+            relations,
+            direction,
+            namespaces,
+        },
+        warnings,
     })
 }
 
@@ -599,96 +621,107 @@ mod tests {
 
     #[test]
     fn parse_empty_class_diagram() {
-        let model = parse_class_diagram("classDiagram\n").unwrap();
-        assert!(model.classes.is_empty());
-        assert!(model.relations.is_empty());
+        let result = parse_class_diagram("classDiagram\n").unwrap();
+        assert!(result.model.classes.is_empty());
+        assert!(result.model.relations.is_empty());
     }
 
     #[test]
     fn parse_single_class() {
-        let model = parse_class_diagram("classDiagram\nclass User").unwrap();
-        assert_eq!(model.classes.len(), 1);
-        assert_eq!(model.classes[0].name, "User");
-        assert!(model.classes[0].annotations.is_empty());
+        let result = parse_class_diagram("classDiagram\nclass User").unwrap();
+        assert_eq!(result.model.classes.len(), 1);
+        assert_eq!(result.model.classes[0].name, "User");
+        assert!(result.model.classes[0].annotations.is_empty());
     }
 
     #[test]
     fn parse_backtick_class_name() {
-        let model = parse_class_diagram("classDiagram\nclass `A B`").unwrap();
-        assert!(model.classes.iter().any(|c| c.name == "A B"));
+        let result = parse_class_diagram("classDiagram\nclass `A B`").unwrap();
+        assert!(result.model.classes.iter().any(|c| c.name == "A B"));
     }
 
     #[test]
     fn parse_class_display_label() {
-        let model = parse_class_diagram("classDiagram\nclass User[\"App User\"]").unwrap();
-        let user = model.classes.iter().find(|c| c.name == "User").unwrap();
+        let result = parse_class_diagram("classDiagram\nclass User[\"App User\"]").unwrap();
+        let user = result
+            .model
+            .classes
+            .iter()
+            .find(|c| c.name == "User")
+            .unwrap();
         assert_eq!(user.display_label.as_deref(), Some("App User"));
     }
 
     #[test]
     fn parse_dotted_and_hyphenated_class_name() {
-        let model = parse_class_diagram("classDiagram\nclass HTTP.Client-Parser").unwrap();
-        assert!(model.classes.iter().any(|c| c.name == "HTTP.Client-Parser"));
+        let result = parse_class_diagram("classDiagram\nclass HTTP.Client-Parser").unwrap();
+        assert!(
+            result
+                .model
+                .classes
+                .iter()
+                .any(|c| c.name == "HTTP.Client-Parser")
+        );
     }
 
     #[test]
     fn parse_multiple_classes() {
         let input = "classDiagram\nclass User\nclass Order\nclass Product";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 3);
-        assert_eq!(model.classes[0].name, "User");
-        assert_eq!(model.classes[1].name, "Order");
-        assert_eq!(model.classes[2].name, "Product");
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 3);
+        assert_eq!(result.model.classes[0].name, "User");
+        assert_eq!(result.model.classes[1].name, "Order");
+        assert_eq!(result.model.classes[2].name, "Product");
     }
 
     #[test]
     fn parse_class_with_body() {
         let input = "classDiagram\nclass User {\n  +String name\n  +login()\n}";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 1);
-        assert_eq!(model.classes[0].name, "User");
-        assert!(model.classes[0].annotations.is_empty());
-        assert_eq!(model.classes[0].members.len(), 2);
-        assert_eq!(model.classes[0].members[0], "+String name");
-        assert_eq!(model.classes[0].members[1], "+login()");
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 1);
+        assert_eq!(result.model.classes[0].name, "User");
+        assert!(result.model.classes[0].annotations.is_empty());
+        assert_eq!(result.model.classes[0].members.len(), 2);
+        assert_eq!(result.model.classes[0].members[0], "+String name");
+        assert_eq!(result.model.classes[0].members[1], "+login()");
     }
 
     #[test]
     fn parse_class_with_inline_annotation() {
         let input = "classDiagram\nclass Logger <<interface>>";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 1);
-        assert_eq!(model.classes[0].name, "Logger");
-        assert_eq!(model.classes[0].annotations, vec!["interface"]);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 1);
+        assert_eq!(result.model.classes[0].name, "Logger");
+        assert_eq!(result.model.classes[0].annotations, vec!["interface"]);
     }
 
     #[test]
     fn parse_annotation_statement() {
         let input = "classDiagram\nclass Logger\n<<interface>> Logger";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 1);
-        assert_eq!(model.classes[0].annotations, vec!["interface"]);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 1);
+        assert_eq!(result.model.classes[0].annotations, vec!["interface"]);
     }
 
     #[test]
     fn parse_annotation_in_class_body() {
         let input = "classDiagram\nclass Logger {\n  <<interface>>\n  +log(message)\n}";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 1);
-        assert_eq!(model.classes[0].annotations, vec!["interface"]);
-        assert_eq!(model.classes[0].members, vec!["+log(message)"]);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 1);
+        assert_eq!(result.model.classes[0].annotations, vec!["interface"]);
+        assert_eq!(result.model.classes[0].members, vec!["+log(message)"]);
     }
 
     #[test]
     fn parse_inheritance_relation() {
         let input = "classDiagram\nAnimal <|-- Dog";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.relations.len(), 1);
-        assert_eq!(model.relations[0].from, "Animal");
-        assert_eq!(model.relations[0].to, "Dog");
-        assert!(model.relations[0].marker_start);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.relations.len(), 1);
+        assert_eq!(result.model.relations[0].from, "Animal");
+        assert_eq!(result.model.relations[0].to, "Dog");
+        assert!(result.model.relations[0].marker_start);
         assert_eq!(
-            model.relations[0].relation_type,
+            result.model.relations[0].relation_type,
             ClassRelationType::Inheritance
         );
     }
@@ -696,10 +729,10 @@ mod tests {
     #[test]
     fn parse_composition_relation() {
         let input = "classDiagram\nCar *-- Engine";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.relations.len(), 1);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.relations.len(), 1);
         assert_eq!(
-            model.relations[0].relation_type,
+            result.model.relations[0].relation_type,
             ClassRelationType::Composition
         );
     }
@@ -707,10 +740,10 @@ mod tests {
     #[test]
     fn parse_aggregation_relation() {
         let input = "classDiagram\nLibrary o-- Book";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.relations.len(), 1);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.relations.len(), 1);
         assert_eq!(
-            model.relations[0].relation_type,
+            result.model.relations[0].relation_type,
             ClassRelationType::Aggregation
         );
     }
@@ -718,12 +751,12 @@ mod tests {
     #[test]
     fn parse_dependency_relation() {
         let input = "classDiagram\nService ..> Repository";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.relations.len(), 1);
-        assert_eq!(model.relations[0].from, "Service");
-        assert_eq!(model.relations[0].to, "Repository");
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.relations.len(), 1);
+        assert_eq!(result.model.relations[0].from, "Service");
+        assert_eq!(result.model.relations[0].to, "Repository");
         assert_eq!(
-            model.relations[0].relation_type,
+            result.model.relations[0].relation_type,
             ClassRelationType::DirectedDependency
         );
     }
@@ -731,22 +764,22 @@ mod tests {
     #[test]
     fn parse_realization_relation() {
         let input = "classDiagram\nLogger <|.. ConsoleLogger";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.relations.len(), 1);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.relations.len(), 1);
         assert_eq!(
-            model.relations[0].relation_type,
+            result.model.relations[0].relation_type,
             ClassRelationType::Realization
         );
-        assert!(model.relations[0].marker_start);
+        assert!(result.model.relations[0].marker_start);
     }
 
     #[test]
     fn parse_association_directed() {
         let input = "classDiagram\nA --> B";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.relations.len(), 1);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.relations.len(), 1);
         assert_eq!(
-            model.relations[0].relation_type,
+            result.model.relations[0].relation_type,
             ClassRelationType::DirectedAssociation
         );
     }
@@ -754,10 +787,10 @@ mod tests {
     #[test]
     fn parse_association_undirected() {
         let input = "classDiagram\nA -- B";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.relations.len(), 1);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.relations.len(), 1);
         assert_eq!(
-            model.relations[0].relation_type,
+            result.model.relations[0].relation_type,
             ClassRelationType::Association
         );
     }
@@ -765,72 +798,79 @@ mod tests {
     #[test]
     fn parse_relation_with_label() {
         let input = "classDiagram\nA --> B : uses";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.relations[0].label, Some("uses".to_string()));
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.relations[0].label, Some("uses".to_string()));
     }
 
     #[test]
     fn parse_lollipop_relations_do_not_drop_classes() {
         let input = "classDiagram\nClass01 --() bar\nClass02 --() bar\nfoo ()-- Class01";
-        let model = parse_class_diagram(input).unwrap();
+        let result = parse_class_diagram(input).unwrap();
 
-        assert!(model.classes.iter().any(|c| c.name == "Class02"));
-        assert!(model.classes.iter().any(|c| c.name == "foo"));
+        assert!(result.model.classes.iter().any(|c| c.name == "Class02"));
+        assert!(result.model.classes.iter().any(|c| c.name == "foo"));
         assert!(
-            model
+            result
+                .model
                 .relations
                 .iter()
                 .all(|r| r.relation_type == ClassRelationType::Lollipop)
         );
-        assert!(model.relations[0].marker_end);
-        assert!(model.relations[2].marker_start);
+        assert!(result.model.relations[0].marker_end);
+        assert!(result.model.relations[2].marker_start);
     }
 
     #[test]
     fn parse_cardinality_relation_with_label_without_strict_spaces() {
         let input = "classDiagram\nA \"1\" --> \"*\" B:uses";
-        let model = parse_class_diagram(input).unwrap();
+        let result = parse_class_diagram(input).unwrap();
 
-        assert_eq!(model.relations.len(), 1);
-        assert_eq!(model.relations[0].cardinality_from, Some("1".to_string()));
-        assert_eq!(model.relations[0].cardinality_to, Some("*".to_string()));
-        assert_eq!(model.relations[0].label, Some("uses".to_string()));
+        assert_eq!(result.model.relations.len(), 1);
+        assert_eq!(
+            result.model.relations[0].cardinality_from,
+            Some("1".to_string())
+        );
+        assert_eq!(
+            result.model.relations[0].cardinality_to,
+            Some("*".to_string())
+        );
+        assert_eq!(result.model.relations[0].label, Some("uses".to_string()));
     }
 
     #[test]
     fn parse_two_way_relation_operator() {
         let input = "classDiagram\nA <|--|> B";
-        let model = parse_class_diagram(input).unwrap();
+        let result = parse_class_diagram(input).unwrap();
 
-        assert_eq!(model.relations.len(), 1);
+        assert_eq!(result.model.relations.len(), 1);
         assert_eq!(
-            model.relations[0].relation_type,
+            result.model.relations[0].relation_type,
             ClassRelationType::Inheritance
         );
-        assert!(model.relations[0].marker_start);
-        assert!(model.relations[0].marker_end);
+        assert!(result.model.relations[0].marker_start);
+        assert!(result.model.relations[0].marker_end);
     }
 
     #[test]
     fn parse_relation_creates_implicit_classes() {
         let input = "classDiagram\nA --> B";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 2);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 2);
     }
 
     #[test]
     fn parse_class_declared_and_in_relation() {
         let input = "classDiagram\nclass A\nA --> B";
-        let model = parse_class_diagram(input).unwrap();
+        let result = parse_class_diagram(input).unwrap();
         // A declared explicitly, B implicitly via relation
-        assert_eq!(model.classes.len(), 2);
+        assert_eq!(result.model.classes.len(), 2);
     }
 
     #[test]
     fn parse_skips_comments() {
         let input = "classDiagram\n%% comment\nclass User";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 1);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 1);
     }
 
     #[test]
@@ -841,26 +881,26 @@ mod tests {
 
     #[test]
     fn parse_case_insensitive_header() {
-        let model = parse_class_diagram("CLASSDIAGRAM\nclass User").unwrap();
-        assert_eq!(model.classes.len(), 1);
+        let result = parse_class_diagram("CLASSDIAGRAM\nclass User").unwrap();
+        assert_eq!(result.model.classes.len(), 1);
     }
 
     #[test]
     fn parse_class_direction_lr() {
-        let model = parse_class_diagram("classDiagram\ndirection LR\nA --> B").unwrap();
-        assert_eq!(model.direction, Some("LR".into()));
+        let result = parse_class_diagram("classDiagram\ndirection LR\nA --> B").unwrap();
+        assert_eq!(result.model.direction, Some("LR".into()));
     }
 
     #[test]
     fn parse_class_direction_defaults_when_absent() {
-        let model = parse_class_diagram("classDiagram\nA --> B").unwrap();
-        assert!(model.direction.is_none());
+        let result = parse_class_diagram("classDiagram\nA --> B").unwrap();
+        assert!(result.model.direction.is_none());
     }
 
     #[test]
     fn parse_class_direction_ignores_invalid_values() {
-        let model = parse_class_diagram("classDiagram\ndirection DIAGONAL\nA --> B").unwrap();
-        assert!(model.direction.is_none());
+        let result = parse_class_diagram("classDiagram\ndirection DIAGONAL\nA --> B").unwrap();
+        assert!(result.model.direction.is_none());
     }
 
     #[test]
@@ -873,15 +913,33 @@ namespace BaseShapes {
     class Rectangle
   }
 }";
-        let model = parse_class_diagram(input).unwrap();
+        let result = parse_class_diagram(input).unwrap();
 
-        assert!(model.namespaces.iter().any(|ns| ns.name == "BaseShapes"));
-        assert!(model.namespaces.iter().any(|ns| ns.name == "Primitives"));
+        assert!(
+            result
+                .model
+                .namespaces
+                .iter()
+                .any(|ns| ns.name == "BaseShapes")
+        );
+        assert!(
+            result
+                .model
+                .namespaces
+                .iter()
+                .any(|ns| ns.name == "Primitives")
+        );
 
-        let triangle = model.classes.iter().find(|c| c.name == "Triangle").unwrap();
+        let triangle = result
+            .model
+            .classes
+            .iter()
+            .find(|c| c.name == "Triangle")
+            .unwrap();
         assert!(triangle.namespace.is_some());
 
-        let rectangle = model
+        let rectangle = result
+            .model
             .classes
             .iter()
             .find(|c| c.name == "Rectangle")
@@ -892,39 +950,44 @@ namespace BaseShapes {
     #[test]
     fn parse_class_with_generic_annotation() {
         let input = "classDiagram\nclass List~T~";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes[0].name, "List");
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes[0].name, "List");
     }
 
     #[test]
     fn parse_inline_member_with_space() {
         let input = "classDiagram\nAnimal : +int age";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 1);
-        assert_eq!(model.classes[0].name, "Animal");
-        assert_eq!(model.classes[0].members, vec!["+int age"]);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 1);
+        assert_eq!(result.model.classes[0].name, "Animal");
+        assert_eq!(result.model.classes[0].members, vec!["+int age"]);
     }
 
     #[test]
     fn parse_inline_member_without_space() {
         let input = "classDiagram\nAnimal: +isMammal()";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes[0].members, vec!["+isMammal()"]);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes[0].members, vec!["+isMammal()"]);
     }
 
     #[test]
     fn parse_multiple_inline_members() {
         let input = "classDiagram\nAnimal : +int age\nAnimal : +String gender\nAnimal: +mate()";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 1);
-        assert_eq!(model.classes[0].members.len(), 3);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 1);
+        assert_eq!(result.model.classes[0].members.len(), 3);
     }
 
     #[test]
     fn parse_relation_before_class_body_preserves_members() {
         let input = "classDiagram\nAnimal <|-- Dog\nclass Dog {\n  +bark()\n}";
-        let model = parse_class_diagram(input).unwrap();
-        let dog = model.classes.iter().find(|c| c.name == "Dog").unwrap();
+        let result = parse_class_diagram(input).unwrap();
+        let dog = result
+            .model
+            .classes
+            .iter()
+            .find(|c| c.name == "Dog")
+            .unwrap();
         assert_eq!(dog.members, vec!["+bark()"]);
     }
 
@@ -937,10 +1000,20 @@ classDiagram
     class Duck{
       +swim()
     }";
-        let model = parse_class_diagram(input).unwrap();
-        let animal = model.classes.iter().find(|c| c.name == "Animal").unwrap();
+        let result = parse_class_diagram(input).unwrap();
+        let animal = result
+            .model
+            .classes
+            .iter()
+            .find(|c| c.name == "Animal")
+            .unwrap();
         assert_eq!(animal.members, vec!["+int age"]);
-        let duck = model.classes.iter().find(|c| c.name == "Duck").unwrap();
+        let duck = result
+            .model
+            .classes
+            .iter()
+            .find(|c| c.name == "Duck")
+            .unwrap();
         assert_eq!(duck.members, vec!["+swim()"]);
     }
 
@@ -955,10 +1028,27 @@ classDiagram
     class Dog
     Animal <|-- Dog
     Dog --> Bone : chews";
-        let model = parse_class_diagram(input).unwrap();
-        assert_eq!(model.classes.len(), 3); // Animal, Dog, Bone
-        assert_eq!(model.relations.len(), 2);
-        assert_eq!(model.classes[0].name, "Animal");
-        assert_eq!(model.classes[0].members.len(), 2);
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 3); // Animal, Dog, Bone
+        assert_eq!(result.model.relations.len(), 2);
+        assert_eq!(result.model.classes[0].name, "Animal");
+        assert_eq!(result.model.classes[0].members.len(), 2);
+    }
+
+    #[test]
+    fn parse_skipped_lines_produce_warnings() {
+        let input = "classDiagram\nclass User\nstyle User fill:#f00\nnote for User \"A note\"";
+        let result = parse_class_diagram(input).unwrap();
+        assert_eq!(result.model.classes.len(), 1);
+        assert_eq!(result.warnings.len(), 2);
+        assert!(result.warnings[0].message.contains("style User fill:#f00"));
+        assert!(result.warnings[1].message.contains("note for User"));
+    }
+
+    #[test]
+    fn parse_no_warnings_for_clean_input() {
+        let input = "classDiagram\nclass User\nclass Order\nUser --> Order";
+        let result = parse_class_diagram(input).unwrap();
+        assert!(result.warnings.is_empty());
     }
 }

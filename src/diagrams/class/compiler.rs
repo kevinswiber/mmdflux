@@ -226,8 +226,8 @@ mod tests {
     use crate::mermaid::class::parse_class_diagram;
 
     fn compile_class(input: &str) -> Graph {
-        let model = parse_class_diagram(input).unwrap();
-        compile(&model)
+        let result = parse_class_diagram(input).unwrap();
+        compile(&result.model)
     }
 
     #[test]

@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::{env, fmt, fs};
 
 use clap::{Parser, ValueEnum};
+use mmdflux::builtins::default_registry;
 use mmdflux::format::{Curve, EdgePreset, RoutingStyle};
 use mmdflux::graph::GeometryLevel;
 use mmdflux::simplification::PathSimplification;
@@ -179,6 +180,10 @@ struct Cli {
     /// Validate input and report diagnostics (no rendering)
     #[arg(long)]
     lint: bool,
+
+    /// Suppress warnings during rendering
+    #[arg(short, long)]
+    quiet: bool,
 
     /// Show node IDs alongside labels (e.g., "A: Start")
     #[arg(long)]
@@ -598,6 +603,22 @@ fn main() -> io::Result<()> {
 
     if cli.debug {
         eprintln!("Detected diagram type: {}", diagram_id);
+    }
+
+    // Collect and print warnings to stderr (unless --quiet).
+    if !cli.quiet
+        && let Some(instance) = default_registry().create(diagram_id)
+    {
+        let warnings = instance.validation_warnings(&input);
+        for w in &warnings {
+            let diag = ValidationDiagnostic {
+                severity: w.severity.clone(),
+                line: w.line,
+                column: w.column,
+                message: w.message.clone(),
+            };
+            eprintln!("{diag}");
+        }
     }
 
     // Render through the shared facade contract.

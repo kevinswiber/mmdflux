@@ -4,7 +4,7 @@
 //! then builds an owned graph-family payload for runtime dispatch.
 
 use super::compiler;
-use crate::errors::RenderError;
+use crate::errors::{ParseDiagnostic, RenderError};
 use crate::graph::Graph;
 use crate::mermaid::class::parse_class_diagram;
 use crate::registry::{DiagramInstance, ParsedDiagram};
@@ -28,10 +28,17 @@ impl DiagramInstance for ClassInstance {
         self: Box<Self>,
         input: &str,
     ) -> Result<Box<dyn ParsedDiagram>, Box<dyn std::error::Error + Send + Sync>> {
-        let model = parse_class_diagram(input)?;
+        let result = parse_class_diagram(input)?;
         Ok(Box::new(ParsedClass {
-            diagram: compiler::compile(&model),
+            diagram: compiler::compile(&result.model),
         }))
+    }
+
+    fn validation_warnings(&self, input: &str) -> Vec<ParseDiagnostic> {
+        match parse_class_diagram(input) {
+            Ok(result) => result.warnings,
+            Err(_) => Vec::new(),
+        }
     }
 }
 

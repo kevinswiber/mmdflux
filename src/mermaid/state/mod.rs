@@ -4,11 +4,23 @@
 //! Supports states, transitions, `[*]` pseudo-states, composite `state { }`
 //! blocks, stereotypes, direction overrides, and state descriptions.
 
+use crate::errors::ParseDiagnostic;
 use crate::graph::style::{
     parse_class_apply_statement, parse_classdef_statement_multi, parse_node_style_statement,
 };
 use crate::mermaid::ast::{ClassApplyStatement, ClassDefStatement, NodeStyleStatement};
 use crate::mermaid::flowchart::strip_frontmatter;
+
+/// Result of parsing a state diagram.
+///
+/// Contains the parsed model and any warnings collected during parsing.
+#[derive(Debug)]
+pub struct StateParseResult {
+    /// Parsed state model.
+    pub model: StateModel,
+    /// Warnings collected during parsing (e.g., skipped lines).
+    pub warnings: Vec<ParseDiagnostic>,
+}
 
 /// Parsed state diagram model.
 #[derive(Debug, Clone)]
@@ -101,11 +113,19 @@ pub struct StateTransition {
 /// Returns an error if the `stateDiagram-v2` header is missing.
 pub fn parse_state_diagram(
     input: &str,
-) -> Result<StateModel, Box<dyn std::error::Error + Send + Sync>> {
-    let input = strip_frontmatter(input);
-    let lines: Vec<&str> = input.lines().collect();
+) -> Result<StateParseResult, Box<dyn std::error::Error + Send + Sync>> {
+    let stripped = strip_frontmatter(input);
+    // Count lines consumed by frontmatter so warnings report original line numbers.
+    let frontmatter_lines = if std::ptr::eq(stripped.as_ptr(), input.as_ptr()) {
+        0
+    } else {
+        let consumed = stripped.as_ptr() as usize - input.as_ptr() as usize;
+        input[..consumed].lines().count()
+    };
+    let lines: Vec<&str> = stripped.lines().collect();
     let mut pos = 0;
     let mut direction: Option<String> = None;
+    let mut warnings: Vec<ParseDiagnostic> = Vec::new();
 
     // Skip leading comments and whitespace, then consume header.
     while pos < lines.len() {
@@ -126,11 +146,23 @@ pub fn parse_state_diagram(
         return Err("Missing 'stateDiagram' header".into());
     }
 
-    let statements = parse_body(&lines, &mut pos, &mut direction);
+    let statements = parse_body(&lines, &mut pos, &mut direction, &mut warnings);
 
-    Ok(StateModel {
-        direction,
-        statements,
+    // Adjust warning line numbers to account for stripped frontmatter.
+    if frontmatter_lines > 0 {
+        for warning in &mut warnings {
+            if let Some(line) = &mut warning.line {
+                *line += frontmatter_lines;
+            }
+        }
+    }
+
+    Ok(StateParseResult {
+        model: StateModel {
+            direction,
+            statements,
+        },
+        warnings,
     })
 }
 
@@ -139,6 +171,7 @@ fn parse_body(
     lines: &[&str],
     pos: &mut usize,
     direction: &mut Option<String>,
+    warnings: &mut Vec<ParseDiagnostic>,
 ) -> Vec<StateStatement> {
     let mut statements = Vec::new();
 
@@ -236,13 +269,18 @@ fn parse_body(
             // Composite state: `state Id { ... }`
             if trimmed.trim_end().ends_with('{') {
                 let mut inner_dir = None;
-                decl.children = parse_body(lines, pos, &mut inner_dir);
+                decl.children = parse_body(lines, pos, &mut inner_dir, warnings);
             }
             statements.push(StateStatement::State(decl));
             continue;
         }
 
-        // Permissive: skip unrecognized lines.
+        // Permissive: skip unrecognized lines but collect a warning.
+        warnings.push(ParseDiagnostic::warning(
+            Some(*pos + 1), // 1-indexed
+            None,
+            format!("skipped unrecognized line: {trimmed}"),
+        ));
         *pos += 1;
     }
 
@@ -537,9 +575,9 @@ mod tests {
 
     #[test]
     fn parse_empty_state_diagram() {
-        let model = parse_state_diagram("stateDiagram-v2\n").unwrap();
-        assert!(model.statements.is_empty());
-        assert!(model.direction.is_none());
+        let result = parse_state_diagram("stateDiagram-v2\n").unwrap();
+        assert!(result.model.statements.is_empty());
+        assert!(result.model.direction.is_none());
     }
 
     #[test]
@@ -550,9 +588,9 @@ mod tests {
 
     #[test]
     fn parse_basic_transition() {
-        let model = parse_state_diagram("stateDiagram-v2\n    A --> B").unwrap();
-        assert_eq!(model.statements.len(), 1);
-        let StateStatement::Transition(t) = &model.statements[0] else {
+        let result = parse_state_diagram("stateDiagram-v2\n    A --> B").unwrap();
+        assert_eq!(result.model.statements.len(), 1);
+        let StateStatement::Transition(t) = &result.model.statements[0] else {
             panic!("expected transition");
         };
         assert_eq!(t.from, "A");
@@ -562,8 +600,8 @@ mod tests {
 
     #[test]
     fn parse_transition_with_label() {
-        let model = parse_state_diagram("stateDiagram-v2\n    A --> B : submit").unwrap();
-        let StateStatement::Transition(t) = &model.statements[0] else {
+        let result = parse_state_diagram("stateDiagram-v2\n    A --> B : submit").unwrap();
+        let StateStatement::Transition(t) = &result.model.statements[0] else {
             panic!("expected transition");
         };
         assert_eq!(t.label, Some("submit".to_string()));
@@ -571,15 +609,15 @@ mod tests {
 
     #[test]
     fn parse_star_markers() {
-        let model =
+        let result =
             parse_state_diagram("stateDiagram-v2\n    [*] --> Idle\n    Done --> [*]").unwrap();
-        assert_eq!(model.statements.len(), 2);
-        let StateStatement::Transition(t0) = &model.statements[0] else {
+        assert_eq!(result.model.statements.len(), 2);
+        let StateStatement::Transition(t0) = &result.model.statements[0] else {
             panic!("expected transition");
         };
         assert_eq!(t0.from, "[*]");
         assert_eq!(t0.to, "Idle");
-        let StateStatement::Transition(t1) = &model.statements[1] else {
+        let StateStatement::Transition(t1) = &result.model.statements[1] else {
             panic!("expected transition");
         };
         assert_eq!(t1.from, "Done");
@@ -588,15 +626,15 @@ mod tests {
 
     #[test]
     fn parse_direction_directive() {
-        let model = parse_state_diagram("stateDiagram-v2\n    direction LR\n    A --> B").unwrap();
-        assert_eq!(model.direction, Some("LR".to_string()));
+        let result = parse_state_diagram("stateDiagram-v2\n    direction LR\n    A --> B").unwrap();
+        assert_eq!(result.model.direction, Some("LR".to_string()));
     }
 
     #[test]
     fn parse_state_declaration_with_description() {
-        let model =
+        let result =
             parse_state_diagram("stateDiagram-v2\n    state \"Waiting\" as waiting").unwrap();
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.id, "waiting");
@@ -606,20 +644,20 @@ mod tests {
 
     #[test]
     fn parse_skips_comments() {
-        let model = parse_state_diagram("stateDiagram-v2\n    %% comment\n    A --> B\n").unwrap();
-        assert_eq!(model.statements.len(), 1);
+        let result = parse_state_diagram("stateDiagram-v2\n    %% comment\n    A --> B\n").unwrap();
+        assert_eq!(result.model.statements.len(), 1);
     }
 
     #[test]
     fn parse_case_insensitive_header() {
-        let model = parse_state_diagram("STATEDIAGRAM-V2\n    A --> B").unwrap();
-        assert_eq!(model.statements.len(), 1);
+        let result = parse_state_diagram("STATEDIAGRAM-V2\n    A --> B").unwrap();
+        assert_eq!(result.model.statements.len(), 1);
     }
 
     #[test]
     fn parse_stereotype_fork() {
-        let model = parse_state_diagram("stateDiagram-v2\n    state forkNode <<fork>>").unwrap();
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram("stateDiagram-v2\n    state forkNode <<fork>>").unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.id, "forkNode");
@@ -634,8 +672,8 @@ stateDiagram-v2
     Idle --> Processing : submit
     Processing --> Done : complete
     Done --> [*]";
-        let model = parse_state_diagram(input).unwrap();
-        assert_eq!(model.statements.len(), 4);
+        let result = parse_state_diagram(input).unwrap();
+        assert_eq!(result.model.statements.len(), 4);
     }
 
     #[test]
@@ -648,10 +686,10 @@ stateDiagram-v2
         Running --> [*]
     }
     Active --> [*]";
-        let model = parse_state_diagram(input).unwrap();
+        let result = parse_state_diagram(input).unwrap();
         // [*] --> Active, state Active { ... }, Active --> [*]
-        assert_eq!(model.statements.len(), 3);
-        let StateStatement::State(decl) = &model.statements[1] else {
+        assert_eq!(result.model.statements.len(), 3);
+        let StateStatement::State(decl) = &result.model.statements[1] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.id, "Active");
@@ -667,8 +705,8 @@ stateDiagram-v2
         [*] --> Validating
         Validating --> [*]
     }";
-        let model = parse_state_diagram(input).unwrap();
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.id, "Processing");
@@ -683,8 +721,8 @@ stateDiagram-v2
     #[test]
     fn parse_inline_description() {
         let input = "stateDiagram-v2\n    Active : The system is active";
-        let model = parse_state_diagram(input).unwrap();
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.id, "Active");
@@ -699,24 +737,30 @@ stateDiagram-v2
     class Error badState
     style Active fill:green
     A --> B";
-        let model = parse_state_diagram(input).unwrap();
-        assert_eq!(model.statements.len(), 4); // classDef + class + style + transition
-        assert!(matches!(&model.statements[0], StateStatement::ClassDef(_)));
+        let result = parse_state_diagram(input).unwrap();
+        assert_eq!(result.model.statements.len(), 4); // classDef + class + style + transition
         assert!(matches!(
-            &model.statements[1],
+            &result.model.statements[0],
+            StateStatement::ClassDef(_)
+        ));
+        assert!(matches!(
+            &result.model.statements[1],
             StateStatement::ClassApply(_)
         ));
-        assert!(matches!(&model.statements[2], StateStatement::Style(_)));
         assert!(matches!(
-            &model.statements[3],
+            &result.model.statements[2],
+            StateStatement::Style(_)
+        ));
+        assert!(matches!(
+            &result.model.statements[3],
             StateStatement::Transition(_)
         ));
     }
 
     #[test]
     fn parse_stereotype_join() {
-        let model = parse_state_diagram("stateDiagram-v2\n    state jn <<join>>").unwrap();
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram("stateDiagram-v2\n    state jn <<join>>").unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.stereotype, Some(StateStereotype::Join));
@@ -724,8 +768,8 @@ stateDiagram-v2
 
     #[test]
     fn parse_stereotype_choice() {
-        let model = parse_state_diagram("stateDiagram-v2\n    state ch <<choice>>").unwrap();
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram("stateDiagram-v2\n    state ch <<choice>>").unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.stereotype, Some(StateStereotype::Choice));
@@ -733,8 +777,8 @@ stateDiagram-v2
 
     #[test]
     fn parse_bracket_stereotype_fork() {
-        let model = parse_state_diagram("stateDiagram-v2\n    state fk [[fork]]").unwrap();
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram("stateDiagram-v2\n    state fk [[fork]]").unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.stereotype, Some(StateStereotype::Fork));
@@ -742,8 +786,8 @@ stateDiagram-v2
 
     #[test]
     fn parse_bracket_stereotype_join() {
-        let model = parse_state_diagram("stateDiagram-v2\n    state jn [[join]]").unwrap();
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram("stateDiagram-v2\n    state jn [[join]]").unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.stereotype, Some(StateStereotype::Join));
@@ -751,8 +795,8 @@ stateDiagram-v2
 
     #[test]
     fn parse_bracket_stereotype_choice() {
-        let model = parse_state_diagram("stateDiagram-v2\n    state ch [[choice]]").unwrap();
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram("stateDiagram-v2\n    state ch [[choice]]").unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.stereotype, Some(StateStereotype::Choice));
@@ -760,8 +804,8 @@ stateDiagram-v2
 
     #[test]
     fn parse_v1_header() {
-        let model = parse_state_diagram("stateDiagram\n    A --> B").unwrap();
-        assert_eq!(model.statements.len(), 1);
+        let result = parse_state_diagram("stateDiagram\n    A --> B").unwrap();
+        assert_eq!(result.model.statements.len(), 1);
     }
 
     #[test]
@@ -775,9 +819,9 @@ stateDiagram-v2
     #[test]
     fn parse_note_single_line() {
         let input = "stateDiagram-v2\n    note right of State1 : Important info";
-        let model = parse_state_diagram(input).unwrap();
-        assert_eq!(model.statements.len(), 1);
-        let StateStatement::Note(note) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        assert_eq!(result.model.statements.len(), 1);
+        let StateStatement::Note(note) = &result.model.statements[0] else {
             panic!("expected note");
         };
         assert_eq!(note.state_id, "State1");
@@ -788,8 +832,8 @@ stateDiagram-v2
     #[test]
     fn parse_note_left_of() {
         let input = "stateDiagram-v2\n    note left of State2 : Left note";
-        let model = parse_state_diagram(input).unwrap();
-        let StateStatement::Note(note) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::Note(note) = &result.model.statements[0] else {
             panic!("expected note");
         };
         assert_eq!(note.position, NotePosition::Left);
@@ -804,8 +848,8 @@ stateDiagram-v2
         Line one
         Line two
     end note";
-        let model = parse_state_diagram(input).unwrap();
-        let StateStatement::Note(note) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::Note(note) = &result.model.statements[0] else {
             panic!("expected note");
         };
         assert_eq!(note.state_id, "State1");
@@ -816,8 +860,8 @@ stateDiagram-v2
     #[test]
     fn parse_transition_with_class_annotation_to() {
         let input = "stateDiagram-v2\n    [*] --> Active:::running\n";
-        let model = parse_state_diagram(input).unwrap();
-        let StateStatement::Transition(t) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::Transition(t) = &result.model.statements[0] else {
             panic!("expected transition");
         };
         assert_eq!(t.to, "Active");
@@ -828,8 +872,8 @@ stateDiagram-v2
     #[test]
     fn parse_transition_with_class_annotation_from() {
         let input = "stateDiagram-v2\n    Active:::running --> Done\n";
-        let model = parse_state_diagram(input).unwrap();
-        let StateStatement::Transition(t) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::Transition(t) = &result.model.statements[0] else {
             panic!("expected transition");
         };
         assert_eq!(t.from, "Active");
@@ -840,8 +884,8 @@ stateDiagram-v2
     #[test]
     fn parse_transition_no_class_annotation() {
         let input = "stateDiagram-v2\n    [*] --> Active\n";
-        let model = parse_state_diagram(input).unwrap();
-        let StateStatement::Transition(t) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::Transition(t) = &result.model.statements[0] else {
             panic!("expected transition");
         };
         assert_eq!(t.from_class, None);
@@ -851,10 +895,10 @@ stateDiagram-v2
     #[test]
     fn parse_still_discards_click() {
         let input = "stateDiagram-v2\n    click Idle callback\n    [*] --> Idle\n";
-        let model = parse_state_diagram(input).unwrap();
-        assert_eq!(model.statements.len(), 1);
+        let result = parse_state_diagram(input).unwrap();
+        assert_eq!(result.model.statements.len(), 1);
         assert!(matches!(
-            &model.statements[0],
+            &result.model.statements[0],
             StateStatement::Transition(_)
         ));
     }
@@ -862,9 +906,9 @@ stateDiagram-v2
     #[test]
     fn parse_state_decl_class_annotation() {
         let input = "stateDiagram-v2\n    state Running:::active\n";
-        let model = parse_state_diagram(input).unwrap();
-        assert_eq!(model.statements.len(), 1);
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        assert_eq!(result.model.statements.len(), 1);
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.id, "Running");
@@ -874,12 +918,41 @@ stateDiagram-v2
     #[test]
     fn parse_state_decl_alias_class_annotation() {
         let input = "stateDiagram-v2\n    state \"Running\" as R:::active\n";
-        let model = parse_state_diagram(input).unwrap();
-        assert_eq!(model.statements.len(), 1);
-        let StateStatement::State(decl) = &model.statements[0] else {
+        let result = parse_state_diagram(input).unwrap();
+        assert_eq!(result.model.statements.len(), 1);
+        let StateStatement::State(decl) = &result.model.statements[0] else {
             panic!("expected state decl");
         };
         assert_eq!(decl.id, "R");
         assert_eq!(decl.class_name.as_deref(), Some("active"));
+    }
+
+    #[test]
+    fn parse_skipped_lines_produce_warnings() {
+        let input = "stateDiagram-v2\n    [*] --> Idle\n    unknown directive here\n";
+        let result = parse_state_diagram(input).unwrap();
+        assert_eq!(result.model.statements.len(), 1);
+        assert_eq!(result.warnings.len(), 1);
+        assert!(
+            result.warnings[0]
+                .message
+                .contains("unknown directive here")
+        );
+    }
+
+    #[test]
+    fn parse_skipped_line_with_frontmatter_reports_original_line_number() {
+        let input = "---\nconfig:\n  theme: dark\n---\nstateDiagram-v2\n    [*] --> Idle\n    unknown line\n";
+        let result = parse_state_diagram(input).unwrap();
+        assert_eq!(result.warnings.len(), 1);
+        // "unknown line" is on physical line 7 (1-indexed), not line 3.
+        assert_eq!(result.warnings[0].line, Some(7));
+    }
+
+    #[test]
+    fn parse_no_warnings_for_clean_input() {
+        let input = "stateDiagram-v2\n    [*] --> Idle\n    Idle --> Done\n    Done --> [*]\n";
+        let result = parse_state_diagram(input).unwrap();
+        assert!(result.warnings.is_empty());
     }
 }
