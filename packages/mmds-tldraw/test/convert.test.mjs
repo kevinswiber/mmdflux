@@ -1345,7 +1345,7 @@ test("SUPPORTED_DIAGRAM_TYPES is exported and contains expected types", () => {
 
 // ── Phase 3: Backward edge arrowhead swap ───────────────────────────
 
-test("swaps arrowheads for backward edges", () => {
+test("swaps arrowheads for backward edges without routed path", () => {
   const mmds = {
     version: 1,
     geometry_level: "layout",
@@ -1393,6 +1393,63 @@ test("swaps arrowheads for backward edges", () => {
   // Arrowheads should be swapped: start gets "arrow" (from end's "normal"), end gets "none"
   assert.equal(arrow.props.arrowheadStart, "arrow");
   assert.equal(arrow.props.arrowheadEnd, "none");
+});
+
+test("preserves arrowheads for backward edges with routed path", () => {
+  const mmds = {
+    version: 2,
+    geometry_level: "routed",
+    defaults: {
+      node: { shape: "rectangle" },
+      edge: {
+        stroke: "solid",
+        arrow_start: "none",
+        arrow_end: "normal",
+        minlen: 1,
+      },
+    },
+    metadata: { diagram_type: "state", direction: "TD" },
+    nodes: [
+      {
+        id: "Running",
+        label: "Running",
+        position: { x: 50, y: 0 },
+        size: { width: 80, height: 30 },
+      },
+      {
+        id: "Paused",
+        label: "Paused",
+        position: { x: 50, y: 100 },
+        size: { width: 80, height: 30 },
+      },
+    ],
+    edges: [
+      {
+        id: "e0",
+        source: "Paused",
+        target: "Running",
+        label: "resume",
+        arrow_start: "none",
+        arrow_end: "normal",
+        is_backward: true,
+        path: [
+          [90, 100],
+          [120, 50],
+          [90, 0],
+        ],
+      },
+    ],
+  };
+  const converted = convertToTldraw(mmds);
+  const arrow = converted.records.find(
+    (r) =>
+      r.typeName === "shape" && r.type === "arrow" && r.id === "shape:edge_e0",
+  );
+  assert.ok(arrow);
+  // With a routed path, arrowheads should NOT be swapped — the path already
+  // defines the correct visual direction (Paused → Running).
+  assert.equal(arrow.props.arrowheadStart, "none");
+  assert.equal(arrow.props.arrowheadEnd, "arrow");
 });
 
 test("preserves arrowheads for non-backward edges", () => {

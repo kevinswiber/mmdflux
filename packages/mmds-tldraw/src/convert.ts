@@ -1321,12 +1321,14 @@ export function convertToTldraw(
             fill: "none",
             dash,
             size,
-            arrowheadStart: edge.is_backward
-              ? mapArrowhead(edge.arrow_end)
-              : mapArrowhead(edge.arrow_start),
-            arrowheadEnd: edge.is_backward
-              ? mapArrowhead(edge.arrow_start)
-              : mapArrowhead(edge.arrow_end),
+            arrowheadStart:
+              edge.is_backward && routedPoints.length < 2
+                ? mapArrowhead(edge.arrow_end)
+                : mapArrowhead(edge.arrow_start),
+            arrowheadEnd:
+              edge.is_backward && routedPoints.length < 2
+                ? mapArrowhead(edge.arrow_start)
+                : mapArrowhead(edge.arrow_end),
             font: "draw",
             start: { x: 0, y: 0 },
             end: {
@@ -1458,12 +1460,14 @@ export function convertToTldraw(
         fill: "none",
         dash: mapDash(edge.stroke),
         size: mapSize(edge.stroke),
-        arrowheadStart: edge.is_backward
-          ? mapArrowhead(edge.arrow_end)
-          : mapArrowhead(edge.arrow_start),
-        arrowheadEnd: edge.is_backward
-          ? mapArrowhead(edge.arrow_start)
-          : mapArrowhead(edge.arrow_end),
+        arrowheadStart:
+          edge.is_backward && !hasRoutedPath
+            ? mapArrowhead(edge.arrow_end)
+            : mapArrowhead(edge.arrow_start),
+        arrowheadEnd:
+          edge.is_backward && !hasRoutedPath
+            ? mapArrowhead(edge.arrow_start)
+            : mapArrowhead(edge.arrow_end),
         font: "draw",
         start: { x: 0, y: 0 },
         end: { x: end.x - start.x, y: end.y - start.y },
