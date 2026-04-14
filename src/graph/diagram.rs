@@ -39,6 +39,11 @@ pub struct Subgraph {
     /// Used for note groups that wrap a state + note pair.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub invisible: bool,
+    /// IDs of child subgraphs that represent concurrent regions (from `--` dividers).
+    /// Only set on the parent composite state. The renderer draws divider lines between
+    /// adjacent region subgraphs. Empty for non-concurrent composites.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub concurrent_regions: Vec<String>,
 }
 
 /// Position of a note annotation relative to its target node.
@@ -111,6 +116,22 @@ impl Graph {
         self.nodes.keys()
     }
 
+    /// Return the set of subgraph IDs that are concurrent regions.
+    ///
+    /// Concurrent region subgraphs are layout-transparent: they exist in the
+    /// graph IR for rendering purposes but do not participate in compound
+    /// layout (no border nodes). Their bounds are derived post-layout from
+    /// member node positions.
+    pub fn concurrent_region_ids(&self) -> HashSet<String> {
+        let mut ids = HashSet::new();
+        for sg in self.subgraphs.values() {
+            for id in &sg.concurrent_regions {
+                ids.insert(id.clone());
+            }
+        }
+        ids
+    }
+
     /// Check if the diagram contains any subgraphs.
     pub fn has_subgraphs(&self) -> bool {
         !self.subgraphs.is_empty()
@@ -123,17 +144,27 @@ impl Graph {
 
     /// Find the first non-compound (leaf) child node within a subgraph.
     ///
+    /// Recurses into child subgraphs when all direct children are compounds
+    /// (e.g., concurrent regions that only contain nested composite states).
     /// Returns `None` for empty subgraphs or nonexistent IDs.
     /// This is the Rust equivalent of Mermaid's `findNonClusterChild()`.
     pub fn find_non_cluster_child(&self, subgraph_id: &str) -> Option<String> {
         let sg = self.subgraphs.get(subgraph_id)?;
-        sg.nodes.iter().find(|id| !self.is_subgraph(id)).cloned()
+        if let Some(leaf) = sg.nodes.iter().find(|id| !self.is_subgraph(id)) {
+            return Some(leaf.clone());
+        }
+        // All direct children are subgraphs — recurse into the first one.
+        sg.nodes
+            .iter()
+            .filter(|id| self.is_subgraph(id))
+            .find_map(|id| self.find_non_cluster_child(id))
     }
 
     /// Find a sink node in a subgraph — a non-cluster child with no successors
     /// within the subgraph.  Used when the subgraph is the **source** of an edge
     /// so the target ends up ranked after the entire subgraph.
     /// Falls back to `find_non_cluster_child` if every node has a successor.
+    /// Recurses into child subgraphs when all direct children are compounds.
     pub fn find_subgraph_sink(&self, subgraph_id: &str) -> Option<String> {
         let sg = self.subgraphs.get(subgraph_id)?;
         let sg_node_set: std::collections::HashSet<&str> =
@@ -144,6 +175,16 @@ impl Graph {
             .filter(|id| !self.is_subgraph(id))
             .map(|s| s.as_str())
             .collect();
+
+        if non_cluster.is_empty() {
+            // All direct children are subgraphs — recurse into the last one.
+            return sg
+                .nodes
+                .iter()
+                .rev()
+                .filter(|id| self.is_subgraph(id))
+                .find_map(|id| self.find_subgraph_sink(id));
+        }
 
         let sink = non_cluster.iter().find(|&&node| {
             !self
@@ -219,6 +260,7 @@ mod tests {
             parent: None,
             dir: None,
             invisible: false,
+            concurrent_regions: Vec::new(),
         };
         assert_eq!(sg.id, "sg1");
         assert_eq!(sg.title, "My Group");
@@ -234,6 +276,7 @@ mod tests {
             parent: Some("outer".to_string()),
             dir: None,
             invisible: false,
+            concurrent_regions: Vec::new(),
         };
         assert_eq!(sg.parent, Some("outer".to_string()));
     }
@@ -263,6 +306,7 @@ mod tests {
                 parent: None,
                 dir: None,
                 invisible: false,
+                concurrent_regions: Vec::new(),
             },
         );
         assert!(diagram.has_subgraphs());
@@ -282,6 +326,7 @@ mod tests {
                 parent: None,
                 dir: None,
                 invisible: false,
+                concurrent_regions: Vec::new(),
             },
         );
         g
@@ -308,6 +353,7 @@ mod tests {
                 parent: Some("sg1".to_string()),
                 dir: None,
                 invisible: false,
+                concurrent_regions: Vec::new(),
             },
         );
         // "inner" is a subgraph, so it should be skipped; "A" or "B" returned.
@@ -328,6 +374,7 @@ mod tests {
                 parent: None,
                 dir: None,
                 invisible: false,
+                concurrent_regions: Vec::new(),
             },
         );
         assert!(g.find_non_cluster_child("sg1").is_none());
@@ -357,6 +404,7 @@ mod tests {
                 parent: None,
                 dir: None,
                 invisible: false,
+                concurrent_regions: Vec::new(),
             },
         );
         let sink = g.find_subgraph_sink("sg1");
@@ -380,6 +428,7 @@ mod tests {
                 parent: None,
                 dir: None,
                 invisible: false,
+                concurrent_regions: Vec::new(),
             },
         );
         let sink = g.find_subgraph_sink("sg1");

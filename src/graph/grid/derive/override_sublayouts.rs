@@ -248,6 +248,7 @@ pub(super) fn reconcile_sublayouts_draw(
                 title: sg.title.clone(),
                 depth,
                 invisible: sg.invisible,
+                concurrent_regions: Vec::new(),
             },
         );
 
@@ -857,6 +858,7 @@ pub(super) fn layout_compound_parent_members(
                 title: sg.title.clone(),
                 depth,
                 invisible: sg.invisible,
+                concurrent_regions: Vec::new(),
             },
         );
 

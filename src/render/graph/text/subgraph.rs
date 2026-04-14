@@ -6,7 +6,7 @@ use crate::graph::grid::SubgraphBounds;
 use crate::render::text::canvas::Canvas;
 use crate::render::text::chars::CharSet;
 
-/// Render subgraph border rectangles on the canvas.
+/// Render subgraph border rectangles and concurrent region dividers on the canvas.
 ///
 /// Draws borders BEFORE nodes and edges so they appear in the background.
 /// Cells are marked as `is_subgraph_border` (not protected from overwrite).
@@ -97,6 +97,64 @@ pub fn render_subgraph_borders(
         }
         canvas.set_subgraph_border(x + w - 1, y + h - 1, charset.corner_br);
     }
+
+    // Draw dashed divider lines between concurrent regions.
+    render_region_dividers(canvas, subgraph_bounds, charset);
+}
+
+/// Draw dashed vertical dividers between concurrent region subgraphs.
+///
+/// Concurrent regions are always arranged LR (side-by-side), matching UML
+/// convention. For each parent subgraph with `concurrent_regions`, draws a
+/// vertical dashed line between each pair of adjacent regions.
+fn render_region_dividers(
+    canvas: &mut Canvas,
+    subgraph_bounds: &HashMap<String, SubgraphBounds>,
+    charset: &CharSet,
+) {
+    for parent in subgraph_bounds.values() {
+        if parent.concurrent_regions.len() < 2 {
+            continue;
+        }
+
+        // Collect region bounds in order, skipping any that are missing.
+        let region_bounds: Vec<&SubgraphBounds> = parent
+            .concurrent_regions
+            .iter()
+            .filter_map(|id| subgraph_bounds.get(id))
+            .collect();
+
+        // Draw a vertical divider between each pair of adjacent (LR) regions.
+        for pair in region_bounds.windows(2) {
+            let left_region = pair[0];
+            let right_region = pair[1];
+
+            // Divider x: midpoint between right edge of left region and left edge of right.
+            let left_right_edge = left_region.x + left_region.width;
+            let right_left_edge = right_region.x;
+            if right_left_edge <= left_right_edge {
+                continue;
+            }
+            let divider_x = left_right_edge + (right_left_edge - left_right_edge) / 2;
+
+            // Divider spans the parent's inner height (between top/bottom borders).
+            let top = parent.y + 1;
+            let bottom = parent.y + parent.height - 1;
+            // Top junction: ┬ (connects to parent's top border).
+            // Skip if the cell contains a title character to avoid overwriting.
+            let top_is_title = canvas
+                .get(divider_x, parent.y)
+                .is_some_and(|c| c.is_subgraph_title);
+            if !top_is_title {
+                canvas.set_subgraph_border(divider_x, parent.y, charset.tee_down);
+            }
+            for dy in top..bottom {
+                canvas.set_subgraph_border(divider_x, dy, charset.dotted_vertical);
+            }
+            // Bottom junction: ┴ (connects to parent's bottom border)
+            canvas.set_subgraph_border(divider_x, parent.y + parent.height - 1, charset.tee_up);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -114,6 +172,7 @@ mod tests {
             title: "Group".to_string(),
             depth: 0,
             invisible: false,
+            concurrent_regions: Vec::new(),
         };
         let mut map = HashMap::new();
         map.insert("sg1".to_string(), bounds);
@@ -155,6 +214,7 @@ mod tests {
             title: "Group".to_string(),
             depth: 0,
             invisible: false,
+            concurrent_regions: Vec::new(),
         };
         let mut map = HashMap::new();
         map.insert("sg1".to_string(), bounds);
@@ -183,6 +243,7 @@ mod tests {
             title: "Test".to_string(),
             depth: 0,
             invisible: false,
+            concurrent_regions: Vec::new(),
         };
         let mut map = HashMap::new();
         map.insert("sg1".to_string(), bounds);
@@ -212,6 +273,7 @@ mod tests {
             title: "Group".to_string(),
             depth: 0,
             invisible: false,
+            concurrent_regions: Vec::new(),
         };
         let mut map = HashMap::new();
         map.insert("sg1".to_string(), bounds);
@@ -248,6 +310,7 @@ mod tests {
             title: "TopGroup".to_string(),
             depth: 0,
             invisible: false,
+            concurrent_regions: Vec::new(),
         };
         let mut map = HashMap::new();
         map.insert("sg1".to_string(), bounds);
@@ -277,6 +340,7 @@ mod tests {
             title: "Very Long Title".to_string(),
             depth: 0,
             invisible: false,
+            concurrent_regions: Vec::new(),
         };
         let mut map = HashMap::new();
         map.insert("sg1".to_string(), bounds);
@@ -306,6 +370,7 @@ mod tests {
             title: " ".to_string(),
             depth: 0,
             invisible: false,
+            concurrent_regions: Vec::new(),
         };
         let mut map = HashMap::new();
         map.insert("sg1".to_string(), bounds);

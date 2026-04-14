@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 220.89 674.00" style="max-width: 220.89px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(-25.00,0.00)">
+    <g class="clusters">
+      <rect class="subgraph" x="33.00" y="126.00" width="204.89" height="392.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="135.45" y="130.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Active</text>
+      <line x1="135.45" y1="126.00" x2="135.45" y2="518.00" stroke="#888" stroke-width="1.00" stroke-dasharray="6,4" />
+    </g>
+    <g class="edgePaths">
+      <path d="M86.72,22.00 L86.72,69.00 Q86.72,74.00 91.72,74.00 L130.45,74.00 Q135.45,74.00 135.45,79.00 L135.45,122.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M86.72,186.00 L86.72,232.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M86.72,290.00 L86.72,336.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M86.72,394.00 L86.72,440.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M184.17,186.00 L184.17,232.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M184.17,290.00 L184.17,336.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M184.17,394.00 L184.17,440.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M135.45,518.00 L135.45,573.00 Q135.45,578.00 130.45,578.00 L91.72,578.00 Q86.72,578.00 86.72,583.00 L86.72,634.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="63.00" y="236.00" width="47.45" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="86.72" y="263.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A1</text>
+      <rect x="63.00" y="340.00" width="47.45" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="86.72" y="367.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A2</text>
+      <circle cx="86.72" cy="458.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <circle cx="86.72" cy="458.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="86.72" y="458.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <circle cx="86.72" cy="179.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="86.72" y="179.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <circle cx="184.17" cy="458.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <circle cx="184.17" cy="458.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="184.17" y="458.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <circle cx="184.17" cy="179.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="184.17" y="179.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <rect x="160.45" y="236.00" width="47.45" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="184.17" y="263.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B1</text>
+      <rect x="160.45" y="340.00" width="47.45" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="184.17" y="367.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B2</text>
+      <circle cx="86.72" cy="652.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <circle cx="86.72" cy="652.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="86.72" y="652.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <circle cx="86.72" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="86.72" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+    </g>
+    <g class="edgeLabels">
+    </g>
+  </g>
+</svg>

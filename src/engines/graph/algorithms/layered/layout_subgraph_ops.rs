@@ -734,6 +734,317 @@ pub(crate) fn expand_parent_bounds(
     }
 }
 
+/// Rearrange concurrent region subgraphs from vertical stacking to horizontal
+/// (LR) side-by-side arrangement.
+///
+/// The compound layout stacks regions vertically via invisible inter-region
+/// edges. This function transforms that vertical arrangement into the UML
+/// convention of horizontal concurrent regions separated by vertical dashed
+/// dividers.
+///
+/// Must be called **after** `expand_parent_bounds` so region bounds are
+/// finalized, and **before** `from_layered_layout` so the GraphGeometry
+/// adapter sees the rearranged positions.
+pub(crate) fn rearrange_concurrent_regions(
+    diagram: &Graph,
+    layout: &mut layered::LayoutResult,
+    region_gap: f64,
+) {
+    // Collect all node IDs that belong to any concurrent region (including
+    // the parent composite subgraph compound node and region compound nodes).
+    // These are "internal" to the rearrangement and should NOT be shifted
+    // during the downstream pull-up pass.
+    let mut all_internal_ids: HashSet<String> = HashSet::new();
+    let mut did_rearrange = false;
+
+    for sg in diagram.subgraphs.values() {
+        if sg.concurrent_regions.len() < 2 {
+            continue;
+        }
+
+        // Record the old parent bottom before rearrangement.
+        let old_parent_bottom = layout
+            .subgraph_bounds
+            .get(&sg.id)
+            .map(|b| b.y + b.height)
+            .unwrap_or(0.0);
+
+        // Collect region bounds; skip if any region is missing bounds.
+        let region_bounds: Vec<(String, Rect)> = sg
+            .concurrent_regions
+            .iter()
+            .filter_map(|id| layout.subgraph_bounds.get(id).map(|r| (id.clone(), *r)))
+            .collect();
+
+        if region_bounds.len() < 2 {
+            continue;
+        }
+
+        did_rearrange = true;
+
+        // Collect all descendant node IDs for each region (leaf nodes + nested
+        // subgraph compound nodes).
+        let region_members: Vec<HashSet<String>> = sg
+            .concurrent_regions
+            .iter()
+            .map(|region_id| collect_all_descendants(diagram, region_id))
+            .collect();
+
+        // Collect nested subgraph IDs for each region.
+        let region_nested_sgs: Vec<HashSet<String>> = sg
+            .concurrent_regions
+            .iter()
+            .map(|region_id| collect_descendant_subgraphs(diagram, region_id))
+            .collect();
+
+        // Track internal IDs for the pull-up exclusion set.
+        all_internal_ids.insert(sg.id.clone());
+        for region_id in &sg.concurrent_regions {
+            all_internal_ids.insert(region_id.clone());
+        }
+        for members in &region_members {
+            all_internal_ids.extend(members.iter().cloned());
+        }
+        for nested in &region_nested_sgs {
+            all_internal_ids.extend(nested.iter().cloned());
+        }
+
+        // Build edge membership: edge index → region index (if both endpoints
+        // are in the same region).
+        let mut edge_to_region: HashMap<usize, usize> = HashMap::new();
+        for (edge_idx, edge) in diagram.edges.iter().enumerate() {
+            for (ri, members) in region_members.iter().enumerate() {
+                if members.contains(&edge.from) && members.contains(&edge.to) {
+                    edge_to_region.insert(edge_idx, ri);
+                    break;
+                }
+            }
+        }
+
+        // Region 0 stays in place.  For each subsequent region, compute the
+        // translation that places it to the right of the previous region.
+        let base_top = region_bounds[0].1.y;
+        let mut cursor_x = region_bounds[0].1.x + region_bounds[0].1.width;
+
+        for i in 1..region_bounds.len() {
+            let (ref _region_id, ref region_rect) = region_bounds[i];
+            let dx = cursor_x + region_gap - region_rect.x;
+            let dy = base_top - region_rect.y;
+
+            // Shift member leaf nodes.
+            for member_id in &region_members[i] {
+                if let Some(rect) = layout.nodes.get_mut(&layered::NodeId(member_id.clone())) {
+                    rect.x += dx;
+                    rect.y += dy;
+                }
+            }
+
+            // Shift nested subgraph bounds and their compound node rects.
+            for nested_id in &region_nested_sgs[i] {
+                if let Some(bounds) = layout.subgraph_bounds.get_mut(nested_id) {
+                    bounds.x += dx;
+                    bounds.y += dy;
+                }
+                if let Some(rect) = layout.nodes.get_mut(&layered::NodeId(nested_id.clone())) {
+                    rect.x += dx;
+                    rect.y += dy;
+                }
+            }
+
+            // Shift the region subgraph bounds itself.
+            let region_id = &sg.concurrent_regions[i];
+            if let Some(bounds) = layout.subgraph_bounds.get_mut(region_id) {
+                bounds.x += dx;
+                bounds.y += dy;
+            }
+            if let Some(rect) = layout.nodes.get_mut(&layered::NodeId(region_id.clone())) {
+                rect.x += dx;
+                rect.y += dy;
+            }
+
+            // Shift edge paths for edges within this region.
+            for edge in layout.edges.iter_mut() {
+                if edge_to_region.get(&edge.index) == Some(&i) {
+                    for pt in &mut edge.points {
+                        pt.x += dx;
+                        pt.y += dy;
+                    }
+                }
+            }
+
+            // Shift edge waypoints.
+            for (&edge_idx, wps) in layout.edge_waypoints.iter_mut() {
+                if edge_to_region.get(&edge_idx) == Some(&i) {
+                    for wp in wps.iter_mut() {
+                        wp.point.x += dx;
+                        wp.point.y += dy;
+                    }
+                }
+            }
+
+            // Shift label positions.
+            for (&edge_idx, lp) in layout.label_positions.iter_mut() {
+                if edge_to_region.get(&edge_idx) == Some(&i) {
+                    lp.point.x += dx;
+                    lp.point.y += dy;
+                }
+            }
+
+            // Shift self-edge paths.
+            for sel in layout.self_edges.iter_mut() {
+                if region_members[i].contains(&sel.node.0) {
+                    for pt in &mut sel.points {
+                        pt.x += dx;
+                        pt.y += dy;
+                    }
+                }
+            }
+
+            cursor_x += region_rect.width + region_gap;
+        }
+
+        // Recompute parent bounds to encompass all horizontally-arranged regions.
+        let mut min_x = f64::INFINITY;
+        let mut min_y = f64::INFINITY;
+        let mut max_x = f64::NEG_INFINITY;
+        let mut max_y = f64::NEG_INFINITY;
+        for region_id in &sg.concurrent_regions {
+            if let Some(bounds) = layout.subgraph_bounds.get(region_id) {
+                min_x = min_x.min(bounds.x);
+                min_y = min_y.min(bounds.y);
+                max_x = max_x.max(bounds.x + bounds.width);
+                max_y = max_y.max(bounds.y + bounds.height);
+            }
+        }
+        if min_x.is_finite() {
+            // Preserve the padding the compound layout gave the parent.
+            let old_parent = layout.subgraph_bounds.get(&sg.id).copied();
+            let (pad_x, pad_y) = if let Some(pb) = old_parent {
+                let old_r0 = &region_bounds[0].1;
+                let px = (old_r0.x - pb.x).max(0.0);
+                let py = (old_r0.y - pb.y).max(0.0);
+                (px, py)
+            } else {
+                (0.0, 0.0)
+            };
+            let new_bounds = Rect {
+                x: min_x - pad_x,
+                y: min_y - pad_y,
+                width: (max_x - min_x) + 2.0 * pad_x,
+                height: (max_y - min_y) + 2.0 * pad_y,
+            };
+            layout.subgraph_bounds.insert(sg.id.clone(), new_bounds);
+            if let Some(rect) = layout.nodes.get_mut(&layered::NodeId(sg.id.clone())) {
+                *rect = new_bounds;
+            }
+
+            // Pull up downstream content that was positioned below the old
+            // (vertically-stacked) parent bounds.  The parent is now shorter,
+            // so everything below needs to move up by the height difference.
+            let new_parent_bottom = new_bounds.y + new_bounds.height;
+            let vertical_shrink = old_parent_bottom - new_parent_bottom;
+            if vertical_shrink > 0.0 {
+                for (nid, rect) in layout.nodes.iter_mut() {
+                    if !all_internal_ids.contains(&nid.0) && rect.y >= old_parent_bottom {
+                        rect.y -= vertical_shrink;
+                    }
+                }
+                for (sg_id, bounds) in layout.subgraph_bounds.iter_mut() {
+                    if !all_internal_ids.contains(sg_id) && bounds.y >= old_parent_bottom {
+                        bounds.y -= vertical_shrink;
+                    }
+                }
+                // Shift edge paths, waypoints, label positions, and self-edges
+                // for non-internal edges below the old bottom.
+                for edge in layout.edges.iter_mut() {
+                    if !edge_to_region.contains_key(&edge.index) {
+                        for pt in &mut edge.points {
+                            if pt.y >= old_parent_bottom {
+                                pt.y -= vertical_shrink;
+                            }
+                        }
+                    }
+                }
+                for (&edge_idx, wps) in layout.edge_waypoints.iter_mut() {
+                    if !edge_to_region.contains_key(&edge_idx) {
+                        for wp in wps.iter_mut() {
+                            if wp.point.y >= old_parent_bottom {
+                                wp.point.y -= vertical_shrink;
+                            }
+                        }
+                    }
+                }
+                for (&edge_idx, lp) in layout.label_positions.iter_mut() {
+                    if !edge_to_region.contains_key(&edge_idx) && lp.point.y >= old_parent_bottom {
+                        lp.point.y -= vertical_shrink;
+                    }
+                }
+                for sel in layout.self_edges.iter_mut() {
+                    if !all_internal_ids.contains(&sel.node.0) {
+                        for pt in &mut sel.points {
+                            if pt.y >= old_parent_bottom {
+                                pt.y -= vertical_shrink;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update overall layout dimensions from actual content.
+    if did_rearrange {
+        let mut max_right = 0.0f64;
+        let mut max_bottom = 0.0f64;
+        for rect in layout.nodes.values() {
+            max_right = max_right.max(rect.x + rect.width);
+            max_bottom = max_bottom.max(rect.y + rect.height);
+        }
+        for bounds in layout.subgraph_bounds.values() {
+            max_right = max_right.max(bounds.x + bounds.width);
+            max_bottom = max_bottom.max(bounds.y + bounds.height);
+        }
+        layout.width = max_right;
+        layout.height = max_bottom;
+    }
+}
+
+/// Collect all leaf-node IDs that are descendants of a subgraph (recursively).
+fn collect_all_descendants(diagram: &Graph, sg_id: &str) -> HashSet<String> {
+    let mut result = HashSet::new();
+    let mut stack = vec![sg_id.to_string()];
+    while let Some(current) = stack.pop() {
+        if let Some(sg) = diagram.subgraphs.get(&current) {
+            for member in &sg.nodes {
+                if diagram.subgraphs.contains_key(member) {
+                    // Nested subgraph: recurse into it.
+                    stack.push(member.clone());
+                } else {
+                    result.insert(member.clone());
+                }
+            }
+        }
+    }
+    result
+}
+
+/// Collect all descendant subgraph IDs (not including the root).
+fn collect_descendant_subgraphs(diagram: &Graph, sg_id: &str) -> HashSet<String> {
+    let mut result = HashSet::new();
+    let mut stack = vec![sg_id.to_string()];
+    while let Some(current) = stack.pop() {
+        if let Some(sg) = diagram.subgraphs.get(&current) {
+            for member in &sg.nodes {
+                if diagram.subgraphs.contains_key(member) {
+                    result.insert(member.clone());
+                    stack.push(member.clone());
+                }
+            }
+        }
+    }
+    result
+}
+
 /// Push external nodes that overlap with reconciled subgraph bounds downward.
 ///
 /// After sublayout reconciliation, the subgraph may now occupy space where the layout

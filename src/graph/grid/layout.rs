@@ -81,6 +81,9 @@ pub struct SubgraphBounds {
     pub depth: usize,
     /// Invisible subgraph: participates in layout but renders no border or title.
     pub invisible: bool,
+    /// IDs of child subgraphs that are concurrent regions (from `--` dividers).
+    /// Divider lines are drawn between adjacent region bounds.
+    pub concurrent_regions: Vec<String>,
 }
 
 /// Draw-coordinate data for a self-edge loop.

@@ -57,6 +57,11 @@ fn collect_class_defs_recursive(
             StateStatement::State(decl) if !decl.children.is_empty() => {
                 collect_class_defs_recursive(&decl.children, defs);
             }
+            StateStatement::State(decl) if !decl.regions.is_empty() => {
+                for region in &decl.regions {
+                    collect_class_defs_recursive(region, defs);
+                }
+            }
             _ => {}
         }
     }
@@ -245,6 +250,9 @@ fn process_statements(
                     }
                 }
             }
+            StateStatement::RegionDivider => {
+                // Consumed during parsing; should never appear in processed statements.
+            }
         }
     }
 }
@@ -259,9 +267,104 @@ fn process_state_decl(
     _scope: &str,
 ) {
     let is_composite = !decl.children.is_empty();
+    let has_regions = !decl.regions.is_empty();
 
-    if is_composite {
-        // Composite state → subgraph.
+    if has_regions {
+        // Concurrent composite state → parent subgraph with region child subgraphs.
+        let mut all_child_ids = Vec::new();
+        let mut region_sg_ids = Vec::new();
+
+        // A direction directive in the first region (before the first `--`)
+        // applies as the composite-level default for all regions.
+        let composite_dir = decl.regions.first().and_then(|r| {
+            r.iter().find_map(|s| match s {
+                StateStatement::Direction(d) => Some(direction_from_str(Some(d))),
+                _ => None,
+            })
+        });
+
+        for (i, region) in decl.regions.iter().enumerate() {
+            let region_sg_id = format!("{}__region_{}", decl.id, i);
+            let region_scope = &region_sg_id;
+
+            // Extract per-region direction, falling back to composite-level direction.
+            let region_dir = region
+                .iter()
+                .find_map(|s| match s {
+                    StateStatement::Direction(d) => Some(direction_from_str(Some(d))),
+                    _ => None,
+                })
+                .or(composite_dir);
+
+            // Collect child IDs scoped to this region.
+            let child_ids = collect_child_node_ids(region, region_scope);
+
+            process_statements(graph, state, region, Some(&region_sg_id), region_scope);
+
+            // Set parent on region child nodes to the region subgraph.
+            for child_id in &child_ids {
+                if let Some(node) = graph.nodes.get_mut(child_id) {
+                    node.parent = Some(region_sg_id.clone());
+                }
+            }
+
+            // Region subgraph: invisible border (parent draws the outer border).
+            graph.subgraphs.insert(
+                region_sg_id.clone(),
+                Subgraph {
+                    id: region_sg_id.clone(),
+                    title: String::new(),
+                    nodes: child_ids.clone(),
+                    parent: Some(decl.id.clone()),
+                    dir: region_dir,
+                    invisible: true,
+                    concurrent_regions: Vec::new(),
+                },
+            );
+            graph.subgraph_order.push(region_sg_id.clone());
+
+            all_child_ids.push(region_sg_id.clone());
+            // Also add leaf nodes so the parent subgraph contains everything.
+            all_child_ids.extend(child_ids);
+            region_sg_ids.push(region_sg_id);
+        }
+
+        // Add invisible edges between adjacent regions to force vertical stacking
+        // in the initial compound layout. A post-layout rearrangement step
+        // transforms this into LR (side-by-side) arrangement.
+        for pair in region_sg_ids.windows(2) {
+            let upper_sg = graph.subgraphs.get(&pair[0]);
+            let lower_sg = graph.subgraphs.get(&pair[1]);
+            if let (Some(upper), Some(lower)) = (upper_sg, lower_sg) {
+                let upper_last = upper.nodes.last().cloned();
+                let lower_first = lower.nodes.first().cloned();
+                if let (Some(from), Some(to)) = (upper_last, lower_first) {
+                    graph.add_edge(
+                        Edge::new(&from, &to)
+                            .with_stroke(Stroke::Invisible)
+                            .with_arrows(Arrow::None, Arrow::None)
+                            .with_minlen(1),
+                    );
+                }
+            }
+        }
+
+        // Parent composite subgraph.
+        graph.subgraphs.insert(
+            decl.id.clone(),
+            Subgraph {
+                id: decl.id.clone(),
+                title: decl.alias.as_deref().unwrap_or(&decl.id).to_string(),
+                nodes: all_child_ids,
+                parent: parent_subgraph.map(|s| s.to_string()),
+                dir: None,
+                invisible: false,
+                concurrent_regions: region_sg_ids,
+            },
+        );
+        graph.subgraph_order.push(decl.id.clone());
+    } else if is_composite {
+        // Composite state → subgraph (single region, no dividers).
         // Extract direction override from children.
         let dir = decl.children.iter().find_map(|s| match s {
             StateStatement::Direction(d) => Some(direction_from_str(Some(d))),
@@ -294,6 +397,7 @@ fn process_state_decl(
                 parent: parent_subgraph.map(|s| s.to_string()),
                 dir,
                 invisible: false,
+                concurrent_regions: Vec::new(),
             },
         );
         graph.subgraph_order.push(decl.id.clone());
@@ -336,7 +440,7 @@ fn collect_child_node_ids(statements: &[StateStatement], scope: &str) -> Vec<Str
                     ids.push(to);
                 }
             }
-            StateStatement::State(decl) if decl.children.is_empty() => {
+            StateStatement::State(decl) => {
                 if seen.insert(decl.id.clone()) {
                     ids.push(decl.id.clone());
                 }
@@ -990,5 +1094,93 @@ stateDiagram-v2
             "stateDiagram-v2\n    classDef active fill:#0f0\n    state \"Running\" as R:::active";
         let graph = compile_state(input);
         assert_eq!(graph.nodes["R"].style.fill.as_ref().unwrap().raw(), "#0f0");
+    }
+
+    #[test]
+    fn compiler_concurrent_regions_create_child_subgraphs() {
+        let input = "\
+stateDiagram-v2
+    state Active {
+        [*] --> A1
+        A1 --> A2
+        --
+        [*] --> B1
+        B1 --> B2
+    }";
+        let graph = compile_state(input);
+        // Parent composite subgraph exists.
+        assert!(graph.subgraphs.contains_key("Active"));
+        let parent = &graph.subgraphs["Active"];
+        assert_eq!(parent.concurrent_regions.len(), 2);
+        assert_eq!(parent.concurrent_regions[0], "Active__region_0");
+        assert_eq!(parent.concurrent_regions[1], "Active__region_1");
+
+        // Region subgraphs exist and are children of Active.
+        let r0 = &graph.subgraphs["Active__region_0"];
+        assert_eq!(r0.parent.as_deref(), Some("Active"));
+        assert!(r0.invisible);
+
+        let r1 = &graph.subgraphs["Active__region_1"];
+        assert_eq!(r1.parent.as_deref(), Some("Active"));
+        assert!(r1.invisible);
+    }
+
+    #[test]
+    fn compiler_concurrent_regions_independent_star_scopes() {
+        let input = "\
+stateDiagram-v2
+    state Active {
+        [*] --> A1
+        A1 --> [*]
+        --
+        [*] --> B1
+        B1 --> [*]
+    }";
+        let graph = compile_state(input);
+        // Each region should have its own start and end pseudo-states.
+        let start_nodes: Vec<_> = graph
+            .nodes
+            .values()
+            .filter(|n| n.shape == Shape::SmallCircle)
+            .collect();
+        let end_nodes: Vec<_> = graph
+            .nodes
+            .values()
+            .filter(|n| n.shape == Shape::FramedCircle)
+            .collect();
+        // Two start nodes (one per region) and two end nodes.
+        assert_eq!(start_nodes.len(), 2);
+        assert_eq!(end_nodes.len(), 2);
+    }
+
+    #[test]
+    fn compiler_concurrent_regions_three_regions() {
+        let input = "\
+stateDiagram-v2
+    state Active {
+        [*] --> A
+        --
+        [*] --> B
+        --
+        [*] --> C
+    }";
+        let graph = compile_state(input);
+        let parent = &graph.subgraphs["Active"];
+        assert_eq!(parent.concurrent_regions.len(), 3);
+    }
+
+    #[test]
+    fn compiler_no_regions_without_divider() {
+        let input = "\
+stateDiagram-v2
+    state Active {
+        [*] --> Running
+        Running --> [*]
+    }";
+        let graph = compile_state(input);
+        let sg = &graph.subgraphs["Active"];
+        assert!(sg.concurrent_regions.is_empty());
+        // No region child subgraphs.
+        assert!(!graph.subgraphs.contains_key("Active__region_0"));
     }
 }

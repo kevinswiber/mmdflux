@@ -129,6 +129,7 @@ fn process_statements(
                         parent: parent_subgraph.map(|s| s.to_string()),
                         dir: sg_spec.dir.map(convert_direction),
                         invisible: false,
+                        concurrent_regions: Vec::new(),
                     },
                 );
                 diagram.subgraph_order.push(sg_spec.id.clone());

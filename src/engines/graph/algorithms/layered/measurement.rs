@@ -4,7 +4,9 @@ use super::kernel::{LayoutConfig, Ranker};
 use super::layout_building::{
     build_layered_layout_with_config, compute_sublayouts, layered_config_for_layout,
 };
-use super::layout_subgraph_ops::{center_override_subgraphs, expand_parent_bounds};
+use super::layout_subgraph_ops::{
+    center_override_subgraphs, expand_parent_bounds, rearrange_concurrent_regions,
+};
 use crate::engines::graph::EngineConfig;
 use crate::engines::graph::contracts::MeasurementMode;
 use crate::errors::RenderError;
@@ -141,6 +143,7 @@ pub fn run_layered_layout(
 
     center_override_subgraphs(diagram, &mut result);
     expand_parent_bounds(diagram, &mut result, 0.0, 0.0);
+    rearrange_concurrent_regions(diagram, &mut result, lc.node_sep);
 
     let mut geom = from_layered_layout(&result, diagram);
     if !override_subgraphs.is_empty() {

@@ -314,6 +314,7 @@ fn build_output(
                 direction: sg.dir.map(|d| direction_str(d).to_string()),
                 bounds,
                 invisible: sg.invisible,
+                concurrent_regions: sg.concurrent_regions.clone(),
             }
         })
         .collect();
@@ -855,6 +856,9 @@ pub struct Subgraph {
     /// Invisible subgraph (participates in layout, renders no border).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub invisible: bool,
+    /// IDs of child subgraphs that are concurrent regions (from `--` dividers).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub concurrent_regions: Vec<String>,
 }
 
 fn default_node_shape() -> String {

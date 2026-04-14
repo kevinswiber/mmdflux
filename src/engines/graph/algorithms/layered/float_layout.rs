@@ -5,8 +5,8 @@ use super::layout_building::{
     build_layered_layout_with_config, compute_sublayouts, layered_config_for_layout,
 };
 use super::layout_subgraph_ops::{
-    center_override_subgraphs, expand_parent_bounds, reconcile_sublayouts,
-    resolve_sublayout_overlaps,
+    center_override_subgraphs, expand_parent_bounds, rearrange_concurrent_regions,
+    reconcile_sublayouts, resolve_sublayout_overlaps,
 };
 use super::{float_router, from_layered_layout};
 use crate::graph::direction_policy::build_node_directions;
@@ -91,6 +91,11 @@ pub(crate) fn build_float_layout_with_flags(
     // direction-override subgraphs to align with the subgraph center.
     // Runs after all bound expansions so the centering uses final bounds.
     center_override_subgraphs(diagram, &mut layout);
+
+    // Rearrange concurrent region subgraphs from vertical stacking (produced
+    // by compound layout with invisible inter-region edges) to horizontal
+    // side-by-side arrangement (UML convention).
+    rearrange_concurrent_regions(diagram, &mut layout, config.node_sep);
 
     // Reroute edges affected by direction-override subgraphs.
     // This must happen after reconciliation moves nodes but before padding,

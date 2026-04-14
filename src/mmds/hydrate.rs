@@ -63,7 +63,8 @@ pub fn from_output(output: &Output) -> Result<Graph, HydrationError> {
                 nodes: subgraph.children.clone(),
                 parent: subgraph.parent.clone(),
                 dir,
-                invisible: false,
+                invisible: subgraph.invisible,
+                concurrent_regions: subgraph.concurrent_regions.clone(),
             },
         );
         diagram.subgraph_order.push(subgraph.id.clone());
@@ -994,6 +995,7 @@ mod tests {
                 parent: None,
                 dir: None,
                 invisible: false,
+                concurrent_regions: Vec::new(),
             },
         );
         diagram.subgraphs.insert(
@@ -1005,6 +1007,7 @@ mod tests {
                 parent: Some("outer".to_string()),
                 dir: None,
                 invisible: false,
+                concurrent_regions: Vec::new(),
             },
         );
 

@@ -1733,6 +1733,7 @@ fn compact_lr_backward_route_yields_to_subgraph_border_in_corridor() {
             title: "Blocker".to_string(),
             depth: 0,
             invisible: false,
+            concurrent_regions: Vec::new(),
         },
     );
 

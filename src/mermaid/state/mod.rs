@@ -48,6 +48,10 @@ pub enum StateStatement {
     ClassDef(ClassDefStatement),
     /// A `class nodeA,nodeB className` declaration.
     ClassApply(ClassApplyStatement),
+    /// Concurrent region divider (`--`). Only valid inside composite state bodies.
+    /// Used as a sentinel during parsing; consumed by the composite handler to
+    /// split children into `StateDecl::regions`.
+    RegionDivider,
 }
 
 /// A note attached to a state.
@@ -81,6 +85,10 @@ pub struct StateDecl {
     pub stereotype: Option<StateStereotype>,
     /// Child statements (for composite states).
     pub children: Vec<StateStatement>,
+    /// Concurrent regions (from `--` dividers inside composite bodies).
+    /// Empty when there are no `--` dividers (single-region composites use `children`).
+    /// When non-empty, `children` is empty and regions holds the split statement lists.
+    pub regions: Vec<Vec<StateStatement>>,
     /// Optional class name from `:::className` annotation.
     pub class_name: Option<String>,
 }
@@ -191,6 +199,13 @@ fn parse_body(
             break;
         }
 
+        // Concurrent region divider inside composite state bodies.
+        if trimmed == "--" {
+            statements.push(StateStatement::RegionDivider);
+            *pos += 1;
+            continue;
+        }
+
         // Discard known unimplemented directives.
         if is_discardable(trimmed) {
             *pos += 1;
@@ -269,7 +284,16 @@ fn parse_body(
             // Composite state: `state Id { ... }`
             if trimmed.trim_end().ends_with('{') {
                 let mut inner_dir = None;
-                decl.children = parse_body(lines, pos, &mut inner_dir, warnings);
+                let body = parse_body(lines, pos, &mut inner_dir, warnings);
+                // Check for `--` region dividers → split into concurrent regions.
+                if body
+                    .iter()
+                    .any(|s| matches!(s, StateStatement::RegionDivider))
+                {
+                    decl.regions = split_into_regions(body);
+                } else {
+                    decl.children = body;
+                }
             }
             statements.push(StateStatement::State(decl));
             continue;
@@ -397,6 +421,23 @@ fn normalize_direction(token: &str) -> Option<String> {
     }
 }
 
+/// Split a flat statement list on `RegionDivider` sentinels into concurrent regions.
+fn split_into_regions(statements: Vec<StateStatement>) -> Vec<Vec<StateStatement>> {
+    let mut regions = Vec::new();
+    let mut current = Vec::new();
+    for stmt in statements {
+        if matches!(stmt, StateStatement::RegionDivider) {
+            regions.push(std::mem::take(&mut current));
+        } else {
+            current.push(stmt);
+        }
+    }
+    regions.push(current);
+    // Filter out empty regions (e.g., leading or trailing `--`).
+    regions.retain(|r| !r.is_empty());
+    regions
+}
+
 /// Strip a `:::className` suffix from a state identifier.
 fn strip_class_annotation(id: &str) -> (&str, Option<&str>) {
     if let Some(pos) = id.find(":::") {
@@ -480,6 +521,7 @@ fn try_parse_inline_description(line: &str) -> Option<StateDecl> {
         alias: None,
         stereotype: None,
         children: Vec::new(),
+        regions: Vec::new(),
         class_name: class.map(|s| s.to_string()),
     })
 }
@@ -535,6 +577,7 @@ fn try_parse_state_decl(line: &str) -> Option<StateDecl> {
             alias,
             stereotype: None,
             children: Vec::new(),
+            regions: Vec::new(),
             class_name,
         });
     }
@@ -565,6 +608,7 @@ fn try_parse_state_decl(line: &str) -> Option<StateDecl> {
         alias: None,
         stereotype,
         children: Vec::new(),
+        regions: Vec::new(),
         class_name: class_name.map(|s| s.to_string()),
     })
 }
@@ -954,5 +998,79 @@ stateDiagram-v2
         let input = "stateDiagram-v2\n    [*] --> Idle\n    Idle --> Done\n    Done --> [*]\n";
         let result = parse_state_diagram(input).unwrap();
         assert!(result.warnings.is_empty());
+    }
+
+    #[test]
+    fn parse_concurrent_regions_two_regions() {
+        let input = "\
+stateDiagram-v2
+    state Active {
+        [*] --> A1
+        A1 --> A2
+        --
+        [*] --> B1
+        B1 --> B2
+    }";
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
+            panic!("expected state decl");
+        };
+        assert_eq!(decl.id, "Active");
+        assert!(
+            decl.children.is_empty(),
+            "children should be empty when regions are used"
+        );
+        assert_eq!(decl.regions.len(), 2);
+        // Region 0: [*] --> A1, A1 --> A2
+        assert_eq!(decl.regions[0].len(), 2);
+        // Region 1: [*] --> B1, B1 --> B2
+        assert_eq!(decl.regions[1].len(), 2);
+    }
+
+    #[test]
+    fn parse_concurrent_regions_three_regions() {
+        let input = "\
+stateDiagram-v2
+    state Active {
+        [*] --> A
+        --
+        [*] --> B
+        --
+        [*] --> C
+    }";
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
+            panic!("expected state decl");
+        };
+        assert_eq!(decl.regions.len(), 3);
+    }
+
+    #[test]
+    fn parse_no_regions_without_divider() {
+        let input = "\
+stateDiagram-v2
+    state Active {
+        [*] --> Running
+        Running --> [*]
+    }";
+        let result = parse_state_diagram(input).unwrap();
+        let StateStatement::State(decl) = &result.model.statements[0] else {
+            panic!("expected state decl");
+        };
+        assert!(decl.regions.is_empty(), "no regions without -- dividers");
+        assert_eq!(decl.children.len(), 2);
+    }
+
+    #[test]
+    fn parse_concurrent_regions_no_warning() {
+        let input = "\
+stateDiagram-v2
+    state Active {
+        [*] --> A
+        --
+        [*] --> B
+    }";
+        let result = parse_state_diagram(input).unwrap();
+        assert!(result.warnings.is_empty(), "-- should not produce warnings");
     }
 }

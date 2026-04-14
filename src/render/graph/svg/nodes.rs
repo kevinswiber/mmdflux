@@ -138,7 +138,61 @@ pub(super) fn render_subgraphs(
             writer.push_line(&text);
         }
     }
+
+    // Draw dashed divider lines between concurrent regions.
+    render_region_dividers(writer, diagram, geom, scale, palette);
+
     writer.end_group();
+}
+
+/// Render dashed vertical divider lines between concurrent region subgraphs in SVG.
+///
+/// Concurrent regions are always arranged LR (side-by-side), matching UML
+/// convention. Draws vertical dashed lines between adjacent regions.
+fn render_region_dividers(
+    writer: &mut SvgWriter,
+    diagram: &Graph,
+    geom: &GraphGeometry,
+    scale: f64,
+    palette: &GraphSvgPalette,
+) {
+    for sg in diagram.subgraphs.values() {
+        if sg.concurrent_regions.len() < 2 {
+            continue;
+        }
+
+        let parent_rect = match geom.subgraphs.get(&sg.id) {
+            Some(sg_geom) => scale_rect(&sg_geom.rect, scale),
+            None => continue,
+        };
+
+        // Collect region geometries in order.
+        let region_rects: Vec<Rect> = sg
+            .concurrent_regions
+            .iter()
+            .filter_map(|id| geom.subgraphs.get(id))
+            .map(|sg_geom| scale_rect(&sg_geom.rect, scale))
+            .collect();
+
+        for pair in region_rects.windows(2) {
+            let left_region = &pair[0];
+            let right_region = &pair[1];
+
+            let left_right_edge = left_region.x + left_region.width;
+            let divider_x = left_right_edge + (right_region.x - left_right_edge) / 2.0;
+
+            let line = format!(
+                "<line x1=\"{x}\" y1=\"{y1}\" x2=\"{x}\" y2=\"{y2}\" stroke=\"{stroke}\" stroke-width=\"{sw}\" stroke-dasharray=\"{da}\" />",
+                x = fmt_f64(divider_x),
+                y1 = fmt_f64(parent_rect.y),
+                y2 = fmt_f64(parent_rect.y + parent_rect.height),
+                stroke = palette.subgraph_stroke,
+                sw = fmt_f64(1.0 * scale),
+                da = "6,4",
+            );
+            writer.push_line(&line);
+        }
+    }
 }
 
 pub(super) fn render_nodes(

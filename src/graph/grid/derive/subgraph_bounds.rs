@@ -87,6 +87,7 @@ pub(super) fn subgraph_bounds_to_draw(
                 title: sg.title.clone(),
                 depth,
                 invisible: sg.invisible,
+                concurrent_regions: sg.concurrent_regions.clone(),
             },
         );
     }
