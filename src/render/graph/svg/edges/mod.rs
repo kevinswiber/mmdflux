@@ -139,7 +139,12 @@ pub(super) fn prepare_rendered_edge_paths(
         // reclip when endpoints detach from expected faces or use non-rect
         // shapes (diamond/hexagon).
         let rerouted = rerouted_edges.contains(&index);
-        let should_adjust = !matches!(edge_routing, EdgeRouting::EngineProvided)
+        let is_self_loop = edge.from == edge.to;
+        // Self-loop edges already have correct endpoints from
+        // adjust_self_edge_points — re-projecting through the node center
+        // would create diagonal segments that break the terminal direction.
+        let should_adjust = !is_self_loop
+            && !matches!(edge_routing, EdgeRouting::EngineProvided)
             && (!rerouted
                 || (matches!(edge_routing, EdgeRouting::OrthogonalRoute)
                     && should_adjust_rerouted_edge_endpoints(

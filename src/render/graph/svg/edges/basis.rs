@@ -97,6 +97,11 @@ pub(super) fn adapt_basis_anchor_points(
     if points.len() <= 2 {
         return points.to_vec();
     }
+    // Self-loop paths need all their points to form the loop shape;
+    // the rank-span heuristics below would collapse them to a line.
+    if edge.from == edge.to {
+        return dedup_consecutive_svg_points(points);
+    }
     if !points_are_axis_aligned(points) {
         return dedup_consecutive_svg_points(points);
     }

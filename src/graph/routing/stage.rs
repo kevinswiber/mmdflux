@@ -9,7 +9,7 @@ use crate::graph::geometry::{
     GraphGeometry, LayoutEdge, RoutedEdgeGeometry, RoutedGraphGeometry, RoutedSelfEdge,
 };
 use crate::graph::space::{FPoint, FRect};
-use crate::graph::{Direction, Graph};
+use crate::graph::{Direction, Graph, Shape};
 
 /// Graph-family routed-path ownership mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,10 +165,17 @@ pub fn route_graph_geometry(
     let self_edges: Vec<RoutedSelfEdge> = geometry
         .self_edges
         .iter()
-        .map(|se| RoutedSelfEdge {
-            node_id: se.node_id.clone(),
-            edge_index: se.edge_index,
-            path: se.points.clone(),
+        .map(|se| {
+            let path = if let Some(node) = geometry.nodes.get(&se.node_id) {
+                canonical_self_loop_path(&node.rect, &se.points, geometry.direction, &node.shape)
+            } else {
+                se.points.clone()
+            };
+            RoutedSelfEdge {
+                node_id: se.node_id.clone(),
+                edge_index: se.edge_index,
+                path,
+            }
         })
         .collect();
 
@@ -563,6 +570,155 @@ fn nudge_for_direction(point: FPoint, direction: Direction) -> FPoint {
     match direction {
         Direction::TopDown | Direction::BottomTop => FPoint::new(point.x, point.y + DIRECT_STUB),
         Direction::LeftRight | Direction::RightLeft => FPoint::new(point.x + DIRECT_STUB, point.y),
+    }
+}
+
+/// Compute a canonical 4-point self-loop path.
+///
+/// Both exit and entry are offset from the corners along the node face.
+/// The loop extends between their positions so it does not reach the
+/// node border.  The terminal segment is axis-aligned (horizontal for
+/// TD/BT, vertical for LR/RL).
+///
+/// For diamond and hexagon shapes, attachment points are placed on the actual
+/// shape border rather than the bounding rect corners.
+fn canonical_self_loop_path(
+    rect: &FRect,
+    raw_points: &[FPoint],
+    direction: Direction,
+    shape: &Shape,
+) -> Vec<FPoint> {
+    const MIN_PAD: f64 = 8.0;
+
+    let right = rect.x + rect.width;
+    let bottom = rect.y + rect.height;
+
+    let (exit, entry) = self_loop_anchor_points(rect, direction, shape);
+
+    match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            let loop_x = raw_points
+                .iter()
+                .map(|p| p.x)
+                .fold(right, f64::max)
+                .max(right + MIN_PAD);
+            vec![
+                exit,
+                FPoint::new(loop_x, exit.y),
+                FPoint::new(loop_x, entry.y),
+                entry,
+            ]
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            let loop_y = raw_points
+                .iter()
+                .map(|p| p.y)
+                .fold(bottom, f64::max)
+                .max(bottom + MIN_PAD);
+            vec![
+                exit,
+                FPoint::new(exit.x, loop_y),
+                FPoint::new(entry.x, loop_y),
+                entry,
+            ]
+        }
+    }
+}
+
+/// Compute exit and entry attachment points for a self-loop.
+///
+/// Both points are offset from the bounding-rect corners along the node
+/// face so the loop does not touch the border.
+fn self_loop_anchor_points(rect: &FRect, direction: Direction, shape: &Shape) -> (FPoint, FPoint) {
+    let left = rect.x;
+    let right = rect.x + rect.width;
+    let top = rect.y;
+    let bottom = rect.y + rect.height;
+
+    // Default face offset for rectangular shapes.
+    let face_offset = |face_len: f64| (8.0_f64).min(face_len / 4.0);
+
+    match shape {
+        Shape::Diamond => {
+            // Diamond edge parameter t=0.25 (exit) / t=0.75 (entry) gives
+            // 75 % height span while staying on the border.
+            let w8 = rect.width / 8.0;
+            let h8 = rect.height / 8.0;
+            match direction {
+                Direction::TopDown => (
+                    FPoint::new(right - 3.0 * w8, top + h8),
+                    FPoint::new(right - 3.0 * w8, bottom - h8),
+                ),
+                Direction::BottomTop => (
+                    FPoint::new(right - 3.0 * w8, bottom - h8),
+                    FPoint::new(right - 3.0 * w8, top + h8),
+                ),
+                Direction::LeftRight => (
+                    FPoint::new(right - w8, bottom - 3.0 * h8),
+                    FPoint::new(left + w8, bottom - 3.0 * h8),
+                ),
+                Direction::RightLeft => (
+                    FPoint::new(left + w8, bottom - 3.0 * h8),
+                    FPoint::new(right - w8, bottom - 3.0 * h8),
+                ),
+            }
+        }
+        Shape::Hexagon => {
+            // Hexagon right face: upper-right edge (right-indent,top)→(right,cy)
+            // and lower-right edge (right,cy)→(right-indent,bottom).
+            // At y = top+h8 (t=0.25), border x = right - 3*indent/4.
+            let indent = rect.width * 0.2;
+            let border_inset = 3.0 * indent / 4.0;
+            let h8 = rect.height / 8.0;
+            match direction {
+                Direction::TopDown => (
+                    FPoint::new(right - border_inset, top + h8),
+                    FPoint::new(right - border_inset, bottom - h8),
+                ),
+                Direction::BottomTop => (
+                    FPoint::new(right - border_inset, bottom - h8),
+                    FPoint::new(right - border_inset, top + h8),
+                ),
+                Direction::LeftRight => (
+                    FPoint::new(right - border_inset, bottom - h8),
+                    FPoint::new(left + border_inset, bottom - h8),
+                ),
+                Direction::RightLeft => (
+                    FPoint::new(left + border_inset, bottom - h8),
+                    FPoint::new(right - border_inset, bottom - h8),
+                ),
+            }
+        }
+        _ => match direction {
+            Direction::TopDown => {
+                let fo = face_offset(rect.height);
+                (
+                    FPoint::new(right, top + fo),
+                    FPoint::new(right, bottom - fo),
+                )
+            }
+            Direction::BottomTop => {
+                let fo = face_offset(rect.height);
+                (
+                    FPoint::new(right, bottom - fo),
+                    FPoint::new(right, top + fo),
+                )
+            }
+            Direction::LeftRight => {
+                let fo = face_offset(rect.width);
+                (
+                    FPoint::new(right - fo, bottom),
+                    FPoint::new(left + fo, bottom),
+                )
+            }
+            Direction::RightLeft => {
+                let fo = face_offset(rect.width);
+                (
+                    FPoint::new(left + fo, bottom),
+                    FPoint::new(right - fo, bottom),
+                )
+            }
+        },
     }
 }
 

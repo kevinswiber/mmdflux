@@ -1019,6 +1019,76 @@ fn test_self_loop_ascii_mode() {
     );
 }
 
+// === Self-loop terminal direction consistency (issue #212) ===
+
+#[test]
+fn test_self_loop_svg_terminal_is_horizontal_td() {
+    let diagram = parse_and_build("self_loop.mmd");
+    let svg = render_diagram_with_config(&diagram, OutputFormat::Svg, &RenderConfig::default())
+        .expect("svg render should succeed");
+    // Extract the edge path from the edgePaths group.
+    let edge_path = svg
+        .split("edgePaths")
+        .nth(1)
+        .and_then(|s| s.split("d=\"").nth(1))
+        .and_then(|s| s.split('"').next())
+        .expect("should have an edge path d attribute");
+    // The last L-segment should be horizontal (terminal entry).  With exit
+    // and entry both offset from their corners, the terminal y is near but
+    // not at the node bottom.
+    let last_l = edge_path
+        .rsplit(" L")
+        .next()
+        .expect("should have L segments");
+    let coords: Vec<&str> = last_l.split(',').collect();
+    assert_eq!(coords.len(), 2, "should have x,y: {last_l}");
+    let y: f64 = coords[1].parse().expect("valid y");
+    // Entry should be on the right face, offset from bottom (8 ≤ bottom).
+    assert!(
+        y > 40.0 && y < 62.5,
+        "terminal y should be near node bottom but offset, got {y}"
+    );
+}
+
+#[test]
+fn test_self_loop_routed_geometry_terminal_is_horizontal_td() {
+    let diagram = parse_and_build("self_loop.mmd");
+    let result = solve_diagram(&diagram, OutputFormat::Svg, &RenderConfig::default())
+        .expect("solve should succeed");
+    let routed = route_graph_geometry(&diagram, &result.geometry, EdgeRouting::OrthogonalRoute);
+    // Self-loop should produce a 4-point canonical path (exit, loop@exit.y,
+    // loop@entry.y, entry).
+    assert_eq!(routed.self_edges.len(), 1);
+    let path = &routed.self_edges[0].path;
+    assert_eq!(path.len(), 4, "canonical self-loop should have 4 points");
+    // Terminal segment (last two points) should be horizontal (same y).
+    let p3 = &path[2];
+    let p4 = &path[3];
+    assert!(
+        (p3.y - p4.y).abs() < 0.01,
+        "terminal segment should be horizontal: p3.y={}, p4.y={}",
+        p3.y,
+        p4.y
+    );
+    // Exit (P1) and loop top (P2) should share y (no corner reaching border).
+    let p1 = &path[0];
+    let p2 = &path[1];
+    assert!(
+        (p1.y - p2.y).abs() < 0.01,
+        "exit and loop top should share y"
+    );
+}
+
+#[test]
+fn test_self_loop_text_arrow_points_left_td() {
+    let output = render_fixture("self_loop.mmd");
+    // The text renderer should show a left-pointing arrow for a TD self-loop.
+    assert!(
+        output.contains('◄'),
+        "TD self-loop should have left-pointing arrow: {output}"
+    );
+}
+
 // === Compound graph external node positioning tests ===
 
 #[test]

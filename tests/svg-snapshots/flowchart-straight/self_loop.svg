@@ -6,7 +6,7 @@
   </defs>
   <g transform="translate(0.00,0.00)">
     <g class="edgePaths">
-      <path d="M125.54,18.17 L161.04,8.00 L161.04,57.00 L158.86,59.83 L156.23,60.62 L129.38,52.93" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M125.54,21.50 L161.04,21.50 L161.04,48.50 L129.54,48.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
       <rect x="8.00" y="8.00" width="117.54" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
