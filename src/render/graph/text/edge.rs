@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::graph::grid::{AttachDirection, Point, RoutedEdge, Segment};
 use crate::graph::{Arrow, Direction, Stroke};
-use crate::render::text::canvas::{Canvas, Connections};
+use crate::render::text::canvas::{Canvas, CellStyle, Connections};
 use crate::render::text::chars::CharSet;
 
 /// Calculate the label position at the midpoint of a routed path.
@@ -233,27 +233,35 @@ fn source_connection(direction: AttachDirection) -> Connections {
     }
 }
 
-fn draw_source_launch(canvas: &mut Canvas, routed: &RoutedEdge, charset: &CharSet) {
+fn draw_source_launch(
+    canvas: &mut Canvas,
+    routed: &RoutedEdge,
+    charset: &CharSet,
+    edge_color: Option<(u8, u8, u8)>,
+) {
     if routed.edge.arrow_start != Arrow::None || routed.is_self_edge || routed.segments.is_empty() {
         return;
     }
     let Some(direction) = routed.source_connection else {
         return;
     };
-    canvas.set_with_connection(
+    if canvas.set_with_connection(
         routed.start.x,
         routed.start.y,
         source_connection(direction),
         charset,
         routed.edge.stroke,
-    );
+    ) {
+        merge_edge_fg(canvas, routed.start.x, routed.start.y, edge_color);
+    }
 }
 
 fn draw_edge_path_and_arrows(canvas: &mut Canvas, routed: &RoutedEdge, charset: &CharSet) {
+    let edge_color = resolved_edge_stroke_color(routed);
     for segment in &routed.segments {
-        draw_segment(canvas, segment, routed.edge.stroke, charset);
+        draw_segment(canvas, segment, routed.edge.stroke, charset, edge_color);
     }
-    draw_source_launch(canvas, routed, charset);
+    draw_source_launch(canvas, routed, charset, edge_color);
 
     if routed.edge.arrow_end != Arrow::None {
         draw_arrow_with_entry(
@@ -262,6 +270,7 @@ fn draw_edge_path_and_arrows(canvas: &mut Canvas, routed: &RoutedEdge, charset: 
             routed.entry_direction,
             charset,
             routed.edge.arrow_end,
+            edge_color,
         );
     }
 
@@ -273,6 +282,7 @@ fn draw_edge_path_and_arrows(canvas: &mut Canvas, routed: &RoutedEdge, charset: 
             exit_direction,
             charset,
             routed.edge.arrow_start,
+            edge_color,
         );
     }
 }
@@ -871,8 +881,31 @@ fn select_label_segment_horizontal(segments: &[Segment]) -> Option<&Segment> {
     }
 }
 
+fn resolved_edge_stroke_color(routed: &RoutedEdge) -> Option<(u8, u8, u8)> {
+    routed
+        .edge
+        .style
+        .stroke
+        .as_ref()
+        .and_then(|color| color.to_rgb())
+}
+
+fn merge_edge_fg(canvas: &mut Canvas, x: usize, y: usize, rgb: Option<(u8, u8, u8)>) {
+    let Some((r, g, b)) = rgb else {
+        return;
+    };
+
+    canvas.merge_style(x, y, CellStyle::fg_rgb(r, g, b));
+}
+
 /// Draw a single segment on the canvas, honoring stroke style.
-fn draw_segment(canvas: &mut Canvas, segment: &Segment, stroke: Stroke, charset: &CharSet) {
+fn draw_segment(
+    canvas: &mut Canvas,
+    segment: &Segment,
+    stroke: Stroke,
+    charset: &CharSet,
+    edge_color: Option<(u8, u8, u8)>,
+) {
     match segment {
         Segment::Vertical { x, y_start, y_end } => {
             let (y_min, y_max) = if y_start < y_end {
@@ -888,7 +921,9 @@ fn draw_segment(canvas: &mut Canvas, segment: &Segment, stroke: Stroke, charset:
                     left: false,
                     right: false,
                 };
-                canvas.set_with_connection(*x, y, connections, charset, stroke);
+                if canvas.set_with_connection(*x, y, connections, charset, stroke) {
+                    merge_edge_fg(canvas, *x, y, edge_color);
+                }
             }
         }
         Segment::Horizontal { y, x_start, x_end } => {
@@ -905,7 +940,9 @@ fn draw_segment(canvas: &mut Canvas, segment: &Segment, stroke: Stroke, charset:
                     left: x > x_min,
                     right: x < x_max,
                 };
-                canvas.set_with_connection(x, *y, connections, charset, stroke);
+                if canvas.set_with_connection(x, *y, connections, charset, stroke) {
+                    merge_edge_fg(canvas, x, *y, edge_color);
+                }
             }
         }
     }
@@ -920,6 +957,7 @@ fn draw_arrow_with_entry(
     entry_direction: AttachDirection,
     charset: &CharSet,
     arrow_type: Arrow,
+    edge_color: Option<(u8, u8, u8)>,
 ) {
     // Protect node content from being overwritten by arrows
     if canvas
@@ -972,7 +1010,9 @@ fn draw_arrow_with_entry(
         _ => (point.x, point.y),
     };
 
-    canvas.set(ax, ay, arrow_char);
+    if canvas.set(ax, ay, arrow_char) {
+        merge_edge_fg(canvas, ax, ay, edge_color);
+    }
 }
 
 /// Draw an arrow at the given point for test-only assertions.
@@ -1531,6 +1571,7 @@ mod tests {
             AttachDirection::Top,
             &charset,
             Arrow::Normal,
+            None,
         );
 
         // The cell should still contain 'X', not an arrow
@@ -1552,6 +1593,7 @@ mod tests {
             AttachDirection::Top,
             &charset,
             Arrow::Normal,
+            None,
         );
 
         // Should succeed — arrow should be drawn
@@ -1573,6 +1615,7 @@ mod tests {
             AttachDirection::Top,
             &charset,
             Arrow::Cross,
+            None,
         );
         let cell = canvas.get(5, 5).unwrap();
         assert_eq!(cell.ch, 'x', "Cross arrow should render as 'x'");
@@ -1589,6 +1632,7 @@ mod tests {
             AttachDirection::Top,
             &charset,
             Arrow::Circle,
+            None,
         );
         let cell = canvas.get(5, 5).unwrap();
         assert_eq!(cell.ch, '○', "Circle arrow should render as '○'");
@@ -1605,6 +1649,7 @@ mod tests {
             AttachDirection::Top,
             &charset,
             Arrow::Cross,
+            None,
         );
         assert_eq!(canvas.get(5, 5).unwrap().ch, charset.arrow_cross_down);
 
@@ -1615,6 +1660,7 @@ mod tests {
             AttachDirection::Bottom,
             &charset,
             Arrow::Cross,
+            None,
         );
         assert_eq!(canvas.get(5, 5).unwrap().ch, charset.arrow_cross_up);
 
@@ -1625,6 +1671,7 @@ mod tests {
             AttachDirection::Left,
             &charset,
             Arrow::Cross,
+            None,
         );
         assert_eq!(canvas.get(5, 5).unwrap().ch, charset.arrow_cross_right);
 
@@ -1635,6 +1682,7 @@ mod tests {
             AttachDirection::Right,
             &charset,
             Arrow::Cross,
+            None,
         );
         assert_eq!(canvas.get(5, 5).unwrap().ch, charset.arrow_cross_left);
     }
@@ -1650,6 +1698,7 @@ mod tests {
             AttachDirection::Top,
             &charset,
             Arrow::Circle,
+            None,
         );
         assert_eq!(canvas.get(5, 5).unwrap().ch, charset.arrow_circle_down);
 
@@ -1660,6 +1709,7 @@ mod tests {
             AttachDirection::Bottom,
             &charset,
             Arrow::Circle,
+            None,
         );
         assert_eq!(canvas.get(5, 5).unwrap().ch, charset.arrow_circle_up);
 
@@ -1670,6 +1720,7 @@ mod tests {
             AttachDirection::Left,
             &charset,
             Arrow::Circle,
+            None,
         );
         assert_eq!(canvas.get(5, 5).unwrap().ch, charset.arrow_circle_right);
 
@@ -1680,6 +1731,7 @@ mod tests {
             AttachDirection::Right,
             &charset,
             Arrow::Circle,
+            None,
         );
         assert_eq!(canvas.get(5, 5).unwrap().ch, charset.arrow_circle_left);
     }

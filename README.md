@@ -164,6 +164,8 @@ mmdflux --format mmds --geometry-level routed diagram.mmd
 mmdflux --lint diagram.mmd
 ```
 
+With ANSI enabled, text/ascii output maps Mermaid styling to terminal colors where it has a clear analogue: node `style`/`classDef` `fill`, `stroke`, and `color` drive node background, border, and label color; flowchart `linkStyle ... stroke:<color>` drives edge and arrow foreground color; SVG-specific properties such as `stroke-width` and `stroke-dasharray` remain no-ops in text/ascii output.
+
 See more examples in the sections below.
 
 ## What It Supports

@@ -336,6 +336,42 @@ fn cli_color_always_emits_ansi_for_styled_nodes() {
 }
 
 #[test]
+fn cli_color_always_emits_ansi_for_linkstyle_edges() {
+    let input = "graph TD\nA --> B\nB --> C\nlinkStyle default stroke:#999\nlinkStyle 1 stroke:#ff0000,stroke-width:4px\n";
+
+    let plain = mmdflux()
+        .args(["--color", "off"])
+        .write_stdin(input)
+        .output()
+        .expect("plain linkStyle render should execute");
+    assert!(
+        plain.status.success(),
+        "plain linkStyle render failed: stderr={}",
+        String::from_utf8_lossy(&plain.stderr)
+    );
+
+    let ansi = mmdflux()
+        .args(["--color", "always"])
+        .write_stdin(input)
+        .output()
+        .expect("ansi linkStyle render should execute");
+    assert!(
+        ansi.status.success(),
+        "ansi linkStyle render failed: stderr={}",
+        String::from_utf8_lossy(&ansi.stderr)
+    );
+
+    let plain_stdout =
+        String::from_utf8(plain.stdout).expect("plain linkStyle render should be utf-8");
+    let ansi_stdout =
+        String::from_utf8(ansi.stdout).expect("ansi linkStyle render should be utf-8");
+
+    assert!(ansi_stdout.contains("\u{1b}[38;2;153;153;153m"));
+    assert!(ansi_stdout.contains("\u{1b}[38;2;255;0;0m"));
+    assert_eq!(strip_ansi(&ansi_stdout), plain_stdout);
+}
+
+#[test]
 fn cli_color_auto_preserves_plain_output_for_same_fixture() {
     let input = include_str!("fixtures/flowchart/style-basic.mmd");
 
