@@ -2,6 +2,8 @@
 
 use serde::Serialize;
 
+use super::style::EdgeStyle;
+
 /// Style of the edge line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -55,6 +57,9 @@ pub struct Edge {
     pub label: Option<String>,
     /// Line style.
     pub stroke: Stroke,
+    /// Renderer-visible edge style overrides from Mermaid `linkStyle`.
+    #[serde(skip_serializing_if = "EdgeStyle::is_empty", default)]
+    pub style: EdgeStyle,
     /// Arrow head at the start (source-side) of the edge.
     pub arrow_start: Arrow,
     /// Arrow head at the end (target-side) of the edge.
@@ -80,6 +85,7 @@ impl Edge {
             to_subgraph: None,
             label: None,
             stroke: Stroke::default(),
+            style: EdgeStyle::default(),
             arrow_start: Arrow::None,
             arrow_end: Arrow::default(),
             head_label: None,
@@ -98,6 +104,12 @@ impl Edge {
     /// Set the stroke style.
     pub fn with_stroke(mut self, stroke: Stroke) -> Self {
         self.stroke = stroke;
+        self
+    }
+
+    /// Set renderer-visible style overrides.
+    pub fn with_style(mut self, style: EdgeStyle) -> Self {
+        self.style = style;
         self
     }
 

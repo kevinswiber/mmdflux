@@ -534,6 +534,7 @@ fn resolve_subgraph_edges(graph: &mut Graph) {
             from_subgraph,
             to_subgraph,
             stroke: edge.stroke,
+            style: edge.style.clone(),
             arrow_start: edge.arrow_start,
             arrow_end: edge.arrow_end,
             label: edge.label.clone(),

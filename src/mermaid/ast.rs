@@ -2,7 +2,7 @@
 
 #![allow(dead_code)]
 
-use crate::graph::style::NodeStyle;
+use crate::graph::style::{EdgeStyle, LinkStyleTarget, NodeStyle};
 
 /// Direction of the Mermaid flowchart layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -255,6 +255,15 @@ pub struct ClassApplyStatement {
     pub class_name: String,
 }
 
+/// A `linkStyle` statement applying style overrides to edges by index.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LinkStyleStatement {
+    /// Which edges are targeted by this statement.
+    pub target: LinkStyleTarget,
+    /// Resolved edge style properties.
+    pub style: EdgeStyle,
+}
+
 /// A statement in the flowchart AST.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
@@ -270,6 +279,8 @@ pub enum Statement {
     ClassDef(ClassDefStatement),
     /// A `class` statement applying a class to nodes.
     ClassApply(ClassApplyStatement),
+    /// A `linkStyle` statement applying style to edges.
+    LinkStyle(LinkStyleStatement),
 }
 
 #[cfg(test)]

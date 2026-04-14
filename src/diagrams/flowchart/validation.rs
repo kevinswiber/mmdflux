@@ -4,21 +4,17 @@
 //! missing subgraph `end` keywords, and strict-mode parse failures.
 
 use crate::errors::ParseDiagnostic;
-use crate::graph::style::{parse_classdef_statement, parse_node_style_statement};
+use crate::graph::style::{
+    parse_classdef_statement, parse_linkstyle_statement, parse_node_style_statement,
+};
 use crate::mermaid::{ParseOptions, parse_flowchart_with_options, strip_theme_only_compat_syntax};
 
 const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
 
-const UNSUPPORTED_KEYWORDS: &[(&str, &str)] = &[
-    (
-        "click ",
-        "click statements are not applicable in text/ASCII output",
-    ),
-    (
-        "linkStyle ",
-        "linkStyle statements are parsed but ignored in rendering",
-    ),
-];
+const UNSUPPORTED_KEYWORDS: &[(&str, &str)] = &[(
+    "click ",
+    "click statements are not applicable in text/ASCII output",
+)];
 
 /// Collect all flowchart-specific validation warnings.
 pub(crate) fn collect_all_warnings(input: &str) -> Vec<ParseDiagnostic> {
@@ -51,6 +47,12 @@ fn collect_unsupported_warnings(input: &str) -> Vec<ParseDiagnostic> {
 
         // class: now supported, skip
         if ci_starts_with(trimmed, "class ") && !ci_starts_with(trimmed, "classDef") {
+            continue;
+        }
+
+        // linkStyle: warn on unsupported properties or invalid indices
+        if ci_starts_with(trimmed, "linkStyle ") {
+            warnings.extend(collect_linkstyle_warnings(trimmed, line_num + 1));
             continue;
         }
 
@@ -95,6 +97,21 @@ fn collect_style_warnings(line: &str, line_num: usize) -> Vec<ParseDiagnostic> {
             Some(line_num),
             Some(1),
             "style statements must use the form `style NODE key:value,...`".to_string(),
+        )],
+    }
+}
+
+fn collect_linkstyle_warnings(line: &str, line_num: usize) -> Vec<ParseDiagnostic> {
+    match parse_linkstyle_statement(line) {
+        Some(parsed) => parsed
+            .issues
+            .into_iter()
+            .map(|issue| ParseDiagnostic::warning(Some(line_num), Some(1), issue.message()))
+            .collect(),
+        None => vec![ParseDiagnostic::warning(
+            Some(line_num),
+            Some(1),
+            "linkStyle statements must use the form `linkStyle <target> key:value,...`".to_string(),
         )],
     }
 }
@@ -290,5 +307,49 @@ mod tests {
         let input = "graph TD\n  A --> B\n";
         let all = collect_all_warnings(input);
         assert!(all.is_empty());
+    }
+
+    #[test]
+    fn linkstyle_valid_no_warning() {
+        let input = "graph TD\n  A --> B\n  linkStyle 0 stroke:#f00\n";
+        let warnings = collect_unsupported_warnings(input);
+        assert!(
+            warnings.is_empty(),
+            "valid linkStyle should not produce warnings: {:?}",
+            warnings
+        );
+    }
+
+    #[test]
+    fn linkstyle_invalid_index_warned() {
+        let input = "graph TD\n  A --> B\n  B --> C\n  linkStyle nope,1 stroke:#f00\n";
+        let warnings = collect_unsupported_warnings(input);
+        assert!(
+            warnings.iter().any(|w| w.message.contains("nope")),
+            "invalid linkStyle index should warn: {:?}",
+            warnings
+        );
+    }
+
+    #[test]
+    fn linkstyle_unsupported_property_warned() {
+        let input = "graph TD\n  A --> B\n  linkStyle 0 opacity:0.5\n";
+        let warnings = collect_unsupported_warnings(input);
+        assert!(
+            warnings.iter().any(|w| w.message.contains("opacity")),
+            "unsupported linkStyle property should warn: {:?}",
+            warnings
+        );
+    }
+
+    #[test]
+    fn linkstyle_malformed_warned() {
+        let input = "graph TD\n  A --> B\n  linkStyle\n";
+        let warnings = collect_unsupported_warnings(input);
+        assert!(
+            warnings.is_empty(),
+            "bare linkStyle keyword (no target) should not match: {:?}",
+            warnings
+        );
     }
 }

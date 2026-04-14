@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use super::super::{Point, dynamic_css_attrs};
+use super::super::{MarkerDef, Point, dynamic_css_attrs};
 use super::{SegmentAxis, points_approx_equal, segment_axis, segment_manhattan_len};
 use crate::format::{CornerStyle, Curve};
 use crate::graph::{Arrow, Direction, Edge, Stroke};
@@ -12,16 +12,29 @@ pub(super) fn edge_style_attrs(
     stroke_color: &str,
     dynamic_css: bool,
 ) -> String {
-    let stroke_width = match edge.stroke {
-        Stroke::Thick => 2.0 * scale,
-        _ => 1.0 * scale,
+    let stroke = edge
+        .style
+        .stroke
+        .as_ref()
+        .map(|color| color.raw())
+        .unwrap_or(stroke_color);
+    let stroke_width = edge
+        .style
+        .stroke_width
+        .clone()
+        .unwrap_or_else(|| match edge.stroke {
+            Stroke::Thick => fmt_f64(2.0 * scale),
+            _ => fmt_f64(1.0 * scale),
+        });
+    let dynamic_attrs = if edge.style.stroke.is_none() {
+        dynamic_css_attrs(dynamic_css, "graph-edge-stroke", &["stroke:var(--_line);"])
+    } else {
+        String::new()
     };
-    let dynamic_attrs =
-        dynamic_css_attrs(dynamic_css, "graph-edge-stroke", &["stroke:var(--_line);"]);
     let mut attrs = format!(
         " stroke=\"{stroke}\" stroke-width=\"{width}\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\"{dynamic_attrs}",
-        stroke = stroke_color,
-        width = fmt_f64(stroke_width),
+        stroke = stroke,
+        width = stroke_width,
         dynamic_attrs = dynamic_attrs
     );
     match edge.stroke {
@@ -41,11 +54,12 @@ pub(super) fn edge_style_attrs(
 
 pub(super) fn edge_marker_attrs(edge: &Edge) -> String {
     let mut attrs = String::new();
-    if let Some(marker_id) = marker_id_for_arrow(edge.arrow_start) {
-        let _ = write!(attrs, " marker-start=\"url(#{marker_id})\"");
+    let stroke = edge.style.stroke.as_ref().map(|color| color.raw());
+    if let Some(marker) = marker_def_for_arrow(edge.arrow_start, stroke) {
+        let _ = write!(attrs, " marker-start=\"url(#{})\"", marker.id);
     }
-    if let Some(marker_id) = marker_id_for_arrow(edge.arrow_end) {
-        let _ = write!(attrs, " marker-end=\"url(#{marker_id})\"");
+    if let Some(marker) = marker_def_for_arrow(edge.arrow_end, stroke) {
+        let _ = write!(attrs, " marker-end=\"url(#{})\"", marker.id);
     }
     attrs
 }
@@ -344,6 +358,30 @@ pub(crate) fn marker_id_for_arrow(arrow: Arrow) -> Option<&'static str> {
         Arrow::Diamond => Some("diamondhead"),
         Arrow::OpenDiamond => Some("open-diamondhead"),
         Arrow::None => None,
+    }
+}
+
+pub(super) fn marker_def_for_arrow(arrow: Arrow, color: Option<&str>) -> Option<MarkerDef> {
+    let kind = marker_id_for_arrow(arrow)?;
+    let color = color.map(str::to_string);
+    let id = match color.as_deref() {
+        Some(color) => format!("{kind}-{}", sanitize_marker_color_id(color)),
+        None => kind.to_string(),
+    };
+    Some(MarkerDef { id, kind, color })
+}
+
+fn sanitize_marker_color_id(color: &str) -> String {
+    let mut sanitized = String::new();
+    for ch in color.chars() {
+        if ch.is_ascii_alphanumeric() {
+            sanitized.push(ch.to_ascii_lowercase());
+        }
+    }
+    if sanitized.is_empty() {
+        "custom".to_string()
+    } else {
+        sanitized
     }
 }
 

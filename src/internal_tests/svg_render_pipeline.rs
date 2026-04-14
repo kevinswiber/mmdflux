@@ -4021,6 +4021,35 @@ fn svg_render_applies_fill_stroke_and_label_color_from_node_style() {
 }
 
 #[test]
+fn svg_render_applies_linkstyle_stroke_width_and_marker_color() {
+    let input = "graph TD\nA --> B\nB --> C\nlinkStyle default stroke:#999\nlinkStyle 1 stroke:#ff0000,stroke-width:4px\n";
+    let flowchart = parse_flowchart(input).unwrap();
+    let diagram = compile_to_graph(&flowchart);
+    let svg = render_svg(&diagram, &RenderConfig::default());
+
+    assert!(
+        svg.contains("stroke=\"#999\""),
+        "default edge stroke override missing: {svg}"
+    );
+    assert!(
+        svg.contains("stroke=\"#ff0000\" stroke-width=\"4px\""),
+        "targeted edge stroke override missing: {svg}"
+    );
+    assert!(
+        svg.contains("id=\"arrowhead-ff0000\""),
+        "custom marker definition missing: {svg}"
+    );
+    assert!(
+        svg.contains("marker-end=\"url(#arrowhead-ff0000)\""),
+        "custom marker usage missing: {svg}"
+    );
+    assert!(
+        svg.contains("fill=\"#ff0000\""),
+        "custom marker color missing: {svg}"
+    );
+}
+
+#[test]
 fn runtime_svg_theme_does_not_override_node_style_colors() {
     let input = fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR"))

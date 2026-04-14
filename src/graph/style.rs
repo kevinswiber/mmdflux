@@ -1,4 +1,4 @@
-//! Node styling types and Mermaid `style` statement parsing.
+//! Shared style types and Mermaid style-statement parsing.
 
 use std::error::Error;
 use std::fmt;
@@ -79,6 +79,31 @@ impl NodeStyle {
     }
 }
 
+/// Parsed CSS-like style properties for a diagram edge.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+pub struct EdgeStyle {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stroke: Option<ColorToken>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stroke_width: Option<String>,
+}
+
+impl EdgeStyle {
+    pub fn is_empty(&self) -> bool {
+        self.stroke.is_none() && self.stroke_width.is_none()
+    }
+
+    pub fn merge(&self, overlay: &Self) -> Self {
+        Self {
+            stroke: overlay.stroke.clone().or_else(|| self.stroke.clone()),
+            stroke_width: overlay
+                .stroke_width
+                .clone()
+                .or_else(|| self.stroke_width.clone()),
+        }
+    }
+}
+
 /// A CSS color value (hex, named, rgb, etc.) parsed from a Mermaid style statement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColorToken {
@@ -139,6 +164,12 @@ pub struct ParsedNodeStyleDeclaration {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsedEdgeStyleDeclaration {
+    pub style: EdgeStyle,
+    pub issues: Vec<EdgeStyleIssue>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedNodeStyleDirective {
     pub node_id: String,
     pub style: NodeStyle,
@@ -169,6 +200,50 @@ impl NodeStyleIssue {
             ),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EdgeStyleIssue {
+    UnsupportedProperty { property: String },
+    UnsupportedColorSyntax { property: String, value: String },
+    MalformedDeclaration { declaration: String },
+    InvalidLinkIndex { token: String },
+}
+
+impl EdgeStyleIssue {
+    pub fn message(&self) -> String {
+        match self {
+            EdgeStyleIssue::UnsupportedProperty { property } => format!(
+                "linkStyle property '{}' is not supported; supported properties are stroke and stroke-width",
+                property
+            ),
+            EdgeStyleIssue::UnsupportedColorSyntax { property, value } => format!(
+                "linkStyle property '{}' uses unsupported color syntax '{}'; supported color formats are #rgb, #rrggbb, and named colors",
+                property, value
+            ),
+            EdgeStyleIssue::MalformedDeclaration { declaration } => format!(
+                "linkStyle declaration '{}' must use key:value syntax",
+                declaration
+            ),
+            EdgeStyleIssue::InvalidLinkIndex { token } => format!(
+                "linkStyle target '{}' is not a valid index; expected a non-negative integer or 'default'",
+                token
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LinkStyleTarget {
+    Default,
+    Indices(Vec<usize>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsedLinkStyleDirective {
+    pub target: LinkStyleTarget,
+    pub style: EdgeStyle,
+    pub issues: Vec<EdgeStyleIssue>,
 }
 
 pub fn parse_node_style_statement(raw: &str) -> Option<ParsedNodeStyleDirective> {
@@ -312,6 +387,89 @@ pub(crate) fn parse_node_style_declarations(raw: &str) -> ParsedNodeStyleDeclara
     ParsedNodeStyleDeclaration { style, issues }
 }
 
+pub(crate) fn parse_edge_style_declarations(raw: &str) -> ParsedEdgeStyleDeclaration {
+    let mut style = EdgeStyle::default();
+    let mut issues = Vec::new();
+
+    let declarations = reassemble_declarations(raw);
+
+    for declaration in &declarations {
+        let declaration = declaration.trim();
+        if declaration.is_empty() {
+            continue;
+        }
+
+        let Some((key, value)) = declaration.split_once(':') else {
+            issues.push(EdgeStyleIssue::MalformedDeclaration {
+                declaration: declaration.to_string(),
+            });
+            continue;
+        };
+
+        let property = key.trim().to_ascii_lowercase();
+        let value = value.trim();
+        if value.is_empty() {
+            issues.push(EdgeStyleIssue::MalformedDeclaration {
+                declaration: declaration.to_string(),
+            });
+            continue;
+        }
+
+        match property.as_str() {
+            "stroke-width" => {
+                style.stroke_width = Some(value.to_string());
+            }
+            "stroke" => match ColorToken::parse(value) {
+                Ok(token) => {
+                    if token.to_rgb().is_none() {
+                        issues.push(EdgeStyleIssue::UnsupportedColorSyntax {
+                            property: property.clone(),
+                            value: token.raw().to_string(),
+                        });
+                    }
+                    style.stroke = Some(token);
+                }
+                Err(_) => {
+                    issues.push(EdgeStyleIssue::MalformedDeclaration {
+                        declaration: declaration.to_string(),
+                    });
+                }
+            },
+            _ => issues.push(EdgeStyleIssue::UnsupportedProperty { property }),
+        }
+    }
+
+    ParsedEdgeStyleDeclaration { style, issues }
+}
+
+pub fn parse_linkstyle_statement(raw: &str) -> Option<ParsedLinkStyleDirective> {
+    let trimmed = raw.trim();
+    let rest = strip_keyword(trimmed, "linkStyle")?.trim_start();
+    if rest.is_empty() {
+        return None;
+    }
+
+    let mut parts = rest.splitn(2, char::is_whitespace);
+    let target_raw = parts.next()?.trim();
+    if target_raw.is_empty() {
+        return None;
+    }
+
+    let (target, mut target_issues) = parse_link_style_target(target_raw)?;
+    let declarations = parts.next().unwrap_or("").trim();
+    if declarations.is_empty() {
+        return None;
+    }
+    let parsed = parse_edge_style_declarations(declarations);
+    target_issues.extend(parsed.issues);
+
+    Some(ParsedLinkStyleDirective {
+        target,
+        style: parsed.style,
+        issues: target_issues,
+    })
+}
+
 /// Parsed `classDef className fill:#f9f,stroke:#333` directive.
 pub struct ParsedClassDefDirective {
     /// The class name.
@@ -433,6 +591,32 @@ fn strip_keyword<'a>(input: &'a str, keyword: &str) -> Option<&'a str> {
     Some(rest)
 }
 
+fn parse_link_style_target(raw: &str) -> Option<(LinkStyleTarget, Vec<EdgeStyleIssue>)> {
+    if raw.eq_ignore_ascii_case("default") {
+        return Some((LinkStyleTarget::Default, Vec::new()));
+    }
+
+    let mut indices = Vec::new();
+    let mut issues = Vec::new();
+    for part in raw.split(',') {
+        let trimmed = part.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        match trimmed.parse::<usize>() {
+            Ok(idx) => indices.push(idx),
+            Err(_) => issues.push(EdgeStyleIssue::InvalidLinkIndex {
+                token: trimmed.to_string(),
+            }),
+        }
+    }
+    if indices.is_empty() {
+        None
+    } else {
+        Some((LinkStyleTarget::Indices(indices), issues))
+    }
+}
+
 fn parse_hex_color(raw: &str) -> Option<(u8, u8, u8)> {
     let hex = raw.strip_prefix('#')?;
     match hex.len() {
@@ -472,9 +656,9 @@ fn named_color_rgb(raw: &str) -> Option<(u8, u8, u8)> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ColorToken, NodeStyle, NodeStyleIssue, parse_class_apply_statement,
-        parse_classdef_statement, parse_classdef_statement_multi, parse_node_style_declarations,
-        parse_node_style_statement,
+        ColorToken, LinkStyleTarget, NodeStyle, NodeStyleIssue, parse_class_apply_statement,
+        parse_classdef_statement, parse_classdef_statement_multi, parse_linkstyle_statement,
+        parse_node_style_declarations, parse_node_style_statement,
     };
 
     #[test]
@@ -664,5 +848,40 @@ mod tests {
     fn parse_class_apply_not_class() {
         assert!(parse_class_apply_statement("classDef foo fill:#f00").is_none());
         assert!(parse_class_apply_statement("style A fill:#f00").is_none());
+    }
+
+    #[test]
+    fn parse_linkstyle_statement_extracts_targets_and_supported_properties() {
+        let parsed =
+            parse_linkstyle_statement("linkStyle 0,2 stroke:#f00,stroke-width:4px").unwrap();
+
+        assert_eq!(parsed.target, LinkStyleTarget::Indices(vec![0, 2]));
+        assert_eq!(parsed.style.stroke.as_ref().unwrap().raw(), "#f00");
+        assert_eq!(parsed.style.stroke_width.as_deref(), Some("4px"));
+    }
+
+    #[test]
+    fn parse_linkstyle_statement_supports_default_target() {
+        let parsed = parse_linkstyle_statement("linkStyle default stroke:#999").unwrap();
+
+        assert_eq!(parsed.target, LinkStyleTarget::Default);
+        assert_eq!(parsed.style.stroke.as_ref().unwrap().raw(), "#999");
+    }
+
+    #[test]
+    fn parse_linkstyle_invalid_index_reports_issue() {
+        let parsed = parse_linkstyle_statement("linkStyle nope,1 stroke:#f00").unwrap();
+        assert_eq!(parsed.target, LinkStyleTarget::Indices(vec![1]));
+        assert_eq!(parsed.issues.len(), 1);
+        assert!(
+            parsed.issues[0].message().contains("nope"),
+            "should report the invalid token: {}",
+            parsed.issues[0].message()
+        );
+    }
+
+    #[test]
+    fn parse_linkstyle_all_invalid_indices_returns_none() {
+        assert!(parse_linkstyle_statement("linkStyle nope stroke:#f00").is_none());
     }
 }

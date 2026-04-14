@@ -2,11 +2,11 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::graph::style::NodeStyle;
+use crate::graph::style::{LinkStyleTarget, NodeStyle};
 use crate::graph::{Arrow, Direction, Edge, Graph, Node, Shape, Stroke, Subgraph};
 use crate::mermaid::{
-    ArrowHead, ConnectorSpec, Direction as ParseDirection, EdgeSpec, Flowchart, ShapeSpec,
-    Statement, StrokeSpec, Vertex,
+    ArrowHead, ConnectorSpec, Direction as ParseDirection, EdgeSpec, Flowchart, LinkStyleStatement,
+    ShapeSpec, Statement, StrokeSpec, Vertex,
 };
 
 type ClassDefRegistry = HashMap<String, NodeStyle>;
@@ -16,16 +16,19 @@ pub fn compile_to_graph(flowchart: &Flowchart) -> Graph {
     let direction = convert_direction(flowchart.direction);
     let mut diagram = Graph::new(direction);
     let mut node_styles = HashMap::new();
+    let mut edge_styles = Vec::new();
     let class_defs = collect_class_defs(&flowchart.statements);
     process_statements(
         &mut diagram,
         &flowchart.statements,
         None,
         &mut node_styles,
+        &mut edge_styles,
         &class_defs,
     );
     apply_default_class(&mut diagram, &node_styles, &class_defs);
     resolve_subgraph_edges(&mut diagram);
+    apply_edge_styles(&mut diagram, &edge_styles);
     diagram
 }
 
@@ -57,6 +60,7 @@ fn process_statements(
     statements: &[Statement],
     parent_subgraph: Option<&str>,
     node_styles: &mut HashMap<String, NodeStyle>,
+    edge_styles: &mut Vec<LinkStyleStatement>,
     class_defs: &ClassDefRegistry,
 ) {
     for statement in statements {
@@ -112,6 +116,7 @@ fn process_statements(
                     &sg_spec.statements,
                     Some(&sg_spec.id),
                     node_styles,
+                    edge_styles,
                     class_defs,
                 );
                 let node_ids = collect_node_ids(&sg_spec.statements);
@@ -141,6 +146,7 @@ fn process_statements(
                     }
                 }
             }
+            Statement::LinkStyle(link_style) => edge_styles.push(link_style.clone()),
         }
     }
 }
@@ -240,6 +246,25 @@ fn merge_node_style(
     }
 }
 
+fn apply_edge_styles(diagram: &mut Graph, styles: &[LinkStyleStatement]) {
+    for style_stmt in styles {
+        match &style_stmt.target {
+            LinkStyleTarget::Default => {
+                for edge in &mut diagram.edges {
+                    edge.style = edge.style.merge(&style_stmt.style);
+                }
+            }
+            LinkStyleTarget::Indices(indices) => {
+                for index in indices {
+                    if let Some(edge) = diagram.edges.iter_mut().find(|edge| edge.index == *index) {
+                        edge.style = edge.style.merge(&style_stmt.style);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Replace edge endpoints that reference subgraph IDs with representative child nodes.
 fn resolve_subgraph_edges(diagram: &mut Graph) {
     let mut resolved_edges = Vec::new();
@@ -269,6 +294,7 @@ fn resolve_subgraph_edges(diagram: &mut Graph) {
             from_subgraph,
             to_subgraph,
             stroke: edge.stroke,
+            style: edge.style.clone(),
             arrow_start: edge.arrow_start,
             arrow_end: edge.arrow_end,
             label: edge.label.clone(),
@@ -331,7 +357,10 @@ fn collect_node_ids_inner(
             Statement::Subgraph(sg) => {
                 collect_node_ids_inner(&sg.statements, result, seen);
             }
-            Statement::NodeStyle(_) | Statement::ClassDef(_) | Statement::ClassApply(_) => {}
+            Statement::NodeStyle(_)
+            | Statement::ClassDef(_)
+            | Statement::ClassApply(_)
+            | Statement::LinkStyle(_) => {}
         }
     }
 }
@@ -1242,6 +1271,26 @@ mod tests {
             "#f00"
         );
         assert!(diagram.nodes["C"].style.fill.is_none());
+    }
+
+    #[test]
+    fn linkstyle_default_and_index_styles_merge_in_statement_order() {
+        let flowchart = parse_flowchart(
+            "graph TD\nA --> B\nB --> C\nlinkStyle default stroke:#999,stroke-width:2px\nlinkStyle 1 stroke:#0f0\n",
+        )
+        .unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        assert_eq!(
+            diagram.edges[0].style.stroke.as_ref().unwrap().raw(),
+            "#999"
+        );
+        assert_eq!(diagram.edges[0].style.stroke_width.as_deref(), Some("2px"));
+        assert_eq!(
+            diagram.edges[1].style.stroke.as_ref().unwrap().raw(),
+            "#0f0"
+        );
+        assert_eq!(diagram.edges[1].style.stroke_width.as_deref(), Some("2px"));
     }
 
     fn compile_fixture_diagram(name: &str) -> Graph {

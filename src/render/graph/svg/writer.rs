@@ -2,16 +2,16 @@
 
 use std::collections::BTreeSet;
 
-use super::{GraphSvgPalette, dynamic_css_attrs};
+use super::{GraphSvgPalette, MarkerDef, dynamic_css_attrs};
 use crate::render::svg::{SvgWriter, fmt_f64};
 
 pub(super) fn render_defs(
     writer: &mut SvgWriter,
     scale: f64,
     palette: &GraphSvgPalette,
-    used_marker_ids: &BTreeSet<&'static str>,
+    used_markers: &BTreeSet<MarkerDef>,
 ) {
-    if used_marker_ids.is_empty() {
+    if used_markers.is_empty() {
         return;
     }
 
@@ -37,11 +37,33 @@ pub(super) fn render_defs(
     let diamond_half = diamond_size / 2.0;
     let diamond_marker_size = 12.0 * scale;
 
-    for marker_id in used_marker_ids {
-        match *marker_id {
+    for marker in used_markers {
+        let marker_color = marker.color.as_deref().unwrap_or(&palette.marker_color);
+        let fill_dynamic_attrs = if marker.color.is_none() {
+            fill_dynamic_attrs.as_str()
+        } else {
+            ""
+        };
+        let stroke_dynamic_attrs = if marker.color.is_none() {
+            stroke_dynamic_attrs.as_str()
+        } else {
+            ""
+        };
+        let circle_dynamic_attrs = if marker.color.is_none() {
+            dynamic_css_attrs(
+                palette.dynamic_css,
+                "graph-circle-marker",
+                &["stroke:var(--_arrow);fill:var(--bg);"],
+            )
+        } else {
+            String::new()
+        };
+
+        match marker.kind {
             "arrowhead" => {
                 let marker = format!(
-                    "<marker id=\"arrowhead\" viewBox=\"0 0 {base} {base}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    "<marker id=\"{id}\" viewBox=\"0 0 {base} {base}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    id = marker.id,
                     base = fmt_f64(base),
                     ref_x = fmt_f64(half),
                     ref_y = fmt_f64(half),
@@ -54,8 +76,8 @@ pub(super) fn render_defs(
                     tip = fmt_f64(base),
                     mid = fmt_f64(half),
                     size = fmt_f64(base),
-                    color = palette.marker_color,
-                    dynamic_attrs = fill_dynamic_attrs.as_str()
+                    color = marker_color,
+                    dynamic_attrs = fill_dynamic_attrs
                 );
                 writer.push_line(&path);
                 writer.end_tag("</marker>");
@@ -64,7 +86,8 @@ pub(super) fn render_defs(
                 let cross_size = 11.0;
                 let cross_marker_size = 11.0 * scale;
                 let marker = format!(
-                    "<marker id=\"crosshead\" viewBox=\"0 0 {size} {size}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    "<marker id=\"{id}\" viewBox=\"0 0 {size} {size}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    id = marker.id,
                     size = fmt_f64(cross_size),
                     ref_x = fmt_f64(12.0),
                     ref_y = fmt_f64(5.2),
@@ -74,8 +97,8 @@ pub(super) fn render_defs(
                 writer.start_tag(&marker);
                 let path = format!(
                     "<path d=\"M 1,1 l 9,9 M 10,1 l -9,9\" stroke=\"{color}\" stroke-width=\"2\"{dynamic_attrs} />",
-                    color = palette.marker_color,
-                    dynamic_attrs = stroke_dynamic_attrs.as_str()
+                    color = marker_color,
+                    dynamic_attrs = stroke_dynamic_attrs
                 );
                 writer.push_line(&path);
                 writer.end_tag("</marker>");
@@ -86,13 +109,9 @@ pub(super) fn render_defs(
                     .background_color
                     .as_deref()
                     .unwrap_or("white");
-                let circle_dynamic_attrs = dynamic_css_attrs(
-                    palette.dynamic_css,
-                    "graph-circle-marker",
-                    &["stroke:var(--_arrow);fill:var(--bg);"],
-                );
                 let marker = format!(
-                    "<marker id=\"circlehead\" viewBox=\"0 0 {size} {size}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    "<marker id=\"{id}\" viewBox=\"0 0 {size} {size}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    id = marker.id,
                     size = fmt_f64(circle_vb),
                     ref_x = fmt_f64(11.0),
                     ref_y = fmt_f64(6.0),
@@ -102,16 +121,17 @@ pub(super) fn render_defs(
                 writer.start_tag(&marker);
                 let circle = format!(
                     "<circle cx=\"6\" cy=\"6\" r=\"5\" stroke=\"{color}\" stroke-width=\"1\" fill=\"{fill}\"{dynamic_attrs} />",
-                    color = palette.marker_color,
+                    color = marker_color,
                     fill = circle_fill,
-                    dynamic_attrs = circle_dynamic_attrs.as_str()
+                    dynamic_attrs = circle_dynamic_attrs
                 );
                 writer.push_line(&circle);
                 writer.end_tag("</marker>");
             }
             "open-arrowhead" => {
                 let marker = format!(
-                    "<marker id=\"open-arrowhead\" viewBox=\"0 0 {base} {base}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    "<marker id=\"{id}\" viewBox=\"0 0 {base} {base}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    id = marker.id,
                     base = fmt_f64(base),
                     ref_x = fmt_f64(half),
                     ref_y = fmt_f64(half),
@@ -124,15 +144,16 @@ pub(super) fn render_defs(
                     tip = fmt_f64(base),
                     mid = fmt_f64(half),
                     size = fmt_f64(base),
-                    color = palette.marker_color,
-                    dynamic_attrs = stroke_dynamic_attrs.as_str()
+                    color = marker_color,
+                    dynamic_attrs = stroke_dynamic_attrs
                 );
                 writer.push_line(&polygon);
                 writer.end_tag("</marker>");
             }
             "diamondhead" => {
                 let marker = format!(
-                    "<marker id=\"diamondhead\" viewBox=\"0 0 {size} {size}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    "<marker id=\"{id}\" viewBox=\"0 0 {size} {size}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    id = marker.id,
                     size = fmt_f64(diamond_size),
                     ref_x = fmt_f64(diamond_half),
                     ref_y = fmt_f64(diamond_half),
@@ -144,15 +165,16 @@ pub(super) fn render_defs(
                     "<polygon points=\"0,{mid} {mid},0 {size},{mid} {mid},{size}\" fill=\"{color}\"{dynamic_attrs} />",
                     mid = fmt_f64(diamond_half),
                     size = fmt_f64(diamond_size),
-                    color = palette.marker_color,
-                    dynamic_attrs = fill_dynamic_attrs.as_str()
+                    color = marker_color,
+                    dynamic_attrs = fill_dynamic_attrs
                 );
                 writer.push_line(&polygon);
                 writer.end_tag("</marker>");
             }
             "open-diamondhead" => {
                 let marker = format!(
-                    "<marker id=\"open-diamondhead\" viewBox=\"0 0 {size} {size}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    "<marker id=\"{id}\" viewBox=\"0 0 {size} {size}\" refX=\"{ref_x}\" refY=\"{ref_y}\" markerWidth=\"{mw}\" markerHeight=\"{mh}\" orient=\"auto-start-reverse\" markerUnits=\"userSpaceOnUse\">",
+                    id = marker.id,
                     size = fmt_f64(diamond_size),
                     ref_x = fmt_f64(diamond_half),
                     ref_y = fmt_f64(diamond_half),
@@ -164,8 +186,8 @@ pub(super) fn render_defs(
                     "<polygon points=\"0,{mid} {mid},0 {size},{mid} {mid},{size}\" fill=\"none\" stroke=\"{color}\" stroke-width=\"1\"{dynamic_attrs} />",
                     mid = fmt_f64(diamond_half),
                     size = fmt_f64(diamond_size),
-                    color = palette.marker_color,
-                    dynamic_attrs = stroke_dynamic_attrs.as_str()
+                    color = marker_color,
+                    dynamic_attrs = stroke_dynamic_attrs
                 );
                 writer.push_line(&polygon);
                 writer.end_tag("</marker>");

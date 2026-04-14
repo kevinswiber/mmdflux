@@ -7,11 +7,12 @@ use pest_derive::Parser;
 
 use super::ast::{
     ArrowHead, ClassApplyStatement, ClassDefStatement, ConnectorSpec, Direction, EdgeSpec,
-    NodeStyleStatement, ShapeSpec, Statement, StrokeSpec, SubgraphSpec, Vertex,
+    LinkStyleStatement, NodeStyleStatement, ShapeSpec, Statement, StrokeSpec, SubgraphSpec, Vertex,
 };
 use super::error::ParseError;
 use crate::graph::style::{
-    parse_class_apply_statement, parse_classdef_statement_multi, parse_node_style_statement,
+    parse_class_apply_statement, parse_classdef_statement_multi, parse_linkstyle_statement,
+    parse_node_style_statement,
 };
 
 #[derive(Parser)]
@@ -39,7 +40,8 @@ impl Flowchart {
                 Statement::Subgraph(_)
                 | Statement::NodeStyle(_)
                 | Statement::ClassDef(_)
-                | Statement::ClassApply(_) => {}
+                | Statement::ClassApply(_)
+                | Statement::LinkStyle(_) => {}
             }
         }
         result
@@ -275,6 +277,13 @@ fn parse_statement(
         })];
     }
 
+    if let Some(link_style) = parse_linkstyle_statement(raw) {
+        return vec![Statement::LinkStyle(LinkStyleStatement {
+            target: link_style.target,
+            style: link_style.style,
+        })];
+    }
+
     pair.into_inner()
         .flat_map(|inner| match inner.as_rule() {
             Rule::vertex_statement => parse_vertex_statement(inner),
@@ -365,6 +374,14 @@ fn parse_subgraph(pair: pest::iterators::Pair<Rule>, counter: &mut usize) -> Sub
                             body_statements.push(Statement::ClassApply(ClassApplyStatement {
                                 node_ids: class_apply.node_ids,
                                 class_name: class_apply.class_name,
+                            }));
+                            continue;
+                        }
+
+                        if let Some(link_style) = parse_linkstyle_statement(raw) {
+                            body_statements.push(Statement::LinkStyle(LinkStyleStatement {
+                                target: link_style.target,
+                                style: link_style.style,
                             }));
                             continue;
                         }
@@ -1720,10 +1737,17 @@ mod tests {
     }
 
     #[test]
-    fn test_linkstyle_statement_ignored() {
+    fn test_parse_flowchart_keeps_linkstyle_statements() {
         let input = "graph TD\nA --> B\nlinkStyle 0 stroke:#ff3,stroke-width:4px\n";
         let result = parse_flowchart(input).unwrap();
+
         assert_eq!(result.edges().len(), 1);
+        assert!(
+            result
+                .statements
+                .iter()
+                .any(|stmt| matches!(stmt, Statement::LinkStyle(_)))
+        );
     }
 
     #[test]

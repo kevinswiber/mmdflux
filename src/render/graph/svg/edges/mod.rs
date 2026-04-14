@@ -26,14 +26,17 @@ use markers::{
 pub(super) use path_emit::{document_svg_path, polygon_points};
 use path_emit::{path_from_prepared_points, points_for_svg_path};
 
-pub(super) use self::markers::marker_id_for_arrow;
-use super::{GraphSvgPalette, Point, Rect};
+use super::{GraphSvgPalette, MarkerDef, Point, Rect};
 use crate::format::{CornerStyle, Curve};
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::routing::EdgeRouting;
-use crate::graph::{Graph, Shape, Stroke};
+use crate::graph::{Arrow, Graph, Shape, Stroke};
 use crate::render::svg::SvgWriter;
 use crate::simplification::PathSimplification;
+
+pub(super) fn marker_def_for_arrow(arrow: Arrow, color: Option<&str>) -> Option<MarkerDef> {
+    self::markers::marker_def_for_arrow(arrow, color)
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(super) struct PreparedRenderedEdges {

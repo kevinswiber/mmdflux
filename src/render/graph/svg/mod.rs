@@ -11,7 +11,7 @@ mod writer;
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use bounds::compute_svg_bounds;
-use edges::{marker_id_for_arrow, prepare_rendered_edge_paths, render_edges};
+use edges::{prepare_rendered_edge_paths, render_edges};
 use labels::render_edge_labels;
 use nodes::{render_nodes, render_subgraphs};
 use self_edges::compute_self_edge_paths;
@@ -51,6 +51,13 @@ pub(super) struct GraphSvgPalette {
     pub(super) edge_label_background: String,
     pub(super) marker_color: String,
     pub(super) dynamic_css: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(super) struct MarkerDef {
+    pub(super) id: String,
+    pub(super) kind: &'static str,
+    pub(super) color: Option<String>,
 }
 
 impl GraphSvgPalette {
@@ -227,7 +234,7 @@ fn render_svg_with_geometry_context(
     let offset_x = (-min_x + padding) * scale;
     let offset_y = (-min_y + padding) * scale;
     let palette = GraphSvgPalette::from_theme(theme);
-    let used_marker_ids = collect_used_marker_ids(diagram);
+    let used_markers = collect_used_markers(diagram);
 
     let mut writer = SvgWriter::new();
     writer.start_svg_with_root_style(
@@ -238,7 +245,7 @@ fn render_svg_with_geometry_context(
         &palette.root_style,
     );
 
-    render_defs(&mut writer, scale, &palette, &used_marker_ids);
+    render_defs(&mut writer, scale, &palette, &used_markers);
     writer.start_group_transform(offset_x, offset_y);
     render_subgraphs(&mut writer, diagram, geom, &metrics, scale, &palette);
     // Keep node fills and borders above edge paths so crossing routes are
@@ -270,21 +277,22 @@ fn render_svg_with_geometry_context(
     writer.finish()
 }
 
-fn collect_used_marker_ids(diagram: &Graph) -> BTreeSet<&'static str> {
-    let mut used_marker_ids = BTreeSet::new();
+fn collect_used_markers(diagram: &Graph) -> BTreeSet<MarkerDef> {
+    let mut used_markers = BTreeSet::new();
     for edge in diagram
         .edges
         .iter()
         .filter(|edge| edge.stroke != Stroke::Invisible)
     {
-        if let Some(marker_id) = marker_id_for_arrow(edge.arrow_start) {
-            used_marker_ids.insert(marker_id);
+        let stroke = edge.style.stroke.as_ref().map(|color| color.raw());
+        if let Some(marker) = edges::marker_def_for_arrow(edge.arrow_start, stroke) {
+            used_markers.insert(marker);
         }
-        if let Some(marker_id) = marker_id_for_arrow(edge.arrow_end) {
-            used_marker_ids.insert(marker_id);
+        if let Some(marker) = edges::marker_def_for_arrow(edge.arrow_end, stroke) {
+            used_markers.insert(marker);
         }
     }
-    used_marker_ids
+    used_markers
 }
 
 // RenderConfig conversion tests live in runtime/config.rs.
