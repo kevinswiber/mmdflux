@@ -2120,6 +2120,57 @@ test("state self-loop with a routed path preserves routed loop geometry", () => 
   assert.equal(arrow.props.end.y, 0);
 });
 
+test("flowchart self-loop with a tiny terminal stub uses the last visible segment for the arrow", () => {
+  const mmds = {
+    version: 1,
+    geometry_level: "routed",
+    metadata: { diagram_type: "flowchart", direction: "TD" },
+    nodes: [
+      {
+        id: "A",
+        label: "Process",
+        position: { x: 66.768, y: 35.0 },
+        size: { width: 117.536, height: 54.0 },
+        shape: "rectangle",
+      },
+    ],
+    edges: [
+      {
+        id: "e0",
+        source: "A",
+        target: "A",
+        path: [
+          [66.768, 62.0],
+          [66.768, 63.0],
+          [161.036, 63.0],
+          [161.036, 7.0],
+          [66.768, 7.0],
+          [66.768, 8.0],
+        ],
+      },
+    ],
+  };
+
+  const file = toTldrawFile(mmds);
+  assertParses(file);
+
+  const loopPath = file.records.find(
+    (record) =>
+      record.typeName === "shape" && record.id === "shape:edgeloop_e0",
+  );
+  const arrow = file.records.find(
+    (record) => record.typeName === "shape" && record.id === "shape:edge_e0",
+  );
+
+  assert.ok(loopPath, "expected the self-loop body to remain visible");
+  assert.ok(arrow, "expected a terminating arrow segment for the self-loop");
+  assert.ok(
+    arrow.props.end.x < 0,
+    "expected the arrow to terminate along the visible leftward segment",
+  );
+  assert.equal(arrow.props.end.y, 0);
+});
+
 // ── Sequence diagram tldraw conversion ──────────────────────────────
 
 test("sequence diagram produces valid tldraw file", () => {

@@ -186,6 +186,18 @@ function midpointOfPath(path: Point[]): Point | undefined {
   return path[path.length - 1];
 }
 
+function findLastVisibleSegmentIndex(
+  path: Point[],
+  minSegmentLength = 8,
+): number | undefined {
+  for (let i = path.length - 1; i > 0; i--) {
+    if (distance(path[i - 1], path[i]) >= minSegmentLength) {
+      return i - 1;
+    }
+  }
+  return path.length >= 2 ? path.length - 2 : undefined;
+}
+
 function synthesizeSelfLoopPath(nodeRect: Rect): Point[] {
   const right = nodeRect.x + nodeRect.w;
   const loopWidth = Math.max(32, nodeRect.w * 0.45);
@@ -1263,8 +1275,13 @@ export function convertToTldraw(
             : [];
 
       if (loopPath.length >= 2) {
+        const arrowSegmentIndex = findLastVisibleSegmentIndex(loopPath);
+        const arrowStartIndex =
+          arrowSegmentIndex === undefined
+            ? Math.max(loopPath.length - 2, 0)
+            : arrowSegmentIndex;
         const loopLinePoints =
-          loopPath.length > 2 ? loopPath.slice(0, -1) : loopPath;
+          arrowStartIndex > 0 ? loopPath.slice(0, arrowStartIndex + 1) : [];
         const dash = mapDash(edge.stroke);
         const size = mapSize(edge.stroke);
 
@@ -1283,8 +1300,9 @@ export function convertToTldraw(
           );
         }
 
-        const arrowStart = loopPath[Math.max(loopPath.length - 2, 0)];
-        const arrowEnd = loopPath[loopPath.length - 1];
+        const arrowStart = loopPath[arrowStartIndex];
+        const arrowEnd =
+          loopPath[arrowStartIndex + 1] ?? loopPath[loopPath.length - 1];
         shapeRecords.push({
           id: edgeShapeId,
           typeName: "shape",
