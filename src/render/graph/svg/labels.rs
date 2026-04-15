@@ -1,19 +1,22 @@
 //! SVG label placement and emission helpers for graph rendering.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::text::{BackgroundStyle, TextRenderStyle, render_text_centered};
 use super::{GraphSvgPalette, Point, dynamic_css_attrs};
-use crate::graph::geometry::GraphGeometry;
+use crate::graph::geometry::{EdgeLabelSide, GraphGeometry};
 use crate::graph::measure::ProportionalTextMetrics;
 use crate::graph::routing::compute_end_label_positions;
-use crate::graph::{Graph, Stroke};
+use crate::graph::{Direction, Graph, Stroke};
 use crate::render::svg::SvgWriter;
 
 const LABEL_ANCHOR_REVALIDATION_MAX_DISTANCE: f64 = 2.0;
 const LABEL_POINT_EPS: f64 = 0.000_001;
 
-fn revalidate_svg_label_anchor(candidate: Point, rendered_path: Option<&[Point]>) -> Point {
+pub(super) fn revalidate_svg_label_anchor(
+    candidate: Point,
+    rendered_path: Option<&[Point]>,
+) -> Point {
     let Some(path) = rendered_path else {
         return candidate;
     };
@@ -109,6 +112,8 @@ pub(super) fn render_edge_labels(
     palette: &GraphSvgPalette,
 ) {
     let label_positions = precomputed_label_positions(geom);
+    let label_sides = precomputed_label_sides(geom);
+    let reciprocal_edges = reciprocal_labeled_edge_indices(diagram);
     let dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,
         "graph-edge-text",
@@ -149,23 +154,42 @@ pub(super) fn render_edge_labels(
         };
         let use_precomputed =
             edge.from_subgraph.is_none() && edge.to_subgraph.is_none() && !cross_boundary;
-        let position = if use_precomputed {
+        let precomputed = if use_precomputed {
             label_positions.get(&edge_idx).copied()
         } else {
             None
-        }
-        .or_else(|| fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths))
-        .map(|candidate| {
-            revalidate_svg_label_anchor(
-                candidate,
-                rendered_edge_paths
-                    .get(&edge_idx)
-                    .map(|path| path.as_slice()),
-            )
-        });
-        let Some(point) = position else {
+        };
+        let is_reciprocal = reciprocal_edges.contains(&edge_idx);
+        let has_side = label_sides
+            .get(&edge_idx)
+            .is_some_and(|s| *s != EdgeLabelSide::Center);
+        let position = if is_reciprocal && has_side && precomputed.is_some() {
+            precomputed
+        } else {
+            let fallback =
+                fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths);
+            let candidate = precomputed.or(fallback);
+            let rendered_path = rendered_edge_paths
+                .get(&edge_idx)
+                .map(|path| path.as_slice());
+            candidate.map(|c| revalidate_svg_label_anchor(c, rendered_path))
+        };
+        let Some(mut point) = position else {
             continue;
         };
+        if is_reciprocal && has_side {
+            let side = label_sides[&edge_idx];
+            let sign = match side {
+                EdgeLabelSide::Above => -1.0,
+                EdgeLabelSide::Below => 1.0,
+                EdgeLabelSide::Center => 0.0,
+            };
+            let nudge = metrics.line_height * 0.5;
+            match geom.direction {
+                Direction::TopDown | Direction::BottomTop => point.y += sign * nudge,
+                Direction::LeftRight | Direction::RightLeft => point.x += sign * nudge,
+            }
+        }
         render_text_centered(
             writer,
             Point {
@@ -280,6 +304,28 @@ pub(super) fn precomputed_label_positions(geom: &GraphGeometry) -> HashMap<usize
     geom.edges
         .iter()
         .filter_map(|edge| edge.label_position.map(|point| (edge.index, point)))
+        .collect()
+}
+
+pub(super) fn reciprocal_labeled_edge_indices(diagram: &Graph) -> HashSet<usize> {
+    let mut result = HashSet::new();
+    for edge in &diagram.edges {
+        if edge.label.is_none() {
+            continue;
+        }
+        if diagram.edges.iter().any(|other| {
+            other.index != edge.index && other.from == edge.to && other.to == edge.from
+        }) {
+            result.insert(edge.index);
+        }
+    }
+    result
+}
+
+pub(super) fn precomputed_label_sides(geom: &GraphGeometry) -> HashMap<usize, EdgeLabelSide> {
+    geom.edges
+        .iter()
+        .filter_map(|edge| edge.label_side.map(|side| (edge.index, side)))
         .collect()
 }
 

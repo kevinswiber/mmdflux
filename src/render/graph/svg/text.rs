@@ -15,7 +15,7 @@ pub(super) struct BackgroundStyle<'a> {
     pub(super) extra_attrs: &'a str,
 }
 
-const LABEL_BG_PAD_X: f64 = 4.0;
+pub(super) const LABEL_BG_PAD_X: f64 = 4.0;
 const LABEL_BG_PAD_Y: f64 = 2.0;
 
 pub(super) fn render_text_centered(

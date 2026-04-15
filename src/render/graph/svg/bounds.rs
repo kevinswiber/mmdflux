@@ -2,11 +2,14 @@
 
 use std::collections::HashMap;
 
-use super::labels::{fallback_label_position, precomputed_label_positions};
+use super::labels::{
+    fallback_label_position, precomputed_label_positions, precomputed_label_sides,
+    reciprocal_labeled_edge_indices,
+};
 use super::{Point, Rect};
-use crate::graph::geometry::GraphGeometry;
+use crate::graph::geometry::{EdgeLabelSide, GraphGeometry};
 use crate::graph::measure::ProportionalTextMetrics;
-use crate::graph::{Graph, Stroke};
+use crate::graph::{Direction, Graph, Stroke};
 
 pub(super) struct SvgBounds {
     min_x: f64,
@@ -108,6 +111,8 @@ pub(super) fn compute_svg_bounds(
     }
 
     let label_positions = precomputed_label_positions(geom);
+    let label_sides = precomputed_label_sides(geom);
+    let reciprocal_edges = reciprocal_labeled_edge_indices(diagram);
 
     for edge in diagram.edges.iter() {
         if edge.stroke == Stroke::Invisible {
@@ -117,22 +122,41 @@ pub(super) fn compute_svg_bounds(
             continue;
         };
         let edge_idx = edge.index;
-        // Use precomputed label positions only when the edge was NOT re-routed.
-        // Re-routed edges (e.g. backward edges with channel detours) have their
-        // labels placed on the rendered path, which can differ from the
-        // precomputed geometry position.
         let use_precomputed = edge.from_subgraph.is_none()
             && edge.to_subgraph.is_none()
             && !rendered_edge_paths.contains_key(&edge.index);
-        let position = if use_precomputed {
+        let precomputed = if use_precomputed {
             label_positions.get(&edge_idx).copied()
         } else {
             None
-        }
-        .or_else(|| fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths));
-        let Some(point) = position else {
+        };
+        let is_reciprocal = reciprocal_edges.contains(&edge_idx);
+        let has_side = label_sides
+            .get(&edge_idx)
+            .is_some_and(|s| *s != EdgeLabelSide::Center);
+        let position = if is_reciprocal && has_side && precomputed.is_some() {
+            precomputed
+        } else {
+            let fallback =
+                fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths);
+            precomputed.or(fallback)
+        };
+        let Some(mut point) = position else {
             continue;
         };
+        if is_reciprocal && has_side {
+            let side = label_sides[&edge_idx];
+            let sign = match side {
+                EdgeLabelSide::Above => -1.0,
+                EdgeLabelSide::Below => 1.0,
+                EdgeLabelSide::Center => 0.0,
+            };
+            let nudge = metrics.line_height * 0.5;
+            match geom.direction {
+                Direction::TopDown | Direction::BottomTop => point.y += sign * nudge,
+                Direction::LeftRight | Direction::RightLeft => point.x += sign * nudge,
+            }
+        }
         let (w, h) = metrics.edge_label_dimensions(label);
         let rect = Rect {
             x: point.x - w / 2.0,
