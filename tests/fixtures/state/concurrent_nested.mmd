@@ -1,0 +1,13 @@
+stateDiagram-v2
+    [*] --> Active
+    state Active {
+        [*] --> NumLockOff
+        NumLockOff --> NumLockOn : EvNumLockPressed
+        NumLockOn --> NumLockOff : EvNumLockPressed
+        --
+        state Inner {
+            [*] --> I1
+            I1 --> I2
+            I2 --> I1
+        }
+    }

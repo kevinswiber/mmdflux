@@ -49,12 +49,16 @@ pub fn render_text_from_grid_layout(
         }
     }
 
+    let edge_containment =
+        edge::compute_edge_containment(&diagram.edges, &diagram.subgraphs, &layout.subgraph_bounds);
+
     edge::render_all_edges_with_labels(
         &mut canvas,
         &routed_edges,
         &charset,
         diagram.direction,
         &layout.edge_label_positions,
+        &edge_containment,
     );
 
     apply_subgraph_border_junctions(

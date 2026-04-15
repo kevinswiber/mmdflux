@@ -871,3 +871,196 @@ pub(super) fn ensure_subgraph_contains_members(
         }
     }
 }
+
+/// Expand subgraphs whose edge labels are wider than the available column.
+///
+/// For concurrent regions (side-by-side columns), each region must be wide
+/// enough to display its widest internal edge label.  When a region is too
+/// narrow the label overflows the region divider into adjacent columns.
+///
+/// This function expands each narrow region, shifts nodes within it to stay
+/// centered, and pushes subsequent sibling regions to the right.  It also
+/// handles non-concurrent leaf subgraphs by expanding their bounds
+/// symmetrically.
+///
+/// Returns the set of node IDs whose draw positions were shifted, so the
+/// caller can invalidate stale edge waypoints.
+pub(super) fn expand_subgraphs_for_edge_labels(
+    diagram: &Graph,
+    node_bounds: &mut HashMap<String, NodeBounds>,
+    draw_positions: &mut HashMap<String, (usize, usize)>,
+    subgraph_bounds: &mut HashMap<String, SubgraphBounds>,
+) -> HashSet<String> {
+    let mut shifted_nodes: HashSet<String> = HashSet::new();
+
+    // --- Concurrent region parents ---
+    let parent_ids: Vec<String> = diagram
+        .subgraphs
+        .iter()
+        .filter(|(_, sg)| sg.concurrent_regions.len() >= 2)
+        .map(|(id, _)| id.clone())
+        .collect();
+
+    for parent_id in &parent_ids {
+        let regions: Vec<String> = diagram.subgraphs[parent_id].concurrent_regions.clone();
+
+        let mut cumulative_shift: usize = 0;
+
+        for region_id in &regions {
+            let Some(region_sg) = diagram.subgraphs.get(region_id) else {
+                continue;
+            };
+            let region_members: Vec<String> = region_sg.nodes.clone();
+
+            // Apply cumulative shift from previous region expansions.
+            if cumulative_shift > 0 {
+                if let Some(rb) = subgraph_bounds.get_mut(region_id) {
+                    rb.x += cumulative_shift;
+                }
+                shift_subgraph_members_recursive(
+                    region_id,
+                    cumulative_shift,
+                    &diagram.subgraphs,
+                    node_bounds,
+                    draw_positions,
+                    subgraph_bounds,
+                    &mut shifted_nodes,
+                );
+            }
+
+            let members_set: HashSet<&str> = region_members.iter().map(|s| s.as_str()).collect();
+            let max_label_width = max_internal_edge_label_width(&diagram.edges, &members_set);
+            if max_label_width == 0 {
+                continue;
+            }
+
+            let rb = subgraph_bounds[region_id].clone();
+            let min_width = max_label_width + 6;
+            if rb.width >= min_width {
+                continue;
+            }
+
+            let expand = min_width - rb.width;
+            let centering = expand / 2;
+
+            subgraph_bounds.get_mut(region_id).unwrap().width = min_width;
+
+            for member_id in &region_members {
+                shift_node_x(member_id, centering, node_bounds, draw_positions);
+                shifted_nodes.insert(member_id.clone());
+            }
+
+            cumulative_shift += expand;
+        }
+    }
+
+    // --- Non-concurrent leaf subgraphs ---
+    let concurrent_region_ids: HashSet<&str> = diagram
+        .subgraphs
+        .values()
+        .flat_map(|sg| sg.concurrent_regions.iter().map(|s| s.as_str()))
+        .collect();
+
+    let mut ids: Vec<String> = subgraph_bounds.keys().cloned().collect();
+    ids.sort_by_key(|id| std::cmp::Reverse(subgraph_bounds.get(id).map(|b| b.depth).unwrap_or(0)));
+
+    for sg_id in &ids {
+        let Some(sg) = diagram.subgraphs.get(sg_id) else {
+            continue;
+        };
+        if !sg.concurrent_regions.is_empty() {
+            continue;
+        }
+        if concurrent_region_ids.contains(sg_id.as_str()) {
+            continue;
+        }
+
+        let members_set: HashSet<&str> = sg.nodes.iter().map(|s| s.as_str()).collect();
+        let max_label_width = max_internal_edge_label_width(&diagram.edges, &members_set);
+        if max_label_width == 0 {
+            continue;
+        }
+
+        let sb = subgraph_bounds[sg_id].clone();
+        let min_width = max_label_width + 6;
+        if sb.width >= min_width {
+            continue;
+        }
+
+        let expand = min_width - sb.width;
+        let expand_left = expand / 2;
+
+        if let Some(entry) = subgraph_bounds.get_mut(sg_id) {
+            entry.x = entry.x.saturating_sub(expand_left);
+            entry.width = min_width;
+        }
+    }
+
+    expand_parent_subgraph_bounds(&diagram.subgraphs, subgraph_bounds);
+
+    shifted_nodes
+}
+
+fn max_internal_edge_label_width(edges: &[Edge], members: &HashSet<&str>) -> usize {
+    edges
+        .iter()
+        .filter(|e| members.contains(e.from.as_str()) && members.contains(e.to.as_str()))
+        .filter_map(|e| e.label.as_ref())
+        .map(|label| {
+            label
+                .split('\n')
+                .map(|line| line.chars().count())
+                .max()
+                .unwrap_or(0)
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+fn shift_node_x(
+    node_id: &str,
+    delta: usize,
+    node_bounds: &mut HashMap<String, NodeBounds>,
+    draw_positions: &mut HashMap<String, (usize, usize)>,
+) {
+    if let Some(nb) = node_bounds.get_mut(node_id) {
+        nb.x += delta;
+        if let Some(lcx) = nb.layout_center_x.as_mut() {
+            *lcx += delta;
+        }
+    }
+    if let Some(pos) = draw_positions.get_mut(node_id) {
+        pos.0 += delta;
+    }
+}
+
+fn shift_subgraph_members_recursive(
+    sg_id: &str,
+    delta: usize,
+    subgraphs: &HashMap<String, Subgraph>,
+    node_bounds: &mut HashMap<String, NodeBounds>,
+    draw_positions: &mut HashMap<String, (usize, usize)>,
+    subgraph_bounds: &mut HashMap<String, SubgraphBounds>,
+    shifted_nodes: &mut HashSet<String>,
+) {
+    let Some(sg) = subgraphs.get(sg_id) else {
+        return;
+    };
+    let members: Vec<String> = sg.nodes.clone();
+    for member_id in &members {
+        shift_node_x(member_id, delta, node_bounds, draw_positions);
+        shifted_nodes.insert(member_id.clone());
+        if subgraph_bounds.contains_key(member_id) {
+            subgraph_bounds.get_mut(member_id).unwrap().x += delta;
+            shift_subgraph_members_recursive(
+                member_id,
+                delta,
+                subgraphs,
+                node_bounds,
+                draw_positions,
+                subgraph_bounds,
+                shifted_nodes,
+            );
+        }
+    }
+}

@@ -29,8 +29,8 @@ use subgraph_bounds::build_children_map;
 use subgraph_bounds::{
     clip_and_repair_override_subgraph_bounds, ensure_external_edge_spacing,
     ensure_subgraph_contains_members, expand_parent_subgraph_bounds,
-    expand_subgraphs_for_node_collisions, shrink_subgraph_horizontal_gaps,
-    shrink_subgraph_vertical_gaps, subgraph_bounds_to_draw,
+    expand_subgraphs_for_edge_labels, expand_subgraphs_for_node_collisions,
+    shrink_subgraph_horizontal_gaps, shrink_subgraph_vertical_gaps, subgraph_bounds_to_draw,
 };
 use waypoints::{
     clip_waypoints_to_subgraph, nudge_colliding_waypoints, transform_label_positions_direct,
@@ -494,6 +494,26 @@ pub fn geometry_to_grid_layout_with_routed(
     // Ensure subgraph bounds contain all member nodes after coordinate
     // transformation and shrink passes (rounding can cause 1-2 char losses).
     ensure_subgraph_contains_members(diagram, &node_bounds, &mut subgraph_bounds);
+
+    // --- Phase K.5: Expand subgraphs for edge labels ---
+    // Edge labels in narrow subgraphs (especially concurrent regions) can
+    // overflow column boundaries.  Expand each region to fit its widest
+    // label and shift subsequent sibling regions to the right.
+    let shifted = expand_subgraphs_for_edge_labels(
+        diagram,
+        &mut node_bounds,
+        &mut draw_positions,
+        &mut subgraph_bounds,
+    );
+    if !shifted.is_empty() {
+        for edge in &diagram.edges {
+            if shifted.contains(&edge.from) || shifted.contains(&edge.to) {
+                edge_waypoints.remove(&edge.index);
+                routed_edge_paths.remove(&edge.index);
+                edge_label_positions.remove(&edge.index);
+            }
+        }
+    }
 
     // --- Phase L: Compute self-edge loop paths in draw coordinates ---
     let self_edges: Vec<SelfEdgeDrawData> = geometry

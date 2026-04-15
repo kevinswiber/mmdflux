@@ -1,9 +1,9 @@
 //! Edge drawing for graph text output.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use crate::graph::grid::{AttachDirection, Point, RoutedEdge, Segment};
-use crate::graph::{Arrow, Direction, Stroke};
+use crate::graph::grid::{AttachDirection, Point, RoutedEdge, Segment, SubgraphBounds};
+use crate::graph::{Arrow, Direction, Edge, Stroke, Subgraph};
 use crate::render::text::canvas::{Canvas, CellStyle, Connections};
 use crate::render::text::chars::CharSet;
 
@@ -159,6 +159,38 @@ fn allowed_precomputed_label_drift(
     PRECOMPUTED_LABEL_BASE_DRIFT + cross_axis_span + 1.0
 }
 
+/// For each edge whose both endpoints live inside the same subgraph, return
+/// the tightest (innermost) horizontal containment range `(x_min, x_max)` so
+/// that the label renderer can clamp its position.
+pub fn compute_edge_containment(
+    edges: &[Edge],
+    subgraphs: &HashMap<String, Subgraph>,
+    subgraph_bounds: &HashMap<String, SubgraphBounds>,
+) -> HashMap<usize, (usize, usize)> {
+    let mut containment: HashMap<usize, (usize, usize)> = HashMap::new();
+    for edge in edges {
+        for (sg_id, sg) in subgraphs {
+            let members: HashSet<&str> = sg.nodes.iter().map(|s| s.as_str()).collect();
+            if !members.contains(edge.from.as_str()) || !members.contains(edge.to.as_str()) {
+                continue;
+            }
+            let Some(sb) = subgraph_bounds.get(sg_id) else {
+                continue;
+            };
+            let x_min = sb.x + 1;
+            let x_max = sb.x + sb.width.saturating_sub(1);
+            containment
+                .entry(edge.index)
+                .and_modify(|(cur_min, cur_max)| {
+                    *cur_min = (*cur_min).max(x_min);
+                    *cur_max = (*cur_max).min(x_max);
+                })
+                .or_insert((x_min, x_max));
+        }
+    }
+    containment
+}
+
 /// A label split into lines with precomputed dimensions.
 #[derive(Debug)]
 struct LabelBlock<'a> {
@@ -303,7 +335,7 @@ pub fn render_edge(
 
     // Draw label if present
     if let Some(label) = &routed.edge.label {
-        draw_edge_label_with_tracking(canvas, routed, label, diagram_direction, &[], charset);
+        draw_edge_label_with_tracking(canvas, routed, label, diagram_direction, &[], charset, None);
     }
 }
 
@@ -322,6 +354,7 @@ fn draw_edge_label_with_tracking(
     direction: Direction,
     placed_labels: &[PlacedLabel],
     charset: &CharSet,
+    containment: Option<(usize, usize)>,
 ) -> Option<PlacedLabel> {
     let block = label_block(label);
     let label_width = block.width;
@@ -477,6 +510,20 @@ fn draw_edge_label_with_tracking(
         } else {
             (label_x, label_y)
         };
+
+    // Clamp label within the containing subgraph to prevent overflow.
+    let label_x = if let Some((c_min, c_max)) = containment {
+        let avail = c_max.saturating_sub(c_min);
+        if label_width <= avail {
+            label_x.max(c_min).min(c_max.saturating_sub(label_width))
+        } else {
+            // Label wider than container — center it within the subgraph.
+            c_min + avail.saturating_sub(label_width) / 2
+        }
+    } else {
+        label_x
+    };
+
     // Expand canvas if the label would extend past the right edge
     let needed_width = label_x + label_width;
     if needed_width > canvas.width() {
@@ -503,6 +550,18 @@ fn draw_edge_label_with_tracking(
         width: label_width,
         height: label_height,
     })
+}
+
+fn clamp_label_x(label_x: usize, label_width: usize, containment: Option<(usize, usize)>) -> usize {
+    let Some((c_min, c_max)) = containment else {
+        return label_x;
+    };
+    let avail = c_max.saturating_sub(c_min);
+    if label_width <= avail {
+        label_x.max(c_min).min(c_max.saturating_sub(label_width))
+    } else {
+        c_min + avail.saturating_sub(label_width) / 2
+    }
 }
 
 fn vertical_label_position(
@@ -1080,6 +1139,7 @@ pub fn render_all_edges(
         charset,
         diagram_direction,
         &HashMap::new(),
+        &HashMap::new(),
     )
 }
 
@@ -1090,6 +1150,7 @@ pub fn render_all_edges_with_labels(
     charset: &CharSet,
     diagram_direction: Direction,
     label_positions: &HashMap<usize, (usize, usize)>,
+    edge_containment: &HashMap<usize, (usize, usize)>,
 ) {
     // First pass: draw all segments and arrows
     for routed in routed_edges {
@@ -1104,6 +1165,8 @@ pub fn render_all_edges_with_labels(
     let mut placed_labels: Vec<PlacedLabel> = Vec::new();
     for routed in routed_edges {
         if let Some(label) = &routed.edge.label {
+            let bounds = edge_containment.get(&routed.edge.index).copied();
+
             // Check for pre-computed label position from normalization
             let block = label_block(label);
             let label_width = block.width;
@@ -1158,6 +1221,7 @@ pub fn render_all_edges_with_labels(
                         false,
                         charset,
                     );
+                    let safe_x = clamp_label_x(safe_x, label_width, bounds);
                     draw_label_direct(canvas, label, safe_x, safe_y, charset, true)
                 } else {
                     draw_edge_label_with_tracking(
@@ -1167,6 +1231,7 @@ pub fn render_all_edges_with_labels(
                         diagram_direction,
                         &placed_labels,
                         charset,
+                        bounds,
                     )
                 }
             } else if routed.is_self_edge {
@@ -1184,6 +1249,7 @@ pub fn render_all_edges_with_labels(
                         false,
                         charset,
                     );
+                    let safe_x = clamp_label_x(safe_x, label_width, bounds);
                     draw_label_direct(canvas, label, safe_x, safe_y, charset, false)
                 } else {
                     draw_edge_label_with_tracking(
@@ -1193,6 +1259,7 @@ pub fn render_all_edges_with_labels(
                         diagram_direction,
                         &placed_labels,
                         charset,
+                        bounds,
                     )
                 }
             } else if let Some((pre_x, pre_y)) = precomputed {
@@ -1210,6 +1277,7 @@ pub fn render_all_edges_with_labels(
                     false,
                     charset,
                 );
+                let safe_x = clamp_label_x(safe_x, label_width, bounds);
                 draw_label_direct(canvas, label, safe_x, safe_y, charset, false)
             } else if stale_precomputed_anchor {
                 if let Some(midpoint) = calc_label_position(&routed.segments) {
@@ -1224,6 +1292,7 @@ pub fn render_all_edges_with_labels(
                         false,
                         charset,
                     );
+                    let safe_x = clamp_label_x(safe_x, label_width, bounds);
                     draw_label_direct(canvas, label, safe_x, safe_y, charset, false)
                 } else {
                     draw_edge_label_with_tracking(
@@ -1233,6 +1302,7 @@ pub fn render_all_edges_with_labels(
                         diagram_direction,
                         &placed_labels,
                         charset,
+                        bounds,
                     )
                 }
             } else {
@@ -1243,6 +1313,7 @@ pub fn render_all_edges_with_labels(
                     diagram_direction,
                     &placed_labels,
                     charset,
+                    bounds,
                 )
             };
 
