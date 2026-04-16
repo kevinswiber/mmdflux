@@ -1000,6 +1000,32 @@ pub(crate) fn svg_pairwise_label_rect_overlaps(svg: &str) -> Vec<String> {
     failures
 }
 
+/// Verify every `<rect class="graph-edge-label-bg">` in the rendered SVG lies
+/// within the document's `viewBox` (with a 0.5 px tolerance to account for
+/// rounding). Returns a list of human-readable failure strings — one per rect
+/// that escapes the viewBox. An empty result indicates every label-bg rect is
+/// fully contained.
+pub(crate) fn svg_viewbox_contains_rects(svg: &str) -> Vec<String> {
+    const TOL: f64 = 0.5;
+    let Some((vx, vy, vw, vh)) = parse_svg_viewbox(svg) else {
+        return vec!["no viewBox found".to_string()];
+    };
+    let rects = extract_label_bg_rects(svg);
+    let mut failures = Vec::new();
+    for (x, y, w, h) in rects {
+        let violates = x + TOL < vx
+            || y + TOL < vy
+            || x + w > vx + vw + TOL
+            || y + h > vy + vh + TOL;
+        if violates {
+            failures.push(format!(
+                "rect ({x}, {y}, {w}x{h}) outside viewBox ({vx}, {vy}, {vw}x{vh})"
+            ));
+        }
+    }
+    failures
+}
+
 fn parse_svg_main_translate(svg: &str) -> Option<(f64, f64)> {
     let line = svg
         .lines()
@@ -5598,5 +5624,28 @@ fn svg_pairwise_label_rect_overlaps_empty_when_disjoint() {
       <rect class="graph-edge-label-bg" x="200" y="200" width="50" height="20" />
     </g></svg>"#;
     let failures = svg_pairwise_label_rect_overlaps(svg);
+    assert!(failures.is_empty(), "unexpected failures: {failures:?}");
+}
+
+// -- Plan 0145, Task 1.3: SVG viewBox containment helper --
+
+#[test]
+fn svg_viewbox_contains_rects_flags_rect_outside_viewbox() {
+    let svg = r#"<svg viewBox="0 0 100 100"><g>
+      <rect class="graph-edge-label-bg" x="120" y="10" width="50" height="20" />
+    </g></svg>"#;
+    let failures = svg_viewbox_contains_rects(svg);
+    assert!(
+        !failures.is_empty(),
+        "expected viewBox violation, got {failures:?}"
+    );
+}
+
+#[test]
+fn svg_viewbox_contains_rects_empty_when_all_inside() {
+    let svg = r#"<svg viewBox="0 0 200 200"><g>
+      <rect class="graph-edge-label-bg" x="10" y="10" width="50" height="20" />
+    </g></svg>"#;
+    let failures = svg_viewbox_contains_rects(svg);
     assert!(failures.is_empty(), "unexpected failures: {failures:?}");
 }
