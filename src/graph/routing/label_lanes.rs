@@ -7,7 +7,7 @@
 //! cross-bands. `group_label_compartments` partitions descriptors into
 //! compartments using an iterative merge with `LANE_GAP` slack.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::graph::Direction;
 use crate::graph::geometry::GraphGeometry;
@@ -111,6 +111,59 @@ pub(super) fn group_label_compartments(
     compartments
 }
 
+/// Pack label descriptors within a compartment onto signed integer tracks.
+///
+/// Single-member compartments emit track 0 (no displacement needed).
+/// Multi-member compartments skip track 0 so reciprocal pairs land on
+/// opposite-sign tracks (`+1`/`-1`). Sweep-line packing iterates members
+/// in `(axis_min, edge_index)` order; a track is reused when the next
+/// descriptor's `axis_min` exceeds the previous occupant's `axis_max`
+/// plus `LANE_GAP`.
+pub(super) fn pack_signed_tracks(compartment: &LabelCompartment) -> HashMap<usize, i32> {
+    // Single-member compartments: no displacement needed — emit track 0.
+    if compartment.members.len() == 1 {
+        let only = &compartment.members[0];
+        return std::iter::once((only.edge_index, 0)).collect();
+    }
+
+    // Multi-member: skip track 0 so reciprocal pairs land on +1/-1.
+    let mut sorted = compartment.members.clone();
+    sorted.sort_by(|a, b| {
+        a.axis_min
+            .partial_cmp(&b.axis_min)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.edge_index.cmp(&b.edge_index))
+    });
+
+    let mut last_end: BTreeMap<i32, f64> = BTreeMap::new();
+    let mut out: HashMap<usize, i32> = HashMap::new();
+
+    for desc in &sorted {
+        let track = find_or_open_track_skipping_zero(&last_end, desc);
+        last_end.insert(track, desc.axis_max);
+        out.insert(desc.edge_index, track);
+    }
+    out
+}
+
+fn find_or_open_track_skipping_zero(last_end: &BTreeMap<i32, f64>, desc: &LabelDescriptor) -> i32 {
+    for k in candidate_track_order_nonzero(desc.direction_sign).take(64) {
+        let fits = last_end
+            .get(&k)
+            .map_or(true, |&end| end + LANE_GAP <= desc.axis_min);
+        if fits {
+            return k;
+        }
+    }
+    panic!("label lane packer exhausted 64 candidate tracks — this should not happen in practice");
+}
+
+fn candidate_track_order_nonzero(sign: i32) -> impl Iterator<Item = i32> {
+    // Yields: sign*1, -sign*1, sign*2, -sign*2, sign*3, ...
+    // Track 0 explicitly omitted for multi-member compartments.
+    (1..).flat_map(move |k| [sign * k, -sign * k])
+}
+
 /// Build label descriptors from diagram geometry and routed edge paths.
 ///
 /// Stubbed for now — will be populated in task 3.4.
@@ -210,5 +263,98 @@ mod tests {
     fn group_label_compartments_empty_input() {
         let compartments = group_label_compartments(vec![], Direction::TopDown);
         assert!(compartments.is_empty());
+    }
+
+    #[test]
+    fn pack_signed_tracks_assigns_zero_track_to_singleton_compartment() {
+        let compartment = LabelCompartment {
+            members: vec![make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1)],
+            direction: Direction::TopDown,
+        };
+        let tracks = pack_signed_tracks(&compartment);
+        assert_eq!(tracks[&0], 0);
+    }
+
+    #[test]
+    fn pack_signed_tracks_assigns_opposite_signs_to_reciprocal_pair() {
+        let compartment = LabelCompartment {
+            members: vec![
+                make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1),
+                make_descriptor(1, None, (10.0, 50.0), (100.0, 120.0), -1),
+            ],
+            direction: Direction::TopDown,
+        };
+        let tracks = pack_signed_tracks(&compartment);
+        assert_eq!(tracks[&0], 1);
+        assert_eq!(tracks[&1], -1);
+    }
+
+    #[test]
+    fn pack_signed_tracks_packs_three_same_direction_skipping_zero() {
+        let compartment = LabelCompartment {
+            members: vec![
+                make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1),
+                make_descriptor(1, None, (20.0, 60.0), (100.0, 120.0), 1),
+                make_descriptor(2, None, (30.0, 70.0), (100.0, 120.0), 1),
+            ],
+            direction: Direction::TopDown,
+        };
+        let tracks = pack_signed_tracks(&compartment);
+        // Candidate order for sign=+1 is [1, -1, 2, -2, ...], so three
+        // overlapping same-sign descriptors land on tracks [1, -1, 2].
+        let mut values: Vec<_> = tracks.values().copied().collect();
+        values.sort();
+        assert_eq!(values, vec![-1, 1, 2]);
+        assert_eq!(tracks[&0], 1); // lowest axis_min gets |k|=1
+        // None of them land on track 0 (multi-member skips zero).
+        assert!(tracks.values().all(|&t| t != 0));
+    }
+
+    #[test]
+    fn pack_signed_tracks_breaks_ties_by_edge_index() {
+        let compartment = LabelCompartment {
+            members: vec![
+                make_descriptor(1, None, (10.0, 50.0), (100.0, 120.0), 1),
+                make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1),
+            ],
+            direction: Direction::TopDown,
+        };
+        let tracks = pack_signed_tracks(&compartment);
+        // Tie-break on (axis_min, edge_index): edge 0 sorted first, gets
+        // track 1; edge 1 gets the next candidate (-1) since axis ranges
+        // overlap and candidate order is [1, -1, 2, -2, ...].
+        assert_eq!(tracks[&0], 1);
+        assert_eq!(tracks[&1], -1);
+    }
+
+    #[test]
+    fn pack_signed_tracks_non_overlapping_axis_can_reuse_track() {
+        // Two descriptors with non-overlapping axis ranges and same sign
+        // The second can reuse track 1 because axis ranges don't overlap.
+        let compartment = LabelCompartment {
+            members: vec![
+                make_descriptor(0, None, (10.0, 30.0), (100.0, 120.0), 1),
+                make_descriptor(1, None, (40.0, 60.0), (100.0, 120.0), 1), // axis_min > prev axis_max + LANE_GAP
+            ],
+            direction: Direction::TopDown,
+        };
+        let tracks = pack_signed_tracks(&compartment);
+        assert_eq!(tracks[&0], 1);
+        assert_eq!(tracks[&1], 1, "non-overlapping axis ranges should reuse same track");
+    }
+
+    #[test]
+    fn pack_signed_tracks_handles_ten_same_sign_without_panic() {
+        let members: Vec<_> = (0..10)
+            .map(|i| make_descriptor(i, None, (i as f64 * 5.0, i as f64 * 5.0 + 40.0), (100.0, 120.0), 1))
+            .collect();
+        let compartment = LabelCompartment {
+            members,
+            direction: Direction::TopDown,
+        };
+        let tracks = pack_signed_tracks(&compartment);
+        assert_eq!(tracks.len(), 10);
+        // All tracks should be non-zero (multi-member)
+        assert!(tracks.values().all(|&t| t != 0));
     }
 }
