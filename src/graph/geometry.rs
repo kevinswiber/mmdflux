@@ -127,6 +127,10 @@ pub struct LayoutEdge {
     /// Preserve the explicit orthogonal topology instead of simplifying it away.
     /// Used when routing introduced a deliberate de-overlap corridor.
     pub preserve_orthogonal_topology: bool,
+    /// Shared label-rectangle geometry (populated by the routing label-lane
+    /// pass and copied back onto `LayoutEdge` so `Visual` SVG solve paths
+    /// still see authoritative label rectangles). `None` before routing.
+    pub label_geometry: Option<EdgeLabelGeometry>,
 }
 
 /// Subgraph bounding box in layout float space.
@@ -154,6 +158,40 @@ pub enum EdgeLabelSide {
     Below,
     #[default]
     Center,
+}
+
+/// Shared label-rectangle geometry carried on both `LayoutEdge` (for the
+/// `Visual` SVG solve path) and `RoutedEdgeGeometry` (for MMDS/SVG/bounds
+/// consumers after routing). Populated exactly once by the label-lane pass
+/// and read-only downstream — every consumer sees the same rectangle and
+/// center. See plan 0145 architecture design §3.1 for invariants.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct EdgeLabelGeometry {
+    /// Midpoint of `rect`. Consumers may use either; no drift.
+    pub center: FPoint,
+    /// Padded label rectangle (includes `padding.0` on each side in X and
+    /// `padding.1` on each side in Y).
+    pub rect: FRect,
+    /// Snapshot of `(metrics.label_padding_x, metrics.label_padding_y)` at
+    /// construction. Consumers that need unpadded dimensions can subtract.
+    pub padding: (f64, f64),
+    /// Side of the edge this label is placed on.
+    pub side: EdgeLabelSide,
+    /// Signed lane-assignment track. `0` means no lane displacement was
+    /// applied; `±1, ±2, ...` encode lane rank (sign encodes direction).
+    pub track: i32,
+}
+
+impl Default for EdgeLabelGeometry {
+    fn default() -> Self {
+        Self {
+            center: FPoint::new(0.0, 0.0),
+            rect: FRect::new(0.0, 0.0, 0.0, 0.0),
+            padding: (0.0, 0.0),
+            side: EdgeLabelSide::Center,
+            track: 0,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +280,9 @@ pub struct RoutedEdgeGeometry {
     /// Preserve the explicit orthogonal topology instead of simplifying it away.
     /// Set when routing introduced a deliberate de-overlap corridor.
     pub preserve_orthogonal_topology: bool,
+    /// Shared label-rectangle geometry populated by the routing label-lane
+    /// pass. Read by SVG/MMDS/bounds consumers; one rectangle, no divergence.
+    pub label_geometry: Option<EdgeLabelGeometry>,
 }
 
 /// A routed self-edge loop.
@@ -307,9 +348,65 @@ mod tests {
             to_subgraph: None,
             layout_path_hint: None,
             preserve_orthogonal_topology: false,
+            label_geometry: None,
         };
         assert!(edge.layout_path_hint.is_none());
         assert_eq!(edge.waypoints.len(), 1);
+    }
+
+    #[test]
+    fn edge_label_geometry_constructs_with_center_rect_padding_side_track() {
+        let g = EdgeLabelGeometry {
+            center: FPoint::new(10.0, 20.0),
+            rect: FRect::new(0.0, 10.0, 20.0, 20.0),
+            padding: (4.0, 2.0),
+            side: EdgeLabelSide::Above,
+            track: 1,
+        };
+        assert_eq!(g.center.x, 10.0);
+        assert_eq!(g.center.y, 20.0);
+        assert_eq!(g.rect.width, 20.0);
+        assert_eq!(g.track, 1);
+    }
+
+    #[test]
+    fn layout_edge_carries_label_geometry_none_by_default() {
+        let edge = LayoutEdge {
+            index: 0,
+            from: "A".into(),
+            to: "B".into(),
+            waypoints: vec![],
+            label_position: None,
+            label_side: None,
+            from_subgraph: None,
+            to_subgraph: None,
+            layout_path_hint: None,
+            preserve_orthogonal_topology: false,
+            label_geometry: None,
+        };
+        assert!(edge.label_geometry.is_none());
+    }
+
+    #[test]
+    fn routed_edge_geometry_carries_label_geometry_none_by_default() {
+        let edge = RoutedEdgeGeometry {
+            index: 0,
+            from: "A".into(),
+            to: "B".into(),
+            path: vec![],
+            label_position: None,
+            label_side: None,
+            head_label_position: None,
+            tail_label_position: None,
+            is_backward: false,
+            from_subgraph: None,
+            to_subgraph: None,
+            source_port: None,
+            target_port: None,
+            preserve_orthogonal_topology: false,
+            label_geometry: None,
+        };
+        assert!(edge.label_geometry.is_none());
     }
 
     #[test]
@@ -334,6 +431,7 @@ mod tests {
             }),
             target_port: None,
             preserve_orthogonal_topology: false,
+            label_geometry: None,
         };
         assert!(edge.source_port.is_some());
         assert!(edge.target_port.is_none());

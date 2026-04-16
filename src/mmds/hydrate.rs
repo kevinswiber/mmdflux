@@ -582,6 +582,7 @@ fn build_layout_edges(output: &Output) -> (Vec<LayoutEdge>, Vec<SelfEdgeGeometry
             to_subgraph: edge.to_subgraph.clone(),
             layout_path_hint: path,
             preserve_orthogonal_topology: false,
+            label_geometry: None,
         });
     }
 

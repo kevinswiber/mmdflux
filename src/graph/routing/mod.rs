@@ -71,6 +71,7 @@ mod tests {
             to_subgraph: None,
             layout_path_hint: Some(vec![FPoint::new(50.0, 35.0), FPoint::new(50.0, 65.0)]),
             preserve_orthogonal_topology: false,
+            label_geometry: None,
         }];
 
         let geom = GraphGeometry {
@@ -252,6 +253,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -318,6 +320,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -388,6 +391,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -471,6 +475,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -566,6 +571,7 @@ mod tests {
                     to_subgraph: None,
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
+                    label_geometry: None,
                 },
                 LayoutEdge {
                     index: 1,
@@ -578,6 +584,7 @@ mod tests {
                     to_subgraph: None,
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
+                    label_geometry: None,
                 },
             ],
             subgraphs: HashMap::new(),
@@ -691,6 +698,7 @@ mod tests {
                     to_subgraph: None,
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
+                    label_geometry: None,
                 },
                 LayoutEdge {
                     index: 1,
@@ -703,6 +711,7 @@ mod tests {
                     to_subgraph: None,
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
+                    label_geometry: None,
                 },
             ],
             subgraphs: HashMap::new(),
@@ -788,6 +797,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs,
             self_edges: vec![],
@@ -917,6 +927,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: Some(direct_hint.clone()),
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -994,6 +1005,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: Some(fallback_hint.clone()),
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -1362,6 +1374,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             },
             LayoutEdge {
                 index: 1,
@@ -1374,6 +1387,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             },
             LayoutEdge {
                 index: 2,
@@ -1386,6 +1400,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             },
         ];
 

@@ -131,6 +131,7 @@ pub fn route_graph_geometry(
                             .get(&edge.index)
                             .and_then(|(_, tp)| tp.clone()),
                         preserve_orthogonal_topology: false,
+                        label_geometry: None,
                     }
                 })
                 .collect::<Vec<_>>()

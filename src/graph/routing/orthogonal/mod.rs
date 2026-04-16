@@ -186,6 +186,7 @@ pub fn route_edges_orthogonal(
                 source_port: None,
                 target_port: None,
                 preserve_orthogonal_topology: target_transit_avoided,
+                label_geometry: None,
             }
         })
         .collect();

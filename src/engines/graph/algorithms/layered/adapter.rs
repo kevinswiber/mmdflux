@@ -127,6 +127,7 @@ pub fn from_layered_layout(result: &LayoutResult, diagram: &Graph) -> GraphGeome
                     Some(el.points.iter().map(|p| FPoint::new(p.x, p.y)).collect())
                 },
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }
         })
         .collect();

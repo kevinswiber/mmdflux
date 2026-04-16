@@ -136,6 +136,7 @@ fn geometry_for_routed_svg(diagram: &Graph, routed: &RoutedGraphGeometry) -> Gra
                 to_subgraph: edge.to_subgraph.clone(),
                 layout_path_hint: Some(edge.path.clone()),
                 preserve_orthogonal_topology: edge.preserve_orthogonal_topology,
+                label_geometry: None,
             })
             .collect(),
         subgraphs: routed.subgraphs.clone(),
@@ -244,6 +245,7 @@ pub fn render_text_from_geometry(
 ///         to_subgraph: None,
 ///         layout_path_hint: None,
 ///         preserve_orthogonal_topology: false,
+///         label_geometry: None,
 ///     }],
 ///     subgraphs: HashMap::new(),
 ///     self_edges: vec![],
