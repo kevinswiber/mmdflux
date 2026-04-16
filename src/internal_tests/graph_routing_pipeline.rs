@@ -4740,3 +4740,211 @@ fn orthogonal_route_backward_edges_clear_all_intermediate_node_bodies() {
         failures.join("\n"),
     );
 }
+
+// ---------------------------------------------------------------------------
+// Plan 0145 Task 1.1: pairwise_label_rect_overlaps routed-geometry helper.
+//
+// Flags overlapping edge-label rectangles in `RoutedGraphGeometry`. The helper
+// backs Q9 routed-layer assertions and is consumed by later PR 1 red tests.
+// ---------------------------------------------------------------------------
+
+mod label_overlap_tests {
+    use std::collections::HashMap;
+
+    use crate::graph::geometry::*;
+    use crate::graph::measure::{ProportionalTextMetrics, default_proportional_text_metrics};
+    use crate::graph::{Direction, Edge, Graph, Node};
+
+    /// Pair label rects and flag any two that overlap.
+    ///
+    /// Uses `metrics.edge_label_dimensions(label)` for padded width/height and
+    /// centers each rect at the edge's `label_position`. Edges without a label
+    /// position, without a matching diagram edge, or with an empty label are
+    /// skipped. Zero-area rectangles (empty label text never reaches here) are
+    /// treated as non-overlapping by construction because overlap uses strict
+    /// inequality on center-to-center distance versus half-sum extents.
+    pub(crate) fn pairwise_label_rect_overlaps(
+        routed: &RoutedGraphGeometry,
+        diagram: &Graph,
+        metrics: &ProportionalTextMetrics,
+    ) -> Vec<String> {
+        let mut rects: Vec<(usize, FRect)> = Vec::new();
+        for edge in &routed.edges {
+            if let Some(rect) = label_rect_for(edge, diagram, metrics) {
+                rects.push((edge.index, rect));
+            }
+        }
+
+        let mut failures = Vec::new();
+        for i in 0..rects.len() {
+            for j in (i + 1)..rects.len() {
+                let (a_idx, a) = rects[i];
+                let (b_idx, b) = rects[j];
+                if rects_overlap(&a, &b) {
+                    failures.push(format!(
+                        "edges {a_idx}<->{b_idx}: label rects overlap (a={a:?}, b={b:?})"
+                    ));
+                }
+            }
+        }
+        failures
+    }
+
+    /// Build a padded label rect for a routed edge, if it has a label and
+    /// position. Returns `None` when the edge lacks label geometry.
+    pub(crate) fn label_rect_for(
+        edge: &RoutedEdgeGeometry,
+        diagram: &Graph,
+        metrics: &ProportionalTextMetrics,
+    ) -> Option<FRect> {
+        let center = edge.label_position?;
+        let label = diagram.edges.get(edge.index).and_then(|e| e.label.as_deref())?;
+        if label.is_empty() {
+            return None;
+        }
+        let (w, h) = metrics.edge_label_dimensions(label);
+        Some(FRect::new(center.x - w / 2.0, center.y - h / 2.0, w, h))
+    }
+
+    /// Strict axis-aligned rect overlap. Zero-area rects (width or height == 0)
+    /// return false because the half-sum extent is then zero and the strict `<`
+    /// fails for any non-negative distance.
+    fn rects_overlap(a: &FRect, b: &FRect) -> bool {
+        let ax = a.x + a.width / 2.0;
+        let ay = a.y + a.height / 2.0;
+        let bx = b.x + b.width / 2.0;
+        let by = b.y + b.height / 2.0;
+        let dx = (ax - bx).abs();
+        let dy = (ay - by).abs();
+        dx < (a.width + b.width) / 2.0 && dy < (a.height + b.height) / 2.0
+    }
+
+    // -- Fixture helpers ------------------------------------------------------
+
+    fn empty_graph_with_edges(edges: Vec<Edge>) -> Graph {
+        let mut g = Graph::new(Direction::TopDown);
+        // Register referenced nodes so rendering invariants stay happy, though
+        // this helper only reads `diagram.edges[idx].label`.
+        for e in &edges {
+            g.nodes
+                .entry(e.from.clone())
+                .or_insert_with(|| Node::new(e.from.clone()));
+            g.nodes
+                .entry(e.to.clone())
+                .or_insert_with(|| Node::new(e.to.clone()));
+        }
+        for e in edges {
+            g.add_edge(e);
+        }
+        g
+    }
+
+    fn routed_edge(index: usize, from: &str, to: &str, label_center: FPoint) -> RoutedEdgeGeometry {
+        RoutedEdgeGeometry {
+            index,
+            from: from.into(),
+            to: to.into(),
+            path: vec![],
+            label_position: Some(label_center),
+            label_side: None,
+            head_label_position: None,
+            tail_label_position: None,
+            is_backward: false,
+            from_subgraph: None,
+            to_subgraph: None,
+            source_port: None,
+            target_port: None,
+            preserve_orthogonal_topology: false,
+            label_geometry: None,
+        }
+    }
+
+    fn wrap_routed(edges: Vec<RoutedEdgeGeometry>) -> RoutedGraphGeometry {
+        RoutedGraphGeometry {
+            nodes: HashMap::new(),
+            edges,
+            subgraphs: HashMap::new(),
+            self_edges: Vec::new(),
+            direction: Direction::TopDown,
+            bounds: FRect::new(0.0, 0.0, 0.0, 0.0),
+        }
+    }
+
+    fn routed_two_edges_with_overlapping_labels(
+        _metrics: &ProportionalTextMetrics,
+    ) -> (Graph, RoutedGraphGeometry) {
+        // Two edges with the same label_position and non-empty labels — rects
+        // sharing a center are guaranteed to overlap regardless of exact width.
+        let diagram = empty_graph_with_edges(vec![
+            Edge::new("A", "B").with_label("ab"),
+            Edge::new("C", "D").with_label("this is a long label"),
+        ]);
+        let center = FPoint::new(100.0, 100.0);
+        let routed = wrap_routed(vec![
+            routed_edge(0, "A", "B", center),
+            routed_edge(1, "C", "D", center),
+        ]);
+        (diagram, routed)
+    }
+
+    fn routed_two_edges_with_disjoint_labels(
+        metrics: &ProportionalTextMetrics,
+    ) -> (Graph, RoutedGraphGeometry) {
+        // Place the two label rects far apart horizontally — much wider than the
+        // sum of their half-widths — so they cannot overlap.
+        let label_a = "ab";
+        let label_b = "cd";
+        let (wa, _) = metrics.edge_label_dimensions(label_a);
+        let (wb, _) = metrics.edge_label_dimensions(label_b);
+        let separation = (wa + wb) * 4.0 + 100.0;
+        let diagram = empty_graph_with_edges(vec![
+            Edge::new("A", "B").with_label(label_a),
+            Edge::new("C", "D").with_label(label_b),
+        ]);
+        let routed = wrap_routed(vec![
+            routed_edge(0, "A", "B", FPoint::new(0.0, 0.0)),
+            routed_edge(1, "C", "D", FPoint::new(separation, 0.0)),
+        ]);
+        (diagram, routed)
+    }
+
+    // -- Tests ----------------------------------------------------------------
+
+    #[test]
+    fn pairwise_label_rect_overlaps_returns_failures_for_overlapping_label_rects() {
+        let metrics = default_proportional_text_metrics();
+        let (diagram, routed) = routed_two_edges_with_overlapping_labels(&metrics);
+        let failures = pairwise_label_rect_overlaps(&routed, &diagram, &metrics);
+        assert!(!failures.is_empty(), "expected overlap failures, got {failures:?}");
+    }
+
+    #[test]
+    fn pairwise_label_rect_overlaps_empty_when_disjoint() {
+        let metrics = default_proportional_text_metrics();
+        let (diagram, routed) = routed_two_edges_with_disjoint_labels(&metrics);
+        let failures = pairwise_label_rect_overlaps(&routed, &diagram, &metrics);
+        assert!(failures.is_empty(), "unexpected failures: {failures:?}");
+    }
+
+    #[test]
+    fn pairwise_label_rect_overlaps_skips_zero_area_and_missing_labels() {
+        // An edge with no label_position and an edge with an empty-string label
+        // must both be skipped: no rects, no failures.
+        let metrics = default_proportional_text_metrics();
+        let diagram = empty_graph_with_edges(vec![
+            Edge::new("A", "B"),                      // label = None
+            Edge::new("C", "D").with_label(""),       // empty label
+            Edge::new("E", "F").with_label("hello"),  // real label, but only one → no pair
+        ]);
+        let routed = wrap_routed(vec![
+            RoutedEdgeGeometry {
+                label_position: None,
+                ..routed_edge(0, "A", "B", FPoint::new(0.0, 0.0))
+            },
+            routed_edge(1, "C", "D", FPoint::new(10.0, 10.0)),
+            routed_edge(2, "E", "F", FPoint::new(200.0, 200.0)),
+        ]);
+        let failures = pairwise_label_rect_overlaps(&routed, &diagram, &metrics);
+        assert!(failures.is_empty(), "unexpected failures: {failures:?}");
+    }
+}
