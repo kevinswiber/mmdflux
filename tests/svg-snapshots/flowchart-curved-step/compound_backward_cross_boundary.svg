@@ -51,20 +51,20 @@
       <text x="133.03" y="184.50" text-anchor="middle" dominant-baseline="middle" fill="#333">request</text>
       <rect x="321.90" y="262.31" width="52.73" height="28.00" fill="white" />
       <text x="348.27" y="276.31" text-anchor="middle" dominant-baseline="middle" fill="#333">health</text>
-      <rect x="258.19" y="476.16" width="39.55" height="28.00" fill="white" />
-      <text x="277.96" y="490.16" text-anchor="middle" dominant-baseline="middle" fill="#333">read</text>
+      <rect x="218.15" y="479.50" width="39.55" height="28.00" fill="white" />
+      <text x="237.93" y="493.50" text-anchor="middle" dominant-baseline="middle" fill="#333">read</text>
       <rect x="322.65" y="426.50" width="77.04" height="28.00" fill="white" />
       <text x="361.17" y="440.50" text-anchor="middle" dominant-baseline="middle" fill="#333">fast path</text>
       <rect x="90.05" y="426.50" width="46.05" height="28.00" fill="white" />
       <text x="113.07" y="440.50" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
       <rect x="212.86" y="648.36" width="50.13" height="28.00" fill="white" />
       <text x="237.93" y="662.36" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
-      <rect x="312.31" y="680.43" width="27.12" height="28.00" fill="white" />
-      <text x="325.87" y="694.43" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
-      <rect x="197.56" y="932.36" width="73.70" height="28.00" fill="white" />
-      <text x="234.41" y="946.36" text-anchor="middle" dominant-baseline="middle" fill="#333">response</text>
-      <rect x="340.70" y="726.90" width="42.89" height="28.00" fill="white" />
-      <text x="362.14" y="740.90" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <rect x="347.62" y="749.74" width="27.12" height="28.00" fill="white" />
+      <text x="361.17" y="763.74" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
+      <rect x="201.07" y="905.36" width="73.70" height="28.00" fill="white" />
+      <text x="237.93" y="919.36" text-anchor="middle" dominant-baseline="middle" fill="#333">response</text>
+      <rect x="328.70" y="694.90" width="42.89" height="28.00" fill="white" />
+      <text x="350.14" y="708.90" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>
 </svg>

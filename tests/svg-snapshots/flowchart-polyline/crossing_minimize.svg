@@ -39,14 +39,14 @@
       <text x="156.83" y="597.28" text-anchor="middle" dominant-baseline="middle" fill="#333">Cleanup</text>
     </g>
     <g class="edgeLabels">
-      <rect x="365.63" y="218.62" width="42.89" height="28.00" fill="white" />
-      <text x="387.08" y="232.62" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
-      <rect x="151.15" y="227.67" width="56.07" height="28.00" fill="white" />
-      <text x="179.19" y="241.67" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <rect x="377.90" y="267.07" width="42.89" height="28.00" fill="white" />
+      <text x="399.35" y="281.07" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <rect x="128.80" y="232.78" width="56.07" height="28.00" fill="white" />
+      <text x="156.83" y="246.78" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
       <rect x="522.64" y="128.41" width="33.61" height="28.00" fill="white" />
       <text x="539.45" y="142.41" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="388.62" y="604.69" width="25.08" height="28.00" fill="white" />
-      <text x="401.16" y="618.69" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="386.88" y="637.68" width="25.08" height="28.00" fill="white" />
+      <text x="399.42" y="651.68" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>

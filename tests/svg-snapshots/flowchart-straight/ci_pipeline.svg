@@ -30,10 +30,10 @@
       <text x="393.30" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Run Tests</text>
     </g>
     <g class="edgeLabels">
-      <rect x="852.34" y="42.09" width="61.27" height="28.00" fill="white" />
-      <text x="882.97" y="56.09" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
-      <rect x="840.83" y="103.91" width="84.28" height="28.00" fill="white" />
-      <text x="882.97" y="117.91" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
+      <rect x="835.65" y="4.50" width="61.27" height="28.00" fill="white" />
+      <text x="866.29" y="18.50" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
+      <rect x="835.65" y="108.50" width="84.28" height="28.00" fill="white" />
+      <text x="877.79" y="122.50" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
     </g>
   </g>
 </svg>

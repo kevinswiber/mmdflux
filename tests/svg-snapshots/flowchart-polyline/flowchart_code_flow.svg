@@ -442,12 +442,12 @@
       <text x="9746.00" y="497.21" text-anchor="middle" dominant-baseline="middle" fill="#333">Checks /^\s*flowchart/</text>
       <rect x="9902.30" y="483.21" width="219.21" height="28.00" fill="white" />
       <text x="10011.91" y="497.21" text-anchor="middle" dominant-baseline="middle" fill="#333">Checks /^\s*flowchart-elk/</text>
-      <rect x="9536.27" y="761.99" width="33.98" height="28.00" fill="white" />
-      <text x="9553.26" y="775.99" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <rect x="9538.16" y="794.64" width="33.98" height="28.00" fill="white" />
+      <text x="9555.15" y="808.64" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
       <rect x="9729.01" y="770.87" width="33.98" height="28.00" fill="white" />
       <text x="9746.00" y="784.87" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
-      <rect x="9944.67" y="754.15" width="33.98" height="28.00" fill="white" />
-      <text x="9961.66" y="768.15" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <rect x="9942.78" y="786.80" width="33.98" height="28.00" fill="white" />
+      <text x="9959.77" y="800.80" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
       <rect x="370.73" y="1610.69" width="137.18" height="28.00" fill="white" />
       <text x="439.32" y="1624.69" text-anchor="middle" dominant-baseline="middle" fill="#333">Preprocesses src</text>
     </g>

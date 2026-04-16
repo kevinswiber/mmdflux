@@ -18,10 +18,10 @@
       <text x="161.36" y="192.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
     </g>
     <g class="edgeLabels">
-      <rect x="21.01" y="90.75" width="42.89" height="28.00" fill="white" />
-      <text x="42.45" y="104.75" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
-      <rect x="133.33" y="90.75" width="56.07" height="28.00" fill="white" />
-      <text x="161.36" y="104.75" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <rect x="21.01" y="70.50" width="42.89" height="28.00" fill="white" />
+      <text x="42.45" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <rect x="133.33" y="70.50" width="56.07" height="28.00" fill="white" />
+      <text x="161.36" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
     </g>
   </g>
 </svg>

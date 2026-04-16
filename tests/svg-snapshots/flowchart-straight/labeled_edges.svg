@@ -29,10 +29,10 @@
       <text x="106.35" y="145.50" text-anchor="middle" dominant-baseline="middle" fill="#333">initialize</text>
       <rect x="61.02" y="276.00" width="75.74" height="28.00" fill="white" />
       <text x="98.90" y="290.00" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
-      <rect x="59.20" y="426.91" width="33.61" height="28.00" fill="white" />
-      <text x="76.01" y="440.91" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="169.91" y="418.39" width="25.08" height="28.00" fill="white" />
-      <text x="182.45" y="432.39" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="62.30" y="464.30" width="33.61" height="28.00" fill="white" />
+      <text x="79.10" y="478.30" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="169.81" y="403.30" width="25.08" height="28.00" fill="white" />
+      <text x="182.34" y="417.30" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
       <rect x="313.59" y="259.17" width="42.89" height="28.00" fill="white" />
       <text x="335.04" y="273.17" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>

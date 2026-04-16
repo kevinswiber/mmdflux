@@ -158,20 +158,31 @@ pub(super) fn render_edge_labels(
         let layout_edge = geom.edges.iter().find(|e| e.index == edge_idx);
         let label_geom_center =
             layout_edge.and_then(|e| e.label_geometry.as_ref().map(|g| g.center));
-        let position = if use_precomputed {
-            label_geom_center.or_else(|| label_positions.get(&edge_idx).copied())
+        // When the lane-assignment pass populated `label_geometry`, the
+        // center is intentionally placed off-path by `track * label_step`
+        // for multi-member compartments. Skip the revalidate-against-path
+        // fallback (which would snap the label back to the path midpoint
+        // and undo the lane shift) — trust the lane-pass output.
+        let position = if let Some(center) = label_geom_center.filter(|_| use_precomputed) {
+            Some(center)
         } else {
-            None
-        }
-        .or_else(|| fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths))
-        .map(|candidate| {
-            revalidate_svg_label_anchor(
-                candidate,
-                rendered_edge_paths
-                    .get(&edge_idx)
-                    .map(|path| path.as_slice()),
-            )
-        });
+            let candidate = if use_precomputed {
+                label_positions.get(&edge_idx).copied()
+            } else {
+                None
+            }
+            .or_else(|| {
+                fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths)
+            });
+            candidate.map(|candidate| {
+                revalidate_svg_label_anchor(
+                    candidate,
+                    rendered_edge_paths
+                        .get(&edge_idx)
+                        .map(|path| path.as_slice()),
+                )
+            })
+        };
         let Some(point) = position else {
             continue;
         };

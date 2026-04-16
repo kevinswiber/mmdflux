@@ -25,10 +25,10 @@
       <text x="157.77" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333333">Start</text>
     </g>
     <g class="edgeLabels">
-      <rect x="84.29" y="282.10" width="42.89" height="28.00" fill="#ffffff" />
-      <text x="105.74" y="296.10" text-anchor="middle" dominant-baseline="middle" fill="#333333">valid</text>
-      <rect x="181.77" y="282.10" width="56.07" height="28.00" fill="#ffffff" />
-      <text x="209.81" y="296.10" text-anchor="middle" dominant-baseline="middle" fill="#333333">invalid</text>
+      <rect x="53.86" y="266.56" width="42.89" height="28.00" fill="#ffffff" />
+      <text x="75.31" y="280.56" text-anchor="middle" dominant-baseline="middle" fill="#333333">valid</text>
+      <rect x="212.21" y="266.56" width="56.07" height="28.00" fill="#ffffff" />
+      <text x="240.24" y="280.56" text-anchor="middle" dominant-baseline="middle" fill="#333333">invalid</text>
     </g>
   </g>
 </svg>

@@ -33,10 +33,10 @@
       <text x="76.76" y="197.00" text-anchor="middle" dominant-baseline="middle" fill="#333">submit</text>
       <rect x="3.13" y="322.44" width="74.26" height="28.00" fill="white" />
       <text x="40.26" y="336.44" text-anchor="middle" dominant-baseline="middle" fill="#333">complete</text>
-      <rect x="127.74" y="283.39" width="31.76" height="28.00" fill="white" />
-      <text x="143.62" y="297.39" text-anchor="middle" dominant-baseline="middle" fill="#333">fail</text>
-      <rect x="178.34" y="191.15" width="42.89" height="28.00" fill="white" />
-      <text x="199.79" y="205.15" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <rect x="100.39" y="266.50" width="31.76" height="28.00" fill="white" />
+      <text x="116.27" y="280.50" text-anchor="middle" dominant-baseline="middle" fill="#333">fail</text>
+      <rect x="166.39" y="220.50" width="42.89" height="28.00" fill="white" />
+      <text x="187.84" y="234.50" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>
 </svg>

@@ -21,10 +21,10 @@
       <text x="218.53" y="356.88" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">End</text>
     </g>
     <g class="edgeLabels">
-      <rect x="79.35" y="253.35" width="33.98" height="28.00" fill="#333333" />
-      <text x="96.34" y="267.35" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">Yes</text>
-      <rect x="176.23" y="253.35" width="25.45" height="28.00" fill="#333333" />
-      <text x="188.95" y="267.35" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">No</text>
+      <rect x="49.78" y="235.38" width="33.98" height="28.00" fill="#333333" />
+      <text x="66.77" y="249.38" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">Yes</text>
+      <rect x="205.80" y="235.38" width="25.45" height="28.00" fill="#333333" />
+      <text x="218.53" y="249.38" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">No</text>
     </g>
   </g>
 </svg>

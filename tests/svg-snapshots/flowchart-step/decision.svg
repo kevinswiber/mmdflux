@@ -24,8 +24,8 @@
     <g class="edgeLabels">
       <rect x="56.14" y="285.86" width="33.98" height="28.00" fill="white" />
       <text x="73.13" y="299.86" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
-      <rect x="193.04" y="255.32" width="25.45" height="28.00" fill="white" />
-      <text x="205.77" y="269.32" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
+      <rect x="145.29" y="285.86" width="25.45" height="28.00" fill="white" />
+      <text x="158.02" y="299.86" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
     </g>
   </g>
 </svg>

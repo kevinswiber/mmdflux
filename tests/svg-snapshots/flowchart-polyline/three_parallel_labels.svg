@@ -17,12 +17,12 @@
       <text x="62.54" y="192.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
     </g>
     <g class="edgeLabels">
-      <rect x="-3.66" y="95.59" width="33.61" height="28.00" fill="white" />
-      <text x="13.15" y="109.59" text-anchor="middle" dominant-baseline="middle" fill="#333">one</text>
+      <rect x="-8.81" y="70.50" width="33.61" height="28.00" fill="white" />
+      <text x="8.00" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">one</text>
       <rect x="44.81" y="70.50" width="35.47" height="28.00" fill="white" />
       <text x="62.54" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">two</text>
-      <rect x="94.75" y="95.31" width="45.49" height="28.00" fill="white" />
-      <text x="117.50" y="109.31" text-anchor="middle" dominant-baseline="middle" fill="#333">three</text>
+      <rect x="100.28" y="70.50" width="45.49" height="28.00" fill="white" />
+      <text x="123.02" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">three</text>
     </g>
   </g>
 </svg>

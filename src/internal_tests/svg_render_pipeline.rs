@@ -2125,7 +2125,13 @@ fn routed_svg_defaults_to_none_path_simplification() {
     }
 }
 
-const SVG_LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT: f64 = 2.0;
+// Tolerance for SVG label drift from rendered active path segments.
+// Plan 0145 PR 3 lane shifts intentionally place labels off-path by
+// `track * label_step` (typically 16-32 px) to resolve compartment
+// overlap. We relax this from the original 2.0 px gate to 50.0 px,
+// matching the routing-pipeline drift threshold. Labels still stay
+// near their edge but can be displaced by one or two lane steps.
+const SVG_LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT: f64 = 50.0;
 
 #[test]
 fn svg_orthogonal_orthogonal_route_labeled_edges_labels_remain_attached_to_active_segments() {
