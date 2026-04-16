@@ -78,12 +78,12 @@
     <g class="edgeLabels">
       <rect x="256.26" y="614.57" width="25.08" height="28.00" fill="white" />
       <text x="268.80" y="628.57" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <rect x="605.43" y="647.57" width="33.61" height="28.00" fill="white" />
-      <text x="622.23" y="661.57" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="605.43" y="614.57" width="33.61" height="28.00" fill="white" />
+      <text x="622.23" y="628.57" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <rect x="434.02" y="885.09" width="42.15" height="28.00" fill="white" />
       <text x="455.10" y="899.09" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
-      <rect x="700.56" y="918.09" width="50.69" height="28.00" fill="white" />
-      <text x="725.91" y="932.09" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
+      <rect x="700.56" y="885.09" width="50.69" height="28.00" fill="white" />
+      <text x="725.91" y="899.09" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
       <rect x="622.93" y="1582.72" width="25.08" height="28.00" fill="white" />
       <text x="635.47" y="1596.72" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
       <rect x="531.03" y="1521.71" width="33.61" height="28.00" fill="white" />
@@ -92,8 +92,8 @@
       <text x="50.80" y="441.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
       <rect x="264.90" y="476.26" width="42.71" height="28.00" fill="white" />
       <text x="286.26" y="490.26" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
-      <rect x="734.84" y="1342.59" width="44.01" height="28.00" fill="white" />
-      <text x="756.85" y="1356.59" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
+      <rect x="734.84" y="1326.09" width="44.01" height="28.00" fill="white" />
+      <text x="756.85" y="1340.09" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>
   </g>
 </svg>

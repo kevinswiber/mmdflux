@@ -22,8 +22,8 @@
     <g class="edgeLabels">
       <rect x="42.82" y="70.50" width="46.60" height="28.00" fill="white" />
       <text x="66.12" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">owns</text>
-      <rect x="187.52" y="103.50" width="69.80" height="28.00" fill="white" />
-      <text x="222.43" y="117.50" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
+      <rect x="187.52" y="70.50" width="69.80" height="28.00" fill="white" />
+      <text x="222.43" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
       <rect x="75.85" y="138.64" width="16.54" height="28.00" fill="white" />
       <text x="84.12" y="152.64" text-anchor="middle" dominant-baseline="middle" fill="#333">*</text>
       <rect x="75.85" y="60.36" width="16.54" height="28.00" fill="white" />

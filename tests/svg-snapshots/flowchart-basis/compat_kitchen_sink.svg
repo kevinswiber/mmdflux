@@ -27,8 +27,8 @@
     <g class="edgeLabels">
       <rect x="61.83" y="272.23" width="42.89" height="28.00" fill="#ffffff" />
       <text x="83.27" y="286.23" text-anchor="middle" dominant-baseline="middle" fill="#333333">valid</text>
-      <rect x="212.21" y="299.56" width="56.07" height="28.00" fill="#ffffff" />
-      <text x="240.24" y="313.56" text-anchor="middle" dominant-baseline="middle" fill="#333333">invalid</text>
+      <rect x="204.24" y="272.23" width="56.07" height="28.00" fill="#ffffff" />
+      <text x="232.28" y="286.23" text-anchor="middle" dominant-baseline="middle" fill="#333333">invalid</text>
     </g>
   </g>
 </svg>

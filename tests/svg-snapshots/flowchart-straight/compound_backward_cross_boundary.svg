@@ -57,8 +57,8 @@
       <text x="332.32" y="445.86" text-anchor="middle" dominant-baseline="middle" fill="#333">fast path</text>
       <rect x="163.69" y="427.06" width="46.05" height="28.00" fill="white" />
       <text x="186.72" y="441.06" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
-      <rect x="212.86" y="664.86" width="50.13" height="28.00" fill="white" />
-      <text x="237.93" y="678.86" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
+      <rect x="212.86" y="648.36" width="50.13" height="28.00" fill="white" />
+      <text x="237.93" y="662.36" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
       <rect x="286.77" y="680.59" width="27.12" height="28.00" fill="white" />
       <text x="300.33" y="694.59" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
       <rect x="195.68" y="932.37" width="73.70" height="28.00" fill="white" />

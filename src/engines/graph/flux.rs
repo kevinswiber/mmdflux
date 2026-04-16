@@ -5,8 +5,8 @@
 //! routing behavior.
 
 use crate::engines::graph::algorithms::layered::{
-    LabelDummyStrategy, LayoutConfig, build_float_layout_with_flags, layout_config_from_layered,
-    run_layered_layout,
+    LabelDummyStrategy, LabelSideStrategy, LayoutConfig, build_float_layout_with_flags,
+    layout_config_from_layered, run_layered_layout,
 };
 use crate::engines::graph::contracts::MeasurementMode;
 use crate::engines::graph::{
@@ -39,6 +39,7 @@ pub(crate) fn flux_layout_profile(
         track_reversed_chains: true,
         per_edge_label_spacing: true,
         label_side_selection: true,
+        label_side_strategy: LabelSideStrategy::DirectionDown,
         label_dummy_strategy: LabelDummyStrategy::WidestLayer,
         backward_edge_side_grouping: true,
         ..input_cfg.clone()

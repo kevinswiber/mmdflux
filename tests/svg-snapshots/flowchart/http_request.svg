@@ -29,14 +29,14 @@
       <text x="262.29" y="192.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server</text>
     </g>
     <g class="edgeLabels">
-      <rect x="207.44" y="87.00" width="109.71" height="28.00" fill="white" />
-      <text x="262.29" y="101.00" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Request</text>
+      <rect x="207.44" y="70.50" width="109.71" height="28.00" fill="white" />
+      <text x="262.29" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Request</text>
       <rect x="82.81" y="439.70" width="33.98" height="28.00" fill="white" />
       <text x="99.80" y="453.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
-      <rect x="322.83" y="472.70" width="25.45" height="28.00" fill="white" />
-      <text x="335.55" y="486.70" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
-      <rect x="381.07" y="305.97" width="120.84" height="28.00" fill="white" />
-      <text x="441.49" y="319.97" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
+      <rect x="322.83" y="439.70" width="25.45" height="28.00" fill="white" />
+      <text x="335.55" y="453.70" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
+      <rect x="381.07" y="307.97" width="120.84" height="28.00" fill="white" />
+      <text x="441.49" y="321.97" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
     </g>
   </g>
 </svg>

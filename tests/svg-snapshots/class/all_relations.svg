@@ -56,18 +56,18 @@
     <g class="edgeLabels">
       <rect x="-3.31" y="110.50" width="91.52" height="28.00" fill="white" />
       <text x="42.45" y="124.50" text-anchor="middle" dominant-baseline="middle" fill="#333">association</text>
-      <rect x="127.76" y="127.00" width="67.21" height="28.00" fill="white" />
-      <text x="161.36" y="141.00" text-anchor="middle" dominant-baseline="middle" fill="#333">directed</text>
-      <rect x="235.81" y="127.00" width="88.92" height="28.00" fill="white" />
-      <text x="280.27" y="141.00" text-anchor="middle" dominant-baseline="middle" fill="#333">inheritance</text>
-      <rect x="351.19" y="127.00" width="95.97" height="28.00" fill="white" />
-      <text x="399.18" y="141.00" text-anchor="middle" dominant-baseline="middle" fill="#333">composition</text>
-      <rect x="471.68" y="127.00" width="92.82" height="28.00" fill="white" />
-      <text x="518.09" y="141.00" text-anchor="middle" dominant-baseline="middle" fill="#333">aggregation</text>
-      <rect x="590.31" y="127.00" width="93.38" height="28.00" fill="white" />
-      <text x="637.00" y="141.00" text-anchor="middle" dominant-baseline="middle" fill="#333">dependency</text>
-      <rect x="707.27" y="143.50" width="101.36" height="28.00" fill="white" />
-      <text x="757.95" y="157.50" text-anchor="middle" dominant-baseline="middle" fill="#333">directed dep</text>
+      <rect x="127.76" y="110.50" width="67.21" height="28.00" fill="white" />
+      <text x="161.36" y="124.50" text-anchor="middle" dominant-baseline="middle" fill="#333">directed</text>
+      <rect x="235.81" y="110.50" width="88.92" height="28.00" fill="white" />
+      <text x="280.27" y="124.50" text-anchor="middle" dominant-baseline="middle" fill="#333">inheritance</text>
+      <rect x="351.19" y="110.50" width="95.97" height="28.00" fill="white" />
+      <text x="399.18" y="124.50" text-anchor="middle" dominant-baseline="middle" fill="#333">composition</text>
+      <rect x="471.68" y="110.50" width="92.82" height="28.00" fill="white" />
+      <text x="518.09" y="124.50" text-anchor="middle" dominant-baseline="middle" fill="#333">aggregation</text>
+      <rect x="590.31" y="110.50" width="93.38" height="28.00" fill="white" />
+      <text x="637.00" y="124.50" text-anchor="middle" dominant-baseline="middle" fill="#333">dependency</text>
+      <rect x="707.27" y="110.50" width="101.36" height="28.00" fill="white" />
+      <text x="757.95" y="124.50" text-anchor="middle" dominant-baseline="middle" fill="#333">directed dep</text>
     </g>
   </g>
 </svg>

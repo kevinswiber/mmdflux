@@ -22,8 +22,8 @@
       <text x="104.29" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
     </g>
     <g class="edgeLabels">
-      <rect x="72.73" y="151.00" width="63.12" height="28.00" fill="white" />
-      <text x="104.29" y="165.00" text-anchor="middle" dominant-baseline="middle" fill="#333">timeout</text>
+      <rect x="72.73" y="134.50" width="63.12" height="28.00" fill="white" />
+      <text x="104.29" y="148.50" text-anchor="middle" dominant-baseline="middle" fill="#333">timeout</text>
     </g>
   </g>
 </svg>
