@@ -2562,8 +2562,13 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
     type BackwardFaceCase<'a> = (&'a str, &'a str, &'a str, Option<&'a str>, &'a str, &'a str);
     let cases: [BackwardFaceCase<'_>; 2] = [
         // D is to the right of A; parity override is bypassed to avoid crossing
-        // the forward A->D edge, so orthogonal uses side-channel (right-face) routing.
-        ("decision.mmd", "D", "A", None, "bottom", "right"),
+        // the forward A->D edge, so both polyline and orthogonal use side-channel
+        // (right-face) routing. Under plan 0145 task 1.7's padded label-dummy
+        // reservations, polyline converged to the same right-face entry as
+        // orthogonal (previously entered via the bottom face). Visual shape of
+        // the rendered edge is unchanged; this test encodes an internal face
+        // classification only.
+        ("decision.mmd", "D", "A", None, "right", "right"),
         // Layout quality improvements (model order + variable spacing) shifted E
         // relative to A so the polyline backward edge now enters A from the bottom
         // face instead of the left face. The orthogonal router still uses the
