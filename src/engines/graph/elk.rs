@@ -336,6 +336,7 @@ fn parse_elk_output(output: &str, diagram: &Graph) -> Result<GraphGeometry, Rend
                     Some(path_hint)
                 },
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             });
         }
     }

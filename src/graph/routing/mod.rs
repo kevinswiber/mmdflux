@@ -30,6 +30,7 @@ mod tests {
 
     use super::*;
     use crate::graph::attachment::PortFace;
+    use crate::graph::measure::default_proportional_text_metrics;
     use crate::graph::routing::EdgeRouting;
 
     fn simple_geometry() -> (Graph, GraphGeometry) {
@@ -71,6 +72,7 @@ mod tests {
             to_subgraph: None,
             layout_path_hint: Some(vec![FPoint::new(50.0, 35.0), FPoint::new(50.0, 65.0)]),
             preserve_orthogonal_topology: false,
+            label_geometry: None,
         }];
 
         let geom = GraphGeometry {
@@ -94,7 +96,12 @@ mod tests {
     #[test]
     fn polyline_route_produces_routed_edges() {
         let (diagram, geom) = simple_geometry();
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
 
         assert_eq!(routed.nodes.len(), 2);
         assert_eq!(routed.edges.len(), 1);
@@ -105,7 +112,12 @@ mod tests {
     #[test]
     fn engine_provided_uses_layout_path_hints() {
         let (diagram, geom) = simple_geometry();
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::EngineProvided);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::EngineProvided,
+            &default_proportional_text_metrics(),
+        );
 
         let edge = &routed.edges[0];
         assert_eq!(edge.path.len(), 2);
@@ -130,7 +142,12 @@ mod tests {
             ],
         });
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         assert_eq!(routed.self_edges.len(), 1);
         assert_eq!(routed.self_edges[0].path.len(), 4);
         assert_eq!(routed.self_edges[0].node_id, "A");
@@ -141,7 +158,12 @@ mod tests {
         let (diagram, mut geom) = simple_geometry();
         geom.reversed_edges = vec![0];
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         assert!(routed.edges[0].is_backward);
     }
 
@@ -152,7 +174,12 @@ mod tests {
         geom.edges[0].layout_path_hint = None;
         geom.edges[0].waypoints = vec![FPoint::new(50.0, 50.0)];
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         let path = &routed.edges[0].path;
         // Should be: A bottom face → waypoint → B top face (face-snapped)
         assert_eq!(path.len(), 3);
@@ -169,7 +196,12 @@ mod tests {
         let (diagram, mut geom) = simple_geometry();
         geom.edges[0].label_position = Some(FPoint::new(55.0, 50.0));
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         let lp = routed.edges[0].label_position.unwrap();
         assert_eq!(lp.x, 55.0);
         assert_eq!(lp.y, 50.0);
@@ -188,7 +220,12 @@ mod tests {
             },
         );
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         assert_eq!(routed.nodes.len(), 2);
         assert_eq!(routed.subgraphs.len(), 1);
         assert_eq!(routed.subgraphs["sg1"].title, "Group");
@@ -198,7 +235,12 @@ mod tests {
     #[test]
     fn direct_route_produces_two_point_path() {
         let (diagram, geom) = simple_geometry();
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::DirectRoute,
+            &default_proportional_text_metrics(),
+        );
         let path = &routed.edges[0].path;
         assert_eq!(path.len(), 2);
         // Face-snapped: A bottom face y=45, B top face y=75
@@ -252,6 +294,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -265,7 +308,12 @@ mod tests {
             enhanced_backward_routing: false,
         };
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::DirectRoute,
+            &default_proportional_text_metrics(),
+        );
         assert_eq!(
             routed.edges[0].path,
             vec![FPoint::new(40.0, 10.0), FPoint::new(100.0, 10.0)]
@@ -318,6 +366,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -331,7 +380,12 @@ mod tests {
             enhanced_backward_routing: true,
         };
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         assert_eq!(
             routed.edges[0].path,
             vec![
@@ -388,6 +442,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -401,7 +456,12 @@ mod tests {
             enhanced_backward_routing: false,
         };
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         let path = &routed.edges[0].path;
         assert!(path.len() >= 2);
         assert!(
@@ -471,6 +531,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -566,6 +627,7 @@ mod tests {
                     to_subgraph: None,
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
+                    label_geometry: None,
                 },
                 LayoutEdge {
                     index: 1,
@@ -578,6 +640,7 @@ mod tests {
                     to_subgraph: None,
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
+                    label_geometry: None,
                 },
             ],
             subgraphs: HashMap::new(),
@@ -691,6 +754,7 @@ mod tests {
                     to_subgraph: None,
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
+                    label_geometry: None,
                 },
                 LayoutEdge {
                     index: 1,
@@ -703,6 +767,7 @@ mod tests {
                     to_subgraph: None,
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
+                    label_geometry: None,
                 },
             ],
             subgraphs: HashMap::new(),
@@ -788,6 +853,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs,
             self_edges: vec![],
@@ -829,7 +895,12 @@ mod tests {
         );
         geom.edges[0].layout_path_hint =
             Some(vec![FPoint::new(60.0, 35.0), FPoint::new(80.0, 35.0)]);
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::DirectRoute,
+            &default_proportional_text_metrics(),
+        );
         // Hint path is used but face-snapped: A bottom=45, B top=25
         assert_eq!(
             routed.edges[0].path,
@@ -851,7 +922,12 @@ mod tests {
             },
         );
         geom.edges[0].layout_path_hint = None;
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::DirectRoute,
+            &default_proportional_text_metrics(),
+        );
         let path = &routed.edges[0].path;
         assert_eq!(path.len(), 2);
         assert_ne!(path[0], path[1]);
@@ -917,6 +993,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: Some(direct_hint.clone()),
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -930,7 +1007,12 @@ mod tests {
             enhanced_backward_routing: false,
         };
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::DirectRoute,
+            &default_proportional_text_metrics(),
+        );
         assert_eq!(routed.edges[0].path, direct_hint);
     }
 
@@ -994,6 +1076,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: Some(fallback_hint.clone()),
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -1007,7 +1090,12 @@ mod tests {
             enhanced_backward_routing: false,
         };
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::DirectRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::DirectRoute,
+            &default_proportional_text_metrics(),
+        );
         assert_eq!(routed.edges[0].path, fallback_hint);
     }
 
@@ -1203,7 +1291,12 @@ mod tests {
     fn routing_populates_head_label_position() {
         let (mut diagram, geom) = simple_geometry();
         diagram.edges[0].head_label = Some("1..*".to_string());
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         assert!(
             routed.edges[0].head_label_position.is_some(),
             "head_label_position should be populated when edge has head_label"
@@ -1218,7 +1311,12 @@ mod tests {
     fn routing_populates_tail_label_position() {
         let (mut diagram, geom) = simple_geometry();
         diagram.edges[0].tail_label = Some("source".to_string());
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         assert!(
             routed.edges[0].tail_label_position.is_some(),
             "tail_label_position should be populated when edge has tail_label"
@@ -1232,7 +1330,12 @@ mod tests {
     #[test]
     fn routing_no_end_labels_by_default() {
         let (diagram, geom) = simple_geometry();
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         assert!(routed.edges[0].head_label_position.is_none());
         assert!(routed.edges[0].tail_label_position.is_none());
     }
@@ -1240,7 +1343,12 @@ mod tests {
     #[test]
     fn route_graph_geometry_includes_ports_polyline() {
         let (diagram, geom) = simple_geometry();
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         let edge = &routed.edges[0];
         let src = edge
             .source_port
@@ -1300,7 +1408,12 @@ mod tests {
             rerouted_edges: std::collections::HashSet::new(),
             enhanced_backward_routing: false,
         };
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
         // Self-edges go to self_edges, not edges
         assert_eq!(routed.self_edges.len(), 1);
         assert_eq!(routed.edges.len(), 0);
@@ -1310,7 +1423,12 @@ mod tests {
     #[test]
     fn route_graph_geometry_includes_ports_orthogonal() {
         let (diagram, geom) = simple_geometry();
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         let edge = &routed.edges[0];
         assert!(
             edge.source_port.is_some(),
@@ -1320,6 +1438,114 @@ mod tests {
             edge.target_port.is_some(),
             "target_port should be populated for orthogonal"
         );
+    }
+
+    #[test]
+    fn route_graph_geometry_accepts_metrics_and_populates_label_geometry() {
+        let metrics = default_proportional_text_metrics();
+
+        // Build a diagram with one labeled edge.
+        let mut diagram = Graph::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_node(crate::graph::Node::new("B"));
+        diagram.add_edge(crate::graph::Edge::new("A", "B").with_label("my label"));
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(50.0, 25.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(50.0, 75.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: None,
+            },
+        );
+
+        let label_center = FPoint::new(70.0, 55.0);
+        let edges = vec![LayoutEdge {
+            index: 0,
+            from: "A".into(),
+            to: "B".into(),
+            waypoints: vec![],
+            label_position: Some(label_center),
+            label_side: None,
+            from_subgraph: None,
+            to_subgraph: None,
+            layout_path_hint: Some(vec![FPoint::new(70.0, 35.0), FPoint::new(70.0, 85.0)]),
+            preserve_orthogonal_topology: false,
+            label_geometry: None,
+        }];
+
+        let geom = GraphGeometry {
+            nodes,
+            edges,
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(0.0, 0.0, 100.0, 100.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            grid_projection: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: false,
+        };
+
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute, &metrics);
+
+        // label_geometry must be populated on the labeled edge.
+        let labeled_edge = &routed.edges[0];
+        assert!(
+            labeled_edge.label_geometry.is_some(),
+            "label_geometry should be populated for labeled edges"
+        );
+        let lg = labeled_edge.label_geometry.unwrap();
+
+        // Verify padded dimensions match what metrics would produce.
+        let (expected_w, expected_h) = metrics.edge_label_dimensions("my label");
+        assert!(
+            (lg.rect.width - expected_w).abs() < 0.01,
+            "width: got {}, expected {}",
+            lg.rect.width,
+            expected_w
+        );
+        assert!(
+            (lg.rect.height - expected_h).abs() < 0.01,
+            "height: got {}, expected {}",
+            lg.rect.height,
+            expected_h
+        );
+
+        // Center must match the label_position.
+        assert!((lg.center.x - label_center.x).abs() < 0.01);
+        assert!((lg.center.y - label_center.y).abs() < 0.01);
+
+        // Rect must be centered on center.
+        assert!((lg.rect.x - (label_center.x - expected_w / 2.0)).abs() < 0.01);
+        assert!((lg.rect.y - (label_center.y - expected_h / 2.0)).abs() < 0.01);
+
+        // Padding snapshot.
+        assert_eq!(
+            lg.padding,
+            (metrics.label_padding_x, metrics.label_padding_y)
+        );
+
+        // Default side.
+        assert_eq!(lg.side, EdgeLabelSide::Center);
+
+        // track: 0 — lane assignment deferred to PR 3.
+        assert_eq!(lg.track, 0);
     }
 
     /// Routed bounds must cover all edge path points, even when routing
@@ -1362,6 +1588,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             },
             LayoutEdge {
                 index: 1,
@@ -1374,6 +1601,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             },
             LayoutEdge {
                 index: 2,
@@ -1386,6 +1614,7 @@ mod tests {
                 to_subgraph: None,
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
+                label_geometry: None,
             },
         ];
 
@@ -1405,7 +1634,12 @@ mod tests {
             enhanced_backward_routing: true,
         };
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
 
         // Verify all path points are within the recomputed bounds.
         let b = routed.bounds;

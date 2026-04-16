@@ -124,6 +124,20 @@ pub(super) fn compute_svg_bounds(
         let use_precomputed = edge.from_subgraph.is_none()
             && edge.to_subgraph.is_none()
             && !rendered_edge_paths.contains_key(&edge.index);
+
+        // Prefer label_geometry.rect when precomputed positions would be used.
+        // label_geometry is the authoritative source populated by the routing
+        // label-lane pass; it carries both center and padded rect.
+        // TODO(plan 0145 PR 3 / task 3.7): remove precomputed/revalidate fallback
+        // once label_lanes populates label_geometry for all edges.
+        let layout_edge = geom.edges.iter().find(|e| e.index == edge_idx);
+        if let Some(g) = layout_edge.and_then(|e| e.label_geometry.as_ref())
+            && use_precomputed
+        {
+            bounds.update_rect(&g.rect);
+            continue;
+        }
+
         let position = if use_precomputed {
             label_positions.get(&edge_idx).copied()
         } else {
@@ -152,5 +166,92 @@ pub(super) fn scale_rect(rect: &Rect, scale: f64) -> Rect {
         y: rect.y * scale,
         width: rect.width * scale,
         height: rect.height * scale,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use super::compute_svg_bounds;
+    use crate::graph::geometry::{EdgeLabelGeometry, EdgeLabelSide, GraphGeometry, LayoutEdge};
+    use crate::graph::measure::default_proportional_text_metrics;
+    use crate::graph::space::{FPoint, FRect};
+    use crate::graph::{Direction, Edge, Graph};
+
+    /// Constructs a minimal Graph + GraphGeometry with one labeled edge and one
+    /// LayoutEdge that has `label_position` set. The LayoutEdge starts with
+    /// `label_geometry: None`.
+    fn minimal_labeled_edge_fixtures() -> (Graph, GraphGeometry) {
+        let mut diagram = Graph::new(Direction::TopDown);
+        let mut edge = Edge::new("A", "B").with_label("yes");
+        edge.index = 0;
+        diagram.edges.push(edge);
+
+        let geom = GraphGeometry {
+            nodes: HashMap::new(),
+            edges: vec![LayoutEdge {
+                index: 0,
+                from: "A".into(),
+                to: "B".into(),
+                waypoints: vec![],
+                label_position: Some(FPoint::new(50.0, 50.0)),
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: Some(vec![FPoint::new(50.0, 0.0), FPoint::new(50.0, 100.0)]),
+                preserve_orthogonal_topology: false,
+                label_geometry: None,
+            }],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(0.0, 0.0, 100.0, 100.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            grid_projection: None,
+            rerouted_edges: HashSet::new(),
+            enhanced_backward_routing: false,
+        };
+
+        (diagram, geom)
+    }
+
+    #[test]
+    fn svg_bounds_uses_label_geometry_rect_when_present() {
+        let (diagram, mut geom) = minimal_labeled_edge_fixtures();
+        let metrics = default_proportional_text_metrics();
+        let empty_map = HashMap::new();
+
+        // Set label_geometry with a rect far outside the normal layout bounds.
+        geom.edges[0].label_geometry = Some(EdgeLabelGeometry {
+            center: FPoint::new(500.0, 500.0),
+            rect: FRect::new(490.0, 495.0, 20.0, 10.0),
+            padding: (4.0, 2.0),
+            side: EdgeLabelSide::Above,
+            track: 0,
+        });
+
+        let bounds = compute_svg_bounds(&diagram, &geom, &metrics, &empty_map, &empty_map);
+        let (min_x, min_y, max_x, max_y) = bounds.finalize(200.0, 200.0);
+
+        // The bounds must include the label_geometry rect (490..510, 495..505).
+        assert!(
+            max_x >= 510.0,
+            "max_x ({max_x}) must be >= 510.0 to include label_geometry rect"
+        );
+        assert!(
+            max_y >= 505.0,
+            "max_y ({max_y}) must be >= 505.0 to include label_geometry rect"
+        );
+        assert!(
+            min_x <= 490.0,
+            "min_x ({min_x}) must be <= 490.0 to include label_geometry rect"
+        );
+        assert!(
+            min_y <= 495.0,
+            "min_y ({min_y}) must be <= 495.0 to include label_geometry rect"
+        );
     }
 }

@@ -172,6 +172,7 @@ impl GraphEngine for MermaidLayeredEngine {
                 diagram,
                 &geometry,
                 EdgeRouting::PolylineRoute,
+                metrics,
             ))
         } else {
             None

@@ -15,6 +15,7 @@ use crate::engines::graph::{
 };
 use crate::errors::RenderError;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{GeometryLevel, Graph};
 
@@ -134,7 +135,10 @@ fn edge_crowding_score(
     geometry: &GraphGeometry,
     edge_routing: EdgeRouting,
 ) -> CrowdingScore {
-    let routed = route_graph_geometry(diagram, geometry, edge_routing);
+    // Scoring-only: no output consumer sees this label geometry, so default
+    // metrics are sufficient (design §6.3 metrics acquisition policy).
+    let metrics = default_proportional_text_metrics();
+    let routed = route_graph_geometry(diagram, geometry, edge_routing, &metrics);
 
     let mut node_intrusions = 0usize;
     for edge in &routed.edges {
@@ -287,7 +291,16 @@ impl GraphEngine for FluxLayeredEngine {
         let geometry = run_layered_layout(&mode, diagram, config)?;
         let routed: Option<RoutedGraphGeometry> =
             if matches!(request.geometry_level, GeometryLevel::Routed) {
-                Some(route_graph_geometry(diagram, &geometry, edge_routing))
+                let solve_metrics = match &mode {
+                    MeasurementMode::Proportional(m) => m.clone(),
+                    MeasurementMode::Grid => default_proportional_text_metrics(),
+                };
+                Some(route_graph_geometry(
+                    diagram,
+                    &geometry,
+                    edge_routing,
+                    &solve_metrics,
+                ))
             } else {
                 None
             };

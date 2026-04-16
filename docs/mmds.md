@@ -308,6 +308,8 @@ Rules:
 | `is_backward`    | boolean       | routed | Flows backward in layout                                                                                                                         |
 | `source_port`    | Port?         | routed | Source endpoint attachment (see Port below)                                                                                                      |
 | `target_port`    | Port?         | routed | Target endpoint attachment (see Port below)                                                                                                      |
+| `label_side`     | string?       | both   | `"above"`, `"below"`, or `"center"`; present at both layout and routed levels when the engine has assigned a side, omitted otherwise             |
+| `label_rect`     | Rect?         | routed | Padded label rectangle `{x, y, width, height}` including `label_padding_x`/`label_padding_y` padding; omitted when the engine has not assigned a rectangle |
 
 ### Port
 

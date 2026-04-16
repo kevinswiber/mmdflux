@@ -7,7 +7,9 @@
 use std::path::Path;
 
 use mmdflux::graph::GeometryLevel;
-use mmdflux::mmds::{Output, SUPPORTED_PROFILES, evaluate_profiles, parse_input};
+use mmdflux::mmds::{
+    Edge as MmdsEdge, Output, Rect as MmdsRect, SUPPORTED_PROFILES, evaluate_profiles, parse_input,
+};
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode};
 use serde_json::Value;
@@ -1367,4 +1369,275 @@ fn mmds_layout_output_omits_edge_paths_regardless_of_engine() {
         json["edges"][0]["path"].is_null()
             || !json["edges"][0].as_object().unwrap().contains_key("path")
     );
+}
+
+// -----------------------------------------------------------------------
+// Plan 0145 Task 1.12: MMDS Edge gains label_side + label_rect
+// -----------------------------------------------------------------------
+
+fn plan_0145_edge_contract_stub() -> MmdsEdge {
+    MmdsEdge {
+        id: "e1".into(),
+        source: "A".into(),
+        target: "B".into(),
+        from_subgraph: None,
+        to_subgraph: None,
+        label: Some("x".into()),
+        stroke: "solid".into(),
+        arrow_start: "none".into(),
+        arrow_end: "normal".into(),
+        minlen: 1,
+        path: None,
+        label_position: None,
+        is_backward: None,
+        source_port: None,
+        target_port: None,
+        label_side: None,
+        label_rect: None,
+    }
+}
+
+#[test]
+fn mmds_edge_supports_label_side_and_label_rect_fields() {
+    let edge = MmdsEdge {
+        label_side: Some("above".into()),
+        label_rect: Some(MmdsRect {
+            x: 10.0,
+            y: 20.0,
+            width: 30.0,
+            height: 10.0,
+        }),
+        ..plan_0145_edge_contract_stub()
+    };
+
+    let json = serde_json::to_value(&edge).unwrap();
+    assert_eq!(json["label_side"], "above");
+    assert_eq!(json["label_rect"]["x"], 10.0);
+    assert_eq!(json["label_rect"]["y"], 20.0);
+    assert_eq!(json["label_rect"]["width"], 30.0);
+    assert_eq!(json["label_rect"]["height"], 10.0);
+
+    let roundtrip: MmdsEdge = serde_json::from_value(json).unwrap();
+    assert_eq!(roundtrip.label_side.as_deref(), Some("above"));
+    let rect = roundtrip.label_rect.expect("label_rect should round-trip");
+    assert_eq!(rect.x, 10.0);
+    assert_eq!(rect.y, 20.0);
+    assert_eq!(rect.width, 30.0);
+    assert_eq!(rect.height, 10.0);
+}
+
+#[test]
+fn mmds_edge_omits_label_side_and_label_rect_when_none() {
+    let edge = plan_0145_edge_contract_stub();
+    let json = serde_json::to_string(&edge).unwrap();
+    assert!(
+        !json.contains("label_side"),
+        "expected label_side to be skipped when None, got: {json}"
+    );
+    assert!(
+        !json.contains("label_rect"),
+        "expected label_rect to be skipped when None, got: {json}"
+    );
+}
+
+#[test]
+fn mmds_schema_validates_label_side_and_label_rect() {
+    let payload = serde_json::json!({
+        "version": 1,
+        "defaults": {
+            "node": { "shape": "rectangle" },
+            "edge": {
+                "stroke": "solid",
+                "arrow_start": "none",
+                "arrow_end": "normal",
+                "minlen": 1
+            }
+        },
+        "geometry_level": "routed",
+        "metadata": {
+            "diagram_type": "flowchart",
+            "direction": "TD",
+            "bounds": { "width": 120.0, "height": 200.0 }
+        },
+        "nodes": [
+            {
+                "id": "A",
+                "label": "A",
+                "position": { "x": 0.0, "y": 0.0 },
+                "size": { "width": 10.0, "height": 10.0 }
+            },
+            {
+                "id": "B",
+                "label": "B",
+                "position": { "x": 0.0, "y": 100.0 },
+                "size": { "width": 10.0, "height": 10.0 }
+            }
+        ],
+        "edges": [{
+            "id": "e1",
+            "source": "A",
+            "target": "B",
+            "label_side": "below",
+            "label_rect": { "x": 0.0, "y": 0.0, "width": 10.0, "height": 10.0 }
+        }]
+    });
+    assert_schema_valid(payload);
+}
+
+// -----------------------------------------------------------------------
+// Plan 0145 Task 1.13: MMDS Edge output populates label_side + label_rect
+// -----------------------------------------------------------------------
+
+#[test]
+fn mmds_output_populates_label_side_at_layout_level() {
+    // Reciprocal edges trigger label-side selection in the engine.
+    let input = "graph TD\n    A -->|forward| B\n    B -->|reverse| A";
+    let json = render_json_with_level(input, GeometryLevel::Layout);
+    let output: Output = serde_json::from_str(&json).unwrap();
+
+    let has_side = output.edges.iter().any(|e| e.label_side.is_some());
+    assert!(
+        has_side,
+        "at least one edge must carry label_side at layout level; edges: {:?}",
+        output
+            .edges
+            .iter()
+            .map(|e| (&e.id, &e.label_side))
+            .collect::<Vec<_>>()
+    );
+
+    // Each label_side value must be a recognized string.
+    for edge in &output.edges {
+        if let Some(side) = &edge.label_side {
+            assert!(
+                ["above", "below", "center"].contains(&side.as_str()),
+                "unexpected label_side value: {side}"
+            );
+        }
+    }
+}
+
+#[test]
+fn mmds_output_populates_label_rect_at_routed_level_only() {
+    let input = "graph TD\n    A -->|forward| B";
+
+    // Layout level: label_rect must NOT appear.
+    let layout_json = render_json_with_level(input, GeometryLevel::Layout);
+    let layout_output: Output = serde_json::from_str(&layout_json).unwrap();
+    assert!(
+        layout_output.edges[0].label_rect.is_none(),
+        "label_rect must not appear at layout level"
+    );
+
+    // Routed level: label_rect MUST appear for a labeled edge.
+    let routed_json = render_json_with_level(input, GeometryLevel::Routed);
+    let routed_output: Output = serde_json::from_str(&routed_json).unwrap();
+    let rect = routed_output.edges[0]
+        .label_rect
+        .as_ref()
+        .expect("label_rect must appear at routed level for labeled edges");
+    assert!(rect.width > 0.0, "label_rect width must be positive");
+    assert!(rect.height > 0.0, "label_rect height must be positive");
+}
+
+#[test]
+fn mmds_output_label_rect_absent_for_unlabeled_edges() {
+    let input = "graph TD\n    A --> B";
+    let routed_json = render_json_with_level(input, GeometryLevel::Routed);
+    let routed_output: Output = serde_json::from_str(&routed_json).unwrap();
+    assert!(
+        routed_output.edges[0].label_rect.is_none(),
+        "unlabeled edges must not have label_rect"
+    );
+}
+
+#[test]
+fn mmds_output_label_side_present_at_routed_level_too() {
+    // label_side should appear at BOTH levels, not just layout.
+    let input = "graph TD\n    A -->|forward| B\n    B -->|reverse| A";
+    let json = render_json_with_level(input, GeometryLevel::Routed);
+    let output: Output = serde_json::from_str(&json).unwrap();
+
+    let has_side = output.edges.iter().any(|e| e.label_side.is_some());
+    assert!(
+        has_side,
+        "at least one edge must carry label_side at routed level; edges: {:?}",
+        output
+            .edges
+            .iter()
+            .map(|e| (&e.id, &e.label_side))
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn mmds_schema_rejects_label_side_with_invalid_enum() {
+    let payload = serde_json::json!({
+        "version": 1,
+        "defaults": {
+            "node": { "shape": "rectangle" },
+            "edge": {
+                "stroke": "solid",
+                "arrow_start": "none",
+                "arrow_end": "normal",
+                "minlen": 1
+            }
+        },
+        "geometry_level": "layout",
+        "metadata": {
+            "diagram_type": "flowchart",
+            "direction": "TD",
+            "bounds": { "width": 120.0, "height": 200.0 }
+        },
+        "nodes": [],
+        "edges": [{
+            "id": "e1",
+            "source": "A",
+            "target": "B",
+            "label_side": "sideways"
+        }]
+    });
+    assert_schema_invalid(payload);
+}
+
+// -----------------------------------------------------------------------
+// Contract: routed → layout down-conversion strips routed-only fields
+// -----------------------------------------------------------------------
+
+#[test]
+fn mmds_routed_to_layout_down_conversion_strips_routed_only_edge_fields() {
+    let routed_json = render_json_with_level("graph TD\nA -->|forward| B", GeometryLevel::Routed);
+    let layout_output = render_mmds_input(
+        &routed_json,
+        OutputFormat::Mmds,
+        RenderConfig {
+            geometry_level: GeometryLevel::Layout,
+            ..RenderConfig::default()
+        },
+    );
+    let parsed: Output = serde_json::from_str(&layout_output).unwrap();
+    assert_eq!(parsed.geometry_level, "layout");
+    for edge in &parsed.edges {
+        assert!(edge.path.is_none(), "path must be stripped at layout level");
+        assert!(
+            edge.label_position.is_none(),
+            "label_position must be stripped at layout level"
+        );
+        assert!(
+            edge.is_backward.is_none(),
+            "is_backward must be stripped at layout level"
+        );
+        assert!(
+            edge.source_port.is_none(),
+            "source_port must be stripped at layout level"
+        );
+        assert!(
+            edge.target_port.is_none(),
+            "target_port must be stripped at layout level"
+        );
+        assert!(
+            edge.label_rect.is_none(),
+            "label_rect must be stripped at layout level"
+        );
+    }
 }

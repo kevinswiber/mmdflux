@@ -11,7 +11,10 @@ use serde_json::{Map, Number, Value};
 
 use crate::errors::RenderError;
 use crate::graph::attachment::EdgePort;
-use crate::graph::geometry::{GraphGeometry, PositionedNode, RoutedGraphGeometry};
+use crate::graph::geometry::{
+    EdgeLabelSide, GraphGeometry, PositionedNode, RoutedEdgeGeometry, RoutedGraphGeometry,
+};
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::style::NodeStyle;
@@ -151,8 +154,11 @@ pub fn to_json_typed_with_routing(
     path_simplification: PathSimplification,
     engine_id: Option<&str>,
 ) -> Result<String, RenderError> {
+    // MMDS fallback routing: default metrics are sufficient since this path
+    // only fires when no pre-routed geometry was provided (design §6.3).
+    let metrics = default_proportional_text_metrics();
     let routed_owned = (routed.is_none() && matches!(level, GeometryLevel::Routed))
-        .then(|| route_graph_geometry(diagram, geometry, EdgeRouting::OrthogonalRoute));
+        .then(|| route_graph_geometry(diagram, geometry, EdgeRouting::OrthogonalRoute, &metrics));
     let routed = routed.or(routed_owned.as_ref());
 
     to_json_typed(
@@ -201,6 +207,46 @@ fn edge_port_to_mmds(port: &EdgePort) -> Port {
     }
 }
 
+/// Map an `EdgeLabelSide` enum variant to its MMDS JSON string.
+fn edge_label_side_to_mmds_string(side: EdgeLabelSide) -> String {
+    match side {
+        EdgeLabelSide::Above => "above".into(),
+        EdgeLabelSide::Below => "below".into(),
+        EdgeLabelSide::Center => "center".into(),
+    }
+}
+
+/// Resolve `label_side` for an MMDS edge using the fallback chain:
+///   `label_geometry.side` → `layout_edge.label_side`
+///
+/// Returns `None` when no side has been assigned at either layer.
+fn mmds_edge_label_side(
+    layout_edge: Option<&crate::graph::geometry::LayoutEdge>,
+) -> Option<String> {
+    let le = layout_edge?;
+    le.label_geometry
+        .as_ref()
+        .map(|g| g.side)
+        .or(le.label_side)
+        .map(edge_label_side_to_mmds_string)
+}
+
+/// Resolve `label_rect` for an MMDS edge (routed level only).
+///
+/// Returns `None` at layout level or when no label geometry exists.
+fn mmds_edge_label_rect(routed_edge: Option<&RoutedEdgeGeometry>, is_routed: bool) -> Option<Rect> {
+    if !is_routed {
+        return None;
+    }
+    let re = routed_edge?;
+    re.label_geometry.as_ref().map(|g| Rect {
+        x: g.rect.x,
+        y: g.rect.y,
+        width: g.rect.width,
+        height: g.rect.height,
+    })
+}
+
 fn build_output(
     diagram_type: &str,
     diagram: &Graph,
@@ -230,11 +276,15 @@ fn build_output(
     nodes.sort_by(|a, b| a.id.cmp(&b.id));
 
     // Build edges
+    let is_routed = routed.is_some();
     let edges: Vec<Edge> = diagram
         .edges
         .iter()
         .enumerate()
         .map(|(i, edge)| {
+            let layout_edge = geometry.edges.iter().find(|le| le.index == i);
+            let routed_edge = routed.and_then(|r| r.edges.iter().find(|e| e.index == i));
+
             let mut mmds_edge = Edge {
                 id: format!("e{i}"),
                 source: edge.from.clone(),
@@ -251,11 +301,13 @@ fn build_output(
                 is_backward: None,
                 source_port: None,
                 target_port: None,
+                label_side: mmds_edge_label_side(layout_edge),
+                label_rect: mmds_edge_label_rect(routed_edge, is_routed),
             };
 
             // Add routed fields only at routed level
             if let Some(routed) = routed {
-                if let Some(re) = routed.edges.iter().find(|e| e.index == i) {
+                if let Some(re) = routed_edge {
                     let full_path: Vec<[f64; 2]> = re.path.iter().map(|p| [p.x, p.y]).collect();
                     mmds_edge.path = Some(
                         path_simplification
@@ -721,6 +773,19 @@ pub struct Bounds {
     pub height: f64,
 }
 
+/// Axis-aligned rectangle with position and dimensions.
+///
+/// Used for edge `label_rect` (routed level only) and sequence-style rect
+/// payloads. Coordinates are in unitless MMDS coordinate space; `x`/`y` denote
+/// the top-left corner.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Rect {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
 /// A node in MMDS output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
@@ -830,6 +895,23 @@ pub struct Edge {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub target_port: Option<Port>,
+    /// Label side relative to the edge: `"above"`, `"below"`, or `"center"`.
+    ///
+    /// Appears at both `layout` and `routed` geometry levels when the engine
+    /// has assigned a side. `None` means the engine made no assignment.
+    /// Plan 0145 populates this via `EdgeLabelGeometry` (Task 1.13).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub label_side: Option<String>,
+    /// Padded label rectangle in MMDS coordinate space (routed level only).
+    ///
+    /// Includes `label_padding_x` / `label_padding_y` padding on each side.
+    /// Consumers that need the unpadded rectangle can subtract the padding
+    /// constants advertised in the profile. Plan 0145 populates this via
+    /// `EdgeLabelGeometry` (Task 1.13).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub label_rect: Option<Rect>,
 }
 
 /// A subgraph in MMDS output.
@@ -937,6 +1019,8 @@ mod tests {
             is_backward: None,
             source_port: None,
             target_port: None,
+            label_side: None,
+            label_rect: None,
         };
         let json = serde_json::to_string(&edge).unwrap();
         assert!(!json.contains("source_port"));
@@ -967,6 +1051,8 @@ mod tests {
             is_backward: None,
             source_port: Some(port),
             target_port: None,
+            label_side: None,
+            label_rect: None,
         };
         let json = serde_json::to_string(&edge).unwrap();
         let deserialized: Edge = serde_json::from_str(&json).unwrap();

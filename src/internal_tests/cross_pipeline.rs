@@ -321,7 +321,12 @@ fn route_fixture_orthogonal(fixture: &str) -> RoutedGraphGeometry {
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
-    route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
+    route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    )
 }
 
 fn route_input_orthogonal(input: &str) -> RoutedGraphGeometry {
@@ -330,7 +335,12 @@ fn route_input_orthogonal(input: &str) -> RoutedGraphGeometry {
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
-    route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
+    route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    )
 }
 
 fn edge_path<'a>(routed: &'a RoutedGraphGeometry, from: &str, to: &str) -> &'a [FPoint] {
@@ -628,7 +638,12 @@ mod label_edge_cases {
         );
         let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
             .expect("layout should succeed");
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         let edge = routed
             .edges
             .iter()
@@ -1055,7 +1070,12 @@ fn test_self_loop_routed_geometry_terminal_is_horizontal_td() {
     let diagram = parse_and_build("self_loop.mmd");
     let result = solve_diagram(&diagram, OutputFormat::Svg, &RenderConfig::default())
         .expect("solve should succeed");
-    let routed = route_graph_geometry(&diagram, &result.geometry, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &result.geometry,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     // Self-loop should produce a 4-point canonical path (exit, loop@exit.y,
     // loop@entry.y, entry).
     assert_eq!(routed.self_edges.len(), 1);
@@ -1829,7 +1849,12 @@ fn test_orthogonal_route_routed_geometry_is_axis_aligned_for_forward_edges() {
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for edge in routed.edges.iter().filter(|edge| !edge.is_backward) {
         assert!(
@@ -2562,8 +2587,13 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
     type BackwardFaceCase<'a> = (&'a str, &'a str, &'a str, Option<&'a str>, &'a str, &'a str);
     let cases: [BackwardFaceCase<'_>; 2] = [
         // D is to the right of A; parity override is bypassed to avoid crossing
-        // the forward A->D edge, so orthogonal uses side-channel (right-face) routing.
-        ("decision.mmd", "D", "A", None, "bottom", "right"),
+        // the forward A->D edge, so both polyline and orthogonal use side-channel
+        // (right-face) routing. Under plan 0145 task 1.7's padded label-dummy
+        // reservations, polyline converged to the same right-face entry as
+        // orthogonal (previously entered via the bottom face). Visual shape of
+        // the rendered edge is unchanged; this test encodes an internal face
+        // classification only.
+        ("decision.mmd", "D", "A", None, "right", "right"),
         // Layout quality improvements (model order + variable spacing) shifted E
         // relative to A so the polyline backward edge now enters A from the bottom
         // face instead of the left face. The orthogonal router still uses the
@@ -2599,8 +2629,18 @@ fn td_backward_entry_face_followup_parity_matches_text_for_decision_and_complex(
             .unwrap_or_else(|| panic!("fixture {fixture} should contain target node {to}"))
             .rect;
 
-        let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-        let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let full = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
+        let orthogonal = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         let full_edge = full
             .edges
             .iter()
@@ -2746,8 +2786,18 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
             .unwrap_or_else(|| panic!("fixture {fixture} should contain target node Working"))
             .rect;
 
-        let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-        let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let full = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
+        let orthogonal = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         let full_edge = full
             .edges
@@ -2826,8 +2876,18 @@ fn lr_backward_spacing_followup_matches_text_parity_for_git_and_http() {
             .unwrap_or_else(|| panic!("fixture {fixture} should contain target node Client"))
             .rect;
 
-        let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-        let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let full = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
+        let orthogonal = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         let full_edge = full
             .edges

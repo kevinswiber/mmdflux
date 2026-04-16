@@ -16,6 +16,7 @@ pub use self::svg::SvgRenderOptions;
 use crate::format::{OutputFormat, RoutingStyle, TextColorMode};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Direction, Graph};
 use crate::render::svg::theme::ResolvedSvgTheme;
@@ -136,6 +137,7 @@ fn geometry_for_routed_svg(diagram: &Graph, routed: &RoutedGraphGeometry) -> Gra
                 to_subgraph: edge.to_subgraph.clone(),
                 layout_path_hint: Some(edge.path.clone()),
                 preserve_orthogonal_topology: edge.preserve_orthogonal_topology,
+                label_geometry: None,
             })
             .collect(),
         subgraphs: routed.subgraphs.clone(),
@@ -175,10 +177,15 @@ pub fn render_text_from_geometry(
     let routed = match routed {
         Some(routed) => routed,
         None => {
+            // Text fallback routing: default metrics are sufficient since the
+            // text renderer does not carry a request-specific metrics handle
+            // (design §6.3 metrics acquisition policy).
+            let metrics = default_proportional_text_metrics();
             routed_owned = routing::route_graph_geometry(
                 diagram,
                 geometry,
                 edge_routing_from_style(options.routing_style),
+                &metrics,
             );
             &routed_owned
         }
@@ -244,6 +251,7 @@ pub fn render_text_from_geometry(
 ///         to_subgraph: None,
 ///         layout_path_hint: None,
 ///         preserve_orthogonal_topology: false,
+///         label_geometry: None,
 ///     }],
 ///     subgraphs: HashMap::new(),
 ///     self_edges: vec![],

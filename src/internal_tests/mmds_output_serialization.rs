@@ -7,6 +7,7 @@ use crate::engines::graph::EngineConfig;
 use crate::engines::graph::algorithms::layered::run_layered_layout;
 use crate::engines::graph::contracts::MeasurementMode;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{GeometryLevel, Graph};
 use crate::mmds::output::{Output, to_json, to_layout, to_routed};
@@ -25,7 +26,12 @@ fn layout_geometry(input: &str) -> (Graph, GraphGeometry) {
 }
 
 fn routed_geometry(diagram: &Graph, geometry: &GraphGeometry) -> RoutedGraphGeometry {
-    route_graph_geometry(diagram, geometry, EdgeRouting::PolylineRoute)
+    route_graph_geometry(
+        diagram,
+        geometry,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    )
 }
 
 #[test]

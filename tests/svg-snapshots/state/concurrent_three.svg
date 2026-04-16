@@ -1,63 +1,63 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 576.83 497.00" style="max-width: 576.83px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 581.37 501.00" style="max-width: 581.37px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
     </marker>
   </defs>
-  <g transform="translate(-25.00,0.00)">
+  <g transform="translate(-26.10,0.00)">
     <g class="clusters">
-      <rect class="subgraph" x="33.00" y="126.00" width="530.16" height="363.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="298.08" y="130.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Active</text>
-      <line x1="209.13" y1="126.00" x2="209.13" y2="489.00" stroke="#888" stroke-width="1.00" stroke-dasharray="6,4" />
-      <line x1="378.96" y1="126.00" x2="378.96" y2="489.00" stroke="#888" stroke-width="1.00" stroke-dasharray="6,4" />
+      <rect class="subgraph" x="34.10" y="126.00" width="530.71" height="367.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="299.45" y="130.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Active</text>
+      <line x1="210.78" y1="126.00" x2="210.78" y2="493.00" stroke="#888" stroke-width="1.00" stroke-dasharray="6,4" />
+      <line x1="380.61" y1="126.00" x2="380.61" y2="493.00" stroke="#888" stroke-width="1.00" stroke-dasharray="6,4" />
     </g>
     <g class="edgePaths">
-      <path d="M126.26,22.00 L126.26,69.00 Q126.26,74.00 131.26,74.00 L293.08,74.00 Q298.08,74.00 298.08,79.00 L298.08,122.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M123.56,186.00 L123.56,232.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M125.08,290.00 L125.08,385.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M147.93,389.00 L147.93,339.10 Q147.93,334.10 152.93,334.10 L164.44,334.10 Q169.44,334.10 169.44,329.10 L169.44,294.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M294.04,186.00 L294.04,232.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M292.25,290.00 L292.25,385.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M312.37,389.00 L312.37,332.00 Q312.37,327.00 317.37,327.00 L336.96,327.00 Q341.96,327.00 341.96,322.00 L341.96,294.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M467.22,186.00 L467.22,232.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M467.22,290.00 L467.22,385.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M487.22,389.00 L487.22,332.00 Q487.22,327.00 492.22,327.00 L513.47,327.00 Q518.47,327.00 518.47,322.00 L518.47,294.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M127.35,22.00 L127.35,69.00 Q127.35,74.00 132.35,74.00 L294.45,74.00 Q299.45,74.00 299.45,79.00 L299.45,122.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M124.66,186.00 L124.66,232.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M126.39,290.00 L126.39,389.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M149.57,393.00 L149.57,341.10 Q149.57,336.10 154.57,336.10 L165.54,336.10 Q170.54,336.10 170.54,331.10 L170.54,294.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M295.69,186.00 L295.69,232.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M294.12,290.00 L294.12,389.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M314.57,393.00 L314.57,334.00 Q314.57,329.00 319.57,329.00 L338.61,329.00 Q343.61,329.00 343.61,324.00 L343.61,294.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M468.86,186.00 L468.86,232.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M468.86,290.00 L468.86,389.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M488.86,393.00 L488.86,346.50 Q488.86,341.50 493.86,341.50 L515.12,341.50 Q520.12,341.50 520.12,336.50 L520.12,294.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <circle cx="123.56" cy="179.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="123.56" y="179.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <circle cx="294.04" cy="179.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="294.04" y="179.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <circle cx="467.22" cy="179.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="467.22" y="179.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <rect x="234.13" y="236.00" width="119.83" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="294.04" y="263.00" text-anchor="middle" dominant-baseline="middle" fill="#333">CapsLockOff</text>
-      <rect x="234.13" y="389.00" width="116.49" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="292.37" y="416.00" text-anchor="middle" dominant-baseline="middle" fill="#333">CapsLockOn</text>
-      <rect x="65.69" y="236.00" width="115.75" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="123.56" y="263.00" text-anchor="middle" dominant-baseline="middle" fill="#333">NumLockOff</text>
-      <rect x="71.72" y="389.00" width="112.41" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="127.93" y="416.00" text-anchor="middle" dominant-baseline="middle" fill="#333">NumLockOn</text>
-      <rect x="403.96" y="236.00" width="126.51" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="467.22" y="263.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ScrollLockOff</text>
-      <rect x="405.63" y="389.00" width="123.17" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="467.22" y="416.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ScrollLockOn</text>
-      <circle cx="126.26" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="126.26" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <circle cx="124.66" cy="179.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="124.66" y="179.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <circle cx="295.69" cy="179.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="295.69" y="179.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <circle cx="468.86" cy="179.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="468.86" y="179.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <rect x="235.78" y="236.00" width="119.83" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="295.69" y="263.00" text-anchor="middle" dominant-baseline="middle" fill="#333">CapsLockOff</text>
+      <rect x="236.32" y="393.00" width="116.49" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="294.57" y="420.00" text-anchor="middle" dominant-baseline="middle" fill="#333">CapsLockOn</text>
+      <rect x="66.79" y="236.00" width="115.75" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="124.66" y="263.00" text-anchor="middle" dominant-baseline="middle" fill="#333">NumLockOff</text>
+      <rect x="73.37" y="393.00" width="112.41" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="129.57" y="420.00" text-anchor="middle" dominant-baseline="middle" fill="#333">NumLockOn</text>
+      <rect x="405.61" y="236.00" width="126.51" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="468.86" y="263.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ScrollLockOff</text>
+      <rect x="407.28" y="393.00" width="123.17" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="468.86" y="420.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ScrollLockOn</text>
+      <circle cx="127.35" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="127.35" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
     </g>
     <g class="edgeLabels">
-      <rect x="49.59" y="298.50" width="147.94" height="28.00" fill="white" />
-      <text x="123.56" y="312.50" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
-      <rect x="77.31" y="320.10" width="147.94" height="28.00" fill="white" />
-      <text x="151.28" y="334.10" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
-      <rect x="214.69" y="298.50" width="152.03" height="28.00" fill="white" />
-      <text x="290.70" y="312.50" text-anchor="middle" dominant-baseline="middle" fill="#333">EvCapsLockPressed</text>
-      <rect x="236.65" y="313.00" width="152.03" height="28.00" fill="white" />
-      <text x="312.67" y="327.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvCapsLockPressed</text>
-      <rect x="387.86" y="298.50" width="158.71" height="28.00" fill="white" />
-      <text x="467.22" y="312.50" text-anchor="middle" dominant-baseline="middle" fill="#333">EvScrollLockPressed</text>
-      <rect x="408.99" y="313.00" width="158.71" height="28.00" fill="white" />
-      <text x="488.34" y="327.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvScrollLockPressed</text>
+      <rect x="50.69" y="298.50" width="147.94" height="28.00" fill="white" />
+      <text x="124.66" y="312.50" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
+      <rect x="78.68" y="322.10" width="147.94" height="28.00" fill="white" />
+      <text x="152.65" y="336.10" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
+      <rect x="216.34" y="298.50" width="152.03" height="28.00" fill="white" />
+      <text x="292.35" y="312.50" text-anchor="middle" dominant-baseline="middle" fill="#333">EvCapsLockPressed</text>
+      <rect x="238.58" y="315.00" width="152.03" height="28.00" fill="white" />
+      <text x="314.59" y="329.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvCapsLockPressed</text>
+      <rect x="389.51" y="298.50" width="158.71" height="28.00" fill="white" />
+      <text x="468.86" y="312.50" text-anchor="middle" dominant-baseline="middle" fill="#333">EvScrollLockPressed</text>
+      <rect x="423.14" y="327.50" width="158.71" height="28.00" fill="white" />
+      <text x="502.49" y="341.50" text-anchor="middle" dominant-baseline="middle" fill="#333">EvScrollLockPressed</text>
     </g>
   </g>
 </svg>

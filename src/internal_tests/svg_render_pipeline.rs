@@ -935,6 +935,89 @@ fn parse_svg_viewbox(svg: &str) -> Option<(f64, f64, f64, f64)> {
     }
 }
 
+/// Extract `(x, y, width, height)` tuples for every `<rect class="graph-edge-label-bg" .../>`
+/// element in the rendered SVG. Parses attributes tolerantly — the class attribute may
+/// appear in any position and attribute order is unimportant.
+pub(crate) fn extract_label_bg_rects(svg: &str) -> Vec<(f64, f64, f64, f64)> {
+    let mut out = Vec::new();
+    for line in svg.lines() {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with("<rect") {
+            continue;
+        }
+        let Some(class) = parse_attr_value(trimmed, "class") else {
+            continue;
+        };
+        if !class.split_whitespace().any(|c| c == "graph-edge-label-bg") {
+            continue;
+        }
+        let Some(x) = parse_attr_f64(trimmed, "x") else {
+            continue;
+        };
+        let Some(y) = parse_attr_f64(trimmed, "y") else {
+            continue;
+        };
+        let Some(w) = parse_attr_f64(trimmed, "width") else {
+            continue;
+        };
+        let Some(h) = parse_attr_f64(trimmed, "height") else {
+            continue;
+        };
+        out.push((x, y, w, h));
+    }
+    out
+}
+
+/// Axis-aligned rectangle overlap test. Returns `true` when `a` and `b` have
+/// strictly positive overlap area (touching edges do not count).
+pub(crate) fn svg_rects_overlap(a: &(f64, f64, f64, f64), b: &(f64, f64, f64, f64)) -> bool {
+    let (ax, ay, aw, ah) = *a;
+    let (bx, by, bw, bh) = *b;
+    ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
+}
+
+/// Pairwise overlap check across every `<rect class="graph-edge-label-bg">` in the
+/// rendered SVG. Returns a list of human-readable failure strings — one per
+/// overlapping pair. An empty result indicates no overlap.
+pub(crate) fn svg_pairwise_label_rect_overlaps(svg: &str) -> Vec<String> {
+    let rects = extract_label_bg_rects(svg);
+    let mut failures = Vec::new();
+    for i in 0..rects.len() {
+        for j in (i + 1)..rects.len() {
+            let a = &rects[i];
+            let b = &rects[j];
+            if svg_rects_overlap(a, b) {
+                failures.push(format!("label bg rects overlap: [{:?}] <-> [{:?}]", a, b));
+            }
+        }
+    }
+    failures
+}
+
+/// Verify every `<rect class="graph-edge-label-bg">` in the rendered SVG lies
+/// within the document's `viewBox` (with a 0.5 px tolerance to account for
+/// rounding). Returns a list of human-readable failure strings — one per rect
+/// that escapes the viewBox. An empty result indicates every label-bg rect is
+/// fully contained.
+pub(crate) fn svg_viewbox_contains_rects(svg: &str) -> Vec<String> {
+    const TOL: f64 = 0.5;
+    let Some((vx, vy, vw, vh)) = parse_svg_viewbox(svg) else {
+        return vec!["no viewBox found".to_string()];
+    };
+    let rects = extract_label_bg_rects(svg);
+    let mut failures = Vec::new();
+    for (x, y, w, h) in rects {
+        let violates =
+            x + TOL < vx || y + TOL < vy || x + w > vx + vw + TOL || y + h > vy + vh + TOL;
+        if violates {
+            failures.push(format!(
+                "rect ({x}, {y}, {w}x{h}) outside viewBox ({vx}, {vy}, {vw}x{vh})"
+            ));
+        }
+    }
+    failures
+}
+
 fn parse_svg_main_translate(svg: &str) -> Option<(f64, f64)> {
     let line = svg
         .lines()
@@ -1791,7 +1874,12 @@ fn routing_overlap_skip_and_backward_orthogonal_paths_avoid_unrelated_node_inter
         );
         let geometry = run_layered_layout(&measurement_mode, &diagram, &config)
             .expect("layout should succeed");
-        let routed = route_graph_geometry(&diagram, &geometry, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geometry,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         for (from, to, blocked_label) in edge_specs {
             let edge_idx = edge_index(&diagram, from, to);
@@ -2344,7 +2432,12 @@ fn svg_orthogonal_orthogonal_route_does_not_add_short_staircase_jogs_after_adjus
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let routed_edge = routed
         .edges
         .iter()
@@ -3538,7 +3631,12 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_preserves_routed_termi
     });
     let geom = run_layered_layout(&measurement_mode, &diagram, &config)
         .expect("layout should succeed for decision fixture");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let routed_edge = routed
         .edges
         .iter()
@@ -3878,7 +3976,12 @@ fn orthogonal_route_diamond_boundary_clipping_matches_shape_boundary() {
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&mode, &diagram, &config).unwrap();
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     // B is a diamond; B->D is a forward edge — verify source endpoint is on diamond boundary
     let edge = routed
@@ -4358,7 +4461,12 @@ fn assert_mmds_svg_endpoint_convergence(
         ..crate::engines::graph::algorithms::layered::LayoutConfig::default()
     });
     let geom = run_layered_layout(&mode, diagram, &config).unwrap();
-    let routed = route_graph_geometry(diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let mmds_edge = routed
         .edges
         .iter()
@@ -5509,4 +5617,208 @@ fn svg_root_stays_transparent_when_no_theme_is_selected() {
         !svg.contains("--bg:"),
         "default SVG root should not emit theme variables: {svg}"
     );
+}
+
+// -- Plan 0145, Task 1.2: SVG label overlap helper --
+
+#[test]
+fn svg_pairwise_label_rect_overlaps_finds_overlapping_bg_rects() {
+    let svg = r#"<svg><g>
+      <rect class="graph-edge-label-bg" x="10" y="10" width="50" height="20" />
+      <rect class="graph-edge-label-bg" x="20" y="15" width="50" height="20" />
+    </g></svg>"#;
+    let failures = svg_pairwise_label_rect_overlaps(svg);
+    assert!(
+        !failures.is_empty(),
+        "expected overlap failures, got {failures:?}"
+    );
+}
+
+#[test]
+fn svg_pairwise_label_rect_overlaps_empty_when_disjoint() {
+    let svg = r#"<svg><g>
+      <rect class="graph-edge-label-bg" x="10" y="10" width="50" height="20" />
+      <rect class="graph-edge-label-bg" x="200" y="200" width="50" height="20" />
+    </g></svg>"#;
+    let failures = svg_pairwise_label_rect_overlaps(svg);
+    assert!(failures.is_empty(), "unexpected failures: {failures:?}");
+}
+
+// -- Plan 0145, Task 1.3: SVG viewBox containment helper --
+
+#[test]
+fn svg_viewbox_contains_rects_flags_rect_outside_viewbox() {
+    let svg = r#"<svg viewBox="0 0 100 100"><g>
+      <rect class="graph-edge-label-bg" x="120" y="10" width="50" height="20" />
+    </g></svg>"#;
+    let failures = svg_viewbox_contains_rects(svg);
+    assert!(
+        !failures.is_empty(),
+        "expected viewBox violation, got {failures:?}"
+    );
+}
+
+#[test]
+fn svg_viewbox_contains_rects_empty_when_all_inside() {
+    let svg = r#"<svg viewBox="0 0 200 200"><g>
+      <rect class="graph-edge-label-bg" x="10" y="10" width="50" height="20" />
+    </g></svg>"#;
+    let failures = svg_viewbox_contains_rects(svg);
+    assert!(failures.is_empty(), "unexpected failures: {failures:?}");
+}
+
+// -- Plan 0145, Tasks 1.4 / 1.5 / 1.6: Q9 SVG red gate tests --
+//
+// These tests are intentionally `#[ignore]`d with the canonical reason
+// "red gate, closed by plan 0145 PR 3". They exercise the Q9 acceptance
+// matrix SVG rows (#1, #3, #4, #6, #7, #8, #9) and assert pairwise label
+// background-rect disjointness or viewBox containment. PR 3 introduces
+// the lane-assignment / label-side selection that turns these green;
+// Task 3.8 un-ignores them in a single grep-driven pass.
+//
+// Note: tests live here (in `src/internal_tests/`) rather than in
+// `tests/svg_render.rs` because the helpers `svg_pairwise_label_rect_overlaps`
+// and `svg_viewbox_contains_rects` are `pub(crate)` and not reachable from
+// integration test crates. See the agent-P1.C1 task-brief Option C.
+mod plan_0145_q9_red {
+    use super::{svg_pairwise_label_rect_overlaps, svg_viewbox_contains_rects};
+    use crate::{EngineAlgorithmId, OutputFormat, RenderConfig};
+
+    fn render_svg_default(input: &str) -> String {
+        crate::render_diagram(input, OutputFormat::Svg, &RenderConfig::default())
+            .expect("default SVG render should succeed")
+    }
+
+    fn render_svg_with_engine(input: &str, engine: EngineAlgorithmId) -> String {
+        let cfg = RenderConfig {
+            layout_engine: Some(engine),
+            ..RenderConfig::default()
+        };
+        crate::render_diagram(input, OutputFormat::Svg, &cfg)
+            .expect("engine-selected SVG render should succeed")
+    }
+
+    fn state_issue_222_minimal_repro_input() -> &'static str {
+        r#"stateDiagram-v2
+    state Active {
+        [*] --> NumLockOff
+        NumLockOff --> NumLockOn : EvNumLockPressed
+        NumLockOn --> NumLockOff : EvNumLockPressed
+    }"#
+    }
+
+    fn concurrent_three_svg_with_engine(engine: EngineAlgorithmId) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("state")
+            .join("concurrent_three.mmd");
+        let input = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+            panic!(
+                "failed to read concurrent_three.mmd fixture {}: {e}",
+                path.display()
+            )
+        });
+        render_svg_with_engine(&input, engine)
+    }
+
+    fn load_flowchart_fixture(name: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("flowchart")
+            .join(name);
+        std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read flowchart fixture {}: {e}", path.display()))
+    }
+
+    // Task 1.4 — Q9 row #1: issue 222 minimal SVG repro.
+    //
+    // The drift assertion (`svg_label_drift_failures`) is intentionally
+    // omitted: that helper takes a `&crate::graph::Graph`, but the input
+    // here is a `stateDiagram-v2` and the state-diagram pipeline does not
+    // expose a flowchart-style `Graph` from this layer. Drift coverage
+    // arrives in Task 1.10 alongside the routed companion (Q9 #2).
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn state_issue_222_minimal_repro_labels_do_not_overlap_svg() {
+        let svg = render_svg_default(state_issue_222_minimal_repro_input());
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(
+            overlap.is_empty(),
+            "SVG label overlap: {overlap:?}\nSVG:\n{svg}"
+        );
+    }
+
+    // Task 1.5 — Q9 rows #3, #4: concurrent_three dual-engine.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn state_concurrent_three_flux_layered_labels_disjoint_svg() {
+        let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::FLUX_LAYERED);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(
+            overlap.is_empty(),
+            "flux-layered overlap: {overlap:?}\nSVG:\n{svg}"
+        );
+    }
+
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn state_concurrent_three_mermaid_layered_labels_disjoint_svg() {
+        let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::MERMAID_LAYERED);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(
+            overlap.is_empty(),
+            "mermaid-layered overlap: {overlap:?}\nSVG:\n{svg}"
+        );
+    }
+
+    // Task 1.6 — Q9 row #6: long reciprocal labels.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn flowchart_long_reciprocal_labels_disjoint_svg() {
+        let input = "graph TD\n    A -->|this is a deliberately long label| B\n    B -->|another deliberately long reply label| A\n";
+        let svg = render_svg_default(input);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(overlap.is_empty(), "overlap: {overlap:?}\nSVG:\n{svg}");
+    }
+
+    // Task 1.6 — Q9 row #7: multi-edge same-direction.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn flowchart_multi_edge_labeled_same_direction_disjoint_svg() {
+        let input = load_flowchart_fixture("multi_edge_labeled.mmd");
+        let svg = render_svg_default(&input);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(overlap.is_empty(), "overlap: {overlap:?}");
+    }
+
+    // Task 1.6 — Q9 row #8: three parallel labeled edges.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn flowchart_three_parallel_labels_disjoint_svg() {
+        let input = "graph TD\n    A -->|one| B\n    A -->|two| B\n    A -->|three| B\n";
+        let svg = render_svg_default(input);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(overlap.is_empty(), "overlap: {overlap:?}");
+    }
+
+    // Task 1.6 — Q9 row #9 (concurrent_three, flux): viewBox covers label rects.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn svg_viewbox_covers_all_label_background_rects_concurrent_three() {
+        let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::FLUX_LAYERED);
+        let failures = svg_viewbox_contains_rects(&svg);
+        assert!(failures.is_empty(), "viewBox violations: {failures:?}");
+    }
+
+    // Task 1.6 — Q9 row #9 (multi_edge_labeled): viewBox covers label rects.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn svg_viewbox_covers_all_label_background_rects_multi_edge() {
+        let input = load_flowchart_fixture("multi_edge_labeled.mmd");
+        let svg = render_svg_default(&input);
+        let failures = svg_viewbox_contains_rects(&svg);
+        assert!(failures.is_empty(), "viewBox violations: {failures:?}");
+    }
 }

@@ -27,7 +27,7 @@ pub use output::to_json_typed_with_routing;
 // Schema types (public adapter contract).
 pub use output::{
     Bounds, Defaults, Edge, EdgeDefaults, Metadata, Node, NodeDefaults, Output, Port, Position,
-    Size, Subgraph,
+    Rect, Size, Subgraph,
 };
 // Profile vocabulary constants.
 pub use output::{
