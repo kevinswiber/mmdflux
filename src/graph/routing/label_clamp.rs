@@ -16,7 +16,7 @@ use crate::graph::geometry::{
     EdgeLabelSide, FRect, PositionedNode, RoutedEdgeGeometry, UnfitOverlap,
 };
 use crate::graph::measure::ProportionalTextMetrics;
-use crate::graph::routing::label_gap::{Axis, resolve_visual_endpoints};
+use crate::graph::routing::label_gap::Axis;
 use crate::graph::{Direction, Graph};
 
 /// Edge-parallel clamp: keep label rects beyond source/target node faces
@@ -45,29 +45,27 @@ pub(crate) fn clamp_label_geometry_to_node_bounds(
             continue;
         };
 
-        // Read-only resolution of visual src/tgt + arrows. Borrows `edge`
-        // immutably; we drop this before re-borrowing mutably below.
-        let (vs_id, vt_id, vs_arrow, vt_arrow) = {
-            let (vs, vt, sa, ta) = resolve_visual_endpoints(edge, diagram_edge);
-            (vs.to_string(), vt.to_string(), sa, ta)
-        };
-
-        let Some(vs_node) = nodes.get(vs_id.as_str()) else {
+        // The clamp uses authored `from`/`to` and the markers anchored at
+        // each path endpoint (`arrow_start` lives at path[0] = `from`,
+        // `arrow_end` at path[end] = `to`). `edge_parallel_bounds` is
+        // direction-aware via rect positions, so no visual src/tgt swap is
+        // needed here.
+        let Some(from_node) = nodes.get(edge.from.as_str()) else {
             continue;
         };
-        let Some(vt_node) = nodes.get(vt_id.as_str()) else {
+        let Some(to_node) = nodes.get(edge.to.as_str()) else {
             continue;
         };
 
-        let source_avoid = marker_avoidance_distance(vs_arrow);
-        let target_avoid = marker_avoidance_distance(vt_arrow);
+        let from_avoid = marker_avoidance_distance(diagram_edge.arrow_start);
+        let to_avoid = marker_avoidance_distance(diagram_edge.arrow_end);
 
         let (lo, hi, axis) = edge_parallel_bounds(
-            vs_node.rect,
-            vt_node.rect,
+            from_node.rect,
+            to_node.rect,
             direction,
-            source_avoid,
-            target_avoid,
+            from_avoid,
+            to_avoid,
             spacing,
         );
 
@@ -158,6 +156,17 @@ fn rect_center(rect: FRect) -> crate::graph::geometry::FPoint {
 
 /// Compute the edge-parallel `[lo, hi]` interval inside which the label
 /// rect must sit, given source/target rects and marker avoidance distances.
+///
+/// Determines upper/lower (or left/right) **from the actual rect positions**,
+/// not from `(authored_from, authored_to)`. This matters for `BT` and `RL`
+/// diagrams, where the layered engine puts the authored target above/right
+/// of the authored source — using authored direction here would produce a
+/// negative `gap` and false `UnfitOverlap` reports for healthy edges.
+///
+/// `source_avoid` is the marker avoidance distance for the marker at
+/// `path[0]` (= `arrow_start`); `target_avoid` is for `path[end]`
+/// (= `arrow_end`). Which face each marker lives on is implied by the
+/// resolved upper/lower (or left/right) — see comments below.
 fn edge_parallel_bounds(
     source_rect: FRect,
     target_rect: FRect,
@@ -168,13 +177,27 @@ fn edge_parallel_bounds(
 ) -> (f64, f64, Axis) {
     match direction {
         Direction::TopDown | Direction::BottomTop => {
-            let lo = source_rect.y + source_rect.height + source_avoid + spacing;
-            let hi = target_rect.y - target_avoid - spacing;
+            // Upper node = whichever rect has smaller y; lower = larger y.
+            // For TD forward (source above target) and BT backward, source is upper.
+            // For BT forward and TD backward, target is upper.
+            let (upper, upper_avoid, lower, lower_avoid) = if source_rect.y <= target_rect.y {
+                (source_rect, source_avoid, target_rect, target_avoid)
+            } else {
+                (target_rect, target_avoid, source_rect, source_avoid)
+            };
+            let lo = upper.y + upper.height + upper_avoid + spacing;
+            let hi = lower.y - lower_avoid - spacing;
             (lo, hi, Axis::Y)
         }
         Direction::LeftRight | Direction::RightLeft => {
-            let lo = source_rect.x + source_rect.width + source_avoid + spacing;
-            let hi = target_rect.x - target_avoid - spacing;
+            // Left node = whichever rect has smaller x; right = larger x.
+            let (left, left_avoid, right, right_avoid) = if source_rect.x <= target_rect.x {
+                (source_rect, source_avoid, target_rect, target_avoid)
+            } else {
+                (target_rect, target_avoid, source_rect, source_avoid)
+            };
+            let lo = left.x + left.width + left_avoid + spacing;
+            let hi = right.x - right_avoid - spacing;
             (lo, hi, Axis::X)
         }
     }
@@ -430,6 +453,113 @@ mod tests {
         assert!(
             (new_rect.y - 32.0).abs() < 1e-6,
             "expected y=32 after slide-in, got {}",
+            new_rect.y
+        );
+    }
+
+    /// Regression for the GPT-5.4 review finding: BT diagrams put the authored
+    /// `target` *above* the authored `source` in render space. The clamp must
+    /// derive upper/lower from rect positions, not from authored direction —
+    /// otherwise the gap goes negative and a healthy edge gets reported as
+    /// `UnfitOverlap`.
+    #[test]
+    fn clamp_bt_forward_uses_rect_positions_not_authored_direction() {
+        // BT layout: authored `from` (S) is BELOW authored `to` (T).
+        // S at y=100, T at y=0. Label sits in the gap between (e.g., y=50).
+        let (diagram, mut routed) = synthetic(
+            Direction::BottomTop,
+            FRect::new(0.0, 100.0, 50.0, 30.0), // source (from) at bottom
+            FRect::new(0.0, 0.0, 50.0, 30.0),   // target (to) at top
+            FRect::new(10.0, 50.0, 30.0, 20.0), // label safely between
+            false,
+        );
+        let metrics = default_proportional_text_metrics();
+        let mut unfits = Vec::new();
+        clamp_label_geometry_to_node_bounds(
+            &mut routed.edges,
+            &routed.nodes,
+            &diagram,
+            Direction::BottomTop,
+            &metrics,
+            &mut unfits,
+        );
+        assert!(
+            unfits.is_empty(),
+            "BT forward edge with authored source below target must not \
+             produce a bogus UnfitOverlap; got {unfits:?}"
+        );
+        // Label should be unchanged (already inside the valid range).
+        let new_rect = routed.edges[0].label_geometry.unwrap().rect;
+        assert!(
+            (new_rect.y - 50.0).abs() < 1e-6,
+            "BT label that already fits should not be moved; got y={}",
+            new_rect.y
+        );
+    }
+
+    /// Same test, RL direction: authored `from` is to the *right* of `to`,
+    /// and the gap should still be computed correctly along the x-axis.
+    #[test]
+    fn clamp_rl_forward_uses_rect_positions_not_authored_direction() {
+        let (diagram, mut routed) = synthetic(
+            Direction::RightLeft,
+            FRect::new(110.0, 0.0, 50.0, 30.0), // source (from) on the right
+            FRect::new(0.0, 0.0, 50.0, 30.0),   // target (to) on the left
+            FRect::new(70.0, 5.0, 25.0, 20.0),  // label in the gap
+            false,
+        );
+        let metrics = default_proportional_text_metrics();
+        let mut unfits = Vec::new();
+        clamp_label_geometry_to_node_bounds(
+            &mut routed.edges,
+            &routed.nodes,
+            &diagram,
+            Direction::RightLeft,
+            &metrics,
+            &mut unfits,
+        );
+        assert!(
+            unfits.is_empty(),
+            "RL forward edge with authored source to the right of target \
+             must not produce a bogus UnfitOverlap; got {unfits:?}"
+        );
+    }
+
+    /// BT clamp must still slide labels that intrude into a node face.
+    /// Pre-clamp label y=85 sits inside the *upper-of-the-pair* node S
+    /// (which is at y=100..130 in BT layout). Wait — re-read: S is the
+    /// authored `from` and sits *below* T. Pre-clamp rect at y=10 intrudes
+    /// into T (the upper node, at y=0..30). Slide should push it down past
+    /// T.bottom + spacing.
+    #[test]
+    fn clamp_bt_label_intruding_upper_node_slides_down() {
+        let (diagram, mut routed) = synthetic(
+            Direction::BottomTop,
+            FRect::new(0.0, 100.0, 50.0, 30.0), // S (from) at bottom
+            FRect::new(0.0, 0.0, 50.0, 30.0),   // T (to) at top
+            FRect::new(10.0, 10.0, 30.0, 20.0), // intrudes into T
+            false,
+        );
+        let metrics = default_proportional_text_metrics();
+        let mut unfits = Vec::new();
+        clamp_label_geometry_to_node_bounds(
+            &mut routed.edges,
+            &routed.nodes,
+            &diagram,
+            Direction::BottomTop,
+            &metrics,
+            &mut unfits,
+        );
+        assert!(unfits.is_empty(), "got unfits: {unfits:?}");
+        let new_rect = routed.edges[0].label_geometry.unwrap().rect;
+        // Upper = T (y=0..30), avoidance = arrow_end (Normal) = 8, spacing = 2.
+        // Lower = S (y=100..130), avoidance = arrow_start (None) = 0, spacing = 2.
+        // lo = upper.bottom + upper_avoid + spacing = 30 + 8 + 2 = 40.
+        // hi = lower.top - lower_avoid - spacing = 100 - 0 - 2 = 98.
+        // Label height 20 → fits in [40, 78]. Pre-clamp y=10 < 40 → slide to 40.
+        assert!(
+            (new_rect.y - 40.0).abs() < 1e-6,
+            "expected y=40 after slide-in, got {}",
             new_rect.y
         );
     }

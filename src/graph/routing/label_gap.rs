@@ -48,51 +48,30 @@ pub(crate) struct LabelGapMeasurement {
     pub axis: Axis,
 }
 
-/// Resolve the **clamp-side** source/target of a routed edge plus the
-/// arrow markers that decorate each side.
+/// Resolve the authored endpoints + path-anchored markers of a routed edge.
 ///
-/// "Visual source" here means the node forming the **upper boundary of
-/// the inter-node gap** in TD/LR (the higher-positioned node), and
-/// "visual target" the lower boundary. For forward edges this matches
-/// authored `from`/`to`. For backward edges the layout puts authored `to`
-/// above authored `from` (the layered engine reversed the edge for
-/// acyclicity but renders it in the visual `to → from` direction in render
-/// space), so the swap reads:
+/// `path[0]` always sits at authored `from` (with `arrow_start` as its
+/// marker), `path[end]` at authored `to` (with `arrow_end`). This holds
+/// for forward and backward edges in every diagram direction.
 ///
-/// | is_backward | visual_source | visual_target | source_arrow      | target_arrow      |
-/// | ----------- | ------------- | ------------- | ----------------- | ----------------- |
-/// | false       | `from`        | `to`          | `arrow_start`     | `arrow_end`       |
-/// | true        | `to`          | `from`        | `arrow_end`       | `arrow_start`     |
+/// Kept as a thin helper so call sites (`compute_label_gap_and_span`,
+/// `clamp_label_geometry_to_node_bounds`, the corpus assertion test)
+/// share one canonical mapping; gap-direction logic (which node is
+/// upper/lower, etc.) is handled separately from rect positions, not via
+/// any swap here.
 ///
-/// The path orientation itself is unchanged (`path[0]` is always at
-/// authored `from`, `path[end]` at authored `to`). The swap here is for
-/// the **clamp gap calculation** which needs "the upper node + the marker
-/// on its bottom face" vs. "the lower node + the marker on its top face".
-///
-/// Verified against the backward-edge fixture
-/// `tests/fixtures/flowchart/backward_label_asymmetric_markers.mmd` and
-/// the corpus boundary assertion test.
-///
-/// Returns `(visual_source_id, visual_target_id, source_arrow, target_arrow)`.
+/// Returns `(from_id, to_id, arrow_start, arrow_end)`.
 pub(crate) fn resolve_visual_endpoints<'a>(
     edge: &'a RoutedEdgeGeometry,
     diagram_edge: &'a Edge,
 ) -> (&'a str, &'a str, Arrow, Arrow) {
-    if edge.is_backward {
-        (
-            edge.to.as_str(),
-            edge.from.as_str(),
-            diagram_edge.arrow_end,
-            diagram_edge.arrow_start,
-        )
-    } else {
-        (
-            edge.from.as_str(),
-            edge.to.as_str(),
-            diagram_edge.arrow_start,
-            diagram_edge.arrow_end,
-        )
-    }
+    let _ = edge.is_backward;
+    (
+        edge.from.as_str(),
+        edge.to.as_str(),
+        diagram_edge.arrow_start,
+        diagram_edge.arrow_end,
+    )
 }
 
 /// Measure the available label gap along the edge-parallel axis and the
@@ -100,12 +79,20 @@ pub(crate) fn resolve_visual_endpoints<'a>(
 /// no `label_geometry` or when the source/target node rects can't be
 /// resolved.
 ///
-/// The gap formula:
+/// The gap formula uses **rect positions** (not authored direction) to pick
+/// the upper/lower (TD/BT) or left/right (LR/RL) node, then:
+///
 /// ```text
-/// gap = visual_target_near_face - visual_source_far_face
-///         - source_marker_avoidance - target_marker_avoidance
+/// gap = lower.near_face - upper.far_face
+///         - upper_marker_avoidance - lower_marker_avoidance
 ///         - 2 * edge_label_spacing
 /// ```
+///
+/// Using rect positions means the formula is identical for forward and
+/// backward edges, and for TD vs BT (or LR vs RL) — what matters is which
+/// node is physically above/left, not which is the authored source. The
+/// markers follow path orientation: `arrow_start` lives at `path[0]` (=
+/// authored `from`), `arrow_end` at `path[end]` (= authored `to`).
 ///
 /// `gap < span` means the label cannot fit in the available space — the
 /// case the clamp records as `UnfitOverlap`. The Task 1.4 Red test calls
@@ -121,49 +108,33 @@ pub(crate) fn compute_label_gap_and_span(
     let geom = edge.label_geometry.as_ref()?;
     let diagram_edge = diagram.edges.get(edge.index)?;
 
-    let (vs_id, vt_id, vs_arrow, vt_arrow) = resolve_visual_endpoints(edge, diagram_edge);
-    let vs_rect = routed.nodes.get(vs_id).map(|n| n.rect)?;
-    let vt_rect = routed.nodes.get(vt_id).map(|n| n.rect)?;
+    let from_rect = routed.nodes.get(edge.from.as_str()).map(|n| n.rect)?;
+    let to_rect = routed.nodes.get(edge.to.as_str()).map(|n| n.rect)?;
 
     let s = edge_label_spacing(metrics);
-    let source_avoid = marker_avoidance_distance(vs_arrow);
-    let target_avoid = marker_avoidance_distance(vt_arrow);
+    let from_avoid = marker_avoidance_distance(diagram_edge.arrow_start);
+    let to_avoid = marker_avoidance_distance(diagram_edge.arrow_end);
 
-    let (axis, source_far, target_near, span) = match direction {
-        Direction::TopDown => (
-            Axis::Y,
-            vs_rect.y + vs_rect.height,
-            vt_rect.y,
-            geom.rect.height,
-        ),
-        Direction::BottomTop => (
-            Axis::Y,
-            // Visual source is *above* visual target after the engine swap;
-            // resolve_visual_endpoints already handles backward edges, but
-            // for BT the visual source is whichever node sits higher in
-            // render space, which is the authored `from` for forward edges
-            // (BT engine flips y, so source.y is smaller after flip).
-            // Same formula as TD because resolve_visual_endpoints + the
-            // engine's BT flip together leave us with vs above vt.
-            vs_rect.y + vs_rect.height,
-            vt_rect.y,
-            geom.rect.height,
-        ),
-        Direction::LeftRight => (
-            Axis::X,
-            vs_rect.x + vs_rect.width,
-            vt_rect.x,
-            geom.rect.width,
-        ),
-        Direction::RightLeft => (
-            Axis::X,
-            vs_rect.x + vs_rect.width,
-            vt_rect.x,
-            geom.rect.width,
-        ),
+    let (axis, gap, span) = match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            let (upper, upper_avoid, lower, lower_avoid) = if from_rect.y <= to_rect.y {
+                (from_rect, from_avoid, to_rect, to_avoid)
+            } else {
+                (to_rect, to_avoid, from_rect, from_avoid)
+            };
+            let gap = lower.y - (upper.y + upper.height) - upper_avoid - lower_avoid - 2.0 * s;
+            (Axis::Y, gap, geom.rect.height)
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            let (left, left_avoid, right, right_avoid) = if from_rect.x <= to_rect.x {
+                (from_rect, from_avoid, to_rect, to_avoid)
+            } else {
+                (to_rect, to_avoid, from_rect, from_avoid)
+            };
+            let gap = right.x - (left.x + left.width) - left_avoid - right_avoid - 2.0 * s;
+            (Axis::X, gap, geom.rect.width)
+        }
     };
-
-    let gap = target_near - source_far - source_avoid - target_avoid - 2.0 * s;
 
     Some(LabelGapMeasurement { gap, span, axis })
 }
@@ -282,21 +253,94 @@ mod tests {
     }
 
     #[test]
-    fn backward_edge_swaps_clamp_endpoints_and_arrows() {
-        // Per resolve_visual_endpoints docs: backward edges have authored
-        // `to` rendered above authored `from`, so the clamp's "upper" node
-        // (= clamp source) is `to` and "lower" (= clamp target) is `from`.
+    fn resolve_visual_endpoints_is_identity_regardless_of_backward_or_direction() {
+        // After the GPT-5.4 review fix: gap-direction logic moved into
+        // compute_label_gap_and_span (via rect positions), so this resolver
+        // is now identity for forward and backward alike. The path itself
+        // always runs from authored `from` to authored `to`, with
+        // `arrow_start` at path[0] and `arrow_end` at path[end].
+        for is_backward in [false, true] {
+            let (diagram, routed) = synthetic_routed_td(
+                FRect::new(0.0, 0.0, 50.0, 30.0),
+                FRect::new(0.0, 100.0, 50.0, 30.0),
+                FRect::new(10.0, 50.0, 30.0, 20.0),
+                is_backward,
+            );
+            let (vs, vt, sa, ta) = resolve_visual_endpoints(&routed.edges[0], &diagram.edges[0]);
+            assert_eq!(vs, "S", "is_backward={is_backward}: from preserved");
+            assert_eq!(vt, "T", "is_backward={is_backward}: to preserved");
+            assert_eq!(sa, Arrow::None, "arrow_start preserved");
+            assert_eq!(ta, Arrow::Normal, "arrow_end preserved");
+        }
+    }
+
+    /// GPT-5.4 review regression: BT direction with the authored source
+    /// rendered BELOW the authored target must still produce a sensible
+    /// (positive) gap. Before the fix, this used `source.y + height` and
+    /// `target.y` directly, which gave gap = `target.y - source.bottom` =
+    /// negative number (since target is above source in BT layout).
+    #[test]
+    fn bt_gap_uses_rect_positions_not_authored_direction() {
+        // S (authored from) at y=100..130 (bottom). T (authored to) at
+        // y=0..30 (top). Label rect at y=50..70 (in the gap).
         let (diagram, routed) = synthetic_routed_td(
-            FRect::new(0.0, 0.0, 50.0, 30.0),
             FRect::new(0.0, 100.0, 50.0, 30.0),
+            FRect::new(0.0, 0.0, 50.0, 30.0),
             FRect::new(10.0, 50.0, 30.0, 20.0),
-            /* is_backward */ true,
+            false,
         );
-        let (vs, vt, sa, ta) = resolve_visual_endpoints(&routed.edges[0], &diagram.edges[0]);
-        assert_eq!(vs, "T", "backward swaps to=upper=clamp-source");
-        assert_eq!(vt, "S", "backward swaps from=lower=clamp-target");
-        assert_eq!(sa, Arrow::Normal, "arrow_end becomes upper-side marker");
-        assert_eq!(ta, Arrow::None, "arrow_start becomes lower-side marker");
+        let metrics = default_proportional_text_metrics();
+        let m = compute_label_gap_and_span(
+            &routed.edges[0],
+            &routed,
+            &diagram,
+            Direction::BottomTop,
+            &metrics,
+        )
+        .expect("measurement should be Some");
+        assert_eq!(m.axis, Axis::Y);
+        // upper = T (y=0..30), upper_avoid = arrow_end (Normal) = 8
+        // lower = S (y=100..130), lower_avoid = arrow_start (None) = 0
+        // gap = 100 - 30 - 8 - 0 - 2*2 = 58
+        assert!(
+            (m.gap - 58.0).abs() < 0.01,
+            "BT gap: expected 58, got {}",
+            m.gap
+        );
+        assert!(m.gap > 0.0, "BT gap must be positive for healthy edges");
+    }
+
+    /// Same regression, RL direction.
+    #[test]
+    fn rl_gap_uses_rect_positions_not_authored_direction() {
+        // S (authored from) at x=100..150 (right). T (authored to) at
+        // x=0..50 (left). Label rect at x=60..85 (in the gap), height
+        // doesn't matter for x-axis.
+        let (diagram, routed) = synthetic_routed_td(
+            FRect::new(100.0, 0.0, 50.0, 30.0),
+            FRect::new(0.0, 0.0, 50.0, 30.0),
+            FRect::new(60.0, 5.0, 25.0, 20.0),
+            false,
+        );
+        let metrics = default_proportional_text_metrics();
+        let m = compute_label_gap_and_span(
+            &routed.edges[0],
+            &routed,
+            &diagram,
+            Direction::RightLeft,
+            &metrics,
+        )
+        .expect("measurement should be Some");
+        assert_eq!(m.axis, Axis::X);
+        // left = T (x=0..50), left_avoid = arrow_end (Normal) = 8
+        // right = S (x=100..150), right_avoid = arrow_start (None) = 0
+        // gap = 100 - 50 - 8 - 0 - 2*2 = 38
+        assert!(
+            (m.gap - 38.0).abs() < 0.01,
+            "RL gap: expected 38, got {}",
+            m.gap
+        );
+        assert!(m.gap > 0.0, "RL gap must be positive for healthy edges");
     }
 
     #[test]

@@ -22,7 +22,6 @@ use crate::engines::graph::contracts::MeasurementMode;
 use crate::graph::edge_marker::{MarkerEnvelope, marker_envelope};
 use crate::graph::geometry::{FPoint, FRect, RoutedEdgeGeometry, RoutedGraphGeometry};
 use crate::graph::measure::default_proportional_text_metrics;
-use crate::graph::routing::label_gap::resolve_visual_endpoints;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{Direction, Graph};
 use crate::mermaid::parse_flowchart;
@@ -127,31 +126,21 @@ fn marker_bbox_for_edge(
     side: MarkerSide,
 ) -> Option<FRect> {
     let diagram_edge = diagram.edges.get(edge.index)?;
-    // Marker arrow on the path: arrow_start lives at path[0] (= authored
-    // `from`), arrow_end at path[end] (= authored `to`). The
-    // `resolve_visual_endpoints` swap is for clamp gap calculation only;
-    // for marker placement we always use the path-position-based mapping.
-    //
-    // For backward edges in TD, the "Source" side of the gap (upper face)
-    // corresponds to authored `to` = path[end] = arrow_end marker. So we
-    // need to swap the marker side mapping in step with the visual swap.
-    let (_, _, upper_arrow, lower_arrow) = resolve_visual_endpoints(edge, diagram_edge);
+    // Path-anchored mapping: arrow_start lives at path[0] (= authored
+    // `from`), arrow_end at path[end] (= authored `to`). Holds for forward
+    // and backward edges in every diagram direction. The two `MarkerSide`
+    // variants here are *path-positional*, picking which endpoint of the
+    // routed path the marker bbox is anchored to — independent of which
+    // node sits where in the gap.
     let arrow = match side {
-        MarkerSide::Source => upper_arrow,
-        MarkerSide::Target => lower_arrow,
+        MarkerSide::Source => diagram_edge.arrow_start,
+        MarkerSide::Target => diagram_edge.arrow_end,
     };
     let envelope = marker_envelope(arrow)?;
     if envelope.length == 0.0 && envelope.width == 0.0 {
         return None;
     }
-    // Pick which path endpoint anchors this marker. For TD upper marker:
-    // - forward edges: path[0] is at upper node (= from)
-    // - backward edges: path[end] is at upper node (= to per resolver swap)
-    let path_side = match (side, edge.is_backward) {
-        (MarkerSide::Source, false) | (MarkerSide::Target, true) => MarkerSide::Source,
-        (MarkerSide::Target, false) | (MarkerSide::Source, true) => MarkerSide::Target,
-    };
-    marker_aabb(&edge.path, path_side, envelope)
+    marker_aabb(&edge.path, side, envelope)
 }
 
 fn flowchart_routed_for_fixture(path: &Path) -> (Graph, RoutedGraphGeometry) {
@@ -221,7 +210,6 @@ fn check_fixture_for_overlaps(path: &Path) -> Vec<OverlapFinding> {
         };
 
         let label_rect = geom.rect;
-        let (vs_id, vt_id, _, _) = resolve_visual_endpoints(edge, diagram_edge);
 
         let push = |findings: &mut Vec<OverlapFinding>, kind: &'static str, other: FRect| {
             if let Some((dx, dy)) = rect_overlap(label_rect, other) {
@@ -236,12 +224,16 @@ fn check_fixture_for_overlaps(path: &Path) -> Vec<OverlapFinding> {
             }
         };
 
-        if let Some(node) = routed.nodes.get(vs_id) {
+        // Use authored from/to since the test only cares whether the label
+        // rect overlaps either endpoint node — direction/backward swaps are
+        // gap-direction concerns, not label-vs-node-rect concerns.
+        if let Some(node) = routed.nodes.get(edge.from.as_str()) {
             push(&mut findings, "source-node", node.rect);
         }
-        if let Some(node) = routed.nodes.get(vt_id) {
+        if let Some(node) = routed.nodes.get(edge.to.as_str()) {
             push(&mut findings, "target-node", node.rect);
         }
+        let _ = diagram_edge;
         if let Some(bbox) = marker_bbox_for_edge(edge, &diagram, MarkerSide::Source) {
             push(&mut findings, "source-marker", bbox);
         }
