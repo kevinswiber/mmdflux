@@ -1,7 +1,9 @@
 //! Shared SVG text emission helpers for graph rendering.
 
 use crate::graph::geometry::FPoint;
-use crate::graph::measure::ProportionalTextMetrics;
+use crate::graph::measure::{
+    DEFAULT_LABEL_PADDING_X, DEFAULT_LABEL_PADDING_Y, ProportionalTextMetrics,
+};
 use crate::render::svg::{SvgWriter, escape_text, fmt_f64};
 
 pub(super) struct TextRenderStyle<'a> {
@@ -15,8 +17,10 @@ pub(super) struct BackgroundStyle<'a> {
     pub(super) extra_attrs: &'a str,
 }
 
-const LABEL_BG_PAD_X: f64 = 4.0;
-const LABEL_BG_PAD_Y: f64 = 2.0;
+// Plan 0145 Task 1.7: label padding defaults now live in `graph::measure`
+// so layout dummy reservations and render backgrounds stay in lockstep.
+pub(super) const LABEL_BG_PAD_X: f64 = DEFAULT_LABEL_PADDING_X;
+pub(super) const LABEL_BG_PAD_Y: f64 = DEFAULT_LABEL_PADDING_Y;
 
 pub(super) fn render_text_centered(
     writer: &mut SvgWriter,

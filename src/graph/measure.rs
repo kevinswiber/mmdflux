@@ -14,6 +14,14 @@ pub const DEFAULT_PROPORTIONAL_FONT_SIZE: f64 = 16.0;
 pub const DEFAULT_PROPORTIONAL_NODE_PADDING_X: f64 = 15.0;
 /// Default vertical node padding used for proportional measurement.
 pub const DEFAULT_PROPORTIONAL_NODE_PADDING_Y: f64 = 15.0;
+/// Default horizontal padding applied around edge labels (per side).
+///
+/// This matches the `<rect class="graph-edge-label-bg">` horizontal padding
+/// emitted by `render::graph::svg::text` so layout-time dummy reservations and
+/// render-time backgrounds stay in lockstep.
+pub const DEFAULT_LABEL_PADDING_X: f64 = 4.0;
+/// Default vertical padding applied around edge labels (per side).
+pub const DEFAULT_LABEL_PADDING_Y: f64 = 2.0;
 /// Scale factor applied to approximate Mermaid's measured text widths.
 const TEXT_WIDTH_SCALE: f64 = 1.16;
 
@@ -34,8 +42,8 @@ impl ProportionalTextMetrics {
             line_height: font_size * 1.5,
             node_padding_x,
             node_padding_y,
-            label_padding_x: 0.0,
-            label_padding_y: 0.0,
+            label_padding_x: DEFAULT_LABEL_PADDING_X,
+            label_padding_y: DEFAULT_LABEL_PADDING_Y,
         }
     }
 
@@ -260,5 +268,37 @@ mod tests {
         let node = Node::new("A").with_label("Hello");
         let (w, h) = grid_node_dimensions(&node, Direction::TopDown);
         assert_eq!((w, h), (9, 3));
+    }
+
+    // -- Plan 0145, Task 1.7: Label padding contract --
+
+    #[test]
+    fn proportional_text_metrics_default_label_padding_matches_svg_constants() {
+        let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
+        assert_eq!(metrics.label_padding_x, DEFAULT_LABEL_PADDING_X);
+        assert_eq!(metrics.label_padding_y, DEFAULT_LABEL_PADDING_Y);
+        assert_eq!(DEFAULT_LABEL_PADDING_X, 4.0);
+        assert_eq!(DEFAULT_LABEL_PADDING_Y, 2.0);
+    }
+
+    #[test]
+    fn edge_label_dimensions_includes_padding() {
+        let metrics = ProportionalTextMetrics::new(16.0, 15.0, 15.0);
+        let (w_padded, h_padded) = metrics.edge_label_dimensions("foo");
+        let (w_raw, h_raw) = metrics.measure_text_with_padding("foo", 0.0, 0.0);
+        assert!(
+            (w_padded - (w_raw + 2.0 * metrics.label_padding_x)).abs() < 0.01,
+            "expected w_padded={} to equal w_raw={} + 2*pad_x={}",
+            w_padded,
+            w_raw,
+            metrics.label_padding_x,
+        );
+        assert!(
+            (h_padded - (h_raw + 2.0 * metrics.label_padding_y)).abs() < 0.01,
+            "expected h_padded={} to equal h_raw={} + 2*pad_y={}",
+            h_padded,
+            h_raw,
+            metrics.label_padding_y,
+        );
     }
 }
