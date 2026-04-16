@@ -278,18 +278,44 @@ fn label_rect_does_not_overlap_node_or_marker_for_any_flowchart_fixture() {
     }
 }
 
-/// Sanity-check that the corpus walker actually visits the known-failing
-/// fixture from #229. If the walker silently misses fixtures, the headline
-/// assertion would pass without proving anything.
+/// Sanity-check that the corpus walker actually visits every fixture this
+/// plan added (or relies on) for issue #229 coverage. If fixture discovery
+/// silently misses any of them, the headline `label_rect_does_not_overlap_*`
+/// assertion would pass without proving the BT/RL/backward repros are still
+/// being exercised.
+///
+/// Pinned fixtures:
+/// - `br_line_breaks.mmd` — the original #229 repro (TD multi-line label
+///   intruding into source node bottom).
+/// - `backward_label_asymmetric_markers.mmd` — Task 1.2 Part A: backward
+///   edge with asymmetric arrow ends (circle marker-start, arrowhead
+///   marker-end).
+/// - `label_clamp_bt_review.mmd` — GPT-5.4 review repro: BT direction with
+///   the authored source rendered below the authored target.
+/// - `label_clamp_rl_review.mmd` — GPT-5.4 review repro: RL direction with
+///   the authored source rendered to the right of the authored target.
 #[test]
-fn corpus_walker_includes_known_failing_fixture() {
+fn corpus_walker_includes_known_failing_fixtures() {
+    const REQUIRED: &[&str] = &[
+        "br_line_breaks.mmd",
+        "backward_label_asymmetric_markers.mmd",
+        "label_clamp_bt_review.mmd",
+        "label_clamp_rl_review.mmd",
+    ];
+
     let names: Vec<String> = walk_flowchart_fixtures()
         .into_iter()
         .filter_map(|p| p.file_name().and_then(|s| s.to_str()).map(String::from))
         .collect();
+
+    let missing: Vec<&&str> = REQUIRED
+        .iter()
+        .filter(|fixture| !names.iter().any(|n| n == **fixture))
+        .collect();
     assert!(
-        names.iter().any(|n| n == "br_line_breaks.mmd"),
-        "expected br_line_breaks.mmd in corpus walk; got: {names:?}"
+        missing.is_empty(),
+        "corpus walker is missing required fixtures: {missing:?}\n\
+         (full corpus: {names:?})"
     );
 }
 
