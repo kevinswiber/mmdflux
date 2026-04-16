@@ -13,9 +13,7 @@ use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, RoutedEdgeGeometry};
 use crate::graph::grid::GridLayoutConfig;
 use crate::graph::measure::{ProportionalTextMetrics, proportional_node_dimensions};
-use crate::graph::routing::{
-    EdgeRouting, OrthogonalRoutingOptions, route_edges_orthogonal, route_graph_geometry,
-};
+use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{Direction, Graph, Stroke};
 
 pub(crate) fn build_float_layout_with_flags(
@@ -150,7 +148,11 @@ pub(crate) fn build_float_layout_with_flags(
             geom = inject_routed_paths(diagram, &geom, EdgeRouting::PolylineRoute, metrics);
         }
         EdgeRouting::OrthogonalRoute => {
-            geom = inject_orthogonal_route_paths(diagram, &geom);
+            // Route through the full pipeline so the label-lane pass and
+            // bounds extension run for orthogonal preset variants too
+            // (step, smooth-step, curved-step). Without this, orthogonal
+            // edges get routed but labels never get lane-shifted.
+            geom = inject_routed_paths(diagram, &geom, EdgeRouting::OrthogonalRoute, metrics);
             rerouted_edges.extend(geom.edges.iter().map(|e| e.index));
         }
         EdgeRouting::EngineProvided => {}
@@ -168,13 +170,6 @@ fn inject_routed_paths(
     let routed = route_graph_geometry(diagram, geom, edge_routing, metrics);
     let mut updated = geom.clone();
     apply_routed_edge_paths(&mut updated, routed.edges);
-    updated
-}
-
-fn inject_orthogonal_route_paths(diagram: &Graph, geom: &GraphGeometry) -> GraphGeometry {
-    let routed = route_edges_orthogonal(diagram, geom, OrthogonalRoutingOptions::preview());
-    let mut updated = geom.clone();
-    apply_routed_edge_paths(&mut updated, routed);
     updated
 }
 

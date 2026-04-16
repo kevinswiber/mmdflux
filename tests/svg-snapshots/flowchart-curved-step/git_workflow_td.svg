@@ -22,12 +22,12 @@
       <text x="86.26" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Working Dir</text>
     </g>
     <g class="edgeLabels">
-      <rect x="55.62" y="70.50" width="61.27" height="28.00" fill="white" />
-      <text x="86.26" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
-      <rect x="41.61" y="202.50" width="89.29" height="28.00" fill="white" />
-      <text x="86.26" y="216.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
-      <rect x="51.35" y="359.50" width="69.80" height="28.00" fill="white" />
-      <text x="86.26" y="373.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
+      <rect x="55.62" y="119.00" width="61.27" height="28.00" fill="white" />
+      <text x="86.26" y="133.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
+      <rect x="41.61" y="263.50" width="89.29" height="28.00" fill="white" />
+      <text x="86.26" y="277.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
+      <rect x="51.35" y="420.50" width="69.80" height="28.00" fill="white" />
+      <text x="86.26" y="434.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
       <rect x="152.12" y="243.31" width="62.01" height="28.00" fill="white" />
       <text x="183.13" y="257.31" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
     </g>
