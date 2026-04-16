@@ -5777,8 +5777,8 @@ mod plan_0145_q9_red {
     #[test]
     #[ignore = "red gate, closed by plan 0145 PR 3"]
     fn flowchart_long_reciprocal_labels_disjoint_svg() {
-        let input = "graph TD\n    A -->|this is a deliberately long label| B\n    B -->|another deliberately long reply label| A\n";
-        let svg = render_svg_default(input);
+        let input = load_flowchart_fixture("long_reciprocal_labels.mmd");
+        let svg = render_svg_default(&input);
         let overlap = svg_pairwise_label_rect_overlaps(&svg);
         assert!(overlap.is_empty(), "overlap: {overlap:?}\nSVG:\n{svg}");
     }
@@ -5797,8 +5797,8 @@ mod plan_0145_q9_red {
     #[test]
     #[ignore = "red gate, closed by plan 0145 PR 3"]
     fn flowchart_three_parallel_labels_disjoint_svg() {
-        let input = "graph TD\n    A -->|one| B\n    A -->|two| B\n    A -->|three| B\n";
-        let svg = render_svg_default(input);
+        let input = load_flowchart_fixture("three_parallel_labels.mmd");
+        let svg = render_svg_default(&input);
         let overlap = svg_pairwise_label_rect_overlaps(&svg);
         assert!(overlap.is_empty(), "overlap: {overlap:?}");
     }
