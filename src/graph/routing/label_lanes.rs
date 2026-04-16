@@ -10,11 +10,11 @@
 use std::collections::{BTreeMap, HashMap};
 
 use crate::graph::Direction;
+use crate::graph::Graph;
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::measure::ProportionalTextMetrics;
+use crate::graph::routing::labels::arc_length_midpoint;
 use crate::graph::space::{FPoint, FRect};
-#[allow(unused_imports)]
-use crate::graph::Graph;
 
 /// Gap between adjacent label lanes within a compartment.
 pub(super) const LANE_GAP: f64 = 4.0;
@@ -164,17 +164,249 @@ fn candidate_track_order_nonzero(sign: i32) -> impl Iterator<Item = i32> {
     (1..).flat_map(move |k| [sign * k, -sign * k])
 }
 
+/// Per-edge outcome of the lane assignment pass.
+#[derive(Debug, Clone)]
+pub(super) struct LabelTrackOutcome {
+    pub label_center: FPoint,
+    pub label_rect: FRect,
+    pub track: i32,
+    pub adjusted_path: Vec<FPoint>,
+}
+
+/// Assign labels to signed tracks, shift label centers and middle path
+/// segments by the resulting offsets, and emit one outcome per edge.
+///
+/// `backward_flags` is a side-input from the routing pipeline that maps
+/// edge index → is_backward. Diagram-level `Edge` does not carry this
+/// (it is set during layout), so the orchestrator's caller — the routing
+/// pipeline in `route_graph_geometry` — populates it from the routed
+/// edges. In unit tests where only the diagram defines edges, pass an
+/// empty map (defaults to forward / +1).
+pub(super) fn assign_label_tracks(
+    diagram: &Graph,
+    geometry: &GraphGeometry,
+    paths: &HashMap<usize, Vec<FPoint>>,
+    backward_flags: &HashMap<usize, bool>,
+    metrics: &ProportionalTextMetrics,
+    direction: Direction,
+) -> HashMap<usize, LabelTrackOutcome> {
+    let descriptors = build_label_descriptors(diagram, geometry, paths, backward_flags, metrics);
+    let compartments = group_label_compartments(descriptors, direction);
+    let mut outcomes: HashMap<usize, LabelTrackOutcome> = HashMap::new();
+
+    for compartment in compartments {
+        let tracks = pack_signed_tracks(&compartment);
+
+        // Per-compartment LABEL_LANE_STEP from the max cross-band height.
+        let max_cross = compartment
+            .members
+            .iter()
+            .map(|m| m.cross_max - m.cross_min)
+            .fold(0.0_f64, f64::max);
+        let label_step = (max_cross + LANE_GAP).max(MIN_LABEL_LANE_STEP);
+        let path_step = label_step * PATH_LANE_RATIO;
+
+        for desc in &compartment.members {
+            let track = tracks[&desc.edge_index];
+            let label_offset = track as f64 * label_step;
+            let path_offset = track as f64 * path_step;
+            let (new_center, new_rect) = shift_label(desc, label_offset, direction);
+            let new_path = paths
+                .get(&desc.edge_index)
+                .map(|p| shift_middle_segment(p, path_offset, direction))
+                .unwrap_or_default();
+            outcomes.insert(
+                desc.edge_index,
+                LabelTrackOutcome {
+                    label_center: new_center,
+                    label_rect: new_rect,
+                    track,
+                    adjusted_path: new_path,
+                },
+            );
+        }
+    }
+
+    outcomes
+}
+
 /// Build label descriptors from diagram geometry and routed edge paths.
 ///
-/// Stubbed for now — will be populated in task 3.4.
+/// Iterates `diagram.edges` to source the canonical edge index, skipping
+/// edges without a label or without a routed path. Each descriptor projects
+/// the label rectangle onto the primary (axis) and cross axes based on
+/// `diagram.direction`, and records `direction_sign` from `backward_flags`
+/// (forward = +1, backward = -1). The routing pipeline populates
+/// `backward_flags` from the routed edge list; unit tests may pass an
+/// empty map (defaults to forward).
 pub(super) fn build_label_descriptors(
-    _diagram: &Graph,
-    _geometry: &GraphGeometry,
-    _paths: &HashMap<usize, Vec<FPoint>>,
-    _metrics: &ProportionalTextMetrics,
+    diagram: &Graph,
+    geometry: &GraphGeometry,
+    paths: &HashMap<usize, Vec<FPoint>>,
+    backward_flags: &HashMap<usize, bool>,
+    metrics: &ProportionalTextMetrics,
 ) -> Vec<LabelDescriptor> {
-    // Populated in task 3.4
-    vec![]
+    let direction = diagram.direction;
+    let mut out = Vec::new();
+
+    for (edge_index, edge) in diagram.edges.iter().enumerate() {
+        let Some(label_text) = edge.label.as_deref() else {
+            continue;
+        };
+        if label_text.is_empty() {
+            continue;
+        }
+        let Some(path) = paths.get(&edge_index) else {
+            continue;
+        };
+        if path.len() < 2 {
+            continue;
+        }
+
+        let midpoint = arc_length_midpoint(path).unwrap_or_else(|| path[path.len() / 2]);
+        let (w, h) = metrics.edge_label_dimensions(label_text);
+
+        let direction_sign = if *backward_flags.get(&edge_index).unwrap_or(&false) {
+            -1
+        } else {
+            1
+        };
+
+        let scope_parent = compute_shared_parent(diagram, geometry, &edge.from, &edge.to);
+
+        // Project label onto axis/cross bands based on flow direction.
+        // For TD/BU: axis = Y (height), cross = X (width).
+        // For LR/RL: axis = X (width), cross = Y (height).
+        let (axis_dim, cross_dim, axis_center, cross_center) = match direction {
+            Direction::TopDown | Direction::BottomTop => (h, w, midpoint.y, midpoint.x),
+            Direction::LeftRight | Direction::RightLeft => (w, h, midpoint.x, midpoint.y),
+        };
+
+        let label_rect = FRect::new(midpoint.x - w / 2.0, midpoint.y - h / 2.0, w, h);
+
+        out.push(LabelDescriptor {
+            edge_index,
+            scope_parent,
+            axis_min: axis_center - axis_dim / 2.0,
+            axis_max: axis_center + axis_dim / 2.0,
+            cross_min: cross_center - cross_dim / 2.0,
+            cross_max: cross_center + cross_dim / 2.0,
+            direction_sign,
+            midpoint,
+            label_rect,
+        });
+    }
+
+    out
+}
+
+/// Compute the shared parent subgraph ID for both endpoints, if any.
+///
+/// Prefers `geometry.nodes[id].parent` (already resolved during layout).
+/// Falls back to scanning `diagram.subgraphs` membership when the geometry
+/// node is missing. Returns `None` when the endpoints differ in parent or
+/// when either endpoint has no parent.
+fn compute_shared_parent(
+    diagram: &Graph,
+    geometry: &GraphGeometry,
+    from: &str,
+    to: &str,
+) -> Option<String> {
+    let from_parent = parent_of(diagram, geometry, from)?;
+    let to_parent = parent_of(diagram, geometry, to)?;
+    if from_parent == to_parent {
+        Some(from_parent)
+    } else {
+        None
+    }
+}
+
+fn parent_of(diagram: &Graph, geometry: &GraphGeometry, node_id: &str) -> Option<String> {
+    if let Some(parent) = geometry
+        .nodes
+        .get(node_id)
+        .and_then(|n| n.parent.as_deref())
+    {
+        return Some(parent.to_string());
+    }
+    diagram
+        .subgraphs
+        .values()
+        .find(|sg| sg.nodes.iter().any(|n| n == node_id))
+        .map(|sg| sg.id.clone())
+}
+
+/// Shift a label center by `offset` along the primary axis.
+/// For TD/BU, offset applies to y. For LR/RL, offset applies to x.
+fn shift_label(desc: &LabelDescriptor, offset: f64, direction: Direction) -> (FPoint, FRect) {
+    let new_center = match direction {
+        Direction::TopDown | Direction::BottomTop => {
+            FPoint::new(desc.midpoint.x, desc.midpoint.y + offset)
+        }
+        Direction::LeftRight | Direction::RightLeft => {
+            FPoint::new(desc.midpoint.x + offset, desc.midpoint.y)
+        }
+    };
+    let new_rect = FRect::new(
+        new_center.x - desc.label_rect.width / 2.0,
+        new_center.y - desc.label_rect.height / 2.0,
+        desc.label_rect.width,
+        desc.label_rect.height,
+    );
+    (new_center, new_rect)
+}
+
+/// Shift the middle segment of an orthogonal path on the cross axis.
+/// For TD/BU, cross axis is X. For LR/RL, cross axis is Y.
+///
+/// Three shapes are handled:
+/// - Two-point direct paths: no interior to bend (label-only shift legal
+///   for reciprocal pairs).
+/// - Three-point collinear path: synthesize a bend by inserting two
+///   interior points at the 25% / 75% marks and offsetting them on the
+///   cross axis. Endpoints preserved.
+/// - Multi-segment orthogonal path: shift every interior point on the
+///   cross axis. Endpoints preserved.
+fn shift_middle_segment(path: &[FPoint], offset: f64, direction: Direction) -> Vec<FPoint> {
+    if path.len() < 2 || offset == 0.0 {
+        return path.to_vec();
+    }
+    if path.len() == 2 {
+        return path.to_vec();
+    }
+    if path.len() == 3 && are_collinear(path) {
+        let start = path[0];
+        let end = path[2];
+        let lerp = |t: f64, a: FPoint, b: FPoint| {
+            FPoint::new(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+        };
+        let mut p1 = lerp(0.25, start, end);
+        let mut p2 = lerp(0.75, start, end);
+        offset_on_cross_axis(&mut p1, offset, direction);
+        offset_on_cross_axis(&mut p2, offset, direction);
+        return vec![start, p1, p2, end];
+    }
+    let mut new_path = path.to_vec();
+    let last = new_path.len() - 1;
+    for point in new_path.iter_mut().take(last).skip(1) {
+        offset_on_cross_axis(point, offset, direction);
+    }
+    new_path
+}
+
+fn offset_on_cross_axis(p: &mut FPoint, offset: f64, direction: Direction) {
+    match direction {
+        Direction::TopDown | Direction::BottomTop => p.x += offset,
+        Direction::LeftRight | Direction::RightLeft => p.y += offset,
+    }
+}
+
+fn are_collinear(path: &[FPoint]) -> bool {
+    if path.len() < 3 {
+        return true;
+    }
+    let (a, b, c) = (path[0], path[1], path[2]);
+    ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)).abs() < 1e-6
 }
 
 #[cfg(test)]
@@ -356,5 +588,66 @@ mod tests {
         assert_eq!(tracks.len(), 10);
         // All tracks should be non-zero (multi-member)
         assert!(tracks.values().all(|&t| t != 0));
+    }
+
+    #[test]
+    fn shift_label_topdown_offsets_y_axis() {
+        let desc = make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1);
+        let (new_center, new_rect) = shift_label(&desc, 16.0, Direction::TopDown);
+        // For TD, axis is Y — label.y shifts by 16
+        assert!((new_center.y - desc.midpoint.y - 16.0).abs() < 1e-6);
+        assert!((new_center.x - desc.midpoint.x).abs() < 1e-6, "x unchanged");
+        assert!((new_rect.y - desc.label_rect.y - 16.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn shift_label_leftright_offsets_x_axis() {
+        let desc = make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1);
+        let (new_center, new_rect) = shift_label(&desc, 16.0, Direction::LeftRight);
+        // For LR, axis is X — label.x shifts by 16
+        assert!((new_center.x - desc.midpoint.x - 16.0).abs() < 1e-6);
+        assert!((new_center.y - desc.midpoint.y).abs() < 1e-6, "y unchanged");
+        let _ = new_rect;
+    }
+
+    #[test]
+    fn shift_middle_segment_two_point_path_unchanged() {
+        let path = vec![FPoint::new(0.0, 0.0), FPoint::new(10.0, 0.0)];
+        let new_path = shift_middle_segment(&path, 5.0, Direction::TopDown);
+        assert_eq!(new_path, path);
+    }
+
+    #[test]
+    fn shift_middle_segment_three_collinear_path_bends_on_cross_axis() {
+        // Vertical path, TD direction — bend on X (cross axis)
+        let path = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(0.0, 5.0),
+            FPoint::new(0.0, 10.0),
+        ];
+        let new_path = shift_middle_segment(&path, 5.0, Direction::TopDown);
+        // Endpoints preserved
+        assert_eq!(new_path.first(), path.first());
+        assert_eq!(new_path.last(), path.last());
+        // Bend produced — should have more points (or interior x shifted)
+        assert!(new_path.len() >= 3);
+        // At least one interior point should differ in x from the original
+        let has_x_shift = new_path[1..new_path.len() - 1]
+            .iter()
+            .any(|p| (p.x - 0.0).abs() > 1e-6);
+        assert!(has_x_shift, "interior should shift on cross axis (x for TD)");
+    }
+
+    #[test]
+    fn shift_middle_segment_endpoints_preserved() {
+        let path = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(5.0, 5.0),
+            FPoint::new(10.0, 0.0),
+            FPoint::new(15.0, 5.0),
+        ];
+        let new_path = shift_middle_segment(&path, 8.0, Direction::TopDown);
+        assert_eq!(new_path.first(), path.first());
+        assert_eq!(new_path.last(), path.last());
     }
 }
