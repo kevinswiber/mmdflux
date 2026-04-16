@@ -214,6 +214,18 @@ fn label_block(label: &str) -> LabelBlock<'_> {
     }
 }
 
+/// Resolve the effective label string for text rendering, honouring the
+/// pre-engine wrap artifact (plan 0147). When `wrapped_label_lines` is
+/// populated, returns the `'\n'`-joined line vector so existing
+/// `'\n'`-splitting call sites (`label_block`, `draw_label_direct`) pick
+/// up the wrapped shape without threading an extra parameter.
+fn effective_edge_label<'a>(edge: &'a crate::graph::Edge) -> Option<std::borrow::Cow<'a, str>> {
+    if let Some(lines) = edge.wrapped_label_lines.as_deref() {
+        return Some(std::borrow::Cow::Owned(lines.join("\n")));
+    }
+    edge.label.as_deref().map(std::borrow::Cow::Borrowed)
+}
+
 fn label_top_for_center(center_y: usize, height: usize) -> usize {
     center_y.saturating_sub(height / 2)
 }
@@ -333,9 +345,18 @@ pub fn render_edge(
 
     draw_edge_path_and_arrows(canvas, routed, charset);
 
-    // Draw label if present
-    if let Some(label) = &routed.edge.label {
-        draw_edge_label_with_tracking(canvas, routed, label, diagram_direction, &[], charset, None);
+    // Draw label if present. Plan 0147 Task 1.6: use the pre-engine wrap
+    // artifact when populated so the grid label matches what SVG renders.
+    if let Some(effective) = effective_edge_label(&routed.edge) {
+        draw_edge_label_with_tracking(
+            canvas,
+            routed,
+            effective.as_ref(),
+            diagram_direction,
+            &[],
+            charset,
+            None,
+        );
     }
 }
 
@@ -1164,7 +1185,10 @@ pub fn render_all_edges_with_labels(
     // Track placed labels to avoid collisions
     let mut placed_labels: Vec<PlacedLabel> = Vec::new();
     for routed in routed_edges {
-        if let Some(label) = &routed.edge.label {
+        // Plan 0147 Task 1.6: resolve wrapped label text once per edge.
+        let effective_label_cow = effective_edge_label(&routed.edge);
+        if let Some(effective) = effective_label_cow.as_deref() {
+            let label = effective;
             let bounds = edge_containment.get(&routed.edge.index).copied();
 
             // Check for pre-computed label position from normalization

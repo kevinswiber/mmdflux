@@ -13,6 +13,7 @@ mod edge;
 pub(crate) mod edge_marker;
 pub mod geometry;
 pub mod grid;
+pub mod label_wrap;
 pub mod measure;
 mod node;
 pub mod projection;

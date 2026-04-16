@@ -156,6 +156,10 @@ impl GraphEngine for MermaidLayeredEngine {
             always_compound_ordering: true,
             label_side_selection: true,
             label_side_strategy: LabelSideStrategy::DirectionDown,
+            // Plan 0147 Task 1.7: mermaid profile enables wrap at 200 px;
+            // dagre parity is preserved because `LabelDummyRouting` stays on
+            // the default `Center` until PR B Tier A introduces `Bend`.
+            edge_label_max_width: Some(200.0),
             ..Default::default()
         };
         let geometry = build_float_layout_with_flags(

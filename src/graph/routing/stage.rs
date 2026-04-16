@@ -889,17 +889,19 @@ fn populate_label_geometry(
         let Some(center) = routed_edge.label_position else {
             continue;
         };
-        let Some(label) = diagram
-            .edges
-            .get(routed_edge.index)
-            .and_then(|e| e.label.as_deref())
-        else {
+        let diagram_edge = diagram.edges.get(routed_edge.index);
+        let Some(label) = diagram_edge.and_then(|e| e.label.as_deref()) else {
             continue;
         };
         if label.is_empty() {
             continue;
         }
-        let (w, h) = metrics.edge_label_dimensions(label);
+        // Plan 0147 Task 1.6: prefer the pre-engine wrap artifact when present
+        // so the reserved rect matches what SVG text and the MMDS replay emit.
+        let (w, h) = match diagram_edge.and_then(|e| e.wrapped_label_lines.as_deref()) {
+            Some(lines) => metrics.edge_label_dimensions_wrapped(lines),
+            None => metrics.edge_label_dimensions(label),
+        };
         let side = routed_edge.label_side.unwrap_or(EdgeLabelSide::Center);
         routed_edge.label_geometry = Some(EdgeLabelGeometry {
             center,

@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 
-use super::text::{BackgroundStyle, TextRenderStyle, render_text_centered};
+use super::text::{
+    BackgroundStyle, TextRenderStyle, render_text_centered, render_text_centered_with_wrap,
+};
 use super::{GraphSvgPalette, Point, dynamic_css_attrs};
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::measure::ProportionalTextMetrics;
@@ -194,13 +196,14 @@ pub(super) fn render_edge_labels(
         let Some(point) = position else {
             continue;
         };
-        render_text_centered(
+        render_text_centered_with_wrap(
             writer,
             Point {
                 x: point.x * scale,
                 y: point.y * scale,
             },
             label,
+            edge.wrapped_label_lines.as_deref(),
             metrics,
             scale,
             TextRenderStyle {

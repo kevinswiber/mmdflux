@@ -387,7 +387,18 @@ mod snapshots {
             if path.extension().is_some_and(|e| e == "mmd") {
                 let name = path.file_stem().unwrap().to_str().unwrap();
                 let input = fs::read_to_string(&path).unwrap();
-                let diagram = prepare_flowchart(&input);
+                let mut diagram = prepare_flowchart(&input);
+                // Plan 0147 Task 1.8: baseline must match the CLI/runtime
+                // render path, which invokes `prepare_wrapped_labels` in
+                // `runtime::graph_family` before engine dispatch.
+                let wrap_metrics = crate::graph::measure::default_proportional_text_metrics();
+                let wrap_max_width =
+                    crate::engines::graph::LayoutConfig::default().edge_label_max_width;
+                crate::graph::label_wrap::prepare_wrapped_labels(
+                    &mut diagram.edges,
+                    &wrap_metrics,
+                    wrap_max_width,
+                );
                 let output = render_text_diagram(&diagram);
                 let snapshot_path = snapshot_dir.join(format!("{}.txt", name));
                 if regenerate {

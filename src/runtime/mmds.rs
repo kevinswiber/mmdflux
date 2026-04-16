@@ -75,7 +75,24 @@ pub fn render_output(
         return generate_mermaid(payload).map_err(display_error);
     }
 
-    let diagram = from_output(payload).map_err(display_error)?;
+    let mut diagram = from_output(payload).map_err(display_error)?;
+
+    // Plan 0147 Task 1.6 / 1.7: MMDS replay path runs the wrap pass so the
+    // hydrated graph's edge labels carry the same `wrapped_label_lines`
+    // artifact the original render would have. `wrapped_label_lines` is
+    // `#[serde(skip)]` on the Edge, so round-tripping through MMDS drops
+    // it; rehydrating it here keeps the SVG/text replay in lockstep with
+    // the direct runtime render. Uses the default Proportional metrics
+    // because the replay path does not receive a `RenderConfig`; the user
+    // may opt out by re-rendering through the direct path with
+    // `layout.edge_label_max_width: None`.
+    let wrap_metrics = crate::graph::measure::default_proportional_text_metrics();
+    let wrap_max_width = crate::engines::graph::LayoutConfig::default().edge_label_max_width;
+    crate::graph::label_wrap::prepare_wrapped_labels(
+        &mut diagram.edges,
+        &wrap_metrics,
+        wrap_max_width,
+    );
 
     let geometry = hydrate_graph_geometry_from_output_with_diagram(payload, &diagram)
         .map_err(display_error)?;

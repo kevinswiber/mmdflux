@@ -652,6 +652,7 @@ fn resolve_subgraph_edges(graph: &mut Graph) {
             tail_label: edge.tail_label.clone(),
             minlen: edge.minlen,
             index: edge.index,
+            wrapped_label_lines: edge.wrapped_label_lines.clone(),
         });
     }
 
