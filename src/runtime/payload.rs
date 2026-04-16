@@ -24,11 +24,15 @@ pub(in crate::runtime) fn render_payload(
     };
 
     match payload {
-        Diagram::Flowchart(graph) => {
-            graph_family::render_graph_family("flowchart", &graph, format, config)
+        Diagram::Flowchart(mut graph) => {
+            graph_family::render_graph_family("flowchart", &mut graph, format, config)
         }
-        Diagram::Class(graph) => graph_family::render_graph_family("class", &graph, format, config),
-        Diagram::State(graph) => graph_family::render_graph_family("state", &graph, format, config),
+        Diagram::Class(mut graph) => {
+            graph_family::render_graph_family("class", &mut graph, format, config)
+        }
+        Diagram::State(mut graph) => {
+            graph_family::render_graph_family("state", &mut graph, format, config)
+        }
         Diagram::Sequence(model) => match format {
             OutputFormat::Svg => {
                 let metrics = measure::default_proportional_text_metrics();

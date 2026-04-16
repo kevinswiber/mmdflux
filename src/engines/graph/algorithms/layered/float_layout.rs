@@ -14,7 +14,21 @@ use crate::graph::geometry::{GraphGeometry, RoutedEdgeGeometry};
 use crate::graph::grid::GridLayoutConfig;
 use crate::graph::measure::{ProportionalTextMetrics, proportional_node_dimensions};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
-use crate::graph::{Direction, Graph, Stroke};
+use crate::graph::{Direction, Edge, Graph, Stroke};
+
+/// Edge-label sizing that honours the pre-engine wrap artifact when present
+/// (plan 0147 Task 1.6). Falls back to single-line measurement otherwise.
+fn edge_label_dims_proportional(
+    metrics: &ProportionalTextMetrics,
+    edge: &Edge,
+) -> Option<(f64, f64)> {
+    if let Some(lines) = edge.wrapped_label_lines.as_deref() {
+        return Some(metrics.edge_label_dimensions_wrapped(lines));
+    }
+    edge.label
+        .as_deref()
+        .map(|label| metrics.edge_label_dimensions(label))
+}
 
 pub(crate) fn build_float_layout_with_flags(
     diagram: &Graph,
@@ -42,21 +56,13 @@ pub(crate) fn build_float_layout_with_flags(
         diagram,
         &layered_config,
         |node| proportional_node_dimensions(metrics, node, direction),
-        |edge| {
-            edge.label
-                .as_ref()
-                .map(|label| metrics.edge_label_dimensions(label))
-        },
+        |edge| edge_label_dims_proportional(metrics, edge),
     );
     let sublayouts = compute_sublayouts(
         diagram,
         &layered_config,
         |node| proportional_node_dimensions(metrics, node, direction),
-        |edge| {
-            edge.label
-                .as_ref()
-                .map(|label| metrics.edge_label_dimensions(label))
-        },
+        |edge| edge_label_dims_proportional(metrics, edge),
         skip_non_isolated_overrides,
     );
     let title_pad_y = metrics.font_size;

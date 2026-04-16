@@ -500,6 +500,48 @@ fn flux_layout_profile_all_routing_styles_use_enhanced_profile() {
     }
 }
 
+// -- Plan 0147, Task 1.7: edge_label_max_width per-profile defaults --
+
+#[test]
+fn kernel_layout_config_edge_label_max_width_defaults_to_none() {
+    // Kernel LayoutConfig defaults must stay dagre-parity-safe: no wrap
+    // unless a profile explicitly opts in (design.md §4.2).
+    let cfg = LayoutConfig::default();
+    assert!(cfg.edge_label_max_width.is_none());
+}
+
+#[test]
+fn user_facing_layout_config_edge_label_max_width_defaults_to_200() {
+    // User-facing default enables wrap at 200 px so long labels render
+    // wrapped without requiring explicit opt-in.
+    let cfg = crate::engines::graph::LayoutConfig::default();
+    assert_eq!(cfg.edge_label_max_width, Some(200.0));
+}
+
+#[test]
+fn flux_profile_sets_edge_label_max_width_200() {
+    // flux_layout_profile should fill in Some(200.0) when the input config
+    // leaves it unset (the common runtime path).
+    let input_cfg = LayoutConfig::default();
+    assert!(input_cfg.edge_label_max_width.is_none());
+    let profile = flux_layout_profile(&input_cfg, EdgeRouting::PolylineRoute);
+    assert_eq!(profile.edge_label_max_width, Some(200.0));
+}
+
+#[test]
+fn flux_profile_preserves_caller_edge_label_max_width_override() {
+    // Callers may opt out via `None`… but `None` was already the kernel
+    // default, so preservation here means "if the caller explicitly set
+    // Some(v), use v". Asserts the caller's value wins over the profile
+    // default.
+    let input_cfg = LayoutConfig {
+        edge_label_max_width: Some(300.0),
+        ..Default::default()
+    };
+    let profile = flux_layout_profile(&input_cfg, EdgeRouting::PolylineRoute);
+    assert_eq!(profile.edge_label_max_width, Some(300.0));
+}
+
 #[test]
 fn adaptive_reversed_chain_policy_relaxes_for_inline_label_crowding() {
     let input = include_str!("../../../tests/fixtures/flowchart/inline_label_flowchart.mmd");

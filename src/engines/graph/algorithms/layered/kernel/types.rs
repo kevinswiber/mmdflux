@@ -348,6 +348,10 @@ pub struct LayoutConfig {
 
     /// Group backward edge dummies to one side during ordering (flux-layered only).
     pub backward_edge_side_grouping: bool,
+
+    /// Maximum edge-label width in pixels before greedy wrap kicks in.
+    /// `None` disables wrap (dagre-parity fallback). Plan 0147 Task 1.7.
+    pub edge_label_max_width: Option<f64>,
 }
 
 impl LayoutConfig {
@@ -385,6 +389,7 @@ impl Default for LayoutConfig {
             label_dummy_strategy: LabelDummyStrategy::default(),
             edge_label_spacing: 2.0,
             backward_edge_side_grouping: false,
+            edge_label_max_width: None,
         }
     }
 }

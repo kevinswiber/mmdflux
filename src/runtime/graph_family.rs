@@ -7,6 +7,7 @@ use crate::engines::graph::{
 };
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
+use crate::graph::label_wrap::prepare_wrapped_labels;
 use crate::graph::measure::{
     DEFAULT_PROPORTIONAL_FONT_SIZE, DEFAULT_PROPORTIONAL_NODE_PADDING_X,
     DEFAULT_PROPORTIONAL_NODE_PADDING_Y, ProportionalTextMetrics,
@@ -20,9 +21,9 @@ use crate::runtime::config::RenderConfig;
 use crate::runtime::resolve_configured_svg_theme;
 use crate::simplification::PathSimplification;
 
-pub(in crate::runtime) fn render_graph_family(
+pub(crate) fn render_graph_family(
     diagram_id: &str,
-    diagram: &Graph,
+    diagram: &mut Graph,
     format: OutputFormat,
     config: &RenderConfig,
 ) -> Result<String, RenderError> {
@@ -35,6 +36,22 @@ pub(in crate::runtime) fn render_graph_family(
             .routing_style
             .or_else(|| config.edge_preset.map(|preset| preset.expand().0)),
     )?;
+
+    // Pre-engine wrap pass: plan 0147 Task 1.5b / 1.7. Populates
+    // `diagram::Edge.wrapped_label_lines` once per render so the kernel
+    // sizing scan, label geometry, SVG text, and MMDS replay all agree on
+    // the wrap decision. Uses Proportional metrics regardless of render
+    // mode — Grid consumers read the same line splits (see design.md §6.1).
+    // Threshold comes from `RenderConfig.layout.edge_label_max_width`; the
+    // user-facing LayoutConfig default is `Some(200.0)` so wrap is on by
+    // default. Explicit `None` disables wrap (dagre-parity fallback).
+    let wrap_metrics = proportional_text_metrics_for_config(config);
+    prepare_wrapped_labels(
+        &mut diagram.edges,
+        &wrap_metrics,
+        config.layout.edge_label_max_width,
+    );
+
     let request = graph_solve_request_for(format, config, diagram_id);
     let engine_config = EngineConfig::Layered(config.layout.clone().into());
     let engine_id = resolve_graph_engine_for_request(engine_id, &request);
@@ -265,9 +282,10 @@ mod tests {
 
     #[test]
     fn runtime_owner_local_smoke_renders_graph_family_text() {
+        let mut diagram = smoke_diagram();
         let rendered = super::render_graph_family(
             "flowchart",
-            &smoke_diagram(),
+            &mut diagram,
             OutputFormat::Text,
             &RenderConfig::default(),
         )

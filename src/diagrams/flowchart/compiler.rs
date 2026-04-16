@@ -303,6 +303,7 @@ fn resolve_subgraph_edges(diagram: &mut Graph) {
             tail_label: edge.tail_label.clone(),
             minlen: edge.minlen,
             index: edge.index,
+            wrapped_label_lines: edge.wrapped_label_lines.clone(),
         });
     }
 
@@ -395,7 +396,7 @@ fn normalize_shape_label(id: &str, shape_spec: &ShapeSpec, shape: Shape) -> Stri
 ///
 /// Handles `<br>`, `<br/>`, `<br />`, and case-insensitive variants,
 /// matching the Mermaid convention for line breaks in labels.
-fn normalize_br_tags(text: &str) -> String {
+pub(crate) fn normalize_br_tags(text: &str) -> String {
     let bytes = text.as_bytes();
     let len = bytes.len();
     let mut result = String::with_capacity(len);

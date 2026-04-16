@@ -42,6 +42,8 @@ pub(crate) fn flux_layout_profile(
         label_side_strategy: LabelSideStrategy::DirectionDown,
         label_dummy_strategy: LabelDummyStrategy::WidestLayer,
         backward_edge_side_grouping: true,
+        // Plan 0147 Task 1.7: flux profile enables wrap at 200 px.
+        edge_label_max_width: input_cfg.edge_label_max_width.or(Some(200.0)),
         ..input_cfg.clone()
     }
 }

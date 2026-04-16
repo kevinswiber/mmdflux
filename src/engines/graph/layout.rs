@@ -152,6 +152,9 @@ pub struct LayoutConfig {
     pub label_dummy_strategy: LabelDummyStrategy,
     pub edge_label_spacing: f64,
     pub backward_edge_side_grouping: bool,
+    /// Maximum edge-label width in pixels before greedy wrap kicks in.
+    /// `None` disables wrap (dagre-parity fallback). Plan 0147 Task 1.7.
+    pub edge_label_max_width: Option<f64>,
 }
 
 impl Default for LayoutConfig {
@@ -176,6 +179,10 @@ impl Default for LayoutConfig {
             label_dummy_strategy: LabelDummyStrategy::default(),
             edge_label_spacing: 2.0,
             backward_edge_side_grouping: false,
+            // Plan 0147 Task 1.7: user-facing default enables wrap at 200 px so
+            // long labels render wrapped out of the box. Set to `None` to opt
+            // out (dagre-parity / unwrapped measurement).
+            edge_label_max_width: Some(200.0),
         }
     }
 }
@@ -211,6 +218,7 @@ impl From<LayoutConfig> for crate::engines::graph::algorithms::layered::LayoutCo
             label_dummy_strategy: value.label_dummy_strategy.into(),
             edge_label_spacing: value.edge_label_spacing,
             backward_edge_side_grouping: value.backward_edge_side_grouping,
+            edge_label_max_width: value.edge_label_max_width,
         }
     }
 }
@@ -243,6 +251,7 @@ impl From<crate::engines::graph::algorithms::layered::LayoutConfig> for LayoutCo
             label_dummy_strategy: value.label_dummy_strategy.into(),
             edge_label_spacing: value.edge_label_spacing,
             backward_edge_side_grouping: value.backward_edge_side_grouping,
+            edge_label_max_width: value.edge_label_max_width,
         }
     }
 }

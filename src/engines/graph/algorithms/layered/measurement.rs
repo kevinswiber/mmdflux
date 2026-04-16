@@ -13,7 +13,8 @@ use crate::errors::RenderError;
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::grid::{GridLayoutConfig, GridRanker};
 use crate::graph::measure::{
-    grid_edge_label_dimensions, grid_node_dimensions, proportional_node_dimensions,
+    grid_edge_label_dimensions, grid_edge_label_dimensions_wrapped, grid_node_dimensions,
+    proportional_node_dimensions,
 };
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::{Direction, Edge, Graph, Node};
@@ -58,7 +59,25 @@ fn grid_node_layout_dimensions(node: &Node, direction: Direction) -> (f64, f64) 
     (width as f64, height as f64)
 }
 
+fn edge_label_dims_proportional_for_run(
+    metrics: &crate::graph::measure::ProportionalTextMetrics,
+    edge: &Edge,
+) -> Option<(f64, f64)> {
+    if let Some(lines) = edge.wrapped_label_lines.as_deref() {
+        return Some(metrics.edge_label_dimensions_wrapped(lines));
+    }
+    edge.label
+        .as_deref()
+        .map(|label| metrics.edge_label_dimensions(label))
+}
+
 fn grid_edge_label_layout_dimensions(edge: &Edge) -> Option<(f64, f64)> {
+    // Plan 0147 Task 1.6: honour the pre-engine wrap artifact when present
+    // so Grid-mode measurement reserves the same vertical space that SVG
+    // and routing assume.
+    if let Some(lines) = edge.wrapped_label_lines.as_deref() {
+        return Some(grid_edge_label_dimensions_wrapped(lines));
+    }
     edge.label
         .as_ref()
         .map(|label| grid_edge_label_dimensions(label))
@@ -134,11 +153,7 @@ pub fn run_layered_layout(
             diagram,
             &lc,
             |node| proportional_node_dimensions(metrics, node, direction),
-            |edge| {
-                edge.label
-                    .as_ref()
-                    .map(|label| metrics.edge_label_dimensions(label))
-            },
+            |edge| edge_label_dims_proportional_for_run(metrics, edge),
         ),
     };
 

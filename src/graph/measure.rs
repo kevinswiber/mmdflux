@@ -68,13 +68,31 @@ impl ProportionalTextMetrics {
         self.measure_text_with_padding(label, self.label_padding_x, self.label_padding_y)
     }
 
-    fn measure_line_width(&self, text: &str) -> f64 {
+    /// Dimensions of an edge label that has already been wrapped into `lines`.
+    ///
+    /// Width = max width across lines; height = `line_height * lines.len()`
+    /// plus symmetric label padding on both axes. Mirrors
+    /// [`Self::edge_label_dimensions`] so the wrapped path is a drop-in
+    /// replacement wherever `wrapped_label_lines` is populated. Plan 0147
+    /// Task 1.6 / design.md §6.3.
+    pub fn edge_label_dimensions_wrapped(&self, lines: &[String]) -> (f64, f64) {
+        let line_count = lines.len().max(1) as f64;
+        let max_width = lines
+            .iter()
+            .map(|line| self.measure_line_width(line))
+            .fold(0.0, f64::max);
+        let width = max_width * TEXT_WIDTH_SCALE + self.label_padding_x * 2.0;
+        let height = self.line_height * line_count + self.label_padding_y * 2.0;
+        (width, height)
+    }
+
+    pub(crate) fn measure_line_width(&self, text: &str) -> f64 {
         text.chars()
             .map(|c| self.char_width_ratio(c) * self.font_size)
             .sum::<f64>()
     }
 
-    fn char_width_ratio(&self, c: char) -> f64 {
+    pub(crate) fn char_width_ratio(&self, c: char) -> f64 {
         match c {
             'i' | 'l' | '!' | '|' | '.' | ',' | ':' | ';' | '\'' => 0.25,
             'f' | 'j' | 't' | 'r' => 0.32,
@@ -83,6 +101,65 @@ impl ProportionalTextMetrics {
             _ => 0.46,
         }
     }
+}
+
+/// Greedy word-wrap that honours `max_width` in pixels using `metrics` for
+/// per-character width estimates. `'\n'` in `text` is treated as a hard
+/// break; each segment is wrapped independently. Falls back to per-character
+/// splits when a single word exceeds `max_width`.
+///
+/// **Sequencing contract:** callers MUST normalize `<br>`/`<br/>`/`<br />`
+/// variants to `'\n'` before calling this function (see
+/// [`crate::diagrams::flowchart::compiler::normalize_br_tags`]). `wrap_lines`
+/// does not inspect the raw Mermaid source.
+pub fn wrap_lines(metrics: &ProportionalTextMetrics, text: &str, max_width: f64) -> Vec<String> {
+    let space_w = metrics.char_width_ratio(' ') * metrics.font_size * TEXT_WIDTH_SCALE;
+    let mut out = Vec::new();
+    for segment in text.split('\n') {
+        let mut current = String::new();
+        let mut current_w = 0.0_f64;
+        for word in segment.split_whitespace() {
+            let ww = metrics.measure_line_width(word) * TEXT_WIDTH_SCALE;
+            if ww > max_width {
+                // Oversized word: fall back to per-character splits regardless
+                // of whether the word is first on the line. GPT-5.4 review of
+                // PR #235 found the previous `&& current.is_empty()` guard let
+                // oversized trailing words overflow `max_width`. Flush the
+                // current line first so the char-split starts at column 0.
+                if !current.is_empty() {
+                    out.push(std::mem::take(&mut current));
+                    current_w = 0.0;
+                }
+                for ch in word.chars() {
+                    let cw = metrics.char_width_ratio(ch) * metrics.font_size * TEXT_WIDTH_SCALE;
+                    if current_w + cw > max_width && !current.is_empty() {
+                        out.push(std::mem::take(&mut current));
+                        current_w = 0.0;
+                    }
+                    current.push(ch);
+                    current_w += cw;
+                }
+                continue;
+            }
+            let sep_w = if current.is_empty() { 0.0 } else { space_w };
+            if current_w + sep_w + ww > max_width && !current.is_empty() {
+                out.push(std::mem::take(&mut current));
+                current_w = 0.0;
+            }
+            if !current.is_empty() {
+                current.push(' ');
+                current_w += space_w;
+            }
+            current.push_str(word);
+            current_w += ww;
+        }
+        if !current.is_empty() {
+            out.push(current);
+        } else {
+            out.push(String::new());
+        }
+    }
+    out
 }
 
 /// Default proportional metrics used by engine-side float/MMDS layout flows.
@@ -127,6 +204,20 @@ pub fn grid_node_dimensions(node: &Node, direction: Direction) -> (usize, usize)
 /// Grid edge-label dimensions used by layered measurement and grid replay.
 pub fn grid_edge_label_dimensions(label: &str) -> (f64, f64) {
     let lines: Vec<&str> = label.split('\n').collect();
+    let width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+    let height = lines.len().max(1);
+    (width as f64 + 2.0, height as f64)
+}
+
+/// Grid edge-label dimensions for a pre-wrapped label. Mirrors
+/// [`grid_edge_label_dimensions`] but consumes a persisted wrap artifact
+/// instead of `'\n'`-splitting raw text, so wrap decisions made in pixel
+/// units (plan 0147) are honoured by the Grid measurement path too.
+pub fn grid_edge_label_dimensions_wrapped(lines: &[String]) -> (f64, f64) {
     let width = lines
         .iter()
         .map(|line| line.chars().count())
@@ -270,6 +361,34 @@ mod tests {
         assert_eq!((w, h), (9, 3));
     }
 
+    // -- Plan 0147, Task 1.6: wrapped-dims measurement primitive --
+
+    #[test]
+    fn edge_label_dimensions_wrapped_measures_multi_line_height() {
+        let metrics = default_proportional_text_metrics();
+        let lines = vec!["short".to_string(), "another line".to_string()];
+        let (w, h) = metrics.edge_label_dimensions_wrapped(&lines);
+        let expected_min_h = 2.0 * metrics.line_height + 2.0 * metrics.label_padding_y - 0.001;
+        assert!(
+            h >= expected_min_h,
+            "expected >= 2 line heights (~{expected_min_h}), got {h}"
+        );
+        assert!(
+            w < 200.0,
+            "width should be bounded by max line, got {w} for lines {lines:?}"
+        );
+    }
+
+    #[test]
+    fn edge_label_dimensions_wrapped_matches_unwrapped_single_line() {
+        let metrics = default_proportional_text_metrics();
+        let (w_single, h_single) = metrics.edge_label_dimensions("exactly the same");
+        let (w_wrap, h_wrap) =
+            metrics.edge_label_dimensions_wrapped(&["exactly the same".to_string()]);
+        assert!((w_single - w_wrap).abs() < 0.001);
+        assert!((h_single - h_wrap).abs() < 0.001);
+    }
+
     // -- Plan 0145, Task 1.7: Label padding contract --
 
     #[test]
@@ -279,6 +398,101 @@ mod tests {
         assert_eq!(metrics.label_padding_y, DEFAULT_LABEL_PADDING_Y);
         assert_eq!(DEFAULT_LABEL_PADDING_X, 4.0);
         assert_eq!(DEFAULT_LABEL_PADDING_Y, 2.0);
+    }
+
+    // -- Plan 0147, Task 1.1: wrap_lines greedy word-wrap (Red) --
+
+    #[test]
+    fn wrap_lines_greedy_breaks_on_word_boundaries() {
+        let metrics = ProportionalTextMetrics::new(
+            DEFAULT_PROPORTIONAL_FONT_SIZE,
+            DEFAULT_PROPORTIONAL_NODE_PADDING_X,
+            DEFAULT_PROPORTIONAL_NODE_PADDING_Y,
+        );
+        // max_width 100 is wider than every word in the fixture so the
+        // greedy path never hits the char-fallback — this test pins
+        // whitespace-boundary wrap specifically (char fallback is covered
+        // by `wrap_lines_char_fallback_triggers_for_mid_line_oversized_word`).
+        let lines = wrap_lines(&metrics, "this is a deliberately long label", 100.0);
+        assert!(lines.len() >= 2, "expected multi-line wrap, got {lines:?}");
+        // Word boundaries preserved: no line begins or ends mid-word.
+        for line in &lines {
+            assert!(
+                !line.starts_with(' ') && !line.ends_with(' '),
+                "line has stray whitespace: {line:?}"
+            );
+        }
+        // Round-tripping words preserves the original token order and content.
+        let all: String = lines.join(" ");
+        assert_eq!(all, "this is a deliberately long label");
+    }
+
+    #[test]
+    fn wrap_lines_empty_returns_single_empty_line() {
+        let metrics = default_proportional_text_metrics();
+        let lines = wrap_lines(&metrics, "", 200.0);
+        assert_eq!(lines, vec![String::new()]);
+    }
+
+    #[test]
+    fn wrap_lines_fits_when_max_width_is_large() {
+        let metrics = default_proportional_text_metrics();
+        let lines = wrap_lines(&metrics, "single", 10_000.0);
+        assert_eq!(lines, vec!["single".to_string()]);
+    }
+
+    // -- Plan 0147, Task 1.3: <br>-derived '\n' acts as a hard segment break --
+
+    #[test]
+    fn wrap_lines_preserves_br_hard_breaks_as_segment_boundaries() {
+        let metrics = ProportionalTextMetrics::new(
+            DEFAULT_PROPORTIONAL_FONT_SIZE,
+            DEFAULT_PROPORTIONAL_NODE_PADDING_X,
+            DEFAULT_PROPORTIONAL_NODE_PADDING_Y,
+        );
+        // Simulate output of normalize_br_tags: <br> has already become '\n'.
+        // max_width 100 keeps every word under the threshold so the test
+        // focuses on segment-boundary behaviour rather than char fallback.
+        let input = "yes\nsome very long continuation";
+        let lines = wrap_lines(&metrics, input, 100.0);
+
+        // The first segment ("yes") stands alone on its own line — not merged with "some".
+        assert_eq!(
+            lines[0], "yes",
+            "first segment must stand alone, got {lines:?}"
+        );
+
+        // The second segment's tokens are wrapped across the remaining lines, in order.
+        let rest: String = lines[1..].join(" ");
+        assert_eq!(rest, "some very long continuation");
+    }
+
+    // GPT-5.4 review of PR #235: oversized-word char-fallback must apply
+    // even when the oversized word is NOT the first token on a line.
+    #[test]
+    fn wrap_lines_char_fallback_triggers_for_mid_line_oversized_word() {
+        let metrics = default_proportional_text_metrics();
+        let max_width = 200.0;
+        let lines = wrap_lines(
+            &metrics,
+            "short supercalifragilisticexpialidocious",
+            max_width,
+        );
+        for line in &lines {
+            let w = metrics.measure_line_width(line) * TEXT_WIDTH_SCALE;
+            assert!(
+                w <= max_width + 0.5,
+                "line {line:?} is {w} px wide, exceeds max_width {max_width}"
+            );
+        }
+    }
+
+    #[test]
+    fn wrap_lines_empty_middle_segment_preserved() {
+        // Refactor invariant from Task 1.3: "a\n\nb" → ["a", "", "b"].
+        let metrics = default_proportional_text_metrics();
+        let lines = wrap_lines(&metrics, "a\n\nb", 1000.0);
+        assert_eq!(lines, vec!["a".to_string(), String::new(), "b".to_string()]);
     }
 
     #[test]

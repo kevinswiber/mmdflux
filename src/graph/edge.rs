@@ -73,6 +73,18 @@ pub struct Edge {
     /// Index of this edge in the diagram's edge list.
     /// Assigned automatically by `Diagram::add_edge()`.
     pub index: usize,
+    /// Pre-engine wrap artifact: the result of running `graph::measure::wrap_lines`
+    /// against `label` (post-`normalize_br_tags`) using the render's configured
+    /// `ProportionalTextMetrics` and `LayoutConfig.edge_label_max_width`.
+    ///
+    /// Populated by `graph::label_wrap::prepare_wrapped_labels` in the runtime
+    /// wrap pass (plan 0147 Task 1.5b). `None` means "no wrap computed" —
+    /// callers fall back to single-line `label` in that case.
+    ///
+    /// See plan 0147 design.md §4.4 for why this lives on `diagram::Edge`
+    /// rather than `LayoutEdge`.
+    #[serde(skip)]
+    pub wrapped_label_lines: Option<Vec<String>>,
 }
 
 impl Edge {
@@ -92,6 +104,7 @@ impl Edge {
             tail_label: None,
             minlen: 1,
             index: 0,
+            wrapped_label_lines: None,
         }
     }
 
@@ -171,5 +184,23 @@ mod tests {
 
         let edge = Edge::new("A", "B").with_minlen(0);
         assert_eq!(edge.minlen, 0);
+    }
+
+    // -- Plan 0147, Task 1.5: wrapped_label_lines artifact on diagram::Edge --
+
+    #[test]
+    fn edge_carries_wrapped_label_lines_none_by_default() {
+        let edge = Edge::new("A", "B");
+        assert!(edge.wrapped_label_lines.is_none());
+    }
+
+    #[test]
+    fn edge_wrapped_label_lines_round_trips_set_then_read() {
+        let mut edge = Edge::new("A", "B").with_label("hello world");
+        edge.wrapped_label_lines = Some(vec!["hello".to_string(), "world".to_string()]);
+        assert_eq!(
+            edge.wrapped_label_lines.as_deref(),
+            Some(vec!["hello".to_string(), "world".to_string()].as_slice())
+        );
     }
 }

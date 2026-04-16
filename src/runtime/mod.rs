@@ -6,7 +6,7 @@
 pub mod config;
 pub mod config_input;
 
-mod graph_family;
+pub(crate) mod graph_family;
 pub(crate) mod mmds;
 mod payload;
 mod timeline_family;
