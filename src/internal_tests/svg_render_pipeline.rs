@@ -5649,3 +5649,159 @@ fn svg_viewbox_contains_rects_empty_when_all_inside() {
     let failures = svg_viewbox_contains_rects(svg);
     assert!(failures.is_empty(), "unexpected failures: {failures:?}");
 }
+
+// -- Plan 0145, Tasks 1.4 / 1.5 / 1.6: Q9 SVG red gate tests --
+//
+// These tests are intentionally `#[ignore]`d with the canonical reason
+// "red gate, closed by plan 0145 PR 3". They exercise the Q9 acceptance
+// matrix SVG rows (#1, #3, #4, #6, #7, #8, #9) and assert pairwise label
+// background-rect disjointness or viewBox containment. PR 3 introduces
+// the lane-assignment / label-side selection that turns these green;
+// Task 3.8 un-ignores them in a single grep-driven pass.
+//
+// Note: tests live here (in `src/internal_tests/`) rather than in
+// `tests/svg_render.rs` because the helpers `svg_pairwise_label_rect_overlaps`
+// and `svg_viewbox_contains_rects` are `pub(crate)` and not reachable from
+// integration test crates. See the agent-P1.C1 task-brief Option C.
+mod plan_0145_q9_red {
+    use super::{svg_pairwise_label_rect_overlaps, svg_viewbox_contains_rects};
+    use crate::{EngineAlgorithmId, OutputFormat, RenderConfig};
+
+    fn render_svg_default(input: &str) -> String {
+        crate::render_diagram(input, OutputFormat::Svg, &RenderConfig::default())
+            .expect("default SVG render should succeed")
+    }
+
+    fn render_svg_with_engine(input: &str, engine: EngineAlgorithmId) -> String {
+        let cfg = RenderConfig {
+            layout_engine: Some(engine),
+            ..RenderConfig::default()
+        };
+        crate::render_diagram(input, OutputFormat::Svg, &cfg)
+            .expect("engine-selected SVG render should succeed")
+    }
+
+    fn state_issue_222_minimal_repro_input() -> &'static str {
+        r#"stateDiagram-v2
+    state Active {
+        [*] --> NumLockOff
+        NumLockOff --> NumLockOn : EvNumLockPressed
+        NumLockOn --> NumLockOff : EvNumLockPressed
+    }"#
+    }
+
+    fn concurrent_three_svg_with_engine(engine: EngineAlgorithmId) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("state")
+            .join("concurrent_three.mmd");
+        let input = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+            panic!(
+                "failed to read concurrent_three.mmd fixture {}: {e}",
+                path.display()
+            )
+        });
+        render_svg_with_engine(&input, engine)
+    }
+
+    fn load_flowchart_fixture(name: &str) -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("flowchart")
+            .join(name);
+        std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read flowchart fixture {}: {e}", path.display()))
+    }
+
+    // Task 1.4 — Q9 row #1: issue 222 minimal SVG repro.
+    //
+    // The drift assertion (`svg_label_drift_failures`) is intentionally
+    // omitted: that helper takes a `&crate::graph::Graph`, but the input
+    // here is a `stateDiagram-v2` and the state-diagram pipeline does not
+    // expose a flowchart-style `Graph` from this layer. Drift coverage
+    // arrives in Task 1.10 alongside the routed companion (Q9 #2).
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn state_issue_222_minimal_repro_labels_do_not_overlap_svg() {
+        let svg = render_svg_default(state_issue_222_minimal_repro_input());
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(
+            overlap.is_empty(),
+            "SVG label overlap: {overlap:?}\nSVG:\n{svg}"
+        );
+    }
+
+    // Task 1.5 — Q9 rows #3, #4: concurrent_three dual-engine.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn state_concurrent_three_flux_layered_labels_disjoint_svg() {
+        let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::FLUX_LAYERED);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(
+            overlap.is_empty(),
+            "flux-layered overlap: {overlap:?}\nSVG:\n{svg}"
+        );
+    }
+
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn state_concurrent_three_mermaid_layered_labels_disjoint_svg() {
+        let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::MERMAID_LAYERED);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(
+            overlap.is_empty(),
+            "mermaid-layered overlap: {overlap:?}\nSVG:\n{svg}"
+        );
+    }
+
+    // Task 1.6 — Q9 row #6: long reciprocal labels.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn flowchart_long_reciprocal_labels_disjoint_svg() {
+        let input = "graph TD\n    A -->|this is a deliberately long label| B\n    B -->|another deliberately long reply label| A\n";
+        let svg = render_svg_default(input);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(overlap.is_empty(), "overlap: {overlap:?}\nSVG:\n{svg}");
+    }
+
+    // Task 1.6 — Q9 row #7: multi-edge same-direction.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn flowchart_multi_edge_labeled_same_direction_disjoint_svg() {
+        let input = load_flowchart_fixture("multi_edge_labeled.mmd");
+        let svg = render_svg_default(&input);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(overlap.is_empty(), "overlap: {overlap:?}");
+    }
+
+    // Task 1.6 — Q9 row #8: three parallel labeled edges.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn flowchart_three_parallel_labels_disjoint_svg() {
+        let input = "graph TD\n    A -->|one| B\n    A -->|two| B\n    A -->|three| B\n";
+        let svg = render_svg_default(input);
+        let overlap = svg_pairwise_label_rect_overlaps(&svg);
+        assert!(overlap.is_empty(), "overlap: {overlap:?}");
+    }
+
+    // Task 1.6 — Q9 row #9 (concurrent_three, flux): viewBox covers label rects.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn svg_viewbox_covers_all_label_background_rects_concurrent_three() {
+        let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::FLUX_LAYERED);
+        let failures = svg_viewbox_contains_rects(&svg);
+        assert!(failures.is_empty(), "viewBox violations: {failures:?}");
+    }
+
+    // Task 1.6 — Q9 row #9 (multi_edge_labeled): viewBox covers label rects.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn svg_viewbox_covers_all_label_background_rects_multi_edge() {
+        let input = load_flowchart_fixture("multi_edge_labeled.mmd");
+        let svg = render_svg_default(&input);
+        let failures = svg_viewbox_contains_rects(&svg);
+        assert!(failures.is_empty(), "viewBox violations: {failures:?}");
+    }
+}
