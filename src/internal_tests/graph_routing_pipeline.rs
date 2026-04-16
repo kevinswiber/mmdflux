@@ -5451,7 +5451,6 @@ mod plan_0145_q9_routed_red {
     /// Q9 #2: reciprocal edges in issue-222 minimal repro must not overlap
     /// when measured at the routed geometry layer.
     #[test]
-    #[ignore = "red gate, closed by plan 0145 PR 3"]
     fn state_issue_222_minimal_repro_routed_label_positions_disjoint() {
         let metrics = default_proportional_text_metrics();
         let (diagram, routed) = parse_state_and_layout(state_issue_222_minimal_repro_input());
@@ -5461,7 +5460,6 @@ mod plan_0145_q9_routed_red {
 
     /// Q9 #10: routed label drift + overlap for reciprocal edges in concurrent_three.
     #[test]
-    #[ignore = "red gate, closed by plan 0145 PR 3"]
     fn routed_label_position_drift_and_overlap_for_reciprocal_edges() {
         let metrics = default_proportional_text_metrics();
         let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
