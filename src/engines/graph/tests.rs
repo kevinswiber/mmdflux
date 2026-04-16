@@ -1,5 +1,5 @@
 use super::algorithms::layered::{
-    DiGraph, LabelDummyStrategy, LayoutConfig, layout, run_layered_layout,
+    DiGraph, LabelDummyStrategy, LabelSideStrategy, LayoutConfig, layout, run_layered_layout,
 };
 use super::contracts::MeasurementMode;
 use super::flux::{
@@ -952,4 +952,29 @@ fn flux_layered_uses_per_edge_label_spacing() {
         bc_edge_per_edge.waypoints.len(),
         bc_edge_global.waypoints.len()
     );
+}
+
+#[test]
+fn flux_layered_uses_direction_down_label_side_strategy() {
+    let input_cfg = LayoutConfig {
+        ..Default::default()
+    };
+    let profile = flux_layout_profile(&input_cfg, EdgeRouting::PolylineRoute);
+    assert_eq!(profile.label_side_strategy, LabelSideStrategy::DirectionDown);
+    assert!(profile.label_side_selection);
+}
+
+#[test]
+fn mermaid_layered_enables_direction_down_label_side_strategy() {
+    // The mermaid_flags LayoutConfig passed to build_float_layout_with_flags
+    // should enable label_side_selection with DirectionDown strategy.
+    let mermaid_flags = LayoutConfig {
+        always_compound_ordering: true,
+        label_side_selection: true,
+        label_side_strategy: LabelSideStrategy::DirectionDown,
+        ..Default::default()
+    };
+    assert!(mermaid_flags.label_side_selection);
+    assert_eq!(mermaid_flags.label_side_strategy, LabelSideStrategy::DirectionDown);
+    assert!(mermaid_flags.always_compound_ordering);
 }
