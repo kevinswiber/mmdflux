@@ -9,12 +9,11 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::graph::Direction;
-use crate::graph::Graph;
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::measure::ProportionalTextMetrics;
 use crate::graph::routing::labels::arc_length_midpoint;
 use crate::graph::space::{FPoint, FRect};
+use crate::graph::{Direction, Graph};
 
 /// Gap between adjacent label lanes within a compartment.
 pub(super) const LANE_GAP: f64 = 4.0;
@@ -53,16 +52,11 @@ pub(super) struct LabelDescriptor {
 pub(super) struct LabelCompartment {
     /// Member descriptors within this compartment.
     pub members: Vec<LabelDescriptor>,
-    /// Layout direction for this compartment.
-    pub direction: Direction,
 }
 
 /// Partition label descriptors into compartments by scope parent and
 /// overlapping cross-bands (with `LANE_GAP` slack).
-pub(super) fn group_label_compartments(
-    descriptors: Vec<LabelDescriptor>,
-    direction: Direction,
-) -> Vec<LabelCompartment> {
+pub(super) fn group_label_compartments(descriptors: Vec<LabelDescriptor>) -> Vec<LabelCompartment> {
     if descriptors.is_empty() {
         return vec![];
     }
@@ -104,7 +98,7 @@ pub(super) fn group_label_compartments(
         }
 
         for members in groups {
-            compartments.push(LabelCompartment { members, direction });
+            compartments.push(LabelCompartment { members });
         }
     }
 
@@ -150,7 +144,7 @@ fn find_or_open_track_skipping_zero(last_end: &BTreeMap<i32, f64>, desc: &LabelD
     for k in candidate_track_order_nonzero(desc.direction_sign).take(64) {
         let fits = last_end
             .get(&k)
-            .map_or(true, |&end| end + LANE_GAP <= desc.axis_min);
+            .is_none_or(|&end| end + LANE_GAP <= desc.axis_min);
         if fits {
             return k;
         }
@@ -191,7 +185,7 @@ pub(super) fn assign_label_tracks(
     direction: Direction,
 ) -> HashMap<usize, LabelTrackOutcome> {
     let descriptors = build_label_descriptors(diagram, geometry, paths, backward_flags, metrics);
-    let compartments = group_label_compartments(descriptors, direction);
+    let compartments = group_label_compartments(descriptors);
     let mut outcomes: HashMap<usize, LabelTrackOutcome> = HashMap::new();
 
     for compartment in compartments {
@@ -431,16 +425,8 @@ mod tests {
             cross_min: cross.0,
             cross_max: cross.1,
             direction_sign: sign,
-            midpoint: FPoint::new(
-                (axis.0 + axis.1) / 2.0,
-                (cross.0 + cross.1) / 2.0,
-            ),
-            label_rect: FRect::new(
-                axis.0,
-                cross.0,
-                axis.1 - axis.0,
-                cross.1 - cross.0,
-            ),
+            midpoint: FPoint::new((axis.0 + axis.1) / 2.0, (cross.0 + cross.1) / 2.0),
+            label_rect: FRect::new(axis.0, cross.0, axis.1 - axis.0, cross.1 - cross.0),
         }
     }
 
@@ -456,7 +442,7 @@ mod tests {
     fn group_label_compartments_partitions_by_scope_parent() {
         let a = make_descriptor(0, Some("A"), (10.0, 50.0), (100.0, 120.0), 1);
         let b = make_descriptor(1, Some("B"), (10.0, 50.0), (100.0, 120.0), 1);
-        let compartments = group_label_compartments(vec![a, b], Direction::TopDown);
+        let compartments = group_label_compartments(vec![a, b]);
         assert_eq!(
             compartments.len(),
             2,
@@ -468,7 +454,7 @@ mod tests {
     fn group_label_compartments_merges_overlapping_cross_bands_within_same_scope() {
         let a = make_descriptor(0, Some("A"), (10.0, 50.0), (100.0, 120.0), 1);
         let b = make_descriptor(1, Some("A"), (15.0, 55.0), (110.0, 130.0), -1);
-        let compartments = group_label_compartments(vec![a, b], Direction::TopDown);
+        let compartments = group_label_compartments(vec![a, b]);
         assert_eq!(compartments.len(), 1);
         assert_eq!(compartments[0].members.len(), 2);
     }
@@ -477,7 +463,7 @@ mod tests {
     fn group_label_compartments_separates_non_overlapping_cross_bands_same_scope() {
         let a = make_descriptor(0, Some("A"), (10.0, 50.0), (100.0, 120.0), 1);
         let b = make_descriptor(1, Some("A"), (15.0, 55.0), (200.0, 220.0), -1);
-        let compartments = group_label_compartments(vec![a, b], Direction::TopDown);
+        let compartments = group_label_compartments(vec![a, b]);
         assert_eq!(
             compartments.len(),
             2,
@@ -490,13 +476,13 @@ mod tests {
         let a = make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1);
         // b's cross_min is within LANE_GAP of a's cross_max
         let b = make_descriptor(1, None, (10.0, 50.0), (123.0, 140.0), -1);
-        let compartments = group_label_compartments(vec![a, b], Direction::TopDown);
+        let compartments = group_label_compartments(vec![a, b]);
         assert_eq!(compartments.len(), 1, "within LANE_GAP slack -> merge");
     }
 
     #[test]
     fn group_label_compartments_empty_input() {
-        let compartments = group_label_compartments(vec![], Direction::TopDown);
+        let compartments = group_label_compartments(vec![]);
         assert!(compartments.is_empty());
     }
 
@@ -504,7 +490,6 @@ mod tests {
     fn pack_signed_tracks_assigns_zero_track_to_singleton_compartment() {
         let compartment = LabelCompartment {
             members: vec![make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1)],
-            direction: Direction::TopDown,
         };
         let tracks = pack_signed_tracks(&compartment);
         assert_eq!(tracks[&0], 0);
@@ -517,7 +502,6 @@ mod tests {
                 make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1),
                 make_descriptor(1, None, (10.0, 50.0), (100.0, 120.0), -1),
             ],
-            direction: Direction::TopDown,
         };
         let tracks = pack_signed_tracks(&compartment);
         assert_eq!(tracks[&0], 1);
@@ -532,7 +516,6 @@ mod tests {
                 make_descriptor(1, None, (20.0, 60.0), (100.0, 120.0), 1),
                 make_descriptor(2, None, (30.0, 70.0), (100.0, 120.0), 1),
             ],
-            direction: Direction::TopDown,
         };
         let tracks = pack_signed_tracks(&compartment);
         // Candidate order for sign=+1 is [1, -1, 2, -2, ...], so three
@@ -552,7 +535,6 @@ mod tests {
                 make_descriptor(1, None, (10.0, 50.0), (100.0, 120.0), 1),
                 make_descriptor(0, None, (10.0, 50.0), (100.0, 120.0), 1),
             ],
-            direction: Direction::TopDown,
         };
         let tracks = pack_signed_tracks(&compartment);
         // Tie-break on (axis_min, edge_index): edge 0 sorted first, gets
@@ -571,22 +553,29 @@ mod tests {
                 make_descriptor(0, None, (10.0, 30.0), (100.0, 120.0), 1),
                 make_descriptor(1, None, (40.0, 60.0), (100.0, 120.0), 1), // axis_min > prev axis_max + LANE_GAP
             ],
-            direction: Direction::TopDown,
         };
         let tracks = pack_signed_tracks(&compartment);
         assert_eq!(tracks[&0], 1);
-        assert_eq!(tracks[&1], 1, "non-overlapping axis ranges should reuse same track");
+        assert_eq!(
+            tracks[&1], 1,
+            "non-overlapping axis ranges should reuse same track"
+        );
     }
 
     #[test]
     fn pack_signed_tracks_handles_ten_same_sign_without_panic() {
         let members: Vec<_> = (0..10)
-            .map(|i| make_descriptor(i, None, (i as f64 * 5.0, i as f64 * 5.0 + 40.0), (100.0, 120.0), 1))
+            .map(|i| {
+                make_descriptor(
+                    i,
+                    None,
+                    (i as f64 * 5.0, i as f64 * 5.0 + 40.0),
+                    (100.0, 120.0),
+                    1,
+                )
+            })
             .collect();
-        let compartment = LabelCompartment {
-            members,
-            direction: Direction::TopDown,
-        };
+        let compartment = LabelCompartment { members };
         let tracks = pack_signed_tracks(&compartment);
         assert_eq!(tracks.len(), 10);
         // All tracks should be non-zero (multi-member)
@@ -638,7 +627,10 @@ mod tests {
         let has_x_shift = new_path[1..new_path.len() - 1]
             .iter()
             .any(|p| (p.x - 0.0).abs() > 1e-6);
-        assert!(has_x_shift, "interior should shift on cross axis (x for TD)");
+        assert!(
+            has_x_shift,
+            "interior should shift on cross axis (x for TD)"
+        );
     }
 
     #[test]

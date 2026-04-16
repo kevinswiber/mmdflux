@@ -2,11 +2,10 @@
 
 use std::collections::HashMap;
 
-use super::backward_corridor;
 use super::float_core::compute_port_attachments_from_geometry;
-use super::label_lanes;
 use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
 use super::orthogonal::{OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal};
+use super::{backward_corridor, label_lanes};
 use crate::graph::direction_policy::effective_edge_direction;
 use crate::graph::geometry::{
     EdgeLabelGeometry, EdgeLabelSide, GraphGeometry, LayoutEdge, RoutedEdgeGeometry,
