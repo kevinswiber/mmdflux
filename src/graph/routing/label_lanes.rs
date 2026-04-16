@@ -141,15 +141,20 @@ pub(super) fn pack_signed_tracks(compartment: &LabelCompartment) -> HashMap<usiz
 }
 
 fn find_or_open_track_skipping_zero(last_end: &BTreeMap<i32, f64>, desc: &LabelDescriptor) -> i32 {
-    for k in candidate_track_order_nonzero(desc.direction_sign).take(64) {
-        let fits = last_end
-            .get(&k)
-            .is_none_or(|&end| end + LANE_GAP <= desc.axis_min);
-        if fits {
-            return k;
-        }
-    }
-    panic!("label lane packer exhausted 64 candidate tracks — this should not happen in practice");
+    // The candidate iterator is unbounded by construction (yields
+    // ±1, ±2, ±3, ...). For a compartment with N members the packer
+    // needs at most N distinct tracks, which costs at most 2N
+    // candidate probes. With i32 tracks this is effectively unbounded
+    // for any realistic diagram, so just return the first fitting
+    // track without an artificial cap — capping here previously
+    // panicked on valid dense inputs (e.g., 65+ parallel labeled edges).
+    candidate_track_order_nonzero(desc.direction_sign)
+        .find(|k| {
+            last_end
+                .get(k)
+                .is_none_or(|&end| end + LANE_GAP <= desc.axis_min)
+        })
+        .expect("candidate_track_order_nonzero is unbounded")
 }
 
 fn candidate_track_order_nonzero(sign: i32) -> impl Iterator<Item = i32> {
@@ -580,6 +585,32 @@ mod tests {
         assert_eq!(tracks.len(), 10);
         // All tracks should be non-zero (multi-member)
         assert!(tracks.values().all(|&t| t != 0));
+    }
+
+    #[test]
+    fn pack_signed_tracks_handles_dense_compartment_above_64_members() {
+        // Regression: an earlier `.take(64)` cap in the candidate iterator
+        // panicked on valid dense inputs (e.g., 65+ parallel labeled
+        // edges from the same node pair, all with overlapping axis bands).
+        // The packer must scale to any compartment size that fits in i32.
+        const N: usize = 65;
+        let members: Vec<_> = (0..N)
+            .map(|i| make_descriptor(i, None, (10.0, 50.0), (100.0, 120.0), 1))
+            .collect();
+        let compartment = LabelCompartment { members };
+        let tracks = pack_signed_tracks(&compartment);
+        assert_eq!(tracks.len(), N);
+        assert!(tracks.values().all(|&t| t != 0));
+        // All tracks must be unique (axis bands fully overlap, so the
+        // packer cannot reuse any track within this compartment).
+        let mut sorted: Vec<i32> = tracks.values().copied().collect();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(
+            sorted.len(),
+            N,
+            "expected {N} distinct tracks for fully-overlapping members"
+        );
     }
 
     #[test]
