@@ -249,6 +249,41 @@ pub struct RoutedGraphGeometry {
     pub direction: Direction,
     /// Total bounds.
     pub bounds: FRect,
+    /// Edges whose label rect could not fit in the gap between source and
+    /// target node faces (after marker avoidance). Populated by the routing
+    /// label-clamp pass in `route_graph_geometry`. **Empty in all healthy
+    /// layouts.**
+    ///
+    /// Plan 0146 Task 2.1: this field is populated unconditionally in **all**
+    /// builds (no `cfg(test)`, no env-var gating). Consumers may inspect it
+    /// to surface a warning. Not serialized in MMDS layout output (it is a
+    /// routing diagnostic, not part of the layout contract); MMDS adds it
+    /// under a separate optional `diagnostics` object — see
+    /// `mmds::output::serialize_routed_graph_with_diagnostics` (Task 2.3).
+    pub unfit_label_overlaps: Vec<UnfitOverlap>,
+}
+
+/// One label that the clamp pass could not fit in the available gap
+/// between source and target node faces (after marker avoidance).
+///
+/// Populated on `RoutedGraphGeometry::unfit_label_overlaps`. Read-only
+/// after routing.
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnfitOverlap {
+    /// Index of the offending edge in the original `Graph::edges` list.
+    pub edge_index: usize,
+    /// Authored label text. Empty string for edges that have a label
+    /// position but no label string (should not normally happen).
+    pub label: String,
+    /// Available gap between visual source's far face and visual target's
+    /// near face along the edge-parallel axis, after marker avoidance.
+    /// Negative values indicate marker avoidance + spacing already exceeds
+    /// the inter-node distance.
+    pub gap_pixels: f64,
+    /// Label rect dimension along the edge-parallel axis.
+    pub label_span_pixels: f64,
+    /// The side the engine attempted to place the label on.
+    pub attempted_side: EdgeLabelSide,
 }
 
 /// A fully-routed edge with polyline path.

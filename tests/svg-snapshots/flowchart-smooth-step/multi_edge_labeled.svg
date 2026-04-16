@@ -21,8 +21,8 @@
     <g class="edgeLabels">
       <rect x="18.00" y="86.27" width="56.63" height="28.00" fill="white" />
       <text x="46.31" y="100.27" text-anchor="middle" dominant-baseline="middle" fill="#333">path 1</text>
-      <rect x="44.45" y="131.50" width="56.63" height="28.00" fill="white" />
-      <text x="72.77" y="145.50" text-anchor="middle" dominant-baseline="middle" fill="#333">path 2</text>
+      <rect x="44.45" y="127.00" width="56.63" height="28.00" fill="white" />
+      <text x="72.77" y="141.00" text-anchor="middle" dominant-baseline="middle" fill="#333">path 2</text>
     </g>
   </g>
 </svg>

@@ -5329,6 +5329,7 @@ mod label_overlap_tests {
             self_edges: Vec::new(),
             direction: Direction::TopDown,
             bounds: FRect::new(0.0, 0.0, 0.0, 0.0),
+            unfit_label_overlaps: Vec::new(),
         }
     }
 

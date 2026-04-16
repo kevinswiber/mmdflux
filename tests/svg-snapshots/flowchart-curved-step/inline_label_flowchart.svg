@@ -76,10 +76,10 @@
       <text x="669.56" y="1141.59" text-anchor="middle" dominant-baseline="middle" fill="#333">Worker Pool</text>
     </g>
     <g class="edgeLabels">
-      <rect x="279.52" y="541.07" width="25.08" height="28.00" fill="white" />
-      <text x="292.06" y="555.07" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <rect x="605.43" y="582.61" width="33.61" height="28.00" fill="white" />
-      <text x="622.23" y="596.61" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="281.52" y="541.07" width="25.08" height="28.00" fill="white" />
+      <text x="294.06" y="555.07" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="605.43" y="598.07" width="33.61" height="28.00" fill="white" />
+      <text x="622.23" y="612.07" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <rect x="434.02" y="885.09" width="42.15" height="28.00" fill="white" />
       <text x="455.10" y="899.09" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
       <rect x="700.56" y="860.25" width="50.69" height="28.00" fill="white" />
@@ -90,8 +90,8 @@
       <text x="547.84" y="1535.71" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <rect x="39.24" y="425.76" width="27.12" height="28.00" fill="white" />
       <text x="52.80" y="439.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
-      <rect x="266.90" y="476.26" width="42.71" height="28.00" fill="white" />
-      <text x="288.26" y="490.26" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
+      <rect x="264.90" y="476.26" width="42.71" height="28.00" fill="white" />
+      <text x="286.26" y="490.26" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
       <rect x="725.21" y="1392.92" width="44.01" height="28.00" fill="white" />
       <text x="747.22" y="1406.92" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>

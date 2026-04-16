@@ -19,8 +19,8 @@
       <text x="60.00" y="140.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
     </g>
     <g class="edgeLabels">
-      <rect x="67.46" y="86.00" width="25.08" height="28.00" fill="white" />
-      <text x="80.00" y="100.00" text-anchor="middle" dominant-baseline="middle" fill="#333">go</text>
+      <rect x="67.46" y="82.00" width="25.08" height="28.00" fill="white" />
+      <text x="80.00" y="96.00" text-anchor="middle" dominant-baseline="middle" fill="#333">go</text>
     </g>
   </g>
 </svg>

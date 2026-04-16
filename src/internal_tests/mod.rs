@@ -3,6 +3,7 @@
 mod cross_pipeline;
 mod graph_routing_pipeline;
 mod grid_routing_regression;
+mod label_node_overlap;
 mod layered_adapter_pipeline;
 mod mmds_output_serialization;
 mod mmds_roundtrip;

@@ -69,6 +69,17 @@ type = "allow"
 source = "graph"
 allowed = ["errors", "format"]
 
+# Plan 0146: graph::edge_marker is a leaf submodule — pure data keyed on Arrow,
+# consumed by graph::routing's label clamp and by internal_tests' boundary
+# assertion. Enumerate allowed inbound deps explicitly so the helper cannot
+# silently grow couplings to other graph submodules.
+[[rules]]
+id = "edge-marker-leaf-allow"
+type = "allow"
+[rules.config]
+source = "graph::edge_marker"
+allowed = ["graph::edge"]
+
 [[rules]]
 id = "allow-mermaid"
 type = "allow"
