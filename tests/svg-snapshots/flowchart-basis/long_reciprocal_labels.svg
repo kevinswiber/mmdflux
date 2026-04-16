@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 303.19 227.00" style="max-width: 303.19px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(90.93,0.00)">
+    <g class="edgePaths">
+      <path d="M30.05,62.00 L25.25,68.40 L21.76,73.06 C18.27,77.71 11.28,87.02 7.79,97.40 C4.30,107.78 4.30,119.22 7.39,129.07 C10.48,138.91 16.67,147.16 19.76,151.28 L22.85,155.40 L27.65,161.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M49.33,165.00 L51.31,157.25 L53.17,149.96 C55.02,142.67 58.74,128.08 58.90,114.15 C59.07,100.21 55.68,86.92 53.99,80.27 L52.30,73.63 L50.32,65.88" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="8.00" y="8.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="42.45" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      <rect x="8.00" y="165.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="42.45" y="192.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+    </g>
+    <g class="edgeLabels">
+      <rect x="-121.08" y="97.50" width="250.76" height="28.00" fill="white" />
+      <text x="4.30" y="111.50" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a deliberately long label</text>
+      <rect x="-79.35" y="99.50" width="283.62" height="28.00" fill="white" />
+      <text x="62.45" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">another deliberately long reply label</text>
+    </g>
+  </g>
+</svg>
