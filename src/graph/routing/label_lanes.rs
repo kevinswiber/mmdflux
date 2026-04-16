@@ -197,13 +197,16 @@ pub(super) fn assign_label_tracks(
     for compartment in compartments {
         let tracks = pack_signed_tracks(&compartment);
 
-        // Per-compartment LABEL_LANE_STEP from the max cross-band height.
-        let max_cross = compartment
+        // Per-compartment LABEL_LANE_STEP from the max axis-band extent.
+        // Labels stack along the primary axis (Y for TD/BU, X for LR/RL),
+        // so the step needs to clear the axis-projected dimension of the
+        // largest label (height for TD, width for LR) plus a small gap.
+        let max_axis = compartment
             .members
             .iter()
-            .map(|m| m.cross_max - m.cross_min)
+            .map(|m| m.axis_max - m.axis_min)
             .fold(0.0_f64, f64::max);
-        let label_step = (max_cross + LANE_GAP).max(MIN_LABEL_LANE_STEP);
+        let label_step = (max_axis + LANE_GAP).max(MIN_LABEL_LANE_STEP);
         let path_step = label_step * PATH_LANE_RATIO;
 
         for desc in &compartment.members {
