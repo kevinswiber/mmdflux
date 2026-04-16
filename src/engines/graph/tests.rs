@@ -960,7 +960,10 @@ fn flux_layered_uses_direction_down_label_side_strategy() {
         ..Default::default()
     };
     let profile = flux_layout_profile(&input_cfg, EdgeRouting::PolylineRoute);
-    assert_eq!(profile.label_side_strategy, LabelSideStrategy::DirectionDown);
+    assert_eq!(
+        profile.label_side_strategy,
+        LabelSideStrategy::DirectionDown
+    );
     assert!(profile.label_side_selection);
 }
 
@@ -975,6 +978,9 @@ fn mermaid_layered_enables_direction_down_label_side_strategy() {
         ..Default::default()
     };
     assert!(mermaid_flags.label_side_selection);
-    assert_eq!(mermaid_flags.label_side_strategy, LabelSideStrategy::DirectionDown);
+    assert_eq!(
+        mermaid_flags.label_side_strategy,
+        LabelSideStrategy::DirectionDown
+    );
     assert!(mermaid_flags.always_compound_ordering);
 }
