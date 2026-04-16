@@ -35,10 +35,10 @@
       <text x="1561.24" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production Code</text>
     </g>
     <g class="edgeLabels">
-      <rect x="1111.77" y="143.00" width="34.73" height="28.00" fill="white" />
-      <text x="1129.13" y="157.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Fail</text>
-      <rect x="1389.37" y="125.00" width="42.52" height="28.00" fill="white" />
-      <text x="1410.63" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Pass</text>
+      <rect x="1065.24" y="143.00" width="34.73" height="28.00" fill="white" />
+      <text x="1082.61" y="157.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Fail</text>
+      <rect x="1437.89" y="125.00" width="42.52" height="28.00" fill="white" />
+      <text x="1459.15" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Pass</text>
     </g>
   </g>
 </svg>

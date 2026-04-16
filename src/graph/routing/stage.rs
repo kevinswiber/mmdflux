@@ -196,6 +196,15 @@ pub fn route_graph_geometry(
         let Some(outcome) = lane_outcomes.get(&routed_edge.index) else {
             continue;
         };
+        // Singleton compartments (track 0) are no-ops — the lane pass had
+        // nothing to displace. Preserve whatever populate_label_geometry
+        // placed for the edge so unrelated labels do not silently move
+        // (the orchestrator computes the descriptor midpoint from the arc
+        // length of the routed path, which can differ from the original
+        // label_position by a few pixels).
+        if outcome.track == 0 {
+            continue;
+        }
         // Preserve padding/side from populate_label_geometry's output so the
         // lane pass only updates center/rect/track. Fall back to metric
         // defaults if label_geometry is somehow absent (should not happen
@@ -216,13 +225,20 @@ pub fn route_graph_geometry(
             side: existing_side,
             track: outcome.track,
         });
-        // Replace path only when the lane pass actually displaced this edge
-        // (track != 0). Singleton compartments produce track 0 with no
-        // bend, so skipping the assignment avoids unnecessary churn for
-        // edges that were not adjusted.
-        if outcome.track != 0 {
-            routed_edge.path = outcome.adjusted_path.clone();
-        }
+        // Note: Algorithm C produces an `adjusted_path` that bows the path
+        // around lane-displaced labels. We deliberately do NOT apply it
+        // here. Bending routed paths corrupts the text grid's corridor
+        // closure for backward edges (text renderer reads routed paths
+        // directly), and reciprocal pairs are already separated at the
+        // routing layer (backward corridors place reverse edges to the
+        // side, not collinear with the forward edge). Label-only shifts
+        // are sufficient to resolve overlap. See Q9 tests + finding
+        // `task-3.9-text-renderer-coupling.md`.
+        //
+        // The adjusted_path field is kept in LabelTrackOutcome for
+        // potential future use (e.g., a follow-on plan that adds a
+        // text-aware path-bend pass).
+        let _ = &outcome.adjusted_path;
     }
 
     let self_edges: Vec<RoutedSelfEdge> = geometry

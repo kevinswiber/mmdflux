@@ -18,8 +18,8 @@
     <g class="edgeLabels">
       <rect x="-121.08" y="97.50" width="250.76" height="28.00" fill="white" />
       <text x="4.30" y="111.50" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a deliberately long label</text>
-      <rect x="-79.35" y="99.50" width="283.62" height="28.00" fill="white" />
-      <text x="62.45" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">another deliberately long reply label</text>
+      <rect x="-79.85" y="101.44" width="283.62" height="28.00" fill="white" />
+      <text x="61.96" y="115.44" text-anchor="middle" dominant-baseline="middle" fill="#333">another deliberately long reply label</text>
     </g>
   </g>
 </svg>

@@ -29,8 +29,8 @@
       <text x="262.29" y="192.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server</text>
     </g>
     <g class="edgeLabels">
-      <rect x="207.44" y="70.50" width="109.71" height="28.00" fill="white" />
-      <text x="262.29" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Request</text>
+      <rect x="207.44" y="131.50" width="109.71" height="28.00" fill="white" />
+      <text x="262.29" y="145.50" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Request</text>
       <rect x="145.00" y="434.32" width="33.98" height="28.00" fill="white" />
       <text x="161.99" y="448.32" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
       <rect x="298.14" y="441.60" width="25.45" height="28.00" fill="white" />

@@ -49,16 +49,16 @@
     <g class="edgeLabels">
       <rect x="167.83" y="207.48" width="62.57" height="28.00" fill="white" />
       <text x="199.11" y="221.48" text-anchor="middle" dominant-baseline="middle" fill="#333">request</text>
-      <rect x="296.58" y="202.58" width="52.73" height="28.00" fill="white" />
-      <text x="322.95" y="216.58" text-anchor="middle" dominant-baseline="middle" fill="#333">health</text>
+      <rect x="291.09" y="231.50" width="52.73" height="28.00" fill="white" />
+      <text x="317.46" y="245.50" text-anchor="middle" dominant-baseline="middle" fill="#333">health</text>
       <rect x="238.09" y="475.67" width="39.55" height="28.00" fill="white" />
       <text x="257.86" y="489.67" text-anchor="middle" dominant-baseline="middle" fill="#333">read</text>
       <rect x="293.80" y="431.86" width="77.04" height="28.00" fill="white" />
       <text x="332.32" y="445.86" text-anchor="middle" dominant-baseline="middle" fill="#333">fast path</text>
       <rect x="163.69" y="427.06" width="46.05" height="28.00" fill="white" />
       <text x="186.72" y="441.06" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
-      <rect x="212.86" y="648.36" width="50.13" height="28.00" fill="white" />
-      <text x="237.93" y="662.36" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
+      <rect x="212.86" y="759.36" width="50.13" height="28.00" fill="white" />
+      <text x="237.93" y="773.36" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
       <rect x="286.77" y="680.59" width="27.12" height="28.00" fill="white" />
       <text x="300.33" y="694.59" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
       <rect x="195.68" y="932.37" width="73.70" height="28.00" fill="white" />

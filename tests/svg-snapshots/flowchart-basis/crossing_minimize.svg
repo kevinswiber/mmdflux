@@ -45,8 +45,8 @@
       <text x="179.19" y="241.67" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
       <rect x="522.64" y="128.41" width="33.61" height="28.00" fill="white" />
       <text x="539.45" y="142.41" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="449.41" y="553.78" width="25.08" height="28.00" fill="white" />
-      <text x="461.94" y="567.78" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="388.62" y="604.69" width="25.08" height="28.00" fill="white" />
+      <text x="401.16" y="618.69" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>

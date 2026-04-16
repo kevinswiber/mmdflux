@@ -1473,12 +1473,10 @@ mod tests {
             },
         );
 
-        // The lane pass (plan 0145 PR 3) owns label center placement: it
-        // recomputes the center as arc_length_midpoint(path) + signed offset.
-        // For this singleton compartment, the offset is zero, so the center
-        // equals the path's arc midpoint — (70, 60) for a path from
-        // (70, 35) to (70, 85).
-        let label_center = FPoint::new(70.0, 60.0);
+        // Singleton compartments (track 0) are no-ops in the lane pass —
+        // the user-supplied label_position is preserved as the geometry
+        // center.
+        let label_center = FPoint::new(70.0, 55.0);
         let edges = vec![LayoutEdge {
             index: 0,
             from: "A".into(),

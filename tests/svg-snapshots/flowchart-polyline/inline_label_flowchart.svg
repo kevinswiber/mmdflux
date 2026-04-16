@@ -82,8 +82,8 @@
       <text x="601.90" y="627.28" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <rect x="465.56" y="875.59" width="42.15" height="28.00" fill="white" />
       <text x="486.64" y="889.59" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
-      <rect x="689.35" y="886.68" width="50.69" height="28.00" fill="white" />
-      <text x="714.69" y="900.68" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
+      <rect x="700.56" y="935.41" width="50.69" height="28.00" fill="white" />
+      <text x="725.91" y="949.41" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
       <rect x="633.88" y="1558.12" width="25.08" height="28.00" fill="white" />
       <text x="646.42" y="1572.12" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
       <rect x="549.36" y="1555.33" width="33.61" height="28.00" fill="white" />
@@ -92,8 +92,8 @@
       <text x="89.60" y="417.76" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
       <rect x="275.27" y="453.71" width="42.71" height="28.00" fill="white" />
       <text x="296.62" y="467.71" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
-      <rect x="734.84" y="1381.25" width="44.01" height="28.00" fill="white" />
-      <text x="756.85" y="1395.25" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
+      <rect x="734.84" y="1415.25" width="44.01" height="28.00" fill="white" />
+      <text x="756.85" y="1429.25" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>
   </g>
 </svg>
