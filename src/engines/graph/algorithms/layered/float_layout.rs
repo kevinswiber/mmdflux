@@ -177,6 +177,11 @@ fn inject_orthogonal_route_paths(diagram: &Graph, geom: &GraphGeometry) -> Graph
     updated
 }
 
+/// **Load-bearing downgrade.** Copies routed-stage geometry back onto `LayoutEdge`
+/// so `Visual` SVG solve paths (where the engine returns `routed: None`) still see
+/// authoritative paths and label rectangles. Changes to `RoutedEdgeGeometry` fields
+/// that SVG / MMDS / bounds consume MUST be reflected here. See plan 0145
+/// `architecture/design.md` §2.2 for the data-flow contract.
 fn apply_routed_edge_paths(
     updated: &mut GraphGeometry,
     routed_edges: impl IntoIterator<Item = RoutedEdgeGeometry>,
@@ -186,6 +191,7 @@ fn apply_routed_edge_paths(
             layout_edge.layout_path_hint = Some(edge.path);
             layout_edge.label_position = edge.label_position;
             layout_edge.preserve_orthogonal_topology = edge.preserve_orthogonal_topology;
+            layout_edge.label_geometry = edge.label_geometry;
         }
     }
 }
@@ -417,5 +423,74 @@ fn push_subgraph_from_subgraph(
                 Direction::RightLeft => rect.x -= shift,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{HashMap, HashSet};
+
+    use super::*;
+    use crate::graph::geometry::{EdgeLabelGeometry, EdgeLabelSide, LayoutEdge};
+    use crate::graph::space::{FPoint, FRect};
+
+    #[test]
+    fn apply_routed_edge_paths_propagates_label_geometry_to_layout_edge() {
+        let label_geom = EdgeLabelGeometry {
+            center: FPoint::new(50.0, 60.0),
+            rect: FRect::new(40.0, 55.0, 20.0, 10.0),
+            padding: (4.0, 2.0),
+            side: EdgeLabelSide::Above,
+            track: 0,
+        };
+
+        let mut geometry = GraphGeometry {
+            nodes: HashMap::new(),
+            edges: vec![LayoutEdge {
+                index: 0,
+                from: "A".into(),
+                to: "B".into(),
+                waypoints: vec![],
+                label_position: None,
+                label_side: None,
+                from_subgraph: None,
+                to_subgraph: None,
+                layout_path_hint: None,
+                preserve_orthogonal_topology: false,
+                label_geometry: None,
+            }],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(0.0, 0.0, 100.0, 100.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            grid_projection: None,
+            rerouted_edges: HashSet::new(),
+            enhanced_backward_routing: false,
+        };
+
+        let routed_edges = vec![RoutedEdgeGeometry {
+            index: 0,
+            from: "A".into(),
+            to: "B".into(),
+            path: vec![FPoint::new(0.0, 0.0), FPoint::new(100.0, 100.0)],
+            label_position: Some(FPoint::new(50.0, 50.0)),
+            label_side: None,
+            head_label_position: None,
+            tail_label_position: None,
+            is_backward: false,
+            from_subgraph: None,
+            to_subgraph: None,
+            source_port: None,
+            target_port: None,
+            preserve_orthogonal_topology: false,
+            label_geometry: Some(label_geom),
+        }];
+
+        apply_routed_edge_paths(&mut geometry, routed_edges);
+
+        assert_eq!(geometry.edges[0].label_geometry, Some(label_geom));
     }
 }
