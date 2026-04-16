@@ -432,11 +432,9 @@ fn parse_vertex_statement(pair: pest::iterators::Pair<Rule>) -> Vec<Statement> {
 
     for inner in pair.into_inner() {
         match inner.as_rule() {
-            Rule::node_group => {
-                if segments.is_empty() {
-                    // This is the first node group (source nodes)
-                    current_nodes = parse_node_group(inner);
-                }
+            Rule::node_group if segments.is_empty() => {
+                // This is the first node group (source nodes)
+                current_nodes = parse_node_group(inner);
             }
             Rule::edge_segment => {
                 let (connector, nodes) = parse_edge_segment(inner);
@@ -749,10 +747,8 @@ fn parse_shape_config(pair: pest::iterators::Pair<Rule>) -> Option<ShapeSpec> {
         let key = key.to_lowercase();
         let value = strip_quotes_any(value).trim().to_string();
         match key.as_str() {
-            "shape" => {
-                if !value.is_empty() {
-                    *shape_keyword = Some(value);
-                }
+            "shape" if !value.is_empty() => {
+                *shape_keyword = Some(value);
             }
             "label" | "text" => {
                 *label_value = Some(value);

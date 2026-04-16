@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use super::float_core::compute_port_attachments_from_geometry;
 use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
 use super::orthogonal::{OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal};
-use super::{backward_corridor, label_lanes};
+use super::{backward_corridor, label_clamp, label_lanes};
 use crate::graph::direction_policy::effective_edge_direction;
 use crate::graph::geometry::{
     EdgeLabelGeometry, EdgeLabelSide, GraphGeometry, LayoutEdge, RoutedEdgeGeometry,
@@ -262,6 +262,21 @@ pub fn route_graph_geometry(
         })
         .collect();
 
+    // Plan 0146 Task 2.1: clamp label rects so they sit beyond source/target
+    // node faces (plus marker avoidance) along the edge-parallel axis.
+    // Records unfit cases on `unfit_label_overlaps` for downstream consumers
+    // (MMDS diagnostics, CLI stderr — Task 2.3) instead of silently shipping
+    // overlapping output.
+    let mut unfit_label_overlaps = Vec::new();
+    label_clamp::clamp_label_geometry_to_node_bounds(
+        &mut edges,
+        &geometry.nodes,
+        diagram,
+        geometry.direction,
+        metrics,
+        &mut unfit_label_overlaps,
+    );
+
     let bounds = recompute_routed_bounds(geometry, &edges, &self_edges);
 
     RoutedGraphGeometry {
@@ -271,6 +286,7 @@ pub fn route_graph_geometry(
         self_edges,
         direction: geometry.direction,
         bounds,
+        unfit_label_overlaps,
     }
 }
 

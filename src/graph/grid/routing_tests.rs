@@ -64,7 +64,7 @@ fn test_route_edge_straight_vertical() {
             match seg {
                 Segment::Vertical { x, .. } => {
                     assert_eq!(
-                        *x, routed.start.x as usize,
+                        *x, routed.start.x,
                         "Vertical segment should be colinear with start/end"
                     );
                 }

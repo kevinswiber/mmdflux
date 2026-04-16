@@ -10,6 +10,7 @@ pub mod attachment;
 mod diagram;
 pub mod direction_policy;
 mod edge;
+pub(crate) mod edge_marker;
 pub mod geometry;
 pub mod grid;
 pub mod measure;

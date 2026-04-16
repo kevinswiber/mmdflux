@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 229.47 227.00" style="max-width: 229.47px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+    <marker id="circlehead" viewBox="0 0 12.00 12.00" refX="11.00" refY="6.00" markerWidth="12.00" markerHeight="12.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <circle cx="6" cy="6" r="5" stroke="#333" stroke-width="1" fill="white" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M94.24,62.00 L94.24,96.33 L94.24,99.19 C94.24,102.06 94.24,107.78 94.24,113.50 C94.24,119.22 94.24,124.94 94.24,127.81 L94.24,130.67 L94.24,161.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M114.24,155.00 L114.24,113.50 L118.76,113.50 C123.28,113.50 132.32,113.50 141.36,113.50 C150.39,113.50 159.43,113.50 163.95,113.50 L168.47,113.50 L168.47,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#circlehead)" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="8.00" y="8.00" width="172.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="94.24" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Aggregate Root</text>
+      <rect x="42.99" y="165.00" width="102.50" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="94.24" y="192.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Entity</text>
+    </g>
+    <g class="edgeLabels">
+      <rect x="40.31" y="99.50" width="107.85" height="28.00" fill="white" />
+      <text x="94.24" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">forward label</text>
+      <rect x="88.36" y="72.00" width="106.00" height="28.00" fill="white" />
+      <text x="141.36" y="86.00" text-anchor="middle" dominant-baseline="middle" fill="#333">reverse label</text>
+    </g>
+  </g>
+</svg>

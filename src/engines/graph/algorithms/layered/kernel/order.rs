@@ -276,7 +276,7 @@ fn sort_entries(entries: &[ResolvedEntry], bias_right: bool, graph: &LayoutGraph
         entries.iter().partition(|e| e.barycenter.is_some());
 
     // Sort unsortable by descending i
-    unsortable.sort_by(|a, b| b.i.cmp(&a.i));
+    unsortable.sort_by_key(|b| std::cmp::Reverse(b.i));
 
     // Sort sortable by barycenter with model order + bias tie-breaking.
     // Three-level sort:
@@ -1108,7 +1108,7 @@ fn reorder_layer(
     });
 
     // Step 3: Sort unsortable by descending original_pos (stack: pop from back)
-    unsortable.sort_by(|a, b| b.1.cmp(&a.1));
+    unsortable.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     // Step 4: Interleave using consumeUnsortable pattern
     let mut result: Vec<usize> = Vec::with_capacity(free.len());

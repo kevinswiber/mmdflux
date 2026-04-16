@@ -9,6 +9,8 @@
 
 mod backward_corridor;
 mod float_core;
+mod label_clamp;
+pub(crate) mod label_gap;
 pub(crate) mod label_lanes;
 mod labels;
 mod orthogonal;

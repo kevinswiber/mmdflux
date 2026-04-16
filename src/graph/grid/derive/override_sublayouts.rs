@@ -66,8 +66,8 @@ pub(super) fn reconcile_sublayouts_draw(
         // Compute sub-layout-specific scale factors
         let sub_node_dims: HashMap<String, (usize, usize)> = sublayout
             .nodes
-            .iter()
-            .filter_map(|(id, _)| {
+            .keys()
+            .filter_map(|id| {
                 diagram
                     .nodes
                     .get(id)
