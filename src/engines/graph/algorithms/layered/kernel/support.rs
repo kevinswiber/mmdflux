@@ -108,7 +108,7 @@ pub(crate) fn switch_label_dummies(lg: &mut LayoutGraph, strategy: LabelDummyStr
     }
 }
 
-/// Assign Above/Below sides to label dummies to reduce label-label overlaps.
+/// Assign Above/Below sides to label dummies using positional strategy.
 ///
 /// After crossing reduction, label dummies sharing a layer are differentiated:
 /// - Single label in layer → Center (unchanged)
@@ -116,7 +116,7 @@ pub(crate) fn switch_label_dummies(lg: &mut LayoutGraph, strategy: LabelDummyStr
 /// - Three+ labels → first Above, last Below, rest Center
 ///
 /// Runs after `order::run()` which establishes the definitive node ordering.
-pub(crate) fn select_label_sides(lg: &mut LayoutGraph) {
+pub(crate) fn select_label_sides_first_last(lg: &mut LayoutGraph) {
     // Build layers from current ranks and ordering
     let layers = rank::by_rank_filtered(lg, |node| lg.ranks[node] >= 0);
     // Sort each layer by order
@@ -154,6 +154,26 @@ pub(crate) fn select_label_sides(lg: &mut LayoutGraph) {
                     LabelSide::Center
                 };
             }
+        }
+    }
+}
+
+/// Assign Above/Below sides to label dummies using edge direction.
+///
+/// Forward edges get `Above`, reversed (backward) edges get `Below`.
+/// Ported from ELK's `LabelSideSelector.DIRECTION_DOWN`.
+pub(crate) fn select_label_sides_direction_down(lg: &mut LayoutGraph) {
+    for chain in &lg.dummy_chains {
+        let Some(label_idx) = chain.label_dummy_index else {
+            continue;
+        };
+        let dummy_id = &chain.dummy_ids[label_idx];
+        if let Some(dummy) = lg.dummy_nodes.get_mut(dummy_id) {
+            dummy.label_side = if chain.reversed {
+                LabelSide::Below
+            } else {
+                LabelSide::Above
+            };
         }
     }
 }

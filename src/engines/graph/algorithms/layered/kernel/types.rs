@@ -145,6 +145,17 @@ pub enum LabelSide {
     Center,
 }
 
+/// Strategy for assigning Above/Below sides to edge label dummies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelSideStrategy {
+    /// Positional: first label dummy in layer order → Above, last → Below.
+    #[default]
+    FirstLast,
+    /// Directional: forward edges → Above, reversed (backward) edges → Below.
+    /// Ported from ELK's `LabelSideSelector.DIRECTION_DOWN`.
+    DirectionDown,
+}
+
 /// Metadata for a dummy node inserted during normalization.
 #[derive(Debug, Clone)]
 pub struct DummyNode {
@@ -326,6 +337,9 @@ pub struct LayoutConfig {
     /// to reduce label-label overlaps.
     pub label_side_selection: bool,
 
+    /// Which strategy to use for assigning label sides.
+    pub label_side_strategy: LabelSideStrategy,
+
     /// Strategy for placing label dummies within long edge chains.
     pub label_dummy_strategy: LabelDummyStrategy,
 
@@ -367,6 +381,7 @@ impl Default for LayoutConfig {
             track_reversed_chains: false,
             per_edge_label_spacing: false,
             label_side_selection: false,
+            label_side_strategy: LabelSideStrategy::default(),
             label_dummy_strategy: LabelDummyStrategy::default(),
             edge_label_spacing: 2.0,
             backward_edge_side_grouping: false,

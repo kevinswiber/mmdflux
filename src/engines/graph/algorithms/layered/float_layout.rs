@@ -36,6 +36,7 @@ pub(crate) fn build_float_layout_with_flags(
         layered_config.track_reversed_chains = flags.track_reversed_chains;
         layered_config.per_edge_label_spacing = flags.per_edge_label_spacing;
         layered_config.label_side_selection = flags.label_side_selection;
+        layered_config.label_side_strategy = flags.label_side_strategy;
         layered_config.label_dummy_strategy = flags.label_dummy_strategy;
         layered_config.backward_edge_side_grouping = flags.backward_edge_side_grouping;
     }

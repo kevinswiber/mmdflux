@@ -11,8 +11,8 @@ use super::graph::LayoutGraph;
 use super::support::{
     assign_node_intersects, compute_rank_sep_overrides, count_forward_edges_per_gap,
     extract_self_edges, insert_self_edge_dummies, make_space_for_edge_labels,
-    make_space_for_labeled_edges, position_self_edges, select_label_sides, switch_label_dummies,
-    translate_layout_result,
+    make_space_for_labeled_edges, position_self_edges, select_label_sides_direction_down,
+    select_label_sides_first_last, switch_label_dummies, translate_layout_result,
 };
 use super::types::{
     DummyChain, DummyNode, DummyType, EdgeLabelInfo, LabelPos, LabelSide, WaypointWithRank,
@@ -717,7 +717,7 @@ fn select_label_sides_single_label_stays_center() {
     rank::normalize(&mut lg);
     normalize::run(&mut lg, &edge_labels, false);
     order::run(&mut lg, false);
-    select_label_sides(&mut lg);
+    select_label_sides_first_last(&mut lg);
 
     // Find the label dummy and check its side
     for dummy in lg.dummy_nodes.values() {
@@ -762,7 +762,7 @@ fn select_label_sides_two_parallel_labels_get_above_below() {
     rank::normalize(&mut lg);
     normalize::run(&mut lg, &edge_labels, false);
     order::run(&mut lg, false);
-    select_label_sides(&mut lg);
+    select_label_sides_first_last(&mut lg);
 
     // Collect label dummy sides
     let mut sides: Vec<LabelSide> = lg
@@ -782,6 +782,97 @@ fn select_label_sides_two_parallel_labels_get_above_below() {
         vec![LabelSide::Above, LabelSide::Below],
         "two label dummies in same layer should get Above and Below"
     );
+}
+
+// select_label_sides_direction_down tests
+
+#[test]
+fn select_label_sides_direction_down_assigns_opposite_sides_to_reciprocal_pair() {
+    // A -> B (forward, labeled) and B -> A (reversed, labeled).
+    // After acyclic, B->A becomes A->B reversed. The two labels should get
+    // opposite sides: forward → Above, reversed → Below.
+    let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+    graph.add_node("A", (10.0, 10.0));
+    graph.add_node("B", (10.0, 10.0));
+    graph.add_edge("A", "B"); // edge 0: forward
+    graph.add_edge("B", "A"); // edge 1: reversed by acyclic
+
+    let mut edge_labels = HashMap::new();
+    edge_labels.insert(0, EdgeLabelInfo::new(30.0, 10.0));
+    edge_labels.insert(1, EdgeLabelInfo::new(30.0, 10.0));
+
+    let config = LayoutConfig {
+        per_edge_label_spacing: true,
+        ..Default::default()
+    };
+    let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+    extract_self_edges(&mut lg);
+    acyclic::run(&mut lg);
+    make_space_for_labeled_edges(&mut lg, &edge_labels);
+    let mut config = config.clone();
+    config.rank_sep /= 2.0;
+    rank::run(&mut lg, &config);
+    rank::normalize(&mut lg);
+    normalize::run(&mut lg, &edge_labels, true);
+    order::run(&mut lg, false);
+    select_label_sides_direction_down(&mut lg);
+
+    let mut sides: Vec<(LabelSide, bool)> = lg
+        .dummy_chains
+        .iter()
+        .filter_map(|chain| {
+            let label_idx = chain.label_dummy_index?;
+            let dummy_id = &chain.dummy_ids[label_idx];
+            let dummy = lg.dummy_nodes.get(dummy_id)?;
+            Some((dummy.label_side, chain.reversed))
+        })
+        .collect();
+    sides.sort_by_key(|&(_, reversed)| reversed);
+
+    assert_eq!(sides.len(), 2, "should have two labeled chains");
+    let (forward_side, _) = sides[0]; // reversed=false
+    let (reversed_side, _) = sides[1]; // reversed=true
+    assert_ne!(forward_side, reversed_side, "reciprocal labels must differ");
+    assert_eq!(forward_side, LabelSide::Above, "forward edge → Above");
+    assert_eq!(reversed_side, LabelSide::Below, "reversed edge → Below");
+}
+
+#[test]
+fn select_label_sides_direction_down_single_forward_gets_above() {
+    // A -> B (forward, labeled only). Single label gets Above (not Center).
+    let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+    graph.add_node("A", (10.0, 10.0));
+    graph.add_node("B", (10.0, 10.0));
+    graph.add_edge("A", "B"); // edge 0: forward
+
+    let mut edge_labels = HashMap::new();
+    edge_labels.insert(0, EdgeLabelInfo::new(30.0, 10.0));
+
+    let config = LayoutConfig {
+        per_edge_label_spacing: true,
+        ..Default::default()
+    };
+    let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+    extract_self_edges(&mut lg);
+    acyclic::run(&mut lg);
+    make_space_for_labeled_edges(&mut lg, &edge_labels);
+    let mut config = config.clone();
+    config.rank_sep /= 2.0;
+    rank::run(&mut lg, &config);
+    rank::normalize(&mut lg);
+    normalize::run(&mut lg, &edge_labels, false);
+    order::run(&mut lg, false);
+    select_label_sides_direction_down(&mut lg);
+
+    for dummy in lg.dummy_nodes.values() {
+        if dummy.is_label() {
+            assert_eq!(
+                dummy.label_side,
+                LabelSide::Above,
+                "single forward label should get Above with DirectionDown"
+            );
+        }
+    }
 }
 
 #[test]
