@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1118.09 174.00" style="max-width: 1118.09px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1126.09 174.00" style="max-width: 1126.09px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -10,8 +10,8 @@
       <path d="M275.81,87.00 L278.59,87.00 C281.37,87.00 286.92,87.00 292.48,87.00 C298.03,87.00 303.59,87.00 308.48,87.00 C313.37,87.00 317.59,87.00 319.70,87.00 L321.81,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M460.79,87.00 L463.57,87.00 C466.35,87.00 471.90,87.00 477.46,87.00 C483.02,87.00 488.57,87.00 493.46,87.00 C498.35,87.00 502.57,87.00 504.68,87.00 L506.79,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M650.42,87.00 L653.19,87.00 C655.97,87.00 661.53,87.00 667.08,87.00 C672.64,87.00 678.19,87.00 683.08,87.00 C687.97,87.00 692.19,87.00 694.30,87.00 L696.42,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M792.60,68.95 L799.79,65.44 L810.21,60.37 C820.62,55.29 841.45,45.15 866.48,40.07 C891.50,35.00 920.72,35.00 935.33,35.00 L949.93,35.00 L957.93,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M793.82,103.83 L801.14,107.05 L813.25,112.38 C825.36,117.70 849.58,128.35 874.38,133.68 C899.17,139.00 924.55,139.00 937.24,139.00 L949.93,139.00 L957.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M793.04,69.39 L800.28,65.99 L811.28,60.82 C822.28,55.66 844.29,45.33 870.56,40.16 C896.84,35.00 927.39,35.00 942.66,35.00 L957.93,35.00 L965.93,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M794.21,103.45 L801.57,106.58 L814.27,111.98 C826.98,117.39 852.38,128.19 878.45,133.60 C904.51,139.00 931.22,139.00 944.58,139.00 L957.93,139.00 L965.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
       <rect x="180.55" y="60.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
@@ -20,20 +20,20 @@
       <text x="755.53" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Deploy?</text>
       <rect x="510.79" y="60.00" width="139.62" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="580.60" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Lint Check</text>
-      <rect x="961.93" y="112.00" width="136.65" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1030.26" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production</text>
+      <rect x="969.93" y="112.00" width="136.65" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1038.26" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production</text>
       <rect x="8.00" y="60.00" width="122.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="69.27" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Git Push</text>
-      <rect x="961.93" y="8.00" width="148.16" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1036.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Env</text>
+      <rect x="969.93" y="8.00" width="148.16" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1044.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Env</text>
       <rect x="325.81" y="60.00" width="134.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="393.30" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Run Tests</text>
     </g>
     <g class="edgeLabels">
-      <rect x="840.72" y="21.00" width="61.27" height="28.00" fill="white" />
-      <text x="871.35" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
-      <rect x="830.18" y="124.35" width="84.28" height="28.00" fill="white" />
-      <text x="872.32" y="138.35" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
+      <rect x="845.02" y="21.00" width="61.27" height="28.00" fill="white" />
+      <text x="875.65" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
+      <rect x="834.41" y="124.47" width="84.28" height="28.00" fill="white" />
+      <text x="876.55" y="138.47" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
     </g>
   </g>
 </svg>

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1010.94 94.00" style="max-width: 1010.94px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1034.94 96.00" style="max-width: 1034.94px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -6,30 +6,30 @@
   </defs>
   <g transform="translate(0.00,0.00)">
     <g class="edgePaths">
-      <path d="M153.75,35.00 L188.17,35.00 L191.04,35.00 C193.91,35.00 199.64,35.00 205.38,35.00 C211.12,35.00 216.85,35.00 219.72,35.00 L222.59,35.00 L253.01,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M411.11,35.00 L463.21,35.00 L467.55,35.00 C471.89,35.00 480.58,35.00 489.26,35.00 C497.94,35.00 506.63,35.00 510.97,35.00 L515.31,35.00 L563.41,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M709.63,35.00 L755.23,35.00 L759.03,35.00 C762.83,35.00 770.43,35.00 778.03,35.00 C785.63,35.00 793.23,35.00 797.03,35.00 L800.83,35.00 L842.43,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M924.69,62.00 L924.69,86.00 L854.37,86.00 C784.05,86.00 643.42,86.00 502.78,86.00 C362.15,86.00 221.51,86.00 151.19,86.00 L80.87,86.00 L80.87,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M153.75,35.00 L190.84,35.00 L193.93,35.00 C197.02,35.00 203.20,35.00 209.38,35.00 C215.56,35.00 221.74,35.00 224.83,35.00 L227.93,35.00 L261.01,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M419.11,35.00 L473.88,35.00 L478.44,35.00 C483.01,35.00 492.13,35.00 501.26,35.00 C510.39,35.00 519.51,35.00 524.08,35.00 L528.64,35.00 L579.41,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M725.63,35.00 L773.90,35.00 L777.92,35.00 C781.94,35.00 789.98,35.00 798.03,35.00 C806.07,35.00 814.12,35.00 818.14,35.00 L822.16,35.00 L866.43,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M948.69,62.00 L948.69,86.00 L876.37,86.00 C804.05,86.00 659.42,86.00 514.78,86.00 C370.15,86.00 225.51,86.00 153.19,86.00 L80.87,86.00 L80.87,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="567.41" y="8.00" width="142.22" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="638.52" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Local Repo</text>
-      <rect x="846.43" y="8.00" width="156.51" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="924.69" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Remote Repo</text>
-      <rect x="257.01" y="8.00" width="154.10" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="334.06" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Area</text>
+      <rect x="583.41" y="8.00" width="142.22" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="654.52" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Local Repo</text>
+      <rect x="870.43" y="8.00" width="156.51" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="948.69" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Remote Repo</text>
+      <rect x="265.01" y="8.00" width="154.10" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="342.06" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Area</text>
       <rect x="8.00" y="8.00" width="145.75" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="80.87" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Working Dir</text>
     </g>
     <g class="edgeLabels">
-      <rect x="174.75" y="21.00" width="61.27" height="28.00" fill="white" />
-      <text x="205.38" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
-      <rect x="432.11" y="21.00" width="89.29" height="28.00" fill="white" />
-      <text x="476.76" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
-      <rect x="730.63" y="21.00" width="69.80" height="28.00" fill="white" />
-      <text x="765.53" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
-      <rect x="473.78" y="72.00" width="62.01" height="28.00" fill="white" />
-      <text x="504.78" y="86.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
+      <rect x="178.75" y="21.00" width="61.27" height="28.00" fill="white" />
+      <text x="209.38" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git add</text>
+      <rect x="444.11" y="21.00" width="89.29" height="28.00" fill="white" />
+      <text x="488.76" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
+      <rect x="750.63" y="21.00" width="69.80" height="28.00" fill="white" />
+      <text x="785.53" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
+      <rect x="485.78" y="72.00" width="62.01" height="28.00" fill="white" />
+      <text x="516.78" y="86.00" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
     </g>
   </g>
 </svg>
