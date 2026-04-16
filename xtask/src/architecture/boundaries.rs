@@ -9,7 +9,7 @@ use annotate_snippets::{AnnotationKind, Group, Level, Renderer, Snippet};
 use anyhow::{Context, Result};
 use ra_ap_cfg::{CfgAtom, CfgDiff};
 use ra_ap_hir::{
-    Crate as HirCrate, Module, ModuleDef, PathResolution, ScopeDef, Semantics, Symbol,
+    Crate as HirCrate, Module, ModuleDef, PathResolution, ScopeDef, Semantics, Symbol, attach_db,
 };
 use ra_ap_ide::{AnalysisHost, Edition, RootDatabase};
 use ra_ap_ide_db::{ChangeWithProcMacros, EditionedFileId, FxHashMap};
@@ -17,7 +17,8 @@ use ra_ap_load_cargo::{LoadCargoConfig, ProcMacroServerChoice, ProjectFolders, S
 use ra_ap_paths::{AbsPathBuf, Utf8PathBuf};
 use ra_ap_project_model::{
     CargoConfig, CargoFeatures, CfgOverrides, InvocationStrategy, ProjectManifest,
-    ProjectWorkspace, ProjectWorkspaceKind, RustLibSource, TargetData, TargetKind,
+    ProjectWorkspace, ProjectWorkspaceKind, RustLibSource, TargetData, TargetDirectoryConfig,
+    TargetKind,
 };
 use ra_ap_syntax::{AstNode, SyntaxNode, TextRange, TextSize, ast};
 use ra_ap_vfs::{Change, Vfs, VfsPath};
@@ -484,55 +485,63 @@ pub(crate) fn run_with_context_report(
     let loaded = context.load_library()?;
     timings.workspace_load = phase_started.elapsed();
     let db = loaded.host.raw_database();
-    let sema = Semantics::new(db);
-    let root = loaded.krate.root_module();
-
     let policy_boundaries: BTreeSet<_> = arch_policy.modules.keys().cloned().collect();
-    let phase_started = Instant::now();
-    let discovered_boundaries = discover_top_level_boundaries(root, db);
-    timings.boundary_discovery = phase_started.elapsed();
-    if options.timings {
-        let phase_started = Instant::now();
-        let rediscovered_boundaries = discover_top_level_boundaries(root, db);
-        timings.boundary_discovery_repeat = phase_started.elapsed();
-        debug_assert_eq!(discovered_boundaries, rediscovered_boundaries);
-    }
-    let missing_boundaries: Vec<_> = policy_boundaries
-        .difference(&discovered_boundaries)
-        .cloned()
-        .collect();
-    if !missing_boundaries.is_empty() {
-        anyhow::bail!(
-            "{} declares missing top-level modules: {:?}",
-            display_repo_relative(&config_path),
-            missing_boundaries
-        );
-    }
 
-    if !options.quiet && options.verbose {
-        log_info(format!(
-            "discover {} declared boundaries from semantic module tree",
-            policy_boundaries.len()
-        ));
-    }
-    let exact_module_paths = if arch_policy.uses_module_path_selectors() {
-        let exact_module_paths = discover_module_paths(root, db);
-        validate_declared_module_paths(&arch_policy, &exact_module_paths, &config_path)?;
-        Some(exact_module_paths)
-    } else {
-        None
-    };
-    let edge_collection = EdgeCollectionContext {
-        sema: &sema,
-        vfs: &loaded.vfs,
-        krate: loaded.krate,
-        root,
-        db,
-        declared_boundaries: &policy_boundaries,
-        exact_module_paths: exact_module_paths.as_ref(),
-        verbose: !options.quiet && options.verbose,
-    };
-    let collected_graphs = collect_dependency_graphs(&edge_collection, &mut timings);
+    // ra_ap 0.0.328 introduced a thread-local "attached db" requirement for
+    // HIR queries that go through the next-solver. Anything that touches
+    // `Semantics`, `Module::scope`, or path resolution must run inside an
+    // `attach_db` scope or it panics with "Try to use attached db, but no
+    // db is attached".
+    let collected_graphs = attach_db(db, || -> Result<_> {
+        let sema = Semantics::new(db);
+        let root = loaded.krate.root_module(db);
+
+        let phase_started = Instant::now();
+        let discovered_boundaries = discover_top_level_boundaries(root, db);
+        timings.boundary_discovery = phase_started.elapsed();
+        if options.timings {
+            let phase_started = Instant::now();
+            let rediscovered_boundaries = discover_top_level_boundaries(root, db);
+            timings.boundary_discovery_repeat = phase_started.elapsed();
+            debug_assert_eq!(discovered_boundaries, rediscovered_boundaries);
+        }
+        let missing_boundaries: Vec<_> = policy_boundaries
+            .difference(&discovered_boundaries)
+            .cloned()
+            .collect();
+        if !missing_boundaries.is_empty() {
+            anyhow::bail!(
+                "{} declares missing top-level modules: {:?}",
+                display_repo_relative(&config_path),
+                missing_boundaries
+            );
+        }
+
+        if !options.quiet && options.verbose {
+            log_info(format!(
+                "discover {} declared boundaries from semantic module tree",
+                policy_boundaries.len()
+            ));
+        }
+        let exact_module_paths = if arch_policy.uses_module_path_selectors() {
+            let exact_module_paths = discover_module_paths(root, db);
+            validate_declared_module_paths(&arch_policy, &exact_module_paths, &config_path)?;
+            Some(exact_module_paths)
+        } else {
+            None
+        };
+        let edge_collection = EdgeCollectionContext {
+            sema: &sema,
+            vfs: &loaded.vfs,
+            krate: loaded.krate,
+            root,
+            db,
+            declared_boundaries: &policy_boundaries,
+            exact_module_paths: exact_module_paths.as_ref(),
+            verbose: !options.quiet && options.verbose,
+        };
+        Ok(collect_dependency_graphs(&edge_collection, &mut timings))
+    })?;
     let phase_started = Instant::now();
     let eval_result = super::rules_eval::evaluate_rules_with_module_graph(
         &collected_graphs.boundary_graph,
@@ -628,34 +637,39 @@ pub(crate) fn collect_graph_for_inspection(
 
     let loaded = context.load_library()?;
     let db = loaded.host.raw_database();
-    let sema = Semantics::new(db);
-    let root = loaded.krate.root_module();
 
-    let discovered_boundaries = discover_top_level_boundaries(root, db);
-    let missing: Vec<_> = policy_boundaries
-        .difference(&discovered_boundaries)
-        .cloned()
-        .collect();
-    if !missing.is_empty() {
-        anyhow::bail!(
-            "{} declares missing top-level modules: {:?}",
-            display_repo_relative(&config_path),
-            missing
-        );
-    }
+    // See run_with_context_report — HIR queries on ra_ap 0.0.328 require
+    // an attached db scope.
+    attach_db(db, || -> Result<BoundaryGraph> {
+        let sema = Semantics::new(db);
+        let root = loaded.krate.root_module(db);
 
-    let edge_collection = EdgeCollectionContext {
-        sema: &sema,
-        vfs: &loaded.vfs,
-        krate: loaded.krate,
-        root,
-        db,
-        declared_boundaries: &policy_boundaries,
-        exact_module_paths: None,
-        verbose: false,
-    };
-    let mut timings = TimingBreakdown::default();
-    Ok(collect_dependency_graphs(&edge_collection, &mut timings).boundary_graph)
+        let discovered_boundaries = discover_top_level_boundaries(root, db);
+        let missing: Vec<_> = policy_boundaries
+            .difference(&discovered_boundaries)
+            .cloned()
+            .collect();
+        if !missing.is_empty() {
+            anyhow::bail!(
+                "{} declares missing top-level modules: {:?}",
+                display_repo_relative(&config_path),
+                missing
+            );
+        }
+
+        let edge_collection = EdgeCollectionContext {
+            sema: &sema,
+            vfs: &loaded.vfs,
+            krate: loaded.krate,
+            root,
+            db,
+            declared_boundaries: &policy_boundaries,
+            exact_module_paths: None,
+            verbose: false,
+        };
+        let mut timings = TimingBreakdown::default();
+        Ok(collect_dependency_graphs(&edge_collection, &mut timings).boundary_graph)
+    })
 }
 
 fn load_library() -> Result<LoadedLibrary> {
@@ -799,6 +813,7 @@ fn cargo_config() -> CargoConfig {
         extra_args: Vec::new(),
         extra_env: FxHashMap::default(),
         extra_includes: Vec::new(),
+        metadata_extra_args: Vec::new(),
         features: CargoFeatures::Selected {
             features: Vec::new(),
             no_default_features: false,
@@ -810,7 +825,7 @@ fn cargo_config() -> CargoConfig {
         set_test: false,
         sysroot_src: None,
         sysroot: Some(RustLibSource::Discover),
-        target_dir: None,
+        target_dir_config: TargetDirectoryConfig::default(),
         target: None,
         wrap_rustc_in_build_scripts: true,
     }
@@ -821,6 +836,8 @@ fn load_config() -> LoadCargoConfig {
         load_out_dirs_from_check: false,
         prefill_caches: false,
         with_proc_macro_server: ProcMacroServerChoice::None,
+        num_worker_threads: 0,
+        proc_macro_processes: 0,
     }
 }
 
@@ -1080,7 +1097,7 @@ fn collect_module_scope_edges(
         let Some(target_module) = owning_module(def, db) else {
             continue;
         };
-        if target_module.krate() != module.krate() {
+        if target_module.krate(db) != module.krate(db) {
             continue;
         }
         if def.module(db) == Some(module) {
@@ -1550,7 +1567,7 @@ fn resolve_target_module(
         return None;
     };
     let target_module = owning_module(def, db)?;
-    (target_module.krate() == krate).then_some(target_module)
+    (target_module.krate(db) == krate).then_some(target_module)
 }
 
 fn syntactic_target_boundary(
@@ -1662,7 +1679,7 @@ fn root_export_boundaries(
         let Some(target_module) = owning_module(def, db) else {
             continue;
         };
-        if target_module.krate() != krate {
+        if target_module.krate(db) != krate {
             continue;
         }
         let Some(target_boundary) = top_level_boundary(target_module, root, db) else {
@@ -1686,7 +1703,7 @@ impl ModuleLocator {
     ) -> Self {
         let mut modules = sema
             .file_to_module_defs(file_id)
-            .filter(|module| module.krate() == krate)
+            .filter(|module| module.krate(db) == krate)
             .filter_map(|module| {
                 let range = module.definition_source_range(db);
                 let original_file = range
