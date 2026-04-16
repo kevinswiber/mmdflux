@@ -9,6 +9,7 @@
 
 mod backward_corridor;
 mod float_core;
+pub(crate) mod label_lanes;
 mod labels;
 mod orthogonal;
 mod stage;
@@ -1472,6 +1473,9 @@ mod tests {
             },
         );
 
+        // Singleton compartments (track 0) are no-ops in the lane pass —
+        // the user-supplied label_position is preserved as the geometry
+        // center.
         let label_center = FPoint::new(70.0, 55.0);
         let edges = vec![LayoutEdge {
             index: 0,
@@ -1544,7 +1548,7 @@ mod tests {
         // Default side.
         assert_eq!(lg.side, EdgeLabelSide::Center);
 
-        // track: 0 — lane assignment deferred to PR 3.
+        // track: 0 — singleton compartment, no displacement needed.
         assert_eq!(lg.track, 0);
     }
 

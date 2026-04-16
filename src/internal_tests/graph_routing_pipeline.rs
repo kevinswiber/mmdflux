@@ -692,7 +692,14 @@ fn routed_geometry_preserves_label_positions() {
     );
 }
 
-const LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT: f64 = 2.0;
+// Tolerance for label drift from active path segments. The original PR 1
+// gate was 2.0 px (labels stay attached to the path within float noise).
+// After plan 0145 PR 3, lane-shifted labels are intentionally offset from
+// the path by `track * label_step` (typically 16-32 px for TD layouts) to
+// resolve overlap within compartments. We relax this to 50.0 px to match
+// the Q9 routed-drift threshold — labels still stay near their edge but
+// can be displaced by one or two lane steps.
+const LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT: f64 = 50.0;
 
 #[test]
 fn orthogonal_labels_remain_attached_to_active_segments_labeled_edges() {
@@ -757,7 +764,9 @@ fn stale_label_anchor_is_replaced_with_valid_route_anchor() {
             .expect("fixture should carry layout label anchor for Config -> Error");
         // Force a deterministic stale anchor so this contract does not depend
         // on incidental route shape changes from unrelated source-stem tweaks.
-        let stale_anchor = FPoint::new(anchor.x + 60.0, anchor.y + 60.0);
+        // Offset must exceed LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT
+        // (50 px after plan 0145 PR 3) so the test's "stale" assertion holds.
+        let stale_anchor = FPoint::new(anchor.x + 120.0, anchor.y + 120.0);
         edge.label_position = Some(stale_anchor);
         stale_anchor
     };
@@ -5451,7 +5460,6 @@ mod plan_0145_q9_routed_red {
     /// Q9 #2: reciprocal edges in issue-222 minimal repro must not overlap
     /// when measured at the routed geometry layer.
     #[test]
-    #[ignore = "red gate, closed by plan 0145 PR 3"]
     fn state_issue_222_minimal_repro_routed_label_positions_disjoint() {
         let metrics = default_proportional_text_metrics();
         let (diagram, routed) = parse_state_and_layout(state_issue_222_minimal_repro_input());
@@ -5461,7 +5469,6 @@ mod plan_0145_q9_routed_red {
 
     /// Q9 #10: routed label drift + overlap for reciprocal edges in concurrent_three.
     #[test]
-    #[ignore = "red gate, closed by plan 0145 PR 3"]
     fn routed_label_position_drift_and_overlap_for_reciprocal_edges() {
         let metrics = default_proportional_text_metrics();
         let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -5480,5 +5487,88 @@ mod plan_0145_q9_routed_red {
         let overlap = pairwise_label_rect_overlaps(&routed, &diagram, &metrics);
         assert!(drift.is_empty(), "drift: {drift:?}");
         assert!(overlap.is_empty(), "overlap: {overlap:?}");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Plan 0145 Task 3.5: Label-lane assignment wired into route_graph_geometry.
+// ---------------------------------------------------------------------------
+
+mod plan_0145_lane_assignment {
+    use super::*;
+    use crate::graph::measure::default_proportional_text_metrics;
+    use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+
+    fn render_routed_geometry(input: &str) -> RoutedGraphGeometry {
+        let (diagram, geom) = layout_test_svg(input);
+        route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        )
+    }
+
+    #[test]
+    fn route_graph_geometry_assigns_signed_tracks_to_reciprocal_pair() {
+        let input = "graph TD\n    A -->|forward label| B\n    B -->|reverse label| A\n";
+        let routed = render_routed_geometry(input);
+        let tracks: Vec<i32> = routed
+            .edges
+            .iter()
+            .filter_map(|e| e.label_geometry.as_ref().map(|g| g.track))
+            .collect();
+        let nonzero: Vec<_> = tracks.iter().filter(|&&t| t != 0).collect();
+        assert!(
+            !nonzero.is_empty(),
+            "reciprocal pair should produce non-zero tracks: got {tracks:?}"
+        );
+    }
+
+    #[test]
+    fn route_graph_geometry_lane_pass_preserves_path_endpoints() {
+        let input = "graph TD\n    A -->|forward| B\n    B -->|reverse| A\n";
+        let routed_before = render_routed_geometry(input);
+        // Re-route — endpoints should be deterministic across repeat runs.
+        let routed_after = render_routed_geometry(input);
+        for (e_before, e_after) in routed_before.edges.iter().zip(&routed_after.edges) {
+            assert_eq!(
+                e_before.path.first(),
+                e_after.path.first(),
+                "edge {} start point should be deterministic",
+                e_before.index
+            );
+            assert_eq!(
+                e_before.path.last(),
+                e_after.path.last(),
+                "edge {} end point should be deterministic",
+                e_before.index
+            );
+        }
+    }
+
+    #[test]
+    fn route_graph_geometry_bounds_include_lane_shifted_label_rects() {
+        let input = "graph TD\n    A -->|forward label that is reasonably long| B\n    B -->|reverse label that is also long| A\n";
+        let routed = render_routed_geometry(input);
+        let b = routed.bounds;
+        let eps = 0.01;
+        for edge in &routed.edges {
+            let Some(g) = edge.label_geometry.as_ref() else {
+                continue;
+            };
+            let r = g.rect;
+            assert!(
+                b.x <= r.x + eps
+                    && b.y <= r.y + eps
+                    && b.x + b.width + eps >= r.x + r.width
+                    && b.y + b.height + eps >= r.y + r.height,
+                "bounds {:?} must contain label rect {:?} (track {}, edge {})",
+                b,
+                r,
+                g.track,
+                edge.index
+            );
+        }
     }
 }

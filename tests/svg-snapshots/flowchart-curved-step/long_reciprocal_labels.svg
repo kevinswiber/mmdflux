@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 305.64 227.00" style="max-width: 305.64px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(90.93,0.00)">
+    <g class="edgePaths">
+      <path d="M42.45,62.00 L42.45,96.33 L42.45,99.19 C42.45,102.06 42.45,107.78 42.45,113.50 C42.45,119.22 42.45,124.94 42.45,127.81 L42.45,130.67 L42.45,161.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M59.68,165.00 L59.68,86.00 L60.12,86.00 C60.55,86.00 61.42,86.00 62.30,86.00 C63.17,86.00 64.04,86.00 64.47,86.00 L64.91,86.00 L64.91,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="8.00" y="8.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="42.45" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      <rect x="8.00" y="165.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="42.45" y="192.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+    </g>
+    <g class="edgeLabels">
+      <rect x="-82.93" y="131.50" width="250.76" height="28.00" fill="white" />
+      <text x="42.45" y="145.50" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a deliberately long label</text>
+      <rect x="-82.13" y="96.89" width="283.62" height="28.00" fill="white" />
+      <text x="59.68" y="110.89" text-anchor="middle" dominant-baseline="middle" fill="#333">another deliberately long reply label</text>
+    </g>
+  </g>
+</svg>

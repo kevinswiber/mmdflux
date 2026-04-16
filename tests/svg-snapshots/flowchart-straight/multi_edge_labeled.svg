@@ -19,10 +19,10 @@
       <text x="46.31" y="296.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
     </g>
     <g class="edgeLabels">
-      <rect x="18.00" y="97.50" width="56.63" height="28.00" fill="white" />
-      <text x="46.31" y="111.50" text-anchor="middle" dominant-baseline="middle" fill="#333">path 1</text>
-      <rect x="18.00" y="97.50" width="56.63" height="28.00" fill="white" />
-      <text x="46.31" y="111.50" text-anchor="middle" dominant-baseline="middle" fill="#333">path 2</text>
+      <rect x="18.00" y="99.50" width="56.63" height="28.00" fill="white" />
+      <text x="46.31" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">path 1</text>
+      <rect x="18.00" y="131.50" width="56.63" height="28.00" fill="white" />
+      <text x="46.31" y="145.50" text-anchor="middle" dominant-baseline="middle" fill="#333">path 2</text>
     </g>
   </g>
 </svg>

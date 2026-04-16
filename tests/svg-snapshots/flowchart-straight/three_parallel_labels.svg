@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 84.91 227.00" style="max-width: 84.91px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(-20.09,0.00)">
+    <g class="edgePaths">
+      <path d="M62.54,62.00 L62.54,161.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M62.54,62.00 L62.54,161.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M62.54,62.00 L62.54,161.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="28.09" y="8.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="62.54" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      <rect x="28.09" y="165.00" width="68.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="62.54" y="192.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+    </g>
+    <g class="edgeLabels">
+      <rect x="45.73" y="99.50" width="33.61" height="28.00" fill="white" />
+      <text x="62.54" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">one</text>
+      <rect x="44.81" y="131.50" width="35.47" height="28.00" fill="white" />
+      <text x="62.54" y="145.50" text-anchor="middle" dominant-baseline="middle" fill="#333">two</text>
+      <rect x="39.80" y="67.50" width="45.49" height="28.00" fill="white" />
+      <text x="62.54" y="81.50" text-anchor="middle" dominant-baseline="middle" fill="#333">three</text>
+    </g>
+  </g>
+</svg>

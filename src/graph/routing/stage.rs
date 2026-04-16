@@ -1,9 +1,11 @@
 //! Graph-family route execution and path shaping helpers.
 
-use super::backward_corridor;
+use std::collections::HashMap;
+
 use super::float_core::compute_port_attachments_from_geometry;
 use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
 use super::orthogonal::{OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal};
+use super::{backward_corridor, label_lanes};
 use crate::graph::direction_policy::effective_edge_direction;
 use crate::graph::geometry::{
     EdgeLabelGeometry, EdgeLabelSide, GraphGeometry, LayoutEdge, RoutedEdgeGeometry,
@@ -172,6 +174,77 @@ pub fn route_graph_geometry(
     // pass (plan 0145 PR 3 task 3.5).
     populate_label_geometry(&mut edges, diagram, metrics);
 
+    // Run label lane assignment pass. This shifts labels and middle path
+    // segments to resolve overlaps within compartments. Per Q7 — labels
+    // packed against final routed paths, after backward corridors and fan
+    // spreading and after the placeholder track:0 label_geometry has been
+    // populated, but before self-edge routing and bounds recomputation.
+    let paths_by_index: HashMap<usize, Vec<FPoint>> =
+        edges.iter().map(|e| (e.index, e.path.clone())).collect();
+    let backward_flags: HashMap<usize, bool> =
+        edges.iter().map(|e| (e.index, e.is_backward)).collect();
+    let lane_outcomes = label_lanes::assign_label_tracks(
+        diagram,
+        geometry,
+        &paths_by_index,
+        &backward_flags,
+        metrics,
+        diagram.direction,
+    );
+    for routed_edge in edges.iter_mut() {
+        let Some(outcome) = lane_outcomes.get(&routed_edge.index) else {
+            continue;
+        };
+        // Skip the wire-up for singleton compartments on track 0 — the
+        // lane pass had nothing to displace and nothing to coordinate
+        // with, so preserve whatever populate_label_geometry placed for
+        // the edge (the orchestrator's arc-midpoint can differ from the
+        // engine's label_position by a few pixels for unrelated edges,
+        // and we don't want that churn). For multi-member compartments
+        // (track 0 or otherwise), apply the outcome unconditionally so
+        // every compartment member shares a consistent reference point —
+        // otherwise a track-0 forward at the engine's anchor and a
+        // track±1 reverse at the descriptor midpoint can end up only a
+        // few pixels apart when the engine pre-shifted the forward.
+        if outcome.compartment_size == 1 {
+            continue;
+        }
+        // Preserve padding/side from populate_label_geometry's output so the
+        // lane pass only updates center/rect/track. Fall back to metric
+        // defaults if label_geometry is somehow absent (should not happen
+        // because populate_label_geometry ran first for every labeled edge).
+        let (existing_padding, existing_side) = routed_edge
+            .label_geometry
+            .as_ref()
+            .map(|g| (g.padding, g.side))
+            .unwrap_or((
+                (metrics.label_padding_x, metrics.label_padding_y),
+                EdgeLabelSide::Center,
+            ));
+        routed_edge.label_position = Some(outcome.label_center);
+        routed_edge.label_geometry = Some(EdgeLabelGeometry {
+            center: outcome.label_center,
+            rect: outcome.label_rect,
+            padding: existing_padding,
+            side: existing_side,
+            track: outcome.track,
+        });
+        // Note: Algorithm C produces an `adjusted_path` that bows the path
+        // around lane-displaced labels. We deliberately do NOT apply it
+        // here. Bending routed paths corrupts the text grid's corridor
+        // closure for backward edges (text renderer reads routed paths
+        // directly), and reciprocal pairs are already separated at the
+        // routing layer (backward corridors place reverse edges to the
+        // side, not collinear with the forward edge). Label-only shifts
+        // are sufficient to resolve overlap. See Q9 tests + finding
+        // `task-3.9-text-renderer-coupling.md`.
+        //
+        // The adjusted_path field is kept in LabelTrackOutcome for
+        // potential future use (e.g., a follow-on plan that adds a
+        // text-aware path-bend pass).
+        let _ = &outcome.adjusted_path;
+    }
+
     let self_edges: Vec<RoutedSelfEdge> = geometry
         .self_edges
         .iter()
@@ -223,6 +296,17 @@ pub(crate) fn recompute_routed_bounds(
             min_y = min_y.min(p.y);
             max_x = max_x.max(p.x);
             max_y = max_y.max(p.y);
+        }
+        // Extend by the full padded label rectangle, not just the center
+        // anchor. After the label-lane pass (plan 0145), labels can be
+        // shifted into positions whose padded extent reaches outside the
+        // original anchor — including only the center would clip the
+        // viewBox.
+        if let Some(rect) = edge.label_geometry.as_ref().map(|g| g.rect) {
+            min_x = min_x.min(rect.x);
+            min_y = min_y.min(rect.y);
+            max_x = max_x.max(rect.x + rect.width);
+            max_y = max_y.max(rect.y + rect.height);
         }
     }
 
