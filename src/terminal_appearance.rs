@@ -220,11 +220,7 @@ fn read_additional_chunks(
     let deadline = Instant::now() + window;
     let initial_len = response.len();
 
-    loop {
-        let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
-            break;
-        };
-
+    while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
         let ready = select_readable(fd, remaining)?;
         if !ready {
             break;

@@ -1385,7 +1385,7 @@ fn update_slowest_path_files(files: &mut Vec<SlowPathFile>, candidate: SlowPathF
     const LIMIT: usize = 10;
 
     files.push(candidate);
-    files.sort_by(|left, right| right.path_walk.cmp(&left.path_walk));
+    files.sort_by_key(|right| std::cmp::Reverse(right.path_walk));
     files.truncate(LIMIT);
 }
 
@@ -1396,7 +1396,7 @@ fn update_slowest_module_locator_files(
     const LIMIT: usize = 10;
 
     files.push(candidate);
-    files.sort_by(|left, right| right.locator_setup.cmp(&left.locator_setup));
+    files.sort_by_key(|right| std::cmp::Reverse(right.locator_setup));
     files.truncate(LIMIT);
 }
 

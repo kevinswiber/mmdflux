@@ -440,10 +440,8 @@ fn collect_child_node_ids(statements: &[StateStatement], scope: &str) -> Vec<Str
                     ids.push(to);
                 }
             }
-            StateStatement::State(decl) => {
-                if seen.insert(decl.id.clone()) {
-                    ids.push(decl.id.clone());
-                }
+            StateStatement::State(decl) if seen.insert(decl.id.clone()) => {
+                ids.push(decl.id.clone());
             }
             _ => {}
         }
