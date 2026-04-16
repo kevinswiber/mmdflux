@@ -935,6 +935,71 @@ fn parse_svg_viewbox(svg: &str) -> Option<(f64, f64, f64, f64)> {
     }
 }
 
+/// Extract `(x, y, width, height)` tuples for every `<rect class="graph-edge-label-bg" .../>`
+/// element in the rendered SVG. Parses attributes tolerantly — the class attribute may
+/// appear in any position and attribute order is unimportant.
+pub(crate) fn extract_label_bg_rects(svg: &str) -> Vec<(f64, f64, f64, f64)> {
+    let mut out = Vec::new();
+    for line in svg.lines() {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with("<rect") {
+            continue;
+        }
+        let Some(class) = parse_attr_value(trimmed, "class") else {
+            continue;
+        };
+        if !class.split_whitespace().any(|c| c == "graph-edge-label-bg") {
+            continue;
+        }
+        let Some(x) = parse_attr_f64(trimmed, "x") else {
+            continue;
+        };
+        let Some(y) = parse_attr_f64(trimmed, "y") else {
+            continue;
+        };
+        let Some(w) = parse_attr_f64(trimmed, "width") else {
+            continue;
+        };
+        let Some(h) = parse_attr_f64(trimmed, "height") else {
+            continue;
+        };
+        out.push((x, y, w, h));
+    }
+    out
+}
+
+/// Axis-aligned rectangle overlap test. Returns `true` when `a` and `b` have
+/// strictly positive overlap area (touching edges do not count).
+pub(crate) fn svg_rects_overlap(
+    a: &(f64, f64, f64, f64),
+    b: &(f64, f64, f64, f64),
+) -> bool {
+    let (ax, ay, aw, ah) = *a;
+    let (bx, by, bw, bh) = *b;
+    ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
+}
+
+/// Pairwise overlap check across every `<rect class="graph-edge-label-bg">` in the
+/// rendered SVG. Returns a list of human-readable failure strings — one per
+/// overlapping pair. An empty result indicates no overlap.
+pub(crate) fn svg_pairwise_label_rect_overlaps(svg: &str) -> Vec<String> {
+    let rects = extract_label_bg_rects(svg);
+    let mut failures = Vec::new();
+    for i in 0..rects.len() {
+        for j in (i + 1)..rects.len() {
+            let a = &rects[i];
+            let b = &rects[j];
+            if svg_rects_overlap(a, b) {
+                failures.push(format!(
+                    "label bg rects overlap: [{:?}] <-> [{:?}]",
+                    a, b
+                ));
+            }
+        }
+    }
+    failures
+}
+
 fn parse_svg_main_translate(svg: &str) -> Option<(f64, f64)> {
     let line = svg
         .lines()
@@ -5509,4 +5574,29 @@ fn svg_root_stays_transparent_when_no_theme_is_selected() {
         !svg.contains("--bg:"),
         "default SVG root should not emit theme variables: {svg}"
     );
+}
+
+// -- Plan 0145, Task 1.2: SVG label overlap helper --
+
+#[test]
+fn svg_pairwise_label_rect_overlaps_finds_overlapping_bg_rects() {
+    let svg = r#"<svg><g>
+      <rect class="graph-edge-label-bg" x="10" y="10" width="50" height="20" />
+      <rect class="graph-edge-label-bg" x="20" y="15" width="50" height="20" />
+    </g></svg>"#;
+    let failures = svg_pairwise_label_rect_overlaps(svg);
+    assert!(
+        !failures.is_empty(),
+        "expected overlap failures, got {failures:?}"
+    );
+}
+
+#[test]
+fn svg_pairwise_label_rect_overlaps_empty_when_disjoint() {
+    let svg = r#"<svg><g>
+      <rect class="graph-edge-label-bg" x="10" y="10" width="50" height="20" />
+      <rect class="graph-edge-label-bg" x="200" y="200" width="50" height="20" />
+    </g></svg>"#;
+    let failures = svg_pairwise_label_rect_overlaps(svg);
+    assert!(failures.is_empty(), "unexpected failures: {failures:?}");
 }
