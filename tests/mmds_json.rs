@@ -1484,6 +1484,92 @@ fn mmds_schema_validates_label_side_and_label_rect() {
     assert_schema_valid(payload);
 }
 
+// -----------------------------------------------------------------------
+// Plan 0145 Task 1.13: MMDS Edge output populates label_side + label_rect
+// -----------------------------------------------------------------------
+
+#[test]
+fn mmds_output_populates_label_side_at_layout_level() {
+    // Reciprocal edges trigger label-side selection in the engine.
+    let input = "graph TD\n    A -->|forward| B\n    B -->|reverse| A";
+    let json = render_json_with_level(input, GeometryLevel::Layout);
+    let output: Output = serde_json::from_str(&json).unwrap();
+
+    let has_side = output.edges.iter().any(|e| e.label_side.is_some());
+    assert!(
+        has_side,
+        "at least one edge must carry label_side at layout level; edges: {:?}",
+        output
+            .edges
+            .iter()
+            .map(|e| (&e.id, &e.label_side))
+            .collect::<Vec<_>>()
+    );
+
+    // Each label_side value must be a recognized string.
+    for edge in &output.edges {
+        if let Some(side) = &edge.label_side {
+            assert!(
+                ["above", "below", "center"].contains(&side.as_str()),
+                "unexpected label_side value: {side}"
+            );
+        }
+    }
+}
+
+#[test]
+fn mmds_output_populates_label_rect_at_routed_level_only() {
+    let input = "graph TD\n    A -->|forward| B";
+
+    // Layout level: label_rect must NOT appear.
+    let layout_json = render_json_with_level(input, GeometryLevel::Layout);
+    let layout_output: Output = serde_json::from_str(&layout_json).unwrap();
+    assert!(
+        layout_output.edges[0].label_rect.is_none(),
+        "label_rect must not appear at layout level"
+    );
+
+    // Routed level: label_rect MUST appear for a labeled edge.
+    let routed_json = render_json_with_level(input, GeometryLevel::Routed);
+    let routed_output: Output = serde_json::from_str(&routed_json).unwrap();
+    let rect = routed_output.edges[0]
+        .label_rect
+        .as_ref()
+        .expect("label_rect must appear at routed level for labeled edges");
+    assert!(rect.width > 0.0, "label_rect width must be positive");
+    assert!(rect.height > 0.0, "label_rect height must be positive");
+}
+
+#[test]
+fn mmds_output_label_rect_absent_for_unlabeled_edges() {
+    let input = "graph TD\n    A --> B";
+    let routed_json = render_json_with_level(input, GeometryLevel::Routed);
+    let routed_output: Output = serde_json::from_str(&routed_json).unwrap();
+    assert!(
+        routed_output.edges[0].label_rect.is_none(),
+        "unlabeled edges must not have label_rect"
+    );
+}
+
+#[test]
+fn mmds_output_label_side_present_at_routed_level_too() {
+    // label_side should appear at BOTH levels, not just layout.
+    let input = "graph TD\n    A -->|forward| B\n    B -->|reverse| A";
+    let json = render_json_with_level(input, GeometryLevel::Routed);
+    let output: Output = serde_json::from_str(&json).unwrap();
+
+    let has_side = output.edges.iter().any(|e| e.label_side.is_some());
+    assert!(
+        has_side,
+        "at least one edge must carry label_side at routed level; edges: {:?}",
+        output
+            .edges
+            .iter()
+            .map(|e| (&e.id, &e.label_side))
+            .collect::<Vec<_>>()
+    );
+}
+
 #[test]
 fn mmds_schema_rejects_label_side_with_invalid_enum() {
     let payload = serde_json::json!({

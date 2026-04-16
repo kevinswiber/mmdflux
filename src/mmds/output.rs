@@ -11,7 +11,9 @@ use serde_json::{Map, Number, Value};
 
 use crate::errors::RenderError;
 use crate::graph::attachment::EdgePort;
-use crate::graph::geometry::{GraphGeometry, PositionedNode, RoutedGraphGeometry};
+use crate::graph::geometry::{
+    EdgeLabelSide, GraphGeometry, PositionedNode, RoutedEdgeGeometry, RoutedGraphGeometry,
+};
 use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
@@ -205,6 +207,46 @@ fn edge_port_to_mmds(port: &EdgePort) -> Port {
     }
 }
 
+/// Map an `EdgeLabelSide` enum variant to its MMDS JSON string.
+fn edge_label_side_to_mmds_string(side: EdgeLabelSide) -> String {
+    match side {
+        EdgeLabelSide::Above => "above".into(),
+        EdgeLabelSide::Below => "below".into(),
+        EdgeLabelSide::Center => "center".into(),
+    }
+}
+
+/// Resolve `label_side` for an MMDS edge using the fallback chain:
+///   `label_geometry.side` → `layout_edge.label_side`
+///
+/// Returns `None` when no side has been assigned at either layer.
+fn mmds_edge_label_side(
+    layout_edge: Option<&crate::graph::geometry::LayoutEdge>,
+) -> Option<String> {
+    let le = layout_edge?;
+    le.label_geometry
+        .as_ref()
+        .map(|g| g.side)
+        .or(le.label_side)
+        .map(edge_label_side_to_mmds_string)
+}
+
+/// Resolve `label_rect` for an MMDS edge (routed level only).
+///
+/// Returns `None` at layout level or when no label geometry exists.
+fn mmds_edge_label_rect(routed_edge: Option<&RoutedEdgeGeometry>, is_routed: bool) -> Option<Rect> {
+    if !is_routed {
+        return None;
+    }
+    let re = routed_edge?;
+    re.label_geometry.as_ref().map(|g| Rect {
+        x: g.rect.x,
+        y: g.rect.y,
+        width: g.rect.width,
+        height: g.rect.height,
+    })
+}
+
 fn build_output(
     diagram_type: &str,
     diagram: &Graph,
@@ -234,11 +276,15 @@ fn build_output(
     nodes.sort_by(|a, b| a.id.cmp(&b.id));
 
     // Build edges
+    let is_routed = routed.is_some();
     let edges: Vec<Edge> = diagram
         .edges
         .iter()
         .enumerate()
         .map(|(i, edge)| {
+            let layout_edge = geometry.edges.iter().find(|le| le.index == i);
+            let routed_edge = routed.and_then(|r| r.edges.iter().find(|e| e.index == i));
+
             let mut mmds_edge = Edge {
                 id: format!("e{i}"),
                 source: edge.from.clone(),
@@ -255,15 +301,13 @@ fn build_output(
                 is_backward: None,
                 source_port: None,
                 target_port: None,
-                // Plan 0145 Task 1.12: fields present on the contract; population
-                // from EdgeLabelGeometry is wired in Task 1.13.
-                label_side: None,
-                label_rect: None,
+                label_side: mmds_edge_label_side(layout_edge),
+                label_rect: mmds_edge_label_rect(routed_edge, is_routed),
             };
 
             // Add routed fields only at routed level
             if let Some(routed) = routed {
-                if let Some(re) = routed.edges.iter().find(|e| e.index == i) {
+                if let Some(re) = routed_edge {
                     let full_path: Vec<[f64; 2]> = re.path.iter().map(|p| [p.x, p.y]).collect();
                     mmds_edge.path = Some(
                         path_simplification
