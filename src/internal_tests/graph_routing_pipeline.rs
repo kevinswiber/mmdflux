@@ -5539,4 +5539,29 @@ mod plan_0145_lane_assignment {
             );
         }
     }
+
+    #[test]
+    fn route_graph_geometry_bounds_include_lane_shifted_label_rects() {
+        let input = "graph TD\n    A -->|forward label that is reasonably long| B\n    B -->|reverse label that is also long| A\n";
+        let routed = render_routed_geometry(input);
+        let b = routed.bounds;
+        let eps = 0.01;
+        for edge in &routed.edges {
+            let Some(g) = edge.label_geometry.as_ref() else {
+                continue;
+            };
+            let r = g.rect;
+            assert!(
+                b.x <= r.x + eps
+                    && b.y <= r.y + eps
+                    && b.x + b.width + eps >= r.x + r.width
+                    && b.y + b.height + eps >= r.y + r.height,
+                "bounds {:?} must contain label rect {:?} (track {}, edge {})",
+                b,
+                r,
+                g.track,
+                edge.index
+            );
+        }
+    }
 }

@@ -277,6 +277,17 @@ pub(crate) fn recompute_routed_bounds(
             max_x = max_x.max(p.x);
             max_y = max_y.max(p.y);
         }
+        // Extend by the full padded label rectangle, not just the center
+        // anchor. After the label-lane pass (plan 0145), labels can be
+        // shifted into positions whose padded extent reaches outside the
+        // original anchor — including only the center would clip the
+        // viewBox.
+        if let Some(rect) = edge.label_geometry.as_ref().map(|g| g.rect) {
+            min_x = min_x.min(rect.x);
+            min_y = min_y.min(rect.y);
+            max_x = max_x.max(rect.x + rect.width);
+            max_y = max_y.max(rect.y + rect.height);
+        }
     }
 
     for se in self_edges {
