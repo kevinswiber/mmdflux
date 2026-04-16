@@ -7,7 +7,7 @@
 //! cross-bands. `group_label_compartments` partitions descriptors into
 //! compartments using an iterative merge with `LANE_GAP` slack.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::measure::ProportionalTextMetrics;
@@ -304,23 +304,55 @@ pub(super) fn build_label_descriptors(
 
 /// Compute the shared parent subgraph ID for both endpoints, if any.
 ///
-/// Prefers `geometry.nodes[id].parent` (already resolved during layout).
-/// Falls back to scanning `diagram.subgraphs` membership when the geometry
-/// node is missing. Returns `None` when the endpoints differ in parent or
-/// when either endpoint has no parent.
+/// Returns the **lowest common ancestor** of the two nodes in the
+/// subgraph hierarchy — not just the immediate parent. An edge from
+/// `A` in `subgraph(LEFT)` to `B` in `subgraph(RIGHT)` where `LEFT`
+/// and `RIGHT` are both children of `OUTER` returns `Some("OUTER")`.
+/// Returns `None` only when the two endpoints share no common ancestor
+/// subgraph (e.g., they live under entirely separate top-level
+/// subgraphs, or one is at top-level).
+///
+/// Without LCA-aware scoping, edges that are visually isolated inside
+/// different outer subgraphs would all collapse to the top-level `None`
+/// scope and could be packed into the same compartment — producing
+/// label shifts on edges that should never interact.
 fn compute_shared_parent(
     diagram: &Graph,
     geometry: &GraphGeometry,
     from: &str,
     to: &str,
 ) -> Option<String> {
-    let from_parent = parent_of(diagram, geometry, from)?;
-    let to_parent = parent_of(diagram, geometry, to)?;
-    if from_parent == to_parent {
-        Some(from_parent)
-    } else {
-        None
+    let from_chain = subgraph_ancestor_chain(diagram, geometry, from);
+    if from_chain.is_empty() {
+        return None;
     }
+    let from_set: HashSet<&str> = from_chain.iter().map(String::as_str).collect();
+    // Walk up `to`'s chain (deepest → shallowest); return the first
+    // ancestor that's also in `from`'s chain. This is the LCA.
+    subgraph_ancestor_chain(diagram, geometry, to)
+        .into_iter()
+        .find(|sg| from_set.contains(sg.as_str()))
+}
+
+/// Build the chain of subgraph ancestors for a node, from deepest
+/// (immediate parent) to shallowest (top-level subgraph). Returns an
+/// empty vector if the node is at top-level (no parent subgraph).
+fn subgraph_ancestor_chain(
+    diagram: &Graph,
+    geometry: &GraphGeometry,
+    node_id: &str,
+) -> Vec<String> {
+    let mut chain = Vec::new();
+    let mut current = parent_of(diagram, geometry, node_id);
+    while let Some(sg_id) = current {
+        let next = diagram
+            .subgraphs
+            .get(&sg_id)
+            .and_then(|sg| sg.parent.clone());
+        chain.push(sg_id);
+        current = next;
+    }
+    chain
 }
 
 fn parent_of(diagram: &Graph, geometry: &GraphGeometry, node_id: &str) -> Option<String> {
@@ -611,6 +643,38 @@ mod tests {
             N,
             "expected {N} distinct tracks for fully-overlapping members"
         );
+    }
+
+    #[test]
+    fn group_compartments_isolates_edges_in_different_outer_subgraphs_via_lca() {
+        // Regression: previously `compute_shared_parent` only compared
+        // immediate parents. An edge from `A1 in LEFT1` to `B1 in RIGHT1`
+        // would get scope `None` because LEFT1 != RIGHT1, even though
+        // both nodes share OUTER1 as a common ancestor. The same for an
+        // unrelated edge under OUTER2. Both edges then collapsed to the
+        // top-level None scope and got packed together, producing label
+        // shifts on edges that should never interact.
+        //
+        // With LCA-aware scoping, edge 0 lives under OUTER1 and edge 1
+        // lives under OUTER2, so they end up in two singleton
+        // compartments and neither shifts.
+        let edge_under_outer1 = make_descriptor(0, Some("OUTER1"), (10.0, 50.0), (100.0, 120.0), 1);
+        let edge_under_outer2 = make_descriptor(1, Some("OUTER2"), (10.0, 50.0), (100.0, 120.0), 1);
+        let compartments = group_label_compartments(vec![edge_under_outer1, edge_under_outer2]);
+        assert_eq!(
+            compartments.len(),
+            2,
+            "edges under different outer subgraphs must NOT share a compartment"
+        );
+        for c in &compartments {
+            assert_eq!(c.members.len(), 1, "each compartment must be a singleton");
+            let tracks = pack_signed_tracks(c);
+            assert_eq!(
+                tracks.values().copied().collect::<Vec<_>>(),
+                vec![0],
+                "singleton must produce track 0 (no shift)"
+            );
+        }
     }
 
     #[test]
