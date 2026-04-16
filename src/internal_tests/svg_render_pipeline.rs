@@ -970,10 +970,7 @@ pub(crate) fn extract_label_bg_rects(svg: &str) -> Vec<(f64, f64, f64, f64)> {
 
 /// Axis-aligned rectangle overlap test. Returns `true` when `a` and `b` have
 /// strictly positive overlap area (touching edges do not count).
-pub(crate) fn svg_rects_overlap(
-    a: &(f64, f64, f64, f64),
-    b: &(f64, f64, f64, f64),
-) -> bool {
+pub(crate) fn svg_rects_overlap(a: &(f64, f64, f64, f64), b: &(f64, f64, f64, f64)) -> bool {
     let (ax, ay, aw, ah) = *a;
     let (bx, by, bw, bh) = *b;
     ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
@@ -990,10 +987,7 @@ pub(crate) fn svg_pairwise_label_rect_overlaps(svg: &str) -> Vec<String> {
             let a = &rects[i];
             let b = &rects[j];
             if svg_rects_overlap(a, b) {
-                failures.push(format!(
-                    "label bg rects overlap: [{:?}] <-> [{:?}]",
-                    a, b
-                ));
+                failures.push(format!("label bg rects overlap: [{:?}] <-> [{:?}]", a, b));
             }
         }
     }
@@ -1013,10 +1007,8 @@ pub(crate) fn svg_viewbox_contains_rects(svg: &str) -> Vec<String> {
     let rects = extract_label_bg_rects(svg);
     let mut failures = Vec::new();
     for (x, y, w, h) in rects {
-        let violates = x + TOL < vx
-            || y + TOL < vy
-            || x + w > vx + vw + TOL
-            || y + h > vy + vh + TOL;
+        let violates =
+            x + TOL < vx || y + TOL < vy || x + w > vx + vw + TOL || y + h > vy + vh + TOL;
         if violates {
             failures.push(format!(
                 "rect ({x}, {y}, {w}x{h}) outside viewBox ({vx}, {vy}, {vw}x{vh})"
@@ -1882,7 +1874,12 @@ fn routing_overlap_skip_and_backward_orthogonal_paths_avoid_unrelated_node_inter
         );
         let geometry = run_layered_layout(&measurement_mode, &diagram, &config)
             .expect("layout should succeed");
-        let routed = route_graph_geometry(&diagram, &geometry, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geometry,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         for (from, to, blocked_label) in edge_specs {
             let edge_idx = edge_index(&diagram, from, to);
@@ -2435,7 +2432,12 @@ fn svg_orthogonal_orthogonal_route_does_not_add_short_staircase_jogs_after_adjus
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let routed_edge = routed
         .edges
         .iter()
@@ -3629,7 +3631,12 @@ fn svg_orthogonal_orthogonal_route_decision_backward_edge_preserves_routed_termi
     });
     let geom = run_layered_layout(&measurement_mode, &diagram, &config)
         .expect("layout should succeed for decision fixture");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let routed_edge = routed
         .edges
         .iter()
@@ -3969,7 +3976,12 @@ fn orthogonal_route_diamond_boundary_clipping_matches_shape_boundary() {
     let config =
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&mode, &diagram, &config).unwrap();
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     // B is a diamond; B->D is a forward edge — verify source endpoint is on diamond boundary
     let edge = routed
@@ -4449,7 +4461,12 @@ fn assert_mmds_svg_endpoint_convergence(
         ..crate::engines::graph::algorithms::layered::LayoutConfig::default()
     });
     let geom = run_layered_layout(&mode, diagram, &config).unwrap();
-    let routed = route_graph_geometry(diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let mmds_edge = routed
         .edges
         .iter()

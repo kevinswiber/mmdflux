@@ -141,12 +141,12 @@ pub(crate) fn build_float_layout_with_flags(
     geom.enhanced_backward_routing = has_enhancements;
     match edge_routing {
         EdgeRouting::DirectRoute => {
-            geom = inject_routed_paths(diagram, &geom, EdgeRouting::DirectRoute);
+            geom = inject_routed_paths(diagram, &geom, EdgeRouting::DirectRoute, metrics);
             // Direct mode should use standard endpoint adjustment behavior.
             rerouted_edges.clear();
         }
         EdgeRouting::PolylineRoute => {
-            geom = inject_routed_paths(diagram, &geom, EdgeRouting::PolylineRoute);
+            geom = inject_routed_paths(diagram, &geom, EdgeRouting::PolylineRoute, metrics);
         }
         EdgeRouting::OrthogonalRoute => {
             geom = inject_orthogonal_route_paths(diagram, &geom);
@@ -162,8 +162,9 @@ fn inject_routed_paths(
     diagram: &Graph,
     geom: &GraphGeometry,
     edge_routing: EdgeRouting,
+    metrics: &ProportionalTextMetrics,
 ) -> GraphGeometry {
-    let routed = route_graph_geometry(diagram, geom, edge_routing);
+    let routed = route_graph_geometry(diagram, geom, edge_routing, metrics);
     let mut updated = geom.clone();
     apply_routed_edge_paths(&mut updated, routed.edges);
     updated

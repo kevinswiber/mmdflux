@@ -21,6 +21,7 @@ use crate::graph::grid::{
     AttachDirection, GridLayout, GridLayoutConfig, NodeBounds, Point, RoutedEdge, Segment,
     TextPathFamily, geometry_to_grid_layout_with_routed, route_all_edges, route_edge_with_probe,
 };
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::{GeometryLevel, Graph};
 use crate::mermaid::parse_flowchart;
@@ -75,7 +76,12 @@ fn routed_text_layout_for_fixture(name: &str) -> (Graph, GridLayout) {
         EngineConfig::Layered(crate::engines::graph::algorithms::layered::LayoutConfig::default());
     let geom = run_layered_layout(&MeasurementMode::Grid, &diagram, &config)
         .expect("layout should succeed");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let layout = geometry_to_grid_layout_with_routed(
         &diagram,
         &geom,

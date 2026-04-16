@@ -6,8 +6,10 @@ use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
 use super::orthogonal::{OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal};
 use crate::graph::direction_policy::effective_edge_direction;
 use crate::graph::geometry::{
-    GraphGeometry, LayoutEdge, RoutedEdgeGeometry, RoutedGraphGeometry, RoutedSelfEdge,
+    EdgeLabelGeometry, EdgeLabelSide, GraphGeometry, LayoutEdge, RoutedEdgeGeometry,
+    RoutedGraphGeometry, RoutedSelfEdge,
 };
+use crate::graph::measure::ProportionalTextMetrics;
 use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Direction, Graph, Shape};
 
@@ -32,6 +34,7 @@ pub fn route_graph_geometry(
     diagram: &Graph,
     geometry: &GraphGeometry,
     edge_routing: EdgeRouting,
+    metrics: &ProportionalTextMetrics,
 ) -> RoutedGraphGeometry {
     let port_attachments =
         compute_port_attachments_from_geometry(&diagram.edges, geometry, diagram.direction);
@@ -162,6 +165,12 @@ pub fn route_graph_geometry(
             edge.tail_label_position = tail;
         }
     }
+
+    // Populate label_geometry on every routed edge with a non-empty label.
+    // This is the single source of truth for padded label rectangles consumed
+    // by SVG, MMDS, and bounds downstream. track: 0 until the lane assignment
+    // pass (plan 0145 PR 3 task 3.5).
+    populate_label_geometry(&mut edges, diagram, metrics);
 
     let self_edges: Vec<RoutedSelfEdge> = geometry
         .self_edges
@@ -762,5 +771,42 @@ fn snap_to_primary_face(
             };
             FPoint::new(x, point.y)
         }
+    }
+}
+
+/// Populate `label_geometry` on every routed edge that has a non-empty label.
+///
+/// Uses the diagram's edge list to look up label text (by `routed_edge.index`
+/// into `diagram.edges`), then measures the padded rectangle via
+/// `metrics.edge_label_dimensions`. The `track` field is always `0` — lane
+/// assignment is deferred to the label-lane pass (plan 0145 PR 3, task 3.5).
+fn populate_label_geometry(
+    edges: &mut [RoutedEdgeGeometry],
+    diagram: &Graph,
+    metrics: &ProportionalTextMetrics,
+) {
+    for routed_edge in edges.iter_mut() {
+        let Some(center) = routed_edge.label_position else {
+            continue;
+        };
+        let Some(label) = diagram
+            .edges
+            .get(routed_edge.index)
+            .and_then(|e| e.label.as_deref())
+        else {
+            continue;
+        };
+        if label.is_empty() {
+            continue;
+        }
+        let (w, h) = metrics.edge_label_dimensions(label);
+        let side = routed_edge.label_side.unwrap_or(EdgeLabelSide::Center);
+        routed_edge.label_geometry = Some(EdgeLabelGeometry {
+            center,
+            rect: FRect::new(center.x - w / 2.0, center.y - h / 2.0, w, h),
+            padding: (metrics.label_padding_x, metrics.label_padding_y),
+            side,
+            track: 0,
+        });
     }
 }

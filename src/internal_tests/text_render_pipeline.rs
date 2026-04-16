@@ -616,7 +616,12 @@ mod edge_rendering_regression {
                 &request,
             )
             .expect("fixture solve failed");
-        let routed = route_graph_geometry(diagram, &result.geometry, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            diagram,
+            &result.geometry,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         let layout =
             geometry_to_grid_layout_with_routed(diagram, &result.geometry, Some(&routed), config);
         (routed, layout)
@@ -632,7 +637,12 @@ mod edge_rendering_regression {
             &flux_layout_config(),
         )
         .expect("SVG-side fixture solve failed");
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         (diagram, routed)
     }
 

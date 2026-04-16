@@ -12,6 +12,7 @@ use crate::graph::geometry::{
     GraphGeometry, LayoutEdge, PositionedNode, RoutedGraphGeometry, SelfEdgeGeometry,
     SubgraphGeometry,
 };
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::space::{FPoint, FRect};
@@ -350,7 +351,15 @@ pub fn hydrate_routed_geometry_from_output(
     } else {
         EdgeRouting::PolylineRoute
     };
-    Ok(route_graph_geometry(&diagram, &geometry, edge_routing))
+    // MMDS replay hydration: default metrics are sufficient since the MMDS
+    // replay path does not carry a request-specific metrics handle (design §6.3).
+    let metrics = default_proportional_text_metrics();
+    Ok(route_graph_geometry(
+        &diagram,
+        &geometry,
+        edge_routing,
+        &metrics,
+    ))
 }
 
 fn hydrate_geometry_parts(output: &Output) -> Result<(Graph, GraphGeometry), HydrationError> {

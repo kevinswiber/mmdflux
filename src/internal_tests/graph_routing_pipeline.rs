@@ -164,7 +164,12 @@ fn style_segment_monitor_report_for_routed_geometry(
 
     for fixture in fixtures {
         let (diagram, geom) = layout_fixture_svg(fixture);
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         for edge in diagram
             .edges
@@ -623,7 +628,12 @@ fn effective_edge_direction_for_test(
 #[test]
 fn routed_geometry_has_correct_node_count() {
     let (diagram, geom) = layout_test("graph TD\nA-->B\nB-->C");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
 
     assert_eq!(routed.nodes.len(), 3);
     assert!(routed.nodes.contains_key("A"));
@@ -634,7 +644,12 @@ fn routed_geometry_has_correct_node_count() {
 #[test]
 fn routed_geometry_has_correct_edge_count() {
     let (diagram, geom) = layout_test("graph TD\nA-->B\nB-->C");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
 
     assert_eq!(routed.edges.len(), 2);
 }
@@ -642,7 +657,12 @@ fn routed_geometry_has_correct_edge_count() {
 #[test]
 fn routed_edges_have_non_empty_paths() {
     let (diagram, geom) = layout_test("graph TD\nA-->B\nB-->C");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for edge in &routed.edges {
         assert!(
@@ -658,7 +678,12 @@ fn routed_edges_have_non_empty_paths() {
 #[test]
 fn routed_geometry_preserves_label_positions() {
     let (diagram, geom) = layout_test("graph TD\nA--label-->B");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let edge = &routed.edges[0];
     assert!(
@@ -672,7 +697,12 @@ const LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT: f64 = 2.0;
 #[test]
 fn orthogonal_labels_remain_attached_to_active_segments_labeled_edges() {
     let (diagram, geom) = layout_fixture_svg("labeled_edges.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let failures = labeled_edge_label_drift_failures(
         &diagram,
         &routed,
@@ -688,7 +718,12 @@ fn orthogonal_labels_remain_attached_to_active_segments_labeled_edges() {
 #[test]
 fn orthogonal_labels_remain_attached_to_active_segments_inline_label_flowchart() {
     let (diagram, geom) = layout_fixture_svg("inline_label_flowchart.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let failures = labeled_edge_label_drift_failures(
         &diagram,
         &routed,
@@ -727,7 +762,12 @@ fn stale_label_anchor_is_replaced_with_valid_route_anchor() {
         stale_anchor
     };
 
-    let routed = route_graph_geometry(&diagram, &stale_geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &stale_geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let routed_edge = routed
         .edges
         .iter()
@@ -754,14 +794,24 @@ fn stale_label_anchor_is_replaced_with_valid_route_anchor() {
 #[test]
 fn routed_geometry_preserves_direction() {
     let (diagram, geom) = layout_test("graph LR\nA-->B");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
     assert_eq!(routed.direction, crate::graph::Direction::LeftRight);
 }
 
 #[test]
 fn routed_geometry_preserves_bounds() {
     let (diagram, geom) = layout_test("graph TD\nA-->B");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
     assert!(routed.bounds.width > 0.0);
     assert!(routed.bounds.height > 0.0);
 }
@@ -769,7 +819,12 @@ fn routed_geometry_preserves_bounds() {
 #[test]
 fn routed_geometry_preserves_subgraphs() {
     let (diagram, geom) = layout_test("graph TD\nsubgraph sg1[Group]\nA-->B\nend");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
 
     assert!(!routed.subgraphs.is_empty());
     let sg = &routed.subgraphs["sg1"];
@@ -780,7 +835,12 @@ fn routed_geometry_preserves_subgraphs() {
 #[test]
 fn routed_geometry_marks_backward_edges() {
     let (diagram, geom) = layout_test("graph TD\nA-->B\nB-->A");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
 
     // At least one edge should be marked backward (the cycle)
     let backward_count = routed.edges.iter().filter(|e| e.is_backward).count();
@@ -793,7 +853,12 @@ fn routed_geometry_marks_backward_edges() {
 #[test]
 fn routed_self_edges_have_paths() {
     let (diagram, geom) = layout_test("graph TD\nA-->A");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
 
     assert_eq!(routed.self_edges.len(), 1);
     assert!(
@@ -810,7 +875,12 @@ fn routed_self_edges_have_paths() {
 #[test]
 fn engine_provided_mode_uses_layout_path_hints() {
     let (diagram, geom) = layout_test("graph TD\nA-->B");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::EngineProvided);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::EngineProvided,
+        &default_proportional_text_metrics(),
+    );
 
     let edge = &routed.edges[0];
     // EngineProvided should use the engine-provided path hints directly
@@ -828,7 +898,12 @@ fn engine_provided_mode_uses_layout_path_hints() {
 #[test]
 fn polyline_route_mode_produces_valid_paths() {
     let (diagram, geom) = layout_test("graph TD\nA-->B\nB-->C\nA-->C");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
 
     assert_eq!(routed.edges.len(), 3);
     for edge in &routed.edges {
@@ -845,8 +920,18 @@ fn polyline_route_mode_produces_valid_paths() {
 fn edge_routings_produce_same_structure() {
     let (diagram, geom) = layout_test("graph TD\nA-->B");
 
-    let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-    let pass = route_graph_geometry(&diagram, &geom, EdgeRouting::EngineProvided);
+    let full = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
+    let pass = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::EngineProvided,
+        &default_proportional_text_metrics(),
+    );
 
     // Both modes should produce the same structural output
     assert_eq!(full.nodes.len(), pass.nodes.len());
@@ -858,7 +943,12 @@ fn edge_routings_produce_same_structure() {
 #[test]
 fn routed_edges_preserve_subgraph_references() {
     let (diagram, geom) = layout_test("graph TD\nsubgraph sg1[Group]\nA\nend\nB-->sg1");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
 
     // Check that subgraph references are preserved in routed edges.
     // If the edge connects to a subgraph-as-node, the reference should be preserved.
@@ -878,7 +968,12 @@ fn routed_edges_preserve_subgraph_references() {
 #[test]
 fn orthogonal_router_produces_axis_aligned_forward_paths() {
     let (diagram, geom) = layout_test("graph TD\nA-->B\nA-->C\nB-->D\nC-->D");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for edge in routed.edges.iter().filter(|edge| !edge.is_backward) {
         assert!(
@@ -896,7 +991,12 @@ fn orthogonal_router_produces_axis_aligned_forward_paths() {
 #[test]
 fn orthogonal_route_simple_forward_edge_anchors_to_flow_faces() {
     let (diagram, geom) = layout_test("graph TD\nA-->B");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let edge = routed
         .edges
         .iter()
@@ -929,8 +1029,18 @@ fn snap_path_to_grid_preserves_start_and_end_nodes() {
 fn orthogonal_route_preserves_core_routed_geometry_contracts() {
     for fixture in ["simple.mmd", "chain.mmd", "simple_cycle.mmd"] {
         let (diagram, geom) = layout_fixture(fixture);
-        let polyline = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-        let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let polyline = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
+        let orthogonal = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         assert_eq!(
             orthogonal.edges.len(),
@@ -964,7 +1074,12 @@ fn orthogonal_route_preserves_core_routed_geometry_contracts() {
 #[test]
 fn orthogonal_route_contracts_are_axis_aligned_and_non_degenerate() {
     let (diagram, geom) = layout_fixture("simple_cycle.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for edge in &routed.edges {
         assert!(
@@ -1001,7 +1116,12 @@ fn orthogonal_route_contracts_preserve_terminal_support_segment() {
     let (diagram, geom) = layout_fixture("ampersand.mmd");
     assert_eq!(geom.direction, crate::graph::Direction::TopDown);
 
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     for edge in routed.edges.iter().filter(|edge| !edge.is_backward) {
         assert!(
             edge.path.len() >= 2,
@@ -1034,8 +1154,18 @@ fn orthogonal_route_contracts_preserve_terminal_support_segment() {
 #[test]
 fn orthogonal_route_contracts_are_deterministic_for_repeated_runs() {
     let (diagram, geom) = layout_fixture("multi_subgraph_direction_override.mmd");
-    let first = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
-    let second = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let first = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
+    let second = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     assert_eq!(first.edges.len(), second.edges.len());
     for (lhs, rhs) in first.edges.iter().zip(second.edges.iter()) {
@@ -1049,7 +1179,12 @@ fn orthogonal_route_contracts_are_deterministic_for_repeated_runs() {
 #[test]
 fn orthogonal_forward_routes_remain_axis_aligned_after_criss_cross_repair() {
     let (diagram, geom) = layout_fixture("criss_cross.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for (from, to) in [("B", "E"), ("C", "D")] {
         let edge = routed
@@ -1070,7 +1205,12 @@ fn orthogonal_forward_routes_remain_axis_aligned_after_criss_cross_repair() {
 #[test]
 fn orthogonal_route_multi_subgraph_bmid_to_f_keeps_terminal_support_clearance() {
     let (diagram, geom) = layout_fixture("multi_subgraph_direction_override.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let edge = routed
         .edges
@@ -1104,7 +1244,12 @@ fn orthogonal_route_multi_subgraph_bmid_to_f_keeps_terminal_support_clearance() 
 #[test]
 fn orthogonal_route_fan_in_lr_target_endpoints_stay_on_or_outside_target_border() {
     let (diagram, geom) = layout_fixture("fan_in_lr.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let target_rect = geom
         .nodes
         .get("D")
@@ -1159,7 +1304,12 @@ fn orthogonal_route_ports_keep_minimum_corner_inset_for_fan_edges() {
 
     for (fixture, from, to) in cases {
         let (diagram, geom) = layout_fixture_svg(fixture);
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         let edge = routed
             .edges
             .iter()
@@ -1214,7 +1364,12 @@ fn orthogonal_route_ports_keep_minimum_corner_inset_for_fan_edges() {
 #[test]
 fn orthogonal_route_http_request_backward_edge_preserves_client_side_face_attachment() {
     let (diagram, geom) = layout_fixture("http_request.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let edge = routed
         .edges
@@ -1254,7 +1409,12 @@ fn orthogonal_route_http_request_backward_edge_preserves_client_side_face_attach
 fn orthogonal_route_contracts_keep_primary_axis_departure_stem_for_off_center_td_source_ports() {
     let (diagram, geom) = layout_fixture("compat_kitchen_sink.mmd");
     assert_eq!(geom.direction, crate::graph::Direction::TopDown);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for (from, to) in [("check-1", "process-A"), ("check-1", "error-1")] {
         let edge = routed
@@ -1308,7 +1468,12 @@ fn orthogonal_route_contracts_keep_primary_axis_departure_stem_for_off_center_td
 fn orthogonal_route_contracts_keep_primary_stem_before_outward_td_fan_out_sweeps() {
     let (diagram, geom) = layout_fixture("fan_out.mmd");
     assert_eq!(geom.direction, crate::graph::Direction::TopDown);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for (from, to) in [("A", "B"), ("A", "D")] {
         let edge = routed
@@ -1374,7 +1539,12 @@ fn orthogonal_route_contracts_keep_directional_source_exits_for_selected_fixture
             crate::graph::Direction::TopDown,
             "fixture {fixture} should be TD for outward-first source contract"
         );
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         for (from, to, min_offset) in *edges {
             let edge = routed
@@ -1440,7 +1610,12 @@ fn orthogonal_route_contracts_keep_directional_source_exits_for_selected_fixture
         crate::graph::Direction::LeftRight,
         "git_workflow fixture should be LR"
     );
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     for (from, to) in [("Working", "Staging"), ("Local", "Remote")] {
         let edge = routed
             .edges
@@ -1473,7 +1648,12 @@ fn orthogonal_route_contracts_avoid_source_turnback_spikes_for_selected_fixtures
 
     for (fixture, from, to) in cases {
         let (diagram, geom) = layout_fixture_svg(fixture);
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         let edge = routed
             .edges
             .iter()
@@ -1498,7 +1678,12 @@ fn orthogonal_route_contracts_avoid_immediate_axial_turnbacks() {
 
     for (fixture, from, to) in cases {
         let (diagram, geom) = layout_fixture_svg(fixture);
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         let edge = routed
             .edges
             .iter()
@@ -1517,7 +1702,12 @@ fn orthogonal_route_contracts_preserve_backward_cycle_outer_lane_clearance() {
     const MIN_OUTER_LANE_CLEARANCE: f64 = 12.0;
 
     let (diagram, geom) = layout_fixture_svg("multiple_cycles.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let edge = routed
         .edges
         .iter()
@@ -1552,7 +1742,12 @@ fn backward_routes_keep_outer_lane_and_terminal_tangent_contracts() {
     const MIN_OUTER_LANE_CLEARANCE: f64 = 12.0;
 
     let (diagram, geom) = layout_fixture_svg("multiple_cycles.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let edge = routed
         .edges
         .iter()
@@ -1621,7 +1816,12 @@ fn backward_routes_keep_outer_lane_and_terminal_tangent_contracts() {
 #[test]
 fn shared_builder_prefers_terminal_segment_matching_layout_entry_axis() {
     let (diagram, geom) = layout_fixture("direction_override.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for edge in routed.edges.iter().filter(|edge| !edge.is_backward) {
         let expected_direction = effective_edge_direction_for_test(
@@ -1671,8 +1871,18 @@ fn orthogonal_route_nested_override_cross_boundary_edge_matches_lr_face_parity()
         .unwrap_or_else(|| panic!("fixture {fixture} should contain target node A"))
         .rect;
 
-    let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-    let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let full = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
+    let orthogonal = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let full_edge = full
         .edges
@@ -1749,7 +1959,12 @@ fn orthogonal_route_nested_override_cross_boundary_edge_matches_lr_face_parity()
 #[test]
 fn shared_builder_reduces_midfield_jogs_for_large_horizontal_offset_edges() {
     let (diagram, geom) = layout_fixture("decision.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let edge = routed
         .edges
         .iter()
@@ -1788,7 +2003,12 @@ fn shared_builder_keeps_alignment_tolerance_stable_for_near_aligned_points() {
         end,
     ]);
 
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let edge = &routed.edges[0];
     assert!(
         bend_count(&edge.path) <= 2,
@@ -1822,7 +2042,12 @@ fn orthogonal_route_contracts_keep_td_source_ports_normal_and_compact() {
             crate::graph::Direction::TopDown,
             "fixture {fixture} should be TD for source-support contract"
         );
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         for (from, to) in *edges {
             let edge = routed
@@ -1889,8 +2114,18 @@ fn orthogonal_route_decision_backward_debug_to_start_supports_td_top_bottom_pari
         .unwrap_or_else(|| panic!("fixture {fixture} should contain target node A"))
         .rect;
 
-    let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-    let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let full = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
+    let orthogonal = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let full_edge = full
         .edges
@@ -1973,7 +2208,12 @@ fn orthogonal_route_decision_backward_debug_to_start_keeps_vertical_source_stem_
         "fixture {fixture} should be TD for source-stem normalization checks"
     );
 
-    let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let orthogonal = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let edge = orthogonal
         .edges
         .iter()
@@ -2016,11 +2256,16 @@ fn orthogonal_route_backward_in_subgraph_uses_compact_inline_terminal_return() {
         "fixture {fixture} should be TD for compact backward return-shape checks"
     );
 
-    let edge = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute)
-        .edges
-        .into_iter()
-        .find(|edge| edge.from == "B" && edge.to == "A")
-        .expect("fixture should contain backward edge B -> A in orthogonal mode");
+    let edge = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    )
+    .edges
+    .into_iter()
+    .find(|edge| edge.from == "B" && edge.to == "A")
+    .expect("fixture should contain backward edge B -> A in orthogonal mode");
     assert!(
         edge.is_backward,
         "fixture contract invalid: B -> A should be backward in orthogonal mode"
@@ -2095,8 +2340,18 @@ fn orthogonal_route_complex_backward_more_data_to_input_supports_td_entry_parity
         .unwrap_or_else(|| panic!("fixture {fixture} should contain target node A"))
         .rect;
 
-    let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-    let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let full = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
+    let orthogonal = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let full_edge = full
         .edges
@@ -2159,7 +2414,12 @@ fn orthogonal_route_complex_backward_more_data_to_input_avoids_tiny_terminal_sta
         "fixture {fixture} should be TD for terminal staircase checks"
     );
 
-    let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let orthogonal = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let edge = orthogonal
         .edges
         .iter()
@@ -2217,7 +2477,12 @@ fn orthogonal_route_td_backward_followup_edges_use_canonical_face_in_polyline() 
             .unwrap_or_else(|| panic!("fixture {fixture} should contain target node {to}"))
             .rect;
 
-        let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
+        let full = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        );
 
         let full_edge = full
             .edges
@@ -2266,7 +2531,12 @@ fn orthogonal_route_td_backward_followup_edges_use_canonical_face_in_polyline() 
 fn orthogonal_route_simple_cycle_backward_terminal_port_respects_minimum_corner_inset() {
     const MIN_CORNER_INSET: f64 = 8.0;
     let (diagram, geom) = layout_fixture_svg("simple_cycle.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let edge = routed
         .edges
@@ -2329,8 +2599,18 @@ fn orthogonal_route_git_workflow_backward_remote_to_working_preserves_min_lr_cha
         .unwrap_or_else(|| panic!("fixture {fixture} should contain target node Working"))
         .rect;
 
-    let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-    let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let full = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
+    let orthogonal = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let full_edge = full
         .edges
@@ -2422,7 +2702,12 @@ fn orthogonal_route_git_workflow_backward_no_target_node_intrusion() {
     let top = target_rect.y + INTRUSION_MARGIN;
     let bottom = target_rect.y + target_rect.height - INTRUSION_MARGIN;
 
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let edge = routed
         .edges
         .iter()
@@ -2468,8 +2753,18 @@ fn orthogonal_route_http_request_backward_response_to_client_preserves_min_right
         .unwrap_or_else(|| panic!("fixture {fixture} should contain target node Client"))
         .rect;
 
-    let full = route_graph_geometry(&diagram, &geom, EdgeRouting::PolylineRoute);
-    let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let full = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::PolylineRoute,
+        &default_proportional_text_metrics(),
+    );
+    let orthogonal = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let full_edge = full
         .edges
@@ -2708,8 +3003,18 @@ fn fan_in_overflow_policy_spec_defines_spill_distribution_order() {
 fn fan_in_backward_channel_conflict_resolution_is_deterministic_and_documented() {
     let fixture = "fan_in_backward_channel_conflict.mmd";
     let (diagram, geom) = layout_fixture_svg(fixture);
-    let first = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
-    let second = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let first = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
+    let second = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     assert_eq!(
         first.edges.len(),
@@ -2856,7 +3161,12 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_face_po
 
     for (fixture, target, min_side_faces) in fan_in_cases {
         let (diagram, geom) = layout_fixture_svg(fixture);
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
         let target_rect = geom
             .nodes
             .get(target)
@@ -2949,7 +3259,12 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_face_po
             .unwrap_or_else(|| panic!("fixture {fixture} should contain target node {to}"))
             .rect;
 
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         let edge = routed
             .edges
@@ -2985,7 +3300,12 @@ fn fan_in_backward_channel_interaction_fixture_matrix_matches_documented_face_po
 fn five_fan_in_lr_overflow_spills_to_cross_faces_and_spreads_target_ports() {
     let (diagram, geom) = layout_fixture_svg("five_fan_in_lr.mmd");
     assert_eq!(geom.direction, crate::graph::Direction::LeftRight);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let target_rect = geom
         .nodes
@@ -3093,7 +3413,12 @@ graph RL
 "#;
     let (diagram, geom) = layout_test_svg(input);
     assert_eq!(geom.direction, crate::graph::Direction::RightLeft);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let target_rect = geom
         .nodes
@@ -3203,7 +3528,12 @@ graph TD
     H --> T
 "#;
     let (diagram, geom) = layout_test_svg(input);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let target_rect = geom
         .nodes
         .get("T")
@@ -3307,7 +3637,12 @@ graph TD
 #[test]
 fn very_narrow_fan_in_primary_face_ports_do_not_collapse_to_single_anchor() {
     let (diagram, geom) = layout_fixture_svg("very_narrow_fan_in.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let target_rect = geom
         .nodes
         .get("E")
@@ -3373,7 +3708,12 @@ fn very_narrow_fan_in_primary_face_ports_do_not_collapse_to_single_anchor() {
 #[test]
 fn five_fan_in_primary_face_channels_are_staggered_without_overlap() {
     let (diagram, geom) = layout_fixture_svg("five_fan_in.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let target_rect = geom
         .nodes
         .get("F")
@@ -3465,7 +3805,12 @@ fn five_fan_in_primary_face_channels_are_staggered_without_overlap() {
 #[test]
 fn five_fan_in_diamond_target_ports_use_distinct_primary_slots() {
     let (diagram, geom) = layout_fixture_svg("five_fan_in_diamond.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let inbound: Vec<_> = routed
         .edges
@@ -3510,7 +3855,12 @@ fn five_fan_in_diamond_target_ports_use_distinct_primary_slots() {
 #[test]
 fn five_fan_out_primary_face_channels_are_staggered_without_overlap() {
     let (diagram, geom) = layout_fixture_svg("five_fan_out.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let outbound: Vec<_> = routed
         .edges
@@ -3610,7 +3960,12 @@ fn five_fan_out_primary_face_channels_are_staggered_without_overlap() {
 #[test]
 fn criss_cross_forward_pair_uses_distinct_orthogonal_channels() {
     let (diagram, geom) = layout_fixture("criss_cross.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let c_to_d = routed
         .edges
@@ -3723,7 +4078,12 @@ fn minimum_parallel_clearance(path_a: &[FPoint], path_b: &[FPoint]) -> f64 {
 fn five_fan_out_lr_primary_face_channels_are_staggered_without_overlap() {
     let (diagram, geom) = layout_fixture_svg("five_fan_out_lr.mmd");
     assert_eq!(geom.direction, crate::graph::Direction::LeftRight);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let outbound: Vec<_> = routed
         .edges
@@ -3877,7 +4237,12 @@ fn five_fan_out_lr_primary_face_channels_are_staggered_without_overlap() {
 fn architecture_graph_lr_intrusion_criss_cross_pair_keeps_distinct_horizontal_lanes() {
     let (diagram, geom) = layout_fixture_svg("architecture_graph_lr_intrusion.mmd");
     assert_eq!(geom.direction, crate::graph::Direction::LeftRight);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let render_to_graph = routed
         .edges
@@ -3912,7 +4277,12 @@ fn architecture_graph_lr_intrusion_criss_cross_pair_keeps_distinct_horizontal_la
 fn architecture_graph_lr_intrusion_format_inbound_verticals_keep_visible_gap() {
     let (diagram, geom) = layout_fixture_svg("architecture_graph_lr_intrusion.mmd");
     assert_eq!(geom.direction, crate::graph::Direction::LeftRight);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let (edge_a_idx, edge_b_idx, clearance) = min_routed_vertical_clearance(&routed.edges)
         .expect("architecture_graph_lr_intrusion should contain at least one parallel vertical-lane pair to compare");
@@ -3942,7 +4312,12 @@ graph RL
 "#;
     let (diagram, geom) = layout_test_svg(input);
     assert_eq!(geom.direction, crate::graph::Direction::RightLeft);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let outbound: Vec<_> = routed
         .edges
@@ -4082,7 +4457,12 @@ graph LR
 "#;
     let (diagram, geom) = layout_test_svg(input);
     assert_eq!(geom.direction, crate::graph::Direction::LeftRight);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let outbound: Vec<_> = routed
         .edges
@@ -4127,7 +4507,12 @@ graph LR
 #[test]
 fn five_fan_out_diamond_primary_face_channels_are_staggered_without_overlap() {
     let (diagram, geom) = layout_fixture_svg("five_fan_out_diamond.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let outbound: Vec<_> = routed
         .edges
@@ -4227,7 +4612,12 @@ fn five_fan_out_diamond_primary_face_channels_are_staggered_without_overlap() {
 #[test]
 fn very_narrow_fan_in_channels_are_staggered_without_overlap() {
     let (diagram, geom) = layout_fixture_svg("very_narrow_fan_in.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let inbound: Vec<_> = routed
         .edges
@@ -4322,7 +4712,12 @@ fn style_segment_monitor_reports_actionable_summary_for_routed_geometry() {
 #[test]
 fn orthogonal_route_diamond_source_endpoints_on_boundary() {
     let (diagram, geom) = layout_fixture_svg("decision.mmd");
-    let orthogonal = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let orthogonal = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     // B is a diamond node; B->C and B->D are forward edges from B
     for (from, to) in [("B", "C"), ("B", "D")] {
@@ -4350,7 +4745,12 @@ fn orthogonal_route_diamond_source_endpoints_on_boundary() {
 #[test]
 fn diamond_fan_out_source_endpoints_on_boundary() {
     let (diagram, geom) = layout_fixture_svg("diamond_fan_out.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let a_rect = geom.nodes.get("A").unwrap().rect;
     let cx = a_rect.x + a_rect.width / 2.0;
     let cy = a_rect.y + a_rect.height / 2.0;
@@ -4375,7 +4775,12 @@ fn diamond_fan_out_source_endpoints_on_boundary() {
 #[test]
 fn diamond_fan_out_source_endpoints_spread() {
     let (diagram, geom) = layout_fixture_svg("diamond_fan_out.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     let mut source_xs: Vec<(String, f64)> = Vec::new();
     for to in ["B", "C", "D"] {
@@ -4399,7 +4804,12 @@ fn diamond_fan_out_source_endpoints_spread() {
 fn diamond_fan_out_td_lateral_edges_depart_horizontally_first() {
     let (diagram, geom) = layout_fixture_svg("diamond_fan_out.mmd");
     assert_eq!(geom.direction, crate::graph::Direction::TopDown);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for to in ["B", "D"] {
         let edge = routed
@@ -4444,7 +4854,12 @@ fn diamond_fan_out_td_lateral_edges_depart_horizontally_first() {
 fn ci_pipeline_lr_diamond_exits_depart_vertically_first() {
     let (diagram, geom) = layout_fixture_svg("ci_pipeline.mmd");
     assert_eq!(geom.direction, crate::graph::Direction::LeftRight);
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     for to in ["Staging", "Prod"] {
         let edge = routed
@@ -4470,7 +4885,12 @@ fn ci_pipeline_lr_diamond_exits_depart_vertically_first() {
 #[test]
 fn hexagon_flow_target_lands_on_flat_top_edge() {
     let (diagram, geom) = layout_fixture_svg("hexagon_flow.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let a_rect = geom.nodes.get("A").unwrap().rect;
     let indent = a_rect.width * 0.2;
 
@@ -4501,7 +4921,12 @@ fn hexagon_flow_target_lands_on_flat_top_edge() {
 #[test]
 fn hexagon_flow_sources_use_inset_side_departure_for_lateral_branches() {
     let (diagram, geom) = layout_fixture_svg("hexagon_flow.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
     let a_rect = geom.nodes.get("A").unwrap().rect;
     let center_x = a_rect.x + a_rect.width / 2.0;
     let center_y = a_rect.y + a_rect.height / 2.0;
@@ -4562,7 +4987,12 @@ fn hexagon_flow_sources_use_inset_side_departure_for_lateral_branches() {
 #[test]
 fn diamond_backward_target_on_boundary() {
     let (diagram, geom) = layout_fixture_svg("diamond_backward.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     // C->B backward edge: target endpoint on diamond B's boundary
     let edge = routed
@@ -4591,7 +5021,12 @@ fn diamond_backward_target_on_boundary() {
 #[test]
 fn mixed_shape_chain_diamond_to_hexagon_endpoints() {
     let (diagram, geom) = layout_fixture_svg("mixed_shape_chain.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     // B->C: diamond source, hexagon target
     let edge = routed
@@ -4627,7 +5062,12 @@ fn mixed_shape_chain_diamond_to_hexagon_endpoints() {
 #[test]
 fn mixed_shape_chain_no_staircase_artifacts() {
     let (diagram, geom) = layout_fixture_svg("mixed_shape_chain.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     // No edge should have excessive bends (staircase from shape mismatch)
     for edge in &routed.edges {
@@ -4663,7 +5103,12 @@ fn mixed_shape_chain_no_staircase_artifacts() {
 #[test]
 fn orthogonal_route_complex_backward_edge_clears_intermediate_nodes() {
     let (diagram, geom) = layout_fixture_svg("complex.mmd");
-    let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+    let routed = route_graph_geometry(
+        &diagram,
+        &geom,
+        EdgeRouting::OrthogonalRoute,
+        &default_proportional_text_metrics(),
+    );
 
     // Find backward edge E→A ("More Data?" → "Input")
     let backward_edge = routed
@@ -4712,7 +5157,12 @@ fn orthogonal_route_backward_edges_clear_all_intermediate_node_bodies() {
 
     for fixture in &fixtures {
         let (diagram, geom) = layout_fixture_svg(fixture);
-        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute);
+        let routed = route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::OrthogonalRoute,
+            &default_proportional_text_metrics(),
+        );
 
         for edge in routed.edges.iter().filter(|e| e.is_backward) {
             for seg in edge.path.windows(2) {
@@ -4798,7 +5248,10 @@ mod label_overlap_tests {
         metrics: &ProportionalTextMetrics,
     ) -> Option<FRect> {
         let center = edge.label_position?;
-        let label = diagram.edges.get(edge.index).and_then(|e| e.label.as_deref())?;
+        let label = diagram
+            .edges
+            .get(edge.index)
+            .and_then(|e| e.label.as_deref())?;
         if label.is_empty() {
             return None;
         }
@@ -4915,7 +5368,10 @@ mod label_overlap_tests {
         let metrics = default_proportional_text_metrics();
         let (diagram, routed) = routed_two_edges_with_overlapping_labels(&metrics);
         let failures = pairwise_label_rect_overlaps(&routed, &diagram, &metrics);
-        assert!(!failures.is_empty(), "expected overlap failures, got {failures:?}");
+        assert!(
+            !failures.is_empty(),
+            "expected overlap failures, got {failures:?}"
+        );
     }
 
     #[test]
@@ -4932,9 +5388,9 @@ mod label_overlap_tests {
         // must both be skipped: no rects, no failures.
         let metrics = default_proportional_text_metrics();
         let diagram = empty_graph_with_edges(vec![
-            Edge::new("A", "B"),                      // label = None
-            Edge::new("C", "D").with_label(""),       // empty label
-            Edge::new("E", "F").with_label("hello"),  // real label, but only one → no pair
+            Edge::new("A", "B"),                     // label = None
+            Edge::new("C", "D").with_label(""),      // empty label
+            Edge::new("E", "F").with_label("hello"), // real label, but only one → no pair
         ]);
         let routed = wrap_routed(vec![
             RoutedEdgeGeometry {
@@ -4946,5 +5402,84 @@ mod label_overlap_tests {
         ]);
         let failures = pairwise_label_rect_overlaps(&routed, &diagram, &metrics);
         assert!(failures.is_empty(), "unexpected failures: {failures:?}");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Plan 0145 Task 1.10: Q9 routed-geometry red gate tests.
+//
+// These compile against the new 4-param `route_graph_geometry` signature and
+// assert routed-layer label disjointness / drift constraints. Marked
+// `#[ignore]` until the label-lane pass closes them in PR 3.
+// ---------------------------------------------------------------------------
+
+mod plan_0145_q9_routed_red {
+    use crate::diagrams::state::compiler;
+    use crate::engines::graph::EngineConfig;
+    use crate::engines::graph::algorithms::layered::run_layered_layout;
+    use crate::engines::graph::contracts::MeasurementMode;
+    use crate::graph::Graph;
+    use crate::graph::geometry::RoutedGraphGeometry;
+    use crate::graph::measure::default_proportional_text_metrics;
+    use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+    use crate::mermaid::state::parse_state_diagram;
+
+    use super::label_overlap_tests::pairwise_label_rect_overlaps;
+    use super::labeled_edge_label_drift_failures;
+
+    fn state_issue_222_minimal_repro_input() -> &'static str {
+        r#"stateDiagram-v2
+    state Active {
+        [*] --> NumLockOff
+        NumLockOff --> NumLockOn : EvNumLockPressed
+        NumLockOn --> NumLockOff : EvNumLockPressed
+    }"#
+    }
+
+    fn parse_state_and_layout(input: &str) -> (Graph, RoutedGraphGeometry) {
+        let metrics = default_proportional_text_metrics();
+        let result = parse_state_diagram(input).expect("state input should parse");
+        let diagram = compiler::compile(&result.model);
+        let config = EngineConfig::Layered(
+            crate::engines::graph::algorithms::layered::LayoutConfig::default(),
+        );
+        let mode = MeasurementMode::Proportional(metrics.clone());
+        let geom = run_layered_layout(&mode, &diagram, &config).expect("layout should succeed");
+        let routed = route_graph_geometry(&diagram, &geom, EdgeRouting::OrthogonalRoute, &metrics);
+        (diagram, routed)
+    }
+
+    /// Q9 #2: reciprocal edges in issue-222 minimal repro must not overlap
+    /// when measured at the routed geometry layer.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn state_issue_222_minimal_repro_routed_label_positions_disjoint() {
+        let metrics = default_proportional_text_metrics();
+        let (diagram, routed) = parse_state_and_layout(state_issue_222_minimal_repro_input());
+        let overlap = pairwise_label_rect_overlaps(&routed, &diagram, &metrics);
+        assert!(overlap.is_empty(), "routed label overlap: {overlap:?}");
+    }
+
+    /// Q9 #10: routed label drift + overlap for reciprocal edges in concurrent_three.
+    #[test]
+    #[ignore = "red gate, closed by plan 0145 PR 3"]
+    fn routed_label_position_drift_and_overlap_for_reciprocal_edges() {
+        let metrics = default_proportional_text_metrics();
+        let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("state")
+            .join("concurrent_three.mmd");
+        let input = std::fs::read_to_string(&fixture_path).unwrap_or_else(|e| {
+            panic!(
+                "failed to read concurrent_three.mmd fixture {}: {e}",
+                fixture_path.display()
+            )
+        });
+        let (diagram, routed) = parse_state_and_layout(&input);
+        let drift = labeled_edge_label_drift_failures(&diagram, &routed, 50.0);
+        let overlap = pairwise_label_rect_overlaps(&routed, &diagram, &metrics);
+        assert!(drift.is_empty(), "drift: {drift:?}");
+        assert!(overlap.is_empty(), "overlap: {overlap:?}");
     }
 }

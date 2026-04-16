@@ -12,6 +12,7 @@ use serde_json::{Map, Number, Value};
 use crate::errors::RenderError;
 use crate::graph::attachment::EdgePort;
 use crate::graph::geometry::{GraphGeometry, PositionedNode, RoutedGraphGeometry};
+use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::graph::style::NodeStyle;
@@ -151,8 +152,11 @@ pub fn to_json_typed_with_routing(
     path_simplification: PathSimplification,
     engine_id: Option<&str>,
 ) -> Result<String, RenderError> {
+    // MMDS fallback routing: default metrics are sufficient since this path
+    // only fires when no pre-routed geometry was provided (design §6.3).
+    let metrics = default_proportional_text_metrics();
     let routed_owned = (routed.is_none() && matches!(level, GeometryLevel::Routed))
-        .then(|| route_graph_geometry(diagram, geometry, EdgeRouting::OrthogonalRoute));
+        .then(|| route_graph_geometry(diagram, geometry, EdgeRouting::OrthogonalRoute, &metrics));
     let routed = routed.or(routed_owned.as_ref());
 
     to_json_typed(
