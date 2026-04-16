@@ -692,7 +692,14 @@ fn routed_geometry_preserves_label_positions() {
     );
 }
 
-const LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT: f64 = 2.0;
+// Tolerance for label drift from active path segments. The original PR 1
+// gate was 2.0 px (labels stay attached to the path within float noise).
+// After plan 0145 PR 3, lane-shifted labels are intentionally offset from
+// the path by `track * label_step` (typically 16-32 px for TD layouts) to
+// resolve overlap within compartments. We relax this to 50.0 px to match
+// the Q9 routed-drift threshold — labels still stay near their edge but
+// can be displaced by one or two lane steps.
+const LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT: f64 = 50.0;
 
 #[test]
 fn orthogonal_labels_remain_attached_to_active_segments_labeled_edges() {
@@ -757,7 +764,9 @@ fn stale_label_anchor_is_replaced_with_valid_route_anchor() {
             .expect("fixture should carry layout label anchor for Config -> Error");
         // Force a deterministic stale anchor so this contract does not depend
         // on incidental route shape changes from unrelated source-stem tweaks.
-        let stale_anchor = FPoint::new(anchor.x + 60.0, anchor.y + 60.0);
+        // Offset must exceed LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT
+        // (50 px after plan 0145 PR 3) so the test's "stale" assertion holds.
+        let stale_anchor = FPoint::new(anchor.x + 120.0, anchor.y + 120.0);
         edge.label_position = Some(stale_anchor);
         stale_anchor
     };
