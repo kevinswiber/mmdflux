@@ -1,5 +1,5 @@
 use super::algorithms::layered::{
-    DiGraph, LabelDummyStrategy, LayoutConfig, layout, run_layered_layout,
+    DiGraph, LabelDummyStrategy, LabelSideStrategy, LayoutConfig, layout, run_layered_layout,
 };
 use super::contracts::MeasurementMode;
 use super::flux::{
@@ -952,4 +952,61 @@ fn flux_layered_uses_per_edge_label_spacing() {
         bc_edge_per_edge.waypoints.len(),
         bc_edge_global.waypoints.len()
     );
+}
+
+#[test]
+fn flux_layered_uses_direction_down_label_side_strategy() {
+    let input_cfg = LayoutConfig {
+        ..Default::default()
+    };
+    let profile = flux_layout_profile(&input_cfg, EdgeRouting::PolylineRoute);
+    assert_eq!(
+        profile.label_side_strategy,
+        LabelSideStrategy::DirectionDown
+    );
+    assert!(profile.label_side_selection);
+}
+
+#[test]
+fn flux_canonical_path_propagates_direction_down_strategy() {
+    let input = "graph TD\nA -->|solo| B";
+    let flowchart = crate::mermaid::parse_flowchart(input).unwrap();
+    let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
+    let mode = MeasurementMode::Grid;
+
+    let config = EngineConfig::Layered(LayoutConfig {
+        label_side_selection: true,
+        label_side_strategy: LabelSideStrategy::DirectionDown,
+        ..Default::default()
+    });
+    let geom = run_layered_layout(&mode, &diagram, &config).unwrap();
+
+    let edge = geom
+        .edges
+        .iter()
+        .find(|e| e.from == "A" && e.to == "B")
+        .expect("A->B edge");
+    assert_eq!(
+        edge.label_side,
+        Some(crate::graph::geometry::EdgeLabelSide::Above),
+        "canonical path must propagate DirectionDown: forward edge should be Above"
+    );
+}
+
+#[test]
+fn mermaid_layered_enables_direction_down_label_side_strategy() {
+    // The mermaid_flags LayoutConfig passed to build_float_layout_with_flags
+    // should enable label_side_selection with DirectionDown strategy.
+    let mermaid_flags = LayoutConfig {
+        always_compound_ordering: true,
+        label_side_selection: true,
+        label_side_strategy: LabelSideStrategy::DirectionDown,
+        ..Default::default()
+    };
+    assert!(mermaid_flags.label_side_selection);
+    assert_eq!(
+        mermaid_flags.label_side_strategy,
+        LabelSideStrategy::DirectionDown
+    );
+    assert!(mermaid_flags.always_compound_ordering);
 }

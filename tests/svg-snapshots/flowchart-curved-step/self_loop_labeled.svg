@@ -21,8 +21,8 @@
     <g class="edgeLabels">
       <rect x="122.45" y="148.20" width="42.89" height="28.00" fill="white" />
       <text x="143.90" y="162.20" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
-      <rect x="37.12" y="237.40" width="42.15" height="28.00" fill="white" />
-      <text x="58.20" y="251.40" text-anchor="middle" dominant-baseline="middle" fill="#333">done</text>
+      <rect x="37.12" y="220.90" width="42.15" height="28.00" fill="white" />
+      <text x="58.20" y="234.90" text-anchor="middle" dominant-baseline="middle" fill="#333">done</text>
     </g>
   </g>
 </svg>

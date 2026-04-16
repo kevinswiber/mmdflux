@@ -118,6 +118,7 @@ pub fn run_layered_layout(
     lc.track_reversed_chains = layered_cfg.track_reversed_chains;
     lc.per_edge_label_spacing = layered_cfg.per_edge_label_spacing;
     lc.label_side_selection = layered_cfg.label_side_selection;
+    lc.label_side_strategy = layered_cfg.label_side_strategy;
     lc.label_dummy_strategy = layered_cfg.label_dummy_strategy;
     lc.backward_edge_side_grouping = layered_cfg.backward_edge_side_grouping;
 

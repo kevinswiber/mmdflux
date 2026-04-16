@@ -25,8 +25,8 @@
       <text x="23.37" y="179.00" text-anchor="start" dominant-baseline="middle" fill="#333">+logout()</text>
     </g>
     <g class="edgeLabels">
-      <rect x="56.55" y="231.00" width="62.57" height="28.00" fill="white" />
-      <text x="87.83" y="245.00" text-anchor="middle" dominant-baseline="middle" fill="#333">creates</text>
+      <rect x="56.55" y="214.50" width="62.57" height="28.00" fill="white" />
+      <text x="87.83" y="228.50" text-anchor="middle" dominant-baseline="middle" fill="#333">creates</text>
     </g>
   </g>
 </svg>

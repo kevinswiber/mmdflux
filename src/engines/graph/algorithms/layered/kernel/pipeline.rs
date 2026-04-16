@@ -9,13 +9,13 @@ use super::graph::LayoutGraph;
 use super::support::{
     assign_node_intersects, compute_rank_sep_overrides, extract_self_edges,
     insert_self_edge_dummies, label_dummy_gap_ranks, make_space_for_edge_labels,
-    make_space_for_labeled_edges, position_self_edges, select_label_sides, switch_label_dummies,
-    translate_layout_result,
+    make_space_for_labeled_edges, position_self_edges, select_label_sides_direction_down,
+    select_label_sides_first_last, switch_label_dummies, translate_layout_result,
 };
 use super::types::EdgeLabelInfo;
 use super::{
-    DiGraph, EdgeLayout, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Rect,
-    acyclic, border, nesting, normalize, order, parent_dummy_chains, position, rank,
+    DiGraph, EdgeLayout, LabelDummyStrategy, LabelSideStrategy, LayoutConfig, LayoutResult, NodeId,
+    Point, Rect, acyclic, border, nesting, normalize, order, parent_dummy_chains, position, rank,
 };
 
 /// Main entry point for layout computation.
@@ -191,7 +191,10 @@ where
 
     // Phase 3.6: Assign Above/Below sides to label dummies to reduce overlaps
     if config.label_side_selection {
-        select_label_sides(&mut lg);
+        match config.label_side_strategy {
+            LabelSideStrategy::FirstLast => select_label_sides_first_last(&mut lg),
+            LabelSideStrategy::DirectionDown => select_label_sides_direction_down(&mut lg),
+        }
     }
 
     // Phase 3.5: Insert self-edge dummies (after ordering, before positioning)

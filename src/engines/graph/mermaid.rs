@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use crate::engines::graph::algorithms::layered::{
-    LayoutConfig, build_float_layout_with_flags, layout_config_from_layered,
+    LabelSideStrategy, LayoutConfig, build_float_layout_with_flags, layout_config_from_layered,
 };
 use crate::engines::graph::contracts::MeasurementMode;
 use crate::engines::graph::{
@@ -154,6 +154,8 @@ impl GraphEngine for MermaidLayeredEngine {
         layout_config.cluster_rank_sep = 0.0;
         let mermaid_flags = LayoutConfig {
             always_compound_ordering: true,
+            label_side_selection: true,
+            label_side_strategy: LabelSideStrategy::DirectionDown,
             ..Default::default()
         };
         let geometry = build_float_layout_with_flags(

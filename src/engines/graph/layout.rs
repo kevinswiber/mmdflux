@@ -100,6 +100,36 @@ impl From<crate::engines::graph::algorithms::layered::LabelDummyStrategy> for La
     }
 }
 
+/// Strategy for assigning Above/Below sides to edge label dummies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelSideStrategy {
+    #[default]
+    FirstLast,
+    DirectionDown,
+}
+
+impl From<LabelSideStrategy> for crate::engines::graph::algorithms::layered::LabelSideStrategy {
+    fn from(value: LabelSideStrategy) -> Self {
+        match value {
+            LabelSideStrategy::FirstLast => Self::FirstLast,
+            LabelSideStrategy::DirectionDown => Self::DirectionDown,
+        }
+    }
+}
+
+impl From<crate::engines::graph::algorithms::layered::LabelSideStrategy> for LabelSideStrategy {
+    fn from(value: crate::engines::graph::algorithms::layered::LabelSideStrategy) -> Self {
+        match value {
+            crate::engines::graph::algorithms::layered::LabelSideStrategy::FirstLast => {
+                LabelSideStrategy::FirstLast
+            }
+            crate::engines::graph::algorithms::layered::LabelSideStrategy::DirectionDown => {
+                LabelSideStrategy::DirectionDown
+            }
+        }
+    }
+}
+
 /// Canonical caller-facing graph layout configuration.
 #[derive(Debug, Clone)]
 pub struct LayoutConfig {
@@ -118,6 +148,7 @@ pub struct LayoutConfig {
     pub track_reversed_chains: bool,
     pub per_edge_label_spacing: bool,
     pub label_side_selection: bool,
+    pub label_side_strategy: LabelSideStrategy,
     pub label_dummy_strategy: LabelDummyStrategy,
     pub edge_label_spacing: f64,
     pub backward_edge_side_grouping: bool,
@@ -141,6 +172,7 @@ impl Default for LayoutConfig {
             track_reversed_chains: false,
             per_edge_label_spacing: false,
             label_side_selection: false,
+            label_side_strategy: LabelSideStrategy::default(),
             label_dummy_strategy: LabelDummyStrategy::default(),
             edge_label_spacing: 2.0,
             backward_edge_side_grouping: false,
@@ -175,6 +207,7 @@ impl From<LayoutConfig> for crate::engines::graph::algorithms::layered::LayoutCo
             track_reversed_chains: value.track_reversed_chains,
             per_edge_label_spacing: value.per_edge_label_spacing,
             label_side_selection: value.label_side_selection,
+            label_side_strategy: value.label_side_strategy.into(),
             label_dummy_strategy: value.label_dummy_strategy.into(),
             edge_label_spacing: value.edge_label_spacing,
             backward_edge_side_grouping: value.backward_edge_side_grouping,
@@ -206,6 +239,7 @@ impl From<crate::engines::graph::algorithms::layered::LayoutConfig> for LayoutCo
             track_reversed_chains: value.track_reversed_chains,
             per_edge_label_spacing: value.per_edge_label_spacing,
             label_side_selection: value.label_side_selection,
+            label_side_strategy: value.label_side_strategy.into(),
             label_dummy_strategy: value.label_dummy_strategy.into(),
             edge_label_spacing: value.edge_label_spacing,
             backward_edge_side_grouping: value.backward_edge_side_grouping,
