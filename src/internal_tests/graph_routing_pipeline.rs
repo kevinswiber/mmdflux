@@ -5414,6 +5414,8 @@ mod label_overlap_tests {
 // ---------------------------------------------------------------------------
 
 mod plan_0145_q9_routed_red {
+    use super::label_overlap_tests::pairwise_label_rect_overlaps;
+    use super::labeled_edge_label_drift_failures;
     use crate::diagrams::state::compiler;
     use crate::engines::graph::EngineConfig;
     use crate::engines::graph::algorithms::layered::run_layered_layout;
@@ -5423,9 +5425,6 @@ mod plan_0145_q9_routed_red {
     use crate::graph::measure::default_proportional_text_metrics;
     use crate::graph::routing::{EdgeRouting, route_graph_geometry};
     use crate::mermaid::state::parse_state_diagram;
-
-    use super::label_overlap_tests::pairwise_label_rect_overlaps;
-    use super::labeled_edge_label_drift_failures;
 
     fn state_issue_222_minimal_repro_input() -> &'static str {
         r#"stateDiagram-v2
