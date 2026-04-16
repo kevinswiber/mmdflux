@@ -24,14 +24,14 @@
       <text x="57.58" y="663.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Stop</text>
     </g>
     <g class="edgeLabels">
-      <rect x="40.77" y="131.50" width="33.61" height="28.00" fill="white" />
-      <text x="57.58" y="145.50" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="36.13" y="288.50" width="42.89" height="28.00" fill="white" />
-      <text x="57.58" y="302.50" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
-      <rect x="17.39" y="445.50" width="80.38" height="28.00" fill="white" />
-      <text x="57.58" y="459.50" text-anchor="middle" dominant-baseline="middle" fill="#333">final step</text>
-      <rect x="45.04" y="602.50" width="25.08" height="28.00" fill="white" />
-      <text x="57.58" y="616.50" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="40.77" y="70.50" width="33.61" height="28.00" fill="white" />
+      <text x="57.58" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="36.13" y="227.50" width="42.89" height="28.00" fill="white" />
+      <text x="57.58" y="241.50" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <rect x="17.39" y="383.50" width="80.38" height="28.00" fill="white" />
+      <text x="57.58" y="397.50" text-anchor="middle" dominant-baseline="middle" fill="#333">final step</text>
+      <rect x="45.04" y="541.50" width="25.08" height="28.00" fill="white" />
+      <text x="57.58" y="555.50" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>
