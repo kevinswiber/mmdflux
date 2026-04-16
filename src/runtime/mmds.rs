@@ -132,6 +132,9 @@ fn strip_routed_fields(payload: &Output) -> Output {
         edge.path = None;
         edge.label_position = None;
         edge.is_backward = None;
+        edge.source_port = None;
+        edge.target_port = None;
+        edge.label_rect = None;
     }
     for subgraph in &mut output.subgraphs {
         subgraph.bounds = None;

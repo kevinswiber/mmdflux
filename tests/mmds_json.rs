@@ -1599,3 +1599,45 @@ fn mmds_schema_rejects_label_side_with_invalid_enum() {
     });
     assert_schema_invalid(payload);
 }
+
+// -----------------------------------------------------------------------
+// Contract: routed → layout down-conversion strips routed-only fields
+// -----------------------------------------------------------------------
+
+#[test]
+fn mmds_routed_to_layout_down_conversion_strips_routed_only_edge_fields() {
+    let routed_json = render_json_with_level("graph TD\nA -->|forward| B", GeometryLevel::Routed);
+    let layout_output = render_mmds_input(
+        &routed_json,
+        OutputFormat::Mmds,
+        RenderConfig {
+            geometry_level: GeometryLevel::Layout,
+            ..RenderConfig::default()
+        },
+    );
+    let parsed: Output = serde_json::from_str(&layout_output).unwrap();
+    assert_eq!(parsed.geometry_level, "layout");
+    for edge in &parsed.edges {
+        assert!(edge.path.is_none(), "path must be stripped at layout level");
+        assert!(
+            edge.label_position.is_none(),
+            "label_position must be stripped at layout level"
+        );
+        assert!(
+            edge.is_backward.is_none(),
+            "is_backward must be stripped at layout level"
+        );
+        assert!(
+            edge.source_port.is_none(),
+            "source_port must be stripped at layout level"
+        );
+        assert!(
+            edge.target_port.is_none(),
+            "target_port must be stripped at layout level"
+        );
+        assert!(
+            edge.label_rect.is_none(),
+            "label_rect must be stripped at layout level"
+        );
+    }
+}
