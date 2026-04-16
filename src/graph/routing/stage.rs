@@ -195,13 +195,18 @@ pub fn route_graph_geometry(
         let Some(outcome) = lane_outcomes.get(&routed_edge.index) else {
             continue;
         };
-        // Singleton compartments (track 0) are no-ops — the lane pass had
-        // nothing to displace. Preserve whatever populate_label_geometry
-        // placed for the edge so unrelated labels do not silently move
-        // (the orchestrator computes the descriptor midpoint from the arc
-        // length of the routed path, which can differ from the original
-        // label_position by a few pixels).
-        if outcome.track == 0 {
+        // Skip the wire-up for singleton compartments on track 0 — the
+        // lane pass had nothing to displace and nothing to coordinate
+        // with, so preserve whatever populate_label_geometry placed for
+        // the edge (the orchestrator's arc-midpoint can differ from the
+        // engine's label_position by a few pixels for unrelated edges,
+        // and we don't want that churn). For multi-member compartments
+        // (track 0 or otherwise), apply the outcome unconditionally so
+        // every compartment member shares a consistent reference point —
+        // otherwise a track-0 forward at the engine's anchor and a
+        // track±1 reverse at the descriptor midpoint can end up only a
+        // few pixels apart when the engine pre-shifted the forward.
+        if outcome.compartment_size == 1 {
             continue;
         }
         // Preserve padding/side from populate_label_geometry's output so the

@@ -25,12 +25,12 @@
       <text x="106.35" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Begin</text>
     </g>
     <g class="edgeLabels">
-      <rect x="70.71" y="70.50" width="71.29" height="28.00" fill="white" />
-      <text x="106.35" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">initialize</text>
-      <rect x="54.12" y="241.57" width="75.74" height="28.00" fill="white" />
-      <text x="91.99" y="255.57" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
-      <rect x="49.96" y="423.98" width="33.61" height="28.00" fill="white" />
-      <text x="66.77" y="437.98" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="70.71" y="99.50" width="71.29" height="28.00" fill="white" />
+      <text x="106.35" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">initialize</text>
+      <rect x="53.68" y="243.52" width="75.74" height="28.00" fill="white" />
+      <text x="91.55" y="257.52" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
+      <rect x="49.96" y="431.55" width="33.61" height="28.00" fill="white" />
+      <text x="66.77" y="445.55" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <rect x="164.21" y="414.39" width="25.08" height="28.00" fill="white" />
       <text x="176.75" y="428.39" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
       <rect x="313.59" y="259.17" width="42.89" height="28.00" fill="white" />

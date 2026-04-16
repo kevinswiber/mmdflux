@@ -168,6 +168,12 @@ pub(super) struct LabelTrackOutcome {
     pub label_rect: FRect,
     pub track: i32,
     pub adjusted_path: Vec<FPoint>,
+    /// Number of members in the compartment this edge belongs to.
+    /// `1` means singleton (track 0 with nothing to compare against);
+    /// `>= 2` means the lane pass picked a centered position the
+    /// compartment members all reference, so the wire-up should adopt
+    /// the descriptor midpoint even when track is 0.
+    pub compartment_size: usize,
 }
 
 /// Assign labels to signed tracks, shift label centers and middle path
@@ -206,6 +212,7 @@ pub(super) fn assign_label_tracks(
         let label_step = (max_axis + LANE_GAP).max(MIN_LABEL_LANE_STEP);
         let path_step = label_step * PATH_LANE_RATIO;
 
+        let compartment_size = compartment.members.len();
         for desc in &compartment.members {
             let track = tracks[&desc.edge_index];
             let label_offset = track as f64 * label_step;
@@ -222,6 +229,7 @@ pub(super) fn assign_label_tracks(
                     label_rect: new_rect,
                     track,
                     adjusted_path: new_path,
+                    compartment_size,
                 },
             );
         }

@@ -29,10 +29,10 @@
       <text x="76.76" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
     </g>
     <g class="edgeLabels">
-      <rect x="48.17" y="134.50" width="57.18" height="28.00" fill="white" />
-      <text x="76.76" y="148.50" text-anchor="middle" dominant-baseline="middle" fill="#333">submit</text>
-      <rect x="3.13" y="266.50" width="74.26" height="28.00" fill="white" />
-      <text x="40.26" y="280.50" text-anchor="middle" dominant-baseline="middle" fill="#333">complete</text>
+      <rect x="48.17" y="151.00" width="57.18" height="28.00" fill="white" />
+      <text x="76.76" y="165.00" text-anchor="middle" dominant-baseline="middle" fill="#333">submit</text>
+      <rect x="3.13" y="290.44" width="74.26" height="28.00" fill="white" />
+      <text x="40.26" y="304.44" text-anchor="middle" dominant-baseline="middle" fill="#333">complete</text>
       <rect x="127.74" y="283.39" width="31.76" height="28.00" fill="white" />
       <text x="143.62" y="297.39" text-anchor="middle" dominant-baseline="middle" fill="#333">fail</text>
       <rect x="178.34" y="191.15" width="42.89" height="28.00" fill="white" />

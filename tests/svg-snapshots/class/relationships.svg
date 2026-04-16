@@ -24,12 +24,12 @@
       <text x="65.47" y="192.00" text-anchor="middle" dominant-baseline="middle" fill="#333">User</text>
     </g>
     <g class="edgeLabels">
-      <rect x="37.80" y="227.50" width="55.33" height="28.00" fill="white" />
-      <text x="65.47" y="241.50" text-anchor="middle" dominant-baseline="middle" fill="#333">places</text>
-      <rect x="30.57" y="384.50" width="69.80" height="28.00" fill="white" />
-      <text x="65.47" y="398.50" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
-      <rect x="11.82" y="70.50" width="107.30" height="28.00" fill="white" />
-      <text x="65.47" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">authenticates</text>
+      <rect x="37.80" y="256.50" width="55.33" height="28.00" fill="white" />
+      <text x="65.47" y="270.50" text-anchor="middle" dominant-baseline="middle" fill="#333">places</text>
+      <rect x="30.57" y="413.50" width="69.80" height="28.00" fill="white" />
+      <text x="65.47" y="427.50" text-anchor="middle" dominant-baseline="middle" fill="#333">contains</text>
+      <rect x="11.82" y="99.50" width="107.30" height="28.00" fill="white" />
+      <text x="65.47" y="113.50" text-anchor="middle" dominant-baseline="middle" fill="#333">authenticates</text>
     </g>
   </g>
 </svg>

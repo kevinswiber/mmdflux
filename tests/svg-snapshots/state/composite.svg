@@ -36,8 +36,8 @@
     <g class="edgeLabels">
       <rect x="122.61" y="296.14" width="50.69" height="28.00" fill="white" />
       <text x="147.96" y="310.14" text-anchor="middle" dominant-baseline="middle" fill="#333">pause</text>
-      <rect x="161.78" y="249.46" width="61.08" height="28.00" fill="white" />
-      <text x="192.32" y="263.46" text-anchor="middle" dominant-baseline="middle" fill="#333">resume</text>
+      <rect x="161.78" y="247.46" width="61.08" height="28.00" fill="white" />
+      <text x="192.32" y="261.46" text-anchor="middle" dominant-baseline="middle" fill="#333">resume</text>
     </g>
   </g>
 </svg>
