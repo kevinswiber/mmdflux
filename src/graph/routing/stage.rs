@@ -1,7 +1,10 @@
 //! Graph-family route execution and path shaping helpers.
 
+use std::collections::HashMap;
+
 use super::backward_corridor;
 use super::float_core::compute_port_attachments_from_geometry;
+use super::label_lanes;
 use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
 use super::orthogonal::{OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal};
 use crate::graph::direction_policy::effective_edge_direction;
@@ -171,6 +174,56 @@ pub fn route_graph_geometry(
     // by SVG, MMDS, and bounds downstream. track: 0 until the lane assignment
     // pass (plan 0145 PR 3 task 3.5).
     populate_label_geometry(&mut edges, diagram, metrics);
+
+    // Run label lane assignment pass. This shifts labels and middle path
+    // segments to resolve overlaps within compartments. Per Q7 — labels
+    // packed against final routed paths, after backward corridors and fan
+    // spreading and after the placeholder track:0 label_geometry has been
+    // populated, but before self-edge routing and bounds recomputation.
+    let paths_by_index: HashMap<usize, Vec<FPoint>> =
+        edges.iter().map(|e| (e.index, e.path.clone())).collect();
+    let backward_flags: HashMap<usize, bool> =
+        edges.iter().map(|e| (e.index, e.is_backward)).collect();
+    let lane_outcomes = label_lanes::assign_label_tracks(
+        diagram,
+        geometry,
+        &paths_by_index,
+        &backward_flags,
+        metrics,
+        diagram.direction,
+    );
+    for routed_edge in edges.iter_mut() {
+        let Some(outcome) = lane_outcomes.get(&routed_edge.index) else {
+            continue;
+        };
+        // Preserve padding/side from populate_label_geometry's output so the
+        // lane pass only updates center/rect/track. Fall back to metric
+        // defaults if label_geometry is somehow absent (should not happen
+        // because populate_label_geometry ran first for every labeled edge).
+        let (existing_padding, existing_side) = routed_edge
+            .label_geometry
+            .as_ref()
+            .map(|g| (g.padding, g.side))
+            .unwrap_or((
+                (metrics.label_padding_x, metrics.label_padding_y),
+                EdgeLabelSide::Center,
+            ));
+        routed_edge.label_position = Some(outcome.label_center);
+        routed_edge.label_geometry = Some(EdgeLabelGeometry {
+            center: outcome.label_center,
+            rect: outcome.label_rect,
+            padding: existing_padding,
+            side: existing_side,
+            track: outcome.track,
+        });
+        // Replace path only when the lane pass actually displaced this edge
+        // (track != 0). Singleton compartments produce track 0 with no
+        // bend, so skipping the assignment avoids unnecessary churn for
+        // edges that were not adjusted.
+        if outcome.track != 0 {
+            routed_edge.path = outcome.adjusted_path.clone();
+        }
+    }
 
     let self_edges: Vec<RoutedSelfEdge> = geometry
         .self_edges

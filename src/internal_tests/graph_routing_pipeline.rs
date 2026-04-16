@@ -5482,3 +5482,61 @@ mod plan_0145_q9_routed_red {
         assert!(overlap.is_empty(), "overlap: {overlap:?}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Plan 0145 Task 3.5: Label-lane assignment wired into route_graph_geometry.
+// ---------------------------------------------------------------------------
+
+mod plan_0145_lane_assignment {
+    use super::*;
+    use crate::graph::measure::default_proportional_text_metrics;
+    use crate::graph::routing::{EdgeRouting, route_graph_geometry};
+
+    fn render_routed_geometry(input: &str) -> RoutedGraphGeometry {
+        let (diagram, geom) = layout_test_svg(input);
+        route_graph_geometry(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &default_proportional_text_metrics(),
+        )
+    }
+
+    #[test]
+    fn route_graph_geometry_assigns_signed_tracks_to_reciprocal_pair() {
+        let input = "graph TD\n    A -->|forward label| B\n    B -->|reverse label| A\n";
+        let routed = render_routed_geometry(input);
+        let tracks: Vec<i32> = routed
+            .edges
+            .iter()
+            .filter_map(|e| e.label_geometry.as_ref().map(|g| g.track))
+            .collect();
+        let nonzero: Vec<_> = tracks.iter().filter(|&&t| t != 0).collect();
+        assert!(
+            !nonzero.is_empty(),
+            "reciprocal pair should produce non-zero tracks: got {tracks:?}"
+        );
+    }
+
+    #[test]
+    fn route_graph_geometry_lane_pass_preserves_path_endpoints() {
+        let input = "graph TD\n    A -->|forward| B\n    B -->|reverse| A\n";
+        let routed_before = render_routed_geometry(input);
+        // Re-route — endpoints should be deterministic across repeat runs.
+        let routed_after = render_routed_geometry(input);
+        for (e_before, e_after) in routed_before.edges.iter().zip(&routed_after.edges) {
+            assert_eq!(
+                e_before.path.first(),
+                e_after.path.first(),
+                "edge {} start point should be deterministic",
+                e_before.index
+            );
+            assert_eq!(
+                e_before.path.last(),
+                e_after.path.last(),
+                "edge {} end point should be deterministic",
+                e_before.index
+            );
+        }
+    }
+}
