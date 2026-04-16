@@ -9,6 +9,7 @@
 
 mod backward_corridor;
 mod float_core;
+pub(crate) mod label_lanes;
 mod labels;
 mod orthogonal;
 mod stage;
