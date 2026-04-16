@@ -31,10 +31,10 @@
       <text x="95.85" y="290.00" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
       <rect x="51.16" y="453.17" width="33.61" height="28.00" fill="white" />
       <text x="67.97" y="467.17" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="169.81" y="403.30" width="25.08" height="28.00" fill="white" />
-      <text x="182.34" y="417.30" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <rect x="175.34" y="313.50" width="42.89" height="28.00" fill="white" />
-      <text x="196.79" y="327.50" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <rect x="218.29" y="360.61" width="25.08" height="28.00" fill="white" />
+      <text x="230.83" y="374.61" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="317.59" y="261.17" width="42.89" height="28.00" fill="white" />
+      <text x="339.04" y="275.17" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>
 </svg>

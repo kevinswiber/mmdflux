@@ -35,8 +35,8 @@
       <text x="99.80" y="453.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
       <rect x="322.83" y="439.70" width="25.45" height="28.00" fill="white" />
       <text x="335.55" y="453.70" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
-      <rect x="391.23" y="525.70" width="120.84" height="28.00" fill="white" />
-      <text x="451.65" y="539.70" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
+      <rect x="381.07" y="307.97" width="120.84" height="28.00" fill="white" />
+      <text x="441.49" y="321.97" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
     </g>
   </g>
 </svg>

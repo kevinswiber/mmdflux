@@ -55,14 +55,14 @@
       <text x="262.28" y="528.50" text-anchor="middle" dominant-baseline="middle" fill="#333">read</text>
       <rect x="285.39" y="475.00" width="77.04" height="28.00" fill="white" />
       <text x="323.91" y="489.00" text-anchor="middle" dominant-baseline="middle" fill="#333">fast path</text>
-      <rect x="90.05" y="426.50" width="46.05" height="28.00" fill="white" />
-      <text x="113.07" y="440.50" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
+      <rect x="163.69" y="427.06" width="46.05" height="28.00" fill="white" />
+      <text x="186.72" y="441.06" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
       <rect x="212.86" y="759.36" width="50.13" height="28.00" fill="white" />
       <text x="237.93" y="773.36" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
       <rect x="285.99" y="714.43" width="27.12" height="28.00" fill="white" />
       <text x="299.55" y="728.43" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
-      <rect x="201.07" y="905.36" width="73.70" height="28.00" fill="white" />
-      <text x="237.93" y="919.36" text-anchor="middle" dominant-baseline="middle" fill="#333">response</text>
+      <rect x="195.68" y="932.37" width="73.70" height="28.00" fill="white" />
+      <text x="232.53" y="946.37" text-anchor="middle" dominant-baseline="middle" fill="#333">response</text>
       <rect x="324.70" y="692.90" width="42.89" height="28.00" fill="white" />
       <text x="346.14" y="706.90" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>

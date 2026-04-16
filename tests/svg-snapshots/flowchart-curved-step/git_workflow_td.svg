@@ -28,8 +28,8 @@
       <text x="86.26" y="277.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git commit</text>
       <rect x="51.35" y="420.50" width="69.80" height="28.00" fill="white" />
       <text x="86.26" y="434.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git push</text>
-      <rect x="198.31" y="156.50" width="62.01" height="28.00" fill="white" />
-      <text x="229.31" y="170.50" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
+      <rect x="152.12" y="243.31" width="62.01" height="28.00" fill="white" />
+      <text x="183.13" y="257.31" text-anchor="middle" dominant-baseline="middle" fill="#333">git pull</text>
     </g>
   </g>
 </svg>

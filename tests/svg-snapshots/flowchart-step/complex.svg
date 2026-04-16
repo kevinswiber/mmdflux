@@ -43,10 +43,10 @@
       <text x="449.77" y="246.78" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
       <rect x="128.80" y="232.78" width="56.07" height="28.00" fill="white" />
       <text x="156.83" y="246.78" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
-      <rect x="543.54" y="318.78" width="33.61" height="28.00" fill="white" />
-      <text x="560.35" y="332.78" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="449.41" y="553.78" width="25.08" height="28.00" fill="white" />
-      <text x="461.94" y="567.78" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="526.64" y="130.41" width="33.61" height="28.00" fill="white" />
+      <text x="543.45" y="144.41" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="287.91" y="513.03" width="25.08" height="28.00" fill="white" />
+      <text x="300.45" y="527.03" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>

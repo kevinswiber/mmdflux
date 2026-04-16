@@ -156,18 +156,26 @@ pub(super) fn render_edge_labels(
         // TODO(plan 0145 PR 3 / task 3.7): remove precomputed/revalidate fallback
         // once label_lanes populates label_geometry for all edges.
         let layout_edge = geom.edges.iter().find(|e| e.index == edge_idx);
-        let label_geom_center =
-            layout_edge.and_then(|e| e.label_geometry.as_ref().map(|g| g.center));
-        // When the lane-assignment pass populated `label_geometry`, the
-        // center is intentionally placed off-path by `track * label_step`
-        // for multi-member compartments. Skip the revalidate-against-path
-        // fallback (which would snap the label back to the path midpoint
-        // and undo the lane shift) — trust the lane-pass output.
-        let position = if let Some(center) = label_geom_center.filter(|_| use_precomputed) {
+        let label_geom = layout_edge.and_then(|e| e.label_geometry.as_ref());
+        // The lane-assignment pass writes `label_geometry` with `track != 0`
+        // for labels intentionally displaced from the path (multi-member
+        // compartment shifts). For those, trust the center directly —
+        // revalidating would snap the lane-shifted label back to the path
+        // midpoint and undo the shift. For `track == 0` (singleton
+        // compartments where the lane pass made no change), the center is
+        // just the engine-supplied label_position, which can be off-path
+        // due to upstream side-adjustment passes; keep the revalidation
+        // fallback so those labels render attached to their edge.
+        let lane_shifted_center = label_geom
+            .filter(|g| g.track != 0 && use_precomputed)
+            .map(|g| g.center);
+        let position = if let Some(center) = lane_shifted_center {
             Some(center)
         } else {
             let candidate = if use_precomputed {
-                label_positions.get(&edge_idx).copied()
+                label_geom
+                    .map(|g| g.center)
+                    .or_else(|| label_positions.get(&edge_idx).copied())
             } else {
                 None
             }
