@@ -251,6 +251,10 @@ fn build_output(
                 is_backward: None,
                 source_port: None,
                 target_port: None,
+                // Plan 0145 Task 1.12: fields present on the contract; population
+                // from EdgeLabelGeometry is wired in Task 1.13.
+                label_side: None,
+                label_rect: None,
             };
 
             // Add routed fields only at routed level
@@ -721,6 +725,19 @@ pub struct Bounds {
     pub height: f64,
 }
 
+/// Axis-aligned rectangle with position and dimensions.
+///
+/// Used for edge `label_rect` (routed level only) and sequence-style rect
+/// payloads. Coordinates are in unitless MMDS coordinate space; `x`/`y` denote
+/// the top-left corner.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Rect {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
 /// A node in MMDS output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
@@ -830,6 +847,23 @@ pub struct Edge {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub target_port: Option<Port>,
+    /// Label side relative to the edge: `"above"`, `"below"`, or `"center"`.
+    ///
+    /// Appears at both `layout` and `routed` geometry levels when the engine
+    /// has assigned a side. `None` means the engine made no assignment.
+    /// Plan 0145 populates this via `EdgeLabelGeometry` (Task 1.13).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub label_side: Option<String>,
+    /// Padded label rectangle in MMDS coordinate space (routed level only).
+    ///
+    /// Includes `label_padding_x` / `label_padding_y` padding on each side.
+    /// Consumers that need the unpadded rectangle can subtract the padding
+    /// constants advertised in the profile. Plan 0145 populates this via
+    /// `EdgeLabelGeometry` (Task 1.13).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub label_rect: Option<Rect>,
 }
 
 /// A subgraph in MMDS output.
@@ -937,6 +971,8 @@ mod tests {
             is_backward: None,
             source_port: None,
             target_port: None,
+            label_side: None,
+            label_rect: None,
         };
         let json = serde_json::to_string(&edge).unwrap();
         assert!(!json.contains("source_port"));
@@ -967,6 +1003,8 @@ mod tests {
             is_backward: None,
             source_port: Some(port),
             target_port: None,
+            label_side: None,
+            label_rect: None,
         };
         let json = serde_json::to_string(&edge).unwrap();
         let deserialized: Edge = serde_json::from_str(&json).unwrap();

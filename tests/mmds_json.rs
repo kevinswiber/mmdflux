@@ -7,7 +7,9 @@
 use std::path::Path;
 
 use mmdflux::graph::GeometryLevel;
-use mmdflux::mmds::{Output, SUPPORTED_PROFILES, evaluate_profiles, parse_input};
+use mmdflux::mmds::{
+    Edge as MmdsEdge, Output, Rect as MmdsRect, SUPPORTED_PROFILES, evaluate_profiles, parse_input,
+};
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode};
 use serde_json::Value;
@@ -1367,4 +1369,147 @@ fn mmds_layout_output_omits_edge_paths_regardless_of_engine() {
         json["edges"][0]["path"].is_null()
             || !json["edges"][0].as_object().unwrap().contains_key("path")
     );
+}
+
+// -----------------------------------------------------------------------
+// Plan 0145 Task 1.12: MMDS Edge gains label_side + label_rect
+// -----------------------------------------------------------------------
+
+fn plan_0145_edge_contract_stub() -> MmdsEdge {
+    MmdsEdge {
+        id: "e1".into(),
+        source: "A".into(),
+        target: "B".into(),
+        from_subgraph: None,
+        to_subgraph: None,
+        label: Some("x".into()),
+        stroke: "solid".into(),
+        arrow_start: "none".into(),
+        arrow_end: "normal".into(),
+        minlen: 1,
+        path: None,
+        label_position: None,
+        is_backward: None,
+        source_port: None,
+        target_port: None,
+        label_side: None,
+        label_rect: None,
+    }
+}
+
+#[test]
+fn mmds_edge_supports_label_side_and_label_rect_fields() {
+    let edge = MmdsEdge {
+        label_side: Some("above".into()),
+        label_rect: Some(MmdsRect {
+            x: 10.0,
+            y: 20.0,
+            width: 30.0,
+            height: 10.0,
+        }),
+        ..plan_0145_edge_contract_stub()
+    };
+
+    let json = serde_json::to_value(&edge).unwrap();
+    assert_eq!(json["label_side"], "above");
+    assert_eq!(json["label_rect"]["x"], 10.0);
+    assert_eq!(json["label_rect"]["y"], 20.0);
+    assert_eq!(json["label_rect"]["width"], 30.0);
+    assert_eq!(json["label_rect"]["height"], 10.0);
+
+    let roundtrip: MmdsEdge = serde_json::from_value(json).unwrap();
+    assert_eq!(roundtrip.label_side.as_deref(), Some("above"));
+    let rect = roundtrip.label_rect.expect("label_rect should round-trip");
+    assert_eq!(rect.x, 10.0);
+    assert_eq!(rect.y, 20.0);
+    assert_eq!(rect.width, 30.0);
+    assert_eq!(rect.height, 10.0);
+}
+
+#[test]
+fn mmds_edge_omits_label_side_and_label_rect_when_none() {
+    let edge = plan_0145_edge_contract_stub();
+    let json = serde_json::to_string(&edge).unwrap();
+    assert!(
+        !json.contains("label_side"),
+        "expected label_side to be skipped when None, got: {json}"
+    );
+    assert!(
+        !json.contains("label_rect"),
+        "expected label_rect to be skipped when None, got: {json}"
+    );
+}
+
+#[test]
+fn mmds_schema_validates_label_side_and_label_rect() {
+    let payload = serde_json::json!({
+        "version": 1,
+        "defaults": {
+            "node": { "shape": "rectangle" },
+            "edge": {
+                "stroke": "solid",
+                "arrow_start": "none",
+                "arrow_end": "normal",
+                "minlen": 1
+            }
+        },
+        "geometry_level": "routed",
+        "metadata": {
+            "diagram_type": "flowchart",
+            "direction": "TD",
+            "bounds": { "width": 120.0, "height": 200.0 }
+        },
+        "nodes": [
+            {
+                "id": "A",
+                "label": "A",
+                "position": { "x": 0.0, "y": 0.0 },
+                "size": { "width": 10.0, "height": 10.0 }
+            },
+            {
+                "id": "B",
+                "label": "B",
+                "position": { "x": 0.0, "y": 100.0 },
+                "size": { "width": 10.0, "height": 10.0 }
+            }
+        ],
+        "edges": [{
+            "id": "e1",
+            "source": "A",
+            "target": "B",
+            "label_side": "below",
+            "label_rect": { "x": 0.0, "y": 0.0, "width": 10.0, "height": 10.0 }
+        }]
+    });
+    assert_schema_valid(payload);
+}
+
+#[test]
+fn mmds_schema_rejects_label_side_with_invalid_enum() {
+    let payload = serde_json::json!({
+        "version": 1,
+        "defaults": {
+            "node": { "shape": "rectangle" },
+            "edge": {
+                "stroke": "solid",
+                "arrow_start": "none",
+                "arrow_end": "normal",
+                "minlen": 1
+            }
+        },
+        "geometry_level": "layout",
+        "metadata": {
+            "diagram_type": "flowchart",
+            "direction": "TD",
+            "bounds": { "width": 120.0, "height": 200.0 }
+        },
+        "nodes": [],
+        "edges": [{
+            "id": "e1",
+            "source": "A",
+            "target": "B",
+            "label_side": "sideways"
+        }]
+    });
+    assert_schema_invalid(payload);
 }

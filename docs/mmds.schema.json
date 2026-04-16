@@ -323,6 +323,14 @@
         "target_port": {
           "$ref": "#/$defs/Port",
           "description": "Target endpoint attachment metadata. Routed level only."
+        },
+        "label_side": {
+          "enum": ["above", "below", "center"],
+          "description": "Label side relative to the edge. Appears at both layout and routed geometry levels when the engine assigned a side; omitted otherwise."
+        },
+        "label_rect": {
+          "$ref": "#/$defs/Rect",
+          "description": "Padded label rectangle in MMDS coordinate space. Includes label_padding_x / label_padding_y on each side. Routed level only."
         }
       }
     },
