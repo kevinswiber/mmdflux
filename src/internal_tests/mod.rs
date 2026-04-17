@@ -13,6 +13,7 @@ mod text_render_pipeline;
 mod direction_policy_cross;
 mod float_router_direction;
 mod graph_diagram_cross;
+mod layered_kernel_bend;
 mod sequence_layout;
 mod subgraph_render_fixture;
 mod wrap_pipeline;

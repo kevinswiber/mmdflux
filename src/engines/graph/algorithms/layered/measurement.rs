@@ -136,13 +136,29 @@ pub fn run_layered_layout(
     lc.always_compound_ordering = layered_cfg.always_compound_ordering;
     lc.track_reversed_chains = layered_cfg.track_reversed_chains;
     lc.per_edge_label_spacing = layered_cfg.per_edge_label_spacing;
+    lc.edge_label_spacing = layered_cfg.edge_label_spacing;
     lc.label_side_selection = layered_cfg.label_side_selection;
     lc.label_side_strategy = layered_cfg.label_side_strategy;
-    lc.label_dummy_strategy = layered_cfg.label_dummy_strategy;
+    lc.label_dummy_placement = layered_cfg.label_dummy_placement;
+    lc.label_dummy_routing = layered_cfg.label_dummy_routing;
     lc.backward_edge_side_grouping = layered_cfg.backward_edge_side_grouping;
 
     let direction = diagram.direction;
+    let edge_label_spacing = lc.edge_label_spacing;
     let mut result = match mode {
+        // Grid-mode measurements are in character cells; the pixel-valued
+        // `edge_label_spacing` knob is intentionally NOT translated to
+        // cell padding here. The Text renderer's grid projection
+        // (`graph::grid::derive::waypoints::transform_label_positions_direct`)
+        // snaps label positions to `layer_starts[rank]`, which is
+        // interpolated from real-node bounds — padding the dummy would
+        // grow `bounds.height` without changing the rendered rank
+        // positions, so the result would be a misleading no-op at the
+        // user-visible Text layer. See GPT-5.4 review follow-up,
+        // 2026-04-16. Text support for `edge_label_spacing` is tracked
+        // in GitHub issue #238. The kernel still honours
+        // `lc.edge_label_spacing` internally for label-side offsets in
+        // `normalize::add_label_side_offset`.
         MeasurementMode::Grid => build_layered_layout_with_config(
             diagram,
             &lc,
@@ -153,7 +169,16 @@ pub fn run_layered_layout(
             diagram,
             &lc,
             |node| proportional_node_dimensions(metrics, node, direction),
-            |edge| edge_label_dims_proportional_for_run(metrics, edge),
+            |edge| {
+                edge_label_dims_proportional_for_run(metrics, edge).map(|dims| {
+                    super::float_layout::pad_edge_label_dims(
+                        dims,
+                        edge_label_spacing,
+                        super::float_layout::edge_thickness(edge),
+                        direction,
+                    )
+                })
+            },
         ),
     };
 

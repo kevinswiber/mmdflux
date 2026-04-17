@@ -536,6 +536,83 @@ fn path_simplification_monotonicity_holds_none_lossless_lossy() {
     );
 }
 
+// -----------------------------------------------------------------------
+// Plan 0147 Task 3.1: Tier A bent paths round-trip byte-stable through MMDS
+// -----------------------------------------------------------------------
+
+#[test]
+fn tier_a_bent_paths_preserved_in_mmds_routed_output() {
+    // User RL repro: reciprocal labeled edges with a wrapped label.
+    // Flux Bend emits two waypoints around the label node; the routed MMDS
+    // output must carry them (path length >= 4 for labeled edges).
+    let src = "graph RL\n    A -->|x| B\n    A -->|yes<br>no| B\n";
+    let json = render_json_with_config(
+        src,
+        &RenderConfig {
+            geometry_level: GeometryLevel::Routed,
+            path_simplification: PathSimplification::None,
+            ..RenderConfig::default()
+        },
+    );
+    let output: Output = serde_json::from_str(&json).expect("routed MMDS parses");
+
+    let labeled: Vec<&MmdsEdge> = output
+        .edges
+        .iter()
+        .filter(|edge| edge.label.as_deref().is_some_and(|s| !s.is_empty()))
+        .collect();
+    assert!(!labeled.is_empty(), "expected labeled edges in MMDS output");
+    for edge in labeled {
+        let path = edge
+            .path
+            .as_ref()
+            .unwrap_or_else(|| panic!("labeled edge {} missing path", edge.id));
+        assert!(
+            path.len() >= 4,
+            "labeled edge {} lost bend waypoints: path={path:?}",
+            edge.id,
+        );
+    }
+}
+
+#[test]
+fn tier_a_bent_paths_round_trip_byte_stable_through_mmds() {
+    let src = "graph RL\n    A -->|x| B\n    A -->|yes<br>no| B\n";
+    let json1 = render_json_with_config(
+        src,
+        &RenderConfig {
+            geometry_level: GeometryLevel::Routed,
+            path_simplification: PathSimplification::None,
+            ..RenderConfig::default()
+        },
+    );
+
+    // parse → re-emit via the same serde path as the runtime, then parse again.
+    let output1 = parse_input(&json1).expect("first parse");
+    let json2 = serde_json::to_string_pretty(&output1).expect("re-emit");
+    let output2 = parse_input(&json2).expect("second parse");
+
+    // Semantic equality via JSON value comparison (ignores cosmetic whitespace).
+    let v1: Value = serde_json::to_value(&output1).unwrap();
+    let v2: Value = serde_json::to_value(&output2).unwrap();
+    assert_eq!(v1, v2, "MMDS Output is not round-trip stable");
+
+    // And the bend waypoints survive the round-trip per-edge.
+    for edge in output2.edges.iter() {
+        if edge.label.as_deref().is_some_and(|s| !s.is_empty()) {
+            let path = edge
+                .path
+                .as_ref()
+                .unwrap_or_else(|| panic!("labeled edge {} lost path", edge.id));
+            assert!(
+                path.len() >= 4,
+                "labeled edge {} lost bend after round-trip: {path:?}",
+                edge.id,
+            );
+        }
+    }
+}
+
 #[test]
 fn orthogonal_route_mmds_routed_output_is_deterministic_for_fixture_subset() {
     for fixture in [

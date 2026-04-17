@@ -37,6 +37,6 @@ pub(crate) use pipeline::layout;
 pub use pipeline::layout_with_labels;
 #[allow(unused_imports)]
 pub use types::{
-    Direction, EdgeLayout, LabelDummyStrategy, LabelSideStrategy, LayoutConfig, LayoutResult,
-    NodeId, Point, Ranker, Rect, SelfEdge, SelfEdgeLayout,
+    Direction, EdgeLayout, LabelDummyPlacement, LabelDummyRouting, LabelSideStrategy, LayoutConfig,
+    LayoutResult, NodeId, Point, Ranker, Rect, SelfEdge, SelfEdgeLayout,
 };

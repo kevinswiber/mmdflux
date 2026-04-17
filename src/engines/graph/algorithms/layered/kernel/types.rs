@@ -61,14 +61,37 @@ impl Direction {
     }
 }
 
-/// Strategy for placing a label dummy within a long edge's dummy chain.
+/// Placement strategy for a label dummy within a long edge's dummy chain.
+///
+/// Orthogonal to [`LabelDummyRouting`]: placement decides WHICH rank in the
+/// chain hosts the dummy; routing decides HOW the edge path traverses that
+/// dummy's rectangle. Plan 0147 Task 2.3 split `LabelDummyStrategy` into
+/// these two enums.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum LabelDummyStrategy {
-    /// Place the label at the midpoint rank of the edge (current dagre behavior).
+pub enum LabelDummyPlacement {
+    /// Place the label at the midpoint rank of the edge (dagre parity).
     #[default]
     Midpoint,
-    /// Move the label to the widest layer in the chain to minimize width increase.
+    /// Move the label to the widest layer in the chain to minimize width
+    /// increase (ELK `LabelDummySwitcher::WIDEST_LAYER`).
     WidestLayer,
+}
+
+/// Routing strategy for how an edge path traverses its label dummy's rect.
+///
+/// Orthogonal to [`LabelDummyPlacement`]. Plan 0147 Task 2.3 split
+/// `LabelDummyStrategy` into placement and routing so profiles can choose
+/// placement (flux: `WidestLayer`, mermaid: `Midpoint`) independently of
+/// routing (flux Tier A: `Bend`, mermaid/dagre parity: `Center`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelDummyRouting {
+    /// Emit a single waypoint at the dummy rect's center (dagre parity).
+    #[default]
+    Center,
+    /// Emit two waypoints on the dummy rect's perpendicular faces so the
+    /// edge path bows around the label (ELK `LongEdgeJoiner.joinAt` with
+    /// `isPolyline=true`). Plan 0147 Task 2.4 lands the emission.
+    Bend,
 }
 
 /// A 2D point with floating-point coordinates.
@@ -340,8 +363,14 @@ pub struct LayoutConfig {
     /// Which strategy to use for assigning label sides.
     pub label_side_strategy: LabelSideStrategy,
 
-    /// Strategy for placing label dummies within long edge chains.
-    pub label_dummy_strategy: LabelDummyStrategy,
+    /// Placement strategy for label dummies within long edge chains.
+    /// Orthogonal to `label_dummy_routing` (plan 0147 Task 2.3).
+    pub label_dummy_placement: LabelDummyPlacement,
+
+    /// Routing strategy for how an edge path traverses its label dummy's
+    /// rect. Orthogonal to `label_dummy_placement` (plan 0147 Task 2.3).
+    /// Two-waypoint emission under `Bend` lands in Task 2.4.
+    pub label_dummy_routing: LabelDummyRouting,
 
     /// Gap between edge stroke and label text (in layout units).
     pub edge_label_spacing: f64,
@@ -386,7 +415,8 @@ impl Default for LayoutConfig {
             per_edge_label_spacing: false,
             label_side_selection: false,
             label_side_strategy: LabelSideStrategy::default(),
-            label_dummy_strategy: LabelDummyStrategy::default(),
+            label_dummy_placement: LabelDummyPlacement::default(),
+            label_dummy_routing: LabelDummyRouting::default(),
             edge_label_spacing: 2.0,
             backward_edge_side_grouping: false,
             edge_label_max_width: None,
@@ -520,22 +550,32 @@ mod tests {
         assert!(!config.per_edge_label_spacing);
     }
 
+    // Plan 0147 Task 2.3: placement + routing defaults, split enum replaces
+    // the old `LabelDummyStrategy`.
     #[test]
-    fn label_dummy_strategy_defaults_to_midpoint() {
+    fn label_dummy_placement_defaults_to_midpoint() {
         let config = LayoutConfig::default();
-        assert_eq!(config.label_dummy_strategy, LabelDummyStrategy::Midpoint);
+        assert_eq!(config.label_dummy_placement, LabelDummyPlacement::Midpoint);
+    }
+
+    #[test]
+    fn label_dummy_routing_defaults_to_center() {
+        let config = LayoutConfig::default();
+        assert_eq!(config.label_dummy_routing, LabelDummyRouting::Center);
+    }
+
+    #[test]
+    fn label_dummy_enum_variants_exist() {
+        let _ = LabelDummyPlacement::Midpoint;
+        let _ = LabelDummyPlacement::WidestLayer;
+        let _ = LabelDummyRouting::Center;
+        let _ = LabelDummyRouting::Bend;
     }
 
     #[test]
     fn edge_label_spacing_defaults_to_2() {
         let config = LayoutConfig::default();
         assert!((config.edge_label_spacing - 2.0).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn label_dummy_strategy_variants() {
-        let _ = LabelDummyStrategy::Midpoint;
-        let _ = LabelDummyStrategy::WidestLayer;
     }
 
     #[test]

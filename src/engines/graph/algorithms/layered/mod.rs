@@ -17,7 +17,9 @@ pub(crate) use float_layout::build_float_layout_with_flags;
 pub use kernel::graph::DiGraph;
 #[cfg(test)]
 pub(crate) use kernel::pipeline::layout;
-pub use kernel::types::{Direction, LabelDummyStrategy, LabelSideStrategy, LayoutConfig, Ranker};
+pub use kernel::types::{
+    Direction, LabelDummyPlacement, LabelDummyRouting, LabelSideStrategy, LayoutConfig, Ranker,
+};
 #[cfg(test)]
 pub use kernel::types::{EdgeLayout, LayoutResult, NodeId, Point, Rect, SelfEdgeLayout};
 #[cfg(test)]

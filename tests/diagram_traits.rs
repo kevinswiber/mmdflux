@@ -1,7 +1,8 @@
 use mmdflux::registry::DiagramFamily;
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{
-    LabelDummyStrategy, LayoutConfig, LayoutDirection, OutputFormat, Ranker, RenderConfig,
+    LabelDummyPlacement, LabelDummyRouting, LayoutConfig, LayoutDirection, OutputFormat, Ranker,
+    RenderConfig,
 };
 
 #[test]
@@ -20,7 +21,8 @@ fn layout_config_public_defaults_are_accessible() {
     let cfg = LayoutConfig::default();
     assert_eq!(cfg.direction, LayoutDirection::TopBottom);
     assert_eq!(cfg.ranker, Ranker::NetworkSimplex);
-    assert_eq!(cfg.label_dummy_strategy, LabelDummyStrategy::Midpoint);
+    assert_eq!(cfg.label_dummy_placement, LabelDummyPlacement::Midpoint);
+    assert_eq!(cfg.label_dummy_routing, LabelDummyRouting::Center);
     assert_eq!(cfg.rank_sep, 50.0);
 }
 

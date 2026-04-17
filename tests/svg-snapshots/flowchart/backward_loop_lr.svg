@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1659.10 200.00" style="max-width: 1659.10px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1665.10 200.00" style="max-width: 1665.10px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -12,9 +12,9 @@
       <path d="M548.40,35.00 L626.51,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M580.51,139.00 L868.10,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M822.10,54.00 L829.50,54.00 Q833.50,54.00 833.50,58.00 L833.50,62.00 L833.50,115.00 Q833.50,120.00 838.50,120.00 L868.10,120.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M1074.27,127.93 L1179.99,127.93" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M1195.99,166.00 L1195.99,177.00 Q1195.99,182.00 1190.99,182.00 L1067.27,182.00 Q1062.27,182.00 1062.27,177.00 L1062.27,170.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M1353.87,139.00 L1467.39,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1074.27,128.00 L1182.99,128.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1198.99,166.00 L1198.99,177.00 Q1198.99,182.00 1193.99,182.00 L1067.27,182.00 Q1062.27,182.00 1062.27,177.00 L1062.27,170.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M1356.87,139.00 L1473.39,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
       <rect x="8.00" y="60.00" width="134.05" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
@@ -29,16 +29,16 @@
       <text x="726.30" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Frontend Scaffold</text>
       <rect x="872.10" y="112.00" width="202.17" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="973.18" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">AI Implementation</text>
-      <rect x="1183.99" y="112.00" width="169.88" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1268.93" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Quality Checks</text>
-      <rect x="1471.39" y="112.00" width="179.71" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1561.24" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production Code</text>
+      <rect x="1186.99" y="112.00" width="169.88" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1271.93" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Quality Checks</text>
+      <rect x="1477.39" y="112.00" width="179.71" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1567.24" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production Code</text>
     </g>
     <g class="edgeLabels">
-      <rect x="1113.77" y="168.00" width="34.73" height="28.00" fill="white" />
-      <text x="1131.13" y="182.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Fail</text>
-      <rect x="1389.37" y="125.00" width="42.52" height="28.00" fill="white" />
-      <text x="1410.63" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Pass</text>
+      <rect x="1115.27" y="168.00" width="34.73" height="28.00" fill="white" />
+      <text x="1132.63" y="182.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Fail</text>
+      <rect x="1393.87" y="125.00" width="42.52" height="28.00" fill="white" />
+      <text x="1415.13" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Pass</text>
     </g>
   </g>
 </svg>

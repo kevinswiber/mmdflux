@@ -14,7 +14,8 @@ use std::collections::{HashMap, HashSet};
 
 use super::graph::LayoutGraph;
 use super::types::{
-    DummyChain, DummyNode, EdgeLabelInfo, LabelSide, NodeId, Point, WaypointWithRank,
+    DummyChain, DummyNode, EdgeLabelInfo, LabelDummyRouting, LabelSide, LayoutConfig, NodeId,
+    Point, WaypointWithRank,
 };
 
 /// Counter for generating unique dummy node IDs.
@@ -215,7 +216,10 @@ pub(crate) fn run(
 /// # Returns
 /// A map from original edge index to a list of waypoints with rank information.
 /// The rank is needed to transform waypoints from layout coordinates to draw coordinates.
-pub(crate) fn denormalize(graph: &LayoutGraph) -> HashMap<usize, Vec<WaypointWithRank>> {
+pub(crate) fn denormalize(
+    graph: &LayoutGraph,
+    config: &LayoutConfig,
+) -> HashMap<usize, Vec<WaypointWithRank>> {
     let mut waypoints: HashMap<usize, Vec<WaypointWithRank>> = HashMap::new();
 
     for chain in &graph.dummy_chains {
@@ -233,14 +237,64 @@ pub(crate) fn denormalize(graph: &LayoutGraph) -> HashMap<usize, Vec<WaypointWit
                     .map(|d| d.rank)
                     .unwrap_or(graph.ranks[dummy_idx]);
 
-                // Use center of dummy (for label dummies with non-zero size)
-                points.push(WaypointWithRank {
-                    point: Point {
-                        x: pos.x + dims.0 / 2.0,
-                        y: pos.y + dims.1 / 2.0,
-                    },
-                    rank,
-                });
+                let dummy_is_label = graph
+                    .dummy_nodes
+                    .get(dummy_id)
+                    .map(|d| d.is_label())
+                    .unwrap_or(false);
+
+                // Plan 0147 Task 2.4 / 2.8: for label dummies under
+                // `LabelDummyRouting::Bend` emit two waypoints on the
+                // dummy rect's perpendicular faces (ELK
+                // `LongEdgeJoiner.joinAt(isPolyline=true)`); all other
+                // dummies keep the single center waypoint dagre parity
+                // demands. Emission is in forward-chain order — reversed
+                // edges flip both waypoints together via
+                // `pipeline.rs::reversePointsForReversedEdges`, preserving
+                // the bend relative to source/target.
+                match (
+                    dummy_is_label,
+                    config.label_dummy_routing,
+                    config.direction.is_vertical(),
+                ) {
+                    (true, LabelDummyRouting::Bend, true) => {
+                        let mid_x = pos.x + dims.0 / 2.0;
+                        points.push(WaypointWithRank {
+                            point: Point { x: mid_x, y: pos.y },
+                            rank,
+                        });
+                        points.push(WaypointWithRank {
+                            point: Point {
+                                x: mid_x,
+                                y: pos.y + dims.1,
+                            },
+                            rank,
+                        });
+                    }
+                    (true, LabelDummyRouting::Bend, false) => {
+                        let mid_y = pos.y + dims.1 / 2.0;
+                        points.push(WaypointWithRank {
+                            point: Point { x: pos.x, y: mid_y },
+                            rank,
+                        });
+                        points.push(WaypointWithRank {
+                            point: Point {
+                                x: pos.x + dims.0,
+                                y: mid_y,
+                            },
+                            rank,
+                        });
+                    }
+                    _ => {
+                        points.push(WaypointWithRank {
+                            point: Point {
+                                x: pos.x + dims.0 / 2.0,
+                                y: pos.y + dims.1 / 2.0,
+                            },
+                            rank,
+                        });
+                    }
+                }
             }
         }
 
@@ -442,7 +496,7 @@ mod tests {
         let dummy_idx = lg.node_index[dummy_id];
         lg.positions[dummy_idx] = Point { x: 50.0, y: 100.0 };
 
-        let waypoints = denormalize(&lg);
+        let waypoints = denormalize(&lg, &LayoutConfig::default());
 
         // Should have waypoints for the normalized edge
         assert!(waypoints.contains_key(&lg.dummy_chains[0].edge_index));
