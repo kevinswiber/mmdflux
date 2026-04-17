@@ -5904,7 +5904,7 @@ mod plan_0145_q9_red {
     // needs either global X packing across compartments or a cross-
     // compartment rewrap trigger. Tracking as a follow-up.
     #[test]
-    #[ignore = "plan 0149 follow-up: cross-compartment X overlap; see findings/plan-0149-completion.md"]
+    #[ignore = "plan 0149 follow-up: cross-compartment X overlap — see #242"]
     fn state_concurrent_three_flux_layered_labels_disjoint_svg() {
         let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::FLUX_LAYERED);
         let overlap = svg_pairwise_label_rect_overlaps(&svg);
@@ -5915,7 +5915,7 @@ mod plan_0145_q9_red {
     }
 
     #[test]
-    #[ignore = "plan 0149 follow-up: cross-compartment X overlap; see findings/plan-0149-completion.md"]
+    #[ignore = "plan 0149 follow-up: cross-compartment X overlap — see #242"]
     fn state_concurrent_three_mermaid_layered_labels_disjoint_svg() {
         let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::MERMAID_LAYERED);
         let overlap = svg_pairwise_label_rect_overlaps(&svg);
@@ -5938,7 +5938,7 @@ mod plan_0145_q9_red {
     // it) — tracked as a follow-up. See
     // `findings/plan-0149-completion.md`.
     #[test]
-    #[ignore = "plan 0149 follow-up: kernel must reserve rank space for multi-member label compartments; see findings/plan-0149-completion.md"]
+    #[ignore = "plan 0149 follow-up: kernel must reserve rank space for multi-member label compartments — see #241"]
     fn flowchart_long_reciprocal_labels_disjoint_svg() {
         let input = load_flowchart_fixture("long_reciprocal_labels.mmd");
         let svg = render_svg_default(&input);
@@ -5953,7 +5953,7 @@ mod plan_0145_q9_red {
     // (or a smaller label height) than descriptor/clamp tuning alone
     // can deliver. Tracked with the same follow-up.
     #[test]
-    #[ignore = "plan 0149 follow-up: kernel must reserve rank space for multi-member label compartments; see findings/plan-0149-completion.md"]
+    #[ignore = "plan 0149 follow-up: kernel must reserve rank space for multi-member label compartments — see #241"]
     fn flowchart_multi_edge_labeled_same_direction_disjoint_svg() {
         let input = load_flowchart_fixture("multi_edge_labeled.mmd");
         let svg = render_svg_default(&input);
@@ -6033,7 +6033,7 @@ mod plan_0147_task_4_2 {
     /// pairwise-disjointness half requires kernel-level rank-space
     /// reservation; see `findings/plan-0149-completion.md`.
     #[test]
-    #[ignore = "plan 0149 follow-up: kernel must reserve rank space for multi-member label compartments; see findings/plan-0149-completion.md"]
+    #[ignore = "plan 0149 follow-up: kernel must reserve rank space for multi-member label compartments — see #241"]
     fn long_reciprocal_labels_elk_like_e2e() {
         let svg = long_reciprocal_svg();
         let viewbox_failures = svg_viewbox_contains_rects(&svg);
