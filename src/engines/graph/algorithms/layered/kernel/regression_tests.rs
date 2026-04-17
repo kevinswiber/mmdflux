@@ -584,7 +584,7 @@ fn build_graph_with_long_labeled_edge(span: usize) -> LayoutGraph {
 fn switch_midpoint_strategy_is_noop() {
     let mut lg = build_graph_with_long_labeled_edge(6);
     let original_idx = lg.dummy_chains[0].label_dummy_index;
-    switch_label_dummies(&mut lg, LabelDummyStrategy::Midpoint);
+    switch_label_dummies(&mut lg, LabelDummyPlacement::Midpoint);
     assert_eq!(lg.dummy_chains[0].label_dummy_index, original_idx);
 }
 
@@ -605,7 +605,7 @@ fn switch_to_widest_layer_stays_if_midpoint_is_widest() {
     lg.parents.push(None);
     lg.model_order.push(None);
 
-    switch_label_dummies(&mut lg, LabelDummyStrategy::WidestLayer);
+    switch_label_dummies(&mut lg, LabelDummyPlacement::WidestLayer);
     // Should stay at the same position since rank 3 is widest
     assert_eq!(lg.dummy_chains[0].label_dummy_index, Some(2));
 }
@@ -626,7 +626,7 @@ fn switch_moves_label_to_wider_layer() {
     lg.parents.push(None);
     lg.model_order.push(None);
 
-    switch_label_dummies(&mut lg, LabelDummyStrategy::WidestLayer);
+    switch_label_dummies(&mut lg, LabelDummyPlacement::WidestLayer);
     // Label should move to chain index 3 (rank 4)
     assert_eq!(lg.dummy_chains[0].label_dummy_index, Some(3));
 
@@ -659,7 +659,7 @@ fn get_label_position_uses_updated_chain_index() {
     lg.parents.push(None);
     lg.model_order.push(None);
 
-    switch_label_dummies(&mut lg, LabelDummyStrategy::WidestLayer);
+    switch_label_dummies(&mut lg, LabelDummyPlacement::WidestLayer);
 
     // Set positions for all dummies so get_label_position returns meaningful values
     for (i, id) in lg.dummy_chains[0].dummy_ids.iter().enumerate() {

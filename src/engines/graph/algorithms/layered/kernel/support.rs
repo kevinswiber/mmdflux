@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use super::graph::LayoutGraph;
 use super::types::{DummyNode, DummyType, EdgeLabelInfo, LabelSide};
 use super::{
-    Direction, LabelDummyStrategy, LayoutConfig, LayoutResult, NodeId, Point, Rect, SelfEdge,
+    Direction, LabelDummyPlacement, LayoutConfig, LayoutResult, NodeId, Point, Rect, SelfEdge,
     SelfEdgeLayout, rank,
 };
 
@@ -39,8 +39,8 @@ pub(crate) fn make_space_for_labeled_edges(
 /// avoids adding label width to a narrow layer that would widen the layout.
 ///
 /// Runs after normalization, before crossing reduction.
-pub(crate) fn switch_label_dummies(lg: &mut LayoutGraph, strategy: LabelDummyStrategy) {
-    if strategy == LabelDummyStrategy::Midpoint {
+pub(crate) fn switch_label_dummies(lg: &mut LayoutGraph, placement: LabelDummyPlacement) {
+    if placement == LabelDummyPlacement::Midpoint {
         return;
     }
 

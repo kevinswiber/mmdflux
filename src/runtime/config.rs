@@ -1,7 +1,9 @@
 //! Rendering configuration for layout engine selection and output tuning.
 
 use crate::engines::graph::{EngineAlgorithmId, EngineId};
-pub use crate::engines::graph::{LabelDummyStrategy, LayoutConfig, LayoutDirection, Ranker};
+pub use crate::engines::graph::{
+    LabelDummyPlacement, LabelDummyRouting, LayoutConfig, LayoutDirection, Ranker,
+};
 use crate::format::{CornerStyle, Curve, EdgePreset, OutputFormat, RoutingStyle, TextColorMode};
 use crate::graph::GeometryLevel;
 use crate::render::graph::{SvgRenderOptions, TextRenderOptions};

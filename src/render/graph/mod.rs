@@ -120,6 +120,14 @@ pub(crate) fn render_svg_from_routed_geometry_with_theme(
     )
 }
 
+/// **Load-bearing downgrade.** Rebuilds a `GraphGeometry` from a
+/// `RoutedGraphGeometry` so `Visual` SVG solve paths that carry routed
+/// output (MMDS-driven SVG replay, routed-geometry tests) still see
+/// authoritative paths and label rectangles. Any `RoutedEdgeGeometry`
+/// field that SVG / MMDS / bounds consume MUST be forwarded here; silently
+/// dropping one collapses the SVG label to the path-midpoint fallback.
+/// Mirrors `apply_routed_edge_paths` in
+/// `engines/graph/algorithms/layered/float_layout.rs`.
 fn geometry_for_routed_svg(diagram: &Graph, routed: &RoutedGraphGeometry) -> GraphGeometry {
     GraphGeometry {
         nodes: routed.nodes.clone(),
@@ -137,7 +145,7 @@ fn geometry_for_routed_svg(diagram: &Graph, routed: &RoutedGraphGeometry) -> Gra
                 to_subgraph: edge.to_subgraph.clone(),
                 layout_path_hint: Some(edge.path.clone()),
                 preserve_orthogonal_topology: edge.preserve_orthogonal_topology,
-                label_geometry: None,
+                label_geometry: edge.label_geometry,
             })
             .collect(),
         subgraphs: routed.subgraphs.clone(),

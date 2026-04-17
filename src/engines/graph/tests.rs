@@ -1,5 +1,5 @@
 use super::algorithms::layered::{
-    DiGraph, LabelDummyStrategy, LabelSideStrategy, LayoutConfig, layout, run_layered_layout,
+    DiGraph, LabelDummyPlacement, LabelSideStrategy, LayoutConfig, layout, run_layered_layout,
 };
 use super::contracts::MeasurementMode;
 use super::flux::{
@@ -400,7 +400,7 @@ fn flux_layout_profile_polyline_uses_enhanced_profile() {
         track_reversed_chains: false,
         per_edge_label_spacing: false,
         label_side_selection: false,
-        label_dummy_strategy: LabelDummyStrategy::Midpoint,
+        label_dummy_placement: LabelDummyPlacement::Midpoint,
         ..Default::default()
     };
     let profile = flux_layout_profile(&input_cfg, EdgeRouting::PolylineRoute);
@@ -430,8 +430,8 @@ fn flux_layout_profile_polyline_uses_enhanced_profile() {
         "polyline profile should enable label_side_selection"
     );
     assert_eq!(
-        profile.label_dummy_strategy,
-        LabelDummyStrategy::WidestLayer,
+        profile.label_dummy_placement,
+        LabelDummyPlacement::WidestLayer,
         "polyline profile should use widest-layer label dummy placement"
     );
     assert!(
@@ -450,7 +450,7 @@ fn flux_layout_profile_all_routing_styles_use_enhanced_profile() {
         track_reversed_chains: false,
         per_edge_label_spacing: false,
         label_side_selection: false,
-        label_dummy_strategy: LabelDummyStrategy::Midpoint,
+        label_dummy_placement: LabelDummyPlacement::Midpoint,
         ..Default::default()
     };
 
@@ -485,8 +485,8 @@ fn flux_layout_profile_all_routing_styles_use_enhanced_profile() {
             "{routing:?} profile should enable label_side_selection"
         );
         assert_eq!(
-            profile.label_dummy_strategy,
-            LabelDummyStrategy::WidestLayer,
+            profile.label_dummy_placement,
+            LabelDummyPlacement::WidestLayer,
             "{routing:?} profile should use widest-layer label dummy placement"
         );
         assert!(
@@ -526,6 +526,18 @@ fn flux_profile_sets_edge_label_max_width_200() {
     assert!(input_cfg.edge_label_max_width.is_none());
     let profile = flux_layout_profile(&input_cfg, EdgeRouting::PolylineRoute);
     assert_eq!(profile.edge_label_max_width, Some(200.0));
+}
+
+// Plan 0147 Task 2.6: profile wiring — flux on WidestLayer + Bend,
+// mermaid on explicit Midpoint + Center (not via `..Default::default()`).
+#[test]
+fn flux_profile_uses_widest_layer_placement_and_bend_routing() {
+    let cfg = flux_layout_profile(&LayoutConfig::default(), EdgeRouting::PolylineRoute);
+    assert_eq!(cfg.label_dummy_placement, LabelDummyPlacement::WidestLayer);
+    assert_eq!(
+        cfg.label_dummy_routing,
+        crate::engines::graph::algorithms::layered::LabelDummyRouting::Bend
+    );
 }
 
 #[test]

@@ -14,8 +14,9 @@ use super::support::{
 };
 use super::types::EdgeLabelInfo;
 use super::{
-    DiGraph, EdgeLayout, LabelDummyStrategy, LabelSideStrategy, LayoutConfig, LayoutResult, NodeId,
-    Point, Rect, acyclic, border, nesting, normalize, order, parent_dummy_chains, position, rank,
+    DiGraph, EdgeLayout, LabelDummyPlacement, LabelSideStrategy, LayoutConfig, LayoutResult,
+    NodeId, Point, Rect, acyclic, border, nesting, normalize, order, parent_dummy_chains, position,
+    rank,
 };
 
 /// Main entry point for layout computation.
@@ -155,9 +156,10 @@ where
     normalize::run(&mut lg, edge_labels, config.track_reversed_chains);
     debug_dump_pipeline(&lg, "after_normalize");
 
-    // Phase 2.6: Optionally move label dummies to widest layer
-    if config.label_dummy_strategy != LabelDummyStrategy::Midpoint {
-        switch_label_dummies(&mut lg, config.label_dummy_strategy);
+    // Phase 2.6: Optionally move label dummies to widest layer.
+    // Plan 0147 Task 2.3: placement is now orthogonal to routing.
+    if config.label_dummy_placement != LabelDummyPlacement::Midpoint {
+        switch_label_dummies(&mut lg, config.label_dummy_placement);
     }
 
     // Compound: assign dummy chain parents to match compound hierarchy.
@@ -241,8 +243,11 @@ where
         HashMap::new()
     };
 
-    // Extract waypoints from dummy positions
-    let edge_waypoints = normalize::denormalize(&lg);
+    // Extract waypoints from dummy positions.
+    // Plan 0147 Task 2.4: config drives label-dummy routing (Bend emits
+    // two waypoints on the dummy's perpendicular faces; Center keeps the
+    // single-center-waypoint dagre behavior).
+    let edge_waypoints = normalize::denormalize(&lg, &config);
 
     // Extract label positions and sides
     let mut label_positions = HashMap::new();

@@ -5,8 +5,8 @@
 //! routing behavior.
 
 use crate::engines::graph::algorithms::layered::{
-    LabelDummyStrategy, LabelSideStrategy, LayoutConfig, build_float_layout_with_flags,
-    layout_config_from_layered, run_layered_layout,
+    LabelDummyPlacement, LabelDummyRouting, LabelSideStrategy, LayoutConfig,
+    build_float_layout_with_flags, layout_config_from_layered, run_layered_layout,
 };
 use crate::engines::graph::contracts::MeasurementMode;
 use crate::engines::graph::{
@@ -40,7 +40,10 @@ pub(crate) fn flux_layout_profile(
         per_edge_label_spacing: true,
         label_side_selection: true,
         label_side_strategy: LabelSideStrategy::DirectionDown,
-        label_dummy_strategy: LabelDummyStrategy::WidestLayer,
+        // Plan 0147 Task 2.3 / 2.6: flux profile uses WidestLayer placement
+        // and the Bend routing that Task 2.4 ships.
+        label_dummy_placement: LabelDummyPlacement::WidestLayer,
+        label_dummy_routing: LabelDummyRouting::Bend,
         backward_edge_side_grouping: true,
         // Plan 0147 Task 1.7: flux profile enables wrap at 200 px.
         edge_label_max_width: input_cfg.edge_label_max_width.or(Some(200.0)),

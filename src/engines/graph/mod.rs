@@ -30,7 +30,7 @@ pub use contracts::{
     EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, GraphSolveResult,
     SubgraphDirectionPolicy,
 };
-pub use layout::{LabelDummyStrategy, LayoutConfig, LayoutDirection, Ranker};
+pub use layout::{LabelDummyPlacement, LabelDummyRouting, LayoutConfig, LayoutDirection, Ranker};
 pub use registry::GraphEngineRegistry;
 pub use selection::{AlgorithmId, EngineAlgorithmCapabilities, EngineAlgorithmId, EngineId};
 pub use solve::solve_graph_family;

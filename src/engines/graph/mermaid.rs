@@ -7,7 +7,8 @@
 use std::collections::HashMap;
 
 use crate::engines::graph::algorithms::layered::{
-    LabelSideStrategy, LayoutConfig, build_float_layout_with_flags, layout_config_from_layered,
+    LabelDummyPlacement, LabelDummyRouting, LabelSideStrategy, LayoutConfig,
+    build_float_layout_with_flags, layout_config_from_layered,
 };
 use crate::engines::graph::contracts::MeasurementMode;
 use crate::engines::graph::{
@@ -156,9 +157,15 @@ impl GraphEngine for MermaidLayeredEngine {
             always_compound_ordering: true,
             label_side_selection: true,
             label_side_strategy: LabelSideStrategy::DirectionDown,
+            // Plan 0147 Task 2.3 / 2.6: mermaid profile pins placement +
+            // routing explicitly at the dagre-parity defaults so later
+            // `..Default::default()` changes never drift the profile off
+            // parity.
+            label_dummy_placement: LabelDummyPlacement::Midpoint,
+            label_dummy_routing: LabelDummyRouting::Center,
             // Plan 0147 Task 1.7: mermaid profile enables wrap at 200 px;
             // dagre parity is preserved because `LabelDummyRouting` stays on
-            // the default `Center` until PR B Tier A introduces `Bend`.
+            // `Center` here.
             edge_label_max_width: Some(200.0),
             ..Default::default()
         };

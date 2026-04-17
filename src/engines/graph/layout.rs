@@ -70,31 +70,64 @@ impl From<crate::engines::graph::algorithms::layered::Direction> for LayoutDirec
     }
 }
 
-/// Strategy for placing edge-label dummies within long edge chains.
+/// Placement strategy for edge-label dummies within long edge chains.
+/// Orthogonal to [`LabelDummyRouting`] — plan 0147 Task 2.3 split the
+/// legacy `LabelDummyStrategy` into placement + routing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum LabelDummyStrategy {
+pub enum LabelDummyPlacement {
     #[default]
     Midpoint,
     WidestLayer,
 }
 
-impl From<LabelDummyStrategy> for crate::engines::graph::algorithms::layered::LabelDummyStrategy {
-    fn from(value: LabelDummyStrategy) -> Self {
+impl From<LabelDummyPlacement> for crate::engines::graph::algorithms::layered::LabelDummyPlacement {
+    fn from(value: LabelDummyPlacement) -> Self {
         match value {
-            LabelDummyStrategy::Midpoint => Self::Midpoint,
-            LabelDummyStrategy::WidestLayer => Self::WidestLayer,
+            LabelDummyPlacement::Midpoint => Self::Midpoint,
+            LabelDummyPlacement::WidestLayer => Self::WidestLayer,
         }
     }
 }
 
-impl From<crate::engines::graph::algorithms::layered::LabelDummyStrategy> for LabelDummyStrategy {
-    fn from(value: crate::engines::graph::algorithms::layered::LabelDummyStrategy) -> Self {
+impl From<crate::engines::graph::algorithms::layered::LabelDummyPlacement> for LabelDummyPlacement {
+    fn from(value: crate::engines::graph::algorithms::layered::LabelDummyPlacement) -> Self {
         match value {
-            crate::engines::graph::algorithms::layered::LabelDummyStrategy::Midpoint => {
-                LabelDummyStrategy::Midpoint
+            crate::engines::graph::algorithms::layered::LabelDummyPlacement::Midpoint => {
+                LabelDummyPlacement::Midpoint
             }
-            crate::engines::graph::algorithms::layered::LabelDummyStrategy::WidestLayer => {
-                LabelDummyStrategy::WidestLayer
+            crate::engines::graph::algorithms::layered::LabelDummyPlacement::WidestLayer => {
+                LabelDummyPlacement::WidestLayer
+            }
+        }
+    }
+}
+
+/// Routing strategy for how an edge path traverses its label dummy's rect.
+/// Orthogonal to [`LabelDummyPlacement`] — plan 0147 Task 2.3.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelDummyRouting {
+    #[default]
+    Center,
+    Bend,
+}
+
+impl From<LabelDummyRouting> for crate::engines::graph::algorithms::layered::LabelDummyRouting {
+    fn from(value: LabelDummyRouting) -> Self {
+        match value {
+            LabelDummyRouting::Center => Self::Center,
+            LabelDummyRouting::Bend => Self::Bend,
+        }
+    }
+}
+
+impl From<crate::engines::graph::algorithms::layered::LabelDummyRouting> for LabelDummyRouting {
+    fn from(value: crate::engines::graph::algorithms::layered::LabelDummyRouting) -> Self {
+        match value {
+            crate::engines::graph::algorithms::layered::LabelDummyRouting::Center => {
+                LabelDummyRouting::Center
+            }
+            crate::engines::graph::algorithms::layered::LabelDummyRouting::Bend => {
+                LabelDummyRouting::Bend
             }
         }
     }
@@ -149,7 +182,21 @@ pub struct LayoutConfig {
     pub per_edge_label_spacing: bool,
     pub label_side_selection: bool,
     pub label_side_strategy: LabelSideStrategy,
-    pub label_dummy_strategy: LabelDummyStrategy,
+    /// Plan 0147 Task 2.3: orthogonal placement + routing enums replaced
+    /// the legacy `label_dummy_strategy`.
+    pub label_dummy_placement: LabelDummyPlacement,
+    pub label_dummy_routing: LabelDummyRouting,
+    /// Pixel spacing between edge line and label, mirroring ELK
+    /// `edgeLabelSpacing`. Applied by proportional measurement modes
+    /// (SVG rendering and MMDS output at either geometry level), which
+    /// pad the label dummy by `edge_label_spacing + thickness` in pixels.
+    ///
+    /// Text output uses a grid projection that snaps labels to
+    /// rank-interpolated layer starts, so this knob does **not** affect
+    /// Text rendering today. Adding Text support requires teaching
+    /// `graph::grid::derive::waypoints::transform_label_positions_direct`
+    /// to account for padded dummy heights — tracked in GitHub issue
+    /// #238.
     pub edge_label_spacing: f64,
     pub backward_edge_side_grouping: bool,
     /// Maximum edge-label width in pixels before greedy wrap kicks in.
@@ -176,7 +223,8 @@ impl Default for LayoutConfig {
             per_edge_label_spacing: false,
             label_side_selection: false,
             label_side_strategy: LabelSideStrategy::default(),
-            label_dummy_strategy: LabelDummyStrategy::default(),
+            label_dummy_placement: LabelDummyPlacement::default(),
+            label_dummy_routing: LabelDummyRouting::default(),
             edge_label_spacing: 2.0,
             backward_edge_side_grouping: false,
             // Plan 0147 Task 1.7: user-facing default enables wrap at 200 px so
@@ -215,7 +263,8 @@ impl From<LayoutConfig> for crate::engines::graph::algorithms::layered::LayoutCo
             per_edge_label_spacing: value.per_edge_label_spacing,
             label_side_selection: value.label_side_selection,
             label_side_strategy: value.label_side_strategy.into(),
-            label_dummy_strategy: value.label_dummy_strategy.into(),
+            label_dummy_placement: value.label_dummy_placement.into(),
+            label_dummy_routing: value.label_dummy_routing.into(),
             edge_label_spacing: value.edge_label_spacing,
             backward_edge_side_grouping: value.backward_edge_side_grouping,
             edge_label_max_width: value.edge_label_max_width,
@@ -248,7 +297,8 @@ impl From<crate::engines::graph::algorithms::layered::LayoutConfig> for LayoutCo
             per_edge_label_spacing: value.per_edge_label_spacing,
             label_side_selection: value.label_side_selection,
             label_side_strategy: value.label_side_strategy.into(),
-            label_dummy_strategy: value.label_dummy_strategy.into(),
+            label_dummy_placement: value.label_dummy_placement.into(),
+            label_dummy_routing: value.label_dummy_routing.into(),
             edge_label_spacing: value.edge_label_spacing,
             backward_edge_side_grouping: value.backward_edge_side_grouping,
             edge_label_max_width: value.edge_label_max_width,

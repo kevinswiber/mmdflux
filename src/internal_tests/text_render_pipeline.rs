@@ -486,6 +486,35 @@ mod owner_local_fixture_regressions {
     }
 }
 
+mod plan_0147_task_3_2_text_grid_gate {
+    //! Plan 0147 Task 3.2: labeled backward-edge fixtures must still render
+    //! corridor-closure glyphs (`─┘` / `└─`) under Tier A's two-waypoint bend.
+    //! Plan 0145 task 3.9 previously broke this; Tier A's narrower bend is
+    //! expected to be safe — verify, don't assume.
+
+    use super::*;
+
+    fn assert_has_corridor_close_glyphs(fixture: &str) {
+        let text = render_flowchart_fixture(fixture);
+        let has_right_up = text.contains("─┘");
+        let has_up_right = text.contains("└─");
+        assert!(
+            has_right_up || has_up_right,
+            "corridor closure glyphs (─┘ / └─) missing from {fixture}; output:\n{text}"
+        );
+    }
+
+    #[test]
+    fn labeled_backward_asymmetric_preserves_corridor_close_glyphs() {
+        assert_has_corridor_close_glyphs("backward_label_asymmetric_markers.mmd");
+    }
+
+    #[test]
+    fn labeled_backward_loop_lr_preserves_corridor_close_glyphs() {
+        assert_has_corridor_close_glyphs("backward_loop_lr.mmd");
+    }
+}
+
 mod edge_rendering_regression {
     use std::collections::HashMap;
     use std::path::Path;

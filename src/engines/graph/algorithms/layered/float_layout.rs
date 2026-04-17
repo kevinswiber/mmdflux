@@ -30,6 +30,34 @@ fn edge_label_dims_proportional(
         .map(|label| metrics.edge_label_dimensions(label))
 }
 
+/// Stroke thickness in layout units used for ELK label-dummy padding.
+/// Matches the `info.thickness` assignment at `layout_building.rs:355` so
+/// layout sizing and `EdgeLabelInfo` stay consistent.
+pub(super) fn edge_thickness(edge: &Edge) -> f64 {
+    match edge.stroke {
+        Stroke::Thick => 3.0,
+        _ => 1.0,
+    }
+}
+
+/// Apply ELK `LabelDummyInserter` padding — inflate the rank-axis extent
+/// of the label dummy by `edge_label_spacing + thickness`. Plan 0147
+/// Task 2.5 / ELK `LabelDummyInserter.java:80-110`. Rank axis is vertical
+/// for TB/BT and horizontal for LR/RL.
+pub(super) fn pad_edge_label_dims(
+    dims: (f64, f64),
+    spacing: f64,
+    thickness: f64,
+    direction: Direction,
+) -> (f64, f64) {
+    let pad = spacing + thickness;
+    if matches!(direction, Direction::TopDown | Direction::BottomTop) {
+        (dims.0, dims.1 + pad)
+    } else {
+        (dims.0 + pad, dims.1)
+    }
+}
+
 pub(crate) fn build_float_layout_with_flags(
     diagram: &Graph,
     config: &GridLayoutConfig,
@@ -47,22 +75,33 @@ pub(crate) fn build_float_layout_with_flags(
         layered_config.always_compound_ordering = flags.always_compound_ordering;
         layered_config.track_reversed_chains = flags.track_reversed_chains;
         layered_config.per_edge_label_spacing = flags.per_edge_label_spacing;
+        layered_config.edge_label_spacing = flags.edge_label_spacing;
         layered_config.label_side_selection = flags.label_side_selection;
         layered_config.label_side_strategy = flags.label_side_strategy;
-        layered_config.label_dummy_strategy = flags.label_dummy_strategy;
+        layered_config.label_dummy_placement = flags.label_dummy_placement;
+        layered_config.label_dummy_routing = flags.label_dummy_routing;
         layered_config.backward_edge_side_grouping = flags.backward_edge_side_grouping;
     }
+    let edge_label_spacing = layered_config.edge_label_spacing;
     let mut layout = build_layered_layout_with_config(
         diagram,
         &layered_config,
         |node| proportional_node_dimensions(metrics, node, direction),
-        |edge| edge_label_dims_proportional(metrics, edge),
+        |edge| {
+            edge_label_dims_proportional(metrics, edge).map(|dims| {
+                pad_edge_label_dims(dims, edge_label_spacing, edge_thickness(edge), direction)
+            })
+        },
     );
     let sublayouts = compute_sublayouts(
         diagram,
         &layered_config,
         |node| proportional_node_dimensions(metrics, node, direction),
-        |edge| edge_label_dims_proportional(metrics, edge),
+        |edge| {
+            edge_label_dims_proportional(metrics, edge).map(|dims| {
+                pad_edge_label_dims(dims, edge_label_spacing, edge_thickness(edge), direction)
+            })
+        },
         skip_non_isolated_overrides,
     );
     let title_pad_y = metrics.font_size;

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1126.09 174.00" style="max-width: 1126.09px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1129.09 174.00" style="max-width: 1129.09px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -10,8 +10,8 @@
       <path d="M275.81,87.00 L321.81,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M460.79,87.00 L506.79,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M650.42,87.00 L696.42,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M793.04,69.39 L866.29,35.00 L965.93,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M794.21,103.45 L877.79,139.00 L965.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M788.96,65.31 L835.65,35.00 L899.92,35.00 L968.93,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M788.96,108.69 L835.65,139.00 L922.93,139.00 L968.93,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
       <rect x="180.55" y="60.00" width="95.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
@@ -20,20 +20,20 @@
       <text x="755.53" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Deploy?</text>
       <rect x="510.79" y="60.00" width="139.62" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="580.60" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Lint Check</text>
-      <rect x="969.93" y="112.00" width="136.65" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1038.26" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production</text>
+      <rect x="972.93" y="112.00" width="136.65" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1041.26" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production</text>
       <rect x="8.00" y="60.00" width="122.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="69.27" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Git Push</text>
-      <rect x="969.93" y="8.00" width="148.16" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1044.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Env</text>
+      <rect x="972.93" y="8.00" width="148.16" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="1047.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Env</text>
       <rect x="325.81" y="60.00" width="134.98" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
       <text x="393.30" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Run Tests</text>
     </g>
     <g class="edgeLabels">
-      <rect x="845.02" y="21.00" width="61.27" height="28.00" fill="white" />
-      <text x="875.65" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
-      <rect x="834.41" y="124.47" width="84.28" height="28.00" fill="white" />
-      <text x="876.55" y="138.47" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
+      <rect x="843.83" y="21.00" width="61.27" height="28.00" fill="white" />
+      <text x="874.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
+      <rect x="832.32" y="125.00" width="84.28" height="28.00" fill="white" />
+      <text x="874.46" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
     </g>
   </g>
 </svg>
