@@ -146,24 +146,27 @@ pub fn run_layered_layout(
     let direction = diagram.direction;
     let edge_label_spacing = lc.edge_label_spacing;
     let mut result = match mode {
-        // Grid-mode measurements are in character cells; the pixel-valued
-        // `edge_label_spacing` knob is intentionally NOT translated to
-        // cell padding here. The Text renderer's grid projection
-        // (`graph::grid::derive::waypoints::transform_label_positions_direct`)
-        // snaps label positions to `layer_starts[rank]`, which is
-        // interpolated from real-node bounds — padding the dummy would
-        // grow `bounds.height` without changing the rendered rank
-        // positions, so the result would be a misleading no-op at the
-        // user-visible Text layer. See GPT-5.4 review follow-up,
-        // 2026-04-16. Text support for `edge_label_spacing` is tracked
-        // in GitHub issue #238. The kernel still honours
-        // `lc.edge_label_spacing` internally for label-side offsets in
-        // `normalize::add_label_side_offset`.
+        // Grid-mode label-dummy dims are padded in whole-cell increments
+        // via `pad_edge_label_dims_grid` so the Text renderer honours
+        // `edge_label_spacing` (Plan 0148 / #238). Default spacing 2.0 +
+        // default thickness 1.0 round to 0 extra cells — existing Text
+        // snapshots are byte-identical; above-default spacings widen the
+        // gap between labelled ranks by `round((spacing + thickness - 3) /
+        // GRID_CELL_PX)` cells.
         MeasurementMode::Grid => build_layered_layout_with_config(
             diagram,
             &lc,
             |node| grid_node_layout_dimensions(node, direction),
-            grid_edge_label_layout_dimensions,
+            |edge| {
+                grid_edge_label_layout_dimensions(edge).map(|dims| {
+                    super::float_layout::pad_edge_label_dims_grid(
+                        dims,
+                        edge_label_spacing,
+                        super::float_layout::edge_thickness(edge),
+                        direction,
+                    )
+                })
+            },
         ),
         MeasurementMode::Proportional(metrics) => build_layered_layout_with_config(
             diagram,

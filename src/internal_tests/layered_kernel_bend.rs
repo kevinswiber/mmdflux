@@ -228,48 +228,39 @@ fn edge_label_info_padding_includes_edge_label_spacing_and_thickness() {
     );
 }
 
-// Plan 0147: Text rendering currently does NOT observe
-// `edge_label_spacing`. My first attempt translated the pixel value to
-// cells inside the grid-mode measurement closure, which grew
-// `GraphGeometry.bounds.height` — but GPT-5.4's follow-up review
-// demonstrated that the grid projection
-// (`graph::grid::derive::waypoints::transform_label_positions_direct`)
-// snaps label positions to rank-interpolated `layer_starts`, so the
-// padded dummy height was invisible at the user-facing Text layer. The
-// grid translation was reverted, and this test now pins the CURRENT
-// contract honestly.
-//
-// When a follow-up teaches the grid projection to honour padded dummy
-// heights, flip this assertion to `assert_ne!` plus a row-count growth
-// check. See doc comment on `LayoutConfig::edge_label_spacing`.
+// Plan 0148 (#238): Text rendering must respond to `edge_label_spacing`.
+// Grid-mode measurement pads label-dummy dims via
+// `pad_edge_label_dims_grid`, widening rank gaps in proportion to the
+// knob. Increasing spacing from the 2.0 default adds rows between
+// labelled ranks — the public-API anchor matching the kernel-level
+// `grid_text_bounds_grow_with_edge_label_spacing` test.
 #[test]
-fn text_render_is_insensitive_to_edge_label_spacing_today() {
+fn text_render_honors_edge_label_spacing() {
     use crate::engines::graph::LayoutConfig as PublicLayoutConfig;
     use crate::{OutputFormat, RenderConfig};
 
     let src = "graph TD\n    A -->|label| B\n";
-
-    let small = RenderConfig {
+    let mk = |spacing: f64| RenderConfig {
         layout: PublicLayoutConfig {
-            edge_label_spacing: 2.0,
-            ..PublicLayoutConfig::default()
-        },
-        ..RenderConfig::default()
-    };
-    let big = RenderConfig {
-        layout: PublicLayoutConfig {
-            edge_label_spacing: 40.0,
+            edge_label_spacing: spacing,
             ..PublicLayoutConfig::default()
         },
         ..RenderConfig::default()
     };
 
-    let text_small = crate::render_diagram(src, OutputFormat::Text, &small).unwrap();
-    let text_big = crate::render_diagram(src, OutputFormat::Text, &big).unwrap();
+    let text_small = crate::render_diagram(src, OutputFormat::Text, &mk(2.0)).unwrap();
+    let text_big = crate::render_diagram(src, OutputFormat::Text, &mk(40.0)).unwrap();
 
-    assert_eq!(
+    assert_ne!(
         text_small, text_big,
-        "Text rendering snaps labels to rank-interpolated layer starts, so `edge_label_spacing` has no user-visible effect today. When the grid projection learns to honour padded dummy heights, flip this to `assert_ne!`."
+        "edge_label_spacing must visibly affect Text output"
+    );
+
+    let small_rows = text_small.lines().count();
+    let big_rows = text_big.lines().count();
+    assert!(
+        big_rows > small_rows + 1,
+        "increasing edge_label_spacing must add rows between labelled ranks: small={small_rows}, big={big_rows}"
     );
 }
 
@@ -313,5 +304,46 @@ fn canonical_proportional_solve_honors_edge_label_spacing_override() {
         "widening edge_label_spacing 2→40 must grow TD bounds by ≥ (40 − 2) px; got ΔH={dy} (bounds baseline={:?}, widened={:?})",
         baseline_geom.bounds,
         widened_geom.bounds,
+    );
+}
+
+// Plan 0148 Task 1.1 spike (#238): Grid-mode `run_layered_layout` must
+// respond to `edge_label_spacing`. The Text renderer consumes Grid-mode
+// geometry, so if bounds don't grow with the knob, Text cannot honour
+// it. This is the kernel anchor for the public-API contract in
+// `text_render_honors_edge_label_spacing`. Red today (Grid arm ignores
+// the knob); Task 2.3 wires `pad_edge_label_dims_grid` and turns it
+// green. If the test is still red after 2.3, pivot to Option 2
+// (`waypoints.rs::transform_label_positions_direct`).
+#[test]
+fn grid_text_bounds_grow_with_edge_label_spacing() {
+    use crate::engines::graph::algorithms::layered::run_layered_layout;
+    use crate::engines::graph::contracts::{EngineConfig, MeasurementMode};
+
+    let flowchart = parse_flowchart("graph TD\n    A -->|label| B\n").expect("fixture parses");
+    let diagram = compile_to_graph(&flowchart);
+    let mode = MeasurementMode::Grid;
+
+    let small = LayoutConfig {
+        label_dummy_placement: LabelDummyPlacement::WidestLayer,
+        label_dummy_routing: LabelDummyRouting::Bend,
+        label_side_selection: true,
+        edge_label_spacing: 2.0,
+        ..Default::default()
+    };
+    let big = LayoutConfig {
+        edge_label_spacing: 20.0,
+        ..small.clone()
+    };
+
+    let small_geom = run_layered_layout(&mode, &diagram, &EngineConfig::Layered(small)).unwrap();
+    let big_geom = run_layered_layout(&mode, &diagram, &EngineConfig::Layered(big)).unwrap();
+
+    let dy = big_geom.bounds.height - small_geom.bounds.height;
+    assert!(
+        dy >= 1.0,
+        "Grid bounds must grow with edge_label_spacing 2→20; got ΔH={dy} (small={:?}, big={:?})",
+        small_geom.bounds,
+        big_geom.bounds,
     );
 }

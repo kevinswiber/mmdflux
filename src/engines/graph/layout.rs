@@ -187,16 +187,14 @@ pub struct LayoutConfig {
     pub label_dummy_placement: LabelDummyPlacement,
     pub label_dummy_routing: LabelDummyRouting,
     /// Pixel spacing between edge line and label, mirroring ELK
-    /// `edgeLabelSpacing`. Applied by proportional measurement modes
-    /// (SVG rendering and MMDS output at either geometry level), which
-    /// pad the label dummy by `edge_label_spacing + thickness` in pixels.
-    ///
-    /// Text output uses a grid projection that snaps labels to
-    /// rank-interpolated layer starts, so this knob does **not** affect
-    /// Text rendering today. Adding Text support requires teaching
-    /// `graph::grid::derive::waypoints::transform_label_positions_direct`
-    /// to account for padded dummy heights — tracked in GitHub issue
-    /// #238.
+    /// `edgeLabelSpacing`. Applied in pixels by proportional measurement
+    /// (SVG / MMDS) via `pad_edge_label_dims`, and in Grid-mode float
+    /// units by the Text renderer via `pad_edge_label_dims_grid` (Plan
+    /// 0148 / #238). The Grid path subtracts a 3.0 baseline (default
+    /// spacing 2.0 + default thickness 1.0) so the default configuration
+    /// contributes zero padding and existing Text snapshots are
+    /// byte-identical; larger values widen the rank gap around labelled
+    /// edges in proportion to the Grid scale factor.
     pub edge_label_spacing: f64,
     pub backward_edge_side_grouping: bool,
     /// Maximum edge-label width in pixels before greedy wrap kicks in.

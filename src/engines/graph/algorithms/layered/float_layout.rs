@@ -58,6 +58,36 @@ pub(super) fn pad_edge_label_dims(
     }
 }
 
+/// Grid-mode variant of [`pad_edge_label_dims`] (#238 / Plan 0148).
+///
+/// Grid-mode cell-valued dims are fed to the layered solver as plain
+/// `f64`s alongside pixel-valued separations (`rank_sep = 50` etc.),
+/// and the solver's output is scaled by `compute_grid_scale_factors`
+/// (~0.075 for a typical TD fixture) before being rendered. So a pad
+/// expressed in the same float units as `pad_edge_label_dims` widens
+/// the rendered gap by `round(pad * scale)` cells.
+///
+/// The default spacing (`2.0`) + default thickness (`1.0`) = 3.0 is
+/// subtracted so the default config contributes 0 padding and existing
+/// Text snapshots stay byte-identical. Above-default spacings widen
+/// the label-dummy rank-axis extent by `(spacing + thickness - 3.0)`
+/// units, producing additional row/column cells between labelled ranks
+/// once the delta crosses the scale threshold.
+pub(super) fn pad_edge_label_dims_grid(
+    dims: (f64, f64),
+    spacing: f64,
+    thickness: f64,
+    direction: Direction,
+) -> (f64, f64) {
+    const DEFAULT_BASELINE_PX: f64 = 3.0;
+    let pad = (spacing + thickness - DEFAULT_BASELINE_PX).max(0.0);
+    if matches!(direction, Direction::TopDown | Direction::BottomTop) {
+        (dims.0, dims.1 + pad)
+    } else {
+        (dims.0 + pad, dims.1)
+    }
+}
+
 pub(crate) fn build_float_layout_with_flags(
     diagram: &Graph,
     config: &GridLayoutConfig,
