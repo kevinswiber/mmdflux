@@ -1043,11 +1043,23 @@ pub(crate) fn svg_viewbox_contains_rects(svg: &str) -> Vec<String> {
     let Some((vx, vy, vw, vh)) = parse_svg_viewbox(svg) else {
         return vec!["no viewBox found".to_string()];
     };
+    // mmdflux's SVG wraps node/edge groups in a top-level
+    // `<g transform="translate(tx, ty)">` so geometry centred on zero
+    // still lands inside the positive viewBox. Label-bg `<rect>` elements
+    // are emitted inside that translated group — their raw `x`/`y`
+    // attributes are LOCAL coords, which must be offset by the parent
+    // translate before comparing against the viewBox. Without this
+    // adjustment lane-shifted labels that legitimately sit at local
+    // `x = -10` would falsely "escape" the viewBox even though the
+    // rendered SVG places them well inside it.
+    let (tx, ty) = parse_svg_main_translate(svg).unwrap_or((0.0, 0.0));
     let rects = extract_label_bg_rects(svg);
     let mut failures = Vec::new();
     for (x, y, w, h) in rects {
+        let ax = x + tx;
+        let ay = y + ty;
         let violates =
-            x + TOL < vx || y + TOL < vy || x + w > vx + vw + TOL || y + h > vy + vh + TOL;
+            ax + TOL < vx || ay + TOL < vy || ax + w > vx + vw + TOL || ay + h > vy + vh + TOL;
         if violates {
             failures.push(format!(
                 "rect ({x}, {y}, {w}x{h}) outside viewBox ({vx}, {vy}, {vw}x{vh})"
@@ -5883,8 +5895,16 @@ mod plan_0145_q9_red {
     // or a product tweak to `edge_label_max_width`. Marked `#[ignore]`
     // pending a follow-up plan — see
     // `.gumbo/plans/0147-elk-style-label-routing/findings/task-4.2-tier-a-insufficient.md`.
+    // Plan 0149 out of scope: per-compartment re-wrap does not address
+    // cross-compartment X overlap. The three concurrent regions each
+    // place a reciprocal-pair compartment; intra-compartment overlap is
+    // now resolved (descriptor uses wrapped dims; clamp exempts lane-
+    // shifted labels), but adjacent compartments at close midpoints can
+    // still have label rects whose X extents barely touch. Fixing this
+    // needs either global X packing across compartments or a cross-
+    // compartment rewrap trigger. Tracking as a follow-up.
     #[test]
-    #[ignore = "plan 0147 follow-up: wrapped-label overlap in narrow lanes; see findings/task-4.2-tier-a-insufficient.md"]
+    #[ignore = "plan 0149 follow-up: cross-compartment X overlap — see #242"]
     fn state_concurrent_three_flux_layered_labels_disjoint_svg() {
         let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::FLUX_LAYERED);
         let overlap = svg_pairwise_label_rect_overlaps(&svg);
@@ -5895,7 +5915,7 @@ mod plan_0145_q9_red {
     }
 
     #[test]
-    #[ignore = "plan 0147 follow-up: wrapped-label overlap in narrow lanes; see findings/task-4.2-tier-a-insufficient.md"]
+    #[ignore = "plan 0149 follow-up: cross-compartment X overlap — see #242"]
     fn state_concurrent_three_mermaid_layered_labels_disjoint_svg() {
         let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::MERMAID_LAYERED);
         let overlap = svg_pairwise_label_rect_overlaps(&svg);
@@ -5906,8 +5926,19 @@ mod plan_0145_q9_red {
     }
 
     // Task 1.6 — Q9 row #6: long reciprocal labels.
+    //
+    // Plan 0149 investigated this as the canary and found the root cause
+    // is structural, not in the scope of a post-routing re-wrap: two
+    // 52-tall wrapped labels cannot fit Y-separated inside a ~130-tall
+    // inter-node gap regardless of label_step. Any attempt to preserve
+    // the lane-shift makes at least one label sit inside a node rect,
+    // which regresses `label_rect_does_not_overlap_node_or_marker`.
+    // The structural fix lives in the layered kernel's dummy-sizing
+    // pass (reserve more rank space when multi-member compartments need
+    // it) — tracked as a follow-up. See
+    // `findings/plan-0149-completion.md`.
     #[test]
-    #[ignore = "plan 0147 follow-up: wrapped-label overlap in narrow lanes; see findings/task-4.2-tier-a-insufficient.md"]
+    #[ignore = "plan 0149 follow-up: kernel must reserve rank space for multi-member label compartments — see #241"]
     fn flowchart_long_reciprocal_labels_disjoint_svg() {
         let input = load_flowchart_fixture("long_reciprocal_labels.mmd");
         let svg = render_svg_default(&input);
@@ -5916,8 +5947,13 @@ mod plan_0145_q9_red {
     }
 
     // Task 1.6 — Q9 row #7: multi-edge same-direction.
+    //
+    // Plan 0149 investigation: same underlying constraint as the long-
+    // reciprocal canary. The label pair needs a larger inter-node gap
+    // (or a smaller label height) than descriptor/clamp tuning alone
+    // can deliver. Tracked with the same follow-up.
     #[test]
-    #[ignore = "plan 0147 follow-up: wrapped-label overlap in narrow lanes; see findings/task-4.2-tier-a-insufficient.md"]
+    #[ignore = "plan 0149 follow-up: kernel must reserve rank space for multi-member label compartments — see #241"]
     fn flowchart_multi_edge_labeled_same_direction_disjoint_svg() {
         let input = load_flowchart_fixture("multi_edge_labeled.mmd");
         let svg = render_svg_default(&input);
@@ -5936,7 +5972,6 @@ mod plan_0145_q9_red {
 
     // Task 1.6 — Q9 row #9 (concurrent_three, flux): viewBox covers label rects.
     #[test]
-    #[ignore = "plan 0147 follow-up: wrapped-label viewBox overrun; see findings/task-4.2-tier-a-insufficient.md"]
     fn svg_viewbox_covers_all_label_background_rects_concurrent_three() {
         let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::FLUX_LAYERED);
         let failures = svg_viewbox_contains_rects(&svg);
@@ -5945,7 +5980,6 @@ mod plan_0145_q9_red {
 
     // Task 1.6 — Q9 row #9 (multi_edge_labeled): viewBox covers label rects.
     #[test]
-    #[ignore = "plan 0147 follow-up: wrapped-label viewBox overrun; see findings/task-4.2-tier-a-insufficient.md"]
     fn svg_viewbox_covers_all_label_background_rects_multi_edge() {
         let input = load_flowchart_fixture("multi_edge_labeled.mmd");
         let svg = render_svg_default(&input);
@@ -5994,14 +6028,12 @@ mod plan_0147_task_4_2 {
         }
     }
 
-    /// Full ELK-like E2E gate. Tier A alone cannot place 200-px-wide
-    /// wrapped labels into the narrow lane budget of a two-node TD
-    /// fixture — both rects overrun the viewBox and overlap each other.
-    /// Marked `#[ignore]` pending Algorithm C adjusted_path bending or a
-    /// product tweak to `edge_label_max_width`. See
-    /// `.gumbo/plans/0147-elk-style-label-routing/findings/task-4.2-tier-a-insufficient.md`.
+    /// Full ELK-like E2E gate. Plan 0149 resolved the viewBox half (via
+    /// label_geometry-aware bounds + transform-aware helper) but the
+    /// pairwise-disjointness half requires kernel-level rank-space
+    /// reservation; see `findings/plan-0149-completion.md`.
     #[test]
-    #[ignore = "plan 0147 follow-up: wrapped-label overlap + viewBox overrun; see findings/task-4.2-tier-a-insufficient.md"]
+    #[ignore = "plan 0149 follow-up: kernel must reserve rank space for multi-member label compartments — see #241"]
     fn long_reciprocal_labels_elk_like_e2e() {
         let svg = long_reciprocal_svg();
         let viewbox_failures = svg_viewbox_contains_rects(&svg);

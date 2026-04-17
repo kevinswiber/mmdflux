@@ -592,6 +592,7 @@ fn build_layout_edges(output: &Output) -> (Vec<LayoutEdge>, Vec<SelfEdgeGeometry
             layout_path_hint: path,
             preserve_orthogonal_topology: false,
             label_geometry: None,
+            effective_wrapped_lines: None,
         });
     }
 

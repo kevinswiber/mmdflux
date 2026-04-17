@@ -5318,6 +5318,7 @@ mod label_overlap_tests {
             target_port: None,
             preserve_orthogonal_topology: false,
             label_geometry: None,
+            effective_wrapped_lines: None,
         }
     }
 

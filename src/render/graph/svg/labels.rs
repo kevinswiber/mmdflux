@@ -196,6 +196,21 @@ pub(super) fn render_edge_labels(
         let Some(point) = position else {
             continue;
         };
+        // Plan 0149 (#237): prefer the post-lane re-wrap output when
+        // the routing pass decided to narrow this edge's label. Falling
+        // back to `edge.wrapped_label_lines` (pre-engine wrap) when no
+        // re-wrap happened keeps non-overflowing edges byte-stable.
+        //
+        // Why not mutate `edge.wrapped_label_lines` upstream? The kernel's
+        // Grid-mode measurement reads that artifact during layout. By the
+        // time re-wrap fires (post-routing) layout is frozen; propagating
+        // the narrower lines back to the shared source would silently
+        // desynchronise Grid-measured heights from Text output. See the
+        // `graph/routing/label_rewrap.rs` module header for the full
+        // design note.
+        let wrap_lines = layout_edge
+            .and_then(|e| e.effective_wrapped_lines.as_deref())
+            .or(edge.wrapped_label_lines.as_deref());
         render_text_centered_with_wrap(
             writer,
             Point {
@@ -203,7 +218,7 @@ pub(super) fn render_edge_labels(
                 y: point.y * scale,
             },
             label,
-            edge.wrapped_label_lines.as_deref(),
+            wrap_lines,
             metrics,
             scale,
             TextRenderStyle {
@@ -402,6 +417,7 @@ mod tests {
                 layout_path_hint: Some(vec![FPoint::new(50.0, 0.0), FPoint::new(50.0, 100.0)]),
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],

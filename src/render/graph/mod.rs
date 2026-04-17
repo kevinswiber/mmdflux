@@ -146,6 +146,13 @@ fn geometry_for_routed_svg(diagram: &Graph, routed: &RoutedGraphGeometry) -> Gra
                 layout_path_hint: Some(edge.path.clone()),
                 preserve_orthogonal_topology: edge.preserve_orthogonal_topology,
                 label_geometry: edge.label_geometry,
+                // Plan 0149: forward the lane-aware re-wrap output from
+                // `RoutedEdgeGeometry` onto `LayoutEdge` so the SVG renderer
+                // (which consumes `LayoutEdge` via this downgrade path) can
+                // emit text matching the post-rewrap rect. Without this
+                // forward the routed-SVG path renders stale pre-engine
+                // wrap text inside a narrower rect.
+                effective_wrapped_lines: edge.effective_wrapped_lines.clone(),
             })
             .collect(),
         subgraphs: routed.subgraphs.clone(),
@@ -260,6 +267,7 @@ pub fn render_text_from_geometry(
 ///         layout_path_hint: None,
 ///         preserve_orthogonal_topology: false,
 ///         label_geometry: None,
+///         effective_wrapped_lines: None,
 ///     }],
 ///     subgraphs: HashMap::new(),
 ///     self_edges: vec![],

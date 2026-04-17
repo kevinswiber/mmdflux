@@ -162,6 +162,12 @@ fn candidate_track_order(sign: i32) -> impl Iterator<Item = i32> {
 }
 
 /// Per-edge outcome of the lane assignment pass.
+///
+/// Plan 0149 extended this with `label_step`, `compartment_id`, and
+/// `midpoint` so the post-lane re-wrap pass in
+/// `crate::graph::routing::label_rewrap` can run its bounded fixed-point
+/// without re-entering descriptor building. If `label_rewrap` is refactored
+/// out or the fixed-point is removed, those three fields can be dropped.
 #[derive(Debug, Clone)]
 pub(super) struct LabelTrackOutcome {
     pub label_center: FPoint,
@@ -174,6 +180,31 @@ pub(super) struct LabelTrackOutcome {
     /// compartment members all reference, so the wire-up should adopt
     /// the descriptor midpoint even when track is 0.
     pub compartment_size: usize,
+    /// Per-compartment lane step (max axis-projected extent + `LANE_GAP`,
+    /// floored to `MIN_LABEL_LANE_STEP`). Shared by every member of the
+    /// compartment — identical across all outcomes with the same
+    /// `compartment_id`.
+    ///
+    /// Read by `label_rewrap::re_wrap_labels_for_lane_fit` as the overflow
+    /// budget for each edge's label width. The rewrap module may mutate
+    /// this field in-place across fixed-point iterations when re-wrap
+    /// grows the axis-projected extent (TD re-wrap → more lines → taller
+    /// label → larger `label_step`).
+    pub label_step: f64,
+    /// Dense per-run compartment key assigned in compartment-iteration
+    /// order. Edges that share an ID share a compartment, which means they
+    /// share `label_step` and must be recentered together when the fixed-
+    /// point pass recomputes that budget. Not stable across renders — do
+    /// not serialize or compare across invocations.
+    pub compartment_id: usize,
+    /// Arc-length midpoint of the original (pre-lane-shift) edge path, as
+    /// computed by `build_label_descriptors`. Kept so that
+    /// `label_center = midpoint + track_vector(direction) * label_step`
+    /// can be recomputed from scratch after `label_step` mutates. Re-
+    /// centering off the previous `label_center` accumulates floating-
+    /// point error across iterations, and the rewrap fixed-point can run
+    /// up to 3 rounds.
+    pub midpoint: FPoint,
 }
 
 /// Assign labels to signed tracks, shift label centers and middle path
@@ -197,7 +228,11 @@ pub(super) fn assign_label_tracks(
     let compartments = group_label_compartments(descriptors);
     let mut outcomes: HashMap<usize, LabelTrackOutcome> = HashMap::new();
 
-    for compartment in compartments {
+    // Dense compartment counter: assigned in iteration order and only
+    // used as a grouping key within this `assign_label_tracks` call. Not
+    // stable across renders. Incremented by `enumerate()` so every
+    // member of the same compartment gets the same id.
+    for (compartment_id, compartment) in compartments.into_iter().enumerate() {
         let tracks = pack_signed_tracks(&compartment);
 
         // Per-compartment LABEL_LANE_STEP from the max axis-band extent.
@@ -230,6 +265,9 @@ pub(super) fn assign_label_tracks(
                     track,
                     adjusted_path: new_path,
                     compartment_size,
+                    label_step,
+                    compartment_id,
+                    midpoint: desc.midpoint,
                 },
             );
         }
@@ -272,7 +310,20 @@ pub(super) fn build_label_descriptors(
         }
 
         let midpoint = arc_length_midpoint(path).unwrap_or_else(|| path[path.len() / 2]);
-        let (w, h) = metrics.edge_label_dimensions(label_text);
+        // Plan 0149 (#237): descriptor must reflect the same dims the SVG
+        // renderer will emit, otherwise the packer sizes compartments
+        // against unwrapped single-line heights while the actual rects
+        // stack multi-line rendered labels. Pre-fix, `label_step` was
+        // 32 (unwrapped h=28 + LANE_GAP) but the rendered rect was 52
+        // tall — tracks at ±32 from midpoint let 52-tall rects overlap
+        // the track-0 band, which is exactly the `long_reciprocal_labels`
+        // failure. Prefer `wrapped_label_lines` when present; fall back
+        // to single-line measurement for edges that opted out of the
+        // pre-engine wrap (dagre-parity mode).
+        let (w, h) = match edge.wrapped_label_lines.as_deref() {
+            Some(lines) => metrics.edge_label_dimensions_wrapped(lines),
+            None => metrics.edge_label_dimensions(label_text),
+        };
 
         let direction_sign = if *backward_flags.get(&edge_index).unwrap_or(&false) {
             -1

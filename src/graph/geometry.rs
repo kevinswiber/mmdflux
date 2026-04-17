@@ -131,6 +131,16 @@ pub struct LayoutEdge {
     /// pass and copied back onto `LayoutEdge` so `Visual` SVG solve paths
     /// still see authoritative label rectangles). `None` before routing.
     pub label_geometry: Option<EdgeLabelGeometry>,
+    /// Plan 0149 (#237): lane-aware re-wrap output, forwarded from
+    /// `RoutedEdgeGeometry::effective_wrapped_lines` through
+    /// `geometry_for_routed_svg` so the SVG renderer (which consumes
+    /// `LayoutEdge`, not `RoutedEdgeGeometry`) can emit text matching
+    /// the post-rewrap rect. `None` means "use the pre-engine wrap
+    /// artifact from `diagram.edges[idx].wrapped_label_lines`".
+    ///
+    /// Only populated on the routed-SVG downgrade path; the pre-routing
+    /// `LayoutEdge` produced by the kernel always carries `None` here.
+    pub effective_wrapped_lines: Option<Vec<String>>,
 }
 
 /// Subgraph bounding box in layout float space.
@@ -318,6 +328,21 @@ pub struct RoutedEdgeGeometry {
     /// Shared label-rectangle geometry populated by the routing label-lane
     /// pass. Read by SVG/MMDS/bounds consumers; one rectangle, no divergence.
     pub label_geometry: Option<EdgeLabelGeometry>,
+    /// Plan 0149 (#237): lane-aware re-wrap output. `Some(lines)` when the
+    /// post-lane `label_rewrap` pass decided to narrow this edge's label
+    /// below the pre-engine wrap width so it fits the compartment's
+    /// `label_step` budget. Renderers (SVG `labels.rs`, text `edge.rs`,
+    /// MMDS replay) must prefer this over `diagram.edges[idx].
+    /// wrapped_label_lines` when present so the rect geometry and the
+    /// emitted text stay in sync.
+    ///
+    /// Intentionally NOT propagated back to `Graph::edges.wrapped_label_lines`
+    /// so the kernel's Grid measurement (which ran pre-routing) stays on the
+    /// original pre-engine wrap. That's what keeps Text snapshots
+    /// byte-stable — Grid-measured layer heights were committed before this
+    /// field existed, and Text consumers that honour a routed override need
+    /// to opt in explicitly. See `findings/01-spike-result.md` §1.2.
+    pub effective_wrapped_lines: Option<Vec<String>>,
 }
 
 /// A routed self-edge loop.
@@ -384,6 +409,7 @@ mod tests {
             layout_path_hint: None,
             preserve_orthogonal_topology: false,
             label_geometry: None,
+            effective_wrapped_lines: None,
         };
         assert!(edge.layout_path_hint.is_none());
         assert_eq!(edge.waypoints.len(), 1);
@@ -418,6 +444,7 @@ mod tests {
             layout_path_hint: None,
             preserve_orthogonal_topology: false,
             label_geometry: None,
+            effective_wrapped_lines: None,
         };
         assert!(edge.label_geometry.is_none());
     }
@@ -440,6 +467,7 @@ mod tests {
             target_port: None,
             preserve_orthogonal_topology: false,
             label_geometry: None,
+            effective_wrapped_lines: None,
         };
         assert!(edge.label_geometry.is_none());
     }
@@ -467,6 +495,7 @@ mod tests {
             target_port: None,
             preserve_orthogonal_topology: false,
             label_geometry: None,
+            effective_wrapped_lines: None,
         };
         assert!(edge.source_port.is_some());
         assert!(edge.target_port.is_none());
