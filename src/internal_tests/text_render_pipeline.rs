@@ -132,6 +132,7 @@ fn smoke_graph_geometry() -> (Graph, GraphGeometry) {
             layout_path_hint: Some(vec![FPoint::new(50.0, 45.0), FPoint::new(50.0, 75.0)]),
             preserve_orthogonal_topology: false,
             label_geometry: None,
+            effective_wrapped_lines: None,
         }],
         subgraphs: HashMap::new(),
         self_edges: vec![],

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use super::float_core::compute_port_attachments_from_geometry;
 use super::labels::{arc_length_midpoint, compute_end_labels_for_edge};
 use super::orthogonal::{OrthogonalRoutingOptions, build_path_from_hints, route_edges_orthogonal};
-use super::{backward_corridor, label_clamp, label_lanes};
+use super::{backward_corridor, label_clamp, label_lanes, label_rewrap};
 use crate::graph::direction_policy::effective_edge_direction;
 use crate::graph::geometry::{
     EdgeLabelGeometry, EdgeLabelSide, GraphGeometry, LayoutEdge, RoutedEdgeGeometry,
@@ -137,6 +137,10 @@ pub fn route_graph_geometry(
                             .and_then(|(_, tp)| tp.clone()),
                         preserve_orthogonal_topology: false,
                         label_geometry: None,
+                        // Plan 0149 re-wrap output populated later by
+                        // `label_rewrap::re_wrap_labels_for_lane_fit`
+                        // (called after lane-track assignment below).
+                        effective_wrapped_lines: None,
                     }
                 })
                 .collect::<Vec<_>>()
@@ -183,7 +187,7 @@ pub fn route_graph_geometry(
         edges.iter().map(|e| (e.index, e.path.clone())).collect();
     let backward_flags: HashMap<usize, bool> =
         edges.iter().map(|e| (e.index, e.is_backward)).collect();
-    let lane_outcomes = label_lanes::assign_label_tracks(
+    let mut lane_outcomes = label_lanes::assign_label_tracks(
         diagram,
         geometry,
         &paths_by_index,
@@ -244,6 +248,25 @@ pub fn route_graph_geometry(
         // text-aware path-bend pass).
         let _ = &outcome.adjusted_path;
     }
+
+    // Plan 0149 (#237): lane-aware re-wrap. Runs AFTER the wire-up loop
+    // above (so routed edges carry the post-lane rect geometry) and
+    // BEFORE self-edge construction / bounds recomputation below (so
+    // self-loop layout and final bounds are computed against the
+    // re-wrapped rects). Mutates `lane_outcomes` in place — primarily
+    // useful for tests that inspect the outcomes map; downstream passes
+    // (`clamp_label_geometry_to_node_bounds`, `recompute_routed_bounds`)
+    // read directly from the routed edges and see the new rects
+    // automatically. See `graph/routing/label_rewrap.rs` for the
+    // fixed-point design and caveats (kernel dummy heights stay frozen;
+    // `<br>` semantics preserved).
+    label_rewrap::re_wrap_labels_for_lane_fit(
+        diagram,
+        &mut edges,
+        &mut lane_outcomes,
+        metrics,
+        diagram.direction,
+    );
 
     let self_edges: Vec<RoutedSelfEdge> = geometry
         .self_edges

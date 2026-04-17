@@ -12,6 +12,7 @@ mod float_core;
 mod label_clamp;
 pub(crate) mod label_gap;
 pub(crate) mod label_lanes;
+mod label_rewrap;
 mod labels;
 mod orthogonal;
 mod stage;
@@ -76,6 +77,7 @@ mod tests {
             layout_path_hint: Some(vec![FPoint::new(50.0, 35.0), FPoint::new(50.0, 65.0)]),
             preserve_orthogonal_topology: false,
             label_geometry: None,
+            effective_wrapped_lines: None,
         }];
 
         let geom = GraphGeometry {
@@ -298,6 +300,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -370,6 +373,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -446,6 +450,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -535,6 +540,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -631,6 +637,7 @@ mod tests {
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
                     label_geometry: None,
+                    effective_wrapped_lines: None,
                 },
                 LayoutEdge {
                     index: 1,
@@ -644,6 +651,7 @@ mod tests {
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
                     label_geometry: None,
+                    effective_wrapped_lines: None,
                 },
             ],
             subgraphs: HashMap::new(),
@@ -758,6 +766,7 @@ mod tests {
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
                     label_geometry: None,
+                    effective_wrapped_lines: None,
                 },
                 LayoutEdge {
                     index: 1,
@@ -771,6 +780,7 @@ mod tests {
                     layout_path_hint: None,
                     preserve_orthogonal_topology: false,
                     label_geometry: None,
+                    effective_wrapped_lines: None,
                 },
             ],
             subgraphs: HashMap::new(),
@@ -857,6 +867,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs,
             self_edges: vec![],
@@ -997,6 +1008,7 @@ mod tests {
                 layout_path_hint: Some(direct_hint.clone()),
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -1080,6 +1092,7 @@ mod tests {
                 layout_path_hint: Some(fallback_hint.clone()),
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -1491,6 +1504,7 @@ mod tests {
             layout_path_hint: Some(vec![FPoint::new(70.0, 35.0), FPoint::new(70.0, 85.0)]),
             preserve_orthogonal_topology: false,
             label_geometry: None,
+            effective_wrapped_lines: None,
         }];
 
         let geom = GraphGeometry {
@@ -1595,6 +1609,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             },
             LayoutEdge {
                 index: 1,
@@ -1608,6 +1623,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             },
             LayoutEdge {
                 index: 2,
@@ -1621,6 +1637,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             },
         ];
 

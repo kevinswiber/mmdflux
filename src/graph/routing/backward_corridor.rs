@@ -612,6 +612,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs,
             self_edges: vec![],
@@ -790,6 +791,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             },
             LayoutEdge {
                 index: 1,
@@ -803,6 +805,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             },
         ];
         geometry.reversed_edges = vec![0, 1];

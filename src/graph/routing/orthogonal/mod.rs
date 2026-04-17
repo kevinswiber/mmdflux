@@ -187,6 +187,11 @@ pub fn route_edges_orthogonal(
                 target_port: None,
                 preserve_orthogonal_topology: target_transit_avoided,
                 label_geometry: None,
+                // Plan 0149 re-wrap output — populated (if at all) by the
+                // post-lane `label_rewrap` pass in stage.rs, which runs
+                // after orthogonal routing feeds its edges into the
+                // shared routing pipeline.
+                effective_wrapped_lines: None,
             }
         })
         .collect();

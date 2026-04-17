@@ -202,6 +202,7 @@ mod tests {
                 layout_path_hint: Some(vec![FPoint::new(50.0, 0.0), FPoint::new(50.0, 100.0)]),
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],

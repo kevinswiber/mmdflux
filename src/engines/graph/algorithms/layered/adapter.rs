@@ -128,6 +128,7 @@ pub fn from_layered_layout(result: &LayoutResult, diagram: &Graph) -> GraphGeome
                 },
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }
         })
         .collect();

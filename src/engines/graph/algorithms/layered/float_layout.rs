@@ -263,6 +263,15 @@ fn apply_routed_edge_paths(
             layout_edge.label_position = edge.label_position;
             layout_edge.preserve_orthogonal_topology = edge.preserve_orthogonal_topology;
             layout_edge.label_geometry = edge.label_geometry;
+            // Plan 0149 (#237): forward the lane-aware re-wrap output
+            // from routing onto the `LayoutEdge` so Visual-SVG solve
+            // paths (where the engine returns `routed: None` but routing
+            // ran internally via `build_float_layout_with_flags`) still
+            // see the narrower label lines. Without this the SVG
+            // renderer falls back to `edge.wrapped_label_lines`
+            // (pre-engine wrap, 200 px), which emits wide text inside
+            // a narrow post-rewrap rect.
+            layout_edge.effective_wrapped_lines = edge.effective_wrapped_lines;
         }
     }
 }
@@ -529,6 +538,7 @@ mod tests {
                 layout_path_hint: None,
                 preserve_orthogonal_topology: false,
                 label_geometry: None,
+                effective_wrapped_lines: None,
             }],
             subgraphs: HashMap::new(),
             self_edges: vec![],
@@ -558,6 +568,7 @@ mod tests {
             target_port: None,
             preserve_orthogonal_topology: false,
             label_geometry: Some(label_geom),
+            effective_wrapped_lines: None,
         }];
 
         apply_routed_edge_paths(&mut geometry, routed_edges);

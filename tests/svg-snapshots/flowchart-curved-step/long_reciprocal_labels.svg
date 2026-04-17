@@ -16,9 +16,9 @@
       <text x="42.45" y="219.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
     </g>
     <g class="edgeLabels">
-      <rect x="-61.21" y="133.00" width="207.33" height="52.00" fill="white" />
-      <text x="42.45" y="147.00" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a deliberately long</text>
-      <text x="42.45" y="171.00" text-anchor="middle" dominant-baseline="middle" fill="#333">label</text>
+      <rect x="-61.21" y="130.00" width="207.33" height="52.00" fill="white" />
+      <text x="42.45" y="144.00" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a deliberately long</text>
+      <text x="42.45" y="168.00" text-anchor="middle" dominant-baseline="middle" fill="#333">label</text>
       <rect x="-38.05" y="98.39" width="195.46" height="52.00" fill="white" />
       <text x="59.68" y="112.39" text-anchor="middle" dominant-baseline="middle" fill="#333">another deliberately long</text>
       <text x="59.68" y="136.39" text-anchor="middle" dominant-baseline="middle" fill="#333">reply label</text>

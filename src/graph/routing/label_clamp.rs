@@ -287,6 +287,7 @@ mod tests {
                 side: EdgeLabelSide::Above,
                 track: 0,
             }),
+            effective_wrapped_lines: None,
         };
 
         let routed = RoutedGraphGeometry {

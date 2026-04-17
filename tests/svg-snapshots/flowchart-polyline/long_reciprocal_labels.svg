@@ -19,9 +19,9 @@
       <rect x="-61.21" y="101.00" width="207.33" height="52.00" fill="white" />
       <text x="42.45" y="115.00" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a deliberately long</text>
       <text x="42.45" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">label</text>
-      <rect x="-35.27" y="69.00" width="195.46" height="52.00" fill="white" />
-      <text x="62.45" y="83.00" text-anchor="middle" dominant-baseline="middle" fill="#333">another deliberately long</text>
-      <text x="62.45" y="107.00" text-anchor="middle" dominant-baseline="middle" fill="#333">reply label</text>
+      <rect x="-35.27" y="72.00" width="195.46" height="52.00" fill="white" />
+      <text x="62.45" y="86.00" text-anchor="middle" dominant-baseline="middle" fill="#333">another deliberately long</text>
+      <text x="62.45" y="110.00" text-anchor="middle" dominant-baseline="middle" fill="#333">reply label</text>
     </g>
   </g>
 </svg>
