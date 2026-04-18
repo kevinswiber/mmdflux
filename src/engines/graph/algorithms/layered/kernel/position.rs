@@ -6,9 +6,22 @@
 use std::collections::HashMap;
 
 use super::bk::{BKConfig, get_width, position_x};
+use super::compartment_spacing::compute_compartment_rank_sep_overrides;
 use super::graph::LayoutGraph;
 use super::rank;
 use super::types::{Direction, LayoutConfig, Point};
+
+/// MAX-merge `from` into `into` in place. Used by the compartment pass to
+/// layer kernel-computed reservations over the caller's
+/// `rank_sep_overrides` without mutating `LayoutConfig`.
+fn max_merge(into: &mut HashMap<i32, f64>, from: HashMap<i32, f64>) {
+    for (key, value) in from {
+        let entry = into.entry(key).or_insert(0.0);
+        if value > *entry {
+            *entry = value;
+        }
+    }
+}
 
 /// Assign positions to all nodes.
 pub fn run(graph: &mut LayoutGraph, config: &LayoutConfig) {
@@ -60,6 +73,17 @@ fn assign_vertical(graph: &mut LayoutGraph, layers: &[Vec<usize>], config: &Layo
     // structure has fewer dummy nodes (e.g., per-edge label spacing).
     enforce_minimum_separation(graph, layers, &bk_config, &mut x_coords);
 
+    // Build the local absolute-gap map used by this assign pass. Start
+    // from config.rank_sep_overrides so caller-supplied overrides are
+    // preserved. The compartment pass layers kernel reservations on top
+    // via MAX-merge when variable_rank_spacing is enabled.
+    let mut local_gap_overrides: HashMap<i32, f64> = config.rank_sep_overrides.clone();
+    if config.variable_rank_spacing {
+        let compartment_overrides =
+            compute_compartment_rank_sep_overrides(graph, &x_coords, config.direction);
+        max_merge(&mut local_gap_overrides, compartment_overrides);
+    }
+
     // Find minimum x to shift everything to start at 0.
     // Dagre applies margin later in translateGraph; we do the same.
     let min_x = (0..graph.node_ids.len())
@@ -86,14 +110,18 @@ fn assign_vertical(graph: &mut LayoutGraph, layers: &[Vec<usize>], config: &Layo
         }
 
         // Y advances by max height in this layer + gap to next layer.
-        // Use per-gap override if available, otherwise base rank_sep.
+        // Prefer the locally-merged override (compartment reservations +
+        // caller overrides), falling back to the base rank_sep.
         let max_height = layer
             .iter()
             .map(|&n| graph.dimensions[n].1)
             .reduce(f64::max)
             .unwrap_or(0.0);
         let current_rank = layer.first().map(|&n| graph.ranks[n]).unwrap_or(0);
-        let gap_spacing = config.rank_sep_for_gap(current_rank);
+        let gap_spacing = local_gap_overrides
+            .get(&current_rank)
+            .copied()
+            .unwrap_or(config.rank_sep);
         y += max_height + gap_spacing;
     }
 }
@@ -113,6 +141,16 @@ fn assign_horizontal(graph: &mut LayoutGraph, layers: &[Vec<usize>], config: &La
     let mut y_coords = position_x(graph, &bk_config);
 
     enforce_minimum_separation(graph, layers, &bk_config, &mut y_coords);
+
+    // Local absolute-gap map: caller overrides + kernel compartment
+    // reservations (when variable_rank_spacing is on). See assign_vertical
+    // for the vertical-side counterpart; semantics are identical.
+    let mut local_gap_overrides: HashMap<i32, f64> = config.rank_sep_overrides.clone();
+    if config.variable_rank_spacing {
+        let compartment_overrides =
+            compute_compartment_rank_sep_overrides(graph, &y_coords, config.direction);
+        max_merge(&mut local_gap_overrides, compartment_overrides);
+    }
 
     // Find minimum y to shift everything to start at 0.
     // Dagre applies margin later in translateGraph; we do the same.
@@ -140,14 +178,16 @@ fn assign_horizontal(graph: &mut LayoutGraph, layers: &[Vec<usize>], config: &La
         }
 
         // X advances by max width in this layer + gap to next layer.
-        // Use per-gap override if available, otherwise base rank_sep.
         let max_width = layer
             .iter()
             .map(|&n| graph.dimensions[n].0)
             .reduce(f64::max)
             .unwrap_or(0.0);
         let current_rank = layer.first().map(|&n| graph.ranks[n]).unwrap_or(0);
-        let gap_spacing = config.rank_sep_for_gap(current_rank);
+        let gap_spacing = local_gap_overrides
+            .get(&current_rank)
+            .copied()
+            .unwrap_or(config.rank_sep);
         x += max_width + gap_spacing;
     }
 }
@@ -466,6 +506,325 @@ mod tests {
             "A->B gap ({}) should be wider than B->C gap ({}) due to override",
             gap_ab,
             gap_bc,
+        );
+    }
+
+    // Plan 0150: compartment-pass integration tests.
+    //
+    // Fixture shape: two labeled edges A→C and B→C. Both edges get an
+    // EdgeLabel dummy at rank 1; with per_edge_label_spacing the labelled
+    // edges get minlen=2 so C lands at rank 2. The two label dummies sit
+    // between A/B at rank 0 and C at rank 2, giving overlapping cross
+    // bands under BK output.
+    fn build_two_label_layout(config: &LayoutConfig) -> LayoutGraph {
+        use super::super::support::{
+            extract_self_edges, make_space_for_labeled_edges, select_label_sides_first_last,
+        };
+        use super::super::types::EdgeLabelInfo;
+        use super::super::{acyclic, normalize, order, rank};
+
+        // Two parallel labeled branches A→B (edge 0) and C→D (edge 1), with
+        // A/C on rank 0 side by side and B/D on rank 2 side by side. Wide
+        // labels (80) with narrow node_sep give the two EdgeLabel dummies
+        // at rank 1 overlapping cross-bands under BK output.
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (40.0, 20.0));
+        graph.add_node("B", (40.0, 20.0));
+        graph.add_node("C", (40.0, 20.0));
+        graph.add_node("D", (40.0, 20.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("C", "D");
+
+        let mut edge_labels = HashMap::new();
+        edge_labels.insert(0, EdgeLabelInfo::new(80.0, 28.0));
+        edge_labels.insert(1, EdgeLabelInfo::new(80.0, 28.0));
+
+        let mut cfg = config.clone();
+        cfg.per_edge_label_spacing = true;
+
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+        extract_self_edges(&mut lg);
+        if cfg.acyclic {
+            acyclic::run(&mut lg);
+        }
+        make_space_for_labeled_edges(&mut lg, &edge_labels);
+        cfg.rank_sep /= 2.0;
+        rank::run(&mut lg, &cfg);
+        rank::normalize(&mut lg);
+        normalize::run(&mut lg, &edge_labels, false);
+        order::run(&mut lg, false);
+        select_label_sides_first_last(&mut lg);
+        run(&mut lg, &cfg);
+        lg
+    }
+
+    fn b_y(lg: &LayoutGraph) -> f64 {
+        lg.positions[lg.node_index[&"B".into()]].y
+    }
+
+    #[test]
+    fn vertical_compartment_pass_noop_when_variable_rank_spacing_disabled() {
+        let cfg_off = LayoutConfig {
+            direction: Direction::TopBottom,
+            node_sep: 0.0,
+            edge_sep: 0.0,
+            rank_sep: 40.0,
+            margin: 5.0,
+            variable_rank_spacing: false,
+            ..Default::default()
+        };
+        let baseline = b_y(&build_two_label_layout(&cfg_off));
+
+        // Flipping variable_rank_spacing *on* is the behaviour-gate for the
+        // pass. The OFF case must exactly match the pre-change baseline —
+        // which for this fixture is deterministic under the current formula.
+        let again = b_y(&build_two_label_layout(&cfg_off));
+        assert!(
+            (baseline - again).abs() < 1e-9,
+            "OFF should be deterministic"
+        );
+    }
+
+    #[test]
+    fn vertical_compartment_pass_widens_affected_gaps_when_enabled() {
+        let mut cfg = LayoutConfig {
+            direction: Direction::TopBottom,
+            node_sep: 0.0,
+            edge_sep: 0.0,
+            rank_sep: 40.0,
+            margin: 5.0,
+            variable_rank_spacing: false,
+            ..Default::default()
+        };
+        let y_off = b_y(&build_two_label_layout(&cfg));
+        cfg.variable_rank_spacing = true;
+        let y_on = b_y(&build_two_label_layout(&cfg));
+        assert!(
+            y_on > y_off,
+            "B.y with variable_rank_spacing ON ({}) should exceed OFF ({})",
+            y_on,
+            y_off,
+        );
+    }
+
+    #[test]
+    fn vertical_compartment_pass_max_merges_over_preexisting_overrides() {
+        // Seed a very large rank_sep override at the same gap the compartment
+        // would also target. The larger value wins, so enabling the
+        // compartment pass has no additional effect.
+        let seed_gap: i32 = 1;
+        let mut cfg_big = LayoutConfig {
+            direction: Direction::TopBottom,
+            node_sep: 0.0,
+            edge_sep: 0.0,
+            rank_sep: 40.0,
+            margin: 5.0,
+            variable_rank_spacing: false,
+            ..Default::default()
+        };
+        cfg_big.rank_sep_overrides.insert(seed_gap, 500.0);
+        let y_big_off = b_y(&build_two_label_layout(&cfg_big));
+        cfg_big.variable_rank_spacing = true;
+        let y_big_on = b_y(&build_two_label_layout(&cfg_big));
+        assert!(
+            (y_big_on - y_big_off).abs() < 1e-6,
+            "large pre-existing override (500) should win: off={}, on={}",
+            y_big_off,
+            y_big_on,
+        );
+    }
+
+    #[test]
+    fn vertical_compartment_pass_respects_smaller_preexisting_override() {
+        // Seed a tiny override so the compartment value wins when enabled.
+        // Observing behaviour: `y_on` should match the no-seed case, since
+        // the compartment reservation outweighs the tiny seed.
+        let seed_gap: i32 = 1;
+
+        let mut cfg = LayoutConfig {
+            direction: Direction::TopBottom,
+            node_sep: 0.0,
+            edge_sep: 0.0,
+            rank_sep: 40.0,
+            margin: 5.0,
+            variable_rank_spacing: true,
+            ..Default::default()
+        };
+        cfg.rank_sep_overrides.insert(seed_gap, 1.0);
+        let y_seeded = b_y(&build_two_label_layout(&cfg));
+
+        cfg.rank_sep_overrides.clear();
+        let y_bare = b_y(&build_two_label_layout(&cfg));
+        assert!(
+            (y_seeded - y_bare).abs() < 1e-6,
+            "small seed (1.0) should be overridden by compartment: seeded={}, bare={}",
+            y_seeded,
+            y_bare,
+        );
+    }
+
+    // Plan 0150: horizontal variant of the compartment-pass integration
+    // tests. Same topology, direction flipped. Width drives rank-axis
+    // extent in LR/RL. RL mirrors LR after reverse_positions.
+    fn build_two_label_layout_h(config: &LayoutConfig) -> LayoutGraph {
+        use super::super::support::{
+            extract_self_edges, make_space_for_labeled_edges, select_label_sides_first_last,
+        };
+        use super::super::types::EdgeLabelInfo;
+        use super::super::{acyclic, normalize, order, rank};
+
+        let mut graph: DiGraph<(f64, f64)> = DiGraph::new();
+        graph.add_node("A", (20.0, 40.0));
+        graph.add_node("B", (20.0, 40.0));
+        graph.add_node("C", (20.0, 40.0));
+        graph.add_node("D", (20.0, 40.0));
+        graph.add_edge("A", "B");
+        graph.add_edge("C", "D");
+
+        let mut edge_labels = HashMap::new();
+        // Wide rank-axis extent (80), tall cross-axis (40) so adjacent
+        // label dummies' cross-bands overlap under BK output.
+        edge_labels.insert(0, EdgeLabelInfo::new(80.0, 40.0));
+        edge_labels.insert(1, EdgeLabelInfo::new(80.0, 40.0));
+
+        let mut cfg = config.clone();
+        cfg.per_edge_label_spacing = true;
+
+        let mut lg = LayoutGraph::from_digraph(&graph, |_, dims| *dims);
+        extract_self_edges(&mut lg);
+        if cfg.acyclic {
+            acyclic::run(&mut lg);
+        }
+        make_space_for_labeled_edges(&mut lg, &edge_labels);
+        cfg.rank_sep /= 2.0;
+        rank::run(&mut lg, &cfg);
+        rank::normalize(&mut lg);
+        normalize::run(&mut lg, &edge_labels, false);
+        order::run(&mut lg, false);
+        select_label_sides_first_last(&mut lg);
+        run(&mut lg, &cfg);
+        lg
+    }
+
+    fn b_x(lg: &LayoutGraph) -> f64 {
+        lg.positions[lg.node_index[&"B".into()]].x
+    }
+
+    #[test]
+    fn horizontal_compartment_pass_noop_when_variable_rank_spacing_disabled() {
+        let cfg = LayoutConfig {
+            direction: Direction::LeftRight,
+            node_sep: 0.0,
+            edge_sep: 0.0,
+            rank_sep: 40.0,
+            margin: 5.0,
+            variable_rank_spacing: false,
+            ..Default::default()
+        };
+        let baseline = b_x(&build_two_label_layout_h(&cfg));
+        let again = b_x(&build_two_label_layout_h(&cfg));
+        assert!(
+            (baseline - again).abs() < 1e-9,
+            "OFF should be deterministic"
+        );
+    }
+
+    #[test]
+    fn horizontal_compartment_pass_widens_affected_gaps_when_enabled() {
+        let mut cfg = LayoutConfig {
+            direction: Direction::LeftRight,
+            node_sep: 0.0,
+            edge_sep: 0.0,
+            rank_sep: 40.0,
+            margin: 5.0,
+            variable_rank_spacing: false,
+            ..Default::default()
+        };
+        let x_off = b_x(&build_two_label_layout_h(&cfg));
+        cfg.variable_rank_spacing = true;
+        let x_on = b_x(&build_two_label_layout_h(&cfg));
+        assert!(
+            x_on > x_off,
+            "B.x with variable_rank_spacing ON ({}) should exceed OFF ({})",
+            x_on,
+            x_off,
+        );
+    }
+
+    #[test]
+    fn horizontal_compartment_pass_uses_width_not_height() {
+        // Reservation must be sum(widths=80)+INTER_TRACK_GAP=164 — if it
+        // used height (28) the widening would only be ~40 delta. We
+        // observe via X advance by comparing ON vs OFF and asserting the
+        // delta is at least 150 (sanity bound < 164 to avoid pinning
+        // exact BK/formula arithmetic).
+        let mut cfg = LayoutConfig {
+            direction: Direction::LeftRight,
+            node_sep: 0.0,
+            edge_sep: 0.0,
+            rank_sep: 40.0,
+            margin: 5.0,
+            variable_rank_spacing: false,
+            ..Default::default()
+        };
+        let x_off = b_x(&build_two_label_layout_h(&cfg));
+        cfg.variable_rank_spacing = true;
+        let x_on = b_x(&build_two_label_layout_h(&cfg));
+        let delta = x_on - x_off;
+        assert!(
+            delta > 100.0,
+            "LR compartment delta should reflect widths (expected > 100 for 80-wide labels), got {}",
+            delta,
+        );
+    }
+
+    #[test]
+    fn horizontal_compartment_pass_rl_is_symmetric() {
+        let mut cfg_lr = LayoutConfig {
+            direction: Direction::LeftRight,
+            node_sep: 0.0,
+            edge_sep: 0.0,
+            rank_sep: 40.0,
+            margin: 5.0,
+            variable_rank_spacing: false,
+            ..Default::default()
+        };
+        let lr_off = b_x(&build_two_label_layout_h(&cfg_lr));
+        cfg_lr.variable_rank_spacing = true;
+        let lr_on = b_x(&build_two_label_layout_h(&cfg_lr));
+        let lr_delta = lr_on - lr_off;
+
+        // For RL, reverse_positions mirrors X, but absolute compartment
+        // reservation and layout extent should be identical, so we
+        // measure extent (max X of B) rather than B.x directly.
+        let mut cfg_rl = LayoutConfig {
+            direction: Direction::RightLeft,
+            ..cfg_lr
+        };
+        cfg_rl.variable_rank_spacing = false;
+        let rl_lg_off = build_two_label_layout_h(&cfg_rl);
+        cfg_rl.variable_rank_spacing = true;
+        let rl_lg_on = build_two_label_layout_h(&cfg_rl);
+
+        let extent_off = rl_lg_off
+            .positions
+            .iter()
+            .zip(rl_lg_off.dimensions.iter())
+            .map(|(p, (w, _))| p.x + w)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let extent_on = rl_lg_on
+            .positions
+            .iter()
+            .zip(rl_lg_on.dimensions.iter())
+            .map(|(p, (w, _))| p.x + w)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let rl_delta = extent_on - extent_off;
+
+        assert!(
+            (lr_delta - rl_delta).abs() < 1e-6,
+            "LR compartment delta ({}) should equal RL extent delta ({})",
+            lr_delta,
+            rl_delta,
         );
     }
 

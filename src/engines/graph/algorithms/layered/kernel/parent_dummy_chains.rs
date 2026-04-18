@@ -8,9 +8,9 @@ use super::debug;
 use super::graph::LayoutGraph;
 
 #[derive(Clone, Copy, Debug)]
-struct PostorderRange {
-    low: i32,
-    lim: i32,
+pub(crate) struct PostorderRange {
+    pub(crate) low: i32,
+    pub(crate) lim: i32,
 }
 
 pub(crate) fn run(graph: &mut LayoutGraph) {
@@ -101,7 +101,7 @@ pub(crate) fn run(graph: &mut LayoutGraph) {
     }
 }
 
-fn compute_postorder(graph: &LayoutGraph) -> Vec<PostorderRange> {
+pub(crate) fn compute_postorder(graph: &LayoutGraph) -> Vec<PostorderRange> {
     let n = graph.node_ids.len();
     let mut children: Vec<Vec<usize>> = vec![Vec::new(); n];
     for (child, parent) in graph.parents.iter().enumerate() {
@@ -145,6 +145,36 @@ fn compute_postorder(graph: &LayoutGraph) -> Vec<PostorderRange> {
 /// Mirrors dagre's `findPath()` exactly: the do-while traverses up from v,
 /// pushing each parent (including `undefined`/`None`) until the LCA is found.
 /// The w-side path is then appended in reverse.
+/// Compute the lowest common ancestor of `v` and `w` in the compound
+/// hierarchy. Returns `None` when the LCA is the implicit root.
+///
+/// Shares postorder semantics with [`find_path`]. Callers that also need the
+/// ascending/descending path should use `find_path`.
+#[allow(dead_code)] // Consumed by kernel::compartment_spacing (plan 0150 phase 2.4).
+pub(crate) fn compute_lca(
+    graph: &LayoutGraph,
+    postorder: &[PostorderRange],
+    v: usize,
+    w: usize,
+) -> Option<usize> {
+    let low = postorder[v].low.min(postorder[w].low);
+    let lim = postorder[v].lim.max(postorder[w].lim);
+
+    let mut parent_opt = graph.parents[v];
+    loop {
+        match parent_opt {
+            Some(parent) => {
+                let range = &postorder[parent];
+                if !(range.low > low || lim > range.lim) {
+                    return Some(parent);
+                }
+                parent_opt = graph.parents[parent];
+            }
+            None => return None,
+        }
+    }
+}
+
 fn find_path(
     graph: &LayoutGraph,
     postorder: &[PostorderRange],
@@ -219,6 +249,108 @@ fn max_rank(graph: &LayoutGraph, node: usize) -> i32 {
 
 fn find_original_edge_endpoints(graph: &LayoutGraph, orig_idx: usize) -> Option<(usize, usize)> {
     graph.original_edge_endpoints.get(orig_idx).copied()
+}
+
+#[cfg(test)]
+mod lca_helper_tests {
+    use super::{compute_lca, compute_postorder, find_path};
+    use crate::engines::graph::algorithms::layered::graph::DiGraph;
+    use crate::engines::graph::algorithms::layered::kernel::graph::LayoutGraph;
+
+    fn node_idx(lg: &LayoutGraph, id: &str) -> usize {
+        let key = crate::engines::graph::algorithms::layered::kernel::types::NodeId::from(id);
+        *lg.node_index
+            .get(&key)
+            .unwrap_or_else(|| panic!("missing node {id}"))
+    }
+
+    #[test]
+    fn compute_lca_non_compound_returns_none() {
+        // Flat graph: A -> B, no subgraphs, so every parent is None.
+        let mut g: DiGraph<(f64, f64)> = DiGraph::new();
+        g.add_node("A", (10.0, 10.0));
+        g.add_node("B", (10.0, 10.0));
+        g.add_edge("A", "B");
+
+        let lg = LayoutGraph::from_digraph(&g, |_, dims| *dims);
+        let postorder = compute_postorder(&lg);
+        let a = node_idx(&lg, "A");
+        let b = node_idx(&lg, "B");
+
+        assert_eq!(compute_lca(&lg, &postorder, a, b), None);
+        assert_eq!(compute_lca(&lg, &postorder, a, a), None);
+    }
+
+    #[test]
+    fn compute_lca_nested_compound_returns_innermost_common_ancestor() {
+        // Build:
+        //   root (implicit None)
+        //     └─ outer
+        //          ├─ inner_a → A
+        //          └─ inner_b → B
+        let mut g: DiGraph<(f64, f64)> = DiGraph::new();
+        g.add_node("A", (10.0, 10.0));
+        g.add_node("B", (10.0, 10.0));
+        g.add_node("outer", (0.0, 0.0));
+        g.add_node("inner_a", (0.0, 0.0));
+        g.add_node("inner_b", (0.0, 0.0));
+        g.set_parent("A", "inner_a");
+        g.set_parent("B", "inner_b");
+        g.set_parent("inner_a", "outer");
+        g.set_parent("inner_b", "outer");
+        g.add_edge("A", "B");
+
+        let lg = LayoutGraph::from_digraph(&g, |_, dims| *dims);
+        let postorder = compute_postorder(&lg);
+
+        let a = node_idx(&lg, "A");
+        let b = node_idx(&lg, "B");
+        let inner_a = node_idx(&lg, "inner_a");
+        let outer = node_idx(&lg, "outer");
+
+        // LCA of A and B is outer (closest shared compound ancestor).
+        assert_eq!(compute_lca(&lg, &postorder, a, b), Some(outer));
+        // LCA of a node with itself is its own parent (matches find_path semantics).
+        assert_eq!(compute_lca(&lg, &postorder, a, a), Some(inner_a));
+    }
+
+    #[test]
+    fn compute_lca_matches_find_path_result_on_existing_fixtures() {
+        let mut g: DiGraph<(f64, f64)> = DiGraph::new();
+        g.add_node("A", (10.0, 10.0));
+        g.add_node("B", (10.0, 10.0));
+        g.add_node("C", (10.0, 10.0));
+        g.add_node("D", (10.0, 10.0));
+        g.add_node("outer", (0.0, 0.0));
+        g.add_node("inner_a", (0.0, 0.0));
+        g.add_node("inner_b", (0.0, 0.0));
+        g.set_parent("A", "inner_a");
+        g.set_parent("B", "inner_a");
+        g.set_parent("C", "inner_b");
+        g.set_parent("D", "inner_b");
+        g.set_parent("inner_a", "outer");
+        g.set_parent("inner_b", "outer");
+        g.add_edge("A", "B");
+        g.add_edge("C", "D");
+        g.add_edge("A", "C");
+
+        let lg = LayoutGraph::from_digraph(&g, |_, dims| *dims);
+        let postorder = compute_postorder(&lg);
+
+        let candidates = ["A", "B", "C", "D", "inner_a", "inner_b", "outer"];
+        for v_name in &candidates {
+            for w_name in &candidates {
+                let v = node_idx(&lg, v_name);
+                let w = node_idx(&lg, w_name);
+                let (_path, lca_via_find_path) = find_path(&lg, &postorder, v, w);
+                let lca_direct = compute_lca(&lg, &postorder, v, w);
+                assert_eq!(
+                    lca_direct, lca_via_find_path,
+                    "compute_lca disagreed with find_path for ({v_name}, {w_name})"
+                );
+            }
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 299.30 580.00" style="max-width: 299.30px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(-53.74,-38.00)">
+    <g class="clusters">
+      <rect class="subgraph" x="61.74" y="46.00" width="283.30" height="564.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="203.39" y="50.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Outer region</text>
+      <rect class="subgraph" x="149.67" y="77.00" width="180.37" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="239.86" y="81.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">A region</text>
+      <rect class="subgraph" x="76.74" y="391.00" width="180.37" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="166.93" y="395.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">B region</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M234.12,162.00 L234.12,173.40 L257.39,173.40 L257.39,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M149.40,476.00 L149.40,487.40 L172.67,487.40 L172.67,522.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M172.67,162.00 L172.67,194.40 L130.46,194.40 L130.46,418.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M276.32,266.00 L276.32,496.40 L234.12,496.40 L234.12,522.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="164.67" y="108.00" width="77.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="203.39" y="135.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A1</text>
+      <rect x="237.60" y="212.00" width="77.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="276.32" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A2</text>
+      <rect x="91.74" y="422.00" width="77.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="130.46" y="449.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B1</text>
+      <rect x="164.67" y="526.00" width="77.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="203.39" y="553.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B2</text>
+    </g>
+    <g class="edgeLabels">
+      <rect x="68.00" y="324.50" width="124.93" height="28.00" fill="white" />
+      <text x="130.46" y="338.50" text-anchor="middle" dominant-baseline="middle" fill="#333">cross edge one</text>
+      <rect x="212.93" y="324.50" width="126.78" height="28.00" fill="white" />
+      <text x="276.32" y="338.50" text-anchor="middle" dominant-baseline="middle" fill="#333">cross edge two</text>
+    </g>
+  </g>
+</svg>

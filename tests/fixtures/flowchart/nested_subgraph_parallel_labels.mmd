@@ -1,0 +1,11 @@
+graph TD
+    subgraph outer [Outer region]
+        subgraph inner_a [A region]
+            A1 --> A2
+        end
+        subgraph inner_b [B region]
+            B1 --> B2
+        end
+    end
+    A1 -->|cross edge one| B1
+    A2 -->|cross edge two| B2

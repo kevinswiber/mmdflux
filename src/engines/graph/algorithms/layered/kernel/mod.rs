@@ -14,6 +14,7 @@ pub mod types;
 pub(crate) mod acyclic;
 pub(crate) mod bk;
 pub(crate) mod border;
+pub(crate) mod compartment_spacing;
 pub(crate) mod nesting;
 pub(crate) mod network_simplex;
 pub(crate) mod order;

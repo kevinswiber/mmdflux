@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 299.30 580.00" style="max-width: 299.30px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(-53.74,-38.00)">
+    <g class="clusters">
+      <rect class="subgraph" x="61.74" y="46.00" width="283.30" height="564.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="203.39" y="50.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Outer region</text>
+      <rect class="subgraph" x="149.67" y="77.00" width="180.37" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="239.86" y="81.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">A region</text>
+      <rect class="subgraph" x="76.74" y="391.00" width="180.37" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="166.93" y="395.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">B region</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M222.33,162.00 L222.33,164.78 C222.33,167.56 222.33,173.11 228.17,178.67 C234.01,184.22 245.70,189.78 251.54,194.67 C257.39,199.56 257.39,203.78 257.39,205.89 L257.39,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M149.40,476.00 L149.40,478.78 C149.40,481.56 149.40,487.11 155.24,492.67 C161.08,498.22 172.77,503.78 178.62,508.67 C184.46,513.56 184.46,517.78 184.46,519.89 L184.46,522.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M177.82,162.00 L172.32,167.81 L165.34,175.17 C158.37,182.54 144.42,197.27 137.44,221.97 C130.46,246.67 130.46,281.33 130.46,302.83 C130.46,324.33 130.46,332.67 130.46,342.00 C130.46,351.33 130.46,361.67 130.46,373.17 C130.46,384.67 130.46,397.33 130.46,403.67 L130.46,410.00 L130.46,418.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M276.32,266.00 L276.32,274.00 L276.32,281.00 C276.32,288.00 276.32,302.00 276.32,313.17 C276.32,324.33 276.32,332.67 276.32,342.00 C276.32,351.33 276.32,361.67 276.32,375.17 C276.32,388.67 276.32,405.33 267.64,429.25 C258.97,453.17 241.61,484.34 232.94,499.93 L224.26,515.52 L220.37,522.51" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="164.67" y="108.00" width="77.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="203.39" y="135.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A1</text>
+      <rect x="237.60" y="212.00" width="77.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="276.32" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A2</text>
+      <rect x="91.74" y="422.00" width="77.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="130.46" y="449.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B1</text>
+      <rect x="164.67" y="526.00" width="77.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="203.39" y="553.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B2</text>
+    </g>
+    <g class="edgeLabels">
+      <rect x="68.00" y="324.50" width="124.93" height="28.00" fill="white" />
+      <text x="130.46" y="338.50" text-anchor="middle" dominant-baseline="middle" fill="#333">cross edge one</text>
+      <rect x="212.93" y="324.50" width="126.78" height="28.00" fill="white" />
+      <text x="276.32" y="338.50" text-anchor="middle" dominant-baseline="middle" fill="#333">cross edge two</text>
+    </g>
+  </g>
+</svg>

@@ -16,7 +16,11 @@ use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Direction, Graph};
 
 /// Gap between adjacent label lanes within a compartment.
-pub(super) const LANE_GAP: f64 = 4.0;
+// Exposed `pub(crate)` for Plan 0150 kernel drift-detection test in
+// `kernel::compartment_spacing`. The kernel intentionally duplicates this
+// value as `INTER_TRACK_GAP` to avoid a kernel → routing dependency; the
+// drift-detection test pins the two together.
+pub(crate) const LANE_GAP: f64 = 4.0;
 
 /// Minimum step size for label lane assignment.
 pub(super) const MIN_LABEL_LANE_STEP: f64 = 16.0;
