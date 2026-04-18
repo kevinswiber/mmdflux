@@ -16,11 +16,11 @@
       <text x="53.22" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Two</text>
     </g>
     <g class="edgeLabels">
-      <rect x="44.95" y="202.00" width="16.54" height="28.00" fill="white" />
-      <text x="53.22" y="216.00" text-anchor="middle" dominant-baseline="middle" fill="#333">x</text>
-      <rect x="56.41" y="121.00" width="33.61" height="52.00" fill="white" />
-      <text x="73.22" y="135.00" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <text x="73.22" y="159.00" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="44.95" y="176.50" width="16.54" height="28.00" fill="white" />
+      <text x="53.22" y="190.50" text-anchor="middle" dominant-baseline="middle" fill="#333">x</text>
+      <rect x="56.41" y="108.50" width="33.61" height="52.00" fill="white" />
+      <text x="73.22" y="122.50" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <text x="73.22" y="146.50" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>

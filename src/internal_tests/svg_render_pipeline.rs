@@ -5782,6 +5782,7 @@ fn render_svg_from_routed_geometry_preserves_label_geometry_rect() {
         padding: base.padding,
         side: base.side,
         track: 1,
+        compartment_size: base.compartment_size,
     });
     // Leave `label_position` at its pre-shift location — the two sources now
     // disagree, and the fix must forward `label_geometry`, not fall back.
@@ -5991,7 +5992,6 @@ mod plan_0145_q9_red {
     // is needed to close this fully. See
     // findings/phase-5-multi-edge-labeled-residual-overlap.md.
     #[test]
-    #[ignore = "plan 0150 residual: 2-px overlap after kernel reservation; needs routing-side compartment-shared midpoint — see #245 and findings/phase-5-multi-edge-labeled-residual-overlap.md"]
     fn flowchart_multi_edge_labeled_same_direction_disjoint_svg() {
         let input = load_flowchart_fixture("multi_edge_labeled.mmd");
         let svg = render_svg_default(&input);

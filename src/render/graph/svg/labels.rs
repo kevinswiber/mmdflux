@@ -159,17 +159,19 @@ pub(super) fn render_edge_labels(
         // once label_lanes populates label_geometry for all edges.
         let layout_edge = geom.edges.iter().find(|e| e.index == edge_idx);
         let label_geom = layout_edge.and_then(|e| e.label_geometry.as_ref());
-        // The lane-assignment pass writes `label_geometry` with `track != 0`
-        // for labels intentionally displaced from the path (multi-member
-        // compartment shifts). For those, trust the center directly —
-        // revalidating would snap the lane-shifted label back to the path
-        // midpoint and undo the shift. For `track == 0` (singleton
-        // compartments where the lane pass made no change), the center is
-        // just the engine-supplied label_position, which can be off-path
-        // due to upstream side-adjustment passes; keep the revalidation
-        // fallback so those labels render attached to their edge.
+        // The lane-assignment pass writes `label_geometry` with either
+        // `track != 0` (numerical displacement) or `compartment_size > 1`
+        // (coordinated placement inside a multi-edge group, even when the
+        // member happens to sit on track 0 relative to the shared anchor).
+        // For either signal, trust the center directly — revalidating
+        // would snap the coordinated label back to this edge's own path
+        // midpoint and undo the shared-anchor placement. For singleton
+        // track-0 edges (`compartment_size == 1`), the center is just the
+        // engine-supplied label_position, which can be off-path due to
+        // upstream side-adjustment passes; keep the revalidation fallback
+        // so those labels render attached to their edge.
         let lane_shifted_center = label_geom
-            .filter(|g| g.track != 0 && use_precomputed)
+            .filter(|g| (g.track != 0 || g.compartment_size > 1) && use_precomputed)
             .map(|g| g.center);
         let position = if let Some(center) = lane_shifted_center {
             Some(center)
@@ -444,6 +446,7 @@ mod tests {
             padding: (4.0, 2.0),
             side: EdgeLabelSide::Above,
             track: 0,
+            compartment_size: 1,
         });
 
         // resolve_edge_label_center should prefer label_geometry.center.

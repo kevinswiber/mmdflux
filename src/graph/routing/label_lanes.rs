@@ -178,12 +178,24 @@ pub(super) struct LabelTrackOutcome {
     pub label_rect: FRect,
     pub track: i32,
     pub adjusted_path: Vec<FPoint>,
-    /// Number of members in the compartment this edge belongs to.
-    /// `1` means singleton (track 0 with nothing to compare against);
-    /// `>= 2` means the lane pass picked a centered position the
-    /// compartment members all reference, so the wire-up should adopt
-    /// the descriptor midpoint even when track is 0.
+    /// Number of members in the **axis-conflict sub-cluster** this edge
+    /// belongs to. `1` means singleton sub-cluster (nothing axis-conflicts
+    /// with it, so the lane pass picked track 0 with no displacement);
+    /// `>= 2` means the lane pass placed it as part of a coordinated
+    /// stack. Forwarded onto `EdgeLabelGeometry.compartment_size` so the
+    /// SVG renderer can distinguish singleton track-0 (revalidate
+    /// against the edge path) from coordinated multi-member track-0
+    /// (trust the shared-anchor placement).
     pub compartment_size: usize,
+    /// Number of members in the **cross-band compartment** this edge
+    /// belongs to, before the axis-conflict split. Used by the wire-up
+    /// in `routing::stage` to decide whether to adopt the lane pass's
+    /// `label_center` (which for singleton sub-clusters equals the edge's
+    /// arc-length midpoint) or fall through to the engine's
+    /// `label_position`. Pre-split code conflated the two sizes; keeping
+    /// the cross-band size preserves wire-up semantics for singleton
+    /// sub-clusters that share a compartment with other labelled edges.
+    pub full_compartment_size: usize,
     /// Per-compartment lane step (max axis-projected extent + `LANE_GAP`,
     /// floored to `MIN_LABEL_LANE_STEP`). Shared by every member of the
     /// compartment — identical across all outcomes with the same
@@ -195,16 +207,37 @@ pub(super) struct LabelTrackOutcome {
     /// grows the axis-projected extent (TD re-wrap → more lines → taller
     /// label → larger `label_step`).
     pub label_step: f64,
+    /// Midpoint of the occupied track range for this compartment,
+    /// subtracted from `track` before scaling by `label_step` so the
+    /// sub-cluster sits symmetric around the shared anchor. Identical
+    /// across all outcomes with the same `compartment_id`.
+    ///
+    /// For a 2-member same-direction sub-cluster with tracks `[0, +1]`
+    /// this is `0.5`, producing centered tracks `[-0.5, +0.5]`. For a
+    /// reciprocal `[0, -1]` it is `-0.5`, producing `[+0.5, -0.5]`.
+    /// `[0, +1, -1]` stays `0.0` / `[0, +1, -1]` (unchanged). Singleton
+    /// sub-clusters always store `0.0`.
+    ///
+    /// `label_rewrap::apply_new_label_steps` must use this when
+    /// recomputing `label_center` after `label_step` mutates so the
+    /// re-wrap pass preserves the symmetrized layout.
+    pub track_center: f64,
     /// Dense per-run compartment key assigned in compartment-iteration
     /// order. Edges that share an ID share a compartment, which means they
     /// share `label_step` and must be recentered together when the fixed-
     /// point pass recomputes that budget. Not stable across renders — do
     /// not serialize or compare across invocations.
     pub compartment_id: usize,
-    /// Arc-length midpoint of the original (pre-lane-shift) edge path, as
-    /// computed by `build_label_descriptors`. Kept so that
+    /// Pre-lane-shift anchor used by `label_rewrap` to recompute
     /// `label_center = midpoint + track_vector(direction) * label_step`
-    /// can be recomputed from scratch after `label_step` mutates. Re-
+    /// from scratch after `label_step` mutates.
+    ///
+    /// For singleton compartments this is the edge path's
+    /// `arc_length_midpoint` as built by `build_label_descriptors`. For
+    /// multi-member compartments `recenter_compartment_to_shared_anchor`
+    /// overwrites the primary-axis coordinate with the mean across members
+    /// so all members share a common anchor; the cross-axis coordinate
+    /// stays per-edge. Re-
     /// centering off the previous `label_center` accumulates floating-
     /// point error across iterations, and the rewrap fixed-point can run
     /// up to 3 rounds.
@@ -232,52 +265,170 @@ pub(super) fn assign_label_tracks(
     let compartments = group_label_compartments(descriptors);
     let mut outcomes: HashMap<usize, LabelTrackOutcome> = HashMap::new();
 
-    // Dense compartment counter: assigned in iteration order and only
-    // used as a grouping key within this `assign_label_tracks` call. Not
-    // stable across renders. Incremented by `enumerate()` so every
-    // member of the same compartment gets the same id.
-    for (compartment_id, compartment) in compartments.into_iter().enumerate() {
-        let tracks = pack_signed_tracks(&compartment);
+    // Dense id counter assigned in iteration order. Each axis-conflict
+    // sub-cluster within a compartment gets its own id so `label_step` is
+    // sized per sub-cluster and the rewrap fixed-point groups the right
+    // members together. Not stable across renders.
+    let mut next_id: usize = 0;
+    for compartment in compartments {
+        let full_compartment_size = compartment.members.len();
+        for mut subcluster in split_into_axis_conflict_subclusters(compartment.members) {
+            let compartment_id = next_id;
+            next_id += 1;
 
-        // Per-compartment LABEL_LANE_STEP from the max axis-band extent.
-        // Labels stack along the primary axis (Y for TD/BU, X for LR/RL),
-        // so the step needs to clear the axis-projected dimension of the
-        // largest label (height for TD, width for LR) plus a small gap.
-        let max_axis = compartment
-            .members
-            .iter()
-            .map(|m| m.axis_max - m.axis_min)
-            .fold(0.0_f64, f64::max);
-        let label_step = (max_axis + LANE_GAP).max(MIN_LABEL_LANE_STEP);
-        let path_step = label_step * PATH_LANE_RATIO;
+            recenter_members_to_shared_anchor(&mut subcluster, direction);
+            let tracks = pack_signed_tracks_for_members(&subcluster);
 
-        let compartment_size = compartment.members.len();
-        for desc in &compartment.members {
-            let track = tracks[&desc.edge_index];
-            let label_offset = track as f64 * label_step;
-            let path_offset = track as f64 * path_step;
-            let (new_center, new_rect) = shift_label(desc, label_offset, direction);
-            let new_path = paths
-                .get(&desc.edge_index)
-                .map(|p| shift_middle_segment(p, path_offset, direction))
-                .unwrap_or_default();
-            outcomes.insert(
-                desc.edge_index,
-                LabelTrackOutcome {
-                    label_center: new_center,
-                    label_rect: new_rect,
-                    track,
-                    adjusted_path: new_path,
-                    compartment_size,
-                    label_step,
-                    compartment_id,
-                    midpoint: desc.midpoint,
-                },
-            );
+            // Per-sub-cluster LABEL_LANE_STEP from the max axis-band
+            // extent. Labels stack along the primary axis (Y for TD/BU,
+            // X for LR/RL), so the step needs to clear the axis-projected
+            // dimension of the largest label plus a small gap.
+            let max_axis = subcluster
+                .iter()
+                .map(|m| m.axis_max - m.axis_min)
+                .fold(0.0_f64, f64::max);
+            let label_step = (max_axis + LANE_GAP).max(MIN_LABEL_LANE_STEP);
+            let path_step = label_step * PATH_LANE_RATIO;
+
+            let compartment_size = subcluster.len();
+            // Symmetrize offsets around the midpoint of the occupied
+            // track range so the sub-cluster sits symmetric around the
+            // shared anchor. Without this, a 2-member same-direction
+            // sub-cluster packs to tracks [0, +1] — extent `label_step`
+            // above the anchor, zero below — and `label_clamp` can yank
+            // the +1 member back into the available gap, re-overlapping
+            // the other member. With the midpoint subtraction,
+            // [0, +1] becomes [-0.5, +0.5] and the sub-cluster stays
+            // centred. [-1, 0, +1] stays [-1, 0, +1] (unchanged);
+            // reciprocal [0, -1] becomes [+0.5, -0.5].
+            let track_center = if compartment_size > 1 {
+                let (min_track, max_track) = tracks
+                    .values()
+                    .fold((i32::MAX, i32::MIN), |(lo, hi), &t| (lo.min(t), hi.max(t)));
+                (min_track as f64 + max_track as f64) / 2.0
+            } else {
+                0.0
+            };
+            for desc in &subcluster {
+                let track = tracks[&desc.edge_index];
+                let centered_track = track as f64 - track_center;
+                let label_offset = centered_track * label_step;
+                let path_offset = centered_track * path_step;
+                let (new_center, new_rect) = shift_label(desc, label_offset, direction);
+                let new_path = paths
+                    .get(&desc.edge_index)
+                    .map(|p| shift_middle_segment(p, path_offset, direction))
+                    .unwrap_or_default();
+                outcomes.insert(
+                    desc.edge_index,
+                    LabelTrackOutcome {
+                        label_center: new_center,
+                        label_rect: new_rect,
+                        track,
+                        adjusted_path: new_path,
+                        compartment_size,
+                        full_compartment_size,
+                        label_step,
+                        track_center,
+                        compartment_id,
+                        midpoint: desc.midpoint,
+                    },
+                );
+            }
         }
     }
 
     outcomes
+}
+
+/// Split a compartment into axis-conflict sub-clusters via a sort-then-
+/// merge sweep along the primary axis. Two members conflict when their
+/// axis bands overlap with `LANE_GAP` slack; pack_signed_tracks would
+/// push them onto different tracks. Members that don't axis-conflict
+/// with anyone remain singletons even when the compartment has multiple
+/// members (their labels sit along the same cross-band but at distinct
+/// axis positions, so no lane coordination is needed).
+fn split_into_axis_conflict_subclusters(
+    mut members: Vec<LabelDescriptor>,
+) -> Vec<Vec<LabelDescriptor>> {
+    members.sort_by(|a, b| {
+        a.axis_min
+            .partial_cmp(&b.axis_min)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let mut clusters: Vec<Vec<LabelDescriptor>> = Vec::new();
+    let mut current: Vec<LabelDescriptor> = Vec::new();
+    let mut current_max: f64 = f64::NEG_INFINITY;
+    for desc in members {
+        if current.is_empty() || desc.axis_min <= current_max + LANE_GAP {
+            current_max = current_max.max(desc.axis_max);
+            current.push(desc);
+        } else {
+            clusters.push(std::mem::take(&mut current));
+            current_max = desc.axis_max;
+            current.push(desc);
+        }
+    }
+    if !current.is_empty() {
+        clusters.push(current);
+    }
+    clusters
+}
+
+fn pack_signed_tracks_for_members(members: &[LabelDescriptor]) -> HashMap<usize, i32> {
+    pack_signed_tracks(&LabelCompartment {
+        members: members.to_vec(),
+    })
+}
+
+fn recenter_members_to_shared_anchor(members: &mut [LabelDescriptor], direction: Direction) {
+    if members.len() < 2 {
+        return;
+    }
+    let n = members.len() as f64;
+    let anchor = members
+        .iter()
+        .map(|m| match direction {
+            Direction::TopDown | Direction::BottomTop => m.midpoint.y,
+            Direction::LeftRight | Direction::RightLeft => m.midpoint.x,
+        })
+        .sum::<f64>()
+        / n;
+
+    for member in members.iter_mut() {
+        let delta = anchor
+            - match direction {
+                Direction::TopDown | Direction::BottomTop => member.midpoint.y,
+                Direction::LeftRight | Direction::RightLeft => member.midpoint.x,
+            };
+        if delta == 0.0 {
+            continue;
+        }
+        match direction {
+            Direction::TopDown | Direction::BottomTop => {
+                member.midpoint = FPoint::new(member.midpoint.x, anchor);
+                member.label_rect = FRect::new(
+                    member.label_rect.x,
+                    member.label_rect.y + delta,
+                    member.label_rect.width,
+                    member.label_rect.height,
+                );
+                member.axis_min += delta;
+                member.axis_max += delta;
+            }
+            Direction::LeftRight | Direction::RightLeft => {
+                member.midpoint = FPoint::new(anchor, member.midpoint.y);
+                member.label_rect = FRect::new(
+                    member.label_rect.x + delta,
+                    member.label_rect.y,
+                    member.label_rect.width,
+                    member.label_rect.height,
+                );
+                member.axis_min += delta;
+                member.axis_max += delta;
+            }
+        }
+    }
 }
 
 /// Build label descriptors from diagram geometry and routed edge paths.
@@ -797,6 +948,161 @@ mod tests {
             has_x_shift,
             "interior should shift on cross axis (x for TD)"
         );
+    }
+
+    fn make_descriptor_midpoint(
+        edge_index: usize,
+        midpoint: FPoint,
+        label_w: f64,
+        label_h: f64,
+        sign: i32,
+        direction: Direction,
+    ) -> LabelDescriptor {
+        let (axis_dim, cross_dim, axis_center, cross_center) = match direction {
+            Direction::TopDown | Direction::BottomTop => (label_h, label_w, midpoint.y, midpoint.x),
+            Direction::LeftRight | Direction::RightLeft => {
+                (label_w, label_h, midpoint.x, midpoint.y)
+            }
+        };
+        LabelDescriptor {
+            edge_index,
+            scope_parent: None,
+            axis_min: axis_center - axis_dim / 2.0,
+            axis_max: axis_center + axis_dim / 2.0,
+            cross_min: cross_center - cross_dim / 2.0,
+            cross_max: cross_center + cross_dim / 2.0,
+            direction_sign: sign,
+            midpoint,
+            label_rect: FRect::new(
+                midpoint.x - label_w / 2.0,
+                midpoint.y - label_h / 2.0,
+                label_w,
+                label_h,
+            ),
+        }
+    }
+
+    #[test]
+    fn recenter_members_to_shared_anchor_is_noop_for_singleton() {
+        let d = make_descriptor_midpoint(
+            0,
+            FPoint::new(50.0, 100.0),
+            40.0,
+            20.0,
+            1,
+            Direction::TopDown,
+        );
+        let mut members = vec![d.clone()];
+        recenter_members_to_shared_anchor(&mut members, Direction::TopDown);
+        assert_eq!(members[0].midpoint, d.midpoint);
+        assert_eq!(members[0].axis_min, d.axis_min);
+        assert_eq!(members[0].axis_max, d.axis_max);
+    }
+
+    #[test]
+    fn recenter_members_to_shared_anchor_td_shifts_y_only() {
+        let a = make_descriptor_midpoint(
+            0,
+            FPoint::new(20.0, 100.0),
+            40.0,
+            28.0,
+            1,
+            Direction::TopDown,
+        );
+        let b = make_descriptor_midpoint(
+            1,
+            FPoint::new(80.0, 110.0),
+            40.0,
+            28.0,
+            1,
+            Direction::TopDown,
+        );
+        let mut members = vec![a.clone(), b.clone()];
+        recenter_members_to_shared_anchor(&mut members, Direction::TopDown);
+        assert_eq!(members[0].midpoint.y, 105.0, "anchor = mean(100, 110)");
+        assert_eq!(members[1].midpoint.y, 105.0);
+        assert_eq!(members[0].midpoint.x, 20.0, "x preserved per-edge");
+        assert_eq!(members[1].midpoint.x, 80.0, "x preserved per-edge");
+        // axis bands shift by the y delta
+        assert_eq!(members[0].axis_min, a.axis_min + 5.0);
+        assert_eq!(members[0].axis_max, a.axis_max + 5.0);
+        assert_eq!(members[1].axis_min, b.axis_min - 5.0);
+        assert_eq!(members[1].axis_max, b.axis_max - 5.0);
+    }
+
+    #[test]
+    fn recenter_members_to_shared_anchor_lr_shifts_x_only() {
+        let a = make_descriptor_midpoint(
+            0,
+            FPoint::new(100.0, 20.0),
+            28.0,
+            40.0,
+            1,
+            Direction::LeftRight,
+        );
+        let b = make_descriptor_midpoint(
+            1,
+            FPoint::new(110.0, 80.0),
+            28.0,
+            40.0,
+            1,
+            Direction::LeftRight,
+        );
+        let mut members = vec![a, b];
+        recenter_members_to_shared_anchor(&mut members, Direction::LeftRight);
+        assert_eq!(members[0].midpoint.x, 105.0);
+        assert_eq!(members[1].midpoint.x, 105.0);
+        assert_eq!(members[0].midpoint.y, 20.0);
+        assert_eq!(members[1].midpoint.y, 80.0);
+    }
+
+    #[test]
+    fn split_into_axis_conflict_subclusters_isolates_non_conflicting_members() {
+        // Two members in same compartment by cross-band but with Y bands
+        // 100 px apart — no axis conflict. Each becomes its own cluster.
+        let a = make_descriptor_midpoint(
+            0,
+            FPoint::new(50.0, 100.0),
+            40.0,
+            28.0,
+            1,
+            Direction::TopDown,
+        );
+        let b = make_descriptor_midpoint(
+            1,
+            FPoint::new(60.0, 250.0),
+            40.0,
+            28.0,
+            1,
+            Direction::TopDown,
+        );
+        let clusters = split_into_axis_conflict_subclusters(vec![a, b]);
+        assert_eq!(clusters.len(), 2);
+        assert_eq!(clusters[0].len(), 1);
+        assert_eq!(clusters[1].len(), 1);
+    }
+
+    #[test]
+    fn split_into_axis_conflict_subclusters_merges_overlapping_axis_bands() {
+        let a = make_descriptor_midpoint(
+            0,
+            FPoint::new(50.0, 100.0),
+            40.0,
+            28.0,
+            1,
+            Direction::TopDown,
+        );
+        let b = make_descriptor_midpoint(
+            1,
+            FPoint::new(60.0, 110.0),
+            40.0,
+            28.0,
+            1,
+            Direction::TopDown,
+        );
+        let clusters = split_into_axis_conflict_subclusters(vec![a, b]);
+        assert_eq!(clusters.len(), 1);
+        assert_eq!(clusters[0].len(), 2);
     }
 
     #[test]

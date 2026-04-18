@@ -199,18 +199,24 @@ pub fn route_graph_geometry(
         let Some(outcome) = lane_outcomes.get(&routed_edge.index) else {
             continue;
         };
-        // Skip the wire-up for singleton compartments on track 0 — the
-        // lane pass had nothing to displace and nothing to coordinate
-        // with, so preserve whatever populate_label_geometry placed for
-        // the edge (the orchestrator's arc-midpoint can differ from the
-        // engine's label_position by a few pixels for unrelated edges,
-        // and we don't want that churn). For multi-member compartments
-        // (track 0 or otherwise), apply the outcome unconditionally so
-        // every compartment member shares a consistent reference point —
-        // otherwise a track-0 forward at the engine's anchor and a
-        // track±1 reverse at the descriptor midpoint can end up only a
-        // few pixels apart when the engine pre-shifted the forward.
-        if outcome.compartment_size == 1 {
+        // Skip the wire-up for singleton cross-band compartments on
+        // track 0 — the lane pass had nothing to displace and nothing to
+        // coordinate with, so preserve whatever populate_label_geometry
+        // placed for the edge (the orchestrator's arc-midpoint can
+        // differ from the engine's label_position by a few pixels for
+        // unrelated edges, and we don't want that churn). For any
+        // member of a multi-member cross-band compartment (track 0 or
+        // otherwise, axis-conflicting or not), apply the outcome
+        // unconditionally so every compartment member shares a
+        // consistent reference point — otherwise a track-0 forward at
+        // the engine's anchor and a track±1 reverse at the descriptor
+        // midpoint can end up only a few pixels apart when the engine
+        // pre-shifted the forward. Keyed off `full_compartment_size`
+        // (not `compartment_size`) so singleton axis-conflict
+        // sub-clusters inside a multi-labelled cross-band compartment
+        // still get the wire-up — their arc-midpoint is the consistent
+        // reference, not the engine anchor.
+        if outcome.full_compartment_size == 1 {
             continue;
         }
         // Preserve padding/side from populate_label_geometry's output so the
@@ -232,6 +238,7 @@ pub fn route_graph_geometry(
             padding: existing_padding,
             side: existing_side,
             track: outcome.track,
+            compartment_size: outcome.compartment_size,
         });
         // Note: Algorithm C produces an `adjusted_path` that bows the path
         // around lane-displaced labels. We deliberately do NOT apply it
@@ -932,6 +939,7 @@ fn populate_label_geometry(
             padding: (metrics.label_padding_x, metrics.label_padding_y),
             side,
             track: 0,
+            compartment_size: 1,
         });
     }
 }

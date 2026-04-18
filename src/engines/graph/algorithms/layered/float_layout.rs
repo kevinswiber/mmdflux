@@ -522,6 +522,7 @@ mod tests {
             padding: (4.0, 2.0),
             side: EdgeLabelSide::Above,
             track: 0,
+            compartment_size: 1,
         };
 
         let mut geometry = GraphGeometry {

@@ -16,12 +16,12 @@
       <text x="42.45" y="283.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
     </g>
     <g class="edgeLabels">
-      <rect x="-73.62" y="131.00" width="207.33" height="52.00" fill="white" />
-      <text x="30.05" y="145.00" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a deliberately long</text>
-      <text x="30.05" y="169.00" text-anchor="middle" dominant-baseline="middle" fill="#333">label</text>
-      <rect x="-35.27" y="77.00" width="195.46" height="52.00" fill="white" />
-      <text x="62.45" y="91.00" text-anchor="middle" dominant-baseline="middle" fill="#333">another deliberately long</text>
-      <text x="62.45" y="115.00" text-anchor="middle" dominant-baseline="middle" fill="#333">reply label</text>
+      <rect x="-61.21" y="161.00" width="207.33" height="52.00" fill="white" />
+      <text x="42.45" y="175.00" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a deliberately long</text>
+      <text x="42.45" y="199.00" text-anchor="middle" dominant-baseline="middle" fill="#333">label</text>
+      <rect x="-35.27" y="105.00" width="195.46" height="52.00" fill="white" />
+      <text x="62.45" y="119.00" text-anchor="middle" dominant-baseline="middle" fill="#333">another deliberately long</text>
+      <text x="62.45" y="143.00" text-anchor="middle" dominant-baseline="middle" fill="#333">reply label</text>
     </g>
   </g>
 </svg>

@@ -59,12 +59,12 @@
       <text x="158.20" y="426.11" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
       <rect x="212.86" y="654.36" width="50.13" height="28.00" fill="white" />
       <text x="237.93" y="668.36" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
-      <rect x="347.62" y="712.11" width="27.12" height="28.00" fill="white" />
-      <text x="361.17" y="726.11" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
+      <rect x="347.62" y="738.26" width="27.12" height="28.00" fill="white" />
+      <text x="361.17" y="752.26" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
       <rect x="201.07" y="914.36" width="73.70" height="28.00" fill="white" />
       <text x="237.93" y="928.36" text-anchor="middle" dominant-baseline="middle" fill="#333">response</text>
-      <rect x="324.70" y="700.40" width="42.89" height="28.00" fill="white" />
-      <text x="346.14" y="714.40" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <rect x="324.70" y="706.26" width="42.89" height="28.00" fill="white" />
+      <text x="346.14" y="720.26" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>
 </svg>

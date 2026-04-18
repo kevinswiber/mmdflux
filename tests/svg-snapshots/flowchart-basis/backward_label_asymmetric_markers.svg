@@ -19,10 +19,10 @@
       <text x="94.24" y="211.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Entity</text>
     </g>
     <g class="edgeLabels">
-      <rect x="40.31" y="109.00" width="107.85" height="28.00" fill="white" />
-      <text x="94.24" y="123.00" text-anchor="middle" dominant-baseline="middle" fill="#333">forward label</text>
-      <rect x="61.24" y="77.00" width="106.00" height="28.00" fill="white" />
-      <text x="114.24" y="91.00" text-anchor="middle" dominant-baseline="middle" fill="#333">reverse label</text>
+      <rect x="40.31" y="125.00" width="107.85" height="28.00" fill="white" />
+      <text x="94.24" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">forward label</text>
+      <rect x="61.24" y="93.00" width="106.00" height="28.00" fill="white" />
+      <text x="114.24" y="107.00" text-anchor="middle" dominant-baseline="middle" fill="#333">reverse label</text>
     </g>
   </g>
 </svg>

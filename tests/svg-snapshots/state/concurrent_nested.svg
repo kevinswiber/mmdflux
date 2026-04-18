@@ -38,10 +38,10 @@
       <text x="121.97" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
     </g>
     <g class="edgeLabels">
-      <rect x="48.00" y="337.00" width="147.94" height="28.00" fill="white" />
-      <text x="121.97" y="351.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
-      <rect x="80.94" y="305.00" width="147.94" height="28.00" fill="white" />
-      <text x="154.91" y="319.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
+      <rect x="48.00" y="353.00" width="147.94" height="28.00" fill="white" />
+      <text x="121.97" y="367.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
+      <rect x="80.94" y="321.00" width="147.94" height="28.00" fill="white" />
+      <text x="154.91" y="335.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
     </g>
   </g>
 </svg>

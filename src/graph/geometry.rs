@@ -190,6 +190,15 @@ pub struct EdgeLabelGeometry {
     /// Signed lane-assignment track. `0` means no lane displacement was
     /// applied; `±1, ±2, ...` encode lane rank (sign encodes direction).
     pub track: i32,
+    /// Number of members in the lane-assignment compartment this edge was
+    /// placed in. `1` means singleton (no compartment coordination); `≥2`
+    /// means the label was placed as part of a multi-edge group and
+    /// consumers must trust `center` / `rect` exactly — they were chosen
+    /// relative to the compartment's shared anchor and may sit off the
+    /// edge's own arc-length midpoint by more than a revalidation
+    /// tolerance. Pre-lane placeholders use the `Default` value of `1` so
+    /// singleton behaviour is preserved when no lane pass has run.
+    pub compartment_size: usize,
 }
 
 impl Default for EdgeLabelGeometry {
@@ -200,6 +209,7 @@ impl Default for EdgeLabelGeometry {
             padding: (0.0, 0.0),
             side: EdgeLabelSide::Center,
             track: 0,
+            compartment_size: 1,
         }
     }
 }
@@ -423,6 +433,7 @@ mod tests {
             padding: (4.0, 2.0),
             side: EdgeLabelSide::Above,
             track: 1,
+            compartment_size: 1,
         };
         assert_eq!(g.center.x, 10.0);
         assert_eq!(g.center.y, 20.0);

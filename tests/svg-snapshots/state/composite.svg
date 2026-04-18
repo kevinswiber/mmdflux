@@ -34,10 +34,10 @@
       <text x="116.16" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
     </g>
     <g class="edgeLabels">
-      <rect x="122.63" y="305.63" width="50.69" height="28.00" fill="white" />
-      <text x="147.97" y="319.63" text-anchor="middle" dominant-baseline="middle" fill="#333">pause</text>
-      <rect x="161.78" y="256.96" width="61.08" height="28.00" fill="white" />
-      <text x="192.32" y="270.96" text-anchor="middle" dominant-baseline="middle" fill="#333">resume</text>
+      <rect x="122.63" y="281.30" width="50.69" height="28.00" fill="white" />
+      <text x="147.97" y="295.30" text-anchor="middle" dominant-baseline="middle" fill="#333">pause</text>
+      <rect x="161.78" y="250.00" width="61.08" height="28.00" fill="white" />
+      <text x="192.32" y="264.00" text-anchor="middle" dominant-baseline="middle" fill="#333">resume</text>
     </g>
   </g>
 </svg>

@@ -46,18 +46,18 @@
       <text x="127.35" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
     </g>
     <g class="edgeLabels">
-      <rect x="52.43" y="369.00" width="147.94" height="28.00" fill="white" />
-      <text x="126.40" y="383.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
-      <rect x="80.68" y="331.60" width="147.94" height="28.00" fill="white" />
-      <text x="154.65" y="345.60" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
-      <rect x="217.91" y="367.41" width="152.03" height="28.00" fill="white" />
-      <text x="293.93" y="381.41" text-anchor="middle" dominant-baseline="middle" fill="#333">EvCapsLockPressed</text>
-      <rect x="248.08" y="332.00" width="152.03" height="28.00" fill="white" />
-      <text x="324.09" y="346.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvCapsLockPressed</text>
-      <rect x="389.51" y="337.00" width="158.71" height="28.00" fill="white" />
-      <text x="468.86" y="351.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvScrollLockPressed</text>
-      <rect x="425.14" y="305.00" width="158.71" height="28.00" fill="white" />
-      <text x="504.49" y="319.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvScrollLockPressed</text>
+      <rect x="52.43" y="350.30" width="147.94" height="28.00" fill="white" />
+      <text x="126.40" y="364.30" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
+      <rect x="80.68" y="318.30" width="147.94" height="28.00" fill="white" />
+      <text x="154.65" y="332.30" text-anchor="middle" dominant-baseline="middle" fill="#333">EvNumLockPressed</text>
+      <rect x="217.91" y="349.70" width="152.03" height="28.00" fill="white" />
+      <text x="293.93" y="363.70" text-anchor="middle" dominant-baseline="middle" fill="#333">EvCapsLockPressed</text>
+      <rect x="248.08" y="317.70" width="152.03" height="28.00" fill="white" />
+      <text x="324.09" y="331.70" text-anchor="middle" dominant-baseline="middle" fill="#333">EvCapsLockPressed</text>
+      <rect x="389.51" y="353.00" width="158.71" height="28.00" fill="white" />
+      <text x="468.86" y="367.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvScrollLockPressed</text>
+      <rect x="425.14" y="321.00" width="158.71" height="28.00" fill="white" />
+      <text x="504.49" y="335.00" text-anchor="middle" dominant-baseline="middle" fill="#333">EvScrollLockPressed</text>
     </g>
   </g>
 </svg>

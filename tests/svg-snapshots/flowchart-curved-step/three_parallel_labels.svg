@@ -19,10 +19,10 @@
     <g class="edgeLabels">
       <rect x="19.28" y="99.00" width="33.61" height="28.00" fill="white" />
       <text x="36.09" y="113.00" text-anchor="middle" dominant-baseline="middle" fill="#333">one</text>
-      <rect x="44.81" y="101.00" width="35.47" height="28.00" fill="white" />
-      <text x="62.54" y="115.00" text-anchor="middle" dominant-baseline="middle" fill="#333">two</text>
-      <rect x="66.25" y="130.00" width="45.49" height="28.00" fill="white" />
-      <text x="89.00" y="144.00" text-anchor="middle" dominant-baseline="middle" fill="#333">three</text>
+      <rect x="44.81" y="94.75" width="35.47" height="28.00" fill="white" />
+      <text x="62.54" y="108.75" text-anchor="middle" dominant-baseline="middle" fill="#333">two</text>
+      <rect x="66.25" y="126.75" width="45.49" height="28.00" fill="white" />
+      <text x="89.00" y="140.75" text-anchor="middle" dominant-baseline="middle" fill="#333">three</text>
     </g>
   </g>
 </svg>

@@ -295,9 +295,20 @@ fn apply_new_label_steps(
         outcome.label_step = new_step;
 
         // track_vector returns the unit vector along the axis-stacking
-        // direction. label_center = midpoint + track_vector * track *
-        // label_step.
-        let new_center = compute_label_center(outcome.midpoint, outcome.track, new_step, direction);
+        // direction. label_center = midpoint + track_vector *
+        // (track - track_center) * label_step. The `track_center`
+        // subtraction mirrors the symmetrization that
+        // `label_lanes::assign_label_tracks` applies — without it the
+        // rewrap pass would undo the shared-anchor placement for
+        // multi-member clusters whose track range is asymmetric around
+        // zero (e.g. 2-member same-direction `[0, +1]`).
+        let new_center = compute_label_center(
+            outcome.midpoint,
+            outcome.track,
+            outcome.track_center,
+            new_step,
+            direction,
+        );
         outcome.label_center = new_center;
 
         if let Some(geom) = edge.label_geometry.as_mut() {
@@ -325,17 +336,19 @@ fn axis_projected_dim(width: f64, height: f64, direction: Direction) -> f64 {
     }
 }
 
-/// Compute a member's `label_center` from its midpoint, track, step, and
-/// flow direction. Mirrors `label_lanes::shift_label` — keep the two in
-/// sync if either changes. Extracting a separate helper here avoids
-/// coupling this module to the crate-private internals of `label_lanes`.
+/// Compute a member's `label_center` from its midpoint, track,
+/// track_center, step, and flow direction. Mirrors the offset math in
+/// `label_lanes::assign_label_tracks` — keep the two in sync if either
+/// changes. Extracting a separate helper here avoids coupling this
+/// module to the crate-private internals of `label_lanes`.
 fn compute_label_center(
     midpoint: FPoint,
     track: i32,
+    track_center: f64,
     label_step: f64,
     direction: Direction,
 ) -> FPoint {
-    let offset = track as f64 * label_step;
+    let offset = (track as f64 - track_center) * label_step;
     match direction {
         Direction::TopDown | Direction::BottomTop => FPoint::new(midpoint.x, midpoint.y + offset),
         Direction::LeftRight | Direction::RightLeft => FPoint::new(midpoint.x + offset, midpoint.y),
@@ -403,6 +416,7 @@ mod tests {
                 padding: (4.0, 2.0),
                 side: EdgeLabelSide::Center,
                 track: 0,
+                compartment_size: 1,
                 // Note: the rect passed in assumes padding already included.
             }),
             effective_wrapped_lines: None,
@@ -417,13 +431,35 @@ mod tests {
         midpoint: FPoint,
         rect: FRect,
     ) -> LabelTrackOutcome {
+        outcome_with_track_center(
+            track,
+            0.0,
+            label_step,
+            compartment_id,
+            compartment_size,
+            midpoint,
+            rect,
+        )
+    }
+
+    fn outcome_with_track_center(
+        track: i32,
+        track_center: f64,
+        label_step: f64,
+        compartment_id: usize,
+        compartment_size: usize,
+        midpoint: FPoint,
+        rect: FRect,
+    ) -> LabelTrackOutcome {
         LabelTrackOutcome {
             label_center: FPoint::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0),
             label_rect: rect,
             track,
             adjusted_path: vec![],
             compartment_size,
+            full_compartment_size: compartment_size,
             label_step,
+            track_center,
             compartment_id,
             midpoint,
         }
@@ -578,6 +614,73 @@ mod tests {
         );
         // Both members see the same fresh step.
         assert_eq!(outcomes[&0].label_step, outcomes[&1].label_step);
+    }
+
+    #[test]
+    fn rewrap_preserves_track_center_symmetry_for_asymmetric_tracks() {
+        // A 2-member same-direction sub-cluster packs to tracks [0, +1]
+        // with track_center = 0.5, so the symmetrized offsets are
+        // [-0.5, +0.5] * label_step. When re-wrap fires and
+        // `apply_new_label_steps` recomputes centers, it must preserve
+        // that symmetric layout — otherwise the track-0 member collapses
+        // back to the anchor and the track-+1 member overshoots, which
+        // is exactly the [0, +1] asymmetry that `label_clamp` couldn't
+        // accommodate and that motivated the symmetrization fix.
+        let label = "this is a deliberately long label";
+        let g = graph_with_labels(&[("A", "B", label), ("A", "B", label)]);
+        let rect = FRect::new(0.0, 0.0, 200.0, 60.0);
+        let mut edges = vec![
+            routed_edge_with_label(0, "A", "B", rect),
+            routed_edge_with_label(1, "A", "B", rect),
+        ];
+        // Same-direction pair: tracks [0, +1], shared anchor at y=30,
+        // initial label_step=32. track_center=0.5 so centered tracks
+        // become [-0.5, +0.5].
+        let anchor = FPoint::new(100.0, 30.0);
+        let initial_step = 32.0;
+        let track_center = 0.5;
+        let mut outcomes = HashMap::new();
+        outcomes.insert(
+            0,
+            outcome_with_track_center(0, track_center, initial_step, 0, 2, anchor, rect),
+        );
+        outcomes.insert(
+            1,
+            outcome_with_track_center(1, track_center, initial_step, 0, 2, anchor, rect),
+        );
+        let metrics = default_proportional_text_metrics();
+
+        re_wrap_labels_for_lane_fit(&g, &mut edges, &mut outcomes, &metrics, Direction::TopDown);
+
+        // After re-wrap, label_step changed but the two members must
+        // remain equidistant from the anchor on opposite sides.
+        let step_after = outcomes[&0].label_step;
+        let c0 = outcomes[&0].label_center;
+        let c1 = outcomes[&1].label_center;
+        let expected_c0_y = anchor.y + (0.0 - track_center) * step_after;
+        let expected_c1_y = anchor.y + (1.0 - track_center) * step_after;
+        assert!(
+            (c0.y - expected_c0_y).abs() < 1e-6,
+            "track-0 center drifted: got {}, expected {}",
+            c0.y,
+            expected_c0_y
+        );
+        assert!(
+            (c1.y - expected_c1_y).abs() < 1e-6,
+            "track-+1 center drifted: got {}, expected {}",
+            c1.y,
+            expected_c1_y
+        );
+        // The two centers must still be exactly one step apart and
+        // symmetric about the anchor.
+        assert!(
+            ((c1.y - c0.y) - step_after).abs() < 1e-6,
+            "centers must be exactly one label_step apart after rewrap"
+        );
+        assert!(
+            ((c0.y + c1.y) / 2.0 - anchor.y).abs() < 1e-6,
+            "midpoint of centers must equal the compartment anchor"
+        );
     }
 
     #[test]
