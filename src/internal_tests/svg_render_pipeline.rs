@@ -5874,7 +5874,6 @@ mod plan_0145_q9_red {
     // expose a flowchart-style `Graph` from this layer. Drift coverage
     // arrives in Task 1.10 alongside the routed companion (Q9 #2).
     #[test]
-    #[ignore = "plan 0150 residual: 1-px reciprocal-pair overlap needs text-renderer-aware split-gap reservation — see #246 and findings/phase-3-state-issue-222-regression.md"]
     fn state_issue_222_minimal_repro_labels_do_not_overlap_svg() {
         let svg = render_svg_default(state_issue_222_minimal_repro_input());
         let overlap = svg_pairwise_label_rect_overlaps(&svg);
@@ -5906,7 +5905,6 @@ mod plan_0145_q9_red {
     // needs either global X packing across compartments or a cross-
     // compartment rewrap trigger. Tracking as a follow-up.
     #[test]
-    #[ignore = "plan 0149 follow-up: cross-compartment X overlap — see #242"]
     fn state_concurrent_three_flux_layered_labels_disjoint_svg() {
         let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::FLUX_LAYERED);
         let overlap = svg_pairwise_label_rect_overlaps(&svg);
@@ -5917,7 +5915,7 @@ mod plan_0145_q9_red {
     }
 
     #[test]
-    #[ignore = "plan 0149 follow-up: cross-compartment X overlap — see #242"]
+    #[ignore = "mermaid-layered parity: sibling concurrent regions pack too tight, label X-extents bleed across subgraph boundaries — see #248 (distinct from #242's cross-compartment pattern within a shared scope)"]
     fn state_concurrent_three_mermaid_layered_labels_disjoint_svg() {
         let svg = concurrent_three_svg_with_engine(EngineAlgorithmId::MERMAID_LAYERED);
         let overlap = svg_pairwise_label_rect_overlaps(&svg);
