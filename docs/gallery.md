@@ -1,11 +1,11 @@
 # mmdflux gallery
 
-_Generated from commit `47066879` — 152 fixtures_
+_Generated from commit `ae05bc70` — 170 fixtures_
 
-- [Flowchart](#flowchart) (98)
+- [Flowchart](#flowchart) (111)
 - [Class](#class) (17)
 - [Sequence](#sequence) (28)
-- [State](#state) (9)
+- [State](#state) (14)
 
 # Flowchart
 
@@ -253,6 +253,96 @@ graph LR
 
 </details>
 
+## backward_corridor_overlap_lr
+
+`tests/fixtures/flowchart/backward_corridor_overlap_lr.mmd`
+
+**Text**
+
+```text
+         ┌───┐
+         │ B │
+      ┌─►└───┘◄┬───┐
+      │        └─►┌───┐
+      │        ┌─►│ D │
+      │        │  └───┘
+┌───┐─┘  ┌───┐─┘   │ │
+│ A │───►│ C │     │ │
+└───┘    └───┘     │ │
+  ▲                  │
+  └──────────────────┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![backward_corridor_overlap_lr svg](../tests/svg-snapshots/flowchart/backward_corridor_overlap_lr.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph LR
+    A --> B
+    A --> C
+    B --> D
+    C --> D
+    D --> A
+    D --> B
+
+```
+
+</details>
+
+## backward_corridor_overlap
+
+`tests/fixtures/flowchart/backward_corridor_overlap.mmd`
+
+**Text**
+
+```text
+         ┌───┐
+         │ A │◄┐
+         └───┘ │
+         │ │   │
+    ┌────┘ │   │
+    ▼      ▼   │
+┌───┐    ┌───┐ │
+│ B │◄───│ C │─┼─┐
+└───┘    └───┘ │ │
+   │      │    │ │
+   └─┐ ┌──┘    │ │
+     ▼ ▼       │ │
+     ┌───┐     │ │
+     │ D │─────┼─┘
+     └───┘─────┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![backward_corridor_overlap svg](../tests/svg-snapshots/flowchart/backward_corridor_overlap.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+    A --> B
+    A --> C
+    B --> D
+    C --> D
+    D --> A
+    D --> B
+
+```
+
+</details>
+
 ## backward_in_subgraph_lr
 
 `tests/fixtures/flowchart/backward_in_subgraph_lr.mmd`
@@ -330,6 +420,46 @@ end
 
 </details>
 
+## backward_label_asymmetric_markers
+
+`tests/fixtures/flowchart/backward_label_asymmetric_markers.mmd`
+
+**Text**
+
+```text
+┌────────────────┐
+│ Aggregate Root │◄─┐
+└────────────────┘  │
+ └───────┐          │
+         │          │
+         │          │
+   forward label    │
+     ┌───┘          │
+     ▼        reverse label
+    ┌────────┐      │
+    │ Entity │○─────┘
+    └────────┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![backward_label_asymmetric_markers svg](../tests/svg-snapshots/flowchart/backward_label_asymmetric_markers.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+    A[Aggregate Root] -->|forward label| B[Entity]
+    B o-->|reverse label| A
+
+```
+
+</details>
+
 ## backward_loop_lr
 
 `tests/fixtures/flowchart/backward_loop_lr.mmd`
@@ -344,8 +474,10 @@ end
 │ Narratives │──────────►│ Domain Model │                                                               │
 └────────────┘           └──────────────┘─────┐                                                         │
                                               └────►┌─────────────────┐                                 └───►┌───────────────────┐────────────────────►┌────────────────┐                      ┌─────────────────┐
-                                                    │ Server Scaffold │───────────────────────┐              │ AI Implementation │     ┌──Fail───────┐ │ Quality Checks │─────────Pass────────►│ Production Code │
-                                                    └─────────────────┘                       └─────────────►└───────────────────┘◄────┘             └─└────────────────┘                      └─────────────────┘
+                                                    │ Server Scaffold │───────────────────────┐              │ AI Implementation │                     │ Quality Checks │─────────Pass────────►│ Production Code │
+                                                    └─────────────────┘                       └─────────────►└───────────────────┘                     └────────────────┘                      └─────────────────┘
+                                                                                                                         ▲                                   │
+                                                                                                                         └───────────────Fail────────────────┘
 ```
 
 <details>
@@ -369,6 +501,114 @@ flowchart LR
     F --> G[Quality Checks]
     G -->|Fail| F
     G -->|Pass| H[Production Code]
+
+```
+
+</details>
+
+## backward_port_spread
+
+`tests/fixtures/flowchart/backward_port_spread.mmd`
+
+**Text**
+
+```text
+       ┌───┐
+       │ A │◄──┐
+       └───┘   │
+        │      │
+    ┌───┘      │
+    ▼          │
+┌───┐          │
+│ B │◄─────────┼──┐
+└───┘          │  │
+ │             │  │
+ └┐            │  │
+  ▼            │  │
+┌───┐          │  │
+│ C │◄─────────┼─┐│
+└───┘          │ ││
+  │            │ ││
+  │            │ ││
+  ▼            │ ││
+┌───┐          │ ││
+│ D │          │ ││
+└───┘          │ ││
+    │          │ ││
+    └─────┐    │ ││
+          ▼    │ ││
+          ┌───┐┘ ││
+          │ E │──┘│
+          └───┘───┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![backward_port_spread svg](../tests/svg-snapshots/flowchart/backward_port_spread.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+    A --> B --> C --> D --> E
+    E --> A
+    E --> B
+    E --> C
+
+```
+
+</details>
+
+## backward_target_spread
+
+`tests/fixtures/flowchart/backward_target_spread.mmd`
+
+**Text**
+
+```text
+        ┌───────┐◄───┐
+        │ Alpha │◄──┐│
+        └───────┘◄┐ ││
+         │        │ ││
+       ┌─┘        │ ││
+       ▼          │ ││
+ ┌───────┐        │ ││
+ │ Bravo │────────┘ ││
+ └───────┘          ││
+     │              ││
+ ┌───┘              ││
+ ▼                  ││
+┌─────────┐         ││
+│ Charlie │─────────┘│
+└─────────┘          │
+     │               │
+  ┌──┘               │
+  ▼                  │
+ ┌───────┐           │
+ │ Delta │───────────┘
+ └───────┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![backward_target_spread svg](../tests/svg-snapshots/flowchart/backward_target_spread.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+    Alpha --> Bravo --> Charlie --> Delta
+    Bravo --> Alpha
+    Charlie --> Alpha
+    Delta --> Alpha
 
 ```
 
@@ -775,8 +1015,8 @@ graph TD
 │ Git Push │────────────────►│ Build │───────────────►│ Run Tests │─────────────►│ Lint Check │───────────────►< Deploy? >
 └──────────┘                 └───────┘                └───────────┘              └────────────┘                └─────────┘─┐
                                                                                                                            └────────────────────────────►┌────────────┐
-                                                                                                                                                         │ Production │
-                                                                                                                                    production           └────────────┘
+                                                                                                                                    production           │ Production │
+                                                                                                                                                         └────────────┘
 ```
 
 <details>
@@ -797,6 +1037,88 @@ graph LR
     Lint --> Deploy{Deploy?}
     Deploy -->|staging| Staging[Staging Env]
     Deploy -->|production| Prod[Production]
+
+```
+
+</details>
+
+## classdef_class_stmt
+
+`tests/fixtures/flowchart/classdef_class_stmt.mmd`
+
+**Text**
+
+```text
+┌───┐
+│ A │
+└───┘
+  │
+  │
+  ▼
+┌───┐
+│ B │
+└───┘
+  │
+  │
+  ▼
+┌───┐
+│ C │
+└───┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![classdef_class_stmt svg](../tests/svg-snapshots/flowchart/classdef_class_stmt.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+    classDef err fill:#f00,color:#fff
+    A --> B --> C
+    class B,C err
+
+```
+
+</details>
+
+## classdef_precedence
+
+`tests/fixtures/flowchart/classdef_precedence.mmd`
+
+**Text**
+
+```text
+┌───┐
+│ A │
+└───┘
+  │
+  │
+  ▼
+┌───┐
+│ B │
+└───┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![classdef_precedence svg](../tests/svg-snapshots/flowchart/classdef_precedence.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+    classDef base fill:#ddd
+    A:::base --> B:::base
+    style B fill:#0f0
 
 ```
 
@@ -1277,95 +1599,95 @@ graph TD
 **Text**
 
 ```text
-┌─────────────────────── Input Layer ───────────────────────┐
-│       ╭─────────────╮             ┌───────────────┐       │
-│       │ API Gateway │             │ Load Balancer │       │
-│       ╰─────────────╯             └───────────────┘       │
-│              │                           │                │
-└──────────────┼───────────────────────────┼────────────────┘
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-            request                     health
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-               │                           │
-             ┌─┘                           │
-             │                             │
-           ┌─┼──────────────── Processing ─┼─────────────────┐
-           │ ▼    ▼                                          │
-           │┌────────┐                                       │
-           │< Route? >◄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┼┄┄┐
-           │└────────┘                                       │  ┆
-           │ └──┴┄┄┬┴┄┄┄┄┄┄┄┄┬───────┐                       │  ┆
-           │       │       write     │                       │  ┆
-           │       │         ┆   fast path                   │  ┆
-           │       │         ┆       └────────────┐          │  ┆
-           │       │         ▼                    ▼          │  ┆
-           │     read  ┌───────────┐             ┌───────────┐  ┆
-           │       │   │ Transform │             │ Cache Hit │  ┆
-           │       │   └───────────┘             └───────────┘  ┆
-           │       └───────────┼─┐                     │     │  ┆
-           │                   └─┼────────┐            │     │  ┆
-           │                     │        │            │     │  ┆
-           │                     │        │            │     │  ┆
-           │                     ▼        ▼            │     │  ┆
-           │                    ┌──────────┐           │     │  ┆
-           │                    ( Database )           │     │  ┆
-           │                    └──────────┘           │     │  ┆
-           │                          │                │     │  ┆
-           └──────────────────────────┼────────────────┼─────┘  ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │      retry
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                      │                │        ┆
-                                   result              │        ┆
-                    ┌─────────────────┘                │        ┆
-    ┌────────── Output Layer ───────────┬────────────hit        ┆
-    │               ▼  ▼                │                       ┆
-    │           ┌───────────┐           │                       ┆
-    │           ║ Formatter ║           │                       ┆
-    │           └───────────┘           │                       ┆
-    │                 │                 │                       ┆
-    │                 │                 │                       ┆
-    │                 │                 │                       ┆
-    │                 │                 │                       ┆
-    │             response              │                       ┆
-    │                 │                 │                       ┆
-    │                 │                 │                       ┆
-    │                 │                 │                       ┆
-    │                 ▼                 │                       ┆
-    │           ╭────────╮              │                       ┆
-    │           │ Status │┄┄┄┄┄┄┄┄┄┄┄┄┄┄┼┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘
-    │           ╰────────╯              │
-    │                                   │
-    └───────────────────────────────────┘
+      ┌────────────────────── Input Layer ──────────────────────┐
+      │      ╭─────────────╮             ┌───────────────┐      │
+      │      │ API Gateway │             │ Load Balancer │      │
+      │      ╰─────────────╯             └───────────────┘      │
+      │             │                          │                │
+      └─────────────┼──────────────────────────┼────────────────┘
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                 request                    health
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+                    │                          │
+┌───────────────────┼─────── Processing ───────┼────────────────────┐
+│                                     ▼▼                            │
+│                                 ┌────────┐                        │
+│                                 < Route? >◄┐                      │
+│                                 └────────┘ ┆                      │
+│               ┌┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘  │   └──┼──────┐               │
+│               ┆                     │      ┆      │               │
+│             write               ┌───┘      ┆  fast path           │
+│               ┆                 │          ┆      │               │
+│               ▼                 │          ┆      ▼               │
+│         ┌───────────┐         read         ┆┌───────────┐         │
+│         │ Transform │           │          ┆│ Cache Hit │         │
+│         └───────────┘           │          ┆└───────────┘         │
+│                  │              └──┐       ┆      │               │
+│                  └────────┐        │       ┆      │               │
+│                           │        │       ┆      │               │
+│                           │        │       ┆      │               │
+│                           ▼        ▼       ┆      │               │
+│                          ┌──────────┐      ┆      │               │
+│                          ( Database )      ┆      │               │
+│                          └──────────┘      ┆      │               │
+│                                │           ┆      │               │
+└────────────────────────────────┼───────────┼──────┼───────────────┘
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                              result         ┆     hit
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │         retry    │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                                 │           ┆      │
+                            ┌────┘           ┆      │
+                            │      ┌─────────┼──────┘
+                ┌───────── Output Layer ─────┼────┐
+                │           ▼      ▼         ┆    │
+                │          ┌───────────┐     ┆    │
+                │          ║ Formatter ║     ┆    │
+                │          └───────────┘     ┆    │
+                │                │           ┆    │
+                │                │           ┆    │
+                │                │           ┆    │
+                │                │           ┆    │
+                │            response        ┆    │
+                │                │           ┆    │
+                │                │           ┆    │
+                │                │           ┆    │
+                │                ▼           ┆    │
+                │           ╭────────╮       ┆    │
+                │           │ Status │┄┄┄┄┄┄┄┘    │
+                │           ╰────────╯            │
+                │                                 │
+                └─────────────────────────────────┘
 ```
 
 <details>
@@ -2466,8 +2788,8 @@ graph TD
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             │                           │                            │
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             │                           │                            │
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             │                           │                            │
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            │                           │                            │
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   Checks /^\s*graph/        Checks /^\s*flowchart/     Checks /^\s*flowchart-elk/
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            │                           │                         Checks
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   Checks /^\s*graph/        Checks /^\s*flowchart/         /^\s*flowchart-elk/
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             │                           │                            │
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             │                           │                            │
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             │                           │                            │
@@ -2529,73 +2851,73 @@ graph TD
                                         │ newParser.parse(src) │                                                                                    │ Type Definitions │                                                                                                                                                                                                                                                                                               │ FlowDB class │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            │ draw(text, id, version, diag) │    │ getStyles(options) │                                                         │ Configuration Setup │
                                         └──────────────────────┘                                                                                    └──────────────────┘                                                                                                                                                                                                                                                                                               └──────────────┘                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            └───────────────────────────────┘    └────────────────────┘                                                         └─────────────────────┘
                                                     │                                                                                                │   │   │   │    │                                                                                                                                                                                                                                                                                                 │            │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             │                              │                                                                     │     │      │      │
-                                                    │                          ┌──────────────────────────┬─────────────────────────┬────────────────┴───┴───┘┌──┘    └──────────────────┐                                                                                                                                                                                                                                                              ┌───────────────┘            └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐                                                                              │                              │                               ┌─────────────────────────┬───────────┴─────┘      └┐     └──────────────────┐
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
-                                                    │                          │                          │                         │                         │                          ▼                                                                                                                                                                                                                                                              ▼                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              ▼                              ▼                               │                         │                         │                        │
-                                            Preprocesses src                   ▼                          ▼                         ▼                         ▼                 ┌─────────────────────┐                                                                                                                                                                                                                                 ┌───────────────────────┐                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   │                                                                 ┌────────────────────────┐    ┌───────────────────────────┐                 ▼                         ▼                         ▼                        ▼
-                                                    │         ┌──────────────────────┐     ┌────────────────────┐      ┌─────────────────────┐    ┌────────────────────────┐    │ FlowVertexTypeParam │                                                                                                                                                                                                                                 │     constructor()     │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ┌────────────┐                                                    │  Initialize rendering  │    │   FlowChartStyleOptions   │    ┌──────────────────────┐    ┌─────────────────────┐      ┌───────────────┐        ┌───────────────────┐
-                                                    │         │ FlowVertex interface │     │ FlowEdge interface │      │ FlowClass interface │    │ FlowSubGraph interface │    │     Shape types     │                                                                                                                                                                                                                                 │ - Initialize counters │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   │ Test Files │                                                    │     - getConfig()      │    │ - arrowheadColor, border2 │    │ cnf.flowchart config │    │ arrowMarkerAbsolute │      │ layout config │        │ setConfig() calls │
-                                                    │         └──────────────────────┘     └────────────────────┘      └─────────────────────┘    └────────────────────────┘    └─────────────────────┘                                                                                                                                                                                                                                 │    - Bind methods     │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   └────────────┘                                                    │ - handle securityLevel │    │   - clusterBkg, mainBkg   │    └──────────────────────┘    └─────────────────────┘      └───────────────┘        └───────────────────┘
-                                                    │                                                                                                                                                                                                                                                                                                                                                                                   │   - Setup toolTips    │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │    │     │                                                     │ - getDiagramElement()  │    │  - fontFamily, textColor  │
-                                                    │                                                                                                                                                                                                                                                                                                                                                                                   │    - Call clear()     │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ┌───────────────────────┬───┴────┘     └───────┐                                             └────────────────────────┘    └───────────────────────────┘
-                                                    │                                                                                                                                                                                                                                                                                                                                                                                   └───────────────────────┘                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        │                       │                      │                                                          │                              │
+                                                    │                          ┌─────────────────────────┬──────────────────────────┬────────────────┴───┴───┘┌──┘    └──────────────────┐                                                                                                                                                                                                                                                              ┌───────────────┘            └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐                                                                              │                              │                               ┌─────────────────────────┬───────────┴─────┘      └┐     └──────────────────┐
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              │                              │                               │                         │                         │                        │
+                                                    │                          │                         │                          │                         │                          │                                                                                                                                                                                                                                                              ▼                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           │                                                                              ▼                              ▼                               │                         │                         │                        │
+                                            Preprocesses src                   │                         │                          │                         │                          ▼                                                                                                                                                                                                                                              ┌───────────────────────┐                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   │                                                                 ┌────────────────────────┐    ┌───────────────────────────┐                 │                         │                         │                        │
+                                                    │                          ▼                         ▼                          ▼                         ▼                 ┌─────────────────────┐                                                                                                                                                                                                                                 │     constructor()     │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   │                                                                 │  Initialize rendering  │    │   FlowChartStyleOptions   │                 ▼                         ▼                         ▼                        ▼
+                                                    │         ┌──────────────────────┐     ┌────────────────────┐      ┌─────────────────────┐    ┌────────────────────────┐    │ FlowVertexTypeParam │                                                                                                                                                                                                                                 │ - Initialize counters │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ┌────────────┐                                                    │     - getConfig()      │    │ - arrowheadColor, border2 │    ┌──────────────────────┐    ┌─────────────────────┐      ┌───────────────┐        ┌───────────────────┐
+                                                    │         │ FlowVertex interface │     │ FlowEdge interface │      │ FlowClass interface │    │ FlowSubGraph interface │    │     Shape types     │                                                                                                                                                                                                                                 │    - Bind methods     │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   │ Test Files │                                                    │ - handle securityLevel │    │   - clusterBkg, mainBkg   │    │ cnf.flowchart config │    │ arrowMarkerAbsolute │      │ layout config │        │ setConfig() calls │
+                                                    │         └──────────────────────┘     └────────────────────┘      └─────────────────────┘    └────────────────────────┘    └─────────────────────┘                                                                                                                                                                                                                                 │   - Setup toolTips    │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   └────────────┘                                                    │ - getDiagramElement()  │    │  - fontFamily, textColor  │    └──────────────────────┘    └─────────────────────┘      └───────────────┘        └───────────────────┘
+                                                    │                                                                                                                                                                                                                                                                                                                                                                                   │    - Call clear()     │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │    │     │                                                     └────────────────────────┘    └───────────────────────────┘
+                                                    │                                                                                                                                                                                                                                                                                                                                                                                   └───────────────────────┘                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ┌───────────────────────┬───┴────┘     └───────┐                                                          │                              │
                                                     │                                                                                                                                                                                                                                                                                                                                                                                               │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                      │                                                          │                              │
                                                     │                                                                                                                                                                                                                                                                                                                                                                                               │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                      │                                                          │                              │
                                                     │                                                                                                                                                                                                                                                                                                                                                                                               │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                      │                                                          │                              │
                                                     │                                                                                                                                                                                                                                                                                                                                                                                               │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                      │                                                          │                              │
-                                                    │                                                                                                                                                                                                                                                                                                                                                                                               │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                      ▼                                                          │                              ▼
-                                                    ▼                                                                                                                                                                                                                                                                                                                                                                                               │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                ┌────────────────────────┐                                       ▼              ┌───────────────────────────────┐
-                                    ┌───────────────────────────────┐                                                                                                                                                                                                                                                                                                                                                                               ▼                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ▼                       ▼                │ parser/*.spec.js files │                             ┌───────────────────┐    │      Generate CSS styles      │
-                                    │  Remove trailing whitespace   │                                                                                                                                                                                                                                                                                                                                                                      ┌────────────────┐                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              ┌────────────────┐      ┌─────────────────────────┐    │  - flow-text.spec.js   │                             │ diag.db.getData() │    │   - .label, .cluster-label    │
-                                    │ src.replace(/}\s*\n/g, '}\n') │                                                                                                                                                                                                                                                                                                                                                                      < FlowDB Methods >                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              │ flowDb.spec.ts │      │ flowChartShapes.spec.js │    │  - flow-edges.spec.js  │                             │   as LayoutData   │    │      - .node, .edgePath       │
-                                    └───────────────────────────────┘                                                                                                                                                                                                                                                                                                                                                                      └────────────────┘                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              └────────────────┘      └─────────────────────────┘    │  - flow-style.spec.js  │                             └───────────────────┘    │ - .flowchart-link, .edgeLabel │
-                                                    │                                                                                                                                                                                                                                                                                                                                                                                      │ │ │ │ │ │ │ │ ││                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     │   - subgraph.spec.js   │                                       │              └───────────────────────────────┘
-                                                    │                                                                                                                                                     ┌─────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────┬─────────────────────────────┬───────────────────────────┬────────────────────────────┬─────────────────┴─┴─┴─┘ └┐└─┴─┴─┴┴───────────────────┬───────────────────────────────┬────────────────────────────────────────────┬──────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐                                                                                         └────────────────────────┘                                       │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
-                                                    │                                                                                                                                                     │                                                                 │                                                     │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          ▼                              │
-                                                    ▼                                                                                                                                                     ▼                                                                 ▼                                                     ▼                             ▼                           ▼                            ▼                          ▼                           ▼                               ▼                                            ▼                                          ▼                                                                                                                                                   ▼                                                                                                                                                                                           ▼                                                                                                                                             ┌─────────────────────────┐                 ▼
-                                    ┌───────────────────────────────┐                                                                                                 ┌─────────────────────────────────────┐                                  ┌─────────────────────────────────────┐                  ┌───────────────────────────────────────┐    ┌───────────────────┐    ┌─────────────────────────────────┐    ┌─────────────────────┐    ┌──────────────────────────┐    ┌──────────────────────────┐    ┌───────────────────────────────────────┐    ┌─────────────────────────────────────┐    ┌───────────┐                                                                                                                                   ┌───────────────────┐                                                                                                                                                                           ┌───────────────────────┐                                                                                                                     │    Setup layout data    │        ┌─────────────────┐
-                                    │       parser/flow.jison       │                                                                                                 │ addVertex(id, textObj, type, style, │                                  │ addLink(_start[], _end[], linkData) │                  │ addSingleLink(_start, _end, type, id) │    │ setDirection(dir) │    │ addSubGraph(nodes[], id, title) │    │ addClass(id, style) │    │ setClass(ids, className) │    │ setTooltip(ids, tooltip) │    │ setClickEvent(id, functionName, args) │    │ setClickFun(id, functionName, args) │    │ getData() │                                                                                                                                   < Utility Functions >                                                                                                                                                                           │ commonDb.js functions │                                                                                                                     │ - type, layoutAlgorithm │        │ getIconStyles() │
-                                    │ flowJisonParser.parse(newSrc) │                                                                                                 │   classes, dir, props, metadata)    │                                  └─────────────────────────────────────┘                  └───────────────────────────────────────┘    └───────────────────┘    └─────────────────────────────────┘    └─────────────────────┘    └──────────────────────────┘    └──────────────────────────┘    └───────────────────────────────────────┘    └─────────────────────────────────────┘    └───────────┘                                                                                                                                   └───────────────────┘                                                                                                                                                                           └───────────────────────┘                                                                                                                     │  - direction, spacing   │        └─────────────────┘
-                                    └───────────────────────────────┘                                                                                                 └─────────────────────────────────────┘                                                                                                               │                                                                                                                                                                                                                                                                            │ │  │ │  │                                                                                                                                     │ │  │ │  │ │  │  │                                                                                                                                                                             │  │   │   │  │   │   │                                                                                                                      │  - markers, diagramId   │
-                                                    │                                                                                                                                    │                                                                                                                                  │                                                                                                                ┌─────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────┴─┴─┬┴─┘  └─────────────────────┐                                 ┌────────────────────────┬────────────────────────┬────────────────────────┬──┴─┴──┴─┘  └─┴──┴──┴───┬───────────────────────┬───────────────────────┬───────────────────────┐                               ┌────────────────────────┬────────────────────────┬───────────────┴──┴───┘   │  └───┴───┴───────────────┬─────────────────────────┬───────────────────────┐                                                    └─────────────────────────┘
-                                                    │                                                                                                                                    │                                                                                                                                  │                                                                                                                │                             │                                                                                                      │                          │                           │                                 │                        │                        │                        │                        │                       │                       │                       │                               │                        │                        │                          │                          │                         │                       │                                                     │                       │
+                                                    │                                                                                                                                                                                                                                                                                                                                                                                               │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                      │                                                          │                              ▼
+                                                    ▼                                                                                                                                                                                                                                                                                                                                                                                               │                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                      ▼                                                          ▼              ┌───────────────────────────────┐
+                                    ┌───────────────────────────────┐                                                                                                                                                                                                                                                                                                                                                                               ▼                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ▼                       ▼                ┌────────────────────────┐                             ┌───────────────────┐    │      Generate CSS styles      │
+                                    │  Remove trailing whitespace   │                                                                                                                                                                                                                                                                                                                                                                      ┌────────────────┐                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              ┌────────────────┐      ┌─────────────────────────┐    │ parser/*.spec.js files │                             │ diag.db.getData() │    │   - .label, .cluster-label    │
+                                    │ src.replace(/}\s*\n/g, '}\n') │                                                                                                                                                                                                                                                                                                                                                                      < FlowDB Methods >                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              │ flowDb.spec.ts │      │ flowChartShapes.spec.js │    │  - flow-text.spec.js   │                             │   as LayoutData   │    │      - .node, .edgePath       │
+                                    └───────────────────────────────┘                                                                                                                                                                                                                                                                                                                                                                      └────────────────┘                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              └────────────────┘      └─────────────────────────┘    │  - flow-edges.spec.js  │                             └───────────────────┘    │ - .flowchart-link, .edgeLabel │
+                                                    │                                                                                                                                                                                                                                                                                                                                                                                      │ │ │ │ │ │ │ │ ││                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     │  - flow-style.spec.js  │                                       │              └───────────────────────────────┘
+                                                    │                                                                                                                                                     ┌────────────────────────────────────────────────────────────────┬──────────────────────────────────────────────────────┬─────────────────────────────┬───────────────────────────┬────────────────────────────┬─────────────────┴─┴─┴─┘ └┐└─┴─┴─┴┴───────────────────┬───────────────────────────────┬────────────────────────────────────────────┬──────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐                                                                                         │   - subgraph.spec.js   │                                       │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                         └────────────────────────┘                                       │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          │                              │
+                                                    │                                                                                                                                                     │                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                                          ▼                              │
+                                                    ▼                                                                                                                                                     ▼                                                                │                                                      │                             │                           │                            │                          │                           │                               │                                            │                                          │                                                                                                                                                   │                                                                                                                                                                                           │                                                                                                                                             ┌─────────────────────────┐                 │
+                                    ┌───────────────────────────────┐                                                                                                 ┌─────────────────────────────────────┐                                                              ▼                                                      ▼                             ▼                           ▼                            ▼                          ▼                           ▼                               ▼                                            ▼                                          ▼                                                                                                                                                   ▼                                                                                                                                                                                           ▼                                                                                                                                             │    Setup layout data    │                 ▼
+                                    │       parser/flow.jison       │                                                                                                 │ addVertex(id, textObj, type, style, │                                  ┌─────────────────────────────────────┐                  ┌───────────────────────────────────────┐    ┌───────────────────┐    ┌─────────────────────────────────┐    ┌─────────────────────┐    ┌──────────────────────────┐    ┌──────────────────────────┐    ┌───────────────────────────────────────┐    ┌─────────────────────────────────────┐    ┌───────────┐                                                                                                                                   ┌───────────────────┐                                                                                                                                                                           ┌───────────────────────┐                                                                                                                     │ - type, layoutAlgorithm │        ┌─────────────────┐
+                                    │ flowJisonParser.parse(newSrc) │                                                                                                 │   classes, dir, props, metadata)    │                                  │ addLink(_start[], _end[], linkData) │                  │ addSingleLink(_start, _end, type, id) │    │ setDirection(dir) │    │ addSubGraph(nodes[], id, title) │    │ addClass(id, style) │    │ setClass(ids, className) │    │ setTooltip(ids, tooltip) │    │ setClickEvent(id, functionName, args) │    │ setClickFun(id, functionName, args) │    │ getData() │                                                                                                                                   < Utility Functions >                                                                                                                                                                           │ commonDb.js functions │                                                                                                                     │  - direction, spacing   │        │ getIconStyles() │
+                                    └───────────────────────────────┘                                                                                                 └─────────────────────────────────────┘                                  └─────────────────────────────────────┘                  └───────────────────────────────────────┘    └───────────────────┘    └─────────────────────────────────┘    └─────────────────────┘    └──────────────────────────┘    └──────────────────────────┘    └───────────────────────────────────────┘    └─────────────────────────────────────┘    └───────────┘                                                                                                                                   └───────────────────┘                                                                                                                                                                           └───────────────────────┘                                                                                                                     │  - markers, diagramId   │        └─────────────────┘
+                                                    │                                                                                                                                    │                                                                                                                                  │                                                                                                                                                                                                                                                                            │ │  │ │  │                                                                                                                                     │ │  │ │  │ │  │  │                                                                                                                                                                             │  │   │   │  │   │   │                                                                                                                      └─────────────────────────┘
+                                                    │                                                                                                                                    │                                                                                                                                  │                                                                                                                ┌─────────────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────┬──────────────────────┴─┴─┬┴─┘  └─────────────────────┐                                 ┌────────────────────────┬────────────────────────┬────────────────────────┬──┴─┴──┴─┘  └─┴──┴──┴───┬───────────────────────┬───────────────────────┬───────────────────────┐                               ┌────────────────────────┬────────────────────────┬───────────────┴──┴───┘   │  └───┴───┴───────────────┬─────────────────────────┬───────────────────────┐                                                     │                       │
                                                     │                                                                                                                                    │                                                                                                                                  │                                                                                                                │                             │                                                                                                      │                          │                           │                                 │                        │                        │                        │                        │                       │                       │                       │                               │                        │                        │                          │                          │                         │                       │                              ┌──────────────────────┘                       └──────────────────────────────────────────────────┐
                                                     │                                                                                                                                    │                                                                                                                                  │                                                                                                                │                             │                                                                                                      │                          │                           │                                 │                        │                        │                        │                        │                       │                       │                       │                               │                        │                        │                          │                          │                         │                       │                              │                                                                                                 │
                                                     │                                                                                                                                    │                                                                                                                                  │                                                                                                                │                             │                                                                                                      │                          │                           │                                 │                        │                        │                        │                        │                       │                       │                       │                               │                        │                        │                          │                          │                         │                       │                              │                                                                                                 │
@@ -2633,58 +2955,58 @@ graph TD
                                                     │                                                                                                                                    │                                                                                                                                  │                                                                                                                │                             │                                                                                                      │                          │                           │                                 │                        │                        │                        │                        │                       │                       │                       │                               │                        │                        │                          │                          │                         │                       │                              │                                                                                                 │
                                                     │                                                                                                                                    │                                                                                                                                  │                                                                                                                │                             │                                                                                                      │                          │                           │                                 │                        │                        │                        │                        │                       │                       │                       │                               │                        │                        │                          │                          │                         │                       │                              │                                                                                                 │
                                                     │                                                                                                                                    │                                                                                                                                  │                                                                                                                │                             │                                                                                                      │                          │                           │                                 │                        │                        │                        │                        │                       │                       │                       │                               │                        │                        │                          │                          │                         │                       │                              │                                                                                                 │
-                                                    ▼                                                                                                                                    ▼                                                                                                                                  ▼                                                                                                                ▼                             ▼                                                                                                      ▼                          ▼                           ▼                                 ▼                        ▼                        ▼                        ▼                        ▼                       ▼                       ▼                       ▼                               ▼                        ▼                        ▼                          ▼                          ▼                         ▼                       ▼                              ▼                                                                                                 ▼
-                                        ┌───────────────────────┐                                                                                                              ┌───────────────────┐                                                                                                               ┌─────────────────┐                                                                                  ┌───────────────────────────────┐    ┌────────────────────────────┐                                                                             ┌───────────────────┐      ┌─────────────────────┐    ┌──────────────────────────────┐    ┌─────────────────┐     ┌──────────────┐         ┌────────────────┐         ┌───────────────┐         ┌────────────┐         ┌────────────────┐           ┌─────────┐          ┌─────────────────┐        ┌───────────────┐         ┌───────────────┐      ┌─────────────────────┐     ┌─────────────────────┐      ┌───────────────────┐      ┌───────────────────┐         ┌─────────┐       ┌──────────────────────────┐                                                                             ┌──────────────────┐
-                                        │ Parse Graph Structure │                                                                                                              < Vertex Processing >                                                                                                               < Edge Processing >                                                                                  │ Collect nodes[] from vertices │    │ Collect edges[] from edges │                                                                             │ Process subgraphs │      │ addNodeFromVertex() │    │      destructEdgeType()      │    │ lookUpDomId(id) │     │ getClasses() │         │ getDirection() │         │ getVertices() │         │ getEdges() │         │ getSubGraphs() │           │ clear() │          │ defaultConfig() │        │ setAccTitle() │         │ getAccTitle() │      │ setAccDescription() │     │ getAccDescription() │      │ setDiagramTitle() │      │ getDiagramTitle() │         │ clear() │       │ render(data4Layout, svg) │                                                                             < Layout Algorithm >
-                                        └───────────────────────┘                                                                                                              └───────────────────┘                                                                                                               └─────────────────┘                                                                                  └───────────────────────────────┘    └────────────────────────────┘                                                                             │  - parentDB Map   │      │   for each vertex   │    │ arrowTypeStart, arrowTypeEnd │    └─────────────────┘     └──────────────┘         └────────────────┘         └───────────────┘         └────────────┘         └────────────────┘           └─────────┘          └─────────────────┘        └───────────────┘         └───────────────┘      └─────────────────────┘     └─────────────────────┘      └───────────────────┘      └───────────────────┘         └─────────┘       └──────────────────────────┘                                                                             └──────────────────┘
-                                         │    │     │    │     │                                                                                                                │     │     │     │                                                                                                                 │   │   │   │   │                                                                                                                                                                                                                                   │ - subGraphDB Map  │      └─────────────────────┘    └──────────────────────────────┘                                                                                                                                                                                                                                                                                                                                                                                                    │                        │                                                                               │       │        │
-           ┌────────────────────────┬────┴────┘     └────┴───┬─┴──────────────────────┬───────────────────────┐                                ┌───────────────────────────┬────┴─────┘     └─────┴───┬───────────────────────────┐                                     ┌─────────────────────────┬─────────────────┴───┘   │   └───┴────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────┐                                                                                          └───────────────────┘                 │                                                                                                                                                                                                                                                                                                                                                                                   ┌───────────────────────────────────────────────────────────────┘                        └───────────────────────────────────────────────┐                             ┌─┘       └────────┴───┬─────────────────────────┐
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        │                             │                      │                         │
-           │                        │                        │                        │                       │                                ▼                           │                          ▼                           ▼                                     ▼                         ▼                         ▼                                                                                                                    ▼                           ▼                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                        ▼                             ▼                      ▼                         ▼
-           ▼                        ▼                        ▼                        ▼                       ▼               ┌──────────────────────────┐                 ▼                    ┌─────────────────────┐    ┌──────────────────────────────┐    ┌──────────────────────────┐    ┌───────────────────┐    ┌────────────────────────┐                                                                                     ┌────────────────────────────────┐    ┌─────────────────────┐                                                                                                          ▼                                                                                                                                                                                                                                                                                                                                                                                   ▼                                                                                                                                ┌────────────────────┐         ┌───────────┐          ┌───────────────┐       ┌────────────────────┐
+                                                    │                                                                                                                                    │                                                                                                                                  │                                                                                                                │                             │                                                                                                      ▼                          ▼                           ▼                                 │                        │                        │                        │                        │                       │                       │                       │                               │                        │                        │                          │                          │                         │                       │                              │                                                                                                 │
+                                                    ▼                                                                                                                                    ▼                                                                                                                                  ▼                                                                                                                ▼                             ▼                                                                                            ┌───────────────────┐      ┌─────────────────────┐    ┌──────────────────────────────┐             ▼                        ▼                        ▼                        ▼                        ▼                       ▼                       ▼                       ▼                               ▼                        ▼                        ▼                          ▼                          ▼                         ▼                       ▼                              ▼                                                                                                 ▼
+                                        ┌───────────────────────┐                                                                                                              ┌───────────────────┐                                                                                                               ┌─────────────────┐                                                                                  ┌───────────────────────────────┐    ┌────────────────────────────┐                                                                             │ Process subgraphs │      │ addNodeFromVertex() │    │      destructEdgeType()      │    ┌─────────────────┐     ┌──────────────┐         ┌────────────────┐         ┌───────────────┐         ┌────────────┐         ┌────────────────┐           ┌─────────┐          ┌─────────────────┐        ┌───────────────┐         ┌───────────────┐      ┌─────────────────────┐     ┌─────────────────────┐      ┌───────────────────┐      ┌───────────────────┐         ┌─────────┐       ┌──────────────────────────┐                                                                             ┌──────────────────┐
+                                        │ Parse Graph Structure │                                                                                                              < Vertex Processing >                                                                                                               < Edge Processing >                                                                                  │ Collect nodes[] from vertices │    │ Collect edges[] from edges │                                                                             │  - parentDB Map   │      │   for each vertex   │    │ arrowTypeStart, arrowTypeEnd │    │ lookUpDomId(id) │     │ getClasses() │         │ getDirection() │         │ getVertices() │         │ getEdges() │         │ getSubGraphs() │           │ clear() │          │ defaultConfig() │        │ setAccTitle() │         │ getAccTitle() │      │ setAccDescription() │     │ getAccDescription() │      │ setDiagramTitle() │      │ getDiagramTitle() │         │ clear() │       │ render(data4Layout, svg) │                                                                             < Layout Algorithm >
+                                        └───────────────────────┘                                                                                                              └───────────────────┘                                                                                                               └─────────────────┘                                                                                  └───────────────────────────────┘    └────────────────────────────┘                                                                             │ - subGraphDB Map  │      └─────────────────────┘    └──────────────────────────────┘    └─────────────────┘     └──────────────┘         └────────────────┘         └───────────────┘         └────────────┘         └────────────────┘           └─────────┘          └─────────────────┘        └───────────────┘         └───────────────┘      └─────────────────────┘     └─────────────────────┘      └───────────────────┘      └───────────────────┘         └─────────┘       └──────────────────────────┘                                                                             └──────────────────┘
+                                         │    │     │    │     │                                                                                                                │     │     │     │                                                                                                                 │   │   │   │   │                                                                                                                                                                                                                                   └───────────────────┘                 │                                                                                                                                                                                                                                                                                                                                                                                                                                                   │                        │                                                                               │       │        │
+           ┌────────────────────────┬────┴────┘     └────┴───┬─┴──────────────────────┬──────────────────────┐                                 ┌───────────────────────────┬────┴─────┘     └─────┴───┬───────────────────────────┐                                     ┌─────────────────────────┬─────────────────┴───┘   │   └───┴────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────┐                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   ┌───────────────────────────────────────────────────────────────┘                        └──────────────────────────────────────────────┐                              ┌─┘       └────────┴───┬─────────────────────────┐
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 │                           │                          │                           │                                     │                         │                         │                                                                                                                    │                           │                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       │                              │                      │                         │
+           │                        │                        │                        │                      │                                 ▼                           │                          ▼                           ▼                                     ▼                         ▼                         ▼                                                                                                                    ▼                           ▼                                                                                                                                │                                                                                                                                                                                                                                                                                                                                                                                   │                                                                                                                                       ▼                              ▼                      ▼                         ▼
+           ▼                        ▼                        ▼                        ▼                      ▼                ┌──────────────────────────┐                 ▼                    ┌─────────────────────┐    ┌──────────────────────────────┐    ┌──────────────────────────┐    ┌───────────────────┐    ┌────────────────────────┐                                                                                     ┌────────────────────────────────┐    ┌─────────────────────┐                                                                                                          ▼                                                                                                                                                                                                                                                                                                                                                                                   ▼                                                                                                                                ┌────────────────────┐         ┌───────────┐          ┌───────────────┐       ┌────────────────────┐
 ┌────────────────┐          ┌─────────────┐         ┌─────────────────┐        ┌───────────────┐        ┌──────────────┐      │ Create FlowVertex object │    ┌────────────────────────────┐    │ Parse YAML metadata │    │    Set vertex properties     │    │  Create FlowEdge object  │    │ Process link text │    │  Set edge properties   │                                                                                     │        Generate edge ID        │    │ Validate edge limit │                                                                                                  ┌───────────────┐                                                                                                                                                                                                                                                                                                                                                      ┌───────────────────────────────────┐                                                                                                                 │ flowChartShapes.js │         │   dagre   │          │ dagre-wrapper │       │        elk         │
 │ Parse Vertices │          │ Parse Edges │         │ Parse Subgraphs │        │ Parse Classes │        │ Parse Styles │      │  - id, labelType, domId  │    │ sanitizeText(textObj.text) │    │ yaml.load(yamlData) │    │  - shape, label, icon, form  │    │ - start, end, type, text │    │ - sanitizeText()  │    │ - type, stroke, length │                                                                                     │ getEdgeId(start, end, counter) │    │   maxEdges check    │                                                                                                  < Node Creation >                                                                                                                                                                                                                                                                                                                                                      │ setupViewPortForSVG(svg, padding) │                                                                                                                 │  Shape Functions   │         │ (default) │          │ (v2 renderer) │       │ (external package) │
 └────────────────┘          └─────────────┘         └─────────────────┘        └───────────────┘        └──────────────┘      │  - styles[], classes[]   │    └────────────────────────────┘    └─────────────────────┘    │ - pos, img, constraint, w, h │    │  - labelType, classes[]  │    │  - strip quotes   │    └────────────────────────┘                                                                                     └────────────────────────────────┘    └─────────────────────┘                                                                                                  └───────────────┘                                                                                                                                                                                                                                                                                                                                                      └───────────────────────────────────┘                                                                                                                 └────────────────────┘         └───────────┘          └───────────────┘       └────────────────────┘
                                                                                                                               └──────────────────────────┘                                                                 └──────────────────────────────┘    └──────────────────────────┘    └───────────────────┘                                                                                                                                                                                                                                                                                   │   │    │    │                                                                                                                                                                                                                                                                                                                                                                         │                                                                                                                                              │
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ┌───────────────────────────┬──┴───┘    └────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────┐                                                                                                                                                          │                                                                                                                                              │
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        │                           │                                                                                                                                                                                           │                                   │                                                                                                                                                          │                                                                                                                                              │
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        │                           │                                                                                                                                                                                           │                                   │                                                                                                                                                          │                                                                                                                                              │
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        │                           ▼                                                                                                                                                                                           │                                   │                                                                                                                                                          │                                                                                                                                              │
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        │           ┌─────────────────────────┐                                                                                                                                                                                 │                                   │                                                                                                                                                          ▼                                                                                                                                              │
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ▼           │    Create base node     │                                                                                                                                                                                 ▼                                   ▼                                                                                                                                            ┌──────────────────────────┐                                                                                                                                 ▼
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ┌────────────────────────────┐    │  - id, label, parentId  │                                                                                                                                                                                 ┌──────────────────────────────┐    ┌───────────────────────────┐                                                                                                                │   Process vertex links   │                                                                                                                        ┌─────────────────┐
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  │ findNode(nodes, vertex.id) │    │ - cssStyles, cssClasses │                                                                                                                                                                                 │ getCompiledStyles(classDefs) │    │ getTypeFromVertex(vertex) │                                                                                                                │ - create anchor elements │                                                                                                                        < Shape Functions >
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  └────────────────────────────┘    │ - shape, domId, tooltip │                                                                                                                                                                                 └──────────────────────────────┘    └───────────────────────────┘                                                                                                                │  - handle click events   │                                                                                                                        └─────────────────┘
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    └─────────────────────────┘                                                                                                                                                                                                                                                                                                                                                                  └──────────────────────────┘                                                                                                                         │ │ │ │  │ │ │  │
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  │                        │                                      ┌────────────────────────────┬─────────────────────────────┬────────────────────────┴─┴─┘ └──┴┬┴─┴──┴───────────────────────────────┬────────────────────────────────────┬───────────────────────────────────────────────┬────────────────────────────────────────────┐
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ┌──────────────────────────┬───┴───┘    └────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────┐                                                                                                                                                          │                                                                                                                                              │
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        │                          │                                                                                                                                                                                            │                                   │                                                                                                                                                          │                                                                                                                                              │
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        │                          │                                                                                                                                                                                            │                                   │                                                                                                                                                          │                                                                                                                                              │
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        │                          │                                                                                                                                                                                            │                                   │                                                                                                                                                          │                                                                                                                                              │
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        │                          ▼                                                                                                                                                                                            │                                   │                                                                                                                                                          ▼                                                                                                                                              │
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ▼           ┌─────────────────────────┐                                                                                                                                                                                 ▼                                   ▼                                                                                                                                            ┌──────────────────────────┐                                                                                                                                 ▼
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ┌────────────────────────────┐    │    Create base node     │                                                                                                                                                                                 ┌──────────────────────────────┐    ┌───────────────────────────┐                                                                                                                │   Process vertex links   │                                                                                                                        ┌─────────────────┐
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  │ findNode(nodes, vertex.id) │    │  - id, label, parentId  │                                                                                                                                                                                 │ getCompiledStyles(classDefs) │    │ getTypeFromVertex(vertex) │                                                                                                                │ - create anchor elements │                                                                                                                        < Shape Functions >
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  └────────────────────────────┘    │ - cssStyles, cssClasses │                                                                                                                                                                                 └──────────────────────────────┘    └───────────────────────────┘                                                                                                                │  - handle click events   │                                                                                                                        └─────────────────┘
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │ - shape, domId, tooltip │                                                                                                                                                                                                                                                                                                                                                                  └──────────────────────────┘                                                                                                                         │ │ │ │  │ │ │  │
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    └─────────────────────────┘                                                                                                                                                                                                                                                                                                                                                                   │                        │                                      ┌────────────────────────────┬─────────────────────────────┬────────────────────────┴─┴─┘ └──┴┬┴─┴──┴───────────────────────────────┬────────────────────────────────────┬───────────────────────────────────────────────┬────────────────────────────────────────────┐
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   └┐                       │                                      │                            │                             │                                  │                                     │                                    │                                               │                                            │
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                                      │                            │                             │                                  │                                     │                                    │                                               │                                            │
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    │                       │                                      │                            │                             │                                  │                                     │                                    │                                               │                                            │
@@ -2926,7 +3248,7 @@ flowchart TD
  ┌─────────────┐
  │ Working Dir │◄─┐
  └─────────────┘  │
-  └─────┐         │
+        │         │
         │         │
         │         │
      git add      │
@@ -2948,8 +3270,8 @@ flowchart TD
         │         │
         │         │
     git push      │
-  ┌─────┘         │
-  ▼               │
+        │         │
+        ▼         │
  ┌─────────────┐  │
  │ Remote Repo │──┘
  └─────────────┘
@@ -2986,10 +3308,9 @@ graph TD
 ```text
 ┌─────────────┐─┐                            ┌──────────────┐                               ┌────────────┐                      ┌───────►┌─────────────┐
 │ Working Dir │ └──────────git add──────────►│ Staging Area │──────────git commit──────────►│ Local Repo │───────────git push───┘        │ Remote Repo │
-└─────────────┘◄──────┐                      └──────────────┘                               └────────────┘                             ┌─└─────────────┘
-                      └──────────────────────┐                                                                           ┌─────────────┘
-                                             │                                                                           │
-                                             └──────────────────────────git pull─────────────────────────────────────────┘
+└─────────────┘                              └──────────────┘                               └────────────┘                               └─────────────┘
+       ▲                                                                                                                                        │
+       └────────────────────────────────────────────────────────────────git pull────────────────────────────────────────────────────────────────┘
 ```
 
 <details>
@@ -3068,7 +3389,7 @@ graph TD
                          ┌────────┐
                          │ Client │◄────────────┐
                          └────────┘             │
-                          └───┐                 │
+                              │                 │
                               │                 │
                               │                 │
                               │                 │
@@ -3206,138 +3527,138 @@ graph TD
 **Text**
 
 ```text
-                       ╭───────╮
-                       │ Start │
-                       ╰───────╯
-                           │
-                           │
-                           │
-                           │
-                           ▼
-                  ┌────────────────┐
-                  │ Ingest Request │
-                  └────────────────┘
-                   │              │
-                  ┌┘              └────────┐
-                  │                        │
-                  │                        │
-                  ▼                        ▼
-        ┌───────────────┐                ┌───────────┐
-        │ Parse Payload │                │ Audit Log │────────────────────────────────────────────┐
-        └───────────────┘                └───────────┘                                            │
-         │       │                                                                                │
-         └┐      │                                                                                │
-          │      └─────────────┐                                                                  │
-          │                    │                                                                  │
-          ▼                    │                                                                  │
-┌──────────────┐               │                                                                  │
-│ Lookup Cache │               │                                                                  │
-└──────────────┘               │                                                                  │
- └──────┐     │                │                                                                  │
-        │     │                │                                                                  │
-        │     │                │                                                                  │
-        │     │                │                                                                  │
-        │     │                │                                                                  │
-       hit    └──miss          │                                                                  │
-        │          │           │                                                                  │
-        │          └──────┐    │                                                                  │
-        │                 │    │                                                                  │
-        │                 │    │                                                                  │
-        ▼                 ▼    ▼                                                                  │
-┌──────────────┐         ┌────────┐                                                               │
-│ Serve Cached │         < Valid? >                                                               │
-└──────────────┘         └────────┘                                                               │
-        │              ┌──┘   ┌──┘                                                                │
-        │              │      │                                                                   │
-        │              │      │                                                                   │
-        │              │      │                                                                   │
-        │              │      │                                                                   │
-        │             yes    no                                                                   │
-        │              │      │                                                                   │
-        │              └──────┼────────────────┐                                                  │
-        │                     │                │                                                  │
-        │                     ▼                ▼                                                  │
-        │                ┌────────┐           ┌────────────┐                                      │
-        │                │ Reject │───────────< Route Type >────────────────────────────────────┐ │
-        │                └────────┘           └────────────┘                                    │ │
-        │                 ┆            ┌───────┘          └──┐                                  │ │
-        │                 └┄┄┄┐        │                     │                                  │ │
-        │                     ┆        │                     │                                  │ │
-        │                     ┆        │                     │                                  │ │
-        │                     ┆        │                     │                                  │ │
-        │                     ▼        │                     │                                  │ │
-        │              ┌─────────────┐ │                   sync                                 │ │
-        │              │ Notify User │ │                     │                                  │ │
-        │              └─────────────┘ │                     │                                  │ │
-        │                              └───────────async─────┼──────────────────┐               │ │
-        │                                                    │                  │               │ │
-        │                                                    │                  │               │ │
-        │                                                    │                  │               │ │
-        │                                                    ▼                  ▼               │ │
-        │                                            ┌───────────────┐         ┌─────────────┐  │ │
-        │                                            │ Sync Pipeline │         │ Enqueue Job │◄━╋━┫
-        │                                            └───────────────┘         └─────────────┘  │ ┃
-        │                                                    │                  │               │ ┃
-        │                     ┌──────────────────────────────┼──────────────────┘               │ ┃
-        │                     │                              │                                  │ ┃
-        │                     │                              │                                  │ ┃
-        │                     ▼                              │                                  │ ┃
-        │       ┌─────────────┐                              │                                  │ ┃
-        │       │ Worker Pool │                              │                                  │ ┃
-        │       └─────────────┘                              │                                  │ ┃
-        │              │                                     │                                  │ ┃
-        │              │                                     │                                  │ ┃
-        │              │                                     │                                  │ ┃
-        │              │                                     │                                  │ ┃
-        │              ▼                                     │                                  │ ┃
-        └─────┐ ┌─────────────┐                              │                                  │ ┃
-              │ │ Process Job │                              │                                  │ ┃
-              │ └─────────────┘                              │                                  │ ┃
-              │  │     ┌─────┘                               │                                  │ ┃
-         ┌────┼──┘     │                                     │                                  │ ┃
-         │    │        │                                     │                                  │ ┃
-         │    │        │                                     │                                  │ ┃
-         │    │        │                                     │                                  │ ┃
-         ▼    │        │                                     │                                  │ ┃
- ┌──────────┐ │      warn                                    │                                  │ ┃
- < Success? > │        │                                     │                                  │ ┃
- └──────────┘ │        │                                     │                                  │ ┃
-  └──┐ ┌───┘  │        │                                     │                                  │ ┃
-     │ │ ┌────┘        │                                     │                                  │ ┃
-     │ │ │             │                                     │                                  │ ┃
-     │ │ │             │                                     │                                  │ ┃
-     │ │ │             │                                     │                                  │ ┃
-     │ │ │             │                                     │                                  │ ┃
-    yes│ │             ▼                                     │                                  │ ┃
-     │no │     ┌──────────────┐                              │                                  │ ┃
-     │ │ │     │ Page On-call │                              │                                  │ ┃
-     │ │ │     └──────────────┘                              │                                  │ ┃
-     │ │ │                   └┄┄┄┐                           │                                  │ ┃
-     └─┴─┼─────┬─────────────────┼─────────┐                 │                                  │ ┃
-         │     │                 ┆         │                 │                                  │ ┃
-         │     │         ┌───────┼─────────┼─────────────────┘                                  │ ┃
-         │     │         │       ┆         │                                                    │ ┃
-         │     │         │       ┆         │                                                    │ ┃
-         │     ▼         ▼       ┆         ▼                                                    │ ┃
-         │    ┌────────────────┐ ┆        ┌───────┐                                             │ ┃
-         │    │ Persist Result │ ┆        │ Retry │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━┫
-         │    └────────────────┘ ┆        └───────┘                                             │ │
- ┌─────┬┄┴┄┄┄┄┄┄┄┄┄┄┼┄┄┄┄┄┄┄┄┄┄┄┄┘                                                              │ │
- │  ┌──┼────────────┘                                                                           │ │
- │  │  ┆                                                                                        │ │
- │  │  ┆                                                                                        │ │
- ▼  ▼  ▼                                                                                        │ │
-┌──────────────┐                                                                                │ │
-│ Emit Metrics │◄───────────────────────────────────────────────────────────────────────────────┴─┘
-└──────────────┘
-        │
-        │
-        │
-        │
-        ▼
-    ╭──────╮
-    │ Done │
-    ╰──────╯
+     ╭───────╮
+     │ Start │
+     ╰───────╯
+         │
+         │
+         │
+         │
+         ▼
+┌────────────────┐
+│ Ingest Request │
+└────────────────┘
+ │              │
+ └───────┐      └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+         │                                                                                                                             │
+         │                                                                                                                             │
+         ▼                                                                                                                             │
+ ┌───────────────┐                                                                                                                     ┌───────────┐
+ │ Parse Payload │                                                                                                                     │ Audit Log │
+ └───────────────┘                                                                                                                     └───────────┘
+  │        │                                                                                                                                 │
+  └──────┐ │                                                                                                                                 │
+         │ └───────────────────┐                                                                                                             │
+         │                     │                                                                                                             │
+         ▼                     │                                                                                                             │
+ ┌──────────────┐              │                                                                                                             │
+ │ Lookup Cache │              │                                                                                                             │
+ └──────────────┘              │                                                                                                             │
+  └──────┐     │               │                                                                                                             │
+         │     │               │                                                                                                             │
+         │     │               │                                                                                                             │
+         │     │               │                                                                                                             │
+         │     │               │                                                                                                             │
+        hit    └──────────────miss                                                                                                           │
+         │                     ││                                                                                                            │
+         │                  ┌──┼┘                                                                                                            │
+         │                  │  │                                                                                                             │
+         │                  │  │                                                                                                             │
+         ▼                  ▼  ▼                                                                                                             │
+ ┌──────────────┐          ┌────────┐                                                                                                        │
+ │ Serve Cached │          < Valid? >                                                                                                        │
+ └──────────────┘          └────────┘                                                                                                        │
+         │                  └───┐  └───────────────────────────┐                                                                             │
+         │                      │                              │                                                                             │
+         │                      │                              │                                                                             │
+         │                      │                              │                                                                             │
+         │                      │                              │                                                                             │
+         │                     no                             yes                                                                            │
+         │                      │                              │                                                                             │
+         │                      │                              │                                                                             │
+         │                      │                              │                                                                             │
+         │                      ▼                              ▼                                                                             │
+         │                 ┌────────┐                   ┌────────────┐                                                                       │
+         │                 │ Reject │───────────────────< Route Type >──────────────────────────────────────────────────────────────────┐    │
+         │                 └────────┘                   └────────────┘                                                                  │    │
+         │                  ┆                            └─────┐    └─────────────────┐                                                 │    │
+         │                  └┄┄┄┐                              │                      │                                                 │    │
+         │                      ┆                              │                      │                                                 │    │
+         │                      ┆                              │                      │                                                 │    │
+         │                      ┆                              │                      │                                                 │    │
+         │                      ▼                              │                      │                                                 │    │
+         │               ┌─────────────┐                     sync                   async                                               │    │
+         │               │ Notify User │                       │                      │                                                 │    │
+         │               └─────────────┘                       │                      │                                                 │    │
+         │                                                     │                      │                                                 │    │
+         │                                                     │                      │                                                 │    │
+         │                                                     │                      │                                                 │    │
+         │                                                     │                      │                                                 │    │
+         │                                                     ▼                      ▼                                                 │    │
+         │                                             ┌───────────────┐         ┌─────────────┐                                        │    │
+         │                                             │ Sync Pipeline │         │ Enqueue Job │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━┓  │
+         │                                             └───────────────┘         └─────────────┘                                        │ ┃  │
+         │                                                     │                              │                                         │ ┃  │
+         │                                                     │                      ┌───────┘                                         │ ┃  │
+         │                                                     │                      │                                                 │ ┃  │
+         │                                                     │                      │                                                 │ ┃  │
+         │                                                     │                      ▼                                                 │ ┃  │
+         │                                                     │               ┌─────────────┐                                          │ ┃  │
+         │                                                     │               │ Worker Pool │                                          │ ┃  │
+         │                                                     │               └─────────────┘                                          │ ┃  │
+         │                                                     │                      │                                                 │ ┃  │
+         │                                                     │           ┌──────────┼─────────────────────────────────────────────────┼─╋──┘
+         │                                                     │           │          │                                                 │ ┃
+         │                                                     │           │          │                                                 │ ┃
+         │                                                     │           │          ▼                                                 │ ┃
+         │                                                     │           │   ┌─────────────┐                                          │ ┃
+         │                                                     │           │   │ Process Job │                                          │ ┃
+         │                                                     │           │   └─────────────┘                                          │ ┃
+         │                                                     │           │    │           └─────────────────────────────────┐         │ ┃
+         │                                                     │           │    └─────┐                                       │         │ ┃
+         │                                                     │           │          │                                       │         │ ┃
+         │                                                     │           │          │                                       │         │ ┃
+         │                                                     │           │          │                                       │         │ ┃
+         │                                                     │           │          ▼                                       │         │ ┃
+         │                                                     │           │    ┌──────────┐                                warn        │ ┃
+         │                                                     │           │    < Success? >                                  │         │ ┃
+         │                                                     │           │    └──────────┘                                  │         │ ┃
+         │                                                     │           │     └────┐   │                                   │         │ ┃
+         │                                                     │           │          │   │                                   │         │ ┃
+         │                                                     │           │          │   │                                   │         │ ┃
+         │                                                     │           │          │   │                                   │         │ ┃
+         │                                                     │           │          │   │                                   │         │ ┃
+         │                                                     │           │          │   │                                   │         │ ┃
+         │                                                     │           │          │   │                                   ▼         │ ┃
+         │                                                     │           └─────────no───┴───┬─────────────yes       ┌──────────────┐  │ ┃
+         │                                                     │                      │       │              │        │ Page On-call │  │ ┃
+         │                                                     │                      │       │              │        └──────────────┘  │ ┃
+         │                                                     │                      │       │              │                ┆         │ ┃
+         │                                                ┌────┼──────────────────────┘    ┌──┼──────────────┘                ┆         │ ┃
+         │                                                │    │                           │  │                               ┆         │ ┃
+         │                                                │    └──────────────────┐        │  │                               ┆         │ ┃
+         │                                                │                       │        │  │                               ┆         │ ┃
+         │                                                │                       │        │  │                               ┆         │ ┃
+         │                                                ▼                       ▼        ▼  │                               ┆         │ ┃
+         │                                               ┌───────┐         ┌────────────────┐ │                               ┆         │ ┃
+         │                                               │ Retry │━━━━━━━━━│ Persist Result │━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━╋━┛
+         │                                               └───────┘         └────────────────┘ │                               ┆         │
+  ┌──────┘                                                                 │                  │                               ┆         │
+  │     ┌──────────────────────────────────────────────────────────────────┘                  │                               ┆         │
+  │     │  ┌───┬┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┴┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┘         │
+  │     │  │   ┆                                                                                                                        │
+  ▼     ▼  ▼   ▼                                                                                                                        │
+ ┌──────────────┐                                                                                                                       │
+ │ Emit Metrics │◄──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+ └──────────────┘
+         │
+         │
+         │
+         │
+         ▼
+     ╭──────╮
+     │ Done │
+     ╰──────╯
 ```
 
 <details>
@@ -3387,6 +3708,80 @@ flowchart TD
   alert -.-> metrics
 
   metrics --> End((Done))
+
+```
+
+</details>
+
+## label_clamp_bt_review
+
+`tests/fixtures/flowchart/label_clamp_bt_review.mmd`
+
+**Text**
+
+```text
+┌─────┐
+│ Two │┐
+└─────┘│
+ ▲     │
+ └─┐   │
+   │   │
+   x   │
+   │  yes
+ ┌─┘  no
+┌─────┐│
+│ One ││
+└─────┘│
+   ▲   │
+   └───┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![label_clamp_bt_review svg](../tests/svg-snapshots/flowchart/label_clamp_bt_review.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph BT
+    A[One] -->|x| B[Two]
+    B -->|yes<br>no| A
+
+```
+
+</details>
+
+## label_clamp_rl_review
+
+`tests/fixtures/flowchart/label_clamp_rl_review.mmd`
+
+**Text**
+
+```text
+┌─────┐◄─────────────┌─────┐
+│ Two │       x      │ One │
+└─────┘◄─────yes─────└─────┘
+             no
+```
+
+<details>
+<summary>SVG output</summary>
+
+![label_clamp_rl_review svg](../tests/svg-snapshots/flowchart/label_clamp_rl_review.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph RL
+    A[One] -->|x| B[Two]
+    A -->|yes<br>no| B
 
 ```
 
@@ -3529,6 +3924,91 @@ graph TD
 graph LR
     Input[User Input] --> Process[Process Data]
     Process --> Output[Display Result]
+
+```
+
+</details>
+
+## linkstyle-basic
+
+`tests/fixtures/flowchart/linkstyle-basic.mmd`
+
+**Text**
+
+```text
+ ┌───────┐
+ │ Start │
+ └───────┘
+     │
+     │
+     ▼
+┌────────┐
+│ Middle │
+└────────┘
+     │
+     │
+     ▼
+  ┌─────┐
+  │ End │
+  └─────┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![linkstyle-basic svg](../tests/svg-snapshots/flowchart/linkstyle-basic.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+A[Start] --> B[Middle]
+B --> C[End]
+linkStyle default stroke:#999
+linkStyle 1 stroke:#ff0000,stroke-width:4px
+
+```
+
+</details>
+
+## long_reciprocal_labels
+
+`tests/fixtures/flowchart/long_reciprocal_labels.mmd`
+
+**Text**
+
+```text
+ ┌───┐
+ │ A │◄┐
+ └───┘ │
+  │    │
+this is a deliberately long
+  │    │   label
+another deliberately long
+  │    reply label
+  ▼    │
+ ┌───┐ │
+ │ B │─┘
+ └───┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![long_reciprocal_labels svg](../tests/svg-snapshots/flowchart/long_reciprocal_labels.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+    A -->|this is a deliberately long label| B
+    B -->|another deliberately long reply label| A
 
 ```
 
@@ -3820,10 +4300,10 @@ B --> C
 
 ```text
   ┌─────┐
-  │ Top │◄┐
-  └─────┘ │
-   │      │
-   └─┐┌───┼─┐
+  │ Top │◄──┐
+  └─────┘   │
+   │        │
+   └─┐┌───┐ │
      ▼▼   │ │
 ┌────────┐│ │
 │ Middle ││ │
@@ -3832,8 +4312,8 @@ B --> C
  ┌───┘    │ │
  ▼        │ │
 ┌────────┐│ │
-│ Bottom │┴─┘
-└────────┘
+│ Bottom │┼─┘
+└────────┘┘
 ```
 
 <details>
@@ -4006,6 +4486,75 @@ subgraph inner[Inner]
 A --> B
 end
 end
+
+```
+
+</details>
+
+## nested_subgraph_parallel_labels
+
+`tests/fixtures/flowchart/nested_subgraph_parallel_labels.mmd`
+
+**Text**
+
+```text
+┌───── Outer region ──────┐
+│      ┌── A region ───┐  │
+│      │   ┌────┐      │  │
+│      │   │ A1 │      │  │
+│      │   └────┘      │  │
+│      │  ┌──┘ │       │  │
+│      │  │    └┐      │  │
+│      │  │     ▼      │  │
+│      │  │   ┌────┐   │  │
+│      │  │   │ A2 │   │  │
+│      │  │   └────┘   │  │
+│      │  │      │     │  │
+│      └──┼──────┼─────┘  │
+│         │      │        │
+│         │      │        │
+│         │      │        │
+│         │      │        │
+│         cross edge two  │
+│  cross edge one│        │
+│         │      │        │
+│ ┌──── B region ┼───┐    │
+│ │       ▼      │   │    │
+│ │    ┌────┐    │   │    │
+│ │    │ B1 │    │   │    │
+│ │    └────┘    │   │    │
+│ │        │     │   │    │
+│ │        └┐ ┌──┘   │    │
+│ │         ▼ ▼      │    │
+│ │        ┌────┐    │    │
+│ │        │ B2 │    │    │
+│ │        └────┘    │    │
+│ └──────────────────┘    │
+└─────────────────────────┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![nested_subgraph_parallel_labels svg](../tests/svg-snapshots/flowchart/nested_subgraph_parallel_labels.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+    subgraph outer [Outer region]
+        subgraph inner_a [A region]
+            A1 --> A2
+        end
+        subgraph inner_b [B region]
+            B1 --> B2
+        end
+    end
+    A1 -->|cross edge one| B1
+    A2 -->|cross edge two| B2
 
 ```
 
@@ -5192,11 +5741,11 @@ graph TD
 **Text**
 
 ```text
-       ┌───┐
-       │ D │
-       └───┘
-         │
-    ┌────┘
+      ┌───┐
+      │ D │
+      └───┘
+        │
+    ┌───┘
     │
     │
     │
@@ -5248,11 +5797,11 @@ graph TD
 **Text**
 
 ```text
-        ┌───┐
-        │ E │
-        └───┘
-           │
-           └──────┐
+       ┌───┐
+       │ E │
+       └───┘
+          │
+          └───────┐
                   │
                   │
                   │
@@ -5731,6 +6280,50 @@ graph LR
     F --> I[(Order DB)]
     F --> J([Message Queue])
   end
+
+```
+
+</details>
+
+## three_parallel_labels
+
+`tests/fixtures/flowchart/three_parallel_labels.mmd`
+
+**Text**
+
+```text
+  ┌───┐
+  │ A │
+  └───┘─┐
+   ││   │
+  three │
+   ││   │
+   two  │
+  one   └─┐
+   ││     │
+┌──┘│   ┌─┘
+│   │   │
+│   ▼   │
+└►┌───┐◄┘
+  │ B │
+  └───┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![three_parallel_labels svg](../tests/svg-snapshots/flowchart/three_parallel_labels.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+graph TD
+    A -->|one| B
+    A -->|two| B
+    A -->|three| B
 
 ```
 
@@ -7842,6 +8435,115 @@ sequenceDiagram
 
 # State
 
+## classdef_basic
+
+`tests/fixtures/state/classdef_basic.mmd`
+
+**Text**
+
+```text
+          ●
+
+          │
+          │
+          ▼
+      ╭──────╮
+      │ Idle │
+      ╰──────╯
+          │
+          │
+          ▼
+   ╭────────────╮
+   │ Processing │
+   ╰────────────╯
+    │          │
+    └─┐        │
+      ▼        ▼
+╭───────╮    ╭──────╮
+│ Error │    │ Done │
+╰───────╯    ╰──────╯
+      │        │
+      └─┐ ┌────┘
+        ▼ ▼
+
+          ◉
+```
+
+<details>
+<summary>SVG output</summary>
+
+![classdef_basic svg](../tests/svg-snapshots/state/classdef_basic.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+stateDiagram-v2
+    classDef active fill:#bfb,stroke:#0a0
+    classDef error fill:#fbb,stroke:#a00
+
+    [*] --> Idle
+    Idle --> Processing:::active
+    Processing --> Error:::error
+    Processing --> Done:::active
+    Error --> [*]
+    Done --> [*]
+
+```
+
+</details>
+
+## classdef_composite
+
+`tests/fixtures/state/classdef_composite.mmd`
+
+**Text**
+
+```text
+┌── outer ──┐
+│           │
+│     ●     │
+│           │
+│     │     │
+│     │     │
+│     ▼     │
+│ ╭───────╮ │
+│ │ Inner │ │
+│ ╰───────╯ │
+│     │     │
+│     │     │
+│     ▼     │
+│           │
+│     ◉     │
+│           │
+└───────────┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![classdef_composite svg](../tests/svg-snapshots/state/classdef_composite.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+stateDiagram-v2
+    classDef highlight fill:#ff0
+
+    state "Outer" as outer {
+        [*] --> Inner:::highlight
+        Inner --> [*]
+    }
+
+```
+
+</details>
+
 ## composite
 
 `tests/fixtures/state/composite.mmd`
@@ -7913,6 +8615,263 @@ stateDiagram-v2
         Paused --> Running : resume
         Running --> [*]
     }
+    Active --> [*]
+
+```
+
+</details>
+
+## concurrent_nested
+
+`tests/fixtures/state/concurrent_nested.mmd`
+
+**Text**
+
+```text
+                  ●
+
+                  │
+                  │
+                  │
+                  │
+                  │
+                  │
+                  │
+                  │
+                  │
+                  │
+                  ▼
+┌──────────────────────────── Active ─────────────────────────────┐
+│                                 ┆                               │
+│                                 ┆                               │
+│                                 ┆                               │
+│                                 ┆                               │
+│                 ●               ┆                               │
+│                                 ┆                               │
+│                 │               ┆                               │
+│                 │               ┆          ┌── Inner ───┐       │
+│                 │               ┆          │            │       │
+│                 ▼               ┆          │            │       │
+│          ╭────────────╮◄───┐    ┆          │      ●     │       │
+│          │ NumLockOff │    │    ┆          │            │       │
+│          ╰────────────╯    │    ┆          │      │     │       │
+│                 │          │    ┆          │      │     │       │
+│                 └─┐        │    ┆          │      │     │       │
+│            EvNumLockPressed│    ┆          │      ▼   ┌┐│       │
+│                   │        │    ┆          │   ╭────╮◄┘││       │
+│            EvNumLockPressed│    ┆          │   │ I1 │  ││       │
+│                   │        │    ┆          │   ╰────╯  ││       │
+│                   │        │    ┆          │      │    ││       │
+│                   │        │    ┆          │      │    ││       │
+│                   ▼        │    ┆          │      │    ││       │
+│             ╭───────────╮──┘    ┆          │      │    ││       │
+│             │ NumLockOn │       ┆          │      │    ││       │
+│             ╰───────────╯       ┆          │      │    ││       │
+│                                 ┆          │      │    ││       │
+│                                 ┆          │      │    ││       │
+│                                 ┆          │      ▼    ││       │
+│                                 ┆          │   ╭────╮──┘│       │
+│                                 ┆          │   │ I2 │   │       │
+│                                 ┆          └───╰────╯───┘       │
+│                                 ┆                               │
+└─────────────────────────────────┴───────────────────────────────┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![concurrent_nested svg](../tests/svg-snapshots/state/concurrent_nested.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+stateDiagram-v2
+    [*] --> Active
+    state Active {
+        [*] --> NumLockOff
+        NumLockOff --> NumLockOn : EvNumLockPressed
+        NumLockOn --> NumLockOff : EvNumLockPressed
+        --
+        state Inner {
+            [*] --> I1
+            I1 --> I2
+            I2 --> I1
+        }
+    }
+
+```
+
+</details>
+
+## concurrent_three
+
+`tests/fixtures/state/concurrent_three.mmd`
+
+**Text**
+
+```text
+               ●
+
+               │
+               │
+               │
+               │
+               │
+               │
+               │
+               │
+               │
+               │
+               ▼
+┌─────────────────────────────────────────────── Active ───────────────────────────────────────────────┐
+│                                 ┆                                    ┆                               │
+│                                 ┆                                    ┆                               │
+│                                 ┆                                    ┆                               │
+│                                 ┆                                    ┆                               │
+│               ●                 ┆                 ●                  ┆                  ●            │
+│                                 ┆                                    ┆                               │
+│               │                 ┆                 │                  ┆                  │            │
+│               │                 ┆                 │                  ┆                  │            │
+│               ▼                 ┆                 ▼                  ┆                  ▼            │
+│        ╭────────────╮           ┆          ╭─────────────╮           ┆          ╭───────────────╮    │
+│        │ NumLockOff │◄─┐        ┆          │ CapsLockOff │◄─┐        ┆          │ ScrollLockOff │◄─┐ │
+│        ╰────────────╯  │        ┆          ╰─────────────╯  │        ┆          ╰───────────────╯  │ │
+│               │        │        ┆                 │         │        ┆                  │          │ │
+│               │        │        ┆                 │         │        ┆                  │          │ │
+│     EvNumLockPressed   │        ┆       EvCapsLockPressed   │        ┆       EvScrollLockPressed   │ │
+│         EvNumLockPressed        ┆           EvCapsLockPressed        ┆           EvScrollLockPressed │
+│               │        │        ┆                 │         │        ┆                  │          │ │
+│               ▼        │        ┆                 ▼         │        ┆                  ▼          │ │
+│         ╭───────────╮  │        ┆          ╭────────────╮   │        ┆          ╭──────────────╮   │ │
+│         │ NumLockOn │──┘        ┆          │ CapsLockOn │───┘        ┆          │ ScrollLockOn │───┘ │
+│         ╰───────────╯           ┆          ╰────────────╯            ┆          ╰──────────────╯     │
+│                                 ┆                                    ┆                               │
+│                                 ┆                                    ┆                               │
+└─────────────────────────────────┴────────────────────────────────────┴───────────────────────────────┘
+```
+
+<details>
+<summary>SVG output</summary>
+
+![concurrent_three svg](../tests/svg-snapshots/state/concurrent_three.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+stateDiagram-v2
+    [*] --> Active
+
+    state Active {
+        [*] --> NumLockOff
+        NumLockOff --> NumLockOn : EvNumLockPressed
+        NumLockOn --> NumLockOff : EvNumLockPressed
+        --
+        [*] --> CapsLockOff
+        CapsLockOff --> CapsLockOn : EvCapsLockPressed
+        CapsLockOn --> CapsLockOff : EvCapsLockPressed
+        --
+        [*] --> ScrollLockOff
+        ScrollLockOff --> ScrollLockOn : EvScrollLockPressed
+        ScrollLockOn --> ScrollLockOff : EvScrollLockPressed
+    }
+
+```
+
+</details>
+
+## concurrent
+
+`tests/fixtures/state/concurrent.mmd`
+
+**Text**
+
+```text
+         ●
+
+         │
+         │
+         │
+         │
+         │
+         │
+         │
+         │
+         │
+         │
+         ▼
+┌─────────────── Active ───────────────┐
+│                   ┆                  │
+│                   ┆                  │
+│                   ┆                  │
+│                   ┆                  │
+│         ●         ┆         ●        │
+│                   ┆                  │
+│         │         ┆         │        │
+│         │         ┆         │        │
+│         ▼         ┆         ▼        │
+│      ╭────╮       ┆      ╭────╮      │
+│      │ A1 │       ┆      │ B1 │      │
+│      ╰────╯       ┆      ╰────╯      │
+│         │         ┆         │        │
+│         │         ┆         │        │
+│         ▼         ┆         ▼        │
+│      ╭────╮       ┆      ╭────╮      │
+│      │ A2 │       ┆      │ B2 │      │
+│      ╰────╯       ┆      ╰────╯      │
+│         │         ┆         │        │
+│         │         ┆         │        │
+│         ▼         ┆         ▼        │
+│                   ┆                  │
+│         ◉         ┆         ◉        │
+│                   ┆                  │
+│                   ┆                  │
+│                   ┆                  │
+│                   ┆                  │
+└───────────────────┴──────────────────┘
+         │
+         │
+         │
+         │
+         │
+         │
+         │
+         │
+         │
+         ▼
+
+         ◉
+```
+
+<details>
+<summary>SVG output</summary>
+
+![concurrent svg](../tests/svg-snapshots/state/concurrent.svg)
+
+</details>
+
+<details>
+<summary>Mermaid source</summary>
+
+```
+stateDiagram-v2
+    [*] --> Active
+
+    state Active {
+        [*] --> A1
+        A1 --> A2
+        A2 --> [*]
+        --
+        [*] --> B1
+        B1 --> B2
+        B2 --> [*]
+    }
+
     Active --> [*]
 
 ```
