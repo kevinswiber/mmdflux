@@ -8,7 +8,8 @@ use std::path::Path;
 
 use mmdflux::graph::GeometryLevel;
 use mmdflux::mmds::{
-    Edge as MmdsEdge, Output, Rect as MmdsRect, SUPPORTED_PROFILES, evaluate_profiles, parse_input,
+    Edge as MmdsEdge, Output, Position as MmdsPosition, Rect as MmdsRect, SUPPORTED_PROFILES,
+    evaluate_profiles, hydrate_routed_geometry_from_output, parse_input,
 };
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{EngineAlgorithmId, OutputFormat, RenderConfig, TextColorMode};
@@ -1715,6 +1716,100 @@ fn mmds_routed_to_layout_down_conversion_strips_routed_only_edge_fields() {
         assert!(
             edge.label_rect.is_none(),
             "label_rect must be stripped at layout level"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Plan 0151 Task 2.1: routed MMDS replay must preserve authoritative label
+// geometry, not snap back to a stale `label_position`.
+//
+// A routed MMDS payload carries both `label_rect` and `label_position`. The
+// authoritative truth is the rectangle — it was shaped by the producer
+// pipeline, including Plan 0151 Task 1.2's side-aware alignment. If an
+// adapter or a future producer change leaves the two fields disagreeing,
+// MMDS replay must prefer the rect.
+//
+// Today `hydrate_routed_geometry_from_output` rebuilds `label_geometry`
+// from `label_position` inside `populate_label_geometry`, ignoring the
+// serialized `label_rect`. Replay silently loses authoritative routed
+// label placement whenever the producer anchor and raw position disagree.
+//
+// Red: authoritative `label_rect` center vs. poisoned `label_position` 40 px
+// off. After hydration, `label_geometry.center` must track the rect, not
+// the position. Passes after Task 2.2 makes hydrate treat `label_rect` as
+// the authoritative source.
+// ---------------------------------------------------------------------------
+
+mod plan_0151_routed_mmds_replay_contract {
+    use super::*;
+
+    fn poisoned_synthetic_routed_output() -> Output {
+        let input = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests")
+                .join("fixtures")
+                .join("flowchart")
+                .join("git_workflow.mmd"),
+        )
+        .unwrap();
+        let routed_json = render_json_with_level(&input, GeometryLevel::Routed);
+        let mut output: Output = serde_json::from_str(&routed_json).unwrap();
+
+        let e3 = output
+            .edges
+            .iter_mut()
+            .find(|e| e.id == "e3")
+            .expect("git_workflow routed output should expose edge e3 (git pull)");
+        let auth_rect = e3
+            .label_rect
+            .clone()
+            .expect("producer fix should have serialized label_rect");
+
+        // Poison `label_position` by shifting it 40 px off the authoritative
+        // rect center. `label_rect` stays untouched — it is the claim the
+        // replay contract must honor.
+        let rect_center_x = auth_rect.x + auth_rect.width / 2.0;
+        let rect_center_y = auth_rect.y + auth_rect.height / 2.0;
+        e3.label_position = Some(MmdsPosition {
+            x: rect_center_x,
+            y: rect_center_y - 40.0,
+        });
+
+        output
+    }
+
+    #[test]
+    fn hydrate_routed_geometry_preserves_authoritative_label_rect_when_label_position_disagrees() {
+        let output = poisoned_synthetic_routed_output();
+        let e3_rect = output
+            .edges
+            .iter()
+            .find(|e| e.id == "e3")
+            .and_then(|e| e.label_rect.clone())
+            .expect("poisoned fixture must still carry label_rect");
+        let expected_center_x = e3_rect.x + e3_rect.width / 2.0;
+        let expected_center_y = e3_rect.y + e3_rect.height / 2.0;
+
+        let routed = hydrate_routed_geometry_from_output(&output)
+            .expect("hydration should succeed for a valid routed payload");
+        let edge = routed
+            .edges
+            .iter()
+            .find(|e| e.from == "Remote" && e.to == "Working")
+            .expect("hydrated routed edges should include Remote -> Working");
+        let geom = edge
+            .label_geometry
+            .as_ref()
+            .expect("hydrated edge must carry label_geometry");
+
+        let dx = geom.center.x - expected_center_x;
+        let dy = geom.center.y - expected_center_y;
+        let drift = (dx * dx + dy * dy).sqrt();
+        assert!(
+            drift <= 0.5,
+            "replayed label_geometry.center {:?} must track the authoritative rect center ({expected_center_x}, {expected_center_y}); drift {drift:.2} px. The poisoned label_position was 40 px away — if hydration follows it, that failure mode is what this test pins.",
+            geom.center
         );
     }
 }
