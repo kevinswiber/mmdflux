@@ -527,6 +527,7 @@ mod edge_rendering_regression {
         EngineConfig, GraphEngine, GraphGeometryContract, GraphSolveRequest, MeasurementMode,
     };
     use crate::engines::graph::flux::FluxLayeredEngine;
+    use crate::graph::geometry::{FPoint, FRect};
     use crate::graph::grid::{
         AttachDirection, GridLayout, GridLayoutConfig, geometry_to_grid_layout_with_routed,
         route_all_edges, route_edge, route_edge_with_probe,
@@ -536,6 +537,7 @@ mod edge_rendering_regression {
     use crate::graph::{Arrow, Direction, Edge, Graph, Node, Stroke};
     use crate::mermaid::parse_flowchart;
     use crate::render::graph::text::{render_all_edges, render_edge};
+    use crate::render::graph::{TextRenderOptions, render_text_from_geometry};
     use crate::render::text::canvas::Canvas;
     use crate::render::text::chars::CharSet;
     use crate::{OutputFormat, RenderConfig};
@@ -676,6 +678,20 @@ mod edge_rendering_regression {
         (diagram, routed)
     }
 
+    fn rendered_label_position(output: &str, label: &str) -> (usize, usize) {
+        let matches: Vec<(usize, usize)> = output
+            .lines()
+            .enumerate()
+            .filter_map(|(y, line)| line.find(label).map(|x| (x, y)))
+            .collect();
+        assert_eq!(
+            matches.len(),
+            1,
+            "expected exactly one rendered '{label}' label occurrence; got {matches:?}\n{output}"
+        );
+        matches[0]
+    }
+
     fn find_edge<'a>(diagram: &'a Graph, from: &str, to: &str) -> &'a Edge {
         diagram
             .edges
@@ -712,6 +728,73 @@ mod edge_rendering_regression {
         path.iter()
             .map(|point| (point.x.round() as i32, point.y.round() as i32))
             .collect()
+    }
+
+    #[test]
+    fn render_text_from_geometry_uses_shifted_routed_label_geometry() {
+        let src = "graph TD\n    A -->|hi| B\n";
+        let flowchart = parse_flowchart(src).expect("fixture parses");
+        let diagram = compile_to_graph(&flowchart);
+
+        let engine = FluxLayeredEngine::text();
+        let config = EngineConfig::Layered(layered_config_for_layout(
+            &diagram,
+            &GridLayoutConfig::default(),
+        ));
+        let request = GraphSolveRequest::new(
+            MeasurementMode::Grid,
+            GraphGeometryContract::Canonical,
+            crate::graph::GeometryLevel::Routed,
+            None,
+            Default::default(),
+        );
+        let result = engine.solve(&diagram, &config, &request).unwrap();
+        let baseline_routed = result.routed.clone().expect("routed geometry populated");
+        let mut shifted_routed = baseline_routed.clone();
+
+        let edge = shifted_routed
+            .edges
+            .iter_mut()
+            .find(|edge| edge.index == 0)
+            .expect("labeled edge present");
+        let base = edge
+            .label_geometry
+            .expect("routed geometry populates label_geometry");
+        let shifted_center = FPoint::new(base.center.x + 40.0, base.center.y + 25.0);
+        let shifted_rect = FRect::new(
+            shifted_center.x - base.rect.width / 2.0,
+            shifted_center.y - base.rect.height / 2.0,
+            base.rect.width,
+            base.rect.height,
+        );
+        edge.label_geometry = Some(crate::graph::geometry::EdgeLabelGeometry {
+            center: shifted_center,
+            rect: shifted_rect,
+            padding: base.padding,
+            side: base.side,
+            track: 1,
+            compartment_size: base.compartment_size,
+        });
+
+        let baseline_text = render_text_from_geometry(
+            &diagram,
+            &result.geometry,
+            Some(&baseline_routed),
+            &TextRenderOptions::default(),
+        );
+        let shifted_text = render_text_from_geometry(
+            &diagram,
+            &result.geometry,
+            Some(&shifted_routed),
+            &TextRenderOptions::default(),
+        );
+
+        let baseline_pos = rendered_label_position(&baseline_text, "hi");
+        let shifted_pos = rendered_label_position(&shifted_text, "hi");
+        assert_ne!(
+            baseline_pos, shifted_pos,
+            "shifted routed label_geometry should move the rendered text label\nbaseline:\n{baseline_text}\nshifted:\n{shifted_text}"
+        );
     }
 
     // === Tests using compute_layout (route_edge / render_edge) ===

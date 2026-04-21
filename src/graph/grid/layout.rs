@@ -170,6 +170,10 @@ pub struct GridLayout {
     /// Key: edge index in `Diagram::edges`, Value: (x, y) position for the label center.
     /// Only populated for edges that have labels.
     pub edge_label_positions: HashMap<usize, (usize, usize)>,
+    /// Edge indices whose label positions were quantized from authoritative
+    /// routed `label_geometry` rather than from engine midpoint hints.
+    /// Text rendering must trust these anchors directly.
+    pub authoritative_label_positions: HashSet<usize>,
 
     /// Node shapes for intersection calculation.
     /// Maps node ID to its shape for computing dynamic attachment points.

@@ -421,6 +421,35 @@ pub fn geometry_to_grid_layout_with_routed(
             )
         })
         .unwrap_or_default();
+    let mut authoritative_label_positions = HashSet::new();
+    if let Some(routed) = routed {
+        for edge in &routed.edges {
+            // Text LR/RL labels still rely on the established inline
+            // placement heuristic. SVG/MMDS-style routed label centers can
+            // detach them from the edge corridor in snapshots like
+            // `git_workflow`, so only TD/BT text uses the routed center.
+            if !is_vertical {
+                continue;
+            }
+            let Some(label_geometry) = edge.label_geometry.as_ref() else {
+                continue;
+            };
+            if label_geometry.track == 0 && label_geometry.compartment_size <= 1 {
+                continue;
+            }
+            let (center_x, center_y) =
+                ctx.to_grid(label_geometry.center.x, label_geometry.center.y);
+            let center_x = center_x.min(width.saturating_sub(1));
+            let center_y = center_y.min(height.saturating_sub(1));
+            let x = edge_label_positions
+                .get(&edge.index)
+                .map(|&(x, _)| x)
+                .unwrap_or(center_x);
+            let position = (x, center_y);
+            edge_label_positions.insert(edge.index, position);
+            authoritative_label_positions.insert(edge.index);
+        }
+    }
 
     // --- Phase I: Strip layout waypoints from backward edges ---
     // When ranks are doubled (labels present), backward edges get inflated layout
@@ -511,6 +540,7 @@ pub fn geometry_to_grid_layout_with_routed(
                 edge_waypoints.remove(&edge.index);
                 routed_edge_paths.remove(&edge.index);
                 edge_label_positions.remove(&edge.index);
+                authoritative_label_positions.remove(&edge.index);
             }
         }
     }
@@ -734,6 +764,7 @@ pub fn geometry_to_grid_layout_with_routed(
                     routed_edge_paths.remove(&key);
                 }
                 edge_label_positions.remove(&key);
+                authoritative_label_positions.remove(&key);
             }
         }
 
@@ -774,6 +805,7 @@ pub fn geometry_to_grid_layout_with_routed(
         routed_edge_paths,
         preserve_routed_path_topology,
         edge_label_positions,
+        authoritative_label_positions,
         node_shapes,
         subgraph_bounds,
         self_edges,

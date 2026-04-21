@@ -3083,6 +3083,7 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
             &charset,
             diagram.direction,
             label_positions,
+            &layout.authoritative_label_positions,
             &std::collections::HashMap::new(),
         );
 

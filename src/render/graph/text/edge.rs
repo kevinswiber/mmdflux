@@ -585,6 +585,45 @@ fn clamp_label_x(label_x: usize, label_width: usize, containment: Option<(usize,
     }
 }
 
+#[derive(Clone, Copy)]
+struct CenterAnchorPlacement<'a> {
+    diagram_direction: Direction,
+    placed_labels: &'a [PlacedLabel],
+    charset: &'a CharSet,
+    containment: Option<(usize, usize)>,
+    overwrite_arrows: bool,
+}
+
+fn draw_label_from_center_anchor(
+    canvas: &mut Canvas,
+    label: &str,
+    center: (usize, usize),
+    placement: CenterAnchorPlacement<'_>,
+) -> Option<PlacedLabel> {
+    let block = label_block(label);
+    let base_x = center.0.saturating_sub(block.width / 2);
+    let max_top = canvas.height().saturating_sub(block.height);
+    let base_y = label_top_for_center(center.1, block.height).min(max_top);
+    let (mut label_x, label_y) = find_safe_center_anchor_position(
+        canvas,
+        (base_x, base_y),
+        (block.width, block.height),
+        placement.diagram_direction,
+        placement.placed_labels,
+        !placement.overwrite_arrows,
+        placement.charset,
+    );
+    label_x = clamp_label_x(label_x, block.width, placement.containment);
+    draw_label_direct(
+        canvas,
+        label,
+        label_x,
+        label_y,
+        placement.charset,
+        placement.overwrite_arrows,
+    )
+}
+
 fn vertical_label_position(
     canvas: &Canvas,
     routed: &RoutedEdge,
@@ -712,6 +751,59 @@ fn find_safe_label_position(
     )
 }
 
+fn find_safe_center_anchor_position(
+    canvas: &Canvas,
+    base: (usize, usize),
+    label_size: (usize, usize),
+    direction: Direction,
+    placed_labels: &[PlacedLabel],
+    check_arrow_collision: bool,
+    charset: &CharSet,
+) -> (usize, usize) {
+    const PRIMARY_AXIS_VERTICAL_SHIFTS: &[(isize, isize)] = &[
+        (0, -1),
+        (0, 1),
+        (0, -2),
+        (0, 2),
+        (-1, 0),
+        (1, 0),
+        (-2, 0),
+        (2, 0),
+        (0, -3),
+        (0, 3),
+        (-3, 0),
+        (3, 0),
+    ];
+    const PRIMARY_AXIS_HORIZONTAL_SHIFTS: &[(isize, isize)] = &[
+        (-1, 0),
+        (1, 0),
+        (-2, 0),
+        (2, 0),
+        (0, -1),
+        (0, 1),
+        (-3, 0),
+        (3, 0),
+        (0, -2),
+        (0, 2),
+        (0, -3),
+        (0, 3),
+    ];
+    let shifts = match direction {
+        Direction::TopDown | Direction::BottomTop => PRIMARY_AXIS_VERTICAL_SHIFTS,
+        Direction::LeftRight | Direction::RightLeft => PRIMARY_AXIS_HORIZONTAL_SHIFTS,
+    };
+    find_safe_label_position_with_shifts(
+        canvas,
+        base,
+        label_size,
+        placed_labels,
+        false,
+        check_arrow_collision,
+        charset,
+        shifts,
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
 fn find_safe_label_position_inner(
     canvas: &Canvas,
@@ -723,25 +815,6 @@ fn find_safe_label_position_inner(
     check_arrow_collision: bool,
     charset: &CharSet,
 ) -> (usize, usize) {
-    let (base_x, base_y) = base;
-    let (label_width, label_height) = label_size;
-    let has_collision = |x, y| {
-        label_collides_with_node(canvas, x, y, label_width, label_height)
-            || (check_edge_collision
-                && label_collides_with_edge(canvas, x, y, label_width, label_height))
-            || (check_arrow_collision
-                && label_collides_with_arrow(canvas, x, y, label_width, label_height, charset))
-            || placed_labels
-                .iter()
-                .any(|p| p.overlaps(x, y, label_width, label_height))
-    };
-
-    // Check if the base position has any collision
-    if !has_collision(base_x, base_y) {
-        return (base_x, base_y);
-    }
-
-    // Try shifting positions based on diagram direction
     const VERTICAL_SHIFTS: &[(isize, isize)] = &[
         (0, -1),
         (0, 1),
@@ -770,6 +843,46 @@ fn find_safe_label_position_inner(
         Direction::TopDown | Direction::BottomTop => VERTICAL_SHIFTS,
         Direction::LeftRight | Direction::RightLeft => HORIZONTAL_SHIFTS,
     };
+    find_safe_label_position_with_shifts(
+        canvas,
+        base,
+        label_size,
+        placed_labels,
+        check_edge_collision,
+        check_arrow_collision,
+        charset,
+        shifts,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn find_safe_label_position_with_shifts(
+    canvas: &Canvas,
+    base: (usize, usize),
+    label_size: (usize, usize),
+    placed_labels: &[PlacedLabel],
+    check_edge_collision: bool,
+    check_arrow_collision: bool,
+    charset: &CharSet,
+    shifts: &[(isize, isize)],
+) -> (usize, usize) {
+    let (base_x, base_y) = base;
+    let (label_width, label_height) = label_size;
+    let has_collision = |x, y| {
+        label_collides_with_node(canvas, x, y, label_width, label_height)
+            || (check_edge_collision
+                && label_collides_with_edge(canvas, x, y, label_width, label_height))
+            || (check_arrow_collision
+                && label_collides_with_arrow(canvas, x, y, label_width, label_height, charset))
+            || placed_labels
+                .iter()
+                .any(|p| p.overlaps(x, y, label_width, label_height))
+    };
+
+    // Check if the base position has any collision
+    if !has_collision(base_x, base_y) {
+        return (base_x, base_y);
+    }
 
     // Try each shift until we find a collision-free position
     for (dx, dy) in shifts {
@@ -1160,6 +1273,7 @@ pub fn render_all_edges(
         charset,
         diagram_direction,
         &HashMap::new(),
+        &HashSet::new(),
         &HashMap::new(),
     )
 }
@@ -1171,6 +1285,7 @@ pub fn render_all_edges_with_labels(
     charset: &CharSet,
     diagram_direction: Direction,
     label_positions: &HashMap<usize, (usize, usize)>,
+    authoritative_label_positions: &HashSet<usize>,
     edge_containment: &HashMap<usize, (usize, usize)>,
 ) {
     // First pass: draw all segments and arrows
@@ -1196,12 +1311,21 @@ pub fn render_all_edges_with_labels(
             let label_width = block.width;
             let label_height = block.height;
 
+            let authoritative_precomputed =
+                if authoritative_label_positions.contains(&routed.edge.index) {
+                    label_positions.get(&routed.edge.index).copied()
+                } else {
+                    None
+                };
+
             // Use precomputed position if available and within canvas bounds,
             // otherwise fall back to heuristic placement.
             let allow_precomputed =
                 routed.edge.from_subgraph.is_none() && routed.edge.to_subgraph.is_none();
             let mut stale_precomputed_anchor = false;
-            let precomputed = if allow_precomputed {
+            let precomputed = if authoritative_precomputed.is_some() {
+                authoritative_precomputed
+            } else if allow_precomputed {
                 label_positions
                     .get(&routed.edge.index)
                     .and_then(|&(px, py)| {
@@ -1228,7 +1352,20 @@ pub fn render_all_edges_with_labels(
                 None
             };
 
-            let placed = if routed.is_backward {
+            let placed = if let Some(center) = authoritative_precomputed {
+                draw_label_from_center_anchor(
+                    canvas,
+                    label,
+                    center,
+                    CenterAnchorPlacement {
+                        diagram_direction,
+                        placed_labels: &placed_labels,
+                        charset,
+                        containment: bounds,
+                        overwrite_arrows: routed.is_backward,
+                    },
+                )
+            } else if routed.is_backward {
                 // For backward edges, compute label position from actual routed path.
                 // Corridor labels may overlap arrowheads from other edges, so
                 // disable arrow-collision avoidance and allow overwriting arrows.

@@ -58,6 +58,7 @@ pub fn render_text_from_grid_layout(
         &charset,
         diagram.direction,
         &layout.edge_label_positions,
+        &layout.authoritative_label_positions,
         &edge_containment,
     );
 
