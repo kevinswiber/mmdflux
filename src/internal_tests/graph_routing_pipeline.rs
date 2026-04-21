@@ -5574,3 +5574,128 @@ mod plan_0145_lane_assignment {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Plan 0151 Task 1.1 Red gate: pin the orthogonal-backward side-offset
+// stale-anchor bug.
+//
+// Narrow branch: `EdgeRouting::OrthogonalRoute` + `is_backward` +
+// `label_side != Center`. `fan::spread_colocated_backward_*` mutates the final
+// path after `orthogonal::mod`'s `revalidate_label_anchor` pass (which is
+// skipped entirely for side-offset labels), so `label_position` becomes
+// divorced from the post-fan path. `populate_label_geometry` then freezes the
+// stale center into `label_geometry.rect`, and MMDS serializes it verbatim.
+//
+// These tests fail today because `git_workflow.mmd` (LR) e3 sits ~48 px off
+// path and `git_workflow_td.mmd` (TD) e3 sits ~98 px off path. The fix lands
+// in Task 1.2 as a pre-pass helper in `stage.rs` that runs immediately before
+// `populate_label_geometry()` and applies the side-aware projection rule
+// recorded in `findings/01-producer-seam-choice.md`.
+// ---------------------------------------------------------------------------
+
+mod plan_0151_producer_alignment {
+    use std::fs;
+    use std::path::Path;
+
+    use super::distance_point_to_path;
+    use crate::diagrams::flowchart::compile_to_graph;
+    use crate::engines::graph::algorithms::layered::LayoutConfig as LayeredLayoutConfig;
+    use crate::engines::graph::contracts::{MeasurementMode, SubgraphDirectionPolicy};
+    use crate::engines::graph::{
+        EngineAlgorithmId, EngineConfig, GraphGeometryContract, GraphSolveRequest,
+        solve_graph_family,
+    };
+    use crate::graph::GeometryLevel;
+    use crate::graph::geometry::{EdgeLabelSide, RoutedEdgeGeometry};
+    use crate::graph::measure::default_proportional_text_metrics;
+    use crate::mermaid::parse_flowchart;
+
+    /// Solve a flowchart fixture through the flux-layered engine with the same
+    /// configuration the MMDS CLI uses (Canonical + Proportional + Routed).
+    /// This is required because the producer stale-anchor bug exists only when
+    /// the flux profile is active (`label_side_selection = true`); a
+    /// hand-rolled `LayoutConfig` without that flag collapses all edges to
+    /// `label_side=Center` and never hits the narrow branch.
+    fn routed_fixture(fixture: &str) -> (crate::graph::Graph, Vec<RoutedEdgeGeometry>) {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("flowchart")
+            .join(fixture);
+        let input = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
+        let fc = parse_flowchart(&input).unwrap();
+        let diagram = compile_to_graph(&fc);
+
+        let metrics = default_proportional_text_metrics();
+        let request = GraphSolveRequest::new(
+            MeasurementMode::Proportional(metrics),
+            GraphGeometryContract::Canonical,
+            GeometryLevel::Routed,
+            None,
+            SubgraphDirectionPolicy::AlternateAxes,
+        );
+        let config = EngineConfig::Layered(LayeredLayoutConfig::default());
+        let result =
+            solve_graph_family(&diagram, EngineAlgorithmId::FLUX_LAYERED, &config, &request)
+                .unwrap_or_else(|e| panic!("flux-layered solve failed for {fixture}: {e}"));
+        let routed = result
+            .routed
+            .unwrap_or_else(|| panic!("{fixture}: expected routed geometry at Routed level"));
+        (diagram, routed.edges)
+    }
+
+    fn assert_label_center_stays_near_final_path(fixture: &str, from: &str, to: &str) {
+        let (diagram, routed_edges) = routed_fixture(fixture);
+        let edge_idx = diagram
+            .edges
+            .iter()
+            .position(|e| e.from == from && e.to == to)
+            .unwrap_or_else(|| panic!("{fixture}: missing edge {from} -> {to}"));
+        let routed_edge = routed_edges
+            .iter()
+            .find(|re| re.index == edge_idx)
+            .unwrap_or_else(|| panic!("{fixture}: no routed edge for {from} -> {to}"));
+
+        assert!(
+            routed_edge.is_backward,
+            "{fixture} {from} -> {to}: expected backward edge to exercise the narrow branch"
+        );
+        let side = routed_edge.label_side.unwrap_or(EdgeLabelSide::Center);
+        assert_ne!(
+            side,
+            EdgeLabelSide::Center,
+            "{fixture} {from} -> {to}: expected non-center label_side"
+        );
+
+        let label_geom = routed_edge
+            .label_geometry
+            .as_ref()
+            .unwrap_or_else(|| panic!("{fixture} {from} -> {to}: missing label_geometry"));
+
+        // Invariant: label center sits within half its own height (plus a
+        // small tolerance) of the final post-fan path. That admits any
+        // side-aware projection that offsets the midpoint perpendicular to
+        // the midpoint segment by `height / 2`, while rejecting the stale
+        // pre-fan engine anchor that currently drifts far past the rect.
+        let half_height = label_geom.rect.height / 2.0;
+        let tolerance = 2.0;
+        let drift = distance_point_to_path(label_geom.center, &routed_edge.path);
+        assert!(
+            drift <= half_height + tolerance,
+            "{fixture} {from} -> {to}: label center drifted {drift:.2} px from final path (half_height={half_height:.2} tolerance={tolerance:.2} side={side:?}); center={:?} path={:?}",
+            label_geom.center,
+            routed_edge.path,
+        );
+    }
+
+    #[test]
+    fn orthogonal_backward_side_offset_label_uses_post_fan_path_git_workflow() {
+        assert_label_center_stays_near_final_path("git_workflow.mmd", "Remote", "Working");
+    }
+
+    #[test]
+    fn orthogonal_backward_side_offset_label_uses_post_fan_path_git_workflow_td() {
+        assert_label_center_stays_near_final_path("git_workflow_td.mmd", "Remote", "Working");
+    }
+}
