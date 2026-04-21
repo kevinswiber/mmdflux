@@ -1,18 +1,18 @@
  ┌───┐    ┌───┐    ┌───┐    ┌───┐    ┌───┐    ┌───┐    ┌───┐
  │ A │    │ C │    │ E │    │ G │    │ I │    │ K │    │ M │
  └───┘    └───┘    └───┘    └───┘    └───┘    └───┘    └───┘
-   │        │        △        ◆        ◇        ┆        ┆
+   │        │        △        ◆        ◇        ┆  directed dep
+   │        │        │        │        │        ┆        ┆
+   │        │   inheritance   │   aggregation   ┆        ┆
    │        │        │        │        │        ┆        ┆
    │        │        │        │        │        ┆        ┆
    │        │        │        │        │        ┆        ┆
-   │        │        │        │        │    directed dep ┆
-   │    directed     │   composition   │   dependency    ┆
-association │   inheritance   │   aggregation   ┆        ┆
+association │        │        │        │        ┆        ┆
    │        │        │        │        │        ┆        ┆
    │        │        │        │        │        ┆        ┆
+   │    directed     │        │        │        ┆        ┆
    │        │        │        │        │        ┆        ┆
-   │        │        │        │        │        ┆        ┆
-   │        ▼        │        │        │        ┆        ▼
+   │        ▼        │   composition   │   dependency    ▼
  ┌───┐    ┌───┐    ┌───┐    ┌───┐    ┌───┐    ┌───┐    ┌───┐
  │ B │    │ D │    │ F │    │ H │    │ J │    │ L │    │ N │
  └───┘    └───┘    └───┘    └───┘    └───┘    └───┘    └───┘

@@ -427,8 +427,10 @@ pub fn geometry_to_grid_layout_with_routed(
             // Text LR/RL labels still rely on the established inline
             // placement heuristic. SVG/MMDS-style routed label centers can
             // detach them from the edge corridor in snapshots like
-            // `git_workflow`, so only TD/BT text uses the routed center.
-            if !is_vertical {
+            // `git_workflow`, and backward TD/BT edges still need their
+            // existing midpoint/tracking placement to keep return arrows
+            // readable (for example `state/composite`'s `resume` edge).
+            if !is_vertical || edge.is_backward {
                 continue;
             }
             let Some(label_geometry) = edge.label_geometry.as_ref() else {

@@ -13,11 +13,11 @@
                     │                          │
                     │                          │
                     │                          │
-                    │                          │
-                 request                    health
-                    │                          │
+                 request                       │
                     │                          │
                     │                          │
+                    │                          │
+                    │                       health
                     │                          │
                     │                          │
                     │                          │
@@ -51,15 +51,15 @@
                                  │           ┆      │
                                  │           ┆      │
                                  │           ┆      │
-                              result         ┆     hit
                                  │           ┆      │
                                  │           ┆      │
                                  │           ┆      │
                                  │           ┆      │
                                  │           ┆      │
+                              result         ┆      │
                                  │           ┆      │
                                  │         retry    │
-                                 │           ┆      │
+                                 │           ┆     hit
                                  │           ┆      │
                                  │           ┆      │
                                  │           ┆      │
