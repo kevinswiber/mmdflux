@@ -9,8 +9,8 @@ use serde_json::{Map, Value};
 
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{
-    GraphGeometry, LayoutEdge, PositionedNode, RoutedGraphGeometry, SelfEdgeGeometry,
-    SubgraphGeometry,
+    EdgeLabelGeometry, EdgeLabelSide, GraphGeometry, LayoutEdge, PositionedNode,
+    RoutedGraphGeometry, SelfEdgeGeometry, SubgraphGeometry,
 };
 use crate::graph::measure::default_proportional_text_metrics;
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
@@ -354,12 +354,75 @@ pub fn hydrate_routed_geometry_from_output(
     // MMDS replay hydration: default metrics are sufficient since the MMDS
     // replay path does not carry a request-specific metrics handle (design §6.3).
     let metrics = default_proportional_text_metrics();
-    Ok(route_graph_geometry(
-        &diagram,
-        &geometry,
-        edge_routing,
-        &metrics,
-    ))
+    let mut routed = route_graph_geometry(&diagram, &geometry, edge_routing, &metrics);
+
+    // Plan 0151 Task 2.2: preserve authoritative routed label geometry by
+    // overwriting `label_geometry` on routed edges with the semantics carried
+    // by the MMDS payload. `route_graph_geometry` rebuilt `label_geometry`
+    // from `label_position` inside `populate_label_geometry`, which would
+    // silently lose the authoritative `label_rect` whenever `label_position`
+    // and `label_rect` disagree. See
+    // `.gumbo/plans/0151-routed-label-geometry-contract/findings/02-mmds-contract-choice.md`.
+    if output.geometry_level == "routed" {
+        overlay_authoritative_label_geometry(&mut routed, output, &metrics);
+    }
+
+    Ok(routed)
+}
+
+/// Replace synthesized `label_geometry` on routed edges with an
+/// authoritative version derived from the MMDS payload's `label_rect`
+/// and `label_side`.
+fn overlay_authoritative_label_geometry(
+    routed: &mut RoutedGraphGeometry,
+    output: &Output,
+    metrics: &crate::graph::measure::ProportionalTextMetrics,
+) {
+    let edges = sorted_output_edges(output);
+    for (routed_index, (_, mmds_edge)) in edges.into_iter().enumerate() {
+        let Some(mmds_rect) = mmds_edge.label_rect.as_ref() else {
+            continue;
+        };
+        let Some(routed_edge) = routed
+            .edges
+            .iter_mut()
+            .find(|edge| edge.index == routed_index)
+        else {
+            continue;
+        };
+        let side = parse_mmds_label_side(mmds_edge.label_side.as_deref())
+            .or(routed_edge.label_side)
+            .unwrap_or(EdgeLabelSide::Center);
+        let rect = FRect::new(mmds_rect.x, mmds_rect.y, mmds_rect.width, mmds_rect.height);
+        let center = FPoint::new(
+            mmds_rect.x + mmds_rect.width / 2.0,
+            mmds_rect.y + mmds_rect.height / 2.0,
+        );
+
+        routed_edge.label_side = Some(side);
+        routed_edge.label_position = Some(center);
+        routed_edge.label_geometry = Some(EdgeLabelGeometry {
+            center,
+            rect,
+            padding: (metrics.label_padding_x, metrics.label_padding_y),
+            side,
+            // Synthesized trust markers: replay consumers that gate on
+            // `track != 0 || compartment_size > 1` treat the hydrated
+            // center as authoritative, mirroring the direct-render
+            // path's lane-shifted-label trust branch.
+            track: 0,
+            compartment_size: 2,
+        });
+    }
+}
+
+fn parse_mmds_label_side(value: Option<&str>) -> Option<EdgeLabelSide> {
+    match value? {
+        "above" => Some(EdgeLabelSide::Above),
+        "below" => Some(EdgeLabelSide::Below),
+        "center" => Some(EdgeLabelSide::Center),
+        _ => None,
+    }
 }
 
 fn hydrate_geometry_parts(output: &Output) -> Result<(Graph, GraphGeometry), HydrationError> {
@@ -579,6 +642,7 @@ fn build_layout_edges(output: &Output) -> (Vec<LayoutEdge>, Vec<SelfEdgeGeometry
         } else {
             None
         };
+        let label_side = parse_mmds_label_side(edge.label_side.as_deref());
 
         layout_edges.push(LayoutEdge {
             index,
@@ -586,7 +650,7 @@ fn build_layout_edges(output: &Output) -> (Vec<LayoutEdge>, Vec<SelfEdgeGeometry
             to: edge.target.clone(),
             waypoints: Vec::new(),
             label_position,
-            label_side: None,
+            label_side,
             from_subgraph: edge.from_subgraph.clone(),
             to_subgraph: edge.to_subgraph.clone(),
             layout_path_hint: path,
