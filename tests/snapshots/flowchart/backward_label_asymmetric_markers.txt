@@ -2,11 +2,11 @@
 │ Aggregate Root │◄─┐
 └────────────────┘  │
  └───────┐          │
-         │          │
+   reverse label    │
          │          │
          │          │
    forward label    │
-     ▼        reverse label
+     ▼              │
     ┌────────┐      │
     │ Entity │○─────┘
     └────────┘

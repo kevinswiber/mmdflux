@@ -423,14 +423,16 @@ pub fn geometry_to_grid_layout_with_routed(
         .unwrap_or_default();
     let mut authoritative_label_positions = HashSet::new();
     if let Some(routed) = routed {
+        // Plan 0151 Task 3.2: trust routed label_geometry centers for
+        // vertical edges (forward and backward). Horizontal LR/RL is still
+        // gated by `is_vertical`; Phase 3 considered widening to LR/RL but
+        // the audit recommended deferring — `git_workflow.txt` and
+        // `crossing_minimize.txt` produced attachment regressions when the
+        // horizontal branch was trusted, and the plan's stop condition
+        // explicitly names those fixtures. See
+        // `.gumbo/plans/0151-routed-label-geometry-contract/findings/03-text-gate-audit.md`.
         for edge in &routed.edges {
-            // Text LR/RL labels still rely on the established inline
-            // placement heuristic. SVG/MMDS-style routed label centers can
-            // detach them from the edge corridor in snapshots like
-            // `git_workflow`, and backward TD/BT edges still need their
-            // existing midpoint/tracking placement to keep return arrows
-            // readable (for example `state/composite`'s `resume` edge).
-            if !is_vertical || edge.is_backward {
+            if !is_vertical {
                 continue;
             }
             let Some(label_geometry) = edge.label_geometry.as_ref() else {

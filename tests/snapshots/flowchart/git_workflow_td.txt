@@ -11,9 +11,9 @@
 │ Staging Area │  │
 └──────────────┘  │
         │         │
+        │       git pull
         │         │
         │         │
-        │     git pull
    git commit     │
         ▼         │
  ┌────────────┐   │
