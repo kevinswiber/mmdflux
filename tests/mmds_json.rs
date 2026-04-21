@@ -1812,4 +1812,103 @@ mod plan_0151_routed_mmds_replay_contract {
             geom.center
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Task 2.3: replay SVG canaries prove the hydration contract reaches the
+    // rendered label, not just the internal `EdgeLabelGeometry`.
+    // -----------------------------------------------------------------------
+
+    fn extract_svg_text_anchor(svg: &str, label: &str) -> Option<(f64, f64)> {
+        for line in svg.lines() {
+            let line = line.trim();
+            if !line.starts_with("<text") {
+                continue;
+            }
+            if !line.contains(&format!(">{label}<")) {
+                continue;
+            }
+            let x = attr(line, " x=\"")?.parse::<f64>().ok()?;
+            let y = attr(line, " y=\"")?.parse::<f64>().ok()?;
+            return Some((x, y));
+        }
+        None
+    }
+
+    fn attr<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {
+        let start = line.find(prefix)? + prefix.len();
+        let rest = &line[start..];
+        let end = rest.find('"')?;
+        Some(&rest[..end])
+    }
+
+    #[test]
+    fn synthetic_shifted_label_survives_routed_mmds_svg_replay() {
+        let output = poisoned_synthetic_routed_output();
+        let rect = output
+            .edges
+            .iter()
+            .find(|e| e.id == "e3")
+            .and_then(|e| e.label_rect.clone())
+            .expect("poisoned fixture carries label_rect");
+        let authoritative_center = (rect.x + rect.width / 2.0, rect.y + rect.height / 2.0);
+
+        let payload_json =
+            serde_json::to_string(&output).expect("synthetic output should serialize back to JSON");
+        let svg = render_mmds_input(&payload_json, OutputFormat::Svg, RenderConfig::default());
+        let anchor = extract_svg_text_anchor(&svg, "git pull")
+            .expect("replay SVG should emit a <text> element for git pull");
+
+        let dx = anchor.0 - authoritative_center.0;
+        let dy = anchor.1 - authoritative_center.1;
+        let drift = (dx * dx + dy * dy).sqrt();
+        assert!(
+            drift <= 0.5,
+            "replay SVG anchor {anchor:?} must track the authoritative rect center {authoritative_center:?}; drift {drift:.2} px. If SVG revalidation snaps this back toward the corridor midpoint, the hydration-synthesized `compartment_size = 2` trust signal is not reaching the emitter."
+        );
+    }
+
+    #[test]
+    fn git_workflow_routed_mmds_replay_svg_tracks_authoritative_rect() {
+        // The producer already emits an authoritative `label_rect` on this
+        // fixture. Replay must render the "git pull" label at that rect's
+        // center, without being snapped back to the rendered-path midpoint
+        // by SVG revalidation (the hydration-synthesized
+        // `compartment_size = 2` trust signal is the mechanism).
+        //
+        // This is intentionally *not* a direct-vs-replay parity check:
+        // direct SVG currently revalidates side-offset labels against the
+        // rendered path, so direct and replay legitimately disagree by the
+        // side-offset magnitude (~14 px). Converging that gap is out of
+        // scope for this plan — see the Non-Goals section of the plan.
+        let input = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests")
+                .join("fixtures")
+                .join("flowchart")
+                .join("git_workflow.mmd"),
+        )
+        .unwrap();
+        let routed_mmds = render_json_with_level(&input, GeometryLevel::Routed);
+        let output: Output = serde_json::from_str(&routed_mmds).unwrap();
+        let rect = output
+            .edges
+            .iter()
+            .find(|e| e.id == "e3")
+            .and_then(|e| e.label_rect.clone())
+            .expect("git_workflow e3 should carry routed label_rect after producer fix");
+        let authoritative = (rect.x + rect.width / 2.0, rect.y + rect.height / 2.0);
+
+        let replay_svg =
+            render_mmds_input(&routed_mmds, OutputFormat::Svg, RenderConfig::default());
+        let anchor = extract_svg_text_anchor(&replay_svg, "git pull")
+            .expect("replay SVG should carry git pull");
+
+        let dx = anchor.0 - authoritative.0;
+        let dy = anchor.1 - authoritative.1;
+        let drift = (dx * dx + dy * dy).sqrt();
+        assert!(
+            drift <= 0.5,
+            "replay SVG anchor {anchor:?} must track the authoritative label_rect center {authoritative:?}; drift {drift:.2} px"
+        );
+    }
 }
