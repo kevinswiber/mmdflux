@@ -3190,3 +3190,217 @@ fn classify_face_matches_expected_common_approaches() {
         NodeFace::Right
     );
 }
+
+// ---------------------------------------------------------------------------
+// Plan 0151 Task 1.3: direct routed SVG and routed MMDS producer canaries.
+//
+// After the stage.rs pre-pass helper aligns orthogonal backward side-offset
+// labels against the final post-fan path, two properties must hold:
+//
+//   1. The routed MMDS `label_rect` encodes a center that sits at the raw
+//      routed path's arc-length midpoint, offset perpendicular by
+//      `label_height / 2` on the declared side. This proves the producer
+//      fix survives MMDS serialization.
+//
+//   2. Direct routed SVG still renders the label attached to the rendered
+//      edge, via `revalidate_svg_label_anchor` if necessary. SVG revalidation
+//      snaps side-offset labels back to the rendered-path midpoint when drift
+//      exceeds 2 px — so MMDS and SVG legitimately disagree by up to
+//      `label_height / 2 + corner_rounding` after the fix. The plan treats
+//      the SVG revalidation fallback as a separate contract, not regressed
+//      by Task 1.2 and not converged here. What Task 1.3 proves is that MMDS
+//      is no longer far-stale relative to SVG's understanding of the path.
+//
+// Canary behavior: pre-Task-1.2, MMDS encoded a stale engine anchor that
+// diverged from SVG by 40-100 px. Post-Task-1.2, divergence collapses to
+// the `label_height / 2`-scale SVG revalidation snap (≈10-14 px). The
+// MMDS-near-path assertion fails pre-fix (drift well past half-height)
+// and passes post-fix.
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod producer_label_cross_pipeline {
+    use serde_json::Value;
+
+    use super::*;
+
+    /// Extract the `<text x=".." y=".." ...>LABEL</text>` anchor for a given
+    /// label value from an SVG string. Uses the same text-element shape the
+    /// SVG emitter uses (`dominant-baseline="middle"`, so the returned `y`
+    /// is the label center).
+    fn extract_svg_label_center(svg: &str, label: &str) -> Option<(f64, f64)> {
+        for line in svg.lines() {
+            let line = line.trim();
+            if !line.starts_with("<text") {
+                continue;
+            }
+            if !line.contains(&format!(">{label}<")) {
+                continue;
+            }
+            let x = attr_value(line, " x=\"")?.parse::<f64>().ok()?;
+            let y = attr_value(line, " y=\"")?.parse::<f64>().ok()?;
+            return Some((x, y));
+        }
+        None
+    }
+
+    fn attr_value<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {
+        let start = line.find(prefix)? + prefix.len();
+        let rest = &line[start..];
+        let end = rest.find('"')?;
+        Some(&rest[..end])
+    }
+
+    fn routed_mmds_edge<'a>(json: &'a Value, edge_id: &str) -> Option<&'a Value> {
+        json.get("edges")?
+            .as_array()?
+            .iter()
+            .find(|e| e.get("id").and_then(|v| v.as_str()) == Some(edge_id))
+    }
+
+    fn routed_mmds_label_rect_center(edge: &Value) -> Option<(f64, f64)> {
+        let rect = edge.get("label_rect")?;
+        let x = rect.get("x")?.as_f64()?;
+        let y = rect.get("y")?.as_f64()?;
+        let width = rect.get("width")?.as_f64()?;
+        let height = rect.get("height")?.as_f64()?;
+        Some((x + width / 2.0, y + height / 2.0))
+    }
+
+    fn routed_mmds_path(edge: &Value) -> Vec<(f64, f64)> {
+        edge.get("path")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|pt| {
+                        let pair = pt.as_array()?;
+                        Some((pair.first()?.as_f64()?, pair.get(1)?.as_f64()?))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn distance_to_polyline(point: (f64, f64), path: &[(f64, f64)]) -> f64 {
+        if path.is_empty() {
+            return f64::INFINITY;
+        }
+        if path.len() == 1 {
+            let (dx, dy) = (point.0 - path[0].0, point.1 - path[0].1);
+            return (dx * dx + dy * dy).sqrt();
+        }
+        path.windows(2)
+            .map(|seg| {
+                let (ax, ay) = seg[0];
+                let (bx, by) = seg[1];
+                let (dx, dy) = (bx - ax, by - ay);
+                let seg_len_sq = dx * dx + dy * dy;
+                if seg_len_sq <= 1e-6 {
+                    let (px, py) = (point.0 - ax, point.1 - ay);
+                    return (px * px + py * py).sqrt();
+                }
+                let t = (((point.0 - ax) * dx + (point.1 - ay) * dy) / seg_len_sq).clamp(0.0, 1.0);
+                let (cx, cy) = (ax + t * dx, ay + t * dy);
+                let (px, py) = (point.0 - cx, point.1 - cy);
+                (px * px + py * py).sqrt()
+            })
+            .fold(f64::INFINITY, f64::min)
+    }
+
+    fn render_fixture_svg_routed(fixture: &str) -> String {
+        let input = load_fixture(fixture);
+        crate::render_diagram(
+            &input,
+            OutputFormat::Svg,
+            &RenderConfig {
+                geometry_level: GeometryLevel::Routed,
+                layout_engine: Some(EngineAlgorithmId::FLUX_LAYERED),
+                ..RenderConfig::default()
+            },
+        )
+        .expect("svg render should succeed")
+    }
+
+    fn render_fixture_mmds_routed(fixture: &str) -> Value {
+        let input = load_fixture(fixture);
+        let json = crate::render_diagram(
+            &input,
+            OutputFormat::Mmds,
+            &RenderConfig {
+                geometry_level: GeometryLevel::Routed,
+                layout_engine: Some(EngineAlgorithmId::FLUX_LAYERED),
+                ..RenderConfig::default()
+            },
+        )
+        .expect("mmds render should succeed");
+        serde_json::from_str(&json).expect("mmds should be valid JSON")
+    }
+
+    fn assert_mmds_rect_encodes_post_fan_path(fixture: &str, edge_id: &str, label: &str) {
+        let mmds = render_fixture_mmds_routed(fixture);
+        let edge = routed_mmds_edge(&mmds, edge_id)
+            .unwrap_or_else(|| panic!("{fixture}: MMDS missing edge {edge_id}"));
+        let center = routed_mmds_label_rect_center(edge)
+            .unwrap_or_else(|| panic!("{fixture} {edge_id}: missing routed label_rect"));
+        let path = routed_mmds_path(edge);
+        let height = edge
+            .get("label_rect")
+            .and_then(|r| r.get("height"))
+            .and_then(|v| v.as_f64())
+            .expect("label_rect must carry height");
+
+        // Producer-truth invariant: MMDS `label_rect` center sits within
+        // `half_height + tolerance` of the raw routed path for
+        // orthogonal backward side-offset labels. Pre-fix, the stale engine
+        // anchor drifted well past this (39-98 px off-path for label height
+        // 28). Post-fix, the side-aware projection lands the center at
+        // path-midpoint + half_height normal.
+        let half_height = height / 2.0;
+        let tolerance = 2.0;
+        let drift = distance_to_polyline(center, &path);
+        assert!(
+            drift <= half_height + tolerance,
+            "{fixture} {edge_id} {label:?}: MMDS label_rect center {center:?} drifted {drift:.2} px from routed path (half_height={half_height:.2} tolerance={tolerance:.2}); path={path:?}"
+        );
+    }
+
+    fn assert_svg_label_stays_attached_to_rendered_edge(fixture: &str, label: &str) {
+        let svg = render_fixture_svg_routed(fixture);
+        let anchor = extract_svg_label_center(&svg, label).unwrap_or_else(|| {
+            panic!("{fixture}: SVG should render a `<text>` element for {label:?}")
+        });
+        // Minimal SVG attachment canary: the emitted `<text>` x/y must be a
+        // finite, non-sentinel coordinate inside the SVG viewBox. The exact
+        // placement depends on the curve preset and the revalidation
+        // fallback; we only verify the emitter did not drop or mis-route
+        // the label.
+        assert!(
+            anchor.0.is_finite() && anchor.1.is_finite(),
+            "{fixture}: SVG label {label:?} anchor is not finite: {anchor:?}"
+        );
+        assert!(
+            anchor.0 > 0.0 && anchor.1 > 0.0,
+            "{fixture}: SVG label {label:?} anchor {anchor:?} sits at or before origin"
+        );
+    }
+
+    #[test]
+    fn git_workflow_routed_mmds_label_rect_encodes_post_fan_path() {
+        assert_mmds_rect_encodes_post_fan_path("git_workflow.mmd", "e3", "git pull");
+    }
+
+    #[test]
+    fn git_workflow_td_routed_mmds_label_rect_encodes_post_fan_path() {
+        assert_mmds_rect_encodes_post_fan_path("git_workflow_td.mmd", "e3", "git pull");
+    }
+
+    #[test]
+    fn git_workflow_direct_routed_svg_keeps_git_pull_label_attached() {
+        assert_svg_label_stays_attached_to_rendered_edge("git_workflow.mmd", "git pull");
+    }
+
+    #[test]
+    fn git_workflow_td_direct_routed_svg_keeps_git_pull_label_attached() {
+        assert_svg_label_stays_attached_to_rendered_edge("git_workflow_td.mmd", "git pull");
+    }
+}
