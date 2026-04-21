@@ -1608,3 +1608,132 @@ mod edge_rendering_regression {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Plan 0151 Task 3.1: text trust-gate canaries.
+//
+// These canaries pin the labels that Phase 3 broadening must not detach.
+// They pass under the current (narrow) gate, and must continue passing as
+// the gate widens in Task 3.2 — first to backward vertical, and
+// conditionally to horizontal LR/RL. If a canary fails after broadening,
+// `findings/03-text-gate-audit.md` records the regression and either
+// narrows the widening or spins a follow-up issue.
+//
+// Coverage matrix:
+//
+//   - `git_workflow.mmd`          — LR horizontal, backward side=Below
+//   - `git_workflow_td.mmd`       — TD vertical, backward side=Below
+//   - `state/composite.mmd`       — backward vertical `resume`
+//   - `inline_label_flowchart.mmd` — forward inline attachment regression
+// ---------------------------------------------------------------------------
+
+mod plan_0151_text_trust_gate_canaries {
+    use super::*;
+    use crate::mermaid::state::parse_state_diagram;
+
+    fn load_state_fixture(name: &str) -> String {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("state")
+            .join(name);
+        fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("Failed to read state fixture {}: {}", name, error))
+    }
+
+    fn render_state_fixture(name: &str) -> String {
+        let input = load_state_fixture(name);
+        // Sanity-check the fixture parses; the actual render goes through
+        // the public entry like the flowchart helper above.
+        let _ = parse_state_diagram(&input).expect("state fixture should parse");
+        crate::render_diagram(
+            &input,
+            OutputFormat::Text,
+            &RenderConfig {
+                text_color_mode: TextColorMode::Plain,
+                ..RenderConfig::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("Failed to render state fixture {name}: {error}"))
+    }
+
+    fn find_label_row(text: &str, label: &str) -> Option<usize> {
+        text.lines().position(|line| line.contains(label))
+    }
+
+    fn count_label_occurrences(text: &str, label: &str) -> usize {
+        text.lines().filter(|line| line.contains(label)).count()
+    }
+
+    /// Minimum attachment check: the label is emitted exactly once and sits
+    /// on a row that also contains edge-line glyphs from the routed path.
+    fn assert_label_attached_to_edge_row(text: &str, label: &str, fixture: &str) {
+        let occurrences = count_label_occurrences(text, label);
+        assert_eq!(
+            occurrences, 1,
+            "{fixture}: expected label {label:?} to appear exactly once; got {occurrences}. Output:\n{text}"
+        );
+        let row = find_label_row(text, label)
+            .unwrap_or_else(|| panic!("{fixture}: missing label {label:?} in output:\n{text}"));
+        let line = text.lines().nth(row).unwrap();
+        let has_edge_glyph = line
+            .chars()
+            .any(|c| matches!(c, '─' | '│' | '┐' | '┘' | '└' | '┌' | '▲' | '▼' | '►' | '◄'));
+        assert!(
+            has_edge_glyph,
+            "{fixture}: label {label:?} on row {row} is not on an edge row (no path/arrow glyph). Line: {line:?}"
+        );
+    }
+
+    #[test]
+    fn text_canary_git_workflow_lr_backward_label_stays_on_edge() {
+        let text = render_flowchart_fixture("git_workflow.mmd");
+        assert_label_attached_to_edge_row(&text, "git pull", "git_workflow.mmd");
+    }
+
+    #[test]
+    fn text_canary_git_workflow_td_backward_label_stays_on_edge() {
+        let text = render_flowchart_fixture("git_workflow_td.mmd");
+        assert_label_attached_to_edge_row(&text, "git pull", "git_workflow_td.mmd");
+    }
+
+    #[test]
+    fn text_canary_state_composite_resume_edge_remains_readable() {
+        let text = render_state_fixture("composite.mmd");
+        assert!(
+            text.contains("resume"),
+            "state/composite should include the `resume` label. Output:\n{text}"
+        );
+        assert!(
+            text.contains("pause"),
+            "state/composite should include the `pause` label as a sanity check. Output:\n{text}"
+        );
+        // Readable-separation canary: `resume` and `pause` must land on
+        // different rows of the text grid. If the gate broadening collapses
+        // them onto the same row the label stack becomes unreadable.
+        let pause_row = find_label_row(&text, "pause")
+            .expect("state/composite text should emit the `pause` label");
+        let resume_row = find_label_row(&text, "resume")
+            .expect("state/composite text should emit the `resume` label");
+        assert_ne!(
+            pause_row, resume_row,
+            "state/composite `pause` and `resume` labels collapsed onto row {pause_row}"
+        );
+    }
+
+    #[test]
+    fn text_canary_inline_label_flowchart_forward_attachment_stable() {
+        // Forward inline labels must not detach when the gate broadens.
+        // This fixture already exercises the current (narrow) trust gate's
+        // forward-vertical branch; the canary guards against accidental
+        // regression from widening.
+        let text = render_flowchart_fixture("inline_label_flowchart.mmd");
+        // Sample canonical forward labels from the fixture; all must appear.
+        for label in ["no", "yes", "sync", "async", "hit", "miss", "warn"] {
+            assert!(
+                text.contains(label),
+                "inline_label_flowchart should include {label:?} label. Output:\n{text}"
+            );
+        }
+    }
+}
