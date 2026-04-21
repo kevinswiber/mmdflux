@@ -5599,6 +5599,7 @@ mod plan_0151_producer_alignment {
 
     use super::distance_point_to_path;
     use crate::diagrams::flowchart::compile_to_graph;
+    use crate::diagrams::state::compiler as state_compiler;
     use crate::engines::graph::algorithms::layered::LayoutConfig as LayeredLayoutConfig;
     use crate::engines::graph::contracts::{MeasurementMode, SubgraphDirectionPolicy};
     use crate::engines::graph::{
@@ -5609,6 +5610,7 @@ mod plan_0151_producer_alignment {
     use crate::graph::geometry::{EdgeLabelSide, RoutedEdgeGeometry};
     use crate::graph::measure::default_proportional_text_metrics;
     use crate::mermaid::parse_flowchart;
+    use crate::mermaid::state::parse_state_diagram;
 
     /// Solve a flowchart fixture through the flux-layered engine with the same
     /// configuration the MMDS CLI uses (Canonical + Proportional + Routed).
@@ -5634,6 +5636,35 @@ mod plan_0151_producer_alignment {
             GeometryLevel::Routed,
             None,
             SubgraphDirectionPolicy::AlternateAxes,
+        );
+        let config = EngineConfig::Layered(LayeredLayoutConfig::default());
+        let result =
+            solve_graph_family(&diagram, EngineAlgorithmId::FLUX_LAYERED, &config, &request)
+                .unwrap_or_else(|e| panic!("flux-layered solve failed for {fixture}: {e}"));
+        let routed = result
+            .routed
+            .unwrap_or_else(|| panic!("{fixture}: expected routed geometry at Routed level"));
+        (diagram, routed.edges)
+    }
+
+    fn routed_state_fixture(fixture: &str) -> (crate::graph::Graph, Vec<RoutedEdgeGeometry>) {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("state")
+            .join(fixture);
+        let input = fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("failed to read fixture {}: {e}", path.display()));
+        let parsed = parse_state_diagram(&input).expect("state input should parse");
+        let diagram = state_compiler::compile(&parsed.model);
+
+        let metrics = default_proportional_text_metrics();
+        let request = GraphSolveRequest::new(
+            MeasurementMode::Proportional(metrics),
+            GraphGeometryContract::Canonical,
+            GeometryLevel::Routed,
+            None,
+            SubgraphDirectionPolicy::Preserve,
         );
         let config = EngineConfig::Layered(LayeredLayoutConfig::default());
         let result =
@@ -5697,5 +5728,39 @@ mod plan_0151_producer_alignment {
     #[test]
     fn orthogonal_backward_side_offset_label_uses_post_fan_path_git_workflow_td() {
         assert_label_center_stays_near_final_path("git_workflow_td.mmd", "Remote", "Working");
+    }
+
+    /// Regression canary for Task 1.2: the state/composite `resume` edge
+    /// (Paused → Running, inside the Active subgraph) must keep its label on
+    /// the return corridor after producer alignment. If `resume` is in the
+    /// narrow branch, the alignment helper should produce a corridor-adjacent
+    /// anchor; if it is out of scope, the engine anchor is already sound.
+    /// Either way, the drift invariant should hold.
+    #[test]
+    fn alignment_preserves_state_composite_resume_readability() {
+        let (diagram, routed_edges) = routed_state_fixture("composite.mmd");
+        let resume_idx = diagram
+            .edges
+            .iter()
+            .position(|e| e.label.as_deref() == Some("resume"))
+            .expect("composite.mmd should have a `resume`-labeled edge");
+        let routed_edge = routed_edges
+            .iter()
+            .find(|re| re.index == resume_idx)
+            .expect("routed edges must include the resume edge");
+        let label_geom = routed_edge
+            .label_geometry
+            .as_ref()
+            .expect("resume edge must carry label_geometry");
+
+        let half_height = label_geom.rect.height / 2.0;
+        let tolerance = 2.0;
+        let drift = distance_point_to_path(label_geom.center, &routed_edge.path);
+        assert!(
+            drift <= half_height + tolerance,
+            "state/composite resume label drifted {drift:.2} px from return corridor (half_height={half_height:.2} tolerance={tolerance:.2}); center={:?} path={:?}",
+            label_geom.center,
+            routed_edge.path,
+        );
     }
 }

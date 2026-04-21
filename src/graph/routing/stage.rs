@@ -172,6 +172,14 @@ pub fn route_graph_geometry(
         }
     }
 
+    // Plan 0151 Task 1.2: for orthogonal backward side-offset labels, realign
+    // `label_position` against the final post-fan path before freezing it
+    // into `label_geometry`. Narrow predicate: OrthogonalRoute + is_backward
+    // + label_side ∈ {Above, Below}. Forward orthogonal and non-orthogonal
+    // branches already get their anchors revalidated or recomputed upstream.
+    // See `findings/01-producer-seam-choice.md`.
+    align_backward_side_offset_labels(&mut edges, diagram, metrics, edge_routing);
+
     // Populate label_geometry on every routed edge with a non-empty label.
     // This is the single source of truth for padded label rectangles consumed
     // by SVG, MMDS, and bounds downstream. track: 0 until the lane assignment
@@ -941,5 +949,249 @@ fn populate_label_geometry(
             track: 0,
             compartment_size: 1,
         });
+    }
+}
+
+/// Align `label_position` for orthogonal backward side-offset labels against
+/// the final post-fan path.
+///
+/// Narrow branch predicate — runs only when all of these hold:
+///   - `edge_routing == EdgeRouting::OrthogonalRoute`
+///   - `edge.is_backward`
+///   - `edge.label_side == Some(Above | Below)`
+///
+/// The engine assigns `label_position` for backward side-offset labels
+/// relative to the abstract forward-flow path. When orthogonal routing then
+/// replaces that path with a U-channel (and `fan::spread_colocated_backward_*`
+/// mutates the endpoints further), the engine's anchor becomes divorced from
+/// the actual routed path. `orthogonal::mod`'s own `revalidate_label_anchor`
+/// pass is skipped for `label_side != Center`, so the staleness persists.
+/// This helper re-projects the center onto the final post-fan path using a
+/// side-aware arc-length midpoint rule. See
+/// `.gumbo/plans/0151-routed-label-geometry-contract/findings/01-producer-seam-choice.md`.
+fn align_backward_side_offset_labels(
+    edges: &mut [RoutedEdgeGeometry],
+    diagram: &Graph,
+    metrics: &ProportionalTextMetrics,
+    edge_routing: EdgeRouting,
+) {
+    if !matches!(edge_routing, EdgeRouting::OrthogonalRoute) {
+        return;
+    }
+    for routed_edge in edges.iter_mut() {
+        if !routed_edge.is_backward {
+            continue;
+        }
+        let side = match routed_edge.label_side {
+            Some(EdgeLabelSide::Above) => EdgeLabelSide::Above,
+            Some(EdgeLabelSide::Below) => EdgeLabelSide::Below,
+            _ => continue,
+        };
+        if routed_edge.path.len() < 2 {
+            continue;
+        }
+        let Some(diagram_edge) = diagram.edges.get(routed_edge.index) else {
+            continue;
+        };
+        let Some(label) = diagram_edge.label.as_deref() else {
+            continue;
+        };
+        if label.is_empty() {
+            continue;
+        }
+        let (_, label_height) = match diagram_edge.wrapped_label_lines.as_deref() {
+            Some(lines) => metrics.edge_label_dimensions_wrapped(lines),
+            None => metrics.edge_label_dimensions(label),
+        };
+        if let Some(aligned) = project_side_aware_anchor(&routed_edge.path, label_height, side) {
+            routed_edge.label_position = Some(aligned);
+        }
+    }
+}
+
+/// Project a side-aware anchor onto the arc-length midpoint of `path`.
+///
+/// The anchor sits `label_height / 2` away from the midpoint, perpendicular
+/// to the midpoint segment, on the side dictated by `side`. For a U-channel
+/// horizontal leg this places the anchor flush against the corridor on the
+/// correct side; for a vertical leg it places it to the left or right of
+/// the corridor following Mermaid's Above/Below convention for vertical
+/// edges.
+fn project_side_aware_anchor(
+    path: &[FPoint],
+    label_height: f64,
+    side: EdgeLabelSide,
+) -> Option<FPoint> {
+    if path.len() < 2 {
+        return arc_length_midpoint(path);
+    }
+    let midpoint = arc_length_midpoint(path)?;
+    let seg = midpoint_segment(path)?;
+    let (a, b) = seg;
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    let seg_len = (dx * dx + dy * dy).sqrt();
+    if seg_len <= 1e-6 {
+        return Some(midpoint);
+    }
+    let (tx, ty) = (dx / seg_len, dy / seg_len);
+    let (nx, ny) = side_aware_normal(tx, ty);
+    let sign = match side {
+        EdgeLabelSide::Below => 1.0,
+        EdgeLabelSide::Above => -1.0,
+        EdgeLabelSide::Center => return Some(midpoint),
+    };
+    let offset = label_height / 2.0;
+    Some(FPoint::new(
+        midpoint.x + nx * offset * sign,
+        midpoint.y + ny * offset * sign,
+    ))
+}
+
+/// Return the segment of `path` that contains the arc-length midpoint. Ties
+/// on a shared corner resolve to the segment whose traversal reached the
+/// target distance first — matching `arc_length_midpoint`'s own tie-break.
+fn midpoint_segment(path: &[FPoint]) -> Option<(FPoint, FPoint)> {
+    if path.len() < 2 {
+        return None;
+    }
+    let total_len: f64 = path
+        .windows(2)
+        .map(|w| {
+            let dx = w[1].x - w[0].x;
+            let dy = w[1].y - w[0].y;
+            (dx * dx + dy * dy).sqrt()
+        })
+        .sum();
+    if total_len <= 1e-6 {
+        return Some((path[0], path[1]));
+    }
+    let target = total_len / 2.0;
+    let mut traversed = 0.0;
+    for window in path.windows(2) {
+        let a = window[0];
+        let b = window[1];
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        let seg_len = (dx * dx + dy * dy).sqrt();
+        if seg_len <= 1e-6 {
+            continue;
+        }
+        if traversed + seg_len >= target {
+            return Some((a, b));
+        }
+        traversed += seg_len;
+    }
+    Some((path[path.len() - 2], path[path.len() - 1]))
+}
+
+/// Rotate `(tx, ty)` 90° into a perpendicular normal, oriented per Mermaid's
+/// Above/Below conventions:
+///   - horizontal-dominant tangent (`|tx| > |ty|`): `ny > 0` (screen-down).
+///   - vertical-dominant tangent (`|ty| >= |tx|`): `nx > 0` (screen-right).
+///
+/// "Below" offsets +normal; "Above" offsets −normal.
+fn side_aware_normal(tx: f64, ty: f64) -> (f64, f64) {
+    // In screen coords (+y down), rotating (tx, ty) 90° clockwise yields
+    // (-ty, tx). That puts +x → +y (horizontal tangent pointing right yields
+    // a downward normal), which matches "Below" for horizontal-dominant
+    // tangents when tx > 0. For tx < 0 we flip to keep the orientation.
+    let (mut nx, mut ny) = (-ty, tx);
+    if tx.abs() > ty.abs() {
+        if ny < 0.0 {
+            nx = -nx;
+            ny = -ny;
+        }
+    } else if nx < 0.0 {
+        nx = -nx;
+        ny = -ny;
+    }
+    (nx, ny)
+}
+
+#[cfg(test)]
+mod plan_0151_align_tests {
+    use super::*;
+
+    fn approx_eq(a: f64, b: f64) -> bool {
+        (a - b).abs() <= 1e-6
+    }
+
+    #[test]
+    fn side_aware_normal_horizontal_tangent_below_points_down() {
+        let (nx, ny) = side_aware_normal(1.0, 0.0);
+        assert!(approx_eq(nx, 0.0) && approx_eq(ny, 1.0));
+    }
+
+    #[test]
+    fn side_aware_normal_horizontal_tangent_reversed_still_points_down() {
+        // U-channel horizontal leg traveled right-to-left.
+        let (nx, ny) = side_aware_normal(-1.0, 0.0);
+        assert!(approx_eq(nx, 0.0) && approx_eq(ny, 1.0));
+    }
+
+    #[test]
+    fn side_aware_normal_vertical_tangent_points_right() {
+        let (nx, ny) = side_aware_normal(0.0, 1.0);
+        assert!(approx_eq(nx, 1.0) && approx_eq(ny, 0.0));
+    }
+
+    #[test]
+    fn side_aware_normal_vertical_tangent_reversed_still_points_right() {
+        // U-channel vertical leg traveled bottom-to-top.
+        let (nx, ny) = side_aware_normal(0.0, -1.0);
+        assert!(approx_eq(nx, 1.0) && approx_eq(ny, 0.0));
+    }
+
+    #[test]
+    fn project_side_aware_anchor_u_channel_below_sits_below_corridor() {
+        // Emulates git_workflow.mmd e3 — U-channel at y=74.
+        let path = vec![
+            FPoint::new(982.688, 62.0),
+            FPoint::new(982.688, 74.0),
+            FPoint::new(80.874, 74.0),
+            FPoint::new(80.874, 62.0),
+        ];
+        let anchor = project_side_aware_anchor(&path, 28.0, EdgeLabelSide::Below)
+            .expect("midpoint should exist");
+        // Midpoint is on the horizontal leg at y=74. Below offsets +14 → y=88.
+        assert!(approx_eq(anchor.y, 88.0), "anchor.y = {}", anchor.y);
+    }
+
+    #[test]
+    fn project_side_aware_anchor_u_channel_above_sits_above_corridor() {
+        let path = vec![
+            FPoint::new(982.688, 62.0),
+            FPoint::new(982.688, 74.0),
+            FPoint::new(80.874, 74.0),
+            FPoint::new(80.874, 62.0),
+        ];
+        let anchor = project_side_aware_anchor(&path, 28.0, EdgeLabelSide::Above)
+            .expect("midpoint should exist");
+        assert!(approx_eq(anchor.y, 60.0), "anchor.y = {}", anchor.y);
+    }
+
+    #[test]
+    fn project_side_aware_anchor_u_channel_vertical_below_sits_right_of_corridor() {
+        // Emulates git_workflow_td.mmd e3 — U-channel vertical leg at x=176.512.
+        let path = vec![
+            FPoint::new(164.512, 490.0),
+            FPoint::new(176.512, 490.0),
+            FPoint::new(176.512, 35.0),
+            FPoint::new(159.130, 35.0),
+        ];
+        let anchor = project_side_aware_anchor(&path, 28.0, EdgeLabelSide::Below)
+            .expect("midpoint should exist");
+        // Midpoint lands on the vertical leg at x=176.512.
+        // Below on vertical tangent offsets +14 in x → x=190.512.
+        assert!(approx_eq(anchor.x, 190.512), "anchor.x = {}", anchor.x);
+    }
+
+    #[test]
+    fn project_side_aware_anchor_center_side_returns_plain_midpoint() {
+        let path = vec![FPoint::new(0.0, 0.0), FPoint::new(100.0, 0.0)];
+        let anchor = project_side_aware_anchor(&path, 20.0, EdgeLabelSide::Center)
+            .expect("midpoint should exist");
+        assert!(approx_eq(anchor.x, 50.0) && approx_eq(anchor.y, 0.0));
     }
 }
