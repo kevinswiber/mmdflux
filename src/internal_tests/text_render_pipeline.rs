@@ -487,6 +487,144 @@ mod owner_local_fixture_regressions {
     }
 }
 
+mod plan_0152_corridor_aware_placement {
+    //! Phase 3 corridor-aware placement contract.
+    //!
+    //! Red canaries that pin what the corridor-aware placer must deliver.
+    //! Each targets a specific regression PR #252 tripped when it widened
+    //! PR #251's narrow trust gate: glyph stomps on state/composite,
+    //! corridor-turn losses on label_clamp_bt_review and
+    //! backward_label_asymmetric_markers, and the 7-cell column float on
+    //! state/transitions.
+    //!
+    //! Forward-case pins guard PR #251's shipped scope against Phase 3's
+    //! wider replacement.
+    use super::*;
+
+    fn render_state_fixture(name: &str) -> String {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("state")
+            .join(name);
+        let input = fs::read_to_string(&path).unwrap_or_else(|error| {
+            panic!("Failed to read state fixture {}: {}", path.display(), error)
+        });
+        crate::render_diagram(
+            &input,
+            OutputFormat::Text,
+            &RenderConfig {
+                text_color_mode: TextColorMode::Plain,
+                ..RenderConfig::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("Failed to render state fixture {name}: {error}"))
+    }
+
+    #[test]
+    fn state_composite_retains_resume_terminal_arrowhead() {
+        let text = render_state_fixture("composite.mmd");
+        let count = text.matches('▲').count();
+        assert_eq!(
+            count, 1,
+            "state/composite must retain the `▲` arrowhead terminal on the resume edge; got {count} occurrences in:\n{text}"
+        );
+    }
+
+    #[test]
+    fn label_clamp_bt_review_retains_corridor_turn_glyphs() {
+        let text = render_flowchart_fixture("label_clamp_bt_review.mmd");
+        assert!(
+            text.contains("└─┐"),
+            "label_clamp_bt_review must retain the `└─┐` corridor-turn glyph. Output:\n{text}"
+        );
+        assert!(
+            text.contains("┌─┘"),
+            "label_clamp_bt_review must retain the `┌─┘` corridor-turn glyph. Output:\n{text}"
+        );
+    }
+
+    #[test]
+    fn backward_label_asymmetric_markers_retains_approach_turn() {
+        let text = render_flowchart_fixture("backward_label_asymmetric_markers.mmd");
+        assert!(
+            text.contains("┌───┘"),
+            "backward_label_asymmetric_markers must retain the `┌───┘` approach-turn glyph. Output:\n{text}"
+        );
+    }
+
+    #[test]
+    fn state_transitions_retry_label_stays_corridor_adjacent() {
+        let text = render_state_fixture("transitions.mmd");
+        let row_idx = text
+            .lines()
+            .position(|l| l.contains("retry"))
+            .expect("retry should appear");
+        let retry_col = text.lines().nth(row_idx).unwrap().find("retry").unwrap();
+
+        let neighboring_rows = [row_idx.saturating_sub(1), row_idx + 1];
+        let nearest_pipe_col = neighboring_rows
+            .iter()
+            .filter_map(|&r| text.lines().nth(r))
+            .filter_map(|line| line.rfind('│'))
+            .next()
+            .expect("neighboring row should carry a corridor `│`");
+
+        let drift = (retry_col as isize - nearest_pipe_col as isize).abs();
+        assert!(
+            drift <= 2,
+            "state/transitions `retry` label at col {retry_col} must sit within 2 cells of the corridor `│` at col {nearest_pipe_col}; got {drift} cells. Output:\n{text}"
+        );
+    }
+
+    #[test]
+    fn git_workflow_td_backward_label_honors_authoritative_center() {
+        let text = render_flowchart_fixture("git_workflow_td.mmd");
+        assert_eq!(
+            text.matches("git pull").count(),
+            1,
+            "git pull label should appear exactly once. Output:\n{text}"
+        );
+        let row = text.lines().position(|l| l.contains("git pull")).unwrap();
+        let line = text.lines().nth(row).unwrap();
+        let label_col = line.find("git pull").unwrap();
+        let pipe_col = line
+            .chars()
+            .enumerate()
+            .filter_map(|(i, c)| (c == '│').then_some(i))
+            .next();
+        if let Some(pipe_col) = pipe_col {
+            let drift = (label_col as isize - pipe_col as isize).abs();
+            assert!(
+                drift <= 3,
+                "git pull label should sit within 3 cells of the vertical corridor `│`; got {drift}. Output:\n{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn inline_label_flowchart_forward_labels_stay_attached_post_phase_3() {
+        let text = render_flowchart_fixture("inline_label_flowchart.mmd");
+        for label in ["no", "yes", "sync", "async", "hit", "miss", "warn"] {
+            assert!(
+                text.contains(label),
+                "inline_label_flowchart should include {label:?} after Phase 3. Output:\n{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn git_workflow_lr_forward_and_backward_labels_all_corridor_adjacent() {
+        let text = render_flowchart_fixture("git_workflow.mmd");
+        for label in ["git add", "git commit", "git push", "git pull"] {
+            assert!(
+                text.contains(label),
+                "git_workflow should include {label:?}. Output:\n{text}"
+            );
+        }
+    }
+}
+
 mod plan_0147_task_3_2_text_grid_gate {
     //! Plan 0147 Task 3.2: labeled backward-edge fixtures must still render
     //! corridor-closure glyphs (`─┘` / `└─`) under Tier A's two-waypoint bend.
