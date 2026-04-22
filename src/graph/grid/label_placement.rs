@@ -10,6 +10,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::graph::geometry::EdgeLabelSide;
 use crate::graph::grid::layout::TransformContext;
 use crate::graph::space::FPoint;
 
@@ -104,6 +105,70 @@ fn segment_axis(a: FPoint, b: FPoint) -> Option<Axis> {
     } else {
         None
     }
+}
+
+/// Pick a grid cell for an authoritative label anchor that respects
+/// the edge's path footprint.
+///
+/// A candidate is "safe" when it is off the path entirely or sits on
+/// a straight-segment `Corridor` cell. `Terminal` and `Corner` cells
+/// carry load-bearing glyphs (arrowheads, bend characters) and are
+/// never acceptable anchors — the function walks a prioritized
+/// step-set in the direction declared by `side` and returns the first
+/// safe neighbor. When no neighbor is safe the candidate is returned
+/// unchanged; Task 3.4 treats that as a best-effort fallback.
+pub(crate) fn choose_corridor_aware_anchor(
+    candidate: GridCell,
+    side: EdgeLabelSide,
+    footprint: &PathFootprint,
+    grid_width: usize,
+    grid_height: usize,
+) -> GridCell {
+    if is_safe_cell(candidate, footprint) {
+        return candidate;
+    }
+    for (dx, dy) in shift_steps(side) {
+        if let Some(shifted) = apply_step(candidate, dx, dy, grid_width, grid_height)
+            && is_safe_cell(shifted, footprint)
+        {
+            return shifted;
+        }
+    }
+    candidate
+}
+
+fn is_safe_cell(cell: GridCell, footprint: &PathFootprint) -> bool {
+    match footprint.cells.get(&cell) {
+        None => true,
+        Some(CellRole::Corridor) => true,
+        Some(CellRole::Corner | CellRole::Terminal) => false,
+    }
+}
+
+fn shift_steps(side: EdgeLabelSide) -> [(isize, isize); 4] {
+    // Primary steps follow the declared side first; fallbacks cover
+    // the remaining cardinals so the placer always gets a chance to
+    // escape a load-bearing cell.
+    match side {
+        EdgeLabelSide::Below => [(0, 1), (1, 0), (-1, 0), (0, -1)],
+        EdgeLabelSide::Above => [(0, -1), (-1, 0), (1, 0), (0, 1)],
+        EdgeLabelSide::Center => [(0, 1), (0, -1), (1, 0), (-1, 0)],
+    }
+}
+
+fn apply_step(
+    cell: GridCell,
+    dx: isize,
+    dy: isize,
+    grid_width: usize,
+    grid_height: usize,
+) -> Option<GridCell> {
+    let new_x = (cell.0 as isize).checked_add(dx).filter(|v| *v >= 0)? as usize;
+    let new_y = (cell.1 as isize).checked_add(dy).filter(|v| *v >= 0)? as usize;
+    if new_x >= grid_width || new_y >= grid_height {
+        return None;
+    }
+    Some((new_x, new_y))
 }
 
 fn fill_bresenham(start: GridCell, end: GridCell, cells: &mut BTreeMap<GridCell, CellRole>) {
@@ -257,5 +322,136 @@ mod tests {
         let path = vec![FPoint::new(0.0, 0.0)];
         let footprint = project_path_to_grid(&path, &ctx);
         assert!(footprint.cells.is_empty());
+    }
+
+    // Task 3.3 — choose_corridor_aware_anchor
+
+    use crate::graph::geometry::EdgeLabelSide;
+
+    const GRID_W: usize = 16;
+    const GRID_H: usize = 16;
+
+    fn u_channel_footprint(ctx: &TransformContext) -> PathFootprint {
+        // Terminals at (6, 1) and (1, 1); corners at (6, 3), (1, 3);
+        // corridor on the two vertical legs (cols 1 and 6) and the
+        // long leg on row 3.
+        let path = vec![
+            FPoint::new(84.0, 14.0),
+            FPoint::new(84.0, 42.0),
+            FPoint::new(14.0, 42.0),
+            FPoint::new(14.0, 14.0),
+        ];
+        project_path_to_grid(&path, ctx)
+    }
+
+    #[test]
+    fn anchor_on_terminal_cell_shifts_off() {
+        let ctx = grid_ctx(14.0, 14.0);
+        let footprint = u_channel_footprint(&ctx);
+        let candidate = (6, 1); // terminal
+        let anchor = choose_corridor_aware_anchor(
+            candidate,
+            EdgeLabelSide::Below,
+            &footprint,
+            GRID_W,
+            GRID_H,
+        );
+        assert_ne!(anchor, candidate);
+        assert!(
+            !matches!(
+                footprint.cells.get(&anchor),
+                Some(CellRole::Terminal | CellRole::Corner)
+            ),
+            "anchor landed on a load-bearing cell: {:?}",
+            footprint.cells.get(&anchor)
+        );
+    }
+
+    #[test]
+    fn anchor_on_corner_cell_shifts_off() {
+        let ctx = grid_ctx(14.0, 14.0);
+        let footprint = u_channel_footprint(&ctx);
+        let candidate = (1, 3); // corner
+        let anchor = choose_corridor_aware_anchor(
+            candidate,
+            EdgeLabelSide::Below,
+            &footprint,
+            GRID_W,
+            GRID_H,
+        );
+        assert_ne!(anchor, candidate);
+        assert!(
+            !matches!(
+                footprint.cells.get(&anchor),
+                Some(CellRole::Terminal | CellRole::Corner)
+            ),
+            "anchor landed on a load-bearing cell: {:?}",
+            footprint.cells.get(&anchor)
+        );
+    }
+
+    #[test]
+    fn anchor_on_corridor_cell_remains_unchanged() {
+        let ctx = grid_ctx(14.0, 14.0);
+        let footprint = u_channel_footprint(&ctx);
+        let candidate = (6, 2); // corridor on the right vertical leg
+        let anchor = choose_corridor_aware_anchor(
+            candidate,
+            EdgeLabelSide::Below,
+            &footprint,
+            GRID_W,
+            GRID_H,
+        );
+        assert_eq!(anchor, candidate);
+    }
+
+    #[test]
+    fn anchor_off_path_remains_unchanged() {
+        let ctx = grid_ctx(14.0, 14.0);
+        let footprint = u_channel_footprint(&ctx);
+        // (4, 2) is not on any footprint cell — off-path is safe by
+        // definition. Task 3.4 owns the "snap toward corridor" policy
+        // at a higher layer; the placer itself preserves float anchors
+        // that fall off the edge entirely.
+        let candidate = (4, 2);
+        let anchor = choose_corridor_aware_anchor(
+            candidate,
+            EdgeLabelSide::Below,
+            &footprint,
+            GRID_W,
+            GRID_H,
+        );
+        assert_eq!(anchor, candidate);
+    }
+
+    #[test]
+    fn below_side_prefers_shift_down_first() {
+        // A horizontal bar (corner + terminal on top row, corridor
+        // below). Candidate lands on the corner; Below should shift
+        // down to (col, row+1), not up.
+        let ctx = grid_ctx(14.0, 14.0);
+        let path = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(42.0, 0.0),
+            FPoint::new(42.0, 28.0),
+        ];
+        let footprint = project_path_to_grid(&path, &ctx);
+        // Corner is at (3, 0).
+        let anchor =
+            choose_corridor_aware_anchor((3, 0), EdgeLabelSide::Below, &footprint, GRID_W, GRID_H);
+        assert_eq!(anchor, (3, 1));
+
+        let anchor_above =
+            choose_corridor_aware_anchor((3, 0), EdgeLabelSide::Above, &footprint, GRID_W, GRID_H);
+        // Above can't go up from row 0; the fallback picks (2,0) or (4,0).
+        assert_ne!(anchor_above, (3, 0));
+        assert!(
+            !matches!(
+                footprint.cells.get(&anchor_above),
+                Some(CellRole::Terminal | CellRole::Corner)
+            ),
+            "Above fallback landed on a load-bearing cell: {:?}",
+            anchor_above
+        );
     }
 }
