@@ -1161,6 +1161,7 @@ pub fn render_all_edges(
         diagram_direction,
         &HashMap::new(),
         &HashMap::new(),
+        &HashSet::new(),
     )
 }
 
@@ -1172,6 +1173,7 @@ pub fn render_all_edges_with_labels(
     diagram_direction: Direction,
     label_positions: &HashMap<usize, (usize, usize)>,
     edge_containment: &HashMap<usize, (usize, usize)>,
+    authoritative_label_positions: &HashSet<usize>,
 ) {
     // First pass: draw all segments and arrows
     for routed in routed_edges {
@@ -1228,7 +1230,19 @@ pub fn render_all_edges_with_labels(
                 None
             };
 
-            let placed = if routed.is_backward {
+            let authoritative = authoritative_label_positions.contains(&routed.edge.index)
+                .then(|| label_positions.get(&routed.edge.index).copied())
+                .flatten();
+
+            let placed = if let Some((cx, cy)) = authoritative {
+                // Plan 0152 Phase 3: corridor-aware placer already steered
+                // this anchor off load-bearing glyphs. Draw directly at the
+                // precomputed cell; skip drift / collision rechecks.
+                let base_x = cx.saturating_sub(label_width / 2);
+                let base_y = label_top_for_center(cy, label_height);
+                let base_x = clamp_label_x(base_x, label_width, bounds);
+                draw_label_direct(canvas, label, base_x, base_y, charset, routed.is_backward)
+            } else if routed.is_backward {
                 // For backward edges, compute label position from actual routed path.
                 // Corridor labels may overlap arrowheads from other edges, so
                 // disable arrow-collision avoidance and allow overwriting arrows.

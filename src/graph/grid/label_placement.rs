@@ -1,12 +1,10 @@
 //! Corridor-aware label placement primitives for the text grid.
 //!
 //! Projects a routed polyline into grid space and classifies each
-//! occupied cell by role. Task 3.3 consumes this footprint to steer an
-//! authoritative label anchor off load-bearing corridor glyphs.
-
-// Task 3.3 wires the primitives below into anchor selection; Task 3.4
-// wires anchor selection into derive/mod.rs and text/edge.rs.
-#![allow(dead_code)]
+//! occupied cell by role. `choose_corridor_aware_anchor` consumes the
+//! footprint to steer an authoritative label anchor off load-bearing
+//! corridor glyphs. Called from `derive/mod.rs` for every routed edge
+//! with an authoritative `label_geometry`.
 
 use std::collections::BTreeMap;
 
@@ -110,39 +108,63 @@ fn segment_axis(a: FPoint, b: FPoint) -> Option<Axis> {
 /// Pick a grid cell for an authoritative label anchor that respects
 /// the edge's path footprint.
 ///
-/// A candidate is "safe" when it is off the path entirely or sits on
-/// a straight-segment `Corridor` cell. `Terminal` and `Corner` cells
-/// carry load-bearing glyphs (arrowheads, bend characters) and are
-/// never acceptable anchors — the function walks a prioritized
-/// step-set in the direction declared by `side` and returns the first
-/// safe neighbor. When no neighbor is safe the candidate is returned
-/// unchanged; Task 3.4 treats that as a best-effort fallback.
+/// The candidate is treated as the *center* of a `label_width`-by-
+/// `label_height` block. A placement is "safe" when every cell that
+/// block would occupy is either off the path entirely or on a
+/// `Corridor` straight-segment cell — `Terminal` and `Corner` cells
+/// carry load-bearing glyphs (arrowheads, bend characters) and must
+/// never be overwritten. The function walks a prioritized step-set
+/// in the direction declared by `side` and returns the first safe
+/// neighbor, widening the search ring until a safe slot is found or
+/// the ring exceeds `label_height + 2`. If no neighbor is safe, the
+/// original candidate is returned (best-effort fallback).
 pub(crate) fn choose_corridor_aware_anchor(
     candidate: GridCell,
     side: EdgeLabelSide,
     footprint: &PathFootprint,
     grid_width: usize,
     grid_height: usize,
+    label_width: usize,
+    label_height: usize,
 ) -> GridCell {
-    if is_safe_cell(candidate, footprint) {
+    if is_safe_block(candidate, label_width, label_height, footprint) {
         return candidate;
     }
-    for (dx, dy) in shift_steps(side) {
-        if let Some(shifted) = apply_step(candidate, dx, dy, grid_width, grid_height)
-            && is_safe_cell(shifted, footprint)
-        {
-            return shifted;
+    // Widen the shift ring progressively. The label_height + 2 cap
+    // keeps the search bounded even for tall labels on dense paths.
+    let max_ring = label_height.max(label_width).saturating_add(2);
+    for ring in 1..=max_ring {
+        for (dx, dy) in shift_steps(side) {
+            let (rdx, rdy) = (dx * ring as isize, dy * ring as isize);
+            if let Some(shifted) = apply_step(candidate, rdx, rdy, grid_width, grid_height)
+                && is_safe_block(shifted, label_width, label_height, footprint)
+            {
+                return shifted;
+            }
         }
     }
     candidate
 }
 
-fn is_safe_cell(cell: GridCell, footprint: &PathFootprint) -> bool {
-    match footprint.cells.get(&cell) {
-        None => true,
-        Some(CellRole::Corridor) => true,
-        Some(CellRole::Corner | CellRole::Terminal) => false,
+fn is_safe_block(
+    center: GridCell,
+    label_width: usize,
+    label_height: usize,
+    footprint: &PathFootprint,
+) -> bool {
+    let base_x = center.0.saturating_sub(label_width / 2);
+    let base_y = center.1.saturating_sub(label_height / 2);
+    for row in base_y..base_y.saturating_add(label_height.max(1)) {
+        for col in base_x..base_x.saturating_add(label_width.max(1)) {
+            if matches!(
+                footprint.cells.get(&(col, row)),
+                Some(CellRole::Corner | CellRole::Terminal)
+            ) {
+                return false;
+            }
+        }
     }
+    true
 }
 
 fn shift_steps(side: EdgeLabelSide) -> [(isize, isize); 4] {
@@ -355,6 +377,8 @@ mod tests {
             &footprint,
             GRID_W,
             GRID_H,
+            1,
+            1,
         );
         assert_ne!(anchor, candidate);
         assert!(
@@ -378,6 +402,8 @@ mod tests {
             &footprint,
             GRID_W,
             GRID_H,
+            1,
+            1,
         );
         assert_ne!(anchor, candidate);
         assert!(
@@ -401,6 +427,8 @@ mod tests {
             &footprint,
             GRID_W,
             GRID_H,
+            1,
+            1,
         );
         assert_eq!(anchor, candidate);
     }
@@ -420,6 +448,8 @@ mod tests {
             &footprint,
             GRID_W,
             GRID_H,
+            1,
+            1,
         );
         assert_eq!(anchor, candidate);
     }
@@ -437,12 +467,26 @@ mod tests {
         ];
         let footprint = project_path_to_grid(&path, &ctx);
         // Corner is at (3, 0).
-        let anchor =
-            choose_corridor_aware_anchor((3, 0), EdgeLabelSide::Below, &footprint, GRID_W, GRID_H);
+        let anchor = choose_corridor_aware_anchor(
+            (3, 0),
+            EdgeLabelSide::Below,
+            &footprint,
+            GRID_W,
+            GRID_H,
+            1,
+            1,
+        );
         assert_eq!(anchor, (3, 1));
 
-        let anchor_above =
-            choose_corridor_aware_anchor((3, 0), EdgeLabelSide::Above, &footprint, GRID_W, GRID_H);
+        let anchor_above = choose_corridor_aware_anchor(
+            (3, 0),
+            EdgeLabelSide::Above,
+            &footprint,
+            GRID_W,
+            GRID_H,
+            1,
+            1,
+        );
         // Above can't go up from row 0; the fallback picks (2,0) or (4,0).
         assert_ne!(anchor_above, (3, 0));
         assert!(

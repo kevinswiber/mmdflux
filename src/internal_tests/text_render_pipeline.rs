@@ -553,6 +553,15 @@ mod plan_0152_corridor_aware_placement {
         );
     }
 
+    // Char-column of a substring in a string — `str::find` returns a
+    // byte index, which conflates with multi-byte glyphs like `│` when
+    // the test wants to measure visual column alignment. Returns `None`
+    // if the substring is not found.
+    fn char_col_of(line: &str, needle: &str) -> Option<usize> {
+        let byte_idx = line.find(needle)?;
+        Some(line[..byte_idx].chars().count())
+    }
+
     #[test]
     fn state_transitions_retry_label_stays_corridor_adjacent() {
         let text = render_state_fixture("transitions.mmd");
@@ -560,13 +569,19 @@ mod plan_0152_corridor_aware_placement {
             .lines()
             .position(|l| l.contains("retry"))
             .expect("retry should appear");
-        let retry_col = text.lines().nth(row_idx).unwrap().find("retry").unwrap();
+        let retry_col = char_col_of(text.lines().nth(row_idx).unwrap(), "retry")
+            .expect("retry col should be locatable");
 
         let neighboring_rows = [row_idx.saturating_sub(1), row_idx + 1];
         let nearest_pipe_col = neighboring_rows
             .iter()
             .filter_map(|&r| text.lines().nth(r))
-            .filter_map(|line| line.rfind('│'))
+            .filter_map(|line| {
+                line.chars()
+                    .enumerate()
+                    .filter_map(|(i, c)| (c == '│').then_some(i))
+                    .last()
+            })
             .next()
             .expect("neighboring row should carry a corridor `│`");
 
@@ -587,7 +602,8 @@ mod plan_0152_corridor_aware_placement {
         );
         let row = text.lines().position(|l| l.contains("git pull")).unwrap();
         let line = text.lines().nth(row).unwrap();
-        let label_col = line.find("git pull").unwrap();
+        let label_col =
+            char_col_of(line, "git pull").expect("git pull col should be locatable");
         let pipe_col = line
             .chars()
             .enumerate()

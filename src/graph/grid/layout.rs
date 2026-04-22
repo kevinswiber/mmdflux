@@ -171,6 +171,13 @@ pub struct GridLayout {
     /// Only populated for edges that have labels.
     pub edge_label_positions: HashMap<usize, (usize, usize)>,
 
+    /// Edges whose `edge_label_positions` entry came from the corridor-aware
+    /// placer (Plan 0152 Phase 3). The text renderer must draw these labels
+    /// at the precomputed cell without drift-checking against the routed
+    /// polyline or running collision avoidance — the placer already steered
+    /// the anchor off load-bearing corridor glyphs.
+    pub authoritative_label_positions: HashSet<usize>,
+
     /// Node shapes for intersection calculation.
     /// Maps node ID to its shape for computing dynamic attachment points.
     pub node_shapes: HashMap<String, Shape>,

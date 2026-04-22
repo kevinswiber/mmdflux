@@ -3084,6 +3084,7 @@ fn text_renderer_rejects_stale_precomputed_label_anchor_for_label_revalidation_f
             diagram.direction,
             label_positions,
             &std::collections::HashMap::new(),
+            &std::collections::HashSet::new(),
         );
 
         let output = canvas.to_string();

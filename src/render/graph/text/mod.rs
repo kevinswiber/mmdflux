@@ -59,6 +59,7 @@ pub fn render_text_from_grid_layout(
         diagram.direction,
         &layout.edge_label_positions,
         &edge_containment,
+        &layout.authoritative_label_positions,
     );
 
     apply_subgraph_border_junctions(
