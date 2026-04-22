@@ -9,8 +9,6 @@
 use std::collections::BTreeMap;
 
 use crate::graph::geometry::EdgeLabelSide;
-use crate::graph::grid::layout::TransformContext;
-use crate::graph::space::FPoint;
 
 pub(crate) type GridCell = (usize, usize);
 
@@ -26,61 +24,85 @@ pub(crate) struct PathFootprint {
     pub cells: BTreeMap<GridCell, CellRole>,
 }
 
-pub(crate) fn project_path_to_grid(path: &[FPoint], ctx: &TransformContext) -> PathFootprint {
-    let mut cells = BTreeMap::new();
+/// Build a `PathFootprint` directly from a grid-space polyline (e.g.
+/// the post-processed `routed_edge_paths` used by the text renderer).
+/// Callers draw from this exact polyline, so building the footprint
+/// from grid cells avoids the float→grid quantization mismatch where
+/// a corner glyph would otherwise land one cell off from a float-space
+/// bend point.
+///
+/// The integration path in `derive/mod.rs` only needs
+/// `extend_grid_polyline_into` (merging many edges into one footprint);
+/// this single-polyline entry point exists for unit tests.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn project_grid_polyline(path: &[GridCell]) -> PathFootprint {
+    let mut footprint = PathFootprint::default();
+    extend_grid_polyline_into(path, &mut footprint);
+    footprint
+}
+
+/// Union the footprint of a grid-space polyline into `dest`. Used by
+/// callers that need a single footprint across several edges (labels
+/// on one edge must not stomp another edge's corner/terminal glyphs).
+pub(crate) fn extend_grid_polyline_into(path: &[GridCell], dest: &mut PathFootprint) {
     if path.len() < 2 {
-        return PathFootprint { cells };
+        return;
     }
 
+    // Corridor cells first, then tag corners, then terminals. Using
+    // `entry(...).or_insert` respects the priority: Corner upgrades
+    // Corridor; Terminal upgrades both.
     for window in path.windows(2) {
-        fill_segment_cells(window[0], window[1], ctx, &mut cells);
+        fill_grid_segment_cells(window[0], window[1], &mut dest.cells);
     }
 
     for i in 1..path.len() - 1 {
-        let prev_axis = segment_axis(path[i - 1], path[i]);
-        let next_axis = segment_axis(path[i], path[i + 1]);
+        let prev_axis = grid_segment_axis(path[i - 1], path[i]);
+        let next_axis = grid_segment_axis(path[i], path[i + 1]);
         if prev_axis != next_axis && prev_axis.is_some() && next_axis.is_some() {
-            let bend_cell = ctx.to_grid(path[i].x, path[i].y);
-            cells.entry(bend_cell).and_modify(|role| {
-                if !matches!(role, CellRole::Terminal) {
-                    *role = CellRole::Corner;
-                }
-            });
+            dest.cells
+                .entry(path[i])
+                .and_modify(|role| {
+                    if !matches!(role, CellRole::Terminal) {
+                        *role = CellRole::Corner;
+                    }
+                })
+                .or_insert(CellRole::Corner);
         }
     }
 
-    let first = ctx.to_grid(path[0].x, path[0].y);
-    let last = ctx.to_grid(path[path.len() - 1].x, path[path.len() - 1].y);
-    cells.insert(first, CellRole::Terminal);
-    cells.insert(last, CellRole::Terminal);
-
-    PathFootprint { cells }
+    dest.cells.insert(path[0], CellRole::Terminal);
+    dest.cells.insert(path[path.len() - 1], CellRole::Terminal);
 }
 
-fn fill_segment_cells(
-    a: FPoint,
-    b: FPoint,
-    ctx: &TransformContext,
-    cells: &mut BTreeMap<GridCell, CellRole>,
-) {
-    let start = ctx.to_grid(a.x, a.y);
-    let end = ctx.to_grid(b.x, b.y);
-    match segment_axis(a, b) {
+fn fill_grid_segment_cells(a: GridCell, b: GridCell, cells: &mut BTreeMap<GridCell, CellRole>) {
+    match grid_segment_axis(a, b) {
         Some(Axis::Horizontal) => {
-            let (c_min, c_max) = (start.0.min(end.0), start.0.max(end.0));
+            let (c_min, c_max) = (a.0.min(b.0), a.0.max(b.0));
             for col in c_min..=c_max {
-                cells.entry((col, start.1)).or_insert(CellRole::Corridor);
+                cells.entry((col, a.1)).or_insert(CellRole::Corridor);
             }
         }
         Some(Axis::Vertical) => {
-            let (r_min, r_max) = (start.1.min(end.1), start.1.max(end.1));
+            let (r_min, r_max) = (a.1.min(b.1), a.1.max(b.1));
             for row in r_min..=r_max {
-                cells.entry((start.0, row)).or_insert(CellRole::Corridor);
+                cells.entry((a.0, row)).or_insert(CellRole::Corridor);
             }
         }
         None => {
-            fill_bresenham(start, end, cells);
+            fill_bresenham(a, b, cells);
         }
+    }
+}
+
+fn grid_segment_axis(a: GridCell, b: GridCell) -> Option<Axis> {
+    let same_col = a.0 == b.0;
+    let same_row = a.1 == b.1;
+    match (same_col, same_row) {
+        (true, true) => None,
+        (true, false) => Some(Axis::Vertical),
+        (false, true) => Some(Axis::Horizontal),
+        (false, false) => None,
     }
 }
 
@@ -88,21 +110,6 @@ fn fill_segment_cells(
 enum Axis {
     Horizontal,
     Vertical,
-}
-
-fn segment_axis(a: FPoint, b: FPoint) -> Option<Axis> {
-    const EPS: f64 = 0.001;
-    let dx = (b.x - a.x).abs();
-    let dy = (b.y - a.y).abs();
-    if dx < EPS && dy < EPS {
-        None
-    } else if dx < EPS {
-        Some(Axis::Vertical)
-    } else if dy < EPS {
-        Some(Axis::Horizontal)
-    } else {
-        None
-    }
 }
 
 /// Pick a grid cell for an authoritative label anchor that respects
@@ -226,22 +233,20 @@ fn fill_bresenham(start: GridCell, end: GridCell, cells: &mut BTreeMap<GridCell,
 mod tests {
     use super::*;
 
-    fn grid_ctx(cell_width_px: f64, cell_height_px: f64) -> TransformContext {
-        TransformContext::for_test(cell_width_px, cell_height_px)
-    }
+    const GRID_W: usize = 16;
+    const GRID_H: usize = 16;
 
     #[test]
     fn project_straight_horizontal_segment_fills_corridor_cells() {
-        let ctx = grid_ctx(14.0, 14.0);
-        let path = vec![FPoint::new(0.0, 28.0), FPoint::new(84.0, 28.0)];
-        let footprint = project_path_to_grid(&path, &ctx);
+        // Grid cells (0,2) and (6,2) are terminals; interior is Corridor.
+        let path = vec![(0usize, 2usize), (6, 2)];
+        let footprint = project_grid_polyline(&path);
         let corridor_cells: Vec<_> = footprint
             .cells
             .iter()
             .filter(|(_, role)| matches!(role, CellRole::Corridor))
             .map(|(cell, _)| *cell)
             .collect();
-        // The two end-cells are tagged Terminal; only the interior is Corridor.
         assert_eq!(corridor_cells, (1..=5).map(|c| (c, 2)).collect::<Vec<_>>());
 
         let terminals: Vec<_> = footprint
@@ -255,9 +260,8 @@ mod tests {
 
     #[test]
     fn project_straight_vertical_segment_fills_corridor_cells() {
-        let ctx = grid_ctx(14.0, 14.0);
-        let path = vec![FPoint::new(42.0, 0.0), FPoint::new(42.0, 70.0)];
-        let footprint = project_path_to_grid(&path, &ctx);
+        let path = vec![(3usize, 0usize), (3, 5)];
+        let footprint = project_grid_polyline(&path);
         let corridor_cells: Vec<_> = footprint
             .cells
             .iter()
@@ -277,13 +281,8 @@ mod tests {
 
     #[test]
     fn project_l_bend_marks_corner_cell() {
-        let ctx = grid_ctx(14.0, 14.0);
-        let path = vec![
-            FPoint::new(0.0, 0.0),
-            FPoint::new(42.0, 0.0),
-            FPoint::new(42.0, 42.0),
-        ];
-        let footprint = project_path_to_grid(&path, &ctx);
+        let path = vec![(0usize, 0usize), (3, 0), (3, 3)];
+        let footprint = project_grid_polyline(&path);
         let corner_cells: Vec<_> = footprint
             .cells
             .iter()
@@ -303,14 +302,8 @@ mod tests {
 
     #[test]
     fn project_u_channel_marks_terminals_and_two_corners() {
-        let ctx = grid_ctx(14.0, 14.0);
-        let path = vec![
-            FPoint::new(84.0, 14.0),
-            FPoint::new(84.0, 42.0),
-            FPoint::new(14.0, 42.0),
-            FPoint::new(14.0, 14.0),
-        ];
-        let footprint = project_path_to_grid(&path, &ctx);
+        let path = vec![(6usize, 1usize), (6, 3), (1, 3), (1, 1)];
+        let footprint = project_grid_polyline(&path);
 
         let terminals: Vec<_> = footprint
             .cells
@@ -340,36 +333,21 @@ mod tests {
 
     #[test]
     fn project_degenerate_single_point_returns_empty_footprint() {
-        let ctx = grid_ctx(14.0, 14.0);
-        let path = vec![FPoint::new(0.0, 0.0)];
-        let footprint = project_path_to_grid(&path, &ctx);
+        let path = vec![(0usize, 0usize)];
+        let footprint = project_grid_polyline(&path);
         assert!(footprint.cells.is_empty());
     }
 
     // Task 3.3 — choose_corridor_aware_anchor
-
     use crate::graph::geometry::EdgeLabelSide;
 
-    const GRID_W: usize = 16;
-    const GRID_H: usize = 16;
-
-    fn u_channel_footprint(ctx: &TransformContext) -> PathFootprint {
-        // Terminals at (6, 1) and (1, 1); corners at (6, 3), (1, 3);
-        // corridor on the two vertical legs (cols 1 and 6) and the
-        // long leg on row 3.
-        let path = vec![
-            FPoint::new(84.0, 14.0),
-            FPoint::new(84.0, 42.0),
-            FPoint::new(14.0, 42.0),
-            FPoint::new(14.0, 14.0),
-        ];
-        project_path_to_grid(&path, ctx)
+    fn u_channel_footprint() -> PathFootprint {
+        project_grid_polyline(&[(6usize, 1usize), (6, 3), (1, 3), (1, 1)])
     }
 
     #[test]
     fn anchor_on_terminal_cell_shifts_off() {
-        let ctx = grid_ctx(14.0, 14.0);
-        let footprint = u_channel_footprint(&ctx);
+        let footprint = u_channel_footprint();
         let candidate = (6, 1); // terminal
         let anchor = choose_corridor_aware_anchor(
             candidate,
@@ -393,8 +371,7 @@ mod tests {
 
     #[test]
     fn anchor_on_corner_cell_shifts_off() {
-        let ctx = grid_ctx(14.0, 14.0);
-        let footprint = u_channel_footprint(&ctx);
+        let footprint = u_channel_footprint();
         let candidate = (1, 3); // corner
         let anchor = choose_corridor_aware_anchor(
             candidate,
@@ -418,8 +395,7 @@ mod tests {
 
     #[test]
     fn anchor_on_corridor_cell_remains_unchanged() {
-        let ctx = grid_ctx(14.0, 14.0);
-        let footprint = u_channel_footprint(&ctx);
+        let footprint = u_channel_footprint();
         let candidate = (6, 2); // corridor on the right vertical leg
         let anchor = choose_corridor_aware_anchor(
             candidate,
@@ -435,12 +411,11 @@ mod tests {
 
     #[test]
     fn anchor_off_path_remains_unchanged() {
-        let ctx = grid_ctx(14.0, 14.0);
-        let footprint = u_channel_footprint(&ctx);
+        let footprint = u_channel_footprint();
         // (4, 2) is not on any footprint cell — off-path is safe by
-        // definition. Task 3.4 owns the "snap toward corridor" policy
-        // at a higher layer; the placer itself preserves float anchors
-        // that fall off the edge entirely.
+        // definition. The placer preserves anchors that fall off the
+        // edge entirely; the caller owns any "snap toward corridor"
+        // policy above this layer.
         let candidate = (4, 2);
         let anchor = choose_corridor_aware_anchor(
             candidate,
@@ -456,17 +431,10 @@ mod tests {
 
     #[test]
     fn below_side_prefers_shift_down_first() {
-        // A horizontal bar (corner + terminal on top row, corridor
+        // A horizontal bar (terminal + corner on top row, corridor
         // below). Candidate lands on the corner; Below should shift
         // down to (col, row+1), not up.
-        let ctx = grid_ctx(14.0, 14.0);
-        let path = vec![
-            FPoint::new(0.0, 0.0),
-            FPoint::new(42.0, 0.0),
-            FPoint::new(42.0, 28.0),
-        ];
-        let footprint = project_path_to_grid(&path, &ctx);
-        // Corner is at (3, 0).
+        let footprint = project_grid_polyline(&[(0usize, 0usize), (3, 0), (3, 2)]);
         let anchor = choose_corridor_aware_anchor(
             (3, 0),
             EdgeLabelSide::Below,

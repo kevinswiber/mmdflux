@@ -296,20 +296,4 @@ impl TransformContext {
             + self.padding;
         (x, y)
     }
-
-    // Unit-test helper: zero-origin context with a whole-pixel cell size so
-    // `(px, py)` maps cleanly to `(px / cell_width, py / cell_height)`.
-    #[cfg(test)]
-    pub(crate) fn for_test(cell_width_px: f64, cell_height_px: f64) -> Self {
-        Self {
-            layout_min_x: 0.0,
-            layout_min_y: 0.0,
-            scale_x: 1.0 / cell_width_px,
-            scale_y: 1.0 / cell_height_px,
-            padding: 0,
-            left_label_margin: 0,
-            overhang_x: 0,
-            overhang_y: 0,
-        }
-    }
 }

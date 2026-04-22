@@ -602,8 +602,7 @@ mod plan_0152_corridor_aware_placement {
         );
         let row = text.lines().position(|l| l.contains("git pull")).unwrap();
         let line = text.lines().nth(row).unwrap();
-        let label_col =
-            char_col_of(line, "git pull").expect("git pull col should be locatable");
+        let label_col = char_col_of(line, "git pull").expect("git pull col should be locatable");
         let pipe_col = line
             .chars()
             .enumerate()

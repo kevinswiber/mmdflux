@@ -38,7 +38,9 @@ use waypoints::{
 };
 
 use super::GridLayoutConfig;
-use super::label_placement::{choose_corridor_aware_anchor, project_path_to_grid};
+use super::label_placement::{
+    CellRole, PathFootprint, choose_corridor_aware_anchor, extend_grid_polyline_into,
+};
 use super::layout::{
     CoordTransform, GridLayout, NodeBounds, RawCenter, SelfEdgeDrawData, TransformContext,
 };
@@ -814,9 +816,36 @@ pub fn geometry_to_grid_layout_with_routed(
     // baseline heuristic already honours the producer's intent; taking
     // over adds unnecessary layout churn and can collapse adjacent
     // corridor glyphs into junctions.
-    const AUTHORITATIVE_OVERRIDE_DRIFT: usize = 2;
+    // The heuristic already emits a readable placement when the
+    // authoritative center sits close to its own midpoint. Only
+    // override when the producer's center is further away than this
+    // threshold — the corridor-aware placer's job is to rescue
+    // egregiously stale anchors (the `state/transitions retry` 7-cell
+    // float, the `git_workflow_td git pull` 8-cell float), not to
+    // reshape already-good layouts.
+    const AUTHORITATIVE_OVERRIDE_DRIFT: usize = 5;
     let mut authoritative_label_positions: HashSet<usize> = HashSet::new();
     if let Some(routed) = routed {
+        // Union the footprints of every routed edge so a label on edge
+        // A can't stomp edge B's corner or terminal glyphs.
+        let mut global_footprint = PathFootprint::default();
+        for grid_path in routed_edge_paths.values() {
+            extend_grid_polyline_into(grid_path, &mut global_footprint);
+        }
+        // Track cells already claimed by a placed authoritative label so
+        // the next edge's placer steers around them. `Terminal` is the
+        // strongest role: once written, it rejects any overlap.
+        let claim_label_cells =
+            |footprint: &mut PathFootprint, center: (usize, usize), dims: (usize, usize)| {
+                let (w, h) = (dims.0.max(1), dims.1.max(1));
+                let base_x = center.0.saturating_sub(w / 2);
+                let base_y = center.1.saturating_sub(h / 2);
+                for row in base_y..base_y.saturating_add(h) {
+                    for col in base_x..base_x.saturating_add(w) {
+                        footprint.cells.insert((col, row), CellRole::Terminal);
+                    }
+                }
+            };
         for edge in &routed.edges {
             let Some(label_geometry) = edge.label_geometry else {
                 continue;
@@ -841,12 +870,14 @@ pub fn geometry_to_grid_layout_with_routed(
                     continue;
                 }
             }
-            let footprint = project_path_to_grid(&edge.path, &ctx);
+            if !routed_edge_paths.contains_key(&edge.index) {
+                continue;
+            }
             let label_dims = label_geometry_to_grid_dims(&label_geometry, &ctx);
             let anchor = choose_corridor_aware_anchor(
                 candidate,
                 label_geometry.side,
-                &footprint,
+                &global_footprint,
                 width,
                 height,
                 label_dims.0,
@@ -862,6 +893,7 @@ pub fn geometry_to_grid_layout_with_routed(
             }
             edge_label_positions.insert(edge.index, anchor);
             authoritative_label_positions.insert(edge.index);
+            claim_label_cells(&mut global_footprint, anchor, label_dims);
         }
     }
 

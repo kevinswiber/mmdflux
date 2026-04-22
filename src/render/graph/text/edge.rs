@@ -1230,7 +1230,8 @@ pub fn render_all_edges_with_labels(
                 None
             };
 
-            let authoritative = authoritative_label_positions.contains(&routed.edge.index)
+            let authoritative = authoritative_label_positions
+                .contains(&routed.edge.index)
                 .then(|| label_positions.get(&routed.edge.index).copied())
                 .flatten();
 
