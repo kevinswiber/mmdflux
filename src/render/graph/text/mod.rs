@@ -10,7 +10,69 @@ mod shape;
 mod subgraph;
 
 #[cfg(test)]
-pub(crate) use edge::{render_all_edges, render_edge};
+pub(crate) use edge::{compute_edge_containment, render_all_edges, render_edge};
+
+#[cfg(test)]
+pub(crate) fn required_canvas_size_for_test(
+    layout: &GridLayout,
+    routed_edges: &[RoutedEdge],
+) -> (usize, usize) {
+    required_canvas_size(layout, routed_edges)
+}
+
+/// Test-only: render into a canvas and return it (no trimming). Lets harnesses
+/// compare placer output coords directly to canvas cells.
+#[cfg(test)]
+pub(crate) fn render_text_canvas_for_test(
+    diagram: &Graph,
+    layout: &GridLayout,
+    routed: Option<&RoutedGraphGeometry>,
+    options: &TextRenderOptions,
+) -> Canvas {
+    let charset = match options.output_format {
+        OutputFormat::Ascii => CharSet::ascii(),
+        _ => CharSet::unicode(),
+    };
+
+    let routed_edges = route_all_edges(&diagram.edges, layout, diagram.direction);
+    let (canvas_width, canvas_height) = required_canvas_size(layout, &routed_edges);
+    let mut canvas = Canvas::new(canvas_width, canvas_height);
+
+    if !layout.subgraph_bounds.is_empty() {
+        subgraph::render_subgraph_borders(&mut canvas, &layout.subgraph_bounds, &charset);
+    }
+
+    let mut node_keys: Vec<&String> = diagram.nodes.keys().collect();
+    node_keys.sort();
+    for node_id in node_keys {
+        let node = &diagram.nodes[node_id];
+        if let Some(&(x, y)) = layout.draw_positions.get(node_id) {
+            shape::render_node(&mut canvas, node, x, y, &charset, diagram.direction);
+        }
+    }
+
+    let edge_containment =
+        edge::compute_edge_containment(&diagram.edges, &diagram.subgraphs, &layout.subgraph_bounds);
+
+    edge::render_all_edges_with_labels(
+        &mut canvas,
+        &routed_edges,
+        &charset,
+        diagram.direction,
+        &edge_containment,
+        layout,
+        routed,
+    );
+
+    apply_subgraph_border_junctions(
+        &mut canvas,
+        &layout.subgraph_bounds,
+        &routed_edges,
+        &charset,
+    );
+
+    canvas
+}
 #[cfg(test)]
 mod regression_tests;
 

@@ -24,8 +24,10 @@ use crate::graph::grid::label_placement::{
     PathFootprint, choose_corridor_aware_anchor, claim_label_cells_into, extend_segments_into,
     label_rect_overlaps_nodes, seed_node_cells_into, seed_subgraph_borders_into,
 };
-use crate::graph::grid::{GridLayout, RoutedEdge};
+use crate::graph::grid::{GridLayout, RoutedEdge, Segment};
 use crate::graph::{Edge, Stroke};
+
+const OFF_CORRIDOR_DRIFT_THRESHOLD: f64 = 3.0;
 
 /// Which edges the render-time placer is allowed to own.
 ///
@@ -152,6 +154,21 @@ pub(crate) fn compute_label_placements(
 
         let midpoint = calc_label_position(&routed.segments).map(|p| (p.x, p.y));
         let projected = geometry.map(|g| layout.project_layout_point(g.center.x, g.center.y));
+        // Some forward edges carry a projected `EdgeLabelGeometry.center`
+        // shifted well away from the Pass-3 corridor. If that shifted cell is
+        // safe, `choose_corridor_aware_anchor` returns it unchanged and never
+        // searches back toward the drawn path. Bypass projection only when the
+        // projected cell is materially off-corridor and the Pass-3 midpoint is
+        // on-corridor. This keeps ordinary lane-coordinated labels stable while
+        // covering the singleton F2 cases and observed two-label forward
+        // cases that share the same off-corridor projection shape. See
+        // research 0069 Q3 addendum + Q4 F2.
+        let projected =
+            if should_prefer_midpoint_for_forward_edge(routed, geometry, projected, midpoint) {
+                None
+            } else {
+                projected
+            };
         let Some(candidate_center) = projected.or(midpoint) else {
             continue;
         };
@@ -254,6 +271,53 @@ fn edge_label_geometry<'rg>(
 /// greater than 1.
 fn is_authoritative_geometry(geometry: &EdgeLabelGeometry) -> bool {
     geometry.track != 0 || geometry.compartment_size > 1
+}
+
+fn should_prefer_midpoint_for_forward_edge(
+    routed: &RoutedEdge,
+    geometry: Option<&EdgeLabelGeometry>,
+    projected: Option<(usize, usize)>,
+    midpoint: Option<(usize, usize)>,
+) -> bool {
+    if routed.is_backward {
+        return false;
+    }
+    let Some(geometry) = geometry else {
+        return false;
+    };
+
+    let (Some(projected), Some(midpoint)) = (projected, midpoint) else {
+        return false;
+    };
+    // Research 0069 Q2 used >3 cells as the bucket-(a) off-corridor
+    // boundary. Keeping that same boundary makes this a measured bad-
+    // projection repair, not a general rewrite of coordinated label policy.
+    if distance_to_segments(projected, &routed.segments) <= OFF_CORRIDOR_DRIFT_THRESHOLD
+        || distance_to_segments(midpoint, &routed.segments) > OFF_CORRIDOR_DRIFT_THRESHOLD
+    {
+        return false;
+    }
+
+    !is_authoritative_geometry(geometry) || (geometry.compartment_size == 2 && geometry.track != 0)
+}
+
+fn distance_to_segments(point: (usize, usize), segments: &[Segment]) -> f64 {
+    let (px, py) = (point.0 as f64, point.1 as f64);
+    segments
+        .iter()
+        .map(|segment| match *segment {
+            Segment::Horizontal { y, x_start, x_end } => {
+                let (x_min, x_max) = (x_start.min(x_end) as f64, x_start.max(x_end) as f64);
+                let clamped_x = px.max(x_min).min(x_max);
+                ((clamped_x - px).powi(2) + (y as f64 - py).powi(2)).sqrt()
+            }
+            Segment::Vertical { x, y_start, y_end } => {
+                let (y_min, y_max) = (y_start.min(y_end) as f64, y_start.max(y_end) as f64);
+                let clamped_y = py.max(y_min).min(y_max);
+                ((x as f64 - px).powi(2) + (clamped_y - py).powi(2)).sqrt()
+            }
+        })
+        .fold(f64::INFINITY, f64::min)
 }
 
 fn label_center_from_top(top_y: usize, height: usize) -> usize {

@@ -112,6 +112,18 @@ impl Canvas {
         }
     }
 
+    /// Test-only: return every cell row verbatim as a `Vec<String>` without the
+    /// `fmt::Display` trimming (no empty-row trimming, no common-indent stripping).
+    /// This keeps character columns and row indices aligned with canvas coordinates
+    /// so harnesses can compare placer output directly to rendered text.
+    #[cfg(test)]
+    pub(crate) fn to_raw_lines(&self) -> Vec<String> {
+        self.cells
+            .iter()
+            .map(|row| row.iter().map(|cell| cell.ch).collect::<String>())
+            .collect()
+    }
+
     /// Get the cell at the given position.
     ///
     /// Returns `None` if the position is out of bounds.
