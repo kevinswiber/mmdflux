@@ -477,7 +477,8 @@ fn draw_message(
 
     let label = format_label(text, number);
     if !label.is_empty() {
-        let label_x = start_x + 1;
+        let offset = if !left_to_right && ac.is_some() { 2 } else { 1 };
+        let label_x = start_x + offset;
         canvas.write_str(label_x, y, &label);
     }
 }

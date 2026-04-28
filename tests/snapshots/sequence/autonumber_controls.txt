@@ -4,9 +4,9 @@
      │                    │
      │─10. Login request─>│
      │                    │
-     │<12. Challenge┄┄┄┄┄┄│
+     │<┄12. Challenge┄┄┄┄┄│
      │                    │
      │─Background ping───>│
      │                    │
-     │<14. Session ready┄┄│
+     │<┄14. Session ready┄│
      │                    │

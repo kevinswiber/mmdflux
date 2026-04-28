@@ -5,5 +5,5 @@
     │─Create Bob────>│ Bob │
     │                └──┬──┘
     │                   │
-    │<Hello Alice┄┄┄┄┄┄┄│
+    │<┄Hello Alice┄┄┄┄┄┄│
     │                   │
