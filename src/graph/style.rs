@@ -534,13 +534,7 @@ pub fn parse_class_apply_statement(raw: &str) -> Option<ParsedClassApplyDirectiv
     let trimmed = raw.trim();
 
     // Reject "classDef" lines (keyword prefix overlap).
-    if trimmed.len() >= 8
-        && trimmed[..8].eq_ignore_ascii_case("classDef")
-        && trimmed[8..]
-            .chars()
-            .next()
-            .is_none_or(|c| !c.is_alphanumeric() && c != '_')
-    {
+    if strip_keyword(trimmed, "classDef").is_some() {
         return None;
     }
 

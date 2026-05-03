@@ -400,54 +400,56 @@ pub(crate) fn normalize_br_tags(text: &str) -> String {
     let bytes = text.as_bytes();
     let len = bytes.len();
     let mut result = String::with_capacity(len);
-    let mut i = 0;
+    let mut cursor = 0;
 
-    while i < len {
-        if bytes[i] == b'<' {
-            // Try to match <br>, <br/>, <br />, etc.
-            let start = i;
-            i += 1;
-            // Skip optional whitespace after <
-            while i < len && bytes[i] == b' ' {
-                i += 1;
-            }
-            // Match 'b'/'B'
-            if i < len && bytes[i].eq_ignore_ascii_case(&b'b') {
-                i += 1;
-                // Match 'r'/'R'
-                if i < len && bytes[i].eq_ignore_ascii_case(&b'r') {
-                    i += 1;
-                    // Skip optional whitespace
-                    while i < len && bytes[i] == b' ' {
-                        i += 1;
-                    }
-                    // Skip optional '/'
-                    if i < len && bytes[i] == b'/' {
-                        i += 1;
-                    }
-                    // Skip optional whitespace
-                    while i < len && bytes[i] == b' ' {
-                        i += 1;
-                    }
-                    // Match '>'
-                    if i < len && bytes[i] == b'>' {
-                        i += 1;
-                        result.push('\n');
-                        continue;
-                    }
-                }
-            }
-            // Not a <br> tag — emit the characters we skipped
-            for &b in &bytes[start..i] {
-                result.push(b as char);
-            }
+    while let Some(offset) = text[cursor..].find('<') {
+        let start = cursor + offset;
+        result.push_str(&text[cursor..start]);
+
+        if let Some(end) = match_br_tag(bytes, start) {
+            result.push('\n');
+            cursor = end;
         } else {
-            result.push(bytes[i] as char);
-            i += 1;
+            result.push('<');
+            cursor = start + 1;
         }
     }
 
+    result.push_str(&text[cursor..]);
     result
+}
+
+fn match_br_tag(bytes: &[u8], start: usize) -> Option<usize> {
+    let len = bytes.len();
+    let mut i = start + 1;
+
+    // Skip optional whitespace after <
+    while i < len && bytes[i] == b' ' {
+        i += 1;
+    }
+
+    // Match 'b'/'B' and 'r'/'R'
+    if i >= len || !bytes[i].eq_ignore_ascii_case(&b'b') {
+        return None;
+    }
+    i += 1;
+    if i >= len || !bytes[i].eq_ignore_ascii_case(&b'r') {
+        return None;
+    }
+    i += 1;
+
+    // Skip optional whitespace and optional '/'
+    while i < len && bytes[i] == b' ' {
+        i += 1;
+    }
+    if i < len && bytes[i] == b'/' {
+        i += 1;
+    }
+    while i < len && bytes[i] == b' ' {
+        i += 1;
+    }
+
+    (i < len && bytes[i] == b'>').then_some(i + 1)
 }
 
 fn convert_shape(shape_spec: &ShapeSpec) -> Shape {
@@ -1004,6 +1006,12 @@ mod tests {
     }
 
     #[test]
+    fn test_br_tag_preserves_utf8_text() {
+        assert_eq!(normalize_br_tags("開始<br>処理"), "開始\n処理");
+        assert_eq!(normalize_br_tags("開始<タグ>処理"), "開始<タグ>処理");
+    }
+
+    #[test]
     fn test_br_tag_empty_string() {
         assert_eq!(normalize_br_tags(""), "");
     }
@@ -1031,6 +1039,31 @@ mod tests {
         let flowchart = parse_flowchart("graph TD\nA -->|yes<br>no| B\n").unwrap();
         let diagram = compile_to_graph(&flowchart);
         assert_eq!(diagram.edges[0].label, Some("yes\nno".to_string()));
+    }
+
+    #[test]
+    fn test_node_label_with_utf8_text() {
+        let flowchart = parse_flowchart("graph TD\nA[開始]\n").unwrap();
+        let diagram = compile_to_graph(&flowchart);
+        let node = diagram.get_node("A").unwrap();
+        assert_eq!(node.label, "開始");
+    }
+
+    #[test]
+    fn test_node_label_with_utf8_text_and_br_tag() {
+        let flowchart = parse_flowchart("graph TD\nA[開始<br>処理]\n").unwrap();
+        let diagram = compile_to_graph(&flowchart);
+        let node = diagram.get_node("A").unwrap();
+        assert_eq!(node.label, "開始\n処理");
+    }
+
+    #[test]
+    fn test_edge_label_with_utf8_text() {
+        for input in ["graph TD\nA -- 確認 --> B\n", "graph TD\nA -->|確認| B\n"] {
+            let flowchart = parse_flowchart(input).unwrap();
+            let diagram = compile_to_graph(&flowchart);
+            assert_eq!(diagram.edges[0].label, Some("確認".to_string()));
+        }
     }
 
     mod owner_local_fixture_regressions {
