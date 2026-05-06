@@ -1,0 +1,640 @@
+{
+  "profileId": "mmdflux-sans-v1",
+  "metricsProfileSource": "recorded",
+  "source": {
+    "family": "Liberation Sans",
+    "style": "Regular",
+    "version": "2.1.5",
+    "license": "SIL Open Font License 1.1",
+    "releaseUrl": "https://github.com/liberationfonts/liberation-fonts/releases/tag/2.1.5",
+    "artifactUrl": "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz",
+    "artifactSha256": "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0",
+    "fontSha256": "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8"
+  },
+  "aliases": [
+    "\"trebuchet ms\", verdana, arial, sans-serif",
+    "trebuchet ms",
+    "verdana",
+    "arial",
+    "arial, sans-serif",
+    "sans-serif",
+    "liberation sans"
+  ],
+  "advanceScale": 1.0,
+  "lineMetrics": {
+    "unitsPerEm": 2048,
+    "ascender": 1854,
+    "descender": -434,
+    "lineGap": 67,
+    "cssLineHeightRatio": 1.5
+  },
+  "defaultTextStyle": {
+    "fontFamily": "\"trebuchet ms\", verdana, arial, sans-serif",
+    "fontSize": 16.0,
+    "lineHeight": 24.0,
+    "fontStyle": "normal",
+    "fontWeight": 400
+  },
+  "coverage": {
+    "includePrintableAscii": true,
+    "fixtureGlobs": [
+      "tests/fixtures/**/*.mmd",
+      "tests/fixtures/**/*.json"
+    ],
+    "ranges": [
+      {
+        "start": "U+00A0",
+        "end": "U+00A0",
+        "description": "non-breaking space"
+      },
+      {
+        "start": "U+2010",
+        "end": "U+2010",
+        "description": "hyphen"
+      },
+      {
+        "start": "U+2012",
+        "end": "U+2022",
+        "description": "common punctuation and bullets"
+      },
+      {
+        "start": "U+2030",
+        "end": "U+2030",
+        "description": "per mille sign"
+      },
+      {
+        "start": "U+2032",
+        "end": "U+2034",
+        "description": "prime marks"
+      },
+      {
+        "start": "U+2039",
+        "end": "U+203A",
+        "description": "single angle quotes"
+      },
+      {
+        "start": "U+2026",
+        "end": "U+2026",
+        "description": "ellipsis"
+      },
+      {
+        "start": "U+2190",
+        "end": "U+2195",
+        "description": "common arrows"
+      },
+      {
+        "start": "U+21A8",
+        "end": "U+21A8",
+        "description": "up-down arrow with base"
+      },
+      {
+        "start": "U+21D4",
+        "end": "U+21D4",
+        "description": "left-right double arrow"
+      }
+    ],
+    "explicitFallbackCodepoints": []
+  },
+  "fallbackPolicy": {
+    "tab": "four spaces",
+    "combiningMarkEm": 0.0,
+    "spaceSeparatorEm": 0.25,
+    "wideScalarEm": 1.0,
+    "missingScalarEm": 0.56,
+    "controlEm": 0.0
+  },
+  "advances": [
+    {
+      "codepoint": "U+0020",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+0021",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+0022",
+      "advanceUnits": 727
+    },
+    {
+      "codepoint": "U+0023",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0024",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0025",
+      "advanceUnits": 1821
+    },
+    {
+      "codepoint": "U+0026",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+0027",
+      "advanceUnits": 391
+    },
+    {
+      "codepoint": "U+0028",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+0029",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+002A",
+      "advanceUnits": 797
+    },
+    {
+      "codepoint": "U+002B",
+      "advanceUnits": 1196
+    },
+    {
+      "codepoint": "U+002C",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+002D",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+002E",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+002F",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+0030",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0031",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0032",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0033",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0034",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0035",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0036",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0037",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0038",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0039",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+003A",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+003B",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+003C",
+      "advanceUnits": 1196
+    },
+    {
+      "codepoint": "U+003D",
+      "advanceUnits": 1196
+    },
+    {
+      "codepoint": "U+003E",
+      "advanceUnits": 1196
+    },
+    {
+      "codepoint": "U+003F",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0040",
+      "advanceUnits": 2079
+    },
+    {
+      "codepoint": "U+0041",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+0042",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+0043",
+      "advanceUnits": 1479
+    },
+    {
+      "codepoint": "U+0044",
+      "advanceUnits": 1479
+    },
+    {
+      "codepoint": "U+0045",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+0046",
+      "advanceUnits": 1251
+    },
+    {
+      "codepoint": "U+0047",
+      "advanceUnits": 1593
+    },
+    {
+      "codepoint": "U+0048",
+      "advanceUnits": 1479
+    },
+    {
+      "codepoint": "U+0049",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+004A",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+004B",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+004C",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+004D",
+      "advanceUnits": 1706
+    },
+    {
+      "codepoint": "U+004E",
+      "advanceUnits": 1479
+    },
+    {
+      "codepoint": "U+004F",
+      "advanceUnits": 1593
+    },
+    {
+      "codepoint": "U+0050",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+0051",
+      "advanceUnits": 1593
+    },
+    {
+      "codepoint": "U+0052",
+      "advanceUnits": 1479
+    },
+    {
+      "codepoint": "U+0053",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+0054",
+      "advanceUnits": 1251
+    },
+    {
+      "codepoint": "U+0055",
+      "advanceUnits": 1479
+    },
+    {
+      "codepoint": "U+0056",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+0057",
+      "advanceUnits": 1933
+    },
+    {
+      "codepoint": "U+0058",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+0059",
+      "advanceUnits": 1366
+    },
+    {
+      "codepoint": "U+005A",
+      "advanceUnits": 1251
+    },
+    {
+      "codepoint": "U+005B",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+005C",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+005D",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+005E",
+      "advanceUnits": 961
+    },
+    {
+      "codepoint": "U+005F",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0060",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+0061",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0062",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0063",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+0064",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0065",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0066",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+0067",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0068",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0069",
+      "advanceUnits": 455
+    },
+    {
+      "codepoint": "U+006A",
+      "advanceUnits": 455
+    },
+    {
+      "codepoint": "U+006B",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+006C",
+      "advanceUnits": 455
+    },
+    {
+      "codepoint": "U+006D",
+      "advanceUnits": 1706
+    },
+    {
+      "codepoint": "U+006E",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+006F",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0070",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0071",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0072",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+0073",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+0074",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+0075",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+0076",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+0077",
+      "advanceUnits": 1479
+    },
+    {
+      "codepoint": "U+0078",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+0079",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+007A",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+007B",
+      "advanceUnits": 684
+    },
+    {
+      "codepoint": "U+007C",
+      "advanceUnits": 532
+    },
+    {
+      "codepoint": "U+007D",
+      "advanceUnits": 684
+    },
+    {
+      "codepoint": "U+007E",
+      "advanceUnits": 1196
+    },
+    {
+      "codepoint": "U+00A0",
+      "advanceUnits": 569
+    },
+    {
+      "codepoint": "U+00D1",
+      "advanceUnits": 1479
+    },
+    {
+      "codepoint": "U+00DC",
+      "advanceUnits": 1479
+    },
+    {
+      "codepoint": "U+00E1",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+00F1",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+2010",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+2012",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+2013",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+2014",
+      "advanceUnits": 2048
+    },
+    {
+      "codepoint": "U+2015",
+      "advanceUnits": 2048
+    },
+    {
+      "codepoint": "U+2016",
+      "advanceUnits": 846
+    },
+    {
+      "codepoint": "U+2017",
+      "advanceUnits": 1131
+    },
+    {
+      "codepoint": "U+2018",
+      "advanceUnits": 455
+    },
+    {
+      "codepoint": "U+2019",
+      "advanceUnits": 455
+    },
+    {
+      "codepoint": "U+201A",
+      "advanceUnits": 455
+    },
+    {
+      "codepoint": "U+201B",
+      "advanceUnits": 455
+    },
+    {
+      "codepoint": "U+201C",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+201D",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+201E",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+201F",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+2020",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+2021",
+      "advanceUnits": 1139
+    },
+    {
+      "codepoint": "U+2022",
+      "advanceUnits": 717
+    },
+    {
+      "codepoint": "U+2026",
+      "advanceUnits": 2048
+    },
+    {
+      "codepoint": "U+2030",
+      "advanceUnits": 2048
+    },
+    {
+      "codepoint": "U+2032",
+      "advanceUnits": 384
+    },
+    {
+      "codepoint": "U+2033",
+      "advanceUnits": 725
+    },
+    {
+      "codepoint": "U+2034",
+      "advanceUnits": 725
+    },
+    {
+      "codepoint": "U+2039",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+203A",
+      "advanceUnits": 682
+    },
+    {
+      "codepoint": "U+2190",
+      "advanceUnits": 2048
+    },
+    {
+      "codepoint": "U+2191",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+2192",
+      "advanceUnits": 2048
+    },
+    {
+      "codepoint": "U+2193",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+2194",
+      "advanceUnits": 2048
+    },
+    {
+      "codepoint": "U+2195",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+21A8",
+      "advanceUnits": 1024
+    },
+    {
+      "codepoint": "U+21D4",
+      "advanceUnits": 2048
+    }
+  ]
+}

@@ -918,6 +918,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "home"
 version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3602,6 +3608,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
+name = "ttf-parser"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
+
+[[package]]
 name = "typed-arena"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4140,6 +4152,7 @@ dependencies = [
  "annotate-snippets",
  "anyhow",
  "ctrlc",
+ "hex",
  "notify",
  "ra_ap_cfg",
  "ra_ap_hir",
@@ -4152,9 +4165,11 @@ dependencies = [
  "ra_ap_vfs",
  "serde",
  "serde_json",
+ "sha2",
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
+ "ttf-parser",
 ]
 
 [[package]]

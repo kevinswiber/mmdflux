@@ -1,0 +1,83 @@
+profile_id = "mmdflux-sans-v1"
+metrics_profile_source = "recorded"
+advance_scale = 1.0
+css_line_height_ratio = 1.5
+
+aliases = [
+  "\"trebuchet ms\", verdana, arial, sans-serif",
+  "trebuchet ms",
+  "verdana",
+  "arial",
+  "arial, sans-serif",
+  "sans-serif",
+  "liberation sans",
+]
+
+[source]
+family = "Liberation Sans"
+style = "Regular"
+version = "2.1.5"
+license = "SIL Open Font License 1.1"
+release_url = "https://github.com/liberationfonts/liberation-fonts/releases/tag/2.1.5"
+artifact_url = "https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz"
+artifact_sha256 = "7191c669bf38899f73a2094ed00f7b800553364f90e2637010a69c0e268f25d0"
+font_path = "xtask/font_metrics/fonts/liberation-sans-regular/LiberationSans-Regular.ttf"
+sha256 = "76d04c18ea243f426b7de1f3ad208e927008f961dc5945e5aad352d0dfde8ee8"
+
+[coverage]
+include_printable_ascii = true
+fixture_globs = [
+  "tests/fixtures/**/*.mmd",
+  "tests/fixtures/**/*.json",
+]
+explicit_fallback_codepoints = []
+
+[[coverage.ranges]]
+start = "U+00A0"
+end = "U+00A0"
+description = "non-breaking space"
+
+[[coverage.ranges]]
+start = "U+2010"
+end = "U+2010"
+description = "hyphen"
+
+[[coverage.ranges]]
+start = "U+2012"
+end = "U+2022"
+description = "common punctuation and bullets"
+
+[[coverage.ranges]]
+start = "U+2030"
+end = "U+2030"
+description = "per mille sign"
+
+[[coverage.ranges]]
+start = "U+2032"
+end = "U+2034"
+description = "prime marks"
+
+[[coverage.ranges]]
+start = "U+2039"
+end = "U+203A"
+description = "single angle quotes"
+
+[[coverage.ranges]]
+start = "U+2026"
+end = "U+2026"
+description = "ellipsis"
+
+[[coverage.ranges]]
+start = "U+2190"
+end = "U+2195"
+description = "common arrows"
+
+[[coverage.ranges]]
+start = "U+21A8"
+end = "U+21A8"
+description = "up-down arrow with base"
+
+[[coverage.ranges]]
+start = "U+21D4"
+end = "U+21D4"
+description = "left-right double arrow"

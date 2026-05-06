@@ -1,4 +1,5 @@
 mod architecture;
+mod font_metrics;
 mod lint;
 mod readme_assets;
 
@@ -32,6 +33,7 @@ fn try_main() -> Result<()> {
 
     match command {
         "architecture" => run_architecture_command(&parsed.command_args),
+        "font-metrics" => run_font_metrics_command(&parsed.command_args),
         "lint" => run_lint_command(&parsed.command_args),
         "readme-assets" => run_readme_assets_command(&parsed.command_args),
         "help" | "--help" | "-h" => {
@@ -257,6 +259,16 @@ fn run_lint_command(args: &[String]) -> Result<()> {
     lint::run(options)
 }
 
+fn run_font_metrics_command(args: &[String]) -> Result<()> {
+    if args.iter().skip(1).any(|arg| is_help_arg(arg)) {
+        eprintln!("{}", font_metrics::help_text());
+        return Ok(());
+    }
+
+    let options = font_metrics::parse_font_metrics_args(args.iter().map(String::as_str))?;
+    font_metrics::run(options)
+}
+
 fn run_readme_assets_command(args: &[String]) -> Result<()> {
     if args.iter().skip(1).any(|arg| is_help_arg(arg)) {
         eprintln!("{}", readme_assets::help_text());
@@ -274,6 +286,7 @@ cargo xtask <command>
 
 Commands:
     architecture    Run the repo architecture suite
+    font-metrics    Generate recorded font metrics tables
     lint            Run clippy and architecture boundary checks
     readme-assets   Refresh README showcase assets
 

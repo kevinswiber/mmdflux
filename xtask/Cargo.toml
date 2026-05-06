@@ -8,6 +8,7 @@ publish = false
 annotate-snippets = "0.12.13"
 anyhow = "1"
 ctrlc = "3"
+hex = "0.4"
 notify = "8"
 ra_ap_cfg = "=0.0.328"
 ra_ap_hir = "=0.0.328"
@@ -20,6 +21,8 @@ ra_ap_syntax = "=0.0.328"
 ra_ap_vfs = "=0.0.328"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
+ttf-parser = "0.25"
 toml = "0.8"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["std", "fmt", "ansi", "env-filter", "json"] }
