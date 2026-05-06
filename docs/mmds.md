@@ -381,7 +381,7 @@ Payload shape:
     "org.mmdflux.text-metrics.v1": {
       "metricsProfile": {
         "id": "mmdflux-heuristic-proportional-v1",
-        "source": "mmdflux",
+        "source": "heuristic",
         "version": 1
       },
       "defaultTextStyle": {

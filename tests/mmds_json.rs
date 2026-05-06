@@ -125,7 +125,7 @@ fn compatibility_text_metrics_extension() -> Value {
     json!({
         "metricsProfile": {
             "id": COMPATIBILITY_TEXT_METRICS_PROFILE_ID,
-            "source": "mmdflux",
+            "source": "heuristic",
             "version": 1
         },
         "defaultTextStyle": {
@@ -408,7 +408,7 @@ fn text_metrics_mmds_output_emits_profile_and_extension_contract() {
         extension["metricsProfile"]["id"],
         "mmdflux-heuristic-proportional-v1"
     );
-    assert_eq!(extension["metricsProfile"]["source"], "mmdflux");
+    assert_eq!(extension["metricsProfile"]["source"], "heuristic");
     assert_eq!(extension["metricsProfile"]["version"], 1);
     assert_eq!(
         extension["defaultTextStyle"]["font-family"],

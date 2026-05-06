@@ -591,14 +591,14 @@ fn emit_rust(spec: &ProfileSpec, face: &Face<'_>, advances: &[GeneratedAdvance])
     output.push_str(")\n");
     output.push_str("// Source font SHA-256: ");
     output.push_str(&spec.source.sha256);
-    output.push_str("\n\n");
+    output.push_str("\n#![allow(dead_code)]\n\n");
     output.push_str("pub const PROFILE_ID: &str = \"");
     output.push_str(&spec.profile_id);
     output.push_str("\";\n");
     output.push_str("pub const METRICS_PROFILE_SOURCE: &str = \"");
     output.push_str(&spec.metrics_profile_source);
     output.push_str("\";\n");
-    output.push_str("pub const SOURCE_FONT_SHA256: &str = \"");
+    output.push_str("pub const SOURCE_FONT_SHA256: &str =\n    \"");
     output.push_str(&spec.source.sha256);
     output.push_str("\";\n");
     output.push_str(&format!(

@@ -438,7 +438,7 @@
         },
         "source": {
           "type": "string",
-          "description": "Profile provider namespace."
+          "description": "Profile provenance category: 'heuristic' for compatibility estimates, 'recorded' for generated static metrics, or reserved 'dynamic' for future live measurement backends."
         },
         "version": {
           "type": "integer",

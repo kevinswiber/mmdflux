@@ -6,10 +6,18 @@
 
 #![allow(dead_code)]
 
-use crate::graph::{Direction, Node, Shape};
+use crate::graph::{
+    Direction, Node, Shape,
+    font_metrics::{
+        RECORDED_SANS_CSS_LINE_HEIGHT_RATIO, RECORDED_SANS_PROFILE_ID,
+        RECORDED_SANS_PROFILE_SOURCE, RecordedMetricsProfile,
+    },
+};
 
 /// Compatibility profile for the existing function-backed proportional heuristic.
 pub const COMPATIBILITY_TEXT_METRICS_PROFILE_ID: &str = "mmdflux-heuristic-proportional-v1";
+/// Recorded profile backed by static generated mmdflux sans metrics.
+pub const RECORDED_SANS_TEXT_METRICS_PROFILE_ID: &str = RECORDED_SANS_PROFILE_ID;
 /// Default graph-family SVG font family used by proportional measurement.
 pub const DEFAULT_GRAPH_FONT_FAMILY: &str = "\"trebuchet ms\", verdana, arial, sans-serif";
 /// Default font size used for proportional measurement.
@@ -40,10 +48,32 @@ pub struct ProportionalTextMetrics {
     pub node_padding_y: f64,
     pub label_padding_x: f64,
     pub label_padding_y: f64,
+    width_model: ProportionalWidthModel,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum ProportionalWidthModel {
+    CompatibilityHeuristic { scale: f64 },
+    Recorded(RecordedMetricsProfile),
+}
+
+impl ProportionalWidthModel {
+    fn measure_scalar_width(&self, font_size: f64, ch: char) -> f64 {
+        match self {
+            Self::CompatibilityHeuristic { scale } => {
+                compatibility_char_width_ratio(ch) * font_size * scale
+            }
+            Self::Recorded(profile) => profile.measure_scalar_width(font_size, ch),
+        }
+    }
 }
 
 impl ProportionalTextMetrics {
     pub fn new(font_size: f64, node_padding_x: f64, node_padding_y: f64) -> Self {
+        Self::compatibility(font_size, node_padding_x, node_padding_y)
+    }
+
+    fn compatibility(font_size: f64, node_padding_x: f64, node_padding_y: f64) -> Self {
         Self {
             font_size,
             line_height: font_size * 1.5,
@@ -51,6 +81,21 @@ impl ProportionalTextMetrics {
             node_padding_y,
             label_padding_x: DEFAULT_LABEL_PADDING_X,
             label_padding_y: DEFAULT_LABEL_PADDING_Y,
+            width_model: ProportionalWidthModel::CompatibilityHeuristic {
+                scale: TEXT_WIDTH_SCALE,
+            },
+        }
+    }
+
+    fn recorded_sans(font_size: f64, node_padding_x: f64, node_padding_y: f64) -> Self {
+        Self {
+            font_size,
+            line_height: font_size * RECORDED_SANS_CSS_LINE_HEIGHT_RATIO,
+            node_padding_x,
+            node_padding_y,
+            label_padding_x: DEFAULT_LABEL_PADDING_X,
+            label_padding_y: DEFAULT_LABEL_PADDING_Y,
+            width_model: ProportionalWidthModel::Recorded(RecordedMetricsProfile::mmdflux_sans_v1()),
         }
     }
 
@@ -66,7 +111,7 @@ impl ProportionalTextMetrics {
             .iter()
             .map(|line| self.measure_line_width(line))
             .fold(0.0, f64::max);
-        let width = max_width * TEXT_WIDTH_SCALE + padding_x * 2.0;
+        let width = max_width + padding_x * 2.0;
         let height = self.line_height * line_count + padding_y * 2.0;
         (width, height)
     }
@@ -87,25 +132,37 @@ impl ProportionalTextMetrics {
             .iter()
             .map(|line| self.measure_line_width(line))
             .fold(0.0, f64::max);
-        let width = max_width * TEXT_WIDTH_SCALE + self.label_padding_x * 2.0;
+        let width = max_width + self.label_padding_x * 2.0;
         let height = self.line_height * line_count + self.label_padding_y * 2.0;
         (width, height)
     }
 
     pub(crate) fn measure_line_width(&self, text: &str) -> f64 {
         text.chars()
-            .map(|c| self.char_width_ratio(c) * self.font_size)
+            .map(|c| self.measure_scalar_width(c))
             .sum::<f64>()
     }
 
+    pub(crate) fn measure_scalar_width(&self, c: char) -> f64 {
+        self.width_model.measure_scalar_width(self.font_size, c)
+    }
+
+    pub(crate) fn measure_space_width(&self) -> f64 {
+        self.measure_scalar_width(' ')
+    }
+
     pub(crate) fn char_width_ratio(&self, c: char) -> f64 {
-        match c {
-            'i' | 'l' | '!' | '|' | '.' | ',' | ':' | ';' | '\'' => 0.25,
-            'f' | 'j' | 't' | 'r' => 0.32,
-            'm' | 'w' | 'M' | 'W' => 0.7,
-            'A'..='Z' => 0.48,
-            _ => 0.46,
-        }
+        compatibility_char_width_ratio(c)
+    }
+}
+
+fn compatibility_char_width_ratio(c: char) -> f64 {
+    match c {
+        'i' | 'l' | '!' | '|' | '.' | ',' | ':' | ';' | '\'' => 0.25,
+        'f' | 'j' | 't' | 'r' => 0.32,
+        'm' | 'w' | 'M' | 'W' => 0.7,
+        'A'..='Z' => 0.48,
+        _ => 0.46,
     }
 }
 
@@ -183,7 +240,8 @@ impl std::fmt::Display for UnsupportedTextMetricsProfile {
         write!(
             f,
             "unsupported text metrics profile '{}' (supported: {})",
-            self.profile_id, COMPATIBILITY_TEXT_METRICS_PROFILE_ID
+            self.profile_id,
+            supported_text_metrics_profile_ids()
         )
     }
 }
@@ -193,13 +251,28 @@ impl std::error::Error for UnsupportedTextMetricsProfile {}
 pub fn validate_text_metrics_profile_id(
     profile_id: &str,
 ) -> Result<(), UnsupportedTextMetricsProfile> {
-    if profile_id == COMPATIBILITY_TEXT_METRICS_PROFILE_ID {
+    if is_supported_text_metrics_profile_id(profile_id) {
         Ok(())
     } else {
         Err(UnsupportedTextMetricsProfile {
             profile_id: profile_id.to_string(),
         })
     }
+}
+
+fn is_supported_text_metrics_profile_id(profile_id: &str) -> bool {
+    matches!(
+        profile_id,
+        COMPATIBILITY_TEXT_METRICS_PROFILE_ID | RECORDED_SANS_TEXT_METRICS_PROFILE_ID
+    )
+}
+
+fn supported_text_metrics_profile_ids() -> String {
+    [
+        COMPATIBILITY_TEXT_METRICS_PROFILE_ID,
+        RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
+    ]
+    .join(", ")
 }
 
 pub fn resolve_text_metrics_profile(
@@ -210,14 +283,43 @@ pub fn resolve_text_metrics_profile(
         .unwrap_or(COMPATIBILITY_TEXT_METRICS_PROFILE_ID);
     validate_text_metrics_profile_id(profile_id)?;
 
-    let metrics = ProportionalTextMetrics::new(
-        DEFAULT_PROPORTIONAL_FONT_SIZE,
-        config.node_padding_x,
-        config.node_padding_y,
-    );
-    let descriptor = TextMetricsProfileDescriptor {
+    let (metrics, source) = match profile_id {
+        COMPATIBILITY_TEXT_METRICS_PROFILE_ID => (
+            ProportionalTextMetrics::compatibility(
+                DEFAULT_PROPORTIONAL_FONT_SIZE,
+                config.node_padding_x,
+                config.node_padding_y,
+            ),
+            "heuristic",
+        ),
+        RECORDED_SANS_TEXT_METRICS_PROFILE_ID => (
+            ProportionalTextMetrics::recorded_sans(
+                DEFAULT_PROPORTIONAL_FONT_SIZE,
+                config.node_padding_x,
+                config.node_padding_y,
+            ),
+            RECORDED_SANS_PROFILE_SOURCE,
+        ),
+        _ => unreachable!("profile validation restricts supported IDs"),
+    };
+    let descriptor =
+        text_metrics_descriptor(profile_id, source, &metrics, config.edge_label_max_width);
+
+    Ok(ResolvedTextMetrics {
+        descriptor,
+        metrics,
+    })
+}
+
+fn text_metrics_descriptor(
+    profile_id: &str,
+    source: &str,
+    metrics: &ProportionalTextMetrics,
+    edge_label_max_width: Option<f64>,
+) -> TextMetricsProfileDescriptor {
+    TextMetricsProfileDescriptor {
         profile_id: profile_id.to_string(),
-        source: "mmdflux".to_string(),
+        source: source.to_string(),
         version: 1,
         default_text_style: TextMetricsStyleDescriptor {
             font_family: DEFAULT_GRAPH_FONT_FAMILY.to_string(),
@@ -231,14 +333,9 @@ pub fn resolve_text_metrics_profile(
             node_padding_y: metrics.node_padding_y,
             label_padding_x: metrics.label_padding_x,
             label_padding_y: metrics.label_padding_y,
-            edge_label_max_width: config.edge_label_max_width,
+            edge_label_max_width,
         },
-    };
-
-    Ok(ResolvedTextMetrics {
-        descriptor,
-        metrics,
-    })
+    }
 }
 
 /// Greedy word-wrap that honors `max_width` in pixels using `metrics` for
@@ -250,13 +347,13 @@ pub fn resolve_text_metrics_profile(
 /// variants to `'\n'` before calling this function. `wrap_lines` does not
 /// inspect the raw Mermaid source.
 pub fn wrap_lines(metrics: &ProportionalTextMetrics, text: &str, max_width: f64) -> Vec<String> {
-    let space_w = metrics.char_width_ratio(' ') * metrics.font_size * TEXT_WIDTH_SCALE;
+    let space_w = metrics.measure_space_width();
     let mut out = Vec::new();
     for segment in text.split('\n') {
         let mut current = String::new();
         let mut current_w = 0.0_f64;
         for word in segment.split_whitespace() {
-            let ww = metrics.measure_line_width(word) * TEXT_WIDTH_SCALE;
+            let ww = metrics.measure_line_width(word);
             if ww > max_width {
                 // Oversized word: fall back to per-character splits regardless
                 // of whether the word is first on the line. GPT-5.4 review of
@@ -268,7 +365,7 @@ pub fn wrap_lines(metrics: &ProportionalTextMetrics, text: &str, max_width: f64)
                     current_w = 0.0;
                 }
                 for ch in word.chars() {
-                    let cw = metrics.char_width_ratio(ch) * metrics.font_size * TEXT_WIDTH_SCALE;
+                    let cw = metrics.measure_scalar_width(ch);
                     if current_w + cw > max_width && !current.is_empty() {
                         out.push(std::mem::take(&mut current));
                         current_w = 0.0;
@@ -500,7 +597,7 @@ mod tests {
             resolved.descriptor.profile_id,
             COMPATIBILITY_TEXT_METRICS_PROFILE_ID
         );
-        assert_eq!(resolved.descriptor.source, "mmdflux");
+        assert_eq!(resolved.descriptor.source, "heuristic");
         assert_eq!(resolved.descriptor.version, 1);
         assert_eq!(
             resolved.descriptor.default_text_style.font_family,
@@ -548,6 +645,81 @@ mod tests {
                 "resolved padded metrics drifted for sample {sample:?}"
             );
         }
+    }
+
+    #[test]
+    fn compatibility_width_model_preserves_existing_scaled_widths() {
+        let metrics = default_proportional_text_metrics();
+        let expected = 16.0 * 1.16 * (0.48 + 0.46 + 0.46);
+        let actual = metrics.measure_line_width("Abc");
+
+        assert!(
+            (actual - expected).abs() < 1e-9,
+            "actual={actual} expected={expected}"
+        );
+    }
+
+    #[test]
+    fn wrap_lines_uses_profile_aware_width_helpers() {
+        let metrics = default_proportional_text_metrics();
+        let lines = wrap_lines(
+            &metrics,
+            "Alpha Beta",
+            metrics.measure_line_width("Alpha") + 1.0,
+        );
+
+        assert_eq!(lines, vec!["Alpha", "Beta"]);
+    }
+
+    #[test]
+    fn resolves_mmdflux_sans_v1_profile() {
+        let resolved = resolve_text_metrics_profile(TextMetricsProfileConfig {
+            profile_id: Some("mmdflux-sans-v1"),
+            ..TextMetricsProfileConfig::default()
+        })
+        .expect("recorded profile resolves");
+
+        assert_eq!(resolved.descriptor.profile_id, "mmdflux-sans-v1");
+        assert_eq!(resolved.descriptor.source, "recorded");
+        assert_eq!(resolved.metrics.line_height, 24.0);
+    }
+
+    #[test]
+    fn compatibility_profile_source_is_heuristic() {
+        let resolved = resolve_text_metrics_profile(TextMetricsProfileConfig::default())
+            .expect("compatibility profile resolves");
+
+        assert_eq!(
+            resolved.descriptor.profile_id,
+            "mmdflux-heuristic-proportional-v1"
+        );
+        assert_eq!(resolved.descriptor.source, "heuristic");
+    }
+
+    #[test]
+    fn recorded_profile_widths_are_static_and_scale_linearly() {
+        let metrics_16 = resolve_recorded_for_test(16.0);
+        let metrics_24 = resolve_recorded_for_test(24.0);
+
+        assert!(metrics_16.measure_line_width("mmmm") > metrics_16.measure_line_width("iiii"));
+        assert_approx_eq(
+            metrics_24.measure_line_width("Alpha"),
+            metrics_16.measure_line_width("Alpha") * 1.5,
+        );
+    }
+
+    #[test]
+    fn recorded_profile_fallback_buckets_are_deterministic() {
+        let metrics = resolve_recorded_for_test(16.0);
+
+        assert_approx_eq(
+            metrics.measure_scalar_width('\t'),
+            metrics.measure_space_width() * 4.0,
+        );
+        assert_approx_eq(metrics.measure_scalar_width('\u{0301}'), 0.0);
+        assert_approx_eq(metrics.measure_scalar_width('😀'), 16.0);
+        assert_approx_eq(metrics.measure_scalar_width('\u{E000}'), 16.0 * 0.56);
+        assert_approx_eq(metrics.measure_scalar_width('\u{0001}'), 0.0);
     }
 
     #[test]
@@ -691,7 +863,7 @@ mod tests {
             max_width,
         );
         for line in &lines {
-            let w = metrics.measure_line_width(line) * TEXT_WIDTH_SCALE;
+            let w = metrics.measure_line_width(line);
             assert!(
                 w <= max_width + 0.5,
                 "line {line:?} is {w} px wide, exceeds max_width {max_width}"
@@ -725,6 +897,25 @@ mod tests {
             h_padded,
             h_raw,
             metrics.label_padding_y,
+        );
+    }
+
+    fn resolve_recorded_for_test(font_size: f64) -> ProportionalTextMetrics {
+        let mut metrics = resolve_text_metrics_profile(TextMetricsProfileConfig {
+            profile_id: Some("mmdflux-sans-v1"),
+            ..TextMetricsProfileConfig::default()
+        })
+        .expect("recorded profile resolves")
+        .metrics;
+        metrics.font_size = font_size;
+        metrics.line_height = font_size * 1.5;
+        metrics
+    }
+
+    fn assert_approx_eq(actual: f64, expected: f64) {
+        assert!(
+            (actual - expected).abs() < 1e-9,
+            "actual={actual} expected={expected}"
         );
     }
 }

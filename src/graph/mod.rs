@@ -11,6 +11,7 @@ mod diagram;
 pub mod direction_policy;
 mod edge;
 pub(crate) mod edge_marker;
+pub(crate) mod font_metrics;
 pub mod geometry;
 pub mod grid;
 pub mod label_wrap;
