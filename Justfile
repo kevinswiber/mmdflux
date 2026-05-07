@@ -37,6 +37,10 @@ fmt *args:
 fmt-check:
     cargo +nightly fmt --all -- --check
 
+# Verify generated font metrics artifacts are current
+font-metrics-check:
+    cargo +stable xtask font-metrics --profile mmdflux-sans-v1 --check
+
 # Regenerate the cspell dictionary from the Codebook dictionary
 spell-sync:
     node scripts/sync-cspell-dictionary.mjs
@@ -89,8 +93,8 @@ module-map-pivot-dag module *args:
 conformance *args:
     cargo +stable nextest run --test mmds_conformance --success-output immediate {{ args }}
 
-# Check commit messages, compiles, lint, tests, and architecture policy
-check: commit-check lint test
+# Check commit messages, generated artifacts, compiles, lint, tests, and architecture policy
+check: commit-check font-metrics-check lint test
 
 # Build wasm bindings for browser and bundler targets
 wasm-build:

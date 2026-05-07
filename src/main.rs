@@ -255,7 +255,7 @@ struct Cli {
     #[arg(long)]
     svg_node_padding_y: Option<f64>,
 
-    /// Text metrics profile (currently mmdflux-heuristic-proportional-v1).
+    /// Text metrics profile (supported: mmdflux-heuristic-proportional-v1, mmdflux-sans-v1; default: mmdflux-heuristic-proportional-v1).
     #[arg(long)]
     font_metrics_profile: Option<String>,
 

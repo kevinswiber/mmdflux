@@ -6,18 +6,24 @@
 
 #![allow(dead_code)]
 
-use crate::graph::{
-    Direction, Node, Shape,
-    font_metrics::{
-        RECORDED_SANS_CSS_LINE_HEIGHT_RATIO, RECORDED_SANS_PROFILE_ID,
-        RECORDED_SANS_PROFILE_SOURCE, RecordedMetricsProfile,
-    },
+use crate::graph::font_metrics::{
+    RECORDED_SANS_CSS_LINE_HEIGHT_RATIO, RECORDED_SANS_PROFILE_ID, RECORDED_SANS_PROFILE_SOURCE,
+    RecordedMetricsProfile,
 };
+use crate::graph::{Direction, Node, Shape};
 
 /// Compatibility profile for the existing function-backed proportional heuristic.
 pub const COMPATIBILITY_TEXT_METRICS_PROFILE_ID: &str = "mmdflux-heuristic-proportional-v1";
 /// Recorded profile backed by static generated mmdflux sans metrics.
 pub const RECORDED_SANS_TEXT_METRICS_PROFILE_ID: &str = RECORDED_SANS_PROFILE_ID;
+/// Supported graph-family text metrics profile identifiers.
+pub const SUPPORTED_TEXT_METRICS_PROFILE_IDS: &[&str] = &[
+    COMPATIBILITY_TEXT_METRICS_PROFILE_ID,
+    RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
+];
+/// Human-readable supported profile list used in validation messages.
+pub const SUPPORTED_TEXT_METRICS_PROFILE_IDS_TEXT: &str =
+    "mmdflux-heuristic-proportional-v1, mmdflux-sans-v1";
 /// Default graph-family SVG font family used by proportional measurement.
 pub const DEFAULT_GRAPH_FONT_FAMILY: &str = "\"trebuchet ms\", verdana, arial, sans-serif";
 /// Default font size used for proportional measurement.
@@ -58,6 +64,21 @@ enum ProportionalWidthModel {
 }
 
 impl ProportionalWidthModel {
+    fn measure_line_width(&self, font_size: f64, text: &str) -> f64 {
+        match self {
+            Self::CompatibilityHeuristic { scale } => {
+                text.chars()
+                    .map(|c| compatibility_char_width_ratio(c) * font_size)
+                    .sum::<f64>()
+                    * scale
+            }
+            Self::Recorded(profile) => text
+                .chars()
+                .map(|c| profile.measure_scalar_width(font_size, c))
+                .sum::<f64>(),
+        }
+    }
+
     fn measure_scalar_width(&self, font_size: f64, ch: char) -> f64 {
         match self {
             Self::CompatibilityHeuristic { scale } => {
@@ -138,9 +159,7 @@ impl ProportionalTextMetrics {
     }
 
     pub(crate) fn measure_line_width(&self, text: &str) -> f64 {
-        text.chars()
-            .map(|c| self.measure_scalar_width(c))
-            .sum::<f64>()
+        self.width_model.measure_line_width(self.font_size, text)
     }
 
     pub(crate) fn measure_scalar_width(&self, c: char) -> f64 {
@@ -261,18 +280,11 @@ pub fn validate_text_metrics_profile_id(
 }
 
 fn is_supported_text_metrics_profile_id(profile_id: &str) -> bool {
-    matches!(
-        profile_id,
-        COMPATIBILITY_TEXT_METRICS_PROFILE_ID | RECORDED_SANS_TEXT_METRICS_PROFILE_ID
-    )
+    SUPPORTED_TEXT_METRICS_PROFILE_IDS.contains(&profile_id)
 }
 
-fn supported_text_metrics_profile_ids() -> String {
-    [
-        COMPATIBILITY_TEXT_METRICS_PROFILE_ID,
-        RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
-    ]
-    .join(", ")
+pub fn supported_text_metrics_profile_ids() -> &'static str {
+    SUPPORTED_TEXT_METRICS_PROFILE_IDS_TEXT
 }
 
 pub fn resolve_text_metrics_profile(

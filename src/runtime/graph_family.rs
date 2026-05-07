@@ -41,10 +41,7 @@ pub(crate) fn render_graph_family(
             config.path_simplification,
         ),
         OutputFormat::Svg => {
-            let options = svg_options_with_text_metrics(
-                &config.svg_render_options(),
-                &render_result.text_metrics.descriptor,
-            );
+            let options = config.svg_render_options();
             Ok(render_svg_from_solve_result(
                 diagram,
                 &render_result.solve,
@@ -235,18 +232,6 @@ fn render_svg_from_solve_result(
             text_metrics,
         ),
     })
-}
-
-fn svg_options_with_text_metrics(
-    svg_options: &SvgRenderOptions,
-    descriptor: &TextMetricsProfileDescriptor,
-) -> SvgRenderOptions {
-    let mut options = svg_options.clone();
-    options.font_family = descriptor.default_text_style.font_family.clone();
-    options.font_size = descriptor.default_text_style.font_size;
-    options.node_padding_x = descriptor.layout_text.node_padding_x;
-    options.node_padding_y = descriptor.layout_text.node_padding_y;
-    options
 }
 
 fn render_mmds_from_solve_result(

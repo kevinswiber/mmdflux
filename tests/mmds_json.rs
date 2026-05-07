@@ -1533,11 +1533,19 @@ fn docs_and_schema_reference_text_metrics_extension_contract() {
     assert!(docs.contains("mmdflux-text-metrics-v1"));
     assert!(docs.contains("org.mmdflux.text-metrics.v1"));
     assert!(docs.contains("mmdflux-heuristic-proportional-v1"));
+    assert!(docs.contains("mmdflux-sans-v1"));
+    assert!(docs.contains("source font is provenance"));
+    assert!(docs.contains("Browser `measureText` remains out of scope"));
+    assert!(docs.contains("Sequence-family full text-metrics parity remains deferred"));
     assert!(docs.contains("line-height"));
 
     let schema = std::fs::read_to_string("docs/mmds.schema.json").unwrap();
     assert!(schema.contains("org.mmdflux.text-metrics.v1"));
     assert!(schema.contains("metricsProfile"));
+    assert!(schema.contains("mmdflux-sans-v1"));
+    assert!(schema.contains("heuristic"));
+    assert!(schema.contains("recorded"));
+    assert!(schema.contains("dynamic"));
     assert!(schema.contains("edge-label-max-width"));
 }
 
@@ -1571,6 +1579,8 @@ fn docs_cover_live_style_scope_and_wasm_color_config() {
     assert!(wasm_docs.contains("always"));
     assert!(wasm_docs.contains("fontMetricsProfile"));
     assert!(wasm_docs.contains("mmdflux-heuristic-proportional-v1"));
+    assert!(wasm_docs.contains("mmdflux-sans-v1"));
+    assert!(!wasm_docs.contains("currently accepts only"));
 
     let readme = std::fs::read_to_string("README.md").unwrap();
     assert!(readme.contains("NO_COLOR=1 mmdflux --format text"));

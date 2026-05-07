@@ -6,6 +6,9 @@ use std::{fs, process};
 
 use assert_cmd::Command;
 use assert_cmd::cargo::cargo_bin_cmd;
+use mmdflux::graph::measure::{
+    COMPATIBILITY_TEXT_METRICS_PROFILE_ID, RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
+};
 use predicates::prelude::*;
 
 const RENDER_TRACE_FILTER: &str = "mmdflux::runtime=debug";
@@ -107,9 +110,24 @@ fn cli_font_metrics_profile_accepts_compatibility_profile() {
             "--format",
             "svg",
             "--font-metrics-profile",
-            "mmdflux-heuristic-proportional-v1",
+            COMPATIBILITY_TEXT_METRICS_PROFILE_ID,
         ])
         .write_stdin("graph TD\nA-->B")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("<svg"));
+}
+
+#[test]
+fn cli_font_metrics_profile_accepts_mmdflux_sans_profile() {
+    mmdflux()
+        .args([
+            "--format",
+            "svg",
+            "--font-metrics-profile",
+            RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
+        ])
+        .write_stdin("graph TD\nA[mmmm]-->B[iiii]")
         .assert()
         .success()
         .stdout(predicate::str::contains("<svg"));
@@ -135,7 +153,10 @@ fn cli_help_mentions_font_metrics_profile_flag() {
         .success()
         .stdout(predicate::str::contains("--font-metrics-profile"))
         .stdout(predicate::str::contains(
-            "mmdflux-heuristic-proportional-v1",
+            COMPATIBILITY_TEXT_METRICS_PROFILE_ID,
+        ))
+        .stdout(predicate::str::contains(
+            RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
         ));
 }
 

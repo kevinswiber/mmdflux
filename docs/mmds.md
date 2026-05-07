@@ -370,7 +370,8 @@ layout and replay:
 
 - profile: `mmdflux-text-metrics-v1`
 - extension namespace: `org.mmdflux.text-metrics.v1`
-- compatibility metrics profile: `mmdflux-heuristic-proportional-v1`
+- default compatibility metrics profile: `mmdflux-heuristic-proportional-v1`
+- opt-in recorded metrics profile: `mmdflux-sans-v1`
 
 Payload shape:
 
@@ -406,10 +407,20 @@ Payload shape:
 Rules:
 
 - New graph-family MMDS output emits this profile and extension.
+- `mmdflux-heuristic-proportional-v1` remains the default. `mmdflux-sans-v1`
+  is opt-in, graph-family-only, and backed by mmdflux-owned generated static
+  width tables.
+- `metricsProfile.source` is a provenance category: `heuristic` for the
+  compatibility estimates, `recorded` for generated static tables, and
+  reserved `dynamic` for future live measurement backends.
+- The recorded profile source font is provenance, not an exact Mermaid or
+  browser font claim. Browser `measureText` remains out of scope for this
+  static profile.
 - Replay uses `metricsProfile.id` plus `layoutText` node padding and edge-label wrap width when the extension is present.
 - Replay is document-owned: a caller-supplied `fontMetricsProfile` must match the replay profile, and the replay profile plus persisted `layoutText` values override SVG font and node-padding config.
 - Older MMDS documents without the extension replay with the `mmdflux-heuristic-proportional-v1` compatibility defaults.
 - A recognized text metrics extension with an unsupported `metricsProfile.id` is a replay error.
+- Sequence-family full text-metrics parity remains deferred.
 
 ### Node
 

@@ -188,27 +188,35 @@ mod tests {
 
     #[test]
     fn parse_render_config_accepts_font_metrics_profile() {
-        let profile = mmdflux::graph::measure::COMPATIBILITY_TEXT_METRICS_PROFILE_ID;
-        let config = parse_render_config(
-            OutputFormat::Svg,
-            &format!(r#"{{"fontMetricsProfile":"{profile}"}}"#),
-        )
-        .expect("font metrics profile config should parse");
+        for profile in [
+            mmdflux::graph::measure::COMPATIBILITY_TEXT_METRICS_PROFILE_ID,
+            mmdflux::graph::measure::RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
+        ] {
+            let config = parse_render_config(
+                OutputFormat::Svg,
+                &format!(r#"{{"fontMetricsProfile":"{profile}"}}"#),
+            )
+            .expect("font metrics profile config should parse");
 
-        assert_eq!(config.font_metrics_profile.as_deref(), Some(profile));
+            assert_eq!(config.font_metrics_profile.as_deref(), Some(profile));
+        }
     }
 
     #[test]
     fn render_accepts_font_metrics_profile_config() {
-        let profile = mmdflux::graph::measure::COMPATIBILITY_TEXT_METRICS_PROFILE_ID;
-        let output = render(
-            "graph TD\nA-->B",
-            "svg",
-            &format!(r#"{{"fontMetricsProfile":"{profile}"}}"#),
-        )
-        .expect("render should accept compatibility font metrics profile");
+        for profile in [
+            mmdflux::graph::measure::COMPATIBILITY_TEXT_METRICS_PROFILE_ID,
+            mmdflux::graph::measure::RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
+        ] {
+            let output = render(
+                "graph TD\nA[mmmm]-->B[iiii]",
+                "svg",
+                &format!(r#"{{"fontMetricsProfile":"{profile}"}}"#),
+            )
+            .expect("render should accept font metrics profile");
 
-        assert!(output.contains("<svg"));
+            assert!(output.contains("<svg"));
+        }
     }
 
     #[test]

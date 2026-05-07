@@ -61,13 +61,15 @@ fn renders_flowchart_svg() {
 
 #[wasm_bindgen_test]
 fn renders_svg_with_font_metrics_profile_config() {
-    let output = render(
-        "graph TD\nA-->B",
-        "svg",
-        r#"{"fontMetricsProfile":"mmdflux-heuristic-proportional-v1"}"#,
-    )
-    .expect("font metrics profile config should render");
-    assert!(output.contains("<svg"));
+    for profile in ["mmdflux-heuristic-proportional-v1", "mmdflux-sans-v1"] {
+        let output = render(
+            "graph TD\nA[mmmm]-->B[iiii]",
+            "svg",
+            &format!(r#"{{"fontMetricsProfile":"{profile}"}}"#),
+        )
+        .expect("font metrics profile config should render");
+        assert!(output.contains("<svg"));
+    }
 }
 
 #[wasm_bindgen_test]

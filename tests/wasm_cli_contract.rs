@@ -202,18 +202,20 @@ fn runtime_config_input_parses_nested_svg_theme() {
 #[test]
 fn runtime_config_input_accepts_font_metrics_profile() {
     use mmdflux::RuntimeConfigInput;
-    use mmdflux::graph::measure::COMPATIBILITY_TEXT_METRICS_PROFILE_ID;
+    use mmdflux::graph::measure::{
+        COMPATIBILITY_TEXT_METRICS_PROFILE_ID, RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
+    };
 
-    let input: RuntimeConfigInput = serde_json::from_str(&format!(
-        r#"{{"fontMetricsProfile":"{COMPATIBILITY_TEXT_METRICS_PROFILE_ID}"}}"#
-    ))
-    .unwrap();
-    let config = input.into_render_config().unwrap();
+    for profile_id in [
+        COMPATIBILITY_TEXT_METRICS_PROFILE_ID,
+        RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
+    ] {
+        let input: RuntimeConfigInput =
+            serde_json::from_str(&format!(r#"{{"fontMetricsProfile":"{profile_id}"}}"#)).unwrap();
+        let config = input.into_render_config().unwrap();
 
-    assert_eq!(
-        config.font_metrics_profile.as_deref(),
-        Some(COMPATIBILITY_TEXT_METRICS_PROFILE_ID)
-    );
+        assert_eq!(config.font_metrics_profile.as_deref(), Some(profile_id));
+    }
 }
 
 #[test]

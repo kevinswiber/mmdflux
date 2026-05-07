@@ -169,9 +169,11 @@ pub(crate) fn render_svg_from_geometry_with_theme(
         diagram,
         options,
         geom,
-        &rerouted_edges,
-        &override_nodes,
-        edge_routing,
+        GeometryContext {
+            rerouted_edges: &rerouted_edges,
+            override_nodes: &override_nodes,
+            edge_routing,
+        },
         theme,
         resolved_metrics,
     )
@@ -193,13 +195,17 @@ fn rerouted_edge_indexes_for_mode(
     }
 }
 
+struct GeometryContext<'a> {
+    rerouted_edges: &'a HashSet<usize>,
+    override_nodes: &'a HashMap<String, String>,
+    edge_routing: EdgeRouting,
+}
+
 fn render_svg_with_geometry_context(
     diagram: &Graph,
     options: &SvgRenderOptions,
     geom: &GraphGeometry,
-    rerouted_edges: &HashSet<usize>,
-    override_nodes: &HashMap<String, String>,
-    edge_routing: EdgeRouting,
+    context: GeometryContext<'_>,
     theme: Option<&ResolvedSvgTheme>,
     resolved_metrics: Option<&ProportionalTextMetrics>,
 ) -> String {
@@ -217,14 +223,14 @@ fn render_svg_with_geometry_context(
         }
     };
 
-    let self_edge_paths = compute_self_edge_paths(diagram, geom, &metrics);
+    let self_edge_paths = compute_self_edge_paths(diagram, geom, metrics);
     let prepared_edges = prepare_rendered_edge_paths(
         diagram,
         geom,
-        override_nodes,
+        context.override_nodes,
         &self_edge_paths,
-        rerouted_edges,
-        edge_routing,
+        context.rerouted_edges,
+        context.edge_routing,
         options.curve,
         options.edge_radius,
         options.path_simplification,
@@ -232,7 +238,7 @@ fn render_svg_with_geometry_context(
     let bounds = compute_svg_bounds(
         diagram,
         geom,
-        &metrics,
+        metrics,
         &self_edge_paths,
         &prepared_edges.paths,
     );
@@ -257,7 +263,7 @@ fn render_svg_with_geometry_context(
 
     render_defs(&mut writer, scale, &palette, &used_markers);
     writer.start_group_transform(offset_x, offset_y);
-    render_subgraphs(&mut writer, diagram, geom, &metrics, scale, &palette);
+    render_subgraphs(&mut writer, diagram, geom, metrics, scale, &palette);
     // Keep node fills and borders above edge paths so crossing routes are
     // visually occluded instead of drawing through node bodies.
     render_edges(
@@ -269,15 +275,15 @@ fn render_svg_with_geometry_context(
         scale,
         &palette,
     );
-    render_nodes(&mut writer, diagram, geom, &metrics, scale, &palette);
+    render_nodes(&mut writer, diagram, geom, metrics, scale, &palette);
     render_edge_labels(
         &mut writer,
         diagram,
         geom,
         &self_edge_paths,
         &prepared_edges.paths,
-        override_nodes,
-        &metrics,
+        context.override_nodes,
+        metrics,
         scale,
         &palette,
     );

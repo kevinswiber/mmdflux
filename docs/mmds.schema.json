@@ -434,10 +434,11 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Text metrics profile identifier, e.g. 'mmdflux-heuristic-proportional-v1'."
+          "description": "Text metrics profile identifier, e.g. 'mmdflux-heuristic-proportional-v1' or opt-in 'mmdflux-sans-v1'."
         },
         "source": {
           "type": "string",
+          "enum": ["heuristic", "recorded", "dynamic"],
           "description": "Profile provenance category: 'heuristic' for compatibility estimates, 'recorded' for generated static metrics, or reserved 'dynamic' for future live measurement backends."
         },
         "version": {
