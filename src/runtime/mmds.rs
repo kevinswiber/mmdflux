@@ -22,8 +22,8 @@ use crate::mmds::{
 };
 use crate::render::graph::{
     SvgRenderOptions, TextRenderOptions, edge_routing_from_style,
-    render_svg_from_geometry_with_theme_and_routing, render_svg_from_routed_geometry_with_theme,
-    render_text_from_geometry,
+    render_svg_from_geometry_with_theme_routing_and_metrics,
+    render_svg_from_routed_geometry_with_theme_and_metrics, render_text_from_geometry,
 };
 use crate::render::svg::theme::ResolvedSvgTheme;
 use crate::views::VIEW_EXTENSION_NAMESPACE;
@@ -124,18 +124,20 @@ pub(crate) fn render_document(
             let svg_options = replay_svg_options.as_ref().unwrap_or(svg_options);
 
             Ok(match routed.as_ref() {
-                Some(routed) => render_svg_from_routed_geometry_with_theme(
+                Some(routed) => render_svg_from_routed_geometry_with_theme_and_metrics(
                     &diagram,
                     routed,
                     svg_options,
                     svg_theme,
+                    &text_metrics.metrics,
                 ),
-                None => render_svg_from_geometry_with_theme_and_routing(
+                None => render_svg_from_geometry_with_theme_routing_and_metrics(
                     &diagram,
                     &geometry,
                     svg_options,
                     edge_routing_from_style(svg_options.routing_style),
                     svg_theme,
+                    &text_metrics.metrics,
                 ),
             })
         }

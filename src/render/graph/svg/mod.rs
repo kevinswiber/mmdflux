@@ -156,6 +156,7 @@ pub(crate) fn render_svg_from_geometry_with_theme(
     geom: &GraphGeometry,
     edge_routing: EdgeRouting,
     theme: Option<&ResolvedSvgTheme>,
+    resolved_metrics: Option<&ProportionalTextMetrics>,
 ) -> String {
     // Merge mode-derived rerouted edges with any engine-provided rerouted edges
     // (e.g., direction-override subgraph edges set by build_float_layout).
@@ -172,6 +173,7 @@ pub(crate) fn render_svg_from_geometry_with_theme(
         &override_nodes,
         edge_routing,
         theme,
+        resolved_metrics,
     )
 }
 
@@ -199,13 +201,21 @@ fn render_svg_with_geometry_context(
     override_nodes: &HashMap<String, String>,
     edge_routing: EdgeRouting,
     theme: Option<&ResolvedSvgTheme>,
+    resolved_metrics: Option<&ProportionalTextMetrics>,
 ) -> String {
     let scale = options.scale;
-    let metrics = ProportionalTextMetrics::new(
-        options.font_size,
-        options.node_padding_x,
-        options.node_padding_y,
-    );
+    let owned_metrics;
+    let metrics = match resolved_metrics {
+        Some(metrics) => metrics,
+        None => {
+            owned_metrics = ProportionalTextMetrics::new(
+                options.font_size,
+                options.node_padding_x,
+                options.node_padding_y,
+            );
+            &owned_metrics
+        }
+    };
 
     let self_edge_paths = compute_self_edge_paths(diagram, geom, &metrics);
     let prepared_edges = prepare_rendered_edge_paths(

@@ -4,7 +4,9 @@ use std::fs;
 use std::path::Path;
 
 use mmdflux::format::{CornerStyle, Curve, RoutingStyle};
-use mmdflux::graph::measure::COMPATIBILITY_TEXT_METRICS_PROFILE_ID;
+use mmdflux::graph::measure::{
+    COMPATIBILITY_TEXT_METRICS_PROFILE_ID, RECORDED_SANS_TEXT_METRICS_PROFILE_ID,
+};
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{
     EngineAlgorithmId, OutputFormat, RenderConfig, SvgThemeConfig, SvgThemeMode, render_diagram,
@@ -96,6 +98,44 @@ fn font_metrics_unsupported_profile_fails_svg_before_output() {
             .contains("unsupported text metrics profile 'mermaid-sans-v1'"),
         "{err}"
     );
+}
+
+#[test]
+fn mmdflux_sans_svg_uses_recorded_profile_for_rendered_label_backgrounds() {
+    let input = "graph TD\nA -->|mmmm| B";
+    let recorded = render_svg(
+        input,
+        &RenderConfig {
+            font_metrics_profile: Some(RECORDED_SANS_TEXT_METRICS_PROFILE_ID.to_string()),
+            ..RenderConfig::default()
+        },
+    );
+
+    assert!(
+        recorded.contains("width=\"61.31\" height=\"28.00\" fill=\"white\" />"),
+        "{recorded}"
+    );
+    assert!(
+        !recorded.contains("width=\"59.97\" height=\"28.00\" fill=\"white\" />"),
+        "{recorded}"
+    );
+}
+
+#[test]
+fn text_output_ignores_recorded_font_profile_for_now() {
+    let input = "graph TD\nA[mmmm] --> B[iiii]";
+    let default_text = render_diagram(input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+    let recorded_text = render_diagram(
+        input,
+        OutputFormat::Text,
+        &RenderConfig {
+            font_metrics_profile: Some(RECORDED_SANS_TEXT_METRICS_PROFILE_ID.to_string()),
+            ..RenderConfig::default()
+        },
+    )
+    .unwrap();
+
+    assert_eq!(recorded_text, default_text);
 }
 
 #[test]

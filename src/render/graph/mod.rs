@@ -16,7 +16,7 @@ pub use self::svg::SvgRenderOptions;
 use crate::format::{OutputFormat, RoutingStyle, TextColorMode};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
-use crate::graph::measure::default_proportional_text_metrics;
+use crate::graph::measure::{ProportionalTextMetrics, default_proportional_text_metrics};
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Direction, Graph};
 use crate::render::svg::theme::ResolvedSvgTheme;
@@ -93,32 +93,42 @@ pub(crate) fn render_svg_from_geometry_with_routing(
     options: &SvgRenderOptions,
     edge_routing: EdgeRouting,
 ) -> String {
-    render_svg_from_geometry_with_theme_and_routing(diagram, geometry, options, edge_routing, None)
+    svg::render_svg_from_geometry_with_theme(diagram, options, geometry, edge_routing, None, None)
 }
 
-pub(crate) fn render_svg_from_geometry_with_theme_and_routing(
+pub(crate) fn render_svg_from_geometry_with_theme_routing_and_metrics(
     diagram: &Graph,
     geometry: &GraphGeometry,
     options: &SvgRenderOptions,
     edge_routing: EdgeRouting,
     theme: Option<&ResolvedSvgTheme>,
+    metrics: &ProportionalTextMetrics,
 ) -> String {
-    svg::render_svg_from_geometry_with_theme(diagram, options, geometry, edge_routing, theme)
+    svg::render_svg_from_geometry_with_theme(
+        diagram,
+        options,
+        geometry,
+        edge_routing,
+        theme,
+        Some(metrics),
+    )
 }
 
-pub(crate) fn render_svg_from_routed_geometry_with_theme(
+pub(crate) fn render_svg_from_routed_geometry_with_theme_and_metrics(
     diagram: &Graph,
     routed: &RoutedGraphGeometry,
     options: &SvgRenderOptions,
     theme: Option<&ResolvedSvgTheme>,
+    metrics: &ProportionalTextMetrics,
 ) -> String {
     let geometry = geometry_for_routed_svg(diagram, routed);
-    render_svg_from_geometry_with_theme_and_routing(
+    render_svg_from_geometry_with_theme_routing_and_metrics(
         diagram,
         &geometry,
         options,
         EdgeRouting::EngineProvided,
         theme,
+        metrics,
     )
 }
 
