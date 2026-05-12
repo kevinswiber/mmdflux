@@ -49,12 +49,12 @@
   edges: 4   survivors: 0   delta0: 0  delta1: 0  delta2+: 0   rejected: {GroupSizeNonOne: 4}
   (no survivors)
 == direction_override.mmd ==
-  edges: 4   survivors: 4   delta0: 2  delta1: 2  delta2+: 0   rejected: {}
+  edges: 4   survivors: 4   delta0: 4  delta1: 0  delta2+: 0   rejected: {}
   survivors:
     A -> B    delta_cross=0  faces=(right,left)  fractions=(0.500,0.500)
     B -> C    delta_cross=0  faces=(right,left)  fractions=(0.500,0.500)
-    C -> End    delta_cross=1  faces=(bottom,top)  fractions=(0.500,0.500)
-    Start -> A    delta_cross=1  faces=(bottom,top)  fractions=(0.500,0.500)
+    C -> End    delta_cross=0  faces=(bottom,top)  fractions=(0.500,0.500)
+    Start -> A    delta_cross=0  faces=(bottom,top)  fractions=(0.500,0.500)
 == edge_styles.mmd ==
   edges: 4   survivors: 4   delta0: 4  delta1: 0  delta2+: 0   rejected: {}
   survivors:
@@ -93,11 +93,11 @@
   edges: 3   survivors: 0   delta0: 0  delta1: 0  delta2+: 0   rejected: {GroupSizeNonOne: 3}
   (no survivors)
 == subgraph_direction_lr.mmd ==
-  edges: 4   survivors: 4   delta0: 2  delta1: 2  delta2+: 0   rejected: {}
+  edges: 4   survivors: 4   delta0: 4  delta1: 0  delta2+: 0   rejected: {}
   survivors:
     A -> B    delta_cross=0  faces=(right,left)  fractions=(0.500,0.500)
     B -> C    delta_cross=0  faces=(right,left)  fractions=(0.500,0.500)
-    C -> End    delta_cross=1  faces=(bottom,top)  fractions=(0.500,0.500)
-    Start -> A    delta_cross=1  faces=(bottom,top)  fractions=(0.500,0.500)
+    C -> End    delta_cross=0  faces=(bottom,top)  fractions=(0.500,0.500)
+    Start -> A    delta_cross=0  faces=(bottom,top)  fractions=(0.500,0.500)
 
-TOTALS: edges=74 survivors=37 delta0=33 delta1=4 delta2+=0 rejected={GroupSizeNonOne: 33, MarkerOrLabelTerminalShift: 4}
+TOTALS: edges=74 survivors=37 delta0=37 delta1=0 delta2+=0 rejected={GroupSizeNonOne: 33, MarkerOrLabelTerminalShift: 4}

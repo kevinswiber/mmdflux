@@ -102,7 +102,7 @@ pub fn spread_points_on_face(
     };
 
     if count == 1 {
-        return vec![to_point(start + range / 2)];
+        return vec![to_point(start + range.div_ceil(2))];
     }
 
     // Endpoint-maximizing: place edges at extremes of range for maximum separation
@@ -281,10 +281,64 @@ pub fn intersect_node(bounds: &NodeBounds, point: (usize, usize), shape: Shape) 
 
     let result = match shape {
         Shape::Diamond | Shape::Hexagon => intersect_diamond(bounds, float_point),
+        Shape::SmallCircle | Shape::FramedCircle | Shape::CrossedCircle => {
+            intersect_circle(bounds, float_point)
+        }
         _ => intersect_rect(bounds, float_point),
     };
 
     result.to_usize()
+}
+
+/// Whether a shape should use face-midpoint attachment logic.
+fn is_circular_shape(shape: Shape) -> bool {
+    matches!(
+        shape,
+        Shape::SmallCircle | Shape::FramedCircle | Shape::CrossedCircle
+    )
+}
+
+fn intersect_circle(bounds: &NodeBounds, point: FloatPoint) -> FloatPoint {
+    let center = FloatPoint::new(bounds.center_x() as f64, bounds.center_y() as f64);
+    let dx = point.x - center.x;
+    let dy = point.y - center.y;
+    let radius = (bounds.width.min(bounds.height) as f64) / 2.0;
+
+    if dx.abs() < f64::EPSILON && dy.abs() < f64::EPSILON {
+        return FloatPoint::new(center.x, center.y - radius);
+    }
+
+    // Prefer cardinal face extremities for circle-shaped nodes, so top/bottom
+    // attachments remain aligned with the visual circle center instead of
+    // shifting off-center based on the exact incoming ray.
+    if dx.abs() <= dy.abs() {
+        if dy < 0.0 {
+            return FloatPoint::new(center.x, center.y - radius);
+        }
+        return FloatPoint::new(center.x, center.y + radius);
+    }
+
+    if dx < 0.0 {
+        FloatPoint::new(center.x - radius, center.y)
+    } else {
+        FloatPoint::new(center.x + radius, center.y)
+    }
+}
+
+/// Returns the midpoint of a node's face for attachment purposes.
+///
+/// This is used for circular nodes to ensure attachments are centered on faces
+/// rather than at geometric intersection points, which may be off-center.
+fn midpoint_attachment_point(bounds: &NodeBounds, face: NodeFace) -> (usize, usize) {
+    match face {
+        NodeFace::Top => (bounds.center_x(), bounds.y),
+        NodeFace::Bottom => (
+            bounds.center_x(),
+            bounds.y + bounds.height.saturating_sub(1),
+        ),
+        NodeFace::Left => (bounds.x, bounds.center_y()),
+        NodeFace::Right => (bounds.x + bounds.width.saturating_sub(1), bounds.center_y()),
+    }
 }
 
 /// Calculate intersection points for both ends of an edge, given waypoints.
@@ -311,6 +365,10 @@ pub fn calculate_attachment_points(
     // Source attachment: intersect towards first waypoint or target center
     let source_attach = if let Some(&first_wp) = waypoints.first() {
         intersect_node(source_bounds, first_wp, source_shape)
+    } else if is_circular_shape(target_shape) {
+        // For circular terminals, attach at face midpoint instead of geometric intersection
+        let face = classify_face(source_bounds, target_center, source_shape);
+        midpoint_attachment_point(source_bounds, face)
     } else {
         intersect_node(source_bounds, target_center, source_shape)
     };
@@ -318,6 +376,10 @@ pub fn calculate_attachment_points(
     // Target attachment: intersect towards last waypoint or source center
     let target_attach = if let Some(&last_wp) = waypoints.last() {
         intersect_node(target_bounds, last_wp, target_shape)
+    } else if is_circular_shape(target_shape) {
+        // For circular terminals, attach at face midpoint instead of geometric intersection
+        let face = classify_face(target_bounds, source_center, target_shape);
+        midpoint_attachment_point(target_bounds, face)
     } else {
         intersect_node(target_bounds, source_center, target_shape)
     };
@@ -364,6 +426,26 @@ mod tests {
         // Should hit top edge
         assert_eq!(result.x.round() as usize, 15);
         assert!(result.y < bounds.center_y() as f64);
+    }
+
+    #[test]
+    fn test_intersect_circle_from_above() {
+        let bounds = NodeBounds {
+            x: 5,
+            y: 10,
+            width: 4,
+            height: 2,
+            layout_center_x: None,
+            layout_center_y: None,
+        };
+        let point = FloatPoint::new(7.0, 0.0);
+        let result = intersect_node(
+            &bounds,
+            (point.x as usize, point.y as usize),
+            Shape::FramedCircle,
+        );
+
+        assert_eq!(result, (7, 10));
     }
 
     #[test]
@@ -704,6 +786,13 @@ mod tests {
     }
 
     #[test]
+    fn test_spread_points_count_one_narrow_range_rounds_right() {
+        // N=1 on range (1, 2) => choose the rightmost center position for even-width faces.
+        let result = spread_points_on_face(NodeFace::Top, 5, (1, 2), 1);
+        assert_eq!(result, vec![(2, 5)]);
+    }
+
+    #[test]
     fn test_spread_points_endpoint_maximizing() {
         // 2 edges on range (10, 13), range=3
         // Endpoint: positions at 10, 13 (maximized separation)
@@ -824,5 +913,38 @@ mod tests {
         // N=5 on range (0, 12) => endpoint positions: 0, 3, 6, 9, 12
         let result = spread_points_on_face(NodeFace::Bottom, 0, (0, 12), 5);
         assert_eq!(result, vec![(0, 0), (3, 0), (6, 0), (9, 0), (12, 0)]);
+    }
+
+    #[test]
+    fn test_calculate_attachment_points_terminal_circle_uses_face_midpoint() {
+        let source = NodeBounds {
+            x: 10,
+            y: 5,
+            width: 10,
+            height: 5,
+            layout_center_x: None,
+            layout_center_y: None,
+        };
+        let target = NodeBounds {
+            x: 10,
+            y: 20,
+            width: 4,
+            height: 4,
+            layout_center_x: None,
+            layout_center_y: None,
+        };
+
+        let (src_attach, tgt_attach) = calculate_attachment_points(
+            &source,
+            Shape::Rectangle,
+            &target,
+            Shape::FramedCircle,
+            &[],
+        );
+
+        // Source attaches at bottom center
+        assert_eq!(src_attach, (15, 9));
+        // Target attaches at top midpoint (center of top face)
+        assert_eq!(tgt_attach, (12, 20));
     }
 }
