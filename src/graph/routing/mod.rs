@@ -37,7 +37,9 @@ mod tests {
 
     use super::*;
     use crate::graph::attachment::PortFace;
-    use crate::graph::measure::default_proportional_text_metrics;
+    use crate::graph::measure::{
+        GraphTextStyleKey, TextMetricsProvider, default_proportional_text_metrics,
+    };
     use crate::graph::routing::EdgeRouting;
     use crate::internal_tests::stub_metrics::WideMProvider;
 
@@ -1689,6 +1691,116 @@ mod tests {
         );
     }
 
+    #[test]
+    fn routed_edge_label_dimensions_use_each_edge_effective_style() {
+        let provider = StyleRoutingProvider::new()
+            .with_line_width("small", "same", 24.0)
+            .with_line_width("large", "same", 96.0);
+
+        let mut diagram = Graph::new(crate::graph::Direction::TopDown);
+        diagram.add_node(crate::graph::Node::new("A"));
+        diagram.add_node(crate::graph::Node::new("B"));
+        diagram.add_node(crate::graph::Node::new("C"));
+        let mut small = crate::graph::Edge::new("A", "B").with_label("same");
+        small.style.font_family = Some("small".to_string());
+        diagram.add_edge(small);
+        let mut large = crate::graph::Edge::new("A", "C").with_label("same");
+        large.style.font_family = Some("large".to_string());
+        diagram.add_edge(large);
+
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            "A".into(),
+            PositionedNode {
+                id: "A".into(),
+                rect: FRect::new(50.0, 25.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "A".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "B".into(),
+            PositionedNode {
+                id: "B".into(),
+                rect: FRect::new(30.0, 105.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "B".into(),
+                parent: None,
+            },
+        );
+        nodes.insert(
+            "C".into(),
+            PositionedNode {
+                id: "C".into(),
+                rect: FRect::new(90.0, 105.0, 40.0, 20.0),
+                shape: crate::graph::Shape::Rectangle,
+                label: "C".into(),
+                parent: None,
+            },
+        );
+        let geom = GraphGeometry {
+            nodes,
+            edges: vec![
+                LayoutEdge {
+                    index: 0,
+                    from: "A".into(),
+                    to: "B".into(),
+                    waypoints: vec![],
+                    label_position: Some(FPoint::new(50.0, 70.0)),
+                    label_side: None,
+                    from_subgraph: None,
+                    to_subgraph: None,
+                    layout_path_hint: Some(vec![FPoint::new(70.0, 35.0), FPoint::new(50.0, 105.0)]),
+                    preserve_orthogonal_topology: false,
+                    label_geometry: None,
+                    effective_wrapped_lines: None,
+                },
+                LayoutEdge {
+                    index: 1,
+                    from: "A".into(),
+                    to: "C".into(),
+                    waypoints: vec![],
+                    label_position: Some(FPoint::new(90.0, 70.0)),
+                    label_side: None,
+                    from_subgraph: None,
+                    to_subgraph: None,
+                    layout_path_hint: Some(vec![
+                        FPoint::new(70.0, 35.0),
+                        FPoint::new(110.0, 105.0),
+                    ]),
+                    preserve_orthogonal_topology: false,
+                    label_geometry: None,
+                    effective_wrapped_lines: None,
+                },
+            ],
+            subgraphs: HashMap::new(),
+            self_edges: vec![],
+            direction: crate::graph::Direction::TopDown,
+            node_directions: HashMap::new(),
+            bounds: FRect::new(0.0, 0.0, 140.0, 140.0),
+            reversed_edges: vec![],
+            engine_hints: None,
+            grid_projection: None,
+            rerouted_edges: std::collections::HashSet::new(),
+            enhanced_backward_routing: false,
+        };
+
+        let routed = route_graph_geometry_with_provider(
+            &diagram,
+            &geom,
+            EdgeRouting::PolylineRoute,
+            &provider,
+        );
+
+        let small_rect = routed.edges[0].label_geometry.as_ref().unwrap().rect;
+        let large_rect = routed.edges[1].label_geometry.as_ref().unwrap().rect;
+        assert!(
+            large_rect.width > small_rect.width + 50.0,
+            "styled provider should drive routed label rect widths: small={small_rect:?} large={large_rect:?}"
+        );
+    }
+
     /// Routed bounds must cover all edge path points, even when routing
     /// pushes paths beyond the original layout bounds (e.g. backward channels).
     #[test]
@@ -1803,6 +1915,64 @@ mod tests {
                     edge.to
                 );
             }
+        }
+    }
+
+    #[derive(Default)]
+    struct StyleRoutingProvider {
+        line_widths: std::collections::BTreeMap<(GraphTextStyleKey, String), f64>,
+    }
+
+    impl StyleRoutingProvider {
+        fn new() -> Self {
+            Self::default()
+        }
+
+        fn with_line_width(mut self, style: &str, text: &str, width: f64) -> Self {
+            self.line_widths
+                .insert((GraphTextStyleKey::test(style), text.to_string()), width);
+            self
+        }
+    }
+
+    impl TextMetricsProvider for StyleRoutingProvider {
+        fn measure_line_width(&self, _text: &str) -> f64 {
+            0.0
+        }
+
+        fn measure_scalar_width(&self, _ch: char) -> f64 {
+            0.0
+        }
+
+        fn measure_line_width_for_style(&self, style: &GraphTextStyleKey, text: &str) -> f64 {
+            self.line_widths
+                .get(&(style.clone(), text.to_string()))
+                .copied()
+                .unwrap_or(0.0)
+        }
+
+        fn font_size(&self) -> f64 {
+            16.0
+        }
+
+        fn line_height(&self) -> f64 {
+            24.0
+        }
+
+        fn node_padding_x(&self) -> f64 {
+            15.0
+        }
+
+        fn node_padding_y(&self) -> f64 {
+            15.0
+        }
+
+        fn label_padding_x(&self) -> f64 {
+            4.0
+        }
+
+        fn label_padding_y(&self) -> f64 {
+            2.0
         }
     }
 }

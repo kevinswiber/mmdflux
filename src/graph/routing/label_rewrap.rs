@@ -65,7 +65,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::graph::geometry::RoutedEdgeGeometry;
 use crate::graph::measure::{
-    TextMetricsProvider, edge_label_dimensions_wrapped_for_provider, wrap_lines_with_provider,
+    TextMetricsProvider, edge_label_dimensions_wrapped_for_provider_and_style, edge_text_style_key,
+    wrap_lines_with_provider_for_style,
 };
 use crate::graph::routing::label_lanes::{LANE_GAP, LabelTrackOutcome, MIN_LABEL_LANE_STEP};
 use crate::graph::space::FPoint;
@@ -182,9 +183,11 @@ pub(super) fn re_wrap_labels_for_lane_fit(
                 continue;
             }
 
+            let style = edge_text_style_key(metrics, source_edge);
             let target = (outcome.label_step * REWRAP_SAFETY).max(MIN_REWRAP_WIDTH);
-            let new_lines = wrap_lines_with_provider(metrics, label_text, target);
-            let (new_w, new_h) = edge_label_dimensions_wrapped_for_provider(metrics, &new_lines);
+            let new_lines = wrap_lines_with_provider_for_style(metrics, &style, label_text, target);
+            let (new_w, new_h) =
+                edge_label_dimensions_wrapped_for_provider_and_style(metrics, &style, &new_lines);
 
             // Skip edges where the re-wrap would not actually narrow the
             // rect. Can happen with single oversized words where the

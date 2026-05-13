@@ -14,7 +14,8 @@
 
 use crate::graph::Edge;
 use crate::graph::measure::{
-    ProportionalTextMetrics, TextMetricsProvider, wrap_lines_with_provider,
+    ProportionalTextMetrics, TextMetricsProvider, edge_text_style_key,
+    wrap_lines_with_provider_for_style,
 };
 
 /// Greedy-wrap every labeled edge's `label` against `max_width` using
@@ -54,7 +55,10 @@ pub(crate) fn prepare_wrapped_labels_with_provider(
         if label.is_empty() {
             continue;
         }
-        edge.wrapped_label_lines = Some(wrap_lines_with_provider(provider, label, max_width));
+        let style = edge_text_style_key(provider, edge);
+        edge.wrapped_label_lines = Some(wrap_lines_with_provider_for_style(
+            provider, &style, label, max_width,
+        ));
     }
 }
 
@@ -62,7 +66,9 @@ pub(crate) fn prepare_wrapped_labels_with_provider(
 mod tests {
     use super::*;
     use crate::graph::Edge;
-    use crate::graph::measure::default_proportional_text_metrics;
+    use crate::graph::measure::{
+        GraphTextStyleKey, TextMetricsProvider, default_proportional_text_metrics,
+    };
 
     #[test]
     fn prepare_wrapped_labels_populates_wrapped_lines_for_labeled_edges() {
@@ -104,5 +110,92 @@ mod tests {
             Some(vec!["custom".to_string(), "override".to_string()].as_slice()),
             "idempotent: pre-populated wrap must not be overwritten"
         );
+    }
+
+    #[test]
+    fn styled_edge_label_wrapping_uses_edge_effective_text_style_before_solve() {
+        let provider = StyleWrapProvider::new()
+            .with_line_width("narrow", "alpha", 20.0)
+            .with_line_width("narrow", "beta", 20.0)
+            .with_line_width("wide", "alpha", 50.0)
+            .with_line_width("wide", "beta", 50.0);
+        let mut narrow = Edge::new("A", "B").with_label("alpha beta");
+        narrow.style.font_family = Some("narrow".to_string());
+        let mut wide = Edge::new("B", "C").with_label("alpha beta");
+        wide.style.font_family = Some("wide".to_string());
+        let mut edges = vec![narrow, wide];
+
+        prepare_wrapped_labels_with_provider(&mut edges, &provider, Some(60.0));
+
+        assert_eq!(
+            edges[0].wrapped_label_lines.as_deref(),
+            Some(vec!["alpha beta".to_string()].as_slice())
+        );
+        assert_eq!(
+            edges[1].wrapped_label_lines.as_deref(),
+            Some(vec!["alpha".to_string(), "beta".to_string()].as_slice())
+        );
+    }
+
+    #[derive(Default)]
+    struct StyleWrapProvider {
+        line_widths: std::collections::BTreeMap<(GraphTextStyleKey, String), f64>,
+    }
+
+    impl StyleWrapProvider {
+        fn new() -> Self {
+            Self::default()
+        }
+
+        fn with_line_width(mut self, style: &str, text: &str, width: f64) -> Self {
+            self.line_widths
+                .insert((GraphTextStyleKey::test(style), text.to_string()), width);
+            self
+        }
+    }
+
+    impl TextMetricsProvider for StyleWrapProvider {
+        fn measure_line_width(&self, _text: &str) -> f64 {
+            0.0
+        }
+
+        fn measure_scalar_width(&self, _ch: char) -> f64 {
+            0.0
+        }
+
+        fn measure_line_width_for_style(&self, style: &GraphTextStyleKey, text: &str) -> f64 {
+            self.line_widths
+                .get(&(style.clone(), text.to_string()))
+                .copied()
+                .unwrap_or(0.0)
+        }
+
+        fn measure_scalar_width_for_style(&self, _style: &GraphTextStyleKey, ch: char) -> f64 {
+            if ch == ' ' { 5.0 } else { 0.0 }
+        }
+
+        fn font_size(&self) -> f64 {
+            16.0
+        }
+
+        fn line_height(&self) -> f64 {
+            24.0
+        }
+
+        fn node_padding_x(&self) -> f64 {
+            15.0
+        }
+
+        fn node_padding_y(&self) -> f64 {
+            15.0
+        }
+
+        fn label_padding_x(&self) -> f64 {
+            4.0
+        }
+
+        fn label_padding_y(&self) -> f64 {
+            2.0
+        }
     }
 }

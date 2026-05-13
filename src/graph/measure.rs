@@ -12,7 +12,8 @@ use crate::graph::font_metrics::{
     RECORDED_SANS_CSS_LINE_HEIGHT_RATIO, RECORDED_SANS_PROFILE_ID, RECORDED_SANS_PROFILE_SOURCE,
     RecordedMetricsProfile,
 };
-use crate::graph::{Direction, Node, Shape};
+use crate::graph::style::{EdgeStyle, NodeStyle, parse_font_size_px};
+use crate::graph::{Direction, Edge, Node, Shape};
 
 /// Compatibility profile for the existing function-backed proportional heuristic.
 pub const COMPATIBILITY_TEXT_METRICS_PROFILE_ID: &str = "mmdflux-heuristic-proportional-v1";
@@ -63,6 +64,180 @@ pub struct ProportionalTextMetrics {
     width_model: ProportionalWidthModel,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct GraphTextStyleKey {
+    pub(crate) font_family: String,
+    pub(crate) font_size_mpx: u32,
+    pub(crate) line_height_mpx: u32,
+    pub(crate) font_style: String,
+    pub(crate) font_weight: String,
+}
+
+impl GraphTextStyleKey {
+    pub(crate) fn new(
+        font_family: impl Into<String>,
+        font_size_px: f64,
+        line_height_px: f64,
+        font_style: impl Into<String>,
+        font_weight: impl Into<String>,
+    ) -> Result<Self, String> {
+        let font_family = non_empty_style_string("font-family", font_family.into())?;
+        let font_style = non_empty_style_string("font-style", font_style.into())?;
+        let font_weight = non_empty_style_string("font-weight", font_weight.into())?;
+        Ok(Self {
+            font_family,
+            font_size_mpx: px_to_millipixels("font-size", font_size_px)?,
+            line_height_mpx: px_to_millipixels("line-height", line_height_px)?,
+            font_style,
+            font_weight,
+        })
+    }
+
+    pub(crate) fn default_profile_style(metrics: &ProportionalTextMetrics) -> Self {
+        Self::new(
+            DEFAULT_GRAPH_FONT_FAMILY,
+            metrics.font_size,
+            metrics.line_height,
+            "normal",
+            "400",
+        )
+        .expect("default profile text style is valid")
+    }
+
+    pub(crate) fn default_provider_style(provider: &dyn TextMetricsProvider) -> Self {
+        Self::new(
+            DEFAULT_GRAPH_FONT_FAMILY,
+            provider.font_size(),
+            provider.line_height(),
+            "normal",
+            "400",
+        )
+        .expect("default provider text style is valid")
+    }
+
+    pub(crate) fn from_descriptor(descriptor: &TextMetricsStyleDescriptor) -> Result<Self, String> {
+        Self::new(
+            &descriptor.font_family,
+            descriptor.font_size,
+            descriptor.line_height,
+            &descriptor.font_style,
+            &descriptor.font_weight,
+        )
+    }
+
+    pub(crate) fn font_size_px(&self) -> f64 {
+        self.font_size_mpx as f64 / 1000.0
+    }
+
+    pub(crate) fn line_height_px(&self) -> f64 {
+        self.line_height_mpx as f64 / 1000.0
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test(name: &str) -> Self {
+        Self::new(name, DEFAULT_PROPORTIONAL_FONT_SIZE, 24.0, "normal", "400")
+            .expect("test style is valid")
+    }
+}
+
+fn non_empty_style_string(field: &str, value: String) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        Err(format!("{field} cannot be empty"))
+    } else {
+        Ok(trimmed.to_string())
+    }
+}
+
+fn px_to_millipixels(field: &str, value: f64) -> Result<u32, String> {
+    if !value.is_finite() || value <= 0.0 {
+        return Err(format!("{field} must be a positive finite number"));
+    }
+    let rounded = (value * 1000.0).round();
+    if rounded > u32::MAX as f64 {
+        return Err(format!("{field} is too large"));
+    }
+    Ok(rounded as u32)
+}
+
+pub(crate) fn node_text_style_key(
+    provider: &dyn TextMetricsProvider,
+    node: &Node,
+) -> GraphTextStyleKey {
+    text_style_key_from_node_style(provider, &node.style)
+}
+
+pub(crate) fn edge_text_style_key(
+    provider: &dyn TextMetricsProvider,
+    edge: &Edge,
+) -> GraphTextStyleKey {
+    text_style_key_from_edge_style(provider, &edge.style)
+}
+
+fn text_style_key_from_node_style(
+    provider: &dyn TextMetricsProvider,
+    style: &NodeStyle,
+) -> GraphTextStyleKey {
+    text_style_key_from_parts(
+        provider,
+        style.font_family.as_deref(),
+        style.font_size.as_deref(),
+        style.font_style.as_deref(),
+        style.font_weight.as_deref(),
+    )
+}
+
+fn text_style_key_from_edge_style(
+    provider: &dyn TextMetricsProvider,
+    style: &EdgeStyle,
+) -> GraphTextStyleKey {
+    text_style_key_from_parts(
+        provider,
+        style.font_family.as_deref(),
+        style.font_size.as_deref(),
+        style.font_style.as_deref(),
+        style.font_weight.as_deref(),
+    )
+}
+
+fn text_style_key_from_parts(
+    provider: &dyn TextMetricsProvider,
+    font_family: Option<&str>,
+    font_size: Option<&str>,
+    font_style: Option<&str>,
+    font_weight: Option<&str>,
+) -> GraphTextStyleKey {
+    let font_size_px = font_size
+        .and_then(|value| parse_font_size_px(value).ok())
+        .unwrap_or_else(|| provider.font_size());
+    let line_height_px = provider_line_height_for_font_size(provider, font_size_px);
+    GraphTextStyleKey::new(
+        font_family.unwrap_or(DEFAULT_GRAPH_FONT_FAMILY),
+        font_size_px,
+        line_height_px,
+        font_style.unwrap_or("normal"),
+        font_weight.unwrap_or("400"),
+    )
+    .expect("graph text style fields are valid after parser validation and defaults")
+}
+
+fn provider_line_height_for_font_size(
+    provider: &dyn TextMetricsProvider,
+    font_size_px: f64,
+) -> f64 {
+    let base_font_size = provider.font_size();
+    let base_line_height = provider.line_height();
+    if base_font_size.is_finite()
+        && base_font_size > 0.0
+        && base_line_height.is_finite()
+        && base_line_height > 0.0
+    {
+        font_size_px * (base_line_height / base_font_size)
+    } else {
+        font_size_px * 1.5
+    }
+}
+
 /// Internal graph-family text measurement seam.
 ///
 /// This is intentionally crate-local until browser/provider-backed measurement
@@ -79,6 +254,22 @@ pub(crate) trait TextMetricsProvider {
 
     fn measure_space_width(&self) -> f64 {
         self.measure_scalar_width(' ')
+    }
+
+    fn measure_line_width_for_style(&self, _style: &GraphTextStyleKey, text: &str) -> f64 {
+        self.measure_line_width(text)
+    }
+
+    fn measure_scalar_width_for_style(&self, _style: &GraphTextStyleKey, ch: char) -> f64 {
+        self.measure_scalar_width(ch)
+    }
+
+    fn font_size_for_style(&self, _style: &GraphTextStyleKey) -> f64 {
+        self.font_size()
+    }
+
+    fn line_height_for_style(&self, _style: &GraphTextStyleKey) -> f64 {
+        self.line_height()
     }
 }
 
@@ -495,14 +686,25 @@ pub(crate) fn measure_text_with_padding_for_provider(
     padding_x: f64,
     padding_y: f64,
 ) -> (f64, f64) {
+    let style = GraphTextStyleKey::default_provider_style(provider);
+    measure_text_with_padding_for_provider_and_style(provider, &style, text, padding_x, padding_y)
+}
+
+pub(crate) fn measure_text_with_padding_for_provider_and_style(
+    provider: &dyn TextMetricsProvider,
+    style: &GraphTextStyleKey,
+    text: &str,
+    padding_x: f64,
+    padding_y: f64,
+) -> (f64, f64) {
     let lines: Vec<&str> = text.split('\n').collect();
     let line_count = lines.len().max(1) as f64;
     let max_width = lines
         .iter()
-        .map(|line| provider.measure_line_width(line))
+        .map(|line| provider.measure_line_width_for_style(style, line))
         .fold(0.0, f64::max);
     let width = max_width + padding_x * 2.0;
-    let height = provider.line_height() * line_count + padding_y * 2.0;
+    let height = provider.line_height_for_style(style) * line_count + padding_y * 2.0;
     (width, height)
 }
 
@@ -510,8 +712,18 @@ pub(crate) fn edge_label_dimensions_for_provider(
     provider: &dyn TextMetricsProvider,
     label: &str,
 ) -> (f64, f64) {
-    measure_text_with_padding_for_provider(
+    let style = GraphTextStyleKey::default_provider_style(provider);
+    edge_label_dimensions_for_provider_and_style(provider, &style, label)
+}
+
+pub(crate) fn edge_label_dimensions_for_provider_and_style(
+    provider: &dyn TextMetricsProvider,
+    style: &GraphTextStyleKey,
+    label: &str,
+) -> (f64, f64) {
+    measure_text_with_padding_for_provider_and_style(
         provider,
+        style,
         label,
         provider.label_padding_x(),
         provider.label_padding_y(),
@@ -522,13 +734,23 @@ pub(crate) fn edge_label_dimensions_wrapped_for_provider(
     provider: &dyn TextMetricsProvider,
     lines: &[String],
 ) -> (f64, f64) {
+    let style = GraphTextStyleKey::default_provider_style(provider);
+    edge_label_dimensions_wrapped_for_provider_and_style(provider, &style, lines)
+}
+
+pub(crate) fn edge_label_dimensions_wrapped_for_provider_and_style(
+    provider: &dyn TextMetricsProvider,
+    style: &GraphTextStyleKey,
+    lines: &[String],
+) -> (f64, f64) {
     let line_count = lines.len().max(1) as f64;
     let max_width = lines
         .iter()
-        .map(|line| provider.measure_line_width(line))
+        .map(|line| provider.measure_line_width_for_style(style, line))
         .fold(0.0, f64::max);
     let width = max_width + provider.label_padding_x() * 2.0;
-    let height = provider.line_height() * line_count + provider.label_padding_y() * 2.0;
+    let height =
+        provider.line_height_for_style(style) * line_count + provider.label_padding_y() * 2.0;
     (width, height)
 }
 
@@ -537,13 +759,23 @@ pub(crate) fn wrap_lines_with_provider(
     text: &str,
     max_width: f64,
 ) -> Vec<String> {
-    let space_w = provider.measure_space_width();
+    let style = GraphTextStyleKey::default_provider_style(provider);
+    wrap_lines_with_provider_for_style(provider, &style, text, max_width)
+}
+
+pub(crate) fn wrap_lines_with_provider_for_style(
+    provider: &dyn TextMetricsProvider,
+    style: &GraphTextStyleKey,
+    text: &str,
+    max_width: f64,
+) -> Vec<String> {
+    let space_w = provider.measure_scalar_width_for_style(style, ' ');
     let mut out = Vec::new();
     for segment in text.split('\n') {
         let mut current = String::new();
         let mut current_w = 0.0_f64;
         for word in segment.split_whitespace() {
-            let ww = provider.measure_line_width(word);
+            let ww = provider.measure_line_width_for_style(style, word);
             if ww > max_width {
                 // Oversized word: fall back to per-character splits regardless
                 // of whether the word is first on the line. GPT-5.4 review of
@@ -555,7 +787,7 @@ pub(crate) fn wrap_lines_with_provider(
                     current_w = 0.0;
                 }
                 for ch in word.chars() {
-                    let cw = provider.measure_scalar_width(ch);
+                    let cw = provider.measure_scalar_width_for_style(style, ch);
                     if current_w + cw > max_width && !current.is_empty() {
                         out.push(std::mem::take(&mut current));
                         current_w = 0.0;
@@ -675,8 +907,9 @@ pub(crate) fn proportional_node_dimensions_with_provider(
     node: &Node,
     direction: Direction,
 ) -> (f64, f64) {
+    let style = node_text_style_key(provider, node);
     let (label_w, label_h) =
-        measure_text_with_padding_for_provider(provider, &node.label, 0.0, 0.0);
+        measure_text_with_padding_for_provider_and_style(provider, &style, &node.label, 0.0, 0.0);
 
     let (mut width, mut height) = match node.shape {
         Shape::Rectangle => (
@@ -853,6 +1086,49 @@ mod tests {
         assert_eq!(
             provider.measure_space_width(),
             metrics.measure_space_width()
+        );
+    }
+
+    #[test]
+    fn graph_text_style_key_is_hashable_and_orderable_without_raw_f64_fields() {
+        fn assert_key<T: Eq + Ord + std::hash::Hash>() {}
+
+        assert_key::<GraphTextStyleKey>();
+    }
+
+    #[test]
+    fn style_aware_provider_distinguishes_same_text_under_different_styles() {
+        let provider = StyleStubProvider::new()
+            .with_line_width("small", "Same", 20.0)
+            .with_line_width("large", "Same", 80.0);
+
+        let small = GraphTextStyleKey::test("small");
+        let large = GraphTextStyleKey::test("large");
+
+        assert_eq!(provider.measure_line_width_for_style(&small, "Same"), 20.0);
+        assert_eq!(provider.measure_line_width_for_style(&large, "Same"), 80.0);
+    }
+
+    #[test]
+    fn static_profile_default_style_matches_existing_widths() {
+        let metrics = default_proportional_text_metrics();
+        let default_style = GraphTextStyleKey::default_profile_style(&metrics);
+
+        assert_eq!(
+            metrics.measure_line_width_for_style(&default_style, "Alpha"),
+            metrics.measure_line_width("Alpha")
+        );
+        assert_eq!(
+            metrics.measure_scalar_width_for_style(&default_style, 'A'),
+            metrics.measure_scalar_width('A')
+        );
+        assert_eq!(
+            metrics.font_size_for_style(&default_style),
+            metrics.font_size()
+        );
+        assert_eq!(
+            metrics.line_height_for_style(&default_style),
+            metrics.line_height()
         );
     }
 
@@ -1183,5 +1459,63 @@ mod tests {
             (actual - expected).abs() < 1e-9,
             "actual={actual} expected={expected}"
         );
+    }
+
+    #[derive(Default)]
+    struct StyleStubProvider {
+        line_widths: std::collections::BTreeMap<(GraphTextStyleKey, String), f64>,
+    }
+
+    impl StyleStubProvider {
+        fn new() -> Self {
+            Self::default()
+        }
+
+        fn with_line_width(mut self, style: &str, text: &str, width: f64) -> Self {
+            self.line_widths
+                .insert((GraphTextStyleKey::test(style), text.to_string()), width);
+            self
+        }
+    }
+
+    impl TextMetricsProvider for StyleStubProvider {
+        fn measure_line_width(&self, text: &str) -> f64 {
+            self.measure_line_width_for_style(&GraphTextStyleKey::test("default"), text)
+        }
+
+        fn measure_scalar_width(&self, _ch: char) -> f64 {
+            8.0
+        }
+
+        fn measure_line_width_for_style(&self, style: &GraphTextStyleKey, text: &str) -> f64 {
+            self.line_widths
+                .get(&(style.clone(), text.to_string()))
+                .copied()
+                .unwrap_or(0.0)
+        }
+
+        fn font_size(&self) -> f64 {
+            16.0
+        }
+
+        fn line_height(&self) -> f64 {
+            24.0
+        }
+
+        fn node_padding_x(&self) -> f64 {
+            15.0
+        }
+
+        fn node_padding_y(&self) -> f64 {
+            15.0
+        }
+
+        fn label_padding_x(&self) -> f64 {
+            DEFAULT_LABEL_PADDING_X
+        }
+
+        fn label_padding_y(&self) -> f64 {
+            DEFAULT_LABEL_PADDING_Y
+        }
     }
 }

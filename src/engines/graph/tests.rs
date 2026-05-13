@@ -13,7 +13,10 @@ use super::{
 };
 use crate::engines::graph::algorithms::layered::kernel::types::AcyclicPolicy;
 use crate::format::RoutingStyle;
-use crate::graph::measure::{ProportionalTextMetrics, default_proportional_text_metrics};
+use crate::graph::measure::{
+    GraphTextStyleKey, ProportionalTextMetrics, TextMetricsProvider,
+    default_proportional_text_metrics,
+};
 use crate::graph::routing::EdgeRouting;
 use crate::graph::{GeometryLevel, Graph};
 use crate::internal_tests::stub_metrics::{NonCloneProvider, WideMProvider};
@@ -119,6 +122,37 @@ fn layered_measurement_uses_provider_for_node_widths() {
     );
 }
 
+#[test]
+fn styled_node_dimensions_use_each_node_effective_text_style() {
+    let provider = StyleStubProvider::new()
+        .with_line_width("small", "Same", 24.0)
+        .with_line_width("large", "Same", 96.0);
+    let flowchart = crate::mermaid::parse_flowchart(
+        "graph TD\nA[Same] --> C\nB[Same] --> C\nstyle A font-family:small\nstyle B font-family:large\n",
+    )
+    .expect("fixture parses");
+    let diagram = crate::diagrams::flowchart::compile_to_graph(&flowchart);
+    let request = GraphSolveRequest::new(
+        MeasurementMode::Proportional(&provider),
+        GraphGeometryContract::Visual,
+        GeometryLevel::Layout,
+        None,
+        Default::default(),
+    );
+    let config = EngineConfig::Layered(LayoutConfig::default());
+
+    let result = FluxLayeredEngine::text()
+        .solve(&diagram, &config, &request)
+        .expect("solve should succeed");
+
+    let small = result.geometry.nodes["A"].rect.width;
+    let large = result.geometry.nodes["B"].rect.width;
+    assert!(
+        large > small + 50.0,
+        "styled provider should make large-style node wider: small={small} large={large}"
+    );
+}
+
 fn grid_request(
     level: GeometryLevel,
     routing_style: Option<RoutingStyle>,
@@ -145,6 +179,64 @@ fn proportional_request(
         routing_style,
         Default::default(),
     )
+}
+
+#[derive(Default)]
+struct StyleStubProvider {
+    line_widths: std::collections::BTreeMap<(GraphTextStyleKey, String), f64>,
+}
+
+impl StyleStubProvider {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    fn with_line_width(mut self, style: &str, text: &str, width: f64) -> Self {
+        self.line_widths
+            .insert((GraphTextStyleKey::test(style), text.to_string()), width);
+        self
+    }
+}
+
+impl TextMetricsProvider for StyleStubProvider {
+    fn measure_line_width(&self, _text: &str) -> f64 {
+        0.0
+    }
+
+    fn measure_scalar_width(&self, _ch: char) -> f64 {
+        0.0
+    }
+
+    fn measure_line_width_for_style(&self, style: &GraphTextStyleKey, text: &str) -> f64 {
+        self.line_widths
+            .get(&(style.clone(), text.to_string()))
+            .copied()
+            .unwrap_or(0.0)
+    }
+
+    fn font_size(&self) -> f64 {
+        16.0
+    }
+
+    fn line_height(&self) -> f64 {
+        24.0
+    }
+
+    fn node_padding_x(&self) -> f64 {
+        15.0
+    }
+
+    fn node_padding_y(&self) -> f64 {
+        15.0
+    }
+
+    fn label_padding_x(&self) -> f64 {
+        4.0
+    }
+
+    fn label_padding_y(&self) -> f64 {
+        2.0
+    }
 }
 
 #[test]

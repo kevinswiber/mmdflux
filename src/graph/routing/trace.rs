@@ -7,8 +7,8 @@ use crate::graph::geometry::{
     EdgeLabelSide, GraphGeometry, RoutedEdgeGeometry, RoutedGraphGeometry,
 };
 use crate::graph::measure::{
-    TextMetricsProvider, edge_label_dimensions_for_provider,
-    edge_label_dimensions_wrapped_for_provider,
+    TextMetricsProvider, edge_label_dimensions_for_provider_and_style,
+    edge_label_dimensions_wrapped_for_provider_and_style, edge_text_style_key,
 };
 use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Direction, Graph, Shape};
@@ -340,9 +340,12 @@ impl RouteInputSnapshot {
                     return None;
                 }
                 let midpoint = edge.label_position?;
+                let style = edge_text_style_key(metrics, diagram_edge);
                 let (width, height) = match diagram_edge.wrapped_label_lines.as_deref() {
-                    Some(lines) => edge_label_dimensions_wrapped_for_provider(metrics, lines),
-                    None => edge_label_dimensions_for_provider(metrics, label),
+                    Some(lines) => {
+                        edge_label_dimensions_wrapped_for_provider_and_style(metrics, &style, lines)
+                    }
+                    None => edge_label_dimensions_for_provider_and_style(metrics, &style, label),
                 };
                 let (axis_dim, cross_dim, axis_center, cross_center) = match geometry.direction {
                     Direction::TopDown | Direction::BottomTop => {

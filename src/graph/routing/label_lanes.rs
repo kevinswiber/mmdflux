@@ -11,8 +11,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::measure::{
-    TextMetricsProvider, edge_label_dimensions_for_provider,
-    edge_label_dimensions_wrapped_for_provider,
+    TextMetricsProvider, edge_label_dimensions_for_provider_and_style,
+    edge_label_dimensions_wrapped_for_provider_and_style, edge_text_style_key,
 };
 use crate::graph::routing::labels::arc_length_midpoint;
 use crate::graph::space::{FPoint, FRect};
@@ -544,9 +544,12 @@ pub(super) fn build_label_descriptors(
         // failure. Prefer `wrapped_label_lines` when present; fall back
         // to single-line measurement for edges that opted out of the
         // pre-engine wrap (dagre-parity mode).
+        let style = edge_text_style_key(metrics, edge);
         let (w, h) = match edge.wrapped_label_lines.as_deref() {
-            Some(lines) => edge_label_dimensions_wrapped_for_provider(metrics, lines),
-            None => edge_label_dimensions_for_provider(metrics, label_text),
+            Some(lines) => {
+                edge_label_dimensions_wrapped_for_provider_and_style(metrics, &style, lines)
+            }
+            None => edge_label_dimensions_for_provider_and_style(metrics, &style, label_text),
         };
 
         let direction_sign = if *backward_flags.get(&edge_index).unwrap_or(&false) {

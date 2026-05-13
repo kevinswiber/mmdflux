@@ -14,8 +14,8 @@ use crate::graph::geometry::{
     RoutedGraphGeometry, RoutedSelfEdge,
 };
 use crate::graph::measure::{
-    ProportionalTextMetrics, TextMetricsProvider, edge_label_dimensions_for_provider,
-    edge_label_dimensions_wrapped_for_provider,
+    ProportionalTextMetrics, TextMetricsProvider, edge_label_dimensions_for_provider_and_style,
+    edge_label_dimensions_wrapped_for_provider_and_style, edge_text_style_key,
 };
 use crate::graph::space::{FPoint, FRect};
 use crate::graph::{Direction, Graph, Shape};
@@ -950,9 +950,16 @@ fn populate_label_geometry(
         }
         // Prefer the pre-engine wrap artifact when present so the reserved
         // rect matches what SVG text and the MMDS replay emit.
+        let style = diagram_edge
+            .map(|edge| edge_text_style_key(metrics, edge))
+            .unwrap_or_else(|| {
+                crate::graph::measure::GraphTextStyleKey::default_provider_style(metrics)
+            });
         let (w, h) = match diagram_edge.and_then(|e| e.wrapped_label_lines.as_deref()) {
-            Some(lines) => edge_label_dimensions_wrapped_for_provider(metrics, lines),
-            None => edge_label_dimensions_for_provider(metrics, label),
+            Some(lines) => {
+                edge_label_dimensions_wrapped_for_provider_and_style(metrics, &style, lines)
+            }
+            None => edge_label_dimensions_for_provider_and_style(metrics, &style, label),
         };
         let side = routed_edge.label_side.unwrap_or(EdgeLabelSide::Center);
         routed_edge.label_geometry = Some(EdgeLabelGeometry {
@@ -1012,9 +1019,12 @@ fn align_backward_side_offset_labels(
         if label.is_empty() {
             continue;
         }
+        let style = edge_text_style_key(metrics, diagram_edge);
         let (_, label_height) = match diagram_edge.wrapped_label_lines.as_deref() {
-            Some(lines) => edge_label_dimensions_wrapped_for_provider(metrics, lines),
-            None => edge_label_dimensions_for_provider(metrics, label),
+            Some(lines) => {
+                edge_label_dimensions_wrapped_for_provider_and_style(metrics, &style, lines)
+            }
+            None => edge_label_dimensions_for_provider_and_style(metrics, &style, label),
         };
         if let Some(aligned) = project_side_aware_anchor(&routed_edge.path, label_height, side) {
             routed_edge.label_position = Some(aligned);

@@ -12,8 +12,8 @@ use crate::engines::graph::flux::FluxLayeredEngine;
 use crate::format::{CornerStyle, Curve, RoutingStyle};
 use crate::graph::Stroke;
 use crate::graph::measure::{
-    COMPATIBILITY_TEXT_METRICS_PROFILE_ID, TextMetricsProvider, default_proportional_text_metrics,
-    default_proportional_text_metrics_provider,
+    COMPATIBILITY_TEXT_METRICS_PROFILE_ID, GraphTextStyleKey, TextMetricsProvider,
+    default_proportional_text_metrics, default_proportional_text_metrics_provider,
 };
 use crate::graph::routing::{EdgeRouting, route_graph_geometry};
 use crate::internal_tests::stub_metrics::WideMProvider;
@@ -113,6 +113,111 @@ fn svg_label_background_uses_provider_widths() {
         max_width > 160.0,
         "provider should drive SVG label background width; max={max_width}, svg={svg}"
     );
+}
+
+#[test]
+fn svg_node_and_edge_labels_emit_effective_font_attributes() {
+    let input = r#"graph TD
+        A[Regular] -->|link| B(Styled Node)
+        style A font-family:Verdana,font-size:8px
+        style B font-family:Courier New,font-size:20px
+        linkStyle 0 font-family:Times New Roman,font-size:32px
+    "#;
+
+    let svg = render_svg_with_provider_for_test(input, &StyleSvgProvider);
+
+    assert!(svg.contains("font-family=\"Verdana\""), "{svg}");
+    assert!(
+        regex::Regex::new(r#"font-size="8(?:\.\d+)?""#)
+            .unwrap()
+            .is_match(&svg),
+        "{svg}"
+    );
+    assert!(svg.contains("font-family=\"Courier New\""), "{svg}");
+    assert!(
+        regex::Regex::new(r#"font-size="20(?:\.\d+)?""#)
+            .unwrap()
+            .is_match(&svg),
+        "{svg}"
+    );
+    assert!(svg.contains("font-family=\"Times New Roman\""), "{svg}");
+    assert!(
+        regex::Regex::new(r#"font-size="32(?:\.\d+)?""#)
+            .unwrap()
+            .is_match(&svg),
+        "{svg}"
+    );
+
+    let widest_bg = extract_label_bg_rects(&svg)
+        .iter()
+        .map(|(_, _, width, _)| *width)
+        .fold(0.0, f64::max);
+    assert!(
+        widest_bg > 120.0,
+        "edge label background should use Times New Roman style width; max={widest_bg}, svg={svg}"
+    );
+}
+
+struct StyleSvgProvider;
+
+impl TextMetricsProvider for StyleSvgProvider {
+    fn measure_line_width(&self, text: &str) -> f64 {
+        text.chars().map(|ch| self.measure_scalar_width(ch)).sum()
+    }
+
+    fn measure_scalar_width(&self, _ch: char) -> f64 {
+        8.0
+    }
+
+    fn measure_line_width_for_style(&self, style: &GraphTextStyleKey, text: &str) -> f64 {
+        match (style.font_family.as_str(), text) {
+            ("Verdana", "Regular") => 40.0,
+            ("Courier New", "Styled Node") => 160.0,
+            ("Times New Roman", "link") => 128.0,
+            _ => self.measure_line_width(text),
+        }
+    }
+
+    fn measure_scalar_width_for_style(&self, style: &GraphTextStyleKey, ch: char) -> f64 {
+        match style.font_family.as_str() {
+            "Verdana" => 5.0,
+            "Courier New" => 12.0,
+            "Times New Roman" => 32.0,
+            _ => self.measure_scalar_width(ch),
+        }
+    }
+
+    fn font_size_for_style(&self, style: &GraphTextStyleKey) -> f64 {
+        style.font_size_px()
+    }
+
+    fn line_height_for_style(&self, style: &GraphTextStyleKey) -> f64 {
+        style.line_height_px()
+    }
+
+    fn font_size(&self) -> f64 {
+        16.0
+    }
+
+    fn line_height(&self) -> f64 {
+        24.0
+    }
+
+    fn node_padding_x(&self) -> f64 {
+        15.0
+    }
+
+    fn node_padding_y(&self) -> f64 {
+        15.0
+    }
+
+    fn label_padding_x(&self) -> f64 {
+        4.0
+    }
+
+    fn label_padding_y(&self) -> f64 {
+        2.0
+    }
 }
 
 fn solve_visual_geometry(

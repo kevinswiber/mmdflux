@@ -4,10 +4,10 @@ use std::fmt::Write;
 
 use super::bounds::scale_rect;
 use super::edges::{document_svg_path, polygon_points};
-use super::text::{TextRenderStyle, render_text_centered};
+use super::text::{TextRenderStyle, font_attrs_for_style, render_text_centered};
 use super::{GraphSvgPalette, Point, Rect, dynamic_css_attrs};
 use crate::graph::geometry::{FRect, GraphGeometry};
-use crate::graph::measure::TextMetricsProvider;
+use crate::graph::measure::{GraphTextStyleKey, TextMetricsProvider, node_text_style_key};
 use crate::graph::routing::hexagon_vertices;
 use crate::graph::{Direction, Graph, Node, Shape};
 use crate::render::svg::{SvgWriter, escape_text, fmt_f64};
@@ -17,8 +17,6 @@ struct ResolvedSvgNodeStyle<'a> {
     fill: Option<&'a str>,
     stroke: Option<&'a str>,
     text: Option<&'a str>,
-    font_style: Option<&'a str>,
-    font_weight: Option<&'a str>,
     stroke_width: Option<&'a str>,
     stroke_dasharray: Option<&'a str>,
     rx: Option<&'a str>,
@@ -30,8 +28,6 @@ impl<'a> ResolvedSvgNodeStyle<'a> {
             fill: node.style.fill.as_ref().map(|color| color.raw()),
             stroke: node.style.stroke.as_ref().map(|color| color.raw()),
             text: node.style.color.as_ref().map(|color| color.raw()),
-            font_style: node.style.font_style.as_deref(),
-            font_weight: node.style.font_weight.as_deref(),
             stroke_width: node.style.stroke_width.as_deref(),
             stroke_dasharray: node.style.stroke_dasharray.as_deref(),
             rx: node.style.rx.as_deref(),
@@ -63,10 +59,10 @@ impl<'a> ResolvedSvgNodeStyle<'a> {
     }
 }
 
-#[derive(Clone, Copy)]
 struct NodeLabelRenderContext<'a> {
     rect: &'a Rect,
     style: ResolvedSvgNodeStyle<'a>,
+    text_style: GraphTextStyleKey,
     metrics: &'a dyn TextMetricsProvider,
     scale: f64,
     palette: &'a GraphSvgPalette,
@@ -215,6 +211,7 @@ pub(super) fn render_nodes(
         };
         let rect: Rect = pos_node.rect;
         let style = ResolvedSvgNodeStyle::from_node(node);
+        let text_style = node_text_style_key(metrics, node);
         render_node_shape(
             writer,
             node,
@@ -260,6 +257,7 @@ pub(super) fn render_nodes(
             NodeLabelRenderContext {
                 rect: &rect,
                 style,
+                text_style,
                 metrics,
                 scale,
                 palette,
@@ -290,13 +288,8 @@ fn render_node_label(
             &["fill:var(--_text);"],
         )
     };
-    let mut font_attrs = text_dynamic_attrs;
-    if let Some(fw) = context.style.font_weight {
-        write!(font_attrs, " font-weight=\"{fw}\"").unwrap();
-    }
-    if let Some(fs) = context.style.font_style {
-        write!(font_attrs, " font-style=\"{fs}\"").unwrap();
-    }
+    let font_attrs =
+        text_dynamic_attrs + &font_attrs_for_style(context.metrics, &context.text_style);
 
     if !has_separator {
         render_text_centered(
@@ -308,13 +301,14 @@ fn render_node_label(
             TextRenderStyle {
                 color: text_color,
                 extra_attrs: font_attrs.as_str(),
+                text_style: Some(&context.text_style),
                 background: None,
             },
         );
         return;
     }
 
-    let line_height = context.metrics.line_height() * context.scale;
+    let line_height = context.metrics.line_height_for_style(&context.text_style) * context.scale;
     let total_height = line_height * (lines.len().saturating_sub(1) as f64);
     let start_y = center.y - total_height / 2.0;
     let x1 = context.rect.x * context.scale;

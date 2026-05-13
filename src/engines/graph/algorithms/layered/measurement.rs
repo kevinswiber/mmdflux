@@ -13,9 +13,9 @@ use crate::errors::RenderError;
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::grid::{GridLayoutConfig, GridRanker};
 use crate::graph::measure::{
-    TextMetricsProvider, edge_label_dimensions_for_provider,
-    edge_label_dimensions_wrapped_for_provider, grid_edge_label_dimensions,
-    grid_edge_label_dimensions_wrapped, grid_node_dimensions,
+    TextMetricsProvider, edge_label_dimensions_for_provider_and_style,
+    edge_label_dimensions_wrapped_for_provider_and_style, edge_text_style_key,
+    grid_edge_label_dimensions, grid_edge_label_dimensions_wrapped, grid_node_dimensions,
     proportional_node_dimensions_with_provider,
 };
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
@@ -65,12 +65,15 @@ fn edge_label_dims_proportional_for_run(
     metrics: &dyn TextMetricsProvider,
     edge: &Edge,
 ) -> Option<(f64, f64)> {
+    let style = edge_text_style_key(metrics, edge);
     if let Some(lines) = edge.wrapped_label_lines.as_deref() {
-        return Some(edge_label_dimensions_wrapped_for_provider(metrics, lines));
+        return Some(edge_label_dimensions_wrapped_for_provider_and_style(
+            metrics, &style, lines,
+        ));
     }
     edge.label
         .as_deref()
-        .map(|label| edge_label_dimensions_for_provider(metrics, label))
+        .map(|label| edge_label_dimensions_for_provider_and_style(metrics, &style, label))
 }
 
 fn grid_edge_label_layout_dimensions(edge: &Edge) -> Option<(f64, f64)> {

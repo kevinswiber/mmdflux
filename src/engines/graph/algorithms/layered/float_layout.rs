@@ -13,8 +13,9 @@ use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, RoutedEdgeGeometry};
 use crate::graph::grid::GridLayoutConfig;
 use crate::graph::measure::{
-    TextMetricsProvider, edge_label_dimensions_for_provider,
-    edge_label_dimensions_wrapped_for_provider, proportional_node_dimensions_with_provider,
+    TextMetricsProvider, edge_label_dimensions_for_provider_and_style,
+    edge_label_dimensions_wrapped_for_provider_and_style, edge_text_style_key,
+    proportional_node_dimensions_with_provider,
 };
 use crate::graph::routing::{EdgeRouting, route_graph_geometry_with_provider};
 use crate::graph::{Direction, Edge, Graph, Stroke};
@@ -25,12 +26,15 @@ fn edge_label_dims_proportional(
     metrics: &dyn TextMetricsProvider,
     edge: &Edge,
 ) -> Option<(f64, f64)> {
+    let style = edge_text_style_key(metrics, edge);
     if let Some(lines) = edge.wrapped_label_lines.as_deref() {
-        return Some(edge_label_dimensions_wrapped_for_provider(metrics, lines));
+        return Some(edge_label_dimensions_wrapped_for_provider_and_style(
+            metrics, &style, lines,
+        ));
     }
     edge.label
         .as_deref()
-        .map(|label| edge_label_dimensions_for_provider(metrics, label))
+        .map(|label| edge_label_dimensions_for_provider_and_style(metrics, &style, label))
 }
 
 /// Stroke thickness in layout units used for ELK label-dummy padding.
