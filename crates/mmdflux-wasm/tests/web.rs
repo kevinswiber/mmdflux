@@ -41,6 +41,10 @@ fn dynamic_multi_style_metrics_json_fixture() -> &'static str {
     r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"},{"id":"s1","fontFamily":"Verdana","fontSize":8,"fontStyle":"normal","fontWeight":"400","lineHeight":12,"cssFont":"8px Verdana"}],"profileId":"mmdflux-browser-canvas-v1"}"#
 }
 
+fn dynamic_mermaid_multi_font_metrics_json_fixture() -> &'static str {
+    r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"},{"id":"s1","fontFamily":"Verdana","fontSize":8,"fontStyle":"normal","fontWeight":"400","lineHeight":12,"cssFont":"8px Verdana"},{"id":"s2","fontFamily":"Courier New","fontSize":20,"fontStyle":"normal","fontWeight":"400","lineHeight":30,"cssFont":"20px Courier New"},{"id":"s3","fontFamily":"Times New Roman","fontSize":32,"fontStyle":"normal","fontWeight":"400","lineHeight":48,"cssFont":"32px Times New Roman"}],"profileId":"mmdflux-browser-canvas-v1"}"#
+}
+
 fn dynamic_metrics_json_with_profile_fields(
     profile_id: &str,
     profile_version: u32,
@@ -445,6 +449,47 @@ fn browser_dynamic_mmds_replays_provider_free_through_static_render() {
         &measure,
     )
     .expect("dynamic mmds should render");
+
+    let replay_svg =
+        render(&mmds, "svg", config).expect("static render should replay measured dynamic MMDS");
+
+    assert_eq!(replay_svg, direct_svg);
+}
+
+#[wasm_bindgen_test]
+fn browser_dynamic_multifont_mmds_replays_provider_free_through_static_render() {
+    let measure = callback(
+        r#"
+        if (cssFont.includes("Times New Roman")) return text.length * 30;
+        if (cssFont.includes("Courier New")) return text.length * 15;
+        if (cssFont.includes("Verdana")) return text.length * 4;
+        return text.length * 8;
+        "#,
+    );
+    let input = include_str!("../../../tests/fixtures/flowchart/dynamic/multi_font_styles.mmd");
+    let config = r#"{"geometryLevel":"routed"}"#;
+    let direct_svg = render_with_browser_text_metrics(
+        input,
+        "svg",
+        config,
+        dynamic_mermaid_multi_font_metrics_json_fixture(),
+        &measure,
+    )
+    .expect("direct dynamic multi-font svg should render");
+    let mmds = render_with_browser_text_metrics(
+        input,
+        "mmds",
+        config,
+        dynamic_mermaid_multi_font_metrics_json_fixture(),
+        &measure,
+    )
+    .expect("dynamic multi-font mmds should render");
+
+    assert!(direct_svg.contains("font-family=\"Verdana\""));
+    assert!(direct_svg.contains("font-family=\"Courier New\""));
+    assert!(direct_svg.contains("font-family=\"Times New Roman\""));
+    assert!(mmds.contains("\"textStyles\""));
+    assert!(mmds.contains("\"Times New Roman\""));
 
     let replay_svg =
         render(&mmds, "svg", config).expect("static render should replay measured dynamic MMDS");

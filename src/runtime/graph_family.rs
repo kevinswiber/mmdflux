@@ -10,9 +10,10 @@ use crate::format::OutputFormat;
 use crate::graph::label_wrap::prepare_wrapped_labels_with_provider;
 use crate::graph::measure::{
     COMPATIBILITY_TEXT_METRICS_PROFILE_ID, DEFAULT_PROPORTIONAL_NODE_PADDING_X,
-    DEFAULT_PROPORTIONAL_NODE_PADDING_Y, ResolvedTextMetrics, TextMeasurementCache,
-    TextMetricsProfileConfig, TextMetricsProfileDescriptor, TextMetricsProvider,
-    resolve_text_metrics_profile, text_style_matches_descriptor,
+    DEFAULT_PROPORTIONAL_NODE_PADDING_Y, GraphTextStyleKey, ResolvedTextMetrics,
+    TextMeasurementCache, TextMetricsProfileConfig, TextMetricsProfileDescriptor,
+    TextMetricsProvider, edge_text_style_key, node_text_style_key, resolve_text_metrics_profile,
+    text_style_matches_descriptor,
 };
 use crate::graph::{GeometryLevel, Graph};
 use crate::mmds::Document;
@@ -153,6 +154,12 @@ fn solve_graph_family_for_render(
 ) -> Result<GraphFamilyRenderResult, RenderError> {
     let text_metrics = resolve_text_metrics_for_config(format, config)?;
     validate_provider_free_graph_text_style(format, config, &text_metrics.descriptor)?;
+    validate_provider_free_mermaid_font_styles(
+        format,
+        diagram,
+        &text_metrics.descriptor,
+        &text_metrics.metrics,
+    )?;
     let solve = solve_graph_family_with_provider(
         diagram_id,
         diagram,
@@ -210,6 +217,52 @@ fn provider_free_graph_text_style_error(descriptor: &TextMetricsProfileDescripto
             descriptor.profile_id
         ),
     }
+}
+
+fn validate_provider_free_mermaid_font_styles(
+    format: OutputFormat,
+    diagram: &Graph,
+    descriptor: &TextMetricsProfileDescriptor,
+    provider: &dyn TextMetricsProvider,
+) -> Result<(), RenderError> {
+    if !matches!(
+        format,
+        OutputFormat::Svg | OutputFormat::Mmds | OutputFormat::Text | OutputFormat::Ascii
+    ) {
+        return Ok(());
+    }
+
+    for node in diagram.nodes.values() {
+        let style = node_text_style_key(provider, node);
+        if !text_style_key_matches_descriptor(&style, &descriptor.default_text_style)? {
+            return Err(provider_free_graph_text_style_error(descriptor));
+        }
+    }
+
+    for edge in &diagram.edges {
+        if edge.label.is_none() && edge.head_label.is_none() && edge.tail_label.is_none() {
+            continue;
+        }
+        let style = edge_text_style_key(provider, edge);
+        if !text_style_key_matches_descriptor(&style, &descriptor.default_text_style)? {
+            return Err(provider_free_graph_text_style_error(descriptor));
+        }
+    }
+
+    Ok(())
+}
+
+fn text_style_key_matches_descriptor(
+    style: &GraphTextStyleKey,
+    descriptor: &crate::graph::measure::TextMetricsStyleDescriptor,
+) -> Result<bool, RenderError> {
+    let family_and_size_matches =
+        text_style_matches_descriptor(&style.font_family, style.font_size_px(), descriptor)
+            .map_err(|message| RenderError {
+                message: format!("fontFamily {message}"),
+            })?;
+    Ok(family_and_size_matches
+        && (style.line_height_px() - descriptor.line_height).abs() <= f64::EPSILON)
 }
 
 fn solve_graph_family_with_provider(

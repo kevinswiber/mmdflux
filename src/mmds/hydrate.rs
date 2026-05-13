@@ -18,7 +18,7 @@ use crate::graph::measure::{TextMetricsProvider, default_proportional_text_metri
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{EdgeRouting, route_graph_geometry_with_provider};
 use crate::graph::space::{FPoint, FRect};
-use crate::graph::style::{ColorToken, NodeStyle};
+use crate::graph::style::{ColorToken, EdgeStyle, NodeStyle};
 use crate::graph::{Edge as GraphEdge, GeometryLevel, Graph, Node, Subgraph};
 use crate::mmds::{
     Document, Edge, NODE_STYLE_EXTENSION_NAMESPACE, TEXT_EXTENSION_NAMESPACE, parse_input,
@@ -174,6 +174,10 @@ pub fn from_document(output: &Document) -> Result<Graph, HydrationError> {
         if let Some(label) = &edge.label {
             hydrated = hydrated.with_label(label.clone());
         }
+        let style = parse_edge_style_from_extension(&output.extensions, &edge.id);
+        if !style.is_empty() {
+            hydrated.style = hydrated.style.merge(&style);
+        }
         hydrated.from_subgraph = edge.from_subgraph.clone();
         hydrated.to_subgraph = edge.to_subgraph.clone();
         diagram.add_edge(hydrated);
@@ -247,6 +251,46 @@ fn parse_node_style_extension(style_object: &Map<String, Value>) -> NodeStyle {
             "stroke_dasharray",
         ),
         rx: parse_node_style_string(style_object, "rx"),
+    }
+}
+
+fn parse_edge_style_from_extension(
+    extensions: &std::collections::BTreeMap<String, Map<String, Value>>,
+    edge_id: &str,
+) -> EdgeStyle {
+    let Some(extension) = extensions.get(NODE_STYLE_EXTENSION_NAMESPACE) else {
+        return EdgeStyle::default();
+    };
+    let Some(edges) = extension.get("edges").and_then(Value::as_object) else {
+        return EdgeStyle::default();
+    };
+    let Some(style_object) = edges.get(edge_id).and_then(Value::as_object) else {
+        return EdgeStyle::default();
+    };
+
+    EdgeStyle {
+        stroke: None,
+        stroke_width: parse_node_style_string_with_legacy_key(
+            style_object,
+            "stroke-width",
+            "stroke_width",
+        ),
+        font_family: parse_node_style_string_with_legacy_key(
+            style_object,
+            "font-family",
+            "font_family",
+        ),
+        font_size: parse_node_style_string_with_legacy_key(style_object, "font-size", "font_size"),
+        font_style: parse_node_style_string_with_legacy_key(
+            style_object,
+            "font-style",
+            "font_style",
+        ),
+        font_weight: parse_node_style_string_with_legacy_key(
+            style_object,
+            "font-weight",
+            "font_weight",
+        ),
     }
 }
 

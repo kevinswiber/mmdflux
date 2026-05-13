@@ -85,6 +85,21 @@ fn flowchart_fixture(name: &str) -> String {
         .unwrap_or_else(|e| panic!("failed to read flowchart fixture {}: {e}", path.display()))
 }
 
+fn dynamic_flowchart_fixture(name: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("flowchart")
+        .join("dynamic")
+        .join(name);
+    std::fs::read_to_string(&path).unwrap_or_else(|e| {
+        panic!(
+            "failed to read dynamic flowchart fixture {}: {e}",
+            path.display()
+        )
+    })
+}
+
 fn render_json(input: &str) -> String {
     render_json_with_config(input, &RenderConfig::default())
 }
@@ -532,6 +547,17 @@ fn provider_free_mmds_rejects_custom_graph_font_style() {
 
     let err = render_diagram("graph TD\nA-->B", OutputFormat::Mmds, &config)
         .expect_err("custom provider-free graph font style should fail");
+
+    assert!(err.message.contains("fontFamily"), "{err}");
+    assert!(err.message.contains("dynamic text metrics"), "{err}");
+}
+
+#[test]
+fn provider_free_mmds_rejects_mermaid_graph_font_styles() {
+    let input = dynamic_flowchart_fixture("multi_font_styles.mmd");
+
+    let err = render_diagram(&input, OutputFormat::Mmds, &RenderConfig::default())
+        .expect_err("Mermaid font styles require dynamic text metrics");
 
     assert!(err.message.contains("fontFamily"), "{err}");
     assert!(err.message.contains("dynamic text metrics"), "{err}");

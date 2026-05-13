@@ -24,6 +24,21 @@ fn load_flowchart_fixture(name: &str) -> String {
         .unwrap_or_else(|e| panic!("failed to read flowchart fixture {}: {e}", path.display()))
 }
 
+fn load_dynamic_flowchart_fixture(name: &str) -> String {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("flowchart")
+        .join("dynamic")
+        .join(name);
+    fs::read_to_string(&path).unwrap_or_else(|e| {
+        panic!(
+            "failed to read dynamic flowchart fixture {}: {e}",
+            path.display()
+        )
+    })
+}
+
 fn load_class_fixture(name: &str) -> String {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
@@ -133,6 +148,17 @@ fn provider_free_svg_rejects_custom_graph_font_style() {
     assert!(err.message.contains("fontFamily"), "{err}");
     assert!(err.message.contains("dynamic text metrics"), "{err}");
     assert!(err.message.contains(DEFAULT_GRAPH_FONT_FAMILY), "{err}");
+}
+
+#[test]
+fn provider_free_svg_rejects_mermaid_graph_font_styles() {
+    let input = load_dynamic_flowchart_fixture("multi_font_styles.mmd");
+
+    let err = render_diagram(&input, OutputFormat::Svg, &RenderConfig::default())
+        .expect_err("Mermaid font styles require dynamic text metrics");
+
+    assert!(err.message.contains("fontFamily"), "{err}");
+    assert!(err.message.contains("dynamic text metrics"), "{err}");
 }
 
 #[test]

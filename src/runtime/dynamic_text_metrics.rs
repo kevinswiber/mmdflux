@@ -284,6 +284,8 @@ where
 
     pub(crate) fn measurement_cache_snapshot(&self) -> Result<TextMeasurementCache, RenderError> {
         self.finish()?;
+        self.measure_scalar_char_for_style(&self.default_style.clone(), ' ');
+        self.finish()?;
         let mut text_styles = BTreeMap::new();
         for style in &self.input.text_styles {
             text_styles.insert(
@@ -953,6 +955,58 @@ mod tests {
         "graph TD\nA[Same] --> B[Same]\nstyle A font-family:Verdana,font-size:8px\nstyle B font-family:Courier New,font-size:20px"
     }
 
+    fn multi_font_mermaid_input() -> &'static str {
+        include_str!("../../tests/fixtures/flowchart/dynamic/multi_font_styles.mmd")
+    }
+
+    fn multi_font_mermaid_style_set_input() -> DynamicMetricsInput {
+        serde_json::from_str(
+            r#"{
+              "defaultStyle":"s0",
+              "textStyles":[
+                {
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":16,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":24,
+                  "cssFont":"16px Inter"
+                },
+                {
+                  "id":"s1",
+                  "fontFamily":"Verdana",
+                  "fontSize":8,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":12,
+                  "cssFont":"8px Verdana"
+                },
+                {
+                  "id":"s2",
+                  "fontFamily":"Courier New",
+                  "fontSize":20,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":30,
+                  "cssFont":"20px Courier New"
+                },
+                {
+                  "id":"s3",
+                  "fontFamily":"Times New Roman",
+                  "fontSize":32,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":48,
+                  "cssFont":"32px Times New Roman"
+                }
+              ],
+              "profileId":"browser-multifont-v1"
+            }"#,
+        )
+        .unwrap()
+    }
+
     fn multi_font_width(text: &str, css_font: &str) -> Result<f64, DynamicTextMetricsError> {
         let per_char = if css_font.contains("Courier New") {
             18.0
@@ -962,6 +1016,22 @@ mod tests {
             10.0
         };
         Ok(text.len() as f64 * per_char)
+    }
+
+    fn multi_font_mermaid_width(
+        text: &str,
+        css_font: &str,
+    ) -> Result<f64, DynamicTextMetricsError> {
+        let per_char = if css_font.contains("Times New Roman") {
+            30.0
+        } else if css_font.contains("Courier New") {
+            15.0
+        } else if css_font.contains("Verdana") {
+            4.0
+        } else {
+            8.0
+        };
+        Ok(text.chars().count() as f64 * per_char)
     }
 
     fn multi_font_dynamic_mmds_fixture() -> String {
@@ -1492,7 +1562,8 @@ mod tests {
             .expect("successful provider should export measurements");
         assert_eq!(snapshot.line_width("A"), Some(8.0));
         assert_eq!(snapshot.scalar_width('A'), Some(8.0));
-        assert_eq!(observed_calls.get(), 2);
+        assert_eq!(snapshot.scalar_width(' '), Some(8.0));
+        assert_eq!(observed_calls.get(), 3);
     }
 
     #[test]
@@ -1790,6 +1861,91 @@ mod tests {
         let replay_svg = render_diagram(&dynamic_mmds, OutputFormat::Svg, &RenderConfig::default())
             .expect("style-keyed sidecar should allow provider-free replay");
 
+        assert_eq!(replay_svg, direct_svg);
+    }
+
+    #[test]
+    fn dynamic_multifont_mermaid_fixture_round_trips_and_records_all_styles() {
+        use std::cell::RefCell;
+        use std::collections::BTreeMap;
+
+        let calls = Rc::new(RefCell::new(BTreeMap::<(String, String), usize>::new()));
+        let calls_for_svg = Rc::clone(&calls);
+        let direct_svg = render_graph_family_with_dynamic_text_metrics(
+            multi_font_mermaid_input(),
+            OutputFormat::Svg,
+            &routed_config(),
+            multi_font_mermaid_style_set_input(),
+            move |text, css_font| {
+                *calls_for_svg
+                    .borrow_mut()
+                    .entry((css_font.to_string(), text.to_string()))
+                    .or_default() += 1;
+                multi_font_mermaid_width(text, css_font)
+            },
+        )
+        .expect("direct dynamic multi-font SVG should render");
+        assert!(
+            direct_svg.contains("font-family=\"Verdana\""),
+            "{direct_svg}"
+        );
+        assert!(
+            direct_svg.contains("font-family=\"Courier New\""),
+            "{direct_svg}"
+        );
+        assert!(
+            direct_svg.contains("font-family=\"Times New Roman\""),
+            "{direct_svg}"
+        );
+        assert!(
+            direct_svg.contains("width=\"128.00\""),
+            "edge label background should reflect Times New Roman width; {direct_svg}"
+        );
+        assert!(
+            calls.borrow().values().all(|count| *count == 1),
+            "{:?}",
+            calls.borrow()
+        );
+
+        let dynamic_mmds = render_graph_family_with_dynamic_text_metrics(
+            multi_font_mermaid_input(),
+            OutputFormat::Mmds,
+            &routed_config(),
+            multi_font_mermaid_style_set_input(),
+            multi_font_mermaid_width,
+        )
+        .expect("dynamic multi-font MMDS should render");
+        let value: serde_json::Value = serde_json::from_str(&dynamic_mmds).unwrap();
+        let sidecar = &value["extensions"]["org.mmdflux.text-measurements.v1"];
+        for (style, family, text, width) in [
+            ("s1", "Verdana", "Regular", 28.0),
+            ("s2", "Courier New", "Styled Node", 165.0),
+            ("s3", "Times New Roman", "link", 120.0),
+        ] {
+            assert!(
+                sidecar["textStyles"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|entry| entry["id"] == style && entry["fontFamily"] == family),
+                "{sidecar}"
+            );
+            assert!(
+                sidecar["lineWidths"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|entry| {
+                        entry["style"] == style
+                            && entry["text"] == text
+                            && (entry["width"].as_f64().unwrap() - width).abs() < f64::EPSILON
+                    }),
+                "{sidecar}"
+            );
+        }
+
+        let replay_svg = render_diagram(&dynamic_mmds, OutputFormat::Svg, &RenderConfig::default())
+            .expect("provider-free sidecar replay should render");
         assert_eq!(replay_svg, direct_svg);
     }
 

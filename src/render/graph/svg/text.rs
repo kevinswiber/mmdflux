@@ -18,6 +18,7 @@ pub(super) struct TextRenderStyle<'a> {
 pub(super) struct BackgroundStyle<'a> {
     pub(super) fill: &'a str,
     pub(super) extra_attrs: &'a str,
+    pub(super) size: Option<(f64, f64)>,
 }
 
 // Label padding defaults live in `graph::measure`.
@@ -54,7 +55,7 @@ pub(super) fn render_text_centered_with_wrap(
         .cloned()
         .unwrap_or_else(|| GraphTextStyleKey::default_provider_style(metrics));
     if let Some(bg) = &style.background {
-        let (w, h) = match wrapped_lines {
+        let (w, h) = bg.size.unwrap_or_else(|| match wrapped_lines {
             Some(lines) => measure_wrapped_with_padding(
                 metrics,
                 &measured_style,
@@ -69,7 +70,7 @@ pub(super) fn render_text_centered_with_wrap(
                 LABEL_BG_PAD_X,
                 LABEL_BG_PAD_Y,
             ),
-        };
+        });
         let rect_w = w * scale;
         let rect_h = h * scale;
         let rect = format!(

@@ -22,7 +22,7 @@ use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{
     EdgeRouting, route_graph_geometry, route_graph_geometry_with_provider,
 };
-use crate::graph::style::NodeStyle;
+use crate::graph::style::{EdgeStyle, NodeStyle};
 use crate::graph::{Arrow, Direction, GeometryLevel, Graph, Shape, Stroke};
 use crate::simplification::PathSimplification;
 
@@ -409,6 +409,7 @@ fn build_document(
         GeometryLevel::Layout
     };
     let styled_nodes = collect_styled_nodes(diagram);
+    let styled_edges = collect_styled_edges(diagram);
 
     // At routed level, use the recomputed routed bounds (which cover all
     // routed edge paths) instead of stale layout bounds.
@@ -536,12 +537,12 @@ fn build_document(
             grid_projection_extension(grid_projection),
         );
     }
-    if !styled_nodes.is_empty() {
+    if !styled_nodes.is_empty() || !styled_edges.is_empty() {
         push_profile(&mut profiles, CORE_PROFILE);
         push_profile(&mut profiles, NODE_STYLE_PROFILE);
         extensions.insert(
             NODE_STYLE_EXTENSION_NAMESPACE.to_string(),
-            node_style_extension(styled_nodes),
+            style_extension(styled_nodes, styled_edges),
         );
     }
     if let Some(text_metrics_descriptor) = options.text_metrics_descriptor {
@@ -579,6 +580,16 @@ fn collect_styled_nodes(diagram: &Graph) -> BTreeMap<String, NodeStyle> {
         .iter()
         .filter(|(_, node)| !node.style.is_empty())
         .map(|(node_id, node)| (node_id.clone(), node.style.clone()))
+        .collect()
+}
+
+fn collect_styled_edges(diagram: &Graph) -> BTreeMap<String, EdgeStyle> {
+    diagram
+        .edges
+        .iter()
+        .enumerate()
+        .filter(|(_, edge)| !edge.style.is_empty())
+        .map(|(index, edge)| (format!("e{index}"), edge.style.clone()))
         .collect()
 }
 
@@ -715,18 +726,35 @@ fn rect_value(rect: crate::graph::geometry::FRect) -> Value {
     Value::Object(value)
 }
 
-fn node_style_extension(styled_nodes: BTreeMap<String, NodeStyle>) -> Map<String, Value> {
-    let nodes = styled_nodes
-        .iter()
-        .map(|(node_id, style)| {
-            (
-                node_id.clone(),
-                Value::Object(serialize_node_style_extension(style)),
-            )
-        })
-        .collect();
+fn style_extension(
+    styled_nodes: BTreeMap<String, NodeStyle>,
+    styled_edges: BTreeMap<String, EdgeStyle>,
+) -> Map<String, Value> {
     let mut extension = Map::new();
-    extension.insert("nodes".to_string(), Value::Object(nodes));
+    if !styled_nodes.is_empty() {
+        let nodes = styled_nodes
+            .iter()
+            .map(|(node_id, style)| {
+                (
+                    node_id.clone(),
+                    Value::Object(serialize_node_style_extension(style)),
+                )
+            })
+            .collect();
+        extension.insert("nodes".to_string(), Value::Object(nodes));
+    }
+    if !styled_edges.is_empty() {
+        let edges = styled_edges
+            .iter()
+            .map(|(edge_id, style)| {
+                (
+                    edge_id.clone(),
+                    Value::Object(serialize_edge_style_extension(style)),
+                )
+            })
+            .collect();
+        extension.insert("edges".to_string(), Value::Object(edges));
+    }
     extension
 }
 
@@ -764,6 +792,26 @@ fn serialize_node_style_extension(style: &NodeStyle) -> Map<String, Value> {
     }
     if let Some(v) = &style.rx {
         payload.insert("rx".to_string(), Value::String(v.clone()));
+    }
+    payload
+}
+
+fn serialize_edge_style_extension(style: &EdgeStyle) -> Map<String, Value> {
+    let mut payload = Map::new();
+    if let Some(v) = &style.stroke_width {
+        payload.insert("stroke-width".to_string(), Value::String(v.clone()));
+    }
+    if let Some(v) = &style.font_family {
+        payload.insert("font-family".to_string(), Value::String(v.clone()));
+    }
+    if let Some(v) = &style.font_size {
+        payload.insert("font-size".to_string(), Value::String(v.clone()));
+    }
+    if let Some(v) = &style.font_style {
+        payload.insert("font-style".to_string(), Value::String(v.clone()));
+    }
+    if let Some(v) = &style.font_weight {
+        payload.insert("font-weight".to_string(), Value::String(v.clone()));
     }
     payload
 }

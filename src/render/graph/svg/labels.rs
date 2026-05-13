@@ -125,6 +125,7 @@ pub(super) fn render_edge_labels(
     let bg_style = BackgroundStyle {
         fill: &palette.edge_label_background,
         extra_attrs: bg_dynamic_attrs.as_str(),
+        size: None,
     };
 
     writer.start_group("edgeLabels");
@@ -241,6 +242,7 @@ pub(super) fn render_edge_labels(
                 background: Some(BackgroundStyle {
                     fill: bg_style.fill,
                     extra_attrs: bg_style.extra_attrs,
+                    size: label_geom.map(|g| (g.rect.width, g.rect.height)),
                 }),
             },
         );
@@ -281,6 +283,7 @@ pub(super) fn render_edge_labels(
                     background: Some(BackgroundStyle {
                         fill: bg_style.fill,
                         extra_attrs: bg_style.extra_attrs,
+                        size: None,
                     }),
                 },
             );
@@ -302,6 +305,7 @@ pub(super) fn render_edge_labels(
                     background: Some(BackgroundStyle {
                         fill: bg_style.fill,
                         extra_attrs: bg_style.extra_attrs,
+                        size: None,
                     }),
                 },
             );
