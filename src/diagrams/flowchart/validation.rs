@@ -247,10 +247,10 @@ mod tests {
 
     #[test]
     fn classdef_unsupported_property_warned() {
-        let input = "graph TD\n  classDef foo fill:#f00,font-size:14px\n  A:::foo\n";
+        let input = "graph TD\n  classDef foo fill:#f00,shape-padding:14px\n  A:::foo\n";
         let warnings = collect_unsupported_warnings(input);
         assert!(
-            warnings.iter().any(|w| w.message.contains("font-size")),
+            warnings.iter().any(|w| w.message.contains("shape-padding")),
             "unsupported property in classDef should warn: {:?}",
             warnings
         );

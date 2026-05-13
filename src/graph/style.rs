@@ -16,6 +16,10 @@ pub struct NodeStyle {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<ColorToken>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_family: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_size: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub font_style: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub font_weight: Option<String>,
@@ -32,6 +36,8 @@ impl NodeStyle {
         self.fill.is_none()
             && self.stroke.is_none()
             && self.color.is_none()
+            && self.font_family.is_none()
+            && self.font_size.is_none()
             && self.font_style.is_none()
             && self.font_weight.is_none()
             && self.stroke_width.is_none()
@@ -59,6 +65,11 @@ impl NodeStyle {
             fill: overlay.fill.clone().or_else(|| self.fill.clone()),
             stroke: overlay.stroke.clone().or_else(|| self.stroke.clone()),
             color: overlay.color.clone().or_else(|| self.color.clone()),
+            font_family: overlay
+                .font_family
+                .clone()
+                .or_else(|| self.font_family.clone()),
+            font_size: overlay.font_size.clone().or_else(|| self.font_size.clone()),
             font_style: overlay
                 .font_style
                 .clone()
@@ -87,11 +98,24 @@ pub struct EdgeStyle {
     pub stroke: Option<ColorToken>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stroke_width: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_family: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_size: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_style: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub font_weight: Option<String>,
 }
 
 impl EdgeStyle {
     pub fn is_empty(&self) -> bool {
-        self.stroke.is_none() && self.stroke_width.is_none()
+        self.stroke.is_none()
+            && self.stroke_width.is_none()
+            && self.font_family.is_none()
+            && self.font_size.is_none()
+            && self.font_style.is_none()
+            && self.font_weight.is_none()
     }
 
     pub fn merge(&self, overlay: &Self) -> Self {
@@ -101,6 +125,19 @@ impl EdgeStyle {
                 .stroke_width
                 .clone()
                 .or_else(|| self.stroke_width.clone()),
+            font_family: overlay
+                .font_family
+                .clone()
+                .or_else(|| self.font_family.clone()),
+            font_size: overlay.font_size.clone().or_else(|| self.font_size.clone()),
+            font_style: overlay
+                .font_style
+                .clone()
+                .or_else(|| self.font_style.clone()),
+            font_weight: overlay
+                .font_weight
+                .clone()
+                .or_else(|| self.font_weight.clone()),
         }
     }
 }
@@ -181,6 +218,7 @@ pub struct ParsedNodeStyleDirective {
 pub enum NodeStyleIssue {
     UnsupportedProperty { property: String },
     UnsupportedColorSyntax { property: String, value: String },
+    InvalidFontSize { value: String },
     MalformedDeclaration { declaration: String },
 }
 
@@ -188,12 +226,16 @@ impl NodeStyleIssue {
     pub fn message(&self) -> String {
         match self {
             NodeStyleIssue::UnsupportedProperty { property } => format!(
-                "style property '{}' is not supported; supported properties are fill, stroke, and color",
+                "style property '{}' is not supported; supported properties are fill, stroke, color, font-family, font-size, font-style, font-weight, stroke-width, stroke-dasharray, and rx",
                 property
             ),
             NodeStyleIssue::UnsupportedColorSyntax { property, value } => format!(
                 "style property '{}' uses unsupported color syntax '{}'; supported color formats are #rgb, #rrggbb, and named colors",
                 property, value
+            ),
+            NodeStyleIssue::InvalidFontSize { value } => format!(
+                "style property 'font-size' has unsupported value '{}'; supported values are positive numbers with optional px units",
+                value
             ),
             NodeStyleIssue::MalformedDeclaration { declaration } => format!(
                 "style declaration '{}' must use key:value syntax",
@@ -207,6 +249,7 @@ impl NodeStyleIssue {
 pub enum EdgeStyleIssue {
     UnsupportedProperty { property: String },
     UnsupportedColorSyntax { property: String, value: String },
+    InvalidFontSize { value: String },
     MalformedDeclaration { declaration: String },
     InvalidLinkIndex { token: String },
 }
@@ -215,12 +258,16 @@ impl EdgeStyleIssue {
     pub fn message(&self) -> String {
         match self {
             EdgeStyleIssue::UnsupportedProperty { property } => format!(
-                "linkStyle property '{}' is not supported; supported properties are stroke and stroke-width",
+                "linkStyle property '{}' is not supported; supported properties are stroke, stroke-width, font-family, font-size, font-style, and font-weight",
                 property
             ),
             EdgeStyleIssue::UnsupportedColorSyntax { property, value } => format!(
                 "linkStyle property '{}' uses unsupported color syntax '{}'; supported color formats are #rgb, #rrggbb, and named colors",
                 property, value
+            ),
+            EdgeStyleIssue::InvalidFontSize { value } => format!(
+                "linkStyle property 'font-size' has unsupported value '{}'; supported values are positive numbers with optional px units",
+                value
             ),
             EdgeStyleIssue::MalformedDeclaration { declaration } => format!(
                 "linkStyle declaration '{}' must use key:value syntax",
@@ -267,6 +314,48 @@ pub fn parse_node_style_statement(raw: &str) -> Option<ParsedNodeStyleDirective>
         style: parsed.style,
         issues: parsed.issues,
     })
+}
+
+pub(crate) fn parse_font_size_px(value: &str) -> Result<f64, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err("font-size cannot be empty".to_string());
+    }
+
+    let lower = trimmed.to_ascii_lowercase();
+    let numeric = match lower.strip_suffix("px") {
+        Some(_) => trimmed[..trimmed.len() - 2].trim_end(),
+        None => trimmed,
+    };
+
+    if !is_plain_decimal_number(numeric) {
+        return Err(format!("unsupported font-size value '{value}'"));
+    }
+
+    let parsed: f64 = numeric
+        .parse()
+        .map_err(|_| format!("unsupported font-size value '{value}'"))?;
+    if !parsed.is_finite() || parsed <= 0.0 {
+        return Err(format!("unsupported font-size value '{value}'"));
+    }
+    Ok(parsed)
+}
+
+fn is_plain_decimal_number(value: &str) -> bool {
+    let mut seen_dot = false;
+    let mut digits_before_dot = 0usize;
+    let mut digits_after_dot = 0usize;
+
+    for ch in value.chars() {
+        match ch {
+            '0'..='9' if seen_dot => digits_after_dot += 1,
+            '0'..='9' => digits_before_dot += 1,
+            '.' if !seen_dot => seen_dot = true,
+            _ => return false,
+        }
+    }
+
+    digits_before_dot > 0 && (!seen_dot || digits_after_dot > 0)
 }
 
 /// Reassemble comma-split fragments: if a fragment has no `:` it's part of the
@@ -319,6 +408,19 @@ pub(crate) fn parse_node_style_declarations(raw: &str) -> ParsedNodeStyleDeclara
 
         // String-valued properties (non-color).
         match property.as_str() {
+            "font-family" => {
+                style.font_family = Some(value.to_string());
+                continue;
+            }
+            "font-size" => {
+                match parse_font_size_px(value) {
+                    Ok(_) => style.font_size = Some(value.to_string()),
+                    Err(_) => issues.push(NodeStyleIssue::InvalidFontSize {
+                        value: value.to_string(),
+                    }),
+                }
+                continue;
+            }
             "font-style" => {
                 style.font_style = Some(value.to_string());
                 continue;
@@ -417,6 +519,21 @@ pub(crate) fn parse_edge_style_declarations(raw: &str) -> ParsedEdgeStyleDeclara
         }
 
         match property.as_str() {
+            "font-family" => {
+                style.font_family = Some(value.to_string());
+            }
+            "font-size" => match parse_font_size_px(value) {
+                Ok(_) => style.font_size = Some(value.to_string()),
+                Err(_) => issues.push(EdgeStyleIssue::InvalidFontSize {
+                    value: value.to_string(),
+                }),
+            },
+            "font-style" => {
+                style.font_style = Some(value.to_string());
+            }
+            "font-weight" => {
+                style.font_weight = Some(value.to_string());
+            }
             "stroke-width" => {
                 style.stroke_width = Some(value.to_string());
             }
@@ -720,6 +837,64 @@ mod tests {
         assert!(parsed.issues.is_empty());
     }
 
+    #[test]
+    fn parse_node_style_accepts_font_family_and_size() {
+        let parsed = parse_node_style_declarations(
+            "font-family:Verdana,font-size:8px,font-style:italic,font-weight:700",
+        );
+
+        assert_eq!(parsed.style.font_family.as_deref(), Some("Verdana"));
+        assert_eq!(parsed.style.font_size.as_deref(), Some("8px"));
+        assert_eq!(parsed.style.font_style.as_deref(), Some("italic"));
+        assert_eq!(parsed.style.font_weight.as_deref(), Some("700"));
+        assert!(parsed.issues.is_empty(), "{:?}", parsed.issues);
+    }
+
+    #[test]
+    fn parse_node_style_accepts_font_size_subset() {
+        for (input, expected) in [
+            ("font-size:14", "14"),
+            ("font-size:14px", "14px"),
+            ("font-size:14PX", "14PX"),
+            ("font-size:14.5 px", "14.5 px"),
+        ] {
+            let parsed = parse_node_style_declarations(input);
+
+            assert_eq!(parsed.style.font_size.as_deref(), Some(expected));
+            assert!(parsed.issues.is_empty(), "{input}: {:?}", parsed.issues);
+        }
+    }
+
+    #[test]
+    fn parse_node_style_rejects_invalid_font_size_values() {
+        for input in ["font-size:1rem", "font-size:+14px", "font-size:1.4e1"] {
+            let parsed = parse_node_style_declarations(input);
+
+            assert_eq!(parsed.style.font_size, None, "{input}");
+            assert!(
+                parsed
+                    .issues
+                    .iter()
+                    .any(|issue| issue.message().contains("font-size")),
+                "{input}: {:?}",
+                parsed.issues
+            );
+        }
+    }
+
+    #[test]
+    fn parse_node_style_keeps_comma_font_family_value_together() {
+        let parsed =
+            parse_node_style_declarations("font-family:Times New Roman, serif,font-size:32px");
+
+        assert_eq!(
+            parsed.style.font_family.as_deref(),
+            Some("Times New Roman, serif")
+        );
+        assert_eq!(parsed.style.font_size.as_deref(), Some("32px"));
+        assert!(parsed.issues.is_empty(), "{:?}", parsed.issues);
+    }
+
     // --- classDef parsing ---
 
     #[test]
@@ -772,7 +947,7 @@ mod tests {
 
     #[test]
     fn parse_classdef_unsupported_property_reported() {
-        let result = parse_classdef_statement("classDef foo fill:#f00,font-size:14px");
+        let result = parse_classdef_statement("classDef foo fill:#f00,shape-padding:14px");
         let parsed = result.unwrap();
         assert!(parsed.style.fill.is_some());
         assert!(!parsed.issues.is_empty());
@@ -861,6 +1036,34 @@ mod tests {
 
         assert_eq!(parsed.target, LinkStyleTarget::Default);
         assert_eq!(parsed.style.stroke.as_ref().unwrap().raw(), "#999");
+    }
+
+    #[test]
+    fn parse_linkstyle_accepts_label_font_properties() {
+        let parsed = parse_linkstyle_statement(
+            "linkStyle 0 font-family:Times New Roman,font-size:32px,font-weight:700",
+        )
+        .unwrap();
+
+        assert_eq!(parsed.style.font_family.as_deref(), Some("Times New Roman"));
+        assert_eq!(parsed.style.font_size.as_deref(), Some("32px"));
+        assert_eq!(parsed.style.font_weight.as_deref(), Some("700"));
+        assert!(parsed.issues.is_empty(), "{:?}", parsed.issues);
+    }
+
+    #[test]
+    fn parse_linkstyle_rejects_invalid_label_font_size() {
+        let parsed = parse_linkstyle_statement("linkStyle 0 font-size:1rem").unwrap();
+
+        assert_eq!(parsed.style.font_size, None);
+        assert!(
+            parsed
+                .issues
+                .iter()
+                .any(|issue| issue.message().contains("font-size")),
+            "{:?}",
+            parsed.issues
+        );
     }
 
     #[test]

@@ -220,6 +220,12 @@ fn parse_node_style_extension(style_object: &Map<String, Value>) -> NodeStyle {
         fill: parse_node_style_color(style_object, "fill"),
         stroke: parse_node_style_color(style_object, "stroke"),
         color: parse_node_style_color(style_object, "color"),
+        font_family: parse_node_style_string_with_legacy_key(
+            style_object,
+            "font-family",
+            "font_family",
+        ),
+        font_size: parse_node_style_string_with_legacy_key(style_object, "font-size", "font_size"),
         font_style: parse_node_style_string_with_legacy_key(
             style_object,
             "font-style",

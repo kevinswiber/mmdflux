@@ -1292,6 +1292,74 @@ mod tests {
     }
 
     #[test]
+    fn compiler_resolves_distinct_node_and_edge_label_font_styles() {
+        let input = r#"graph TD
+            A[Regular] -->|link| B(Styled Node)
+            style A font-family:Verdana,font-size:8px
+            style B font-family:Courier New,font-size:20px
+            linkStyle 0 font-family:Times New Roman,font-size:32px
+        "#;
+
+        let flowchart = parse_flowchart(input).unwrap();
+        let graph = compile_to_graph(&flowchart);
+        let a = graph.nodes.get("A").unwrap();
+        let b = graph.nodes.get("B").unwrap();
+        let edge = &graph.edges[0];
+
+        assert_eq!(a.style.font_family.as_deref(), Some("Verdana"));
+        assert_eq!(a.style.font_size.as_deref(), Some("8px"));
+        assert_eq!(b.style.font_family.as_deref(), Some("Courier New"));
+        assert_eq!(b.style.font_size.as_deref(), Some("20px"));
+        assert_eq!(edge.style.font_family.as_deref(), Some("Times New Roman"));
+        assert_eq!(edge.style.font_size.as_deref(), Some("32px"));
+    }
+
+    #[test]
+    fn classdef_font_properties_apply_and_direct_style_overrides_property_by_property() {
+        let input = r#"graph TD
+            classDef default font-family:Arial,font-size:16px,font-style:normal,font-weight:400
+            classDef compact font-family:Verdana,font-size:8px,font-style:italic,font-weight:700
+            A:::compact --> B
+            class B compact
+            style A font-size:12px,font-weight:500
+        "#;
+
+        let flowchart = parse_flowchart(input).unwrap();
+        let graph = compile_to_graph(&flowchart);
+        let a = graph.nodes.get("A").unwrap();
+        let b = graph.nodes.get("B").unwrap();
+
+        assert_eq!(a.style.font_family.as_deref(), Some("Verdana"));
+        assert_eq!(a.style.font_size.as_deref(), Some("12px"));
+        assert_eq!(a.style.font_style.as_deref(), Some("italic"));
+        assert_eq!(a.style.font_weight.as_deref(), Some("500"));
+        assert_eq!(b.style.font_family.as_deref(), Some("Verdana"));
+        assert_eq!(b.style.font_size.as_deref(), Some("8px"));
+        assert_eq!(b.style.font_style.as_deref(), Some("italic"));
+        assert_eq!(b.style.font_weight.as_deref(), Some("700"));
+    }
+
+    #[test]
+    fn classdef_default_font_properties_apply_to_unclassified_nodes() {
+        let flowchart = parse_flowchart(
+            "graph TD\nclassDef default font-family:Arial,font-size:16px\nA --> B:::custom\nclassDef custom font-family:Verdana\n",
+        )
+        .unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        assert_eq!(
+            diagram.nodes["A"].style.font_family.as_deref(),
+            Some("Arial")
+        );
+        assert_eq!(diagram.nodes["A"].style.font_size.as_deref(), Some("16px"));
+        assert_eq!(
+            diagram.nodes["B"].style.font_family.as_deref(),
+            Some("Verdana")
+        );
+        assert_eq!(diagram.nodes["B"].style.font_size.as_deref(), None);
+    }
+
+    #[test]
     fn classdef_multi_class_names() {
         let flowchart =
             parse_flowchart("graph TD\nclassDef a,b fill:#f00\nA:::a --> B:::b --> C\n").unwrap();
@@ -1326,6 +1394,24 @@ mod tests {
             "#0f0"
         );
         assert_eq!(diagram.edges[1].style.stroke_width.as_deref(), Some("2px"));
+    }
+
+    #[test]
+    fn linkstyle_default_and_index_font_styles_merge_property_by_property() {
+        let flowchart = parse_flowchart(
+            "graph TD\nA -->|first| B\nB -->|second| C\nlinkStyle default font-family:Arial,font-size:16px,font-style:normal,font-weight:400\nlinkStyle 1 font-size:24px,font-weight:700\n",
+        )
+        .unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        assert_eq!(diagram.edges[0].style.font_family.as_deref(), Some("Arial"));
+        assert_eq!(diagram.edges[0].style.font_size.as_deref(), Some("16px"));
+        assert_eq!(diagram.edges[0].style.font_style.as_deref(), Some("normal"));
+        assert_eq!(diagram.edges[0].style.font_weight.as_deref(), Some("400"));
+        assert_eq!(diagram.edges[1].style.font_family.as_deref(), Some("Arial"));
+        assert_eq!(diagram.edges[1].style.font_size.as_deref(), Some("24px"));
+        assert_eq!(diagram.edges[1].style.font_style.as_deref(), Some("normal"));
+        assert_eq!(diagram.edges[1].style.font_weight.as_deref(), Some("700"));
     }
 
     fn compile_fixture_diagram(name: &str) -> Graph {
