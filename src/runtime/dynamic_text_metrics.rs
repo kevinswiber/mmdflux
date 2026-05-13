@@ -4,7 +4,7 @@
 //! provider API is not part of the stable Rust facade.
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 use serde::Deserialize;
@@ -15,8 +15,9 @@ use crate::format::OutputFormat;
 use crate::frontends::{InputFrontend, detect_input_frontend};
 use crate::graph::measure::{
     DEFAULT_LABEL_PADDING_X, DEFAULT_LABEL_PADDING_Y, DEFAULT_PROPORTIONAL_NODE_PADDING_X,
-    DEFAULT_PROPORTIONAL_NODE_PADDING_Y, TextMeasurementCache, TextMetricsLayoutDescriptor,
-    TextMetricsProfileDescriptor, TextMetricsProvider, TextMetricsStyleDescriptor,
+    DEFAULT_PROPORTIONAL_NODE_PADDING_Y, GraphTextStyleKey, TextMeasurementCache,
+    TextMeasurementStyle, TextMetricsLayoutDescriptor, TextMetricsProfileDescriptor,
+    TextMetricsProvider, TextMetricsStyleDescriptor,
 };
 use crate::payload::Diagram;
 use crate::registry::DiagramFamily;
@@ -27,22 +28,32 @@ use crate::runtime::config_input::apply_svg_surface_defaults;
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DynamicMetricsInput {
-    pub css_font: String,
-    pub font_family: String,
-    pub font_size_px: f64,
-    pub line_height_px: f64,
+    pub default_style: String,
+    pub text_styles: Vec<DynamicTextStyleInput>,
     pub profile_id: Option<String>,
     pub profile_version: Option<u32>,
-    pub font_style: Option<String>,
-    pub font_weight: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DynamicTextStyleInput {
+    pub id: String,
+    pub font_family: String,
+    pub font_size: f64,
+    pub font_style: String,
+    pub font_weight: String,
+    pub line_height: f64,
+    pub css_font: String,
 }
 
 impl DynamicMetricsInput {
     pub fn validate(&self) -> Result<(), RenderError> {
-        validate_non_empty("cssFont", &self.css_font)?;
-        validate_non_empty("fontFamily", &self.font_family)?;
-        validate_positive_finite("fontSizePx", self.font_size_px)?;
-        validate_positive_finite("lineHeightPx", self.line_height_px)?;
+        validate_non_empty("defaultStyle", &self.default_style)?;
+        if self.text_styles.is_empty() {
+            return Err(RenderError {
+                message: "dynamic text metrics field `textStyles` must not be empty".to_string(),
+            });
+        }
         if let Some(profile_id) = &self.profile_id {
             validate_non_empty("profileId", profile_id)?;
         }
@@ -52,25 +63,42 @@ impl DynamicMetricsInput {
                     .to_string(),
             });
         }
-        if let Some(font_style) = &self.font_style {
-            validate_non_empty("fontStyle", font_style)?;
+        let mut ids = std::collections::HashSet::new();
+        let mut style_keys = std::collections::HashSet::new();
+        let mut has_default = false;
+        for style in &self.text_styles {
+            style.validate()?;
+            if !ids.insert(style.id.as_str()) {
+                return Err(RenderError {
+                    message: format!(
+                        "dynamic text metrics field `textStyles` contains duplicate id {:?}",
+                        style.id
+                    ),
+                });
+            }
+            let key = style.style_key()?;
+            if !style_keys.insert(key) {
+                return Err(RenderError {
+                    message:
+                        "dynamic text metrics field `textStyles` contains duplicate style identity"
+                            .to_string(),
+                });
+            }
+            has_default |= style.id == self.default_style;
         }
-        if let Some(font_weight) = &self.font_weight {
-            validate_non_empty("fontWeight", font_weight)?;
+        if !has_default {
+            return Err(RenderError {
+                message: format!(
+                    "dynamic text metrics field `defaultStyle` {:?} must reference a textStyles id",
+                    self.default_style
+                ),
+            });
         }
         Ok(())
     }
 
     pub(crate) fn profile_version_or_default(&self) -> u32 {
         self.profile_version.unwrap_or(1)
-    }
-
-    pub(crate) fn font_style_or_default(&self) -> &str {
-        self.font_style.as_deref().unwrap_or("normal")
-    }
-
-    pub(crate) fn font_weight_or_default(&self) -> &str {
-        self.font_weight.as_deref().unwrap_or("400")
     }
 
     pub(crate) fn require_profile_id(&self, operation: &str) -> Result<&str, RenderError> {
@@ -84,6 +112,28 @@ impl DynamicMetricsInput {
         }
     }
 
+    fn default_text_style(&self) -> Result<&DynamicTextStyleInput, RenderError> {
+        self.text_styles
+            .iter()
+            .find(|style| style.id == self.default_style)
+            .ok_or_else(|| RenderError {
+                message: format!(
+                    "dynamic text metrics field `defaultStyle` {:?} must reference a textStyles id",
+                    self.default_style
+                ),
+            })
+    }
+
+    fn style_by_key(
+        &self,
+    ) -> Result<HashMap<GraphTextStyleKey, DynamicTextStyleInput>, RenderError> {
+        let mut styles = HashMap::new();
+        for style in &self.text_styles {
+            styles.insert(style.style_key()?, style.clone());
+        }
+        Ok(styles)
+    }
+
     pub(crate) fn text_metrics_descriptor_for_layout(
         &self,
         node_padding_x: f64,
@@ -92,16 +142,17 @@ impl DynamicMetricsInput {
     ) -> Result<TextMetricsProfileDescriptor, RenderError> {
         self.validate()?;
         let profile_id = self.require_profile_id("dynamic MMDS descriptor")?;
+        let default_style = self.default_text_style()?;
         Ok(TextMetricsProfileDescriptor {
             profile_id: profile_id.to_string(),
             source: "dynamic".to_string(),
             version: self.profile_version_or_default(),
             default_text_style: TextMetricsStyleDescriptor {
-                font_family: self.font_family.clone(),
-                font_size: self.font_size_px,
-                font_style: self.font_style_or_default().to_string(),
-                font_weight: self.font_weight_or_default().to_string(),
-                line_height: self.line_height_px,
+                font_family: default_style.font_family.clone(),
+                font_size: default_style.font_size,
+                font_style: default_style.font_style.clone(),
+                font_weight: default_style.font_weight.clone(),
+                line_height: default_style.line_height,
             },
             layout_text: TextMetricsLayoutDescriptor {
                 node_padding_x,
@@ -110,6 +161,36 @@ impl DynamicMetricsInput {
                 label_padding_y: DEFAULT_LABEL_PADDING_Y,
                 edge_label_max_width,
             },
+        })
+    }
+}
+
+impl DynamicTextStyleInput {
+    fn validate(&self) -> Result<(), RenderError> {
+        validate_non_empty("textStyles.id", &self.id)?;
+        validate_non_empty("textStyles.fontFamily", &self.font_family)?;
+        validate_positive_finite("textStyles.fontSize", self.font_size)?;
+        validate_non_empty("textStyles.fontStyle", &self.font_style)?;
+        validate_non_empty("textStyles.fontWeight", &self.font_weight)?;
+        validate_positive_finite("textStyles.lineHeight", self.line_height)?;
+        validate_non_empty("textStyles.cssFont", &self.css_font)?;
+        self.style_key()?;
+        Ok(())
+    }
+
+    fn style_key(&self) -> Result<GraphTextStyleKey, RenderError> {
+        GraphTextStyleKey::new(
+            &self.font_family,
+            self.font_size,
+            self.line_height,
+            &self.font_style,
+            &self.font_weight,
+        )
+        .map_err(|message| RenderError {
+            message: format!(
+                "dynamic text metrics textStyles entry {:?} is invalid: {message}",
+                self.id
+            ),
         })
     }
 }
@@ -140,9 +221,11 @@ where
     F: FnMut(&str, &str) -> Result<f64, DynamicTextMetricsError>,
 {
     input: DynamicMetricsInput,
+    default_style: GraphTextStyleKey,
+    styles_by_key: HashMap<GraphTextStyleKey, DynamicTextStyleInput>,
     callback: RefCell<F>,
-    line_cache: RefCell<HashMap<String, f64>>,
-    scalar_cache: RefCell<HashMap<char, f64>>,
+    line_cache: RefCell<HashMap<StyleLineCacheKey, f64>>,
+    scalar_cache: RefCell<HashMap<StyleScalarCacheKey, f64>>,
     first_error: RefCell<Option<DynamicTextMetricsError>>,
     in_callback: Cell<bool>,
     node_padding_x: f64,
@@ -168,8 +251,18 @@ where
         node_padding_y: f64,
         callback: F,
     ) -> Self {
+        let default_style = input
+            .default_text_style()
+            .and_then(DynamicTextStyleInput::style_key)
+            .unwrap_or_else(|_| {
+                GraphTextStyleKey::new("invalid dynamic default", 1.0, 1.0, "normal", "400")
+                    .expect("fallback dynamic style key should be valid")
+            });
+        let styles_by_key = input.style_by_key().unwrap_or_default();
         Self {
             input,
+            default_style,
+            styles_by_key,
             callback: RefCell::new(callback),
             line_cache: RefCell::new(HashMap::new()),
             scalar_cache: RefCell::new(HashMap::new()),
@@ -191,30 +284,56 @@ where
 
     pub(crate) fn measurement_cache_snapshot(&self) -> Result<TextMeasurementCache, RenderError> {
         self.finish()?;
+        let mut text_styles = BTreeMap::new();
+        for style in &self.input.text_styles {
+            text_styles.insert(
+                style.id.clone(),
+                TextMeasurementStyle {
+                    id: style.id.clone(),
+                    style: style.style_key().map_err(|error| RenderError {
+                        message: error.to_string(),
+                    })?,
+                    css_font: style.css_font.clone(),
+                },
+            );
+        }
         Ok(TextMeasurementCache {
+            default_style: self.input.default_style.clone(),
+            text_styles,
             line_widths: self
                 .line_cache
                 .borrow()
                 .iter()
-                .map(|(text, width)| (text.clone(), *width))
+                .map(|(key, width)| ((key.style_id.clone(), key.text.clone()), *width))
                 .collect(),
             scalar_widths: self
                 .scalar_cache
                 .borrow()
                 .iter()
-                .map(|(ch, width)| (*ch, *width))
+                .map(|(key, width)| ((key.style_id.clone(), key.ch), *width))
                 .collect(),
         })
     }
 
     fn measure_line_text(&self, text: &str) -> f64 {
-        if let Some(width) = self.line_cache.borrow().get(text).copied() {
+        self.measure_line_text_for_style(&self.default_style.clone(), text)
+    }
+
+    fn measure_line_text_for_style(&self, style: &GraphTextStyleKey, text: &str) -> f64 {
+        let Some(style_input) = self.style_input_for_key(style, Some(text)) else {
+            return 0.0;
+        };
+        let key = StyleLineCacheKey {
+            style_id: style_input.id.clone(),
+            text: text.to_string(),
+        };
+        if let Some(width) = self.line_cache.borrow().get(&key).copied() {
             return width;
         }
 
-        match self.measure_uncached_text(text) {
+        match self.measure_uncached_text(text, style_input) {
             Some(width) => {
-                self.line_cache.borrow_mut().insert(text.to_string(), width);
+                self.line_cache.borrow_mut().insert(key, width);
                 width
             }
             None => 0.0,
@@ -222,26 +341,37 @@ where
     }
 
     fn measure_scalar_char(&self, ch: char) -> f64 {
-        if let Some(width) = self.scalar_cache.borrow().get(&ch).copied() {
+        self.measure_scalar_char_for_style(&self.default_style.clone(), ch)
+    }
+
+    fn measure_scalar_char_for_style(&self, style: &GraphTextStyleKey, ch: char) -> f64 {
+        let mut text = [0_u8; 4];
+        let text = ch.encode_utf8(&mut text);
+        let Some(style_input) = self.style_input_for_key(style, Some(text)) else {
+            return 0.0;
+        };
+        let key = StyleScalarCacheKey {
+            style_id: style_input.id.clone(),
+            ch,
+        };
+        if let Some(width) = self.scalar_cache.borrow().get(&key).copied() {
             return width;
         }
 
-        let mut text = [0_u8; 4];
-        let text = ch.encode_utf8(&mut text);
-        match self.measure_uncached_text(text) {
+        match self.measure_uncached_text(text, style_input) {
             Some(width) => {
-                self.scalar_cache.borrow_mut().insert(ch, width);
+                self.scalar_cache.borrow_mut().insert(key, width);
                 width
             }
             None => 0.0,
         }
     }
 
-    fn measure_uncached_text(&self, text: &str) -> Option<f64> {
+    fn measure_uncached_text(&self, text: &str, style: &DynamicTextStyleInput) -> Option<f64> {
         if self.in_callback.get() {
             self.record_error(DynamicTextMetricsError::new(format!(
                 "dynamic text measurement callback re-entered while measuring {text:?} with font {:?}",
-                self.input.css_font
+                style.css_font
             )));
             return None;
         }
@@ -249,13 +379,13 @@ where
         self.in_callback.set(true);
         let result = {
             let mut callback = self.callback.borrow_mut();
-            callback(text, &self.input.css_font)
+            callback(text, &style.css_font)
         };
         self.in_callback.set(false);
 
         let validated = match result {
-            Ok(width) => self.validate_width(text, width),
-            Err(error) => Err(self.contextualize_callback_error(text, error)),
+            Ok(width) => self.validate_width(text, style, width),
+            Err(error) => Err(self.contextualize_callback_error(text, style, error)),
         };
 
         match validated {
@@ -270,22 +400,46 @@ where
     fn contextualize_callback_error(
         &self,
         text: &str,
+        style: &DynamicTextStyleInput,
         error: DynamicTextMetricsError,
     ) -> DynamicTextMetricsError {
         DynamicTextMetricsError::new(format!(
             "dynamic text measurement callback failed for {text:?} with font {:?}: {error}",
-            self.input.css_font
+            style.css_font
         ))
     }
 
-    fn validate_width(&self, text: &str, width: f64) -> Result<f64, DynamicTextMetricsError> {
+    fn validate_width(
+        &self,
+        text: &str,
+        style: &DynamicTextStyleInput,
+        width: f64,
+    ) -> Result<f64, DynamicTextMetricsError> {
         if !width.is_finite() || width < 0.0 {
             return Err(DynamicTextMetricsError::new(format!(
                 "dynamic text measurement for {text:?} with font {:?} must return a finite non-negative width",
-                self.input.css_font
+                style.css_font
             )));
         }
         Ok(width)
+    }
+
+    fn style_input_for_key(
+        &self,
+        style: &GraphTextStyleKey,
+        text: Option<&str>,
+    ) -> Option<&DynamicTextStyleInput> {
+        match self.styles_by_key.get(style) {
+            Some(style_input) => Some(style_input),
+            None => {
+                let text = text.unwrap_or("");
+                self.record_error(DynamicTextMetricsError::new(format!(
+                    "dynamic text metrics style set has no CSS font for text {text:?} and style {:?}",
+                    style
+                )));
+                None
+            }
+        }
     }
 
     fn record_error(&self, error: DynamicTextMetricsError) {
@@ -294,6 +448,18 @@ where
             *first_error = Some(error);
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct StyleLineCacheKey {
+    style_id: String,
+    text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct StyleScalarCacheKey {
+    style_id: String,
+    ch: char,
 }
 
 impl<F> TextMetricsProvider for CallbackTextMetricsProvider<F>
@@ -308,12 +474,42 @@ where
         self.measure_scalar_char(ch)
     }
 
+    fn default_text_style_key(&self) -> GraphTextStyleKey {
+        self.default_style.clone()
+    }
+
+    fn measure_line_width_for_style(&self, style: &GraphTextStyleKey, text: &str) -> f64 {
+        self.measure_line_text_for_style(style, text)
+    }
+
+    fn measure_scalar_width_for_style(&self, style: &GraphTextStyleKey, ch: char) -> f64 {
+        self.measure_scalar_char_for_style(style, ch)
+    }
+
     fn font_size(&self) -> f64 {
-        self.input.font_size_px
+        self.styles_by_key.get(&self.default_style).map_or_else(
+            || self.default_style.font_size_px(),
+            |style| style.font_size,
+        )
     }
 
     fn line_height(&self) -> f64 {
-        self.input.line_height_px
+        self.styles_by_key.get(&self.default_style).map_or_else(
+            || self.default_style.line_height_px(),
+            |style| style.line_height,
+        )
+    }
+
+    fn font_size_for_style(&self, style: &GraphTextStyleKey) -> f64 {
+        self.styles_by_key
+            .get(style)
+            .map_or_else(|| style.font_size_px(), |style| style.font_size)
+    }
+
+    fn line_height_for_style(&self, style: &GraphTextStyleKey) -> f64 {
+        self.styles_by_key
+            .get(style)
+            .map_or_else(|| style.line_height_px(), |style| style.line_height)
     }
 
     fn node_padding_x(&self) -> f64 {
@@ -443,8 +639,9 @@ where
             if matches!(format, OutputFormat::Svg) {
                 apply_svg_surface_defaults(OutputFormat::Svg, &mut effective_config, true);
             }
-            let font_family = dynamic_input.font_family.clone();
-            let font_size = dynamic_input.font_size_px;
+            let default_style = dynamic_input.default_text_style()?;
+            let font_family = default_style.font_family.clone();
+            let font_size = default_style.font_size;
             let node_padding_x = effective_config
                 .svg_node_padding_x
                 .unwrap_or(DEFAULT_PROPORTIONAL_NODE_PADDING_X);
@@ -523,8 +720,9 @@ where
         // layoutEngine knob.
         apply_svg_surface_defaults(OutputFormat::Svg, &mut effective_config, true);
     }
-    let font_family = dynamic_input.font_family.clone();
-    let font_size = dynamic_input.font_size_px;
+    let default_style = dynamic_input.default_text_style()?;
+    let font_family = default_style.font_family.clone();
+    let font_size = default_style.font_size;
 
     let node_padding_x = effective_config
         .svg_node_padding_x
@@ -634,7 +832,7 @@ mod tests {
     use crate::format::OutputFormat;
     use crate::graph::GeometryLevel;
     use crate::graph::measure::{
-        COMPATIBILITY_TEXT_METRICS_PROFILE_ID, DEFAULT_GRAPH_FONT_FAMILY,
+        COMPATIBILITY_TEXT_METRICS_PROFILE_ID, DEFAULT_GRAPH_FONT_FAMILY, GraphTextStyleKey,
         RECORDED_SANS_TEXT_METRICS_PROFILE_ID, TextMetricsProfileConfig, TextMetricsProvider,
         resolve_text_metrics_profile,
     };
@@ -643,7 +841,20 @@ mod tests {
 
     fn valid_input() -> DynamicMetricsInput {
         serde_json::from_str(
-            r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24}"#,
+            r#"{
+              "defaultStyle":"s0",
+              "textStyles":[
+                {
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":16,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":24,
+                  "cssFont":"16px Inter"
+                }
+              ]
+            }"#,
         )
         .unwrap()
     }
@@ -651,14 +862,60 @@ mod tests {
     fn profiled_input(profile_id: &str) -> DynamicMetricsInput {
         serde_json::from_str(&format!(
             r#"{{
-              "cssFont":"16px Inter",
-              "fontFamily":"Inter",
-              "fontSizePx":16,
-              "lineHeightPx":24,
+              "defaultStyle":"s0",
+              "textStyles":[
+                {{
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":16,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":24,
+                  "cssFont":"16px Inter"
+                }}
+              ],
               "profileId":"{profile_id}"
             }}"#
         ))
         .unwrap()
+    }
+
+    fn style_set_input() -> DynamicMetricsInput {
+        serde_json::from_str(
+            r#"{
+              "defaultStyle":"s0",
+              "textStyles":[
+                {
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":8,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":12,
+                  "cssFont":"400 normal 8px Inter"
+                },
+                {
+                  "id":"s1",
+                  "fontFamily":"Inter",
+                  "fontSize":32,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":48,
+                  "cssFont":"400 normal 32px Inter"
+                }
+              ],
+              "profileId":"browser-test-v1"
+            }"#,
+        )
+        .unwrap()
+    }
+
+    fn style_8px() -> GraphTextStyleKey {
+        GraphTextStyleKey::new("Inter", 8.0, 12.0, "normal", "400").unwrap()
+    }
+
+    fn style_32px() -> GraphTextStyleKey {
+        GraphTextStyleKey::new("Inter", 32.0, 48.0, "normal", "400").unwrap()
     }
 
     fn deterministic_width(text: &str, _css_font: &str) -> Result<f64, DynamicTextMetricsError> {
@@ -688,14 +945,18 @@ mod tests {
             .expect("default recorded text metrics should resolve")
             .metrics;
         DynamicMetricsInput {
-            css_font: format!("{}px {}", metrics.font_size(), DEFAULT_GRAPH_FONT_FAMILY),
-            font_family: DEFAULT_GRAPH_FONT_FAMILY.to_string(),
-            font_size_px: metrics.font_size(),
-            line_height_px: metrics.line_height(),
+            default_style: "s0".to_string(),
+            text_styles: vec![DynamicTextStyleInput {
+                id: "s0".to_string(),
+                font_family: DEFAULT_GRAPH_FONT_FAMILY.to_string(),
+                font_size: metrics.font_size(),
+                font_style: "normal".to_string(),
+                font_weight: "400".to_string(),
+                line_height: metrics.line_height(),
+                css_font: format!("{}px {}", metrics.font_size(), DEFAULT_GRAPH_FONT_FAMILY),
+            }],
             profile_id: None,
             profile_version: None,
-            font_style: None,
-            font_weight: None,
         }
     }
 
@@ -703,14 +964,20 @@ mod tests {
     fn dynamic_metrics_input_accepts_optional_provider_identity_for_svg() {
         let input: DynamicMetricsInput = serde_json::from_str(
             r#"{
-              "cssFont":"16px Inter",
-              "fontFamily":"Inter",
-              "fontSizePx":16,
-              "lineHeightPx":24,
+              "defaultStyle":"s0",
+              "textStyles":[
+                {
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":16,
+                  "fontStyle":"italic",
+                  "fontWeight":"700",
+                  "lineHeight":24,
+                  "cssFont":"italic 700 16px Inter"
+                }
+              ],
               "profileId":"browser-inter-v1",
-              "profileVersion":2,
-              "fontStyle":"italic",
-              "fontWeight":"700"
+              "profileVersion":2
             }"#,
         )
         .unwrap();
@@ -721,18 +988,20 @@ mod tests {
             "browser-inter-v1"
         );
         assert_eq!(input.profile_version_or_default(), 2);
-        assert_eq!(input.font_style_or_default(), "italic");
-        assert_eq!(input.font_weight_or_default(), "700");
+        let default_style = input.default_text_style().unwrap();
+        assert_eq!(default_style.font_style, "italic");
+        assert_eq!(default_style.font_weight, "700");
     }
 
     #[test]
-    fn dynamic_metrics_input_keeps_existing_svg_metrics_json_valid() {
+    fn dynamic_metrics_input_accepts_style_set_svg_metrics_json() {
         let input = valid_input();
 
         input.validate().unwrap();
         assert_eq!(input.profile_version_or_default(), 1);
-        assert_eq!(input.font_style_or_default(), "normal");
-        assert_eq!(input.font_weight_or_default(), "400");
+        let default_style = input.default_text_style().unwrap();
+        assert_eq!(default_style.font_style, "normal");
+        assert_eq!(default_style.font_weight, "400");
         let err = input
             .require_profile_id("dynamic MMDS")
             .expect_err("profile id should only be required for descriptor operations");
@@ -745,10 +1014,18 @@ mod tests {
     fn dynamic_metrics_input_rejects_zero_profile_version() {
         let input: DynamicMetricsInput = serde_json::from_str(
             r#"{
-              "cssFont":"16px Inter",
-              "fontFamily":"Inter",
-              "fontSizePx":16,
-              "lineHeightPx":24,
+              "defaultStyle":"s0",
+              "textStyles":[
+                {
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":16,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":24,
+                  "cssFont":"16px Inter"
+                }
+              ],
               "profileVersion":0
             }"#,
         )
@@ -766,15 +1043,15 @@ mod tests {
         for (field, json) in [
             (
                 "profileId",
-                r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24,"profileId":" "}"#,
+                r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}],"profileId":" "}"#,
             ),
             (
-                "fontStyle",
-                r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24,"fontStyle":" "}"#,
+                "textStyles.fontStyle",
+                r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":" ","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}]}"#,
             ),
             (
-                "fontWeight",
-                r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24,"fontWeight":" "}"#,
+                "textStyles.fontWeight",
+                r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":" ","lineHeight":24,"cssFont":"16px Inter"}]}"#,
             ),
         ] {
             let input: DynamicMetricsInput = serde_json::from_str(json).unwrap();
@@ -789,10 +1066,18 @@ mod tests {
     fn dynamic_metrics_input_builds_provider_bound_descriptor() {
         let input: DynamicMetricsInput = serde_json::from_str(
             r#"{
-              "cssFont":"16px Inter",
-              "fontFamily":"Inter",
-              "fontSizePx":16,
-              "lineHeightPx":24,
+              "defaultStyle":"s0",
+              "textStyles":[
+                {
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":16,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":24,
+                  "cssFont":"16px Inter"
+                }
+              ],
               "profileId":"browser-inter-v1"
             }"#,
         )
@@ -827,14 +1112,20 @@ mod tests {
     fn dynamic_metrics_descriptor_mirrors_adapter_owned_style_and_version() {
         let input: DynamicMetricsInput = serde_json::from_str(
             r#"{
-              "cssFont":"italic 700 16px Inter",
-              "fontFamily":"Inter",
-              "fontSizePx":16,
-              "lineHeightPx":24,
+              "defaultStyle":"s0",
+              "textStyles":[
+                {
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":16,
+                  "fontStyle":"italic",
+                  "fontWeight":"700",
+                  "lineHeight":24,
+                  "cssFont":"italic 700 16px Inter"
+                }
+              ],
               "profileId":"browser-inter-v2",
-              "profileVersion":2,
-              "fontStyle":"italic",
-              "fontWeight":"700"
+              "profileVersion":2
             }"#,
         )
         .unwrap();
@@ -864,7 +1155,7 @@ mod tests {
     #[test]
     fn dynamic_metrics_input_rejects_unknown_fields() {
         let err = serde_json::from_str::<DynamicMetricsInput>(
-            r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24,"extra":true}"#,
+            r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}],"extra":true}"#,
         )
         .unwrap_err()
         .to_string();
@@ -878,34 +1169,26 @@ mod tests {
         valid_input().validate().expect("valid input should pass");
 
         for (field, input) in [
-            (
-                "cssFont",
-                DynamicMetricsInput {
-                    css_font: " ".to_string(),
-                    ..valid_input()
-                },
-            ),
-            (
-                "fontFamily",
-                DynamicMetricsInput {
-                    font_family: " ".to_string(),
-                    ..valid_input()
-                },
-            ),
-            (
-                "fontSizePx",
-                DynamicMetricsInput {
-                    font_size_px: 0.0,
-                    ..valid_input()
-                },
-            ),
-            (
-                "lineHeightPx",
-                DynamicMetricsInput {
-                    line_height_px: f64::INFINITY,
-                    ..valid_input()
-                },
-            ),
+            ("textStyles.cssFont", {
+                let mut input = valid_input();
+                input.text_styles[0].css_font = " ".to_string();
+                input
+            }),
+            ("textStyles.fontFamily", {
+                let mut input = valid_input();
+                input.text_styles[0].font_family = " ".to_string();
+                input
+            }),
+            ("textStyles.fontSize", {
+                let mut input = valid_input();
+                input.text_styles[0].font_size = 0.0;
+                input
+            }),
+            ("textStyles.lineHeight", {
+                let mut input = valid_input();
+                input.text_styles[0].line_height = f64::INFINITY;
+                input
+            }),
         ] {
             let err = input.validate().expect_err("invalid field should fail");
             assert!(err.message.contains(field), "{err}");
@@ -925,6 +1208,115 @@ mod tests {
         assert_eq!(provider.measure_line_width("Alpha"), 5.0);
         provider.finish().expect("cached measurements should pass");
         assert_eq!(observed_calls.get(), 1);
+    }
+
+    #[test]
+    fn dynamic_provider_caches_same_text_separately_by_style() {
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let observed_calls = Rc::clone(&calls);
+        let provider =
+            CallbackTextMetricsProvider::new(style_set_input(), move |text, css_font| {
+                calls
+                    .borrow_mut()
+                    .push((text.to_string(), css_font.to_string()));
+                Ok(if css_font.contains("32px") {
+                    64.0
+                } else {
+                    16.0
+                })
+            });
+
+        assert_eq!(
+            provider.measure_line_width_for_style(&style_8px(), "Same"),
+            16.0
+        );
+        assert_eq!(
+            provider.measure_line_width_for_style(&style_32px(), "Same"),
+            64.0
+        );
+        assert_eq!(
+            provider.measure_line_width_for_style(&style_8px(), "Same"),
+            16.0
+        );
+        provider.finish().expect("style-keyed cache should pass");
+
+        assert_eq!(
+            observed_calls.borrow().as_slice(),
+            [
+                ("Same".to_string(), "400 normal 8px Inter".to_string()),
+                ("Same".to_string(), "400 normal 32px Inter".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn dynamic_provider_snapshot_preserves_style_identity() {
+        let provider = CallbackTextMetricsProvider::new(style_set_input(), |text, css_font| {
+            Ok(if css_font.contains("32px") {
+                text.len() as f64 * 20.0
+            } else {
+                text.len() as f64 * 5.0
+            })
+        });
+
+        assert_eq!(
+            provider.measure_line_width_for_style(&style_8px(), "Same"),
+            20.0
+        );
+        assert_eq!(
+            provider.measure_line_width_for_style(&style_32px(), "Same"),
+            80.0
+        );
+
+        let snapshot = provider
+            .measurement_cache_snapshot()
+            .expect("successful provider should export measurements");
+        assert_eq!(snapshot.line_width_for_style("s0", "Same"), Some(20.0));
+        assert_eq!(snapshot.line_width_for_style("s1", "Same"), Some(80.0));
+    }
+
+    #[test]
+    fn dynamic_provider_errors_name_text_and_css_font_for_style() {
+        let provider = CallbackTextMetricsProvider::new(style_set_input(), |text, css_font| {
+            Err(DynamicTextMetricsError::new(format!(
+                "failed {text} with {css_font}"
+            )))
+        });
+
+        assert_eq!(
+            provider.measure_line_width_for_style(&style_32px(), "Styled"),
+            0.0
+        );
+        let err = provider
+            .finish()
+            .expect_err("callback error should be recorded");
+
+        assert!(err.message.contains("Styled"), "{err}");
+        assert!(err.message.contains("400 normal 32px Inter"), "{err}");
+    }
+
+    #[test]
+    fn dynamic_metrics_rejects_config_graph_text_style_even_with_mermaid_styles() {
+        let config = RenderConfig {
+            graph_text_style: Some(GraphTextStyleConfig::new("Arial", 16.0)),
+            ..RenderConfig::default()
+        };
+
+        let err = render_graph_family_with_dynamic_text_metrics(
+            "graph TD\nA[Alpha] --> B[Beta]\nstyle A font-family:Inter,font-size:16px",
+            OutputFormat::Svg,
+            &config,
+            style_set_input(),
+            |_text, _css_font| Ok(8.0),
+        )
+        .unwrap_err();
+
+        assert!(
+            err.message.contains("graph_text_style")
+                || err.message.contains("graphTextStyle")
+                || err.message.contains("RenderConfig.graph_text_style"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -1534,15 +1926,15 @@ mod tests {
         let mut version = profiled_input("browser-test-v1");
         version.profile_version = Some(2);
         let mut font_family = profiled_input("browser-test-v1");
-        font_family.font_family = "Arial".to_string();
+        font_family.text_styles[0].font_family = "Arial".to_string();
         let mut font_size = profiled_input("browser-test-v1");
-        font_size.font_size_px = 18.0;
+        font_size.text_styles[0].font_size = 18.0;
         let mut font_style = profiled_input("browser-test-v1");
-        font_style.font_style = Some("italic".to_string());
+        font_style.text_styles[0].font_style = "italic".to_string();
         let mut font_weight = profiled_input("browser-test-v1");
-        font_weight.font_weight = Some("700".to_string());
+        font_weight.text_styles[0].font_weight = "700".to_string();
         let mut line_height = profiled_input("browser-test-v1");
-        line_height.line_height_px = 30.0;
+        line_height.text_styles[0].line_height = 30.0;
 
         for (name, metrics, expected_field) in [
             (

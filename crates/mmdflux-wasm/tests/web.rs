@@ -30,11 +30,11 @@ fn strip_ansi(input: &str) -> String {
 }
 
 fn dynamic_metrics_json_fixture() -> &'static str {
-    r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24}"#
+    r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}]}"#
 }
 
 fn dynamic_metrics_json_with_profile_fixture() -> &'static str {
-    r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24,"profileId":"mmdflux-browser-canvas-v1"}"#
+    r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}],"profileId":"mmdflux-browser-canvas-v1"}"#
 }
 
 fn dynamic_metrics_json_with_profile_fields(
@@ -47,7 +47,7 @@ fn dynamic_metrics_json_with_profile_fields(
     font_weight: &str,
 ) -> String {
     format!(
-        r#"{{"cssFont":"{font_size_px}px {font_family}","fontFamily":"{font_family}","fontSizePx":{font_size_px},"lineHeightPx":{line_height_px},"profileId":"{profile_id}","profileVersion":{profile_version},"fontStyle":"{font_style}","fontWeight":"{font_weight}"}}"#
+        r#"{{"defaultStyle":"s0","textStyles":[{{"id":"s0","fontFamily":"{font_family}","fontSize":{font_size_px},"fontStyle":"{font_style}","fontWeight":"{font_weight}","lineHeight":{line_height_px},"cssFont":"{font_style} {font_weight} {font_size_px}px {font_family}"}}],"profileId":"{profile_id}","profileVersion":{profile_version}}}"#
     )
 }
 

@@ -235,17 +235,23 @@ mod tests {
         let _version: fn() -> String = version;
     }
 
+    const STRICT_DYNAMIC_METRICS_JSON: &str = r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}]}"#;
+
     #[test]
     fn parse_dynamic_metrics_input_accepts_strict_contract() {
-        let input = parse_dynamic_metrics_input(
-            r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24}"#,
-        )
-        .expect("dynamic metrics input should parse");
+        let input = parse_dynamic_metrics_input(STRICT_DYNAMIC_METRICS_JSON)
+            .expect("dynamic metrics input should parse");
 
-        assert_eq!(input.css_font, "16px Inter");
-        assert_eq!(input.font_family, "Inter");
-        assert_eq!(input.font_size_px, 16.0);
-        assert_eq!(input.line_height_px, 24.0);
+        assert_eq!(input.default_style, "s0");
+        assert_eq!(input.text_styles.len(), 1);
+        let style = &input.text_styles[0];
+        assert_eq!(style.id, "s0");
+        assert_eq!(style.css_font, "16px Inter");
+        assert_eq!(style.font_family, "Inter");
+        assert_eq!(style.font_size, 16.0);
+        assert_eq!(style.font_style, "normal");
+        assert_eq!(style.font_weight, "400");
+        assert_eq!(style.line_height, 24.0);
     }
 
     #[test]
@@ -257,7 +263,7 @@ mod tests {
     #[test]
     fn parse_dynamic_metrics_input_rejects_unknown_fields() {
         let err = parse_dynamic_metrics_input(
-            r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24,"extra":true}"#,
+            r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}],"extra":true}"#,
         )
         .expect_err("unknown field should fail");
         assert!(err.message.contains("unknown field"), "{err}");
@@ -268,20 +274,20 @@ mod tests {
     fn parse_dynamic_metrics_input_validates_required_fields() {
         for (field, json) in [
             (
-                "cssFont",
-                r#"{"cssFont":"","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24}"#,
+                "textStyles.cssFont",
+                r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":""}]}"#,
             ),
             (
-                "fontFamily",
-                r#"{"cssFont":"16px Inter","fontFamily":"","fontSizePx":16,"lineHeightPx":24}"#,
+                "textStyles.fontFamily",
+                r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}]}"#,
             ),
             (
-                "fontSizePx",
-                r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":0,"lineHeightPx":24}"#,
+                "textStyles.fontSize",
+                r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":0,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}]}"#,
             ),
             (
-                "lineHeightPx",
-                r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":-1}"#,
+                "textStyles.lineHeight",
+                r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":-1,"cssFont":"16px Inter"}]}"#,
             ),
         ] {
             let err = parse_dynamic_metrics_input(json).expect_err("invalid field should fail");

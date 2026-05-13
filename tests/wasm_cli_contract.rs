@@ -400,7 +400,7 @@ fn dynamic_metrics_input_rejects_unknown_fields() {
     use mmdflux::dynamic_text_metrics::DynamicMetricsInput;
 
     let err = serde_json::from_str::<DynamicMetricsInput>(
-        r#"{"cssFont":"16px Inter","fontFamily":"Inter","fontSizePx":16,"lineHeightPx":24,"extra":true}"#,
+        r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}],"extra":true}"#,
     )
     .unwrap_err()
     .to_string();

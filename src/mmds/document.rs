@@ -856,7 +856,7 @@ fn text_measurements_extension(
     let line_widths = measurements
         .line_widths
         .iter()
-        .map(|(text, width)| {
+        .map(|((_style_id, text), width)| {
             let mut entry = Map::new();
             entry.insert("text".to_string(), Value::String(text.clone()));
             entry.insert(
@@ -869,7 +869,7 @@ fn text_measurements_extension(
     let scalar_widths = measurements
         .scalar_widths
         .iter()
-        .map(|(ch, width)| {
+        .map(|((_style_id, ch), width)| {
             let mut entry = Map::new();
             entry.insert("text".to_string(), Value::String(ch.to_string()));
             entry.insert(

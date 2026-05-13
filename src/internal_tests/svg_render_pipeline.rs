@@ -6591,7 +6591,8 @@ mod dynamic_text_metrics_topology_smoke_tests {
     };
     use crate::runtime::config::RenderConfig;
     use crate::runtime::dynamic_text_metrics::{
-        DynamicMetricsInput, render_graph_family_svg_with_dynamic_text_metrics,
+        DynamicMetricsInput, DynamicTextStyleInput,
+        render_graph_family_svg_with_dynamic_text_metrics,
     };
 
     #[derive(Clone, Copy)]
@@ -6705,14 +6706,18 @@ mod dynamic_text_metrics_topology_smoke_tests {
             .expect("default recorded text metrics should resolve");
         let metrics = resolved.metrics;
         let dynamic_input = DynamicMetricsInput {
-            css_font: format!("{}px {}", metrics.font_size(), DEFAULT_GRAPH_FONT_FAMILY),
-            font_family: DEFAULT_GRAPH_FONT_FAMILY.to_string(),
-            font_size_px: metrics.font_size(),
-            line_height_px: metrics.line_height(),
+            default_style: "s0".to_string(),
+            text_styles: vec![DynamicTextStyleInput {
+                id: "s0".to_string(),
+                font_family: DEFAULT_GRAPH_FONT_FAMILY.to_string(),
+                font_size: metrics.font_size(),
+                font_style: "normal".to_string(),
+                font_weight: "400".to_string(),
+                line_height: metrics.line_height(),
+                css_font: format!("{}px {}", metrics.font_size(), DEFAULT_GRAPH_FONT_FAMILY),
+            }],
             profile_id: None,
             profile_version: None,
-            font_style: None,
-            font_weight: None,
         };
         let text_scales = text_scales
             .iter()

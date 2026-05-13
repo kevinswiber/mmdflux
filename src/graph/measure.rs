@@ -105,14 +105,7 @@ impl GraphTextStyleKey {
     }
 
     pub(crate) fn default_provider_style(provider: &dyn TextMetricsProvider) -> Self {
-        Self::new(
-            DEFAULT_GRAPH_FONT_FAMILY,
-            provider.font_size(),
-            provider.line_height(),
-            "normal",
-            "400",
-        )
-        .expect("default provider text style is valid")
+        provider.default_text_style_key()
     }
 
     pub(crate) fn from_descriptor(descriptor: &TextMetricsStyleDescriptor) -> Result<Self, String> {
@@ -207,16 +200,17 @@ fn text_style_key_from_parts(
     font_style: Option<&str>,
     font_weight: Option<&str>,
 ) -> GraphTextStyleKey {
+    let default_style = provider.default_text_style_key();
     let font_size_px = font_size
         .and_then(|value| parse_font_size_px(value).ok())
-        .unwrap_or_else(|| provider.font_size());
+        .unwrap_or_else(|| default_style.font_size_px());
     let line_height_px = provider_line_height_for_font_size(provider, font_size_px);
     GraphTextStyleKey::new(
-        font_family.unwrap_or(DEFAULT_GRAPH_FONT_FAMILY),
+        font_family.unwrap_or(default_style.font_family.as_str()),
         font_size_px,
         line_height_px,
-        font_style.unwrap_or("normal"),
-        font_weight.unwrap_or("400"),
+        font_style.unwrap_or(default_style.font_style.as_str()),
+        font_weight.unwrap_or(default_style.font_weight.as_str()),
     )
     .expect("graph text style fields are valid after parser validation and defaults")
 }
@@ -256,6 +250,17 @@ pub(crate) trait TextMetricsProvider {
         self.measure_scalar_width(' ')
     }
 
+    fn default_text_style_key(&self) -> GraphTextStyleKey {
+        GraphTextStyleKey::new(
+            DEFAULT_GRAPH_FONT_FAMILY,
+            self.font_size(),
+            self.line_height(),
+            "normal",
+            "400",
+        )
+        .expect("default provider text style is valid")
+    }
+
     fn measure_line_width_for_style(&self, _style: &GraphTextStyleKey, text: &str) -> f64 {
         self.measure_line_width(text)
     }
@@ -275,17 +280,36 @@ pub(crate) trait TextMetricsProvider {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct TextMeasurementCache {
-    pub line_widths: BTreeMap<String, f64>,
-    pub scalar_widths: BTreeMap<char, f64>,
+    pub default_style: String,
+    pub text_styles: BTreeMap<String, TextMeasurementStyle>,
+    pub line_widths: BTreeMap<(String, String), f64>,
+    pub scalar_widths: BTreeMap<(String, char), f64>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct TextMeasurementStyle {
+    pub(crate) id: String,
+    pub(crate) style: GraphTextStyleKey,
+    pub(crate) css_font: String,
 }
 
 impl TextMeasurementCache {
     pub(crate) fn line_width(&self, text: &str) -> Option<f64> {
-        self.line_widths.get(text).copied()
+        self.line_width_for_style(&self.default_style, text)
     }
 
     pub(crate) fn scalar_width(&self, ch: char) -> Option<f64> {
-        self.scalar_widths.get(&ch).copied()
+        self.scalar_width_for_style(&self.default_style, ch)
+    }
+
+    pub(crate) fn line_width_for_style(&self, style_id: &str, text: &str) -> Option<f64> {
+        self.line_widths
+            .get(&(style_id.to_string(), text.to_string()))
+            .copied()
+    }
+
+    pub(crate) fn scalar_width_for_style(&self, style_id: &str, ch: char) -> Option<f64> {
+        self.scalar_widths.get(&(style_id.to_string(), ch)).copied()
     }
 }
 
