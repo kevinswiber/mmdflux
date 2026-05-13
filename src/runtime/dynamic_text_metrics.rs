@@ -251,6 +251,10 @@ where
         node_padding_y: f64,
         callback: F,
     ) -> Self {
+        let validation_error = input
+            .validate()
+            .err()
+            .map(|err| DynamicTextMetricsError::new(err.message));
         let default_style = input
             .default_text_style()
             .and_then(DynamicTextStyleInput::style_key)
@@ -266,7 +270,7 @@ where
             callback: RefCell::new(callback),
             line_cache: RefCell::new(HashMap::new()),
             scalar_cache: RefCell::new(HashMap::new()),
-            first_error: RefCell::new(None),
+            first_error: RefCell::new(validation_error),
             in_callback: Cell::new(false),
             node_padding_x,
             node_padding_y,
@@ -1343,6 +1347,20 @@ mod tests {
         assert_eq!(provider.measure_line_width("Alpha"), 5.0);
         provider.finish().expect("cached measurements should pass");
         assert_eq!(observed_calls.get(), 1);
+    }
+
+    #[test]
+    fn callback_provider_finish_reports_unvalidated_input_errors() {
+        let mut input = valid_input();
+        input.default_style = "missing-style".to_string();
+        let provider = CallbackTextMetricsProvider::new(input, |_text, _css_font| Ok(1.0));
+
+        let err = provider
+            .finish()
+            .expect_err("provider should preserve validation errors");
+
+        assert!(err.message.contains("defaultStyle"), "{err}");
+        assert!(err.message.contains("missing-style"), "{err}");
     }
 
     #[test]

@@ -310,13 +310,17 @@ function prepareTextStyle(
 ): PreparedBrowserTextStyle {
   const id = normalizeNonEmpty("textStyles.id", input.id);
   const fontFamily = normalizeFontFamily(input.fontFamily);
-  const fontSize = positiveFiniteNumber(
+  const fontSize = positiveFiniteNumberWithAlias(
     "textStyles.fontSize",
     input.fontSize ?? input.fontSizePx,
+    "textStyles.fontSizePx",
+    input.fontSizePx,
   );
-  const lineHeight = positiveFiniteNumber(
+  const lineHeight = positiveFiniteNumberWithAlias(
     "textStyles.lineHeight",
     input.lineHeight ?? input.lineHeightPx,
+    "textStyles.lineHeightPx",
+    input.lineHeightPx,
   );
   const fontStyle = fontStyleFor(input);
   const fontWeight = fontWeightFor(input);
@@ -454,4 +458,24 @@ function positiveFiniteNumber(field: string, value: unknown): number {
     throw new Error(`${field} must be a finite positive number.`);
   }
   return value;
+}
+
+function positiveFiniteNumberWithAlias(
+  field: string,
+  value: unknown,
+  aliasField: string,
+  aliasValue: unknown,
+): number {
+  const primary = positiveFiniteNumber(field, value);
+  if (aliasValue === undefined) {
+    return primary;
+  }
+
+  const alias = positiveFiniteNumber(aliasField, aliasValue);
+  if (primary !== alias) {
+    throw new Error(
+      `${field} and ${aliasField} must match when both are provided.`,
+    );
+  }
+  return primary;
 }

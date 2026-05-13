@@ -366,6 +366,44 @@ describe("prepareBrowserTextMetrics", () => {
         environmentFixture().environment,
       ),
     ).rejects.toThrow("lineHeight");
+
+    await expect(
+      prepareBrowserTextMetrics(
+        {
+          defaultStyle: "s0",
+          textStyles: [
+            {
+              id: "s0",
+              fontFamily: "Inter",
+              fontSize: 16,
+              fontSizePx: 18,
+              lineHeight: 24,
+              cssFont: "16px Inter",
+            },
+          ],
+        },
+        environmentFixture().environment,
+      ),
+    ).rejects.toThrow("fontSize");
+
+    await expect(
+      prepareBrowserTextMetrics(
+        {
+          defaultStyle: "s0",
+          textStyles: [
+            {
+              id: "s0",
+              fontFamily: "Inter",
+              fontSize: 16,
+              lineHeight: 24,
+              lineHeightPx: 30,
+              cssFont: "16px Inter",
+            },
+          ],
+        },
+        environmentFixture().environment,
+      ),
+    ).rejects.toThrow("lineHeight");
   });
 });
 
