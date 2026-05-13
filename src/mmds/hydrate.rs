@@ -224,33 +224,21 @@ fn parse_node_style_extension(style_object: &Map<String, Value>) -> NodeStyle {
         fill: parse_node_style_color(style_object, "fill"),
         stroke: parse_node_style_color(style_object, "stroke"),
         color: parse_node_style_color(style_object, "color"),
-        font_family: parse_node_style_string_with_legacy_key(
-            style_object,
-            "font-family",
-            "font_family",
-        ),
-        font_size: parse_node_style_string_with_legacy_key(style_object, "font-size", "font_size"),
-        font_style: parse_node_style_string_with_legacy_key(
-            style_object,
-            "font-style",
-            "font_style",
-        ),
-        font_weight: parse_node_style_string_with_legacy_key(
-            style_object,
-            "font-weight",
-            "font_weight",
-        ),
-        stroke_width: parse_node_style_string_with_legacy_key(
+        font_family: parse_style_string_with_legacy_key(style_object, "font-family", "font_family"),
+        font_size: parse_style_string_with_legacy_key(style_object, "font-size", "font_size"),
+        font_style: parse_style_string_with_legacy_key(style_object, "font-style", "font_style"),
+        font_weight: parse_style_string_with_legacy_key(style_object, "font-weight", "font_weight"),
+        stroke_width: parse_style_string_with_legacy_key(
             style_object,
             "stroke-width",
             "stroke_width",
         ),
-        stroke_dasharray: parse_node_style_string_with_legacy_key(
+        stroke_dasharray: parse_style_string_with_legacy_key(
             style_object,
             "stroke-dasharray",
             "stroke_dasharray",
         ),
-        rx: parse_node_style_string(style_object, "rx"),
+        rx: parse_style_string(style_object, "rx"),
     }
 }
 
@@ -270,40 +258,27 @@ fn parse_edge_style_from_extension(
 
     EdgeStyle {
         stroke: None,
-        stroke_width: parse_node_style_string_with_legacy_key(
+        stroke_width: parse_style_string_with_legacy_key(
             style_object,
             "stroke-width",
             "stroke_width",
         ),
-        font_family: parse_node_style_string_with_legacy_key(
-            style_object,
-            "font-family",
-            "font_family",
-        ),
-        font_size: parse_node_style_string_with_legacy_key(style_object, "font-size", "font_size"),
-        font_style: parse_node_style_string_with_legacy_key(
-            style_object,
-            "font-style",
-            "font_style",
-        ),
-        font_weight: parse_node_style_string_with_legacy_key(
-            style_object,
-            "font-weight",
-            "font_weight",
-        ),
+        font_family: parse_style_string_with_legacy_key(style_object, "font-family", "font_family"),
+        font_size: parse_style_string_with_legacy_key(style_object, "font-size", "font_size"),
+        font_style: parse_style_string_with_legacy_key(style_object, "font-style", "font_style"),
+        font_weight: parse_style_string_with_legacy_key(style_object, "font-weight", "font_weight"),
     }
 }
 
-fn parse_node_style_string_with_legacy_key(
+fn parse_style_string_with_legacy_key(
     style_object: &Map<String, Value>,
     key: &str,
     legacy_key: &str,
 ) -> Option<String> {
-    parse_node_style_string(style_object, key)
-        .or_else(|| parse_node_style_string(style_object, legacy_key))
+    parse_style_string(style_object, key).or_else(|| parse_style_string(style_object, legacy_key))
 }
 
-fn parse_node_style_string(style_object: &Map<String, Value>, key: &str) -> Option<String> {
+fn parse_style_string(style_object: &Map<String, Value>, key: &str) -> Option<String> {
     style_object.get(key)?.as_str().map(|s| s.to_string())
 }
 

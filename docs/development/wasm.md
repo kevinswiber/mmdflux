@@ -151,6 +151,14 @@ diagrams are rejected instead of silently falling back to a static profile.
 `configJson.fontFamily`, `configJson.fontSize`, and `configJson.themeVariables`
 are rejected on this export even when they match `metricsJson`.
 
+Mermaid graph styles can override `font-family`, `font-size`, `font-style`, and
+`font-weight`, but they do not carry a per-element line-height. mmdflux derives a
+styled element's line-height from the default style's line-height ratio. For
+example, a default style of `fontSize = 16` and `lineHeight = 24` gives an 8-px
+Mermaid-styled label a required `lineHeight = 12` entry in `metricsJson`.
+Supplying the same font identity with a different `lineHeight` is rejected so
+layout and replay stay keyed to the same measured style.
+
 The JavaScript adapter must complete async font preflight before Rust layout
 starts. Both browser modes call `load(cssFont)`, await `ready`, and then use a
 post-load `check(cssFont)` validity gate for every entry in `textStyles` before

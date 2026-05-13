@@ -64,6 +64,7 @@ struct NodeLabelRenderContext<'a> {
     style: ResolvedSvgNodeStyle<'a>,
     text_style: GraphTextStyleKey,
     metrics: &'a dyn TextMetricsProvider,
+    default_text_style: &'a GraphTextStyleKey,
     scale: f64,
     palette: &'a GraphSvgPalette,
 }
@@ -196,6 +197,7 @@ pub(super) fn render_nodes(
     diagram: &Graph,
     geom: &GraphGeometry,
     metrics: &dyn TextMetricsProvider,
+    default_text_style: &GraphTextStyleKey,
     scale: f64,
     palette: &GraphSvgPalette,
 ) {
@@ -259,6 +261,7 @@ pub(super) fn render_nodes(
                 style,
                 text_style,
                 metrics,
+                default_text_style,
                 scale,
                 palette,
             },
@@ -289,7 +292,7 @@ fn render_node_label(
         )
     };
     let font_attrs =
-        text_dynamic_attrs + &font_attrs_for_style(context.metrics, &context.text_style);
+        text_dynamic_attrs + &font_attrs_for_style(context.default_text_style, &context.text_style);
 
     if !has_separator {
         render_text_centered(

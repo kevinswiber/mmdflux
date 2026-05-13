@@ -8,7 +8,7 @@ use super::text::{
 };
 use super::{GraphSvgPalette, Point, dynamic_css_attrs};
 use crate::graph::geometry::GraphGeometry;
-use crate::graph::measure::{TextMetricsProvider, edge_text_style_key};
+use crate::graph::measure::{GraphTextStyleKey, TextMetricsProvider, edge_text_style_key};
 use crate::graph::routing::compute_end_label_positions;
 use crate::graph::{Graph, Stroke};
 use crate::render::svg::SvgWriter;
@@ -108,6 +108,7 @@ pub(super) fn render_edge_labels(
     rendered_edge_paths: &HashMap<usize, Vec<Point>>,
     override_nodes: &HashMap<String, String>,
     metrics: &dyn TextMetricsProvider,
+    default_text_style: &GraphTextStyleKey,
     scale: f64,
     palette: &GraphSvgPalette,
 ) {
@@ -224,7 +225,8 @@ pub(super) fn render_edge_labels(
             .and_then(|e| e.effective_wrapped_lines.as_deref())
             .or(edge.wrapped_label_lines.as_deref());
         let text_style = edge_text_style_key(metrics, edge);
-        let text_attrs = dynamic_attrs.clone() + &font_attrs_for_style(metrics, &text_style);
+        let text_attrs =
+            dynamic_attrs.clone() + &font_attrs_for_style(default_text_style, &text_style);
         render_text_centered_with_wrap(
             writer,
             Point {
@@ -265,7 +267,8 @@ pub(super) fn render_edge_labels(
         }
         let (head_pos, tail_pos) = compute_end_label_positions(&path);
         let text_style = edge_text_style_key(metrics, edge);
-        let text_attrs = dynamic_attrs.clone() + &font_attrs_for_style(metrics, &text_style);
+        let text_attrs =
+            dynamic_attrs.clone() + &font_attrs_for_style(default_text_style, &text_style);
         if let (Some(label), Some(pos)) = (&edge.head_label, head_pos) {
             render_text_centered(
                 writer,

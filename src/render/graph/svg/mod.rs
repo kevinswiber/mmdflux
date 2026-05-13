@@ -21,8 +21,8 @@ use crate::format::{Curve, RoutingStyle};
 use crate::graph::direction_policy::build_override_node_map;
 use crate::graph::geometry::{FPoint, FRect, GraphGeometry};
 use crate::graph::measure::{
-    DEFAULT_GRAPH_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE, ProportionalTextMetrics,
-    TextMetricsProvider,
+    DEFAULT_GRAPH_FONT_FAMILY, DEFAULT_PROPORTIONAL_FONT_SIZE, GraphTextStyleKey,
+    ProportionalTextMetrics, TextMetricsProvider,
 };
 use crate::graph::routing::EdgeRouting;
 use crate::graph::{Graph, Stroke};
@@ -252,6 +252,7 @@ fn render_svg_with_geometry_context(
     let offset_y = (-min_y + padding) * scale;
     let palette = GraphSvgPalette::from_theme(theme);
     let used_markers = collect_used_markers(diagram);
+    let default_text_style = GraphTextStyleKey::default_provider_style(metrics);
 
     let mut writer = SvgWriter::new();
     writer.start_svg_with_root_style(
@@ -276,7 +277,15 @@ fn render_svg_with_geometry_context(
         scale,
         &palette,
     );
-    render_nodes(&mut writer, diagram, geom, metrics, scale, &palette);
+    render_nodes(
+        &mut writer,
+        diagram,
+        geom,
+        metrics,
+        &default_text_style,
+        scale,
+        &palette,
+    );
     render_edge_labels(
         &mut writer,
         diagram,
@@ -285,6 +294,7 @@ fn render_svg_with_geometry_context(
         &prepared_edges.paths,
         context.override_nodes,
         metrics,
+        &default_text_style,
         scale,
         &palette,
     );

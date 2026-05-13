@@ -149,10 +149,9 @@ fn measure_wrapped_with_padding(
 }
 
 pub(super) fn font_attrs_for_style(
-    metrics: &dyn TextMetricsProvider,
+    default: &GraphTextStyleKey,
     style: &GraphTextStyleKey,
 ) -> String {
-    let default = GraphTextStyleKey::default_provider_style(metrics);
     let mut attrs = String::new();
     if style.font_family != default.font_family {
         attrs.push_str(" font-family=\"");

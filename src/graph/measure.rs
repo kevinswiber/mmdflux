@@ -201,18 +201,23 @@ fn text_style_key_from_parts(
     font_weight: Option<&str>,
 ) -> GraphTextStyleKey {
     let default_style = provider.default_text_style_key();
+    let default_font_family = default_style.font_family.clone();
+    let default_font_style = default_style.font_style.clone();
+    let default_font_weight = default_style.font_weight.clone();
     let font_size_px = font_size
         .and_then(|value| parse_font_size_px(value).ok())
         .unwrap_or_else(|| default_style.font_size_px());
     let line_height_px = provider_line_height_for_font_size(provider, font_size_px);
-    GraphTextStyleKey::new(
-        font_family.unwrap_or(default_style.font_family.as_str()),
+    match GraphTextStyleKey::new(
+        font_family.unwrap_or(default_font_family.as_str()),
         font_size_px,
         line_height_px,
-        font_style.unwrap_or(default_style.font_style.as_str()),
-        font_weight.unwrap_or(default_style.font_weight.as_str()),
-    )
-    .expect("graph text style fields are valid after parser validation and defaults")
+        font_style.unwrap_or(default_font_style.as_str()),
+        font_weight.unwrap_or(default_font_weight.as_str()),
+    ) {
+        Ok(style) => style,
+        Err(_) => default_style,
+    }
 }
 
 fn provider_line_height_for_font_size(
@@ -1118,6 +1123,14 @@ mod tests {
         fn assert_key<T: Eq + Ord + std::hash::Hash>() {}
 
         assert_key::<GraphTextStyleKey>();
+    }
+
+    #[test]
+    fn style_key_resolution_falls_back_instead_of_panicking_on_invalid_internal_values() {
+        let provider = FixedWidthProvider;
+        let style = text_style_key_from_parts(&provider, Some(" "), None, None, None);
+
+        assert_eq!(style, GraphTextStyleKey::default_provider_style(&provider));
     }
 
     #[test]

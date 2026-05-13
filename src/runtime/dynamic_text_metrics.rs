@@ -262,6 +262,9 @@ where
                 GraphTextStyleKey::new("invalid dynamic default", 1.0, 1.0, "normal", "400")
                     .expect("fallback dynamic style key should be valid")
             });
+        // Preserve the first validation error in `finish()`. If validation
+        // failed, the lookup map is intentionally empty so measurement returns
+        // harmless widths until the recorded error is surfaced.
         let styles_by_key = input.style_by_key().unwrap_or_default();
         Self {
             input,
@@ -288,6 +291,8 @@ where
 
     pub(crate) fn measurement_cache_snapshot(&self) -> Result<TextMeasurementCache, RenderError> {
         self.finish()?;
+        // Provider-free replay can need the default space scalar during wrap
+        // reconstruction even if direct rendering did not otherwise query it.
         self.measure_scalar_char_for_style(&self.default_style.clone(), ' ');
         self.finish()?;
         let mut text_styles = BTreeMap::new();
@@ -439,13 +444,36 @@ where
             Some(style_input) => Some(style_input),
             None => {
                 let text = text.unwrap_or("");
-                self.record_error(DynamicTextMetricsError::new(format!(
-                    "dynamic text metrics style set has no CSS font for text {text:?} and style {:?}",
-                    style
-                )));
+                if let Some((registered_style, style_input)) =
+                    self.style_input_for_key_except_line_height(style)
+                {
+                    self.record_error(DynamicTextMetricsError::new(format!(
+                        "dynamic text metrics style set has lineHeight mismatch for text {text:?}: Mermaid font-size-only styles derive lineHeight {:.2}px from the default style ratio, but CSS font {:?} was registered with lineHeight {:.2}px",
+                        style.line_height_px(),
+                        style_input.css_font,
+                        registered_style.line_height_px()
+                    )));
+                } else {
+                    self.record_error(DynamicTextMetricsError::new(format!(
+                        "dynamic text metrics style set has no CSS font for text {text:?} and style {:?}",
+                        style
+                    )));
+                }
                 None
             }
         }
+    }
+
+    fn style_input_for_key_except_line_height(
+        &self,
+        style: &GraphTextStyleKey,
+    ) -> Option<(&GraphTextStyleKey, &DynamicTextStyleInput)> {
+        self.styles_by_key.iter().find(|(registered_style, _)| {
+            registered_style.font_family == style.font_family
+                && registered_style.font_size_mpx == style.font_size_mpx
+                && registered_style.font_style == style.font_style
+                && registered_style.font_weight == style.font_weight
+        })
     }
 
     fn record_error(&self, error: DynamicTextMetricsError) {
@@ -1446,6 +1474,34 @@ mod tests {
 
         assert!(err.message.contains("Styled"), "{err}");
         assert!(err.message.contains("400 normal 32px Inter"), "{err}");
+    }
+
+    #[test]
+    fn dynamic_provider_reports_line_height_mismatches_clearly() {
+        let mut input = multi_font_style_set_input();
+        let small_style = input
+            .text_styles
+            .iter_mut()
+            .find(|style| style.id == "s1")
+            .expect("small style should exist");
+        small_style.line_height = 14.0;
+        let provider = CallbackTextMetricsProvider::new(input, |_text, _css_font| Ok(8.0));
+        let mermaid_style = GraphTextStyleKey::new("Verdana", 8.0, 12.0, "normal", "400")
+            .expect("test style is valid");
+
+        assert_eq!(
+            provider.measure_line_width_for_style(&mermaid_style, "Small"),
+            0.0
+        );
+        let err = provider
+            .finish()
+            .expect_err("line-height mismatch should be recorded");
+
+        assert!(err.message.contains("lineHeight mismatch"), "{err}");
+        assert!(err.message.contains("default style ratio"), "{err}");
+        assert!(err.message.contains("12.00px"), "{err}");
+        assert!(err.message.contains("14.00px"), "{err}");
+        assert!(err.message.contains("8px Verdana"), "{err}");
     }
 
     #[test]
