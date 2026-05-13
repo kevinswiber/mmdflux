@@ -1,9 +1,25 @@
 export interface BrowserTextMetricsRequest {
-  fontFamily: string;
-  fontSizePx: number;
-  lineHeightPx: number;
+  fontFamily?: string;
+  fontSizePx?: number;
+  lineHeightPx?: number;
   fontStyle?: string;
   fontWeight?: string;
+  defaultStyle?: string;
+  textStyles?: BrowserTextMetricsStyleRequest[];
+  profileId?: string;
+  profileVersion?: number;
+}
+
+export interface BrowserTextMetricsStyleRequest {
+  id: string;
+  fontFamily: string;
+  fontSize?: number;
+  fontSizePx?: number;
+  lineHeight?: number;
+  lineHeightPx?: number;
+  fontStyle?: string;
+  fontWeight?: string;
+  cssFont?: string;
 }
 
 export const BROWSER_TEXT_METRICS_PROFILE_ID = "mmdflux-browser-canvas-v1";
@@ -88,6 +104,23 @@ export function browserTextMetricsEnvironment(
   };
 }
 
+interface PreparedBrowserTextStyle {
+  id: string;
+  fontFamily: string;
+  fontSize: number;
+  fontStyle: string;
+  fontWeight: string;
+  lineHeight: number;
+  cssFont: string;
+}
+
+interface PreparedBrowserTextStyleSet {
+  defaultStyle: string;
+  textStyles: PreparedBrowserTextStyle[];
+  profileId: string;
+  profileVersion: number;
+}
+
 export function mainThreadBrowserTextMetricsEnvironment(
   scope: unknown = globalThis,
 ): MainThreadBrowserTextMetricsEnvironment {
@@ -101,7 +134,7 @@ export async function prepareBrowserTextMetrics(
   input: BrowserTextMetricsRequest,
   environment = browserTextMetricsEnvironment(),
 ): Promise<PreparedBrowserTextMetrics> {
-  const cssFont = buildCssFont(input);
+  const styleSet = prepareTextStyleSet(input);
   const fontSet = environment.fonts;
   if (!fontSet) {
     throw new BrowserTextMetricsCapabilityError(
@@ -127,16 +160,16 @@ export async function prepareBrowserTextMetrics(
     );
   }
 
-  await loadAndValidateFontSet(fontSet, cssFont, input.fontFamily);
+  await loadAndValidateFontSet(fontSet, styleSet.textStyles);
 
-  return preparedMetrics(input, cssFont, context);
+  return preparedMetrics(styleSet, context);
 }
 
 export async function prepareMainThreadBrowserTextMetrics(
   input: BrowserTextMetricsRequest,
   environment = mainThreadBrowserTextMetricsEnvironment(),
 ): Promise<PreparedBrowserTextMetrics> {
-  const cssFont = buildCssFont(input);
+  const styleSet = prepareTextStyleSet(input);
   const document = environment.document;
   if (!document?.fonts) {
     throw new BrowserTextMetricsCapabilityError(
@@ -173,27 +206,22 @@ export async function prepareMainThreadBrowserTextMetrics(
     );
   }
 
-  await loadAndValidateFontSet(fontSet, cssFont, input.fontFamily);
+  await loadAndValidateFontSet(fontSet, styleSet.textStyles);
 
-  return preparedMetrics(input, cssFont, context);
+  return preparedMetrics(styleSet, context);
 }
 
 function preparedMetrics(
-  input: BrowserTextMetricsRequest,
-  cssFont: string,
+  styleSet: PreparedBrowserTextStyleSet,
   context: CanvasTextMeasureContext,
 ): PreparedBrowserTextMetrics {
   const cache = new Map<string, number>();
   return {
     metricsJson: JSON.stringify({
-      cssFont,
-      fontFamily: normalizeFontFamily(input.fontFamily),
-      fontSizePx: input.fontSizePx,
-      lineHeightPx: input.lineHeightPx,
-      profileId: BROWSER_TEXT_METRICS_PROFILE_ID,
-      profileVersion: 1,
-      fontStyle: fontStyleFor(input),
-      fontWeight: fontWeightFor(input),
+      defaultStyle: styleSet.defaultStyle,
+      textStyles: styleSet.textStyles,
+      profileId: styleSet.profileId,
+      profileVersion: styleSet.profileVersion,
     }),
     measureText: (text: string, measuredCssFont: string): number => {
       const key = `${measuredCssFont}\0${text}`;
@@ -215,38 +243,148 @@ function preparedMetrics(
 
 async function loadAndValidateFontSet(
   fontSet: BrowserFontFaceSet,
-  cssFont: string,
-  fontFamily: string,
+  textStyles: PreparedBrowserTextStyle[],
 ): Promise<void> {
   // Do not await FontFaceSet.ready here. Chrome worker FontFaceSet.ready can
   // stay pending for system-font stacks even after load resolves and check
   // passes; load plus post-load check is the requested-font contract.
-  await fontSet.load(cssFont);
-  if (!fontSet.check(cssFont)) {
-    throw new Error(`Dynamic text metrics unavailable for font ${fontFamily}.`);
+  for (const style of textStyles) {
+    await fontSet.load(style.cssFont);
+    if (!fontSet.check(style.cssFont)) {
+      throw new Error(
+        `Dynamic text metrics unavailable for font ${style.fontFamily}.`,
+      );
+    }
   }
 }
 
 export function buildCssFont(input: BrowserTextMetricsRequest): string {
-  const fontFamily = fontFamilyStackToCss(input.fontFamily);
-  validatePositiveFinite("fontSizePx", input.fontSizePx);
-  validatePositiveFinite("lineHeightPx", input.lineHeightPx);
+  const style = legacyTextStyleInput(input);
+  const fontFamily = fontFamilyStackToCss(style.fontFamily);
+  validatePositiveFinite("fontSizePx", style.fontSizePx);
+  validatePositiveFinite("lineHeightPx", style.lineHeightPx);
 
-  return `${fontStyleFor(input)} ${fontWeightFor(input)} ${input.fontSizePx}px ${fontFamily}`;
+  return `${fontStyleFor(style)} ${fontWeightFor(style)} ${style.fontSizePx}px ${fontFamily}`;
 }
 
-function fontStyleFor(input: BrowserTextMetricsRequest): string {
+function prepareTextStyleSet(
+  input: BrowserTextMetricsRequest,
+): PreparedBrowserTextStyleSet {
+  if (input.textStyles && input.textStyles.length === 0) {
+    throw new Error("textStyles must not be empty.");
+  }
+  const textStyles = input.textStyles
+    ? input.textStyles.map(prepareTextStyle)
+    : [prepareTextStyle({ id: "s0", ...legacyTextStyleInput(input) })];
+  const defaultStyle =
+    input.defaultStyle === undefined
+      ? textStyles[0]?.id
+      : normalizeNonEmpty("defaultStyle", input.defaultStyle);
+  if (!defaultStyle) {
+    throw new Error("defaultStyle must reference a textStyles id.");
+  }
+  if (!textStyles.some((style) => style.id === defaultStyle)) {
+    throw new Error(
+      `defaultStyle ${defaultStyle} must reference a textStyles id.`,
+    );
+  }
+
+  const styleIds = new Set<string>();
+  for (const style of textStyles) {
+    if (styleIds.has(style.id)) {
+      throw new Error(`textStyles contains duplicate id ${style.id}.`);
+    }
+    styleIds.add(style.id);
+  }
+
+  return {
+    defaultStyle,
+    textStyles,
+    profileId: normalizedProfileId(input.profileId),
+    profileVersion: normalizedProfileVersion(input.profileVersion),
+  };
+}
+
+function prepareTextStyle(
+  input: BrowserTextMetricsStyleRequest,
+): PreparedBrowserTextStyle {
+  const id = normalizeNonEmpty("textStyles.id", input.id);
+  const fontFamily = normalizeFontFamily(input.fontFamily);
+  const fontSize = positiveFiniteNumber(
+    "textStyles.fontSize",
+    input.fontSize ?? input.fontSizePx,
+  );
+  const lineHeight = positiveFiniteNumber(
+    "textStyles.lineHeight",
+    input.lineHeight ?? input.lineHeightPx,
+  );
+  const fontStyle = fontStyleFor(input);
+  const fontWeight = fontWeightFor(input);
+  const cssFont =
+    input.cssFont === undefined
+      ? `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamilyStackToCss(fontFamily)}`
+      : normalizeNonEmpty("textStyles.cssFont", input.cssFont);
+
+  return {
+    id,
+    fontFamily,
+    fontSize,
+    fontStyle,
+    fontWeight,
+    lineHeight,
+    cssFont,
+  };
+}
+
+function legacyTextStyleInput(
+  input: BrowserTextMetricsRequest,
+): Required<
+  Pick<BrowserTextMetricsRequest, "fontFamily" | "fontSizePx" | "lineHeightPx">
+> &
+  Pick<BrowserTextMetricsRequest, "fontStyle" | "fontWeight"> {
+  return {
+    fontFamily: input.fontFamily ?? "",
+    fontSizePx: input.fontSizePx ?? Number.NaN,
+    lineHeightPx: input.lineHeightPx ?? Number.NaN,
+    fontStyle: input.fontStyle,
+    fontWeight: input.fontWeight,
+  };
+}
+
+function normalizedProfileId(profileId: string | undefined): string {
+  return profileId?.trim() || BROWSER_TEXT_METRICS_PROFILE_ID;
+}
+
+function normalizedProfileVersion(profileVersion: number | undefined): number {
+  if (profileVersion === undefined) {
+    return 1;
+  }
+  if (!Number.isInteger(profileVersion) || profileVersion <= 0) {
+    throw new Error("profileVersion must be a positive integer.");
+  }
+  return profileVersion;
+}
+
+function fontStyleFor(
+  input: Pick<BrowserTextMetricsStyleRequest, "fontStyle">,
+): string {
   return input.fontStyle?.trim() || "normal";
 }
 
-function fontWeightFor(input: BrowserTextMetricsRequest): string {
+function fontWeightFor(
+  input: Pick<BrowserTextMetricsStyleRequest, "fontWeight">,
+): string {
   return input.fontWeight?.trim() || "400";
 }
 
 function normalizeFontFamily(fontFamily: string): string {
-  const normalized = fontFamily.trim();
+  return normalizeNonEmpty("fontFamily", fontFamily);
+}
+
+function normalizeNonEmpty(field: string, value: string): string {
+  const normalized = value.trim();
   if (!normalized) {
-    throw new Error("fontFamily must not be empty.");
+    throw new Error(`${field} must not be empty.`);
   }
   return normalized;
 }
@@ -309,4 +447,11 @@ function validatePositiveFinite(field: string, value: number): void {
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error(`${field} must be a finite positive number.`);
   }
+}
+
+function positiveFiniteNumber(field: string, value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`${field} must be a finite positive number.`);
+  }
+  return value;
 }

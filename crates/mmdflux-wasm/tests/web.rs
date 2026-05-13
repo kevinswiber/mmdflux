@@ -37,6 +37,10 @@ fn dynamic_metrics_json_with_profile_fixture() -> &'static str {
     r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"}],"profileId":"mmdflux-browser-canvas-v1"}"#
 }
 
+fn dynamic_multi_style_metrics_json_fixture() -> &'static str {
+    r#"{"defaultStyle":"s0","textStyles":[{"id":"s0","fontFamily":"Inter","fontSize":16,"fontStyle":"normal","fontWeight":"400","lineHeight":24,"cssFont":"16px Inter"},{"id":"s1","fontFamily":"Verdana","fontSize":8,"fontStyle":"normal","fontWeight":"400","lineHeight":12,"cssFont":"8px Verdana"}],"profileId":"mmdflux-browser-canvas-v1"}"#
+}
+
 fn dynamic_metrics_json_with_profile_fields(
     profile_id: &str,
     profile_version: u32,
@@ -103,6 +107,38 @@ fn dynamic_text_metrics_callback_changes_svg_geometry() {
     assert_ne!(dynamic_output, static_output);
     assert!(dynamic_output.contains("<svg"));
     assert!(dynamic_output.contains("width=\"108.00\""));
+}
+
+#[wasm_bindgen_test]
+fn render_with_browser_text_metrics_passes_per_style_css_font() {
+    let calls = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let calls_for_callback = calls.clone();
+    let closure = wasm_bindgen::closure::Closure::<dyn FnMut(String, String) -> f64>::new(
+        move |text: String, css_font: String| {
+            if text == "Same" {
+                calls_for_callback.borrow_mut().push(css_font.clone());
+            }
+            if css_font.contains("Verdana") {
+                text.len() as f64 * 6.0
+            } else {
+                text.len() as f64 * 10.0
+            }
+        },
+    );
+    let measure = closure.as_ref().unchecked_ref::<js_sys::Function>();
+    let output = render_with_browser_text_metrics(
+        "graph TD\nA[Same] --> B[Same]\nstyle B font-family:Verdana,font-size:8px",
+        "svg",
+        "{}",
+        dynamic_multi_style_metrics_json_fixture(),
+        measure,
+    )
+    .expect("dynamic multi-style svg should render");
+
+    assert!(output.contains("<svg"));
+    let calls = calls.borrow();
+    assert!(calls.iter().any(|font| font == "16px Inter"), "{calls:?}");
+    assert!(calls.iter().any(|font| font == "8px Verdana"), "{calls:?}");
 }
 
 #[wasm_bindgen_test]

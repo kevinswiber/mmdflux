@@ -94,6 +94,30 @@ function fontSetFixture(
   };
 }
 
+function multiStyleRequest() {
+  return {
+    defaultStyle: "s0",
+    textStyles: [
+      {
+        id: "s0",
+        fontFamily: "Inter",
+        fontSize: 16,
+        lineHeight: 24,
+        fontStyle: "normal",
+        fontWeight: "400",
+      },
+      {
+        id: "s1",
+        fontFamily: "Verdana",
+        fontSize: 8,
+        lineHeight: 12,
+        fontStyle: "normal",
+        fontWeight: "400",
+      },
+    ],
+  };
+}
+
 describe("prepareBrowserTextMetrics", () => {
   it("fails honestly without OffscreenCanvas", async () => {
     await expect(
@@ -173,14 +197,20 @@ describe("prepareBrowserTextMetrics", () => {
     expect(fonts.check).toHaveBeenCalledWith('normal 400 16px "Inter"');
     expect(calls).toEqual(["load", "check"]);
     expect(JSON.parse(prepared.metricsJson)).toEqual({
-      cssFont: 'normal 400 16px "Inter"',
-      fontFamily: "Inter",
-      fontSizePx: 16,
-      lineHeightPx: 24,
+      defaultStyle: "s0",
       profileId: "mmdflux-browser-canvas-v1",
       profileVersion: 1,
-      fontStyle: "normal",
-      fontWeight: "400",
+      textStyles: [
+        {
+          id: "s0",
+          cssFont: 'normal 400 16px "Inter"',
+          fontFamily: "Inter",
+          fontSize: 16,
+          lineHeight: 24,
+          fontStyle: "normal",
+          fontWeight: "400",
+        },
+      ],
     });
   });
 
@@ -248,6 +278,64 @@ describe("prepareBrowserTextMetrics", () => {
     expect(context.measureText).toHaveBeenCalledTimes(2);
   });
 
+  it("preflights and caches each css font in a style set", async () => {
+    const fonts = fontSetFixture();
+    const { context, environment } = environmentFixture(fonts);
+
+    const prepared = await prepareBrowserTextMetrics(
+      multiStyleRequest(),
+      environment,
+    );
+
+    expect(fonts.load).toHaveBeenCalledWith('normal 400 16px "Inter"');
+    expect(fonts.load).toHaveBeenCalledWith('normal 400 8px "Verdana"');
+    expect(fonts.check).toHaveBeenCalledWith('normal 400 16px "Inter"');
+    expect(fonts.check).toHaveBeenCalledWith('normal 400 8px "Verdana"');
+    expect(JSON.parse(prepared.metricsJson)).toMatchObject({
+      defaultStyle: "s0",
+      textStyles: [
+        {
+          id: "s0",
+          cssFont: 'normal 400 16px "Inter"',
+          fontFamily: "Inter",
+          fontSize: 16,
+          fontStyle: "normal",
+          fontWeight: "400",
+          lineHeight: 24,
+        },
+        {
+          id: "s1",
+          cssFont: 'normal 400 8px "Verdana"',
+          fontFamily: "Verdana",
+          fontSize: 8,
+          fontStyle: "normal",
+          fontWeight: "400",
+          lineHeight: 12,
+        },
+      ],
+      profileId: "mmdflux-browser-canvas-v1",
+      profileVersion: 1,
+    });
+
+    prepared.measureText("Same", 'normal 400 16px "Inter"');
+    prepared.measureText("Same", 'normal 400 16px "Inter"');
+    prepared.measureText("Same", 'normal 400 8px "Verdana"');
+
+    expect(context.measureText).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects when any style-set font is unavailable", async () => {
+    const { environment } = environmentFixture(
+      fontSetFixture({
+        check: vi.fn((cssFont) => !cssFont.includes("Verdana")),
+      }),
+    );
+
+    await expect(
+      prepareBrowserTextMetrics(multiStyleRequest(), environment),
+    ).rejects.toThrow("Verdana");
+  });
+
   it("quotes CSS font families and rejects invalid numeric style fields", async () => {
     expect(
       buildCssFont({
@@ -270,14 +358,14 @@ describe("prepareBrowserTextMetrics", () => {
         { fontFamily: "Inter", fontSizePx: 0, lineHeightPx: 24 },
         environmentFixture().environment,
       ),
-    ).rejects.toThrow("fontSizePx");
+    ).rejects.toThrow("fontSize");
 
     await expect(
       prepareBrowserTextMetrics(
         { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: Number.NaN },
         environmentFixture().environment,
       ),
-    ).rejects.toThrow("lineHeightPx");
+    ).rejects.toThrow("lineHeight");
   });
 });
 
@@ -308,8 +396,12 @@ describe("prepareMainThreadBrowserTextMetrics", () => {
     expect(JSON.parse(prepared.metricsJson)).toMatchObject({
       profileId: "mmdflux-browser-canvas-v1",
       profileVersion: 1,
-      fontStyle: "normal",
-      fontWeight: "400",
+      textStyles: [
+        expect.objectContaining({
+          fontStyle: "normal",
+          fontWeight: "400",
+        }),
+      ],
     });
     expect(prepared.measureText("Alpha", 'normal 400 16px "Inter"')).toBe(15);
     expect(context.font).toBe('normal 400 16px "Inter"');
