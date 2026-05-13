@@ -140,7 +140,8 @@ export function createWasmLintExtension(
   validateWithWorker: ValidateWithWorker,
 ): Extension {
   return linter(
-    async (view) => lintWithWorker(view.state.doc.toString(), validateWithWorker),
+    async (view) =>
+      lintWithWorker(view.state.doc.toString(), validateWithWorker),
     { delay: 350 },
   );
 }

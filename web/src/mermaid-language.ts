@@ -316,11 +316,13 @@ function escapeRegExp(value: string): string {
 }
 
 function toPhraseRegexes(values: readonly string[]): RegExp[] {
-  return values
-    .filter((value) => value.includes(" "))
-    .sort((left, right) => right.length - left.length)
-    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
-    .map((value) => new RegExp(`^${escapeRegExp(value)}(?![\\w-])`));
+  return (
+    values
+      .filter((value) => value.includes(" "))
+      .sort((left, right) => right.length - left.length)
+      // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
+      .map((value) => new RegExp(`^${escapeRegExp(value)}(?![\\w-])`))
+  );
 }
 
 function matchAnyRegex(
