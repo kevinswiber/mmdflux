@@ -9,7 +9,7 @@ use super::{GraphSvgPalette, Point, Rect, dynamic_css_attrs};
 use crate::graph::geometry::{FRect, GraphGeometry};
 use crate::graph::measure::{GraphTextStyleKey, TextMetricsProvider, node_text_style_key};
 use crate::graph::routing::hexagon_vertices;
-use crate::graph::{Direction, Graph, Node, Shape};
+use crate::graph::{Direction, Graph, Node, Shape, Subgraph};
 use crate::render::svg::{SvgWriter, escape_text, fmt_f64};
 
 #[derive(Clone, Copy)]
@@ -69,6 +69,39 @@ struct NodeLabelRenderContext<'a> {
     palette: &'a GraphSvgPalette,
 }
 
+#[derive(Clone, Copy)]
+struct ResolvedSvgSubgraphStyle<'a> {
+    fill: Option<&'a str>,
+    stroke: Option<&'a str>,
+    stroke_width: Option<&'a str>,
+    stroke_dasharray: Option<&'a str>,
+    rx: Option<&'a str>,
+}
+
+impl<'a> ResolvedSvgSubgraphStyle<'a> {
+    fn from_subgraph(subgraph: &'a Subgraph) -> Self {
+        Self {
+            fill: subgraph.style.fill.as_ref().map(|color| color.raw()),
+            stroke: subgraph.style.stroke.as_ref().map(|color| color.raw()),
+            stroke_width: subgraph.style.stroke_width.as_deref(),
+            stroke_dasharray: subgraph.style.stroke_dasharray.as_deref(),
+            rx: subgraph.style.rx.as_deref(),
+        }
+    }
+
+    fn fill_or(self, default: &'a str) -> &'a str {
+        self.fill.unwrap_or(default)
+    }
+
+    fn stroke_or(self, default: &'a str) -> &'a str {
+        self.stroke.unwrap_or(default)
+    }
+
+    fn stroke_is_overridden(self) -> bool {
+        self.stroke.is_some()
+    }
+}
+
 pub(super) fn render_subgraphs(
     writer: &mut SvgWriter,
     diagram: &Graph,
@@ -89,30 +122,43 @@ pub(super) fn render_subgraphs(
                 .subgraphs
                 .get(id)
                 .filter(|sg| !sg.invisible)
-                .map(|_| (id, sg_geom))
+                .map(|sg| (id, sg, sg_geom))
         })
         .collect();
 
-    subgraphs.sort_by(|a, b| a.1.depth.cmp(&b.1.depth).then_with(|| a.0.cmp(b.0)));
+    subgraphs.sort_by(|a, b| a.2.depth.cmp(&b.2.depth).then_with(|| a.0.cmp(b.0)));
 
     writer.start_group("clusters");
-    for (_id, sg_geom) in subgraphs {
+    for (_id, subgraph, sg_geom) in subgraphs {
         let rect = scale_rect(&sg_geom.rect, scale);
-        let stroke_width = fmt_f64(1.0 * scale);
+        let style = ResolvedSvgSubgraphStyle::from_subgraph(subgraph);
+        let fill = style.fill_or("none");
+        let stroke = style.stroke_or(&palette.subgraph_stroke);
+        let default_stroke_width = fmt_f64(1.0 * scale);
+        let stroke_width = style.stroke_width.unwrap_or(&default_stroke_width);
+        let mut dynamic_declarations = Vec::new();
+        if !style.stroke_is_overridden() {
+            dynamic_declarations.push("stroke:var(--_inner-stroke);");
+        }
         let dynamic_attrs = dynamic_css_attrs(
             palette.dynamic_css,
             "graph-subgraph-stroke",
-            &["stroke:var(--_inner-stroke);"],
+            &dynamic_declarations,
         );
+        let dasharray_attr = style
+            .stroke_dasharray
+            .map(|v| format!(" stroke-dasharray=\"{v}\""))
+            .unwrap_or_default();
+        let rx_attr = style
+            .rx
+            .map(|v| format!(" rx=\"{v}\" ry=\"{v}\""))
+            .unwrap_or_default();
         let rect_line = format!(
-            "<rect class=\"subgraph\" x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\" fill=\"none\" stroke=\"{stroke}\" stroke-width=\"{stroke_width}\"{dynamic_attrs} />",
+            "<rect class=\"subgraph\" x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\"{rx_attr} fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{stroke_width}\"{dasharray_attr}{dynamic_attrs} />",
             x = fmt_f64(rect.x),
             y = fmt_f64(rect.y),
             w = fmt_f64(rect.width),
             h = fmt_f64(rect.height),
-            stroke = palette.subgraph_stroke,
-            stroke_width = stroke_width,
-            dynamic_attrs = dynamic_attrs
         );
         writer.push_line(&rect_line);
 

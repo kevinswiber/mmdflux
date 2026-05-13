@@ -19,6 +19,7 @@ use crate::graph::measure::{
     TextMeasurementStyle, TextMetricsLayoutDescriptor, TextMetricsProfileConfig,
     TextMetricsProfileDescriptor, TextMetricsProvider, TextMetricsStyleDescriptor,
     edge_text_style_key, node_text_style_key, resolve_text_metrics_profile,
+    subgraph_title_text_style_key,
 };
 use crate::payload::Diagram;
 use crate::registry::DiagramFamily;
@@ -704,9 +705,11 @@ fn collect_graph_browser_text_styles(
     for node in graph.nodes.values() {
         styles.insert(node_text_style_key(provider, node));
     }
-    // Subgraph class styling is not represented in the graph IR yet, so
-    // subgraph titles currently render with the provider default. When
-    // subgraph style parity lands, title styles need to join this set.
+    for subgraph in graph.subgraphs.values() {
+        if !subgraph.invisible && !subgraph.title.is_empty() {
+            styles.insert(subgraph_title_text_style_key(provider, subgraph));
+        }
+    }
     for edge in &graph.edges {
         if edge.label.is_some() || edge.head_label.is_some() || edge.tail_label.is_some() {
             styles.insert(edge_text_style_key(provider, edge));
@@ -1071,12 +1074,12 @@ mod tests {
     use super::*;
     use crate::engines::graph::EngineAlgorithmId;
     use crate::format::OutputFormat;
-    use crate::graph::GeometryLevel;
     use crate::graph::measure::{
         COMPATIBILITY_TEXT_METRICS_PROFILE_ID, DEFAULT_GRAPH_FONT_FAMILY, GraphTextStyleKey,
         RECORDED_SANS_TEXT_METRICS_PROFILE_ID, TextMetricsProfileConfig, TextMetricsProvider,
         resolve_text_metrics_profile,
     };
+    use crate::graph::{Direction, GeometryLevel, Graph, Subgraph};
     use crate::runtime::config::{GraphTextStyleConfig, RenderConfig};
     use crate::runtime::render_diagram;
 
@@ -1361,6 +1364,85 @@ mod tests {
                 && (style.font_size - 32.0).abs() < f64::EPSILON
                 && style.css_font == r#"normal 400 32px "Times New Roman""#
         }));
+    }
+
+    #[test]
+    fn browser_metrics_request_requires_dynamic_for_subgraph_title_font() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef big font-family:Verdana,font-size:20px\nclass A big\n";
+
+        let decision = resolve_browser_text_metrics_request(
+            input,
+            OutputFormat::Svg,
+            &RenderConfig::default(),
+        )
+        .expect("resolver should succeed");
+
+        assert!(decision.required);
+        let request = decision.browser_text_metrics.expect("metrics request");
+        assert!(request.text_styles.iter().any(|style| {
+            style.font_family == "Verdana" && (style.font_size - 20.0).abs() < f64::EPSILON
+        }));
+    }
+
+    #[test]
+    fn browser_metrics_request_not_required_for_visual_only_subgraph_style() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef blue fill:#e1f5fe,stroke:#01579b\nclass A blue\n";
+
+        let decision = resolve_browser_text_metrics_request(
+            input,
+            OutputFormat::Svg,
+            &RenderConfig::default(),
+        )
+        .expect("resolver should succeed");
+
+        assert!(!decision.required);
+        assert!(decision.browser_text_metrics.is_none());
+    }
+
+    #[test]
+    fn browser_metrics_request_not_required_for_default_equivalent_subgraph_title_font() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef defaultSize font-size:16px\nclass A defaultSize\n";
+
+        let decision = resolve_browser_text_metrics_request(
+            input,
+            OutputFormat::Svg,
+            &RenderConfig::default(),
+        )
+        .expect("resolver should succeed");
+
+        assert!(!decision.required);
+        assert!(decision.browser_text_metrics.is_none());
+    }
+
+    #[test]
+    fn browser_metrics_request_ignores_invisible_or_empty_title_subgraphs() {
+        let metrics = resolve_text_metrics_profile(TextMetricsProfileConfig::default())
+            .expect("default text metrics should resolve")
+            .metrics;
+        let mut graph = Graph::new(Direction::TopDown);
+        let mut invisible = Subgraph {
+            id: "hidden".to_string(),
+            title: "Hidden".to_string(),
+            invisible: true,
+            ..Default::default()
+        };
+        invisible.style.font_family = Some("Verdana".to_string());
+        let mut empty_title = Subgraph {
+            id: "empty".to_string(),
+            ..Default::default()
+        };
+        empty_title.style.font_family = Some("Courier New".to_string());
+        graph.subgraphs.insert(invisible.id.clone(), invisible);
+        graph.subgraphs.insert(empty_title.id.clone(), empty_title);
+
+        let styles = collect_graph_browser_text_styles(&graph, &metrics);
+
+        assert!(!styles.iter().any(|style| style.font_family == "Verdana"));
+        assert!(
+            !styles
+                .iter()
+                .any(|style| style.font_family == "Courier New")
+        );
     }
 
     #[test]

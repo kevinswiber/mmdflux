@@ -13,7 +13,7 @@ use crate::graph::font_metrics::{
     RecordedMetricsProfile,
 };
 use crate::graph::style::{EdgeStyle, NodeStyle, parse_font_size_px};
-use crate::graph::{Direction, Edge, Node, Shape};
+use crate::graph::{Direction, Edge, Node, Shape, Subgraph};
 
 /// Compatibility profile for the existing function-backed proportional heuristic.
 pub const COMPATIBILITY_TEXT_METRICS_PROFILE_ID: &str = "mmdflux-heuristic-proportional-v1";
@@ -165,6 +165,13 @@ pub(crate) fn edge_text_style_key(
     edge: &Edge,
 ) -> GraphTextStyleKey {
     text_style_key_from_edge_style(provider, &edge.style)
+}
+
+pub(crate) fn subgraph_title_text_style_key(
+    provider: &dyn TextMetricsProvider,
+    subgraph: &Subgraph,
+) -> GraphTextStyleKey {
+    text_style_key_from_node_style(provider, &subgraph.style)
 }
 
 fn text_style_key_from_node_style(
@@ -1048,7 +1055,7 @@ pub(crate) fn proportional_node_dimensions_with_provider(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::Node;
+    use crate::graph::{Node, Subgraph};
     use crate::internal_tests::stub_metrics::FixedWidthProvider;
 
     #[test]
@@ -1131,6 +1138,28 @@ mod tests {
         let style = text_style_key_from_parts(&provider, Some(" "), None, None, None);
 
         assert_eq!(style, GraphTextStyleKey::default_provider_style(&provider));
+    }
+
+    #[test]
+    fn subgraph_title_style_key_uses_subgraph_style() {
+        let provider = default_proportional_text_metrics();
+        let mut subgraph = Subgraph {
+            id: "A".to_string(),
+            title: "Source".to_string(),
+            nodes: Vec::new(),
+            parent: None,
+            dir: None,
+            invisible: false,
+            concurrent_regions: Vec::new(),
+            style: Default::default(),
+        };
+        subgraph.style.font_family = Some("Verdana".to_string());
+        subgraph.style.font_size = Some("20px".to_string());
+
+        let style = subgraph_title_text_style_key(&provider, &subgraph);
+
+        assert_eq!(style.font_family, "Verdana");
+        assert_eq!(style.font_size_px(), 20.0);
     }
 
     #[test]

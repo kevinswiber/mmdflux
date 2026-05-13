@@ -207,6 +207,7 @@ fn effective_rank_sep_adds_cluster_spacing_for_subgraphs() {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         },
     );
 
@@ -631,6 +632,7 @@ fn test_build_children_map() {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         },
     );
     subgraphs.insert(
@@ -643,6 +645,7 @@ fn test_build_children_map() {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         },
     );
     let children_map = build_children_map(&subgraphs);
@@ -669,6 +672,7 @@ fn test_subgraph_bounds_no_overlap_from_separated_rects() {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         },
     );
     subgraphs.insert(
@@ -681,6 +685,7 @@ fn test_subgraph_bounds_no_overlap_from_separated_rects() {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         },
     );
 
@@ -757,6 +762,7 @@ fn test_subgraph_bounds_maps_rects() {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         },
     );
 

@@ -285,6 +285,30 @@ fn basic_flowchart_svg_has_root_text_and_arrow_marker() {
 }
 
 #[test]
+fn svg_subgraph_class_styles_container_rect() {
+    let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef blue fill:#e1f5fe,stroke:#01579b,stroke-width:2px\nclass A blue\n";
+    let svg = render_svg(input, &RenderConfig::default());
+
+    assert!(svg.contains(r#"class="subgraph""#), "{svg}");
+    assert!(svg.contains(r##"fill="#e1f5fe""##), "{svg}");
+    assert!(svg.contains(r##"stroke="#01579b""##), "{svg}");
+    assert!(svg.contains(r#"stroke-width="2px""#), "{svg}");
+}
+
+#[test]
+fn unstyled_subgraph_container_rect_stays_byte_stable() {
+    let input = "flowchart LR\nsubgraph A[Source]\na1\nend\n";
+    let svg = render_svg(input, &RenderConfig::default());
+
+    assert!(
+        svg.contains(
+            r##"<rect class="subgraph" x="43.00" y="12.00" width="107.80" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />"##
+        ),
+        "{svg}"
+    );
+}
+
+#[test]
 fn simple_arrow_flowchart_only_emits_arrowhead_def() {
     let svg = render_svg("graph TD\nA-->B\n", &RenderConfig::default());
 

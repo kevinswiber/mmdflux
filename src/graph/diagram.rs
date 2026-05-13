@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::edge::{Edge, Stroke};
 use super::node::Node;
+use super::style::NodeStyle;
 
 /// Direction of the diagram layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -27,7 +28,7 @@ pub enum Direction {
 }
 
 /// A subgraph grouping of nodes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
 pub struct Subgraph {
     /// Unique identifier for this subgraph.
     pub id: String,
@@ -48,6 +49,9 @@ pub struct Subgraph {
     /// adjacent region subgraphs. Empty for non-concurrent composites.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub concurrent_regions: Vec<String>,
+    /// Resolved Mermaid style properties for this subgraph.
+    #[serde(default, skip_serializing_if = "NodeStyle::is_empty")]
+    pub style: NodeStyle,
 }
 
 /// Position of a note annotation relative to its target node.
@@ -265,10 +269,28 @@ mod tests {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         };
         assert_eq!(sg.id, "sg1");
         assert_eq!(sg.title, "My Group");
         assert_eq!(sg.nodes.len(), 2);
+    }
+
+    #[test]
+    fn empty_subgraph_style_is_not_serialized() {
+        let sg = Subgraph {
+            id: "sg1".to_string(),
+            title: "My Group".to_string(),
+            nodes: vec!["A".to_string()],
+            parent: None,
+            dir: None,
+            invisible: false,
+            concurrent_regions: Vec::new(),
+            style: Default::default(),
+        };
+
+        let value = serde_json::to_value(&sg).expect("subgraph should serialize");
+        assert!(value.get("style").is_none());
     }
 
     #[test]
@@ -281,6 +303,7 @@ mod tests {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         };
         assert_eq!(sg.parent, Some("outer".to_string()));
     }
@@ -311,6 +334,7 @@ mod tests {
                 dir: None,
                 invisible: false,
                 concurrent_regions: Vec::new(),
+                style: Default::default(),
             },
         );
         assert!(diagram.has_subgraphs());
@@ -331,6 +355,7 @@ mod tests {
                 dir: None,
                 invisible: false,
                 concurrent_regions: Vec::new(),
+                style: Default::default(),
             },
         );
         g
@@ -358,6 +383,7 @@ mod tests {
                 dir: None,
                 invisible: false,
                 concurrent_regions: Vec::new(),
+                style: Default::default(),
             },
         );
         // "inner" is a subgraph, so it should be skipped; "A" or "B" returned.
@@ -379,6 +405,7 @@ mod tests {
                 dir: None,
                 invisible: false,
                 concurrent_regions: Vec::new(),
+                style: Default::default(),
             },
         );
         assert!(g.find_non_cluster_child("sg1").is_none());
@@ -409,6 +436,7 @@ mod tests {
                 dir: None,
                 invisible: false,
                 concurrent_regions: Vec::new(),
+                style: Default::default(),
             },
         );
         let sink = g.find_subgraph_sink("sg1");
@@ -433,6 +461,7 @@ mod tests {
                 dir: None,
                 invisible: false,
                 concurrent_regions: Vec::new(),
+                style: Default::default(),
             },
         );
         let sink = g.find_subgraph_sink("sg1");

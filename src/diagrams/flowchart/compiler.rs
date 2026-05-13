@@ -11,21 +11,36 @@ use crate::mermaid::{
 
 type ClassDefRegistry = HashMap<String, NodeStyle>;
 
+struct StyleTargets<'a> {
+    node_styles: &'a mut HashMap<String, NodeStyle>,
+    subgraph_styles: &'a mut HashMap<String, NodeStyle>,
+    subgraph_ids: &'a HashSet<String>,
+}
+
 /// Build a Diagram from a parsed Flowchart.
 pub fn compile_to_graph(flowchart: &Flowchart) -> Graph {
     let direction = convert_direction(flowchart.direction);
     let mut diagram = Graph::new(direction);
     let mut node_styles = HashMap::new();
+    let mut subgraph_styles = HashMap::new();
     let mut edge_styles = Vec::new();
     let class_defs = collect_class_defs(&flowchart.statements);
-    process_statements(
-        &mut diagram,
-        &flowchart.statements,
-        None,
-        &mut node_styles,
-        &mut edge_styles,
-        &class_defs,
-    );
+    let subgraph_ids = collect_subgraph_ids(&flowchart.statements);
+    {
+        let mut style_targets = StyleTargets {
+            node_styles: &mut node_styles,
+            subgraph_styles: &mut subgraph_styles,
+            subgraph_ids: &subgraph_ids,
+        };
+        process_statements(
+            &mut diagram,
+            &flowchart.statements,
+            None,
+            &mut style_targets,
+            &mut edge_styles,
+            &class_defs,
+        );
+    }
     apply_default_class(&mut diagram, &node_styles, &class_defs);
     resolve_subgraph_edges(&mut diagram);
     apply_edge_styles(&mut diagram, &edge_styles);
@@ -59,7 +74,7 @@ fn process_statements(
     diagram: &mut Graph,
     statements: &[Statement],
     parent_subgraph: Option<&str>,
-    node_styles: &mut HashMap<String, NodeStyle>,
+    style_targets: &mut StyleTargets<'_>,
     edge_styles: &mut Vec<LinkStyleStatement>,
     class_defs: &ClassDefRegistry,
 ) {
@@ -68,7 +83,7 @@ fn process_statements(
             Statement::Vertex(vertex) => {
                 resolve_class_annotation(
                     diagram,
-                    node_styles,
+                    style_targets.node_styles,
                     class_defs,
                     &vertex.id,
                     &vertex.class_name,
@@ -77,13 +92,13 @@ fn process_statements(
                     diagram,
                     vertex,
                     parent_subgraph,
-                    node_styles.get(&vertex.id),
+                    style_targets.node_styles.get(&vertex.id),
                 );
             }
             Statement::Edge(edge_spec) => {
                 resolve_class_annotation(
                     diagram,
-                    node_styles,
+                    style_targets.node_styles,
                     class_defs,
                     &edge_spec.from.id,
                     &edge_spec.from.class_name,
@@ -92,11 +107,11 @@ fn process_statements(
                     diagram,
                     &edge_spec.from,
                     parent_subgraph,
-                    node_styles.get(&edge_spec.from.id),
+                    style_targets.node_styles.get(&edge_spec.from.id),
                 );
                 resolve_class_annotation(
                     diagram,
-                    node_styles,
+                    style_targets.node_styles,
                     class_defs,
                     &edge_spec.to.id,
                     &edge_spec.to.class_name,
@@ -105,7 +120,7 @@ fn process_statements(
                     diagram,
                     &edge_spec.to,
                     parent_subgraph,
-                    node_styles.get(&edge_spec.to.id),
+                    style_targets.node_styles.get(&edge_spec.to.id),
                 );
                 let edge = convert_edge(edge_spec);
                 diagram.add_edge(edge);
@@ -115,7 +130,7 @@ fn process_statements(
                     diagram,
                     &sg_spec.statements,
                     Some(&sg_spec.id),
-                    node_styles,
+                    style_targets,
                     edge_styles,
                     class_defs,
                 );
@@ -130,12 +145,22 @@ fn process_statements(
                         dir: sg_spec.dir.map(convert_direction),
                         invisible: false,
                         concurrent_regions: Vec::new(),
+                        style: style_targets
+                            .subgraph_styles
+                            .get(&sg_spec.id)
+                            .cloned()
+                            .unwrap_or_default(),
                     },
                 );
                 diagram.subgraph_order.push(sg_spec.id.clone());
             }
             Statement::NodeStyle(style_stmt) => {
-                merge_node_style(diagram, node_styles, &style_stmt.node_id, &style_stmt.style);
+                merge_target_style(
+                    diagram,
+                    style_targets,
+                    &style_stmt.node_id,
+                    &style_stmt.style,
+                );
             }
             Statement::ClassDef(_) => {
                 // Already collected in pass 1.
@@ -143,11 +168,26 @@ fn process_statements(
             Statement::ClassApply(apply) => {
                 if let Some(style) = class_defs.get(&apply.class_name) {
                     for node_id in &apply.node_ids {
-                        merge_node_style(diagram, node_styles, node_id, style);
+                        merge_target_style(diagram, style_targets, node_id, style);
                     }
                 }
             }
             Statement::LinkStyle(link_style) => edge_styles.push(link_style.clone()),
+        }
+    }
+}
+
+fn collect_subgraph_ids(statements: &[Statement]) -> HashSet<String> {
+    let mut ids = HashSet::new();
+    collect_subgraph_ids_recursive(statements, &mut ids);
+    ids
+}
+
+fn collect_subgraph_ids_recursive(statements: &[Statement], ids: &mut HashSet<String>) {
+    for stmt in statements {
+        if let Statement::Subgraph(sg) = stmt {
+            ids.insert(sg.id.clone());
+            collect_subgraph_ids_recursive(&sg.statements, ids);
         }
     }
 }
@@ -244,6 +284,35 @@ fn merge_node_style(
 
     if let Some(node) = diagram.nodes.get_mut(node_id) {
         node.style = merged_style;
+    }
+}
+
+fn merge_subgraph_style(
+    diagram: &mut Graph,
+    subgraph_styles: &mut HashMap<String, NodeStyle>,
+    subgraph_id: &str,
+    style: &NodeStyle,
+) {
+    let merged_style = subgraph_styles
+        .entry(subgraph_id.to_string())
+        .and_modify(|existing| *existing = existing.merge(style))
+        .or_insert_with(|| style.clone());
+
+    if let Some(subgraph) = diagram.subgraphs.get_mut(subgraph_id) {
+        subgraph.style = merged_style.clone();
+    }
+}
+
+fn merge_target_style(
+    diagram: &mut Graph,
+    style_targets: &mut StyleTargets<'_>,
+    target_id: &str,
+    style: &NodeStyle,
+) {
+    if style_targets.subgraph_ids.contains(target_id) {
+        merge_subgraph_style(diagram, style_targets.subgraph_styles, target_id, style);
+    } else {
+        merge_node_style(diagram, style_targets.node_styles, target_id, style);
     }
 }
 
@@ -738,6 +807,80 @@ mod tests {
         assert_eq!(sg.title, "Group");
         assert!(sg.nodes.contains(&"A".to_string()));
         assert!(sg.nodes.contains(&"B".to_string()));
+    }
+
+    #[test]
+    fn subgraph_ir_carries_default_style_storage() {
+        let input = "graph TD\nsubgraph A[Source]\na1\nend\n";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        assert!(diagram.subgraphs["A"].style.is_empty());
+    }
+
+    #[test]
+    fn class_subgraph_applies_classdef_style_to_subgraph() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef blue fill:#e1f5fe,stroke:#01579b,stroke-width:2px\nclass A blue\n";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        let style = &diagram.subgraphs["A"].style;
+        assert_eq!(style.fill.as_ref().map(|c| c.raw()), Some("#e1f5fe"));
+        assert_eq!(style.stroke.as_ref().map(|c| c.raw()), Some("#01579b"));
+        assert_eq!(style.stroke_width.as_deref(), Some("2px"));
+        assert!(diagram.nodes["a1"].style.fill.is_none());
+    }
+
+    #[test]
+    fn direct_style_statement_can_target_subgraph() {
+        let input =
+            "flowchart LR\nsubgraph A[Source]\na1\nend\nstyle A fill:#ffebee,stroke:#b71c1c\n";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        let style = &diagram.subgraphs["A"].style;
+        assert_eq!(style.fill.as_ref().map(|c| c.raw()), Some("#ffebee"));
+        assert_eq!(style.stroke.as_ref().map(|c| c.raw()), Some("#b71c1c"));
+        assert!(diagram.nodes["a1"].style.fill.is_none());
+    }
+
+    #[test]
+    fn class_subgraph_before_subgraph_declaration_is_applied() {
+        let input =
+            "flowchart LR\nclassDef blue fill:#e1f5fe\nclass A blue\nsubgraph A[Source]\na1\nend\n";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        assert_eq!(
+            diagram.subgraphs["A"].style.fill.as_ref().map(|c| c.raw()),
+            Some("#e1f5fe")
+        );
+        assert!(diagram.nodes["a1"].style.fill.is_none());
+    }
+
+    #[test]
+    fn subgraph_class_and_direct_style_merge_by_property() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef blue fill:#e1f5fe,stroke:#01579b\nclass A blue\nstyle A stroke:#b71c1c,stroke-width:2px\n";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        let style = &diagram.subgraphs["A"].style;
+        assert_eq!(style.fill.as_ref().map(|c| c.raw()), Some("#e1f5fe"));
+        assert_eq!(style.stroke.as_ref().map(|c| c.raw()), Some("#b71c1c"));
+        assert_eq!(style.stroke_width.as_deref(), Some("2px"));
+    }
+
+    #[test]
+    fn classdef_default_remains_node_only_not_subgraph_style() {
+        let input = "flowchart LR\nclassDef default fill:#f00\nsubgraph A[Source]\na1\nend\n";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        assert!(diagram.subgraphs["A"].style.fill.is_none());
+        assert_eq!(
+            diagram.nodes["a1"].style.fill.as_ref().map(|c| c.raw()),
+            Some("#f00")
+        );
     }
 
     #[test]

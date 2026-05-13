@@ -249,6 +249,7 @@ fn layered_adapter_maps_subgraph_bounds() {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         },
     );
 
@@ -306,6 +307,7 @@ fn layered_adapter_skips_compound_nodes() {
             dir: None,
             invisible: false,
             concurrent_regions: Vec::new(),
+            style: Default::default(),
         },
     );
 

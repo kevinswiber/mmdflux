@@ -6,9 +6,9 @@
   </defs>
   <g transform="translate(-25.11,-27.00)">
     <g class="clusters">
-      <rect class="subgraph" x="33.11" y="35.00" width="335.80" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <rect class="subgraph" x="33.11" y="35.00" width="335.80" height="100.00" fill="#e9efff" stroke="#1f4fff" stroke-width="1px" />
       <text x="201.01" y="39.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">a</text>
-      <rect class="subgraph" x="141.79" y="447.00" width="217.80" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <rect class="subgraph" x="141.79" y="447.00" width="217.80" height="100.00" fill="#e9efff" stroke="#1f4fff" stroke-width="1px" />
       <text x="250.68" y="451.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">g</text>
     </g>
     <g class="edgePaths">

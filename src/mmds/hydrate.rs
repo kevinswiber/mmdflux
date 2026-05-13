@@ -53,6 +53,10 @@ pub fn from_document(output: &Document) -> Result<Graph, HydrationError> {
                 dir: subgraph.direction,
                 invisible: subgraph.invisible,
                 concurrent_regions: subgraph.concurrent_regions.clone(),
+                // Graph subgraph styles are not persisted in MMDS yet. Keep
+                // provider-free replay honest by defaulting until the document
+                // schema carries this field explicitly.
+                style: Default::default(),
             },
         );
         diagram.subgraph_order.push(subgraph.id.clone());
@@ -1126,6 +1130,7 @@ mod tests {
                 dir: None,
                 invisible: false,
                 concurrent_regions: Vec::new(),
+                style: Default::default(),
             },
         );
         diagram.subgraphs.insert(
@@ -1138,6 +1143,7 @@ mod tests {
                 dir: None,
                 invisible: false,
                 concurrent_regions: Vec::new(),
+                style: Default::default(),
             },
         );
 

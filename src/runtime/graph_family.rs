@@ -13,7 +13,7 @@ use crate::graph::measure::{
     DEFAULT_PROPORTIONAL_NODE_PADDING_Y, GraphTextStyleKey, ResolvedTextMetrics,
     TextMeasurementCache, TextMetricsProfileConfig, TextMetricsProfileDescriptor,
     TextMetricsProvider, edge_text_style_key, node_text_style_key, resolve_text_metrics_profile,
-    text_style_matches_descriptor,
+    subgraph_title_text_style_key, text_style_matches_descriptor,
 };
 use crate::graph::{GeometryLevel, Graph};
 use crate::mmds::Document;
@@ -244,6 +244,16 @@ fn validate_provider_free_mermaid_font_styles(
             continue;
         }
         let style = edge_text_style_key(provider, edge);
+        if !text_style_key_matches_descriptor(&style, &descriptor.default_text_style)? {
+            return Err(provider_free_graph_text_style_error(descriptor));
+        }
+    }
+
+    for subgraph in diagram.subgraphs.values() {
+        if subgraph.invisible || subgraph.title.is_empty() {
+            continue;
+        }
+        let style = subgraph_title_text_style_key(provider, subgraph);
         if !text_style_key_matches_descriptor(&style, &descriptor.default_text_style)? {
             return Err(provider_free_graph_text_style_error(descriptor));
         }
@@ -536,6 +546,46 @@ mod tests {
             &text_metrics.metrics,
         )
         .expect("SVG render should succeed");
+        assert!(svg.starts_with("<svg"));
+    }
+
+    #[test]
+    fn provider_free_static_svg_accepts_subgraph_fill_stroke_only_style() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef blue fill:#e1f5fe,stroke:#01579b,stroke-width:2px\nclass A blue\n";
+
+        let svg = crate::render_diagram(input, OutputFormat::Svg, &RenderConfig::default())
+            .expect("subgraph visual style should not require dynamic metrics");
+
+        assert!(svg.starts_with("<svg"));
+    }
+
+    #[test]
+    fn provider_free_static_svg_rejects_subgraph_title_font_family() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef custom font-family:Inter\nclass A custom\n";
+
+        let error = crate::render_diagram(input, OutputFormat::Svg, &RenderConfig::default())
+            .expect_err("custom subgraph title font family should require dynamic metrics");
+
+        assert!(error.message.contains("dynamic text metrics"));
+    }
+
+    #[test]
+    fn provider_free_static_svg_rejects_subgraph_title_font_size() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef custom font-size:32px\nclass A custom\n";
+
+        let error = crate::render_diagram(input, OutputFormat::Svg, &RenderConfig::default())
+            .expect_err("custom subgraph title font size should require dynamic metrics");
+
+        assert!(error.message.contains("dynamic text metrics"));
+    }
+
+    #[test]
+    fn provider_free_static_svg_accepts_subgraph_title_visual_font_style() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef custom font-style:italic,font-weight:700\nclass A custom\n";
+
+        let svg = crate::render_diagram(input, OutputFormat::Svg, &RenderConfig::default())
+            .expect("font-style and font-weight do not affect provider-free geometry");
+
         assert!(svg.starts_with("<svg"));
     }
 
