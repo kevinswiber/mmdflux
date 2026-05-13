@@ -309,6 +309,48 @@ fn unstyled_subgraph_container_rect_stays_byte_stable() {
 }
 
 #[test]
+fn svg_subgraph_title_uses_visual_font_attrs_from_class_style() {
+    let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef title font-style:italic,font-weight:700,color:#123456\nclass A title\n";
+    let svg = render_svg(input, &RenderConfig::default());
+
+    let title = regex::Regex::new(r##"<text [^>]*fill="#123456"[^>]*font-style="italic"[^>]*font-weight="700"[^>]*>Source</text>"##)
+        .expect("title regex should compile");
+    assert!(title.is_match(&svg), "{svg}");
+}
+
+#[test]
+fn svg_subgraph_title_position_honors_svg_scale() {
+    let input = "flowchart LR\nsubgraph A[Source]\na1\nend\n";
+    let svg = render_svg(
+        input,
+        &RenderConfig {
+            svg_scale: Some(2.0),
+            ..RenderConfig::default()
+        },
+    );
+
+    let rect = regex::Regex::new(r#"<rect class="subgraph" [^>]*\sy="([0-9.]+)""#)
+        .expect("rect regex should compile");
+    let text = regex::Regex::new(r#"<text [^>]*\sy="([0-9.]+)"[^>]*>Source</text>"#)
+        .expect("text regex should compile");
+    let rect_y: f64 = rect
+        .captures(&svg)
+        .and_then(|captures| captures.get(1))
+        .and_then(|value| value.as_str().parse().ok())
+        .expect("subgraph rect y should parse");
+    let title_y: f64 = text
+        .captures(&svg)
+        .and_then(|captures| captures.get(1))
+        .and_then(|value| value.as_str().parse().ok())
+        .expect("subgraph title y should parse");
+
+    assert!(
+        (title_y - rect_y - 8.0).abs() < f64::EPSILON,
+        "scaled title offset should be 16px * 2.0 * 0.25: {svg}"
+    );
+}
+
+#[test]
 fn simple_arrow_flowchart_only_emits_arrowhead_def() {
     let svg = render_svg("graph TD\nA-->B\n", &RenderConfig::default());
 

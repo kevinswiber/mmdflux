@@ -1249,6 +1249,36 @@ mod tests {
         .unwrap()
     }
 
+    fn styled_subgraph_title_input() -> DynamicMetricsInput {
+        serde_json::from_str(
+            r#"{
+              "defaultStyle":"s0",
+              "textStyles":[
+                {
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":16,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":24,
+                  "cssFont":"16px Inter"
+                },
+                {
+                  "id":"s1",
+                  "fontFamily":"Verdana",
+                  "fontSize":32,
+                  "fontStyle":"italic",
+                  "fontWeight":"700",
+                  "lineHeight":48,
+                  "cssFont":"italic 700 32px Verdana"
+                }
+              ],
+              "profileId":"browser-subgraph-title-v1"
+            }"#,
+        )
+        .unwrap()
+    }
+
     fn multi_font_width(text: &str, css_font: &str) -> Result<f64, DynamicTextMetricsError> {
         let per_char = if css_font.contains("Courier New") {
             18.0
@@ -2401,6 +2431,58 @@ mod tests {
         let replay_svg = render_diagram(&dynamic_mmds, OutputFormat::Svg, &RenderConfig::default())
             .expect("provider-free sidecar replay should render");
         assert_eq!(replay_svg, direct_svg);
+    }
+
+    #[test]
+    fn dynamic_svg_subgraph_title_uses_class_font_attrs_and_geometry() {
+        use std::cell::RefCell;
+
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef title font-family:Verdana,font-size:32px,font-style:italic,font-weight:700,color:#123456\nclass A title\n";
+        let calls = Rc::new(RefCell::new(Vec::new()));
+        let observed_calls = Rc::clone(&calls);
+
+        let svg = render_graph_family_with_dynamic_text_metrics(
+            input,
+            OutputFormat::Svg,
+            &routed_config(),
+            styled_subgraph_title_input(),
+            move |text, css_font| {
+                observed_calls
+                    .borrow_mut()
+                    .push((text.to_string(), css_font.to_string()));
+                if text == "Source" && css_font.contains("Verdana") {
+                    Ok(320.0)
+                } else {
+                    Ok(text.chars().count() as f64 * 8.0)
+                }
+            },
+        )
+        .expect("dynamic styled subgraph title SVG should render");
+
+        let title = regex::Regex::new(
+            r##"<text [^>]*fill="#123456"[^>]*font-family="Verdana"[^>]*font-size="32(?:\.00)?"[^>]*font-style="italic"[^>]*font-weight="700"[^>]*>Source</text>"##,
+        )
+        .expect("title regex should compile");
+        assert!(title.is_match(&svg), "{svg}");
+        assert!(
+            calls.borrow().iter().any(|(text, css_font)| {
+                text == "Source" && css_font == r#"italic 700 32px Verdana"#
+            }),
+            "{:?}",
+            calls.borrow()
+        );
+
+        let rect = regex::Regex::new(r#"<rect class="subgraph" [^>]*\swidth="([0-9.]+)""#)
+            .expect("rect regex should compile");
+        let subgraph_width: f64 = rect
+            .captures(&svg)
+            .and_then(|captures| captures.get(1))
+            .and_then(|width| width.as_str().parse().ok())
+            .expect("subgraph rect width should parse");
+        assert!(
+            subgraph_width > 320.0,
+            "subgraph width should include styled title measurement: {subgraph_width}; {svg}"
+        );
     }
 
     #[test]

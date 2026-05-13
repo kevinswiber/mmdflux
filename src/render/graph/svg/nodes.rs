@@ -7,7 +7,9 @@ use super::edges::{document_svg_path, polygon_points};
 use super::text::{TextRenderStyle, font_attrs_for_style, render_text_centered};
 use super::{GraphSvgPalette, Point, Rect, dynamic_css_attrs};
 use crate::graph::geometry::{FRect, GraphGeometry};
-use crate::graph::measure::{GraphTextStyleKey, TextMetricsProvider, node_text_style_key};
+use crate::graph::measure::{
+    GraphTextStyleKey, TextMetricsProvider, node_text_style_key, subgraph_title_text_style_key,
+};
 use crate::graph::routing::hexagon_vertices;
 use crate::graph::{Direction, Graph, Node, Shape, Subgraph};
 use crate::render::svg::{SvgWriter, escape_text, fmt_f64};
@@ -73,6 +75,7 @@ struct NodeLabelRenderContext<'a> {
 struct ResolvedSvgSubgraphStyle<'a> {
     fill: Option<&'a str>,
     stroke: Option<&'a str>,
+    text: Option<&'a str>,
     stroke_width: Option<&'a str>,
     stroke_dasharray: Option<&'a str>,
     rx: Option<&'a str>,
@@ -83,6 +86,7 @@ impl<'a> ResolvedSvgSubgraphStyle<'a> {
         Self {
             fill: subgraph.style.fill.as_ref().map(|color| color.raw()),
             stroke: subgraph.style.stroke.as_ref().map(|color| color.raw()),
+            text: subgraph.style.color.as_ref().map(|color| color.raw()),
             stroke_width: subgraph.style.stroke_width.as_deref(),
             stroke_dasharray: subgraph.style.stroke_dasharray.as_deref(),
             rx: subgraph.style.rx.as_deref(),
@@ -97,8 +101,16 @@ impl<'a> ResolvedSvgSubgraphStyle<'a> {
         self.stroke.unwrap_or(default)
     }
 
+    fn text_or(self, default: &'a str) -> &'a str {
+        self.text.unwrap_or(default)
+    }
+
     fn stroke_is_overridden(self) -> bool {
         self.stroke.is_some()
+    }
+
+    fn text_is_overridden(self) -> bool {
+        self.text.is_some()
     }
 }
 
@@ -107,6 +119,7 @@ pub(super) fn render_subgraphs(
     diagram: &Graph,
     geom: &GraphGeometry,
     metrics: &dyn TextMetricsProvider,
+    default_text_style: &GraphTextStyleKey,
     scale: f64,
     palette: &GraphSvgPalette,
 ) {
@@ -164,18 +177,22 @@ pub(super) fn render_subgraphs(
 
         if !sg_geom.title.trim().is_empty() {
             let title_x = rect.x + rect.width / 2.0;
-            let title_y = rect.y + metrics.font_size() * 0.25;
-            let dynamic_attrs = dynamic_css_attrs(
-                palette.dynamic_css,
-                "graph-subgraph-text",
-                &["fill:var(--_group-hdr);"],
-            );
+            let title_style = subgraph_title_text_style_key(metrics, subgraph);
+            let title_y = rect.y + metrics.font_size_for_style(&title_style) * scale * 0.25;
+            let mut declarations = Vec::new();
+            if !style.text_is_overridden() {
+                declarations.push("fill:var(--_group-hdr);");
+            }
+            let dynamic_attrs =
+                dynamic_css_attrs(palette.dynamic_css, "graph-subgraph-text", &declarations);
+            let extra_attrs =
+                dynamic_attrs + &font_attrs_for_style(default_text_style, &title_style);
             let text = format!(
-                "<text x=\"{x}\" y=\"{y}\" text-anchor=\"middle\" dominant-baseline=\"hanging\" fill=\"{color}\"{dynamic_attrs}>{label}</text>",
+                "<text x=\"{x}\" y=\"{y}\" text-anchor=\"middle\" dominant-baseline=\"hanging\" fill=\"{color}\"{extra_attrs}>{label}</text>",
                 x = fmt_f64(title_x),
                 y = fmt_f64(title_y),
-                color = palette.subgraph_title_text,
-                dynamic_attrs = dynamic_attrs,
+                color = style.text_or(&palette.subgraph_title_text),
+                extra_attrs = extra_attrs,
                 label = escape_text(&sg_geom.title)
             );
             writer.push_line(&text);

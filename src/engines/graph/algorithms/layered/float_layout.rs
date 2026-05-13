@@ -15,7 +15,7 @@ use crate::graph::grid::GridLayoutConfig;
 use crate::graph::measure::{
     TextMetricsProvider, edge_label_dimensions_for_provider_and_style,
     edge_label_dimensions_wrapped_for_provider_and_style, edge_text_style_key,
-    proportional_node_dimensions_with_provider,
+    proportional_node_dimensions_with_provider, subgraph_title_text_style_key,
 };
 use crate::graph::routing::{EdgeRouting, route_graph_geometry_with_provider};
 use crate::graph::{Direction, Edge, Graph, Stroke};
@@ -202,6 +202,8 @@ pub(crate) fn build_float_layout_with_flags(
         metrics.node_padding_x(),
         metrics.node_padding_y(),
     );
+    apply_subgraph_title_metric_minimums(diagram, &mut layout, metrics, metrics.node_padding_x());
+    expand_parent_bounds(diagram, &mut layout, 0.0, 0.0);
 
     // Push external nodes away from subgraph borders so that subgraph-as-node
     // edges have visible length comparable to normal edges.
@@ -307,6 +309,52 @@ fn apply_subgraph_float_padding(
     for (id, rect) in layout.subgraph_bounds.iter() {
         if !layout.nodes.contains_key(&NodeId(id.clone())) && diagram.subgraphs.contains_key(id) {
             layout.nodes.insert(NodeId(id.clone()), *rect);
+        }
+    }
+}
+
+fn apply_subgraph_title_metric_minimums(
+    diagram: &Graph,
+    layout: &mut LayoutResult,
+    metrics: &dyn TextMetricsProvider,
+    pad_x: f64,
+) {
+    for (id, subgraph) in &diagram.subgraphs {
+        if subgraph.invisible || subgraph.title.trim().is_empty() {
+            continue;
+        }
+
+        let Some(rect) = layout.subgraph_bounds.get_mut(id) else {
+            continue;
+        };
+
+        let title_style = subgraph_title_text_style_key(metrics, subgraph);
+        let default_style = metrics.default_text_style_key();
+        // Only family and size change title reservation. Weight, style, and
+        // color are emitted as SVG attrs without shifting existing geometry.
+        let layout_affecting_style = title_style.font_family != default_style.font_family
+            || title_style.font_size_mpx != default_style.font_size_mpx;
+        if !layout_affecting_style {
+            continue;
+        }
+
+        let title_width = metrics.measure_line_width_for_style(&title_style, &subgraph.title);
+        let min_width = title_width + pad_x * 2.0;
+        if min_width.is_finite() && min_width > rect.width {
+            let delta = min_width - rect.width;
+            rect.x -= delta / 2.0;
+            rect.width = min_width;
+        }
+
+        let extra_title_height =
+            (metrics.font_size_for_style(&title_style) - metrics.font_size()).max(0.0);
+        if extra_title_height.is_finite() && extra_title_height > 0.0 {
+            rect.y -= extra_title_height;
+            rect.height += extra_title_height;
+        }
+
+        if let Some(node_rect) = layout.nodes.get_mut(&NodeId(id.clone())) {
+            *node_rect = *rect;
         }
     }
 }
