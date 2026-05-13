@@ -910,6 +910,71 @@ mod tests {
         .unwrap()
     }
 
+    fn multi_font_style_set_input() -> DynamicMetricsInput {
+        serde_json::from_str(
+            r#"{
+              "defaultStyle":"s0",
+              "textStyles":[
+                {
+                  "id":"s0",
+                  "fontFamily":"Inter",
+                  "fontSize":16,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":24,
+                  "cssFont":"16px Inter"
+                },
+                {
+                  "id":"s1",
+                  "fontFamily":"Verdana",
+                  "fontSize":8,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":12,
+                  "cssFont":"8px Verdana"
+                },
+                {
+                  "id":"s2",
+                  "fontFamily":"Courier New",
+                  "fontSize":20,
+                  "fontStyle":"normal",
+                  "fontWeight":"400",
+                  "lineHeight":30,
+                  "cssFont":"20px Courier New"
+                }
+              ],
+              "profileId":"browser-multifont-v1"
+            }"#,
+        )
+        .unwrap()
+    }
+
+    fn multi_font_same_text_input() -> &'static str {
+        "graph TD\nA[Same] --> B[Same]\nstyle A font-family:Verdana,font-size:8px\nstyle B font-family:Courier New,font-size:20px"
+    }
+
+    fn multi_font_width(text: &str, css_font: &str) -> Result<f64, DynamicTextMetricsError> {
+        let per_char = if css_font.contains("Courier New") {
+            18.0
+        } else if css_font.contains("Verdana") {
+            6.0
+        } else {
+            10.0
+        };
+        Ok(text.len() as f64 * per_char)
+    }
+
+    fn multi_font_dynamic_mmds_fixture() -> String {
+        render_graph_family_with_dynamic_text_metrics(
+            multi_font_same_text_input(),
+            OutputFormat::Mmds,
+            &routed_config(),
+            multi_font_style_set_input(),
+            multi_font_width,
+        )
+        .expect("dynamic multi-font MMDS fixture should render")
+    }
+
     fn style_8px() -> GraphTextStyleKey {
         GraphTextStyleKey::new("Inter", 8.0, 12.0, "normal", "400").unwrap()
     }
@@ -1667,6 +1732,68 @@ mod tests {
     }
 
     #[test]
+    fn dynamic_measurement_sidecar_round_trips_same_text_under_two_styles() {
+        let input = multi_font_same_text_input();
+        let config = routed_config();
+        let direct_svg = render_graph_family_with_dynamic_text_metrics(
+            input,
+            OutputFormat::Svg,
+            &config,
+            multi_font_style_set_input(),
+            multi_font_width,
+        )
+        .expect("direct multi-font SVG should render");
+        let dynamic_mmds = render_graph_family_with_dynamic_text_metrics(
+            input,
+            OutputFormat::Mmds,
+            &config,
+            multi_font_style_set_input(),
+            multi_font_width,
+        )
+        .expect("dynamic multi-font MMDS should render");
+
+        let value: serde_json::Value = serde_json::from_str(&dynamic_mmds).unwrap();
+        let sidecar = &value["extensions"]["org.mmdflux.text-measurements.v1"];
+        assert!(
+            sidecar["textStyles"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|style| style["id"] == "s1" && style["fontFamily"] == "Verdana"),
+            "{sidecar}"
+        );
+        assert!(
+            sidecar["textStyles"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|style| style["id"] == "s2" && style["fontFamily"] == "Courier New"),
+            "{sidecar}"
+        );
+        assert!(
+            sidecar["lineWidths"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|entry| entry["style"] == "s1" && entry["text"] == "Same"),
+            "{sidecar}"
+        );
+        assert!(
+            sidecar["lineWidths"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|entry| entry["style"] == "s2" && entry["text"] == "Same"),
+            "{sidecar}"
+        );
+
+        let replay_svg = render_diagram(&dynamic_mmds, OutputFormat::Svg, &RenderConfig::default())
+            .expect("style-keyed sidecar should allow provider-free replay");
+
+        assert_eq!(replay_svg, direct_svg);
+    }
+
+    #[test]
     fn dynamic_mmds_without_measurements_still_requires_provider_free_replay_provider() {
         let dynamic_mmds = dynamic_mmds_fixture();
         let mut value: serde_json::Value = serde_json::from_str(&dynamic_mmds).unwrap();
@@ -1806,6 +1933,45 @@ mod tests {
 
         assert!(err.message.contains("scalarWidths"), "{err}");
         assert!(err.message.contains("missing persisted"), "{err}");
+    }
+
+    #[test]
+    fn dynamic_measurement_sidecar_rejects_duplicate_style_text_entries() {
+        let dynamic_mmds = multi_font_dynamic_mmds_fixture();
+        let mut duplicate: serde_json::Value = serde_json::from_str(&dynamic_mmds).unwrap();
+        let line_widths = duplicate["extensions"]["org.mmdflux.text-measurements.v1"]["lineWidths"]
+            .as_array_mut()
+            .unwrap();
+        let repeated = line_widths
+            .iter()
+            .find(|entry| entry["style"] == "s1" && entry["text"] == "Same")
+            .unwrap()
+            .clone();
+        line_widths.push(repeated);
+        let duplicate = serde_json::to_string_pretty(&duplicate).unwrap();
+
+        let err = render_diagram(&duplicate, OutputFormat::Svg, &RenderConfig::default())
+            .expect_err("duplicate style-keyed line width should reject");
+
+        assert!(err.message.contains("duplicate lineWidths"), "{err}");
+        assert!(err.message.contains("s1"), "{err}");
+        assert!(err.message.contains("Same"), "{err}");
+    }
+
+    #[test]
+    fn dynamic_measurement_sidecar_rejects_unknown_style_references() {
+        let dynamic_mmds = multi_font_dynamic_mmds_fixture();
+        let mut unknown_style: serde_json::Value = serde_json::from_str(&dynamic_mmds).unwrap();
+        unknown_style["extensions"]["org.mmdflux.text-measurements.v1"]["lineWidths"][0]["style"] =
+            serde_json::json!("missing-style");
+        let unknown_style = serde_json::to_string_pretty(&unknown_style).unwrap();
+
+        let err = render_diagram(&unknown_style, OutputFormat::Svg, &RenderConfig::default())
+            .expect_err("unknown sidecar style id should reject");
+
+        assert!(err.message.contains("lineWidths"), "{err}");
+        assert!(err.message.contains("missing-style"), "{err}");
+        assert!(err.message.contains("textStyles"), "{err}");
     }
 
     #[test]

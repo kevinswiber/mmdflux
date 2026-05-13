@@ -744,6 +744,12 @@ fn serialize_node_style_extension(style: &NodeStyle) -> Map<String, Value> {
     if let Some(color) = &style.color {
         payload.insert("color".to_string(), Value::String(color.raw().to_string()));
     }
+    if let Some(v) = &style.font_family {
+        payload.insert("font-family".to_string(), Value::String(v.clone()));
+    }
+    if let Some(v) = &style.font_size {
+        payload.insert("font-size".to_string(), Value::String(v.clone()));
+    }
     if let Some(v) = &style.font_style {
         payload.insert("font-style".to_string(), Value::String(v.clone()));
     }
@@ -853,11 +859,42 @@ fn text_measurements_extension(
         Value::Number(Number::from(descriptor.version)),
     );
 
+    let text_styles = measurements
+        .text_styles
+        .values()
+        .map(|style| {
+            let mut entry = Map::new();
+            entry.insert("id".to_string(), Value::String(style.id.clone()));
+            entry.insert(
+                "fontFamily".to_string(),
+                Value::String(style.style.font_family.clone()),
+            );
+            entry.insert(
+                "fontSize".to_string(),
+                finite_number_value(style.style.font_size_px(), "textStyles.fontSize"),
+            );
+            entry.insert(
+                "fontStyle".to_string(),
+                Value::String(style.style.font_style.clone()),
+            );
+            entry.insert(
+                "fontWeight".to_string(),
+                Value::String(style.style.font_weight.clone()),
+            );
+            entry.insert(
+                "lineHeight".to_string(),
+                finite_number_value(style.style.line_height_px(), "textStyles.lineHeight"),
+            );
+            entry.insert("cssFont".to_string(), Value::String(style.css_font.clone()));
+            Value::Object(entry)
+        })
+        .collect();
     let line_widths = measurements
         .line_widths
         .iter()
-        .map(|((_style_id, text), width)| {
+        .map(|((style_id, text), width)| {
             let mut entry = Map::new();
+            entry.insert("style".to_string(), Value::String(style_id.clone()));
             entry.insert("text".to_string(), Value::String(text.clone()));
             entry.insert(
                 "width".to_string(),
@@ -869,8 +906,9 @@ fn text_measurements_extension(
     let scalar_widths = measurements
         .scalar_widths
         .iter()
-        .map(|((_style_id, ch), width)| {
+        .map(|((style_id, ch), width)| {
             let mut entry = Map::new();
+            entry.insert("style".to_string(), Value::String(style_id.clone()));
             entry.insert("text".to_string(), Value::String(ch.to_string()));
             entry.insert(
                 "width".to_string(),
@@ -882,6 +920,7 @@ fn text_measurements_extension(
 
     let mut extension = Map::new();
     extension.insert("profileRef".to_string(), Value::Object(profile_ref));
+    extension.insert("textStyles".to_string(), Value::Array(text_styles));
     extension.insert("lineWidths".to_string(), Value::Array(line_widths));
     extension.insert("scalarWidths".to_string(), Value::Array(scalar_widths));
     extension

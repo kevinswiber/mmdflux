@@ -228,14 +228,25 @@ fn text_measurements_extension() -> Value {
             "source": "dynamic",
             "version": 1
         },
+        "textStyles": [
+            {
+                "id": "s0",
+                "fontFamily": "Inter",
+                "fontSize": 16.0,
+                "fontStyle": "normal",
+                "fontWeight": "400",
+                "lineHeight": 24.0,
+                "cssFont": "16px Inter"
+            }
+        ],
         "lineWidths": [
-            { "text": "Alpha", "width": 42.31415926535897 },
-            { "text": "edge label", "width": 72.5 }
+            { "style": "s0", "text": "Alpha", "width": 42.31415926535897 },
+            { "style": "s0", "text": "edge label", "width": 72.5 }
         ],
         "scalarWidths": [
-            { "text": "A", "width": 10.671875 },
-            { "text": " ", "width": 4.4453125 },
-            { "text": "🦀", "width": 16.25 }
+            { "style": "s0", "text": "A", "width": 10.671875 },
+            { "style": "s0", "text": " ", "width": 4.4453125 },
+            { "style": "s0", "text": "🦀", "width": 16.25 }
         ]
     })
 }
@@ -1776,7 +1787,7 @@ fn schema_rejects_text_measurements_static_profile_ref_source() {
 
 #[test]
 fn schema_rejects_text_measurements_missing_query_arrays() {
-    for field in ["lineWidths", "scalarWidths"] {
+    for field in ["textStyles", "lineWidths", "scalarWidths"] {
         let mut value = dynamic_mmds_value_with_text_measurements_extension();
         value["extensions"]["org.mmdflux.text-measurements.v1"]
             .as_object_mut()
@@ -1785,6 +1796,14 @@ fn schema_rejects_text_measurements_missing_query_arrays() {
 
         assert_schema_invalid(value);
     }
+}
+
+#[test]
+fn schema_rejects_text_measurements_empty_text_styles() {
+    let mut value = dynamic_mmds_value_with_text_measurements_extension();
+    value["extensions"]["org.mmdflux.text-measurements.v1"]["textStyles"] = json!([]);
+
+    assert_schema_invalid(value);
 }
 
 #[test]
@@ -1834,7 +1853,7 @@ fn schema_rejects_text_measurements_scalar_with_multiple_scalars() {
 fn schema_accepts_text_measurements_non_bmp_scalar_prefilter() {
     let mut value = dynamic_mmds_value_with_text_measurements_extension();
     value["extensions"]["org.mmdflux.text-measurements.v1"]["scalarWidths"] =
-        json!([{ "text": "🦀", "width": 16.25 }]);
+        json!([{ "style": "s0", "text": "🦀", "width": 16.25 }]);
 
     assert_schema_valid(value);
 }

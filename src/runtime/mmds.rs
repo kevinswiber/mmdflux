@@ -4,7 +4,7 @@
 //! This module owns the render dispatch for MMDS input.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
 use serde_json::{Map, Value};
@@ -13,9 +13,9 @@ use crate::errors::RenderError;
 use crate::format::OutputFormat;
 use crate::graph::GeometryLevel;
 use crate::graph::measure::{
-    LEGACY_MMDS_TEXT_METRICS_PROFILE_ID, ResolvedTextMetrics, TextMetricsLayoutDescriptor,
-    TextMetricsProfileConfig, TextMetricsProfileDescriptor, TextMetricsProvider,
-    TextMetricsStyleDescriptor, resolve_text_metrics_profile,
+    GraphTextStyleKey, LEGACY_MMDS_TEXT_METRICS_PROFILE_ID, ResolvedTextMetrics,
+    TextMetricsLayoutDescriptor, TextMetricsProfileConfig, TextMetricsProfileDescriptor,
+    TextMetricsProvider, TextMetricsStyleDescriptor, resolve_text_metrics_profile,
 };
 use crate::mmds::{
     Document, TEXT_MEASUREMENTS_EXTENSION_NAMESPACE, TEXT_METRICS_EXTENSION_NAMESPACE,
@@ -303,8 +303,16 @@ enum ReplayTextMetrics {
 
 #[derive(Debug)]
 struct PersistedTextMeasurements {
-    line_widths: HashMap<String, f64>,
-    scalar_widths: HashMap<char, f64>,
+    default_style: GraphTextStyleKey,
+    style_ids_by_key: HashMap<GraphTextStyleKey, String>,
+    line_widths: HashMap<(String, String), f64>,
+    scalar_widths: HashMap<(String, char), f64>,
+}
+
+struct ParsedTextMeasurementStyles {
+    default_style: GraphTextStyleKey,
+    ids_by_key: HashMap<GraphTextStyleKey, String>,
+    ids: HashSet<String>,
 }
 
 struct PersistedTextMeasurementsProvider<'a> {
@@ -342,22 +350,65 @@ impl<'a> PersistedTextMeasurementsProvider<'a> {
 
 impl TextMetricsProvider for PersistedTextMeasurementsProvider<'_> {
     fn measure_line_width(&self, text: &str) -> f64 {
-        match self.measurements.line_widths.get(text).copied() {
+        self.measure_line_width_for_style(&self.measurements.default_style, text)
+    }
+
+    fn measure_scalar_width(&self, ch: char) -> f64 {
+        self.measure_scalar_width_for_style(&self.measurements.default_style, ch)
+    }
+
+    fn default_text_style_key(&self) -> GraphTextStyleKey {
+        self.measurements.default_style.clone()
+    }
+
+    fn measure_line_width_for_style(&self, style: &GraphTextStyleKey, text: &str) -> f64 {
+        let Some(style_id) = self.measurements.style_ids_by_key.get(style) else {
+            self.record_error(missing_persisted_text_measurement_style(
+                "lineWidths",
+                style,
+            ));
+            return 0.0;
+        };
+        match self
+            .measurements
+            .line_widths
+            .get(&(style_id.clone(), text.to_string()))
+            .copied()
+        {
             Some(width) => width,
             None => {
-                self.record_error(missing_persisted_text_measurement("lineWidths", text));
+                self.record_error(missing_persisted_text_measurement(
+                    "lineWidths",
+                    style_id,
+                    text,
+                ));
                 0.0
             }
         }
     }
 
-    fn measure_scalar_width(&self, ch: char) -> f64 {
-        match self.measurements.scalar_widths.get(&ch).copied() {
+    fn measure_scalar_width_for_style(&self, style: &GraphTextStyleKey, ch: char) -> f64 {
+        let Some(style_id) = self.measurements.style_ids_by_key.get(style) else {
+            self.record_error(missing_persisted_text_measurement_style(
+                "scalarWidths",
+                style,
+            ));
+            return 0.0;
+        };
+        let mut buffer = [0_u8; 4];
+        let text = ch.encode_utf8(&mut buffer);
+        match self
+            .measurements
+            .scalar_widths
+            .get(&(style_id.clone(), ch))
+            .copied()
+        {
             Some(width) => width,
             None => {
                 self.record_error(missing_persisted_text_measurement(
                     "scalarWidths",
-                    ch.encode_utf8(&mut [0_u8; 4]),
+                    style_id,
+                    text,
                 ));
                 0.0
             }
@@ -588,18 +639,80 @@ fn parse_text_measurements_for_descriptor(
         )));
     }
 
-    let line_widths = parse_line_width_entries(extension)?;
-    let scalar_widths = parse_scalar_width_entries(extension)?;
+    let styles = parse_measurement_text_styles(extension, descriptor)?;
+    let line_widths = parse_line_width_entries(extension, &styles.ids)?;
+    let scalar_widths = parse_scalar_width_entries(extension, &styles.ids)?;
 
     Ok(PersistedTextMeasurements {
+        default_style: styles.default_style,
+        style_ids_by_key: styles.ids_by_key,
         line_widths,
         scalar_widths,
     })
 }
 
+fn parse_measurement_text_styles(
+    extension: &Map<String, Value>,
+    descriptor: &TextMetricsProfileDescriptor,
+) -> Result<ParsedTextMeasurementStyles, RenderError> {
+    let entries = required_measurements_array(extension, "textStyles")?;
+    let default_style = GraphTextStyleKey::from_descriptor(&descriptor.default_text_style)
+        .map_err(invalid_text_measurements_extension)?;
+    let mut style_ids = HashSet::new();
+    let mut style_ids_by_key = HashMap::new();
+    let mut has_default_style = false;
+    for (index, entry) in entries.iter().enumerate() {
+        let object = entry.as_object().ok_or_else(|| {
+            invalid_text_measurements_extension(format!("textStyles[{index}] must be an object"))
+        })?;
+        ensure_text_style_entry_fields(object, index)?;
+        let id = required_measurements_string_field(object, "textStyles", "id")?;
+        if id.trim().is_empty() {
+            return Err(invalid_text_measurements_extension(format!(
+                "textStyles[{index}].id must not be empty"
+            )));
+        }
+        if !style_ids.insert(id.to_string()) {
+            return Err(invalid_text_measurements_extension(format!(
+                "duplicate textStyles id {id:?}"
+            )));
+        }
+        let style_key = GraphTextStyleKey::new(
+            required_measurements_string_field(object, "textStyles", "fontFamily")?,
+            required_measurements_number_field(object, "textStyles", "fontSize")?,
+            required_measurements_number_field(object, "textStyles", "lineHeight")?,
+            required_measurements_string_field(object, "textStyles", "fontStyle")?,
+            required_measurements_string_field(object, "textStyles", "fontWeight")?,
+        )
+        .map_err(|message| {
+            invalid_text_measurements_extension(format!(
+                "textStyles[{index}] is invalid: {message}"
+            ))
+        })?;
+        validate_non_empty_measurement_string(object, "textStyles", "cssFont", index)?;
+        has_default_style |= style_key == default_style;
+        if style_ids_by_key.insert(style_key, id.to_string()).is_some() {
+            return Err(invalid_text_measurements_extension(format!(
+                "duplicate textStyles style identity for id {id:?}"
+            )));
+        }
+    }
+    if !has_default_style {
+        return Err(invalid_text_measurements_extension(
+            "textStyles must include the sibling defaultTextStyle".to_string(),
+        ));
+    }
+    Ok(ParsedTextMeasurementStyles {
+        default_style,
+        ids_by_key: style_ids_by_key,
+        ids: style_ids,
+    })
+}
+
 fn parse_line_width_entries(
     extension: &Map<String, Value>,
-) -> Result<HashMap<String, f64>, RenderError> {
+    known_styles: &HashSet<String>,
+) -> Result<HashMap<(String, String), f64>, RenderError> {
     let entries = required_measurements_array(extension, "lineWidths")?;
     let mut widths = HashMap::new();
     for (index, entry) in entries.iter().enumerate() {
@@ -607,11 +720,15 @@ fn parse_line_width_entries(
             invalid_text_measurements_extension(format!("lineWidths[{index}] must be an object"))
         })?;
         ensure_measurement_entry_fields(object, "lineWidths", index)?;
+        let style = required_measurement_style_field(object, "lineWidths", index, known_styles)?;
         let text = required_measurements_string_field(object, "lineWidths", "text")?;
         let width = required_measurements_width(object, "lineWidths", index)?;
-        if widths.insert(text.to_string(), width).is_some() {
+        if widths
+            .insert((style.to_string(), text.to_string()), width)
+            .is_some()
+        {
             return Err(invalid_text_measurements_extension(format!(
-                "duplicate lineWidths text {text:?}"
+                "duplicate lineWidths style {style:?} text {text:?}"
             )));
         }
     }
@@ -620,7 +737,8 @@ fn parse_line_width_entries(
 
 fn parse_scalar_width_entries(
     extension: &Map<String, Value>,
-) -> Result<HashMap<char, f64>, RenderError> {
+    known_styles: &HashSet<String>,
+) -> Result<HashMap<(String, char), f64>, RenderError> {
     let entries = required_measurements_array(extension, "scalarWidths")?;
     let mut widths = HashMap::new();
     for (index, entry) in entries.iter().enumerate() {
@@ -628,6 +746,7 @@ fn parse_scalar_width_entries(
             invalid_text_measurements_extension(format!("scalarWidths[{index}] must be an object"))
         })?;
         ensure_measurement_entry_fields(object, "scalarWidths", index)?;
+        let style = required_measurement_style_field(object, "scalarWidths", index, known_styles)?;
         let text = required_measurements_string_field(object, "scalarWidths", "text")?;
         let mut chars = text.chars();
         let Some(ch) = chars.next() else {
@@ -641,9 +760,9 @@ fn parse_scalar_width_entries(
             )));
         }
         let width = required_measurements_width(object, "scalarWidths", index)?;
-        if widths.insert(ch, width).is_some() {
+        if widths.insert((style.to_string(), ch), width).is_some() {
             return Err(invalid_text_measurements_extension(format!(
-                "duplicate scalarWidths text {text:?}"
+                "duplicate scalarWidths style {style:?} text {text:?}"
             )));
         }
     }
@@ -656,9 +775,31 @@ fn ensure_measurement_entry_fields(
     index: usize,
 ) -> Result<(), RenderError> {
     for field in object.keys() {
-        if field != "text" && field != "width" {
+        if field != "style" && field != "text" && field != "width" {
             return Err(invalid_text_measurements_extension(format!(
                 "{array_name}[{index}] contains unsupported field {field:?}"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn ensure_text_style_entry_fields(
+    object: &Map<String, Value>,
+    index: usize,
+) -> Result<(), RenderError> {
+    for field in object.keys() {
+        if !matches!(
+            field.as_str(),
+            "id" | "fontFamily"
+                | "fontSize"
+                | "fontStyle"
+                | "fontWeight"
+                | "lineHeight"
+                | "cssFont"
+        ) {
+            return Err(invalid_text_measurements_extension(format!(
+                "textStyles[{index}] contains unsupported field {field:?}"
             )));
         }
     }
@@ -693,6 +834,58 @@ fn required_measurements_string_field<'a>(
     object.get(field).and_then(Value::as_str).ok_or_else(|| {
         invalid_text_measurements_extension(format!("{object_name}.{field} must be a string"))
     })
+}
+
+fn required_measurements_number_field(
+    object: &Map<String, Value>,
+    object_name: &str,
+    field: &str,
+) -> Result<f64, RenderError> {
+    let value = object.get(field).and_then(Value::as_f64).ok_or_else(|| {
+        invalid_text_measurements_extension(format!("{object_name}.{field} must be a number"))
+    })?;
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(invalid_text_measurements_extension(format!(
+            "{object_name}.{field} must be finite"
+        )))
+    }
+}
+
+fn validate_non_empty_measurement_string(
+    object: &Map<String, Value>,
+    object_name: &str,
+    field: &str,
+    index: usize,
+) -> Result<(), RenderError> {
+    let value = required_measurements_string_field(object, object_name, field)?;
+    if value.trim().is_empty() {
+        return Err(invalid_text_measurements_extension(format!(
+            "{object_name}[{index}].{field} must not be empty"
+        )));
+    }
+    Ok(())
+}
+
+fn required_measurement_style_field<'a>(
+    object: &'a Map<String, Value>,
+    array_name: &str,
+    index: usize,
+    known_styles: &HashSet<String>,
+) -> Result<&'a str, RenderError> {
+    let style = required_measurements_string_field(object, array_name, "style")?;
+    if style.trim().is_empty() {
+        return Err(invalid_text_measurements_extension(format!(
+            "{array_name}[{index}].style must not be empty"
+        )));
+    }
+    if !known_styles.contains(style) {
+        return Err(invalid_text_measurements_extension(format!(
+            "{array_name}[{index}].style {style:?} is not present in textStyles"
+        )));
+    }
+    Ok(style)
 }
 
 fn required_measurements_integer_field(
@@ -1044,10 +1237,18 @@ fn invalid_text_measurements_extension(message: impl Into<String>) -> RenderErro
     }
 }
 
-fn missing_persisted_text_measurement(kind: &str, text: &str) -> RenderError {
+fn missing_persisted_text_measurement(kind: &str, style_id: &str, text: &str) -> RenderError {
     RenderError {
         message: format!(
-            "missing persisted dynamic text measurement in {TEXT_MEASUREMENTS_EXTENSION_NAMESPACE}.{kind} for {text:?}"
+            "missing persisted dynamic text measurement in {TEXT_MEASUREMENTS_EXTENSION_NAMESPACE}.{kind} for style {style_id:?} text {text:?}"
+        ),
+    }
+}
+
+fn missing_persisted_text_measurement_style(kind: &str, style: &GraphTextStyleKey) -> RenderError {
+    RenderError {
+        message: format!(
+            "missing persisted dynamic text measurement style in {TEXT_MEASUREMENTS_EXTENSION_NAMESPACE}.textStyles for {kind} style {style:?}"
         ),
     }
 }
@@ -1211,14 +1412,25 @@ mod tests {
                 "source": "dynamic",
                 "version": 1
             },
+            "textStyles": [
+                {
+                    "id": "s0",
+                    "fontFamily": "Inter",
+                    "fontSize": 16.0,
+                    "fontStyle": "normal",
+                    "fontWeight": "400",
+                    "lineHeight": 24.0,
+                    "cssFont": "16px Inter"
+                }
+            ],
             "lineWidths": [
-                { "text": "Alpha", "width": 42.31415926535897 },
-                { "text": "é", "width": 12.5 }
+                { "style": "s0", "text": "Alpha", "width": 42.31415926535897 },
+                { "style": "s0", "text": "é", "width": 12.5 }
             ],
             "scalarWidths": [
-                { "text": "A", "width": 10.671875 },
-                { "text": " ", "width": 4.4453125 },
-                { "text": "é", "width": 12.5 }
+                { "style": "s0", "text": "A", "width": 10.671875 },
+                { "style": "s0", "text": " ", "width": 4.4453125 },
+                { "style": "s0", "text": "é", "width": 12.5 }
             ]
         })
         .as_object()
@@ -1350,6 +1562,38 @@ mod tests {
             err.message
                 .contains("missing persisted dynamic text measurement")
         );
+        assert!(err.message.contains("Alpha"), "{err}");
+    }
+
+    #[test]
+    fn persisted_measurement_provider_rejects_missing_style_keyed_line_query() {
+        let descriptor = dynamic_descriptor();
+        let mut extension = text_measurements_extension();
+        extension
+            .get_mut("textStyles")
+            .unwrap()
+            .as_array_mut()
+            .unwrap()
+            .push(json!({
+                "id": "s1",
+                "fontFamily": "Verdana",
+                "fontSize": 8.0,
+                "fontStyle": "normal",
+                "fontWeight": "400",
+                "lineHeight": 12.0,
+                "cssFont": "8px Verdana"
+            }));
+        let measurements = parse_text_measurements_for_descriptor(&extension, &descriptor).unwrap();
+        let provider = PersistedTextMeasurementsProvider::new(&descriptor, &measurements);
+        let style = GraphTextStyleKey::new("Verdana", 8.0, 12.0, "normal", "400").unwrap();
+
+        assert_eq!(provider.measure_line_width_for_style(&style, "Alpha"), 0.0);
+        let err = provider
+            .finish()
+            .expect_err("missing style-keyed line width should fail");
+
+        assert!(err.message.contains("lineWidths"), "{err}");
+        assert!(err.message.contains("s1"), "{err}");
         assert!(err.message.contains("Alpha"), "{err}");
     }
 }
