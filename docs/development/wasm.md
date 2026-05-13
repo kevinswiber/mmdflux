@@ -84,9 +84,8 @@ Notes:
 - `fontMetricsProfile` defaults to `mmdflux-sans-v1` for direct graph-family
   rendering. The compatibility profile `mmdflux-heuristic-proportional-v1`
   remains available for callers that need the previous heuristic geometry.
-  Text and ASCII output ignore this setting and remain pinned to
-  compatibility metrics for wrap preparation. Unsupported profile IDs are
-  rejected.
+  Text and ASCII output ignore this setting and remain pinned to compatibility
+  metrics for wrap preparation. Unsupported profile IDs are rejected.
 - Wasm uses the same static profile tables as native rendering; browser
   `measureText` is not used by these profiles.
 - `fontFamily` and `fontSize` are graph text-style inputs, not styling-only SVG
@@ -110,6 +109,11 @@ Notes:
 The existing `render` export remains static and deterministic. It never calls
 browser measurement APIs, and importing the browser metrics export does not
 change `render` output.
+
+The playground routes graph-family SVG font styles through browser text metrics
+when Mermaid `style`, `classDef`/`class`, or `linkStyle` declarations include
+layout-affecting font properties. Static/default SVG renders without font
+styling continue to use the portable `render` path. Text, ASCII, and sequence remain unsupported for dynamic metrics.
 
 `renderWithBrowserTextMetrics(input, format, configJson, metricsJson, measureText)`
 is a separate experimental export for browser-owned font measurement. It
@@ -173,7 +177,7 @@ Main-thread fallback is used only when worker dynamic metrics fail because the
 worker lacks font or canvas capabilities. Missing fonts, failed post-load
 `check()`, invalid `measureText` output, and Rust render errors remain explicit
 failures; they do not retry through another mode or fall back to static
-profiles.
+profiles. When the requested font is unavailable, rendering fails instead of measuring a fallback font and pretending it matched the request.
 
 The `measureText` callback itself is synchronous from Rust's perspective and
 must return a finite non-negative width number for each `(text, cssFont)`

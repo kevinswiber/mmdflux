@@ -15,6 +15,7 @@ function createFakeRenderClient() {
       format: "svg",
       output: `svg:${request.input}`,
     })),
+    resolveBrowserTextMetricsRequest: vi.fn(async () => ({ required: false })),
     validate: vi.fn(async () => '{"valid":true}'),
     terminate: vi.fn(),
   } satisfies RenderWorkerClient;

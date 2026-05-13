@@ -8,6 +8,11 @@ import type {
 
 interface MockWasmModule {
   default: () => Promise<void>;
+  browserTextMetricsRequest: (
+    input: string,
+    format: string,
+    configJson: string,
+  ) => string;
   render: (input: string, format: string, configJson: string) => string;
   renderWithBrowserTextMetrics: (
     input: string,
@@ -33,6 +38,7 @@ describe("createWorkerRequestHandler", () => {
     const loadWasmModule = vi.fn(
       async (): Promise<MockWasmModule> => ({
         default: initialize,
+        browserTextMetricsRequest: () => "unused",
         render,
         renderWithBrowserTextMetrics: () => "unused",
         validate,
@@ -87,6 +93,7 @@ describe("createWorkerRequestHandler", () => {
     const loadWasmModule = vi.fn(
       async (): Promise<MockWasmModule> => ({
         default: async () => {},
+        browserTextMetricsRequest: () => "unused",
         render: () => {
           throw new Error("unknown output format: bad");
         },
@@ -124,6 +131,7 @@ describe("createWorkerRequestHandler", () => {
     const loadWasmModule = vi.fn(
       async (): Promise<MockWasmModule> => ({
         default: initialize,
+        browserTextMetricsRequest: () => "unused",
         render: () => "unused",
         renderWithBrowserTextMetrics: () => "unused",
         validate: (input) =>
@@ -161,6 +169,132 @@ describe("createWorkerRequestHandler", () => {
     ]);
   });
 
+  it("returns browser text metrics decisions without rendering or measuring", async () => {
+    const browserTextMetricsRequest = vi.fn(
+      (input: string, format: string, configJson: string) =>
+        JSON.stringify({
+          required: true,
+          browserTextMetrics: {
+            defaultStyle: "s0",
+            textStyles: [
+              {
+                id: "s0",
+                fontFamily: "Verdana",
+                fontSize: 8,
+                fontStyle: "normal",
+                fontWeight: "400",
+                lineHeight: 12,
+                cssFont: "8px Verdana",
+              },
+            ],
+          },
+          input,
+          format,
+          configJson,
+        }),
+    );
+    const render = vi.fn(() => "static unused");
+    const renderWithBrowserTextMetrics = vi.fn(() => "dynamic unused");
+    const prepareBrowserTextMetrics = vi.fn(async () => {
+      throw new Error("should not prepare metrics for resolver");
+    });
+    const loadWasmModule = vi.fn(
+      async (): Promise<MockWasmModule> => ({
+        default: async () => {},
+        browserTextMetricsRequest,
+        render,
+        renderWithBrowserTextMetrics,
+        validate: () => '{"valid":true}',
+      }),
+    );
+
+    const responses: WorkerResponseMessage[] = [];
+    const handler = createWorkerRequestHandler({
+      loadWasmModule,
+      prepareBrowserTextMetrics,
+      postMessage: (message) => responses.push(message),
+    });
+
+    await handler({
+      type: "resolveBrowserTextMetrics",
+      seq: 8,
+      input: "graph TD\nA-->B",
+      format: "svg",
+      configJson: "{}",
+    });
+
+    expect(browserTextMetricsRequest).toHaveBeenCalledWith(
+      "graph TD\nA-->B",
+      "svg",
+      "{}",
+    );
+    expect(render).not.toHaveBeenCalled();
+    expect(renderWithBrowserTextMetrics).not.toHaveBeenCalled();
+    expect(prepareBrowserTextMetrics).not.toHaveBeenCalled();
+    expect(responses).toEqual([
+      {
+        type: "browserTextMetricsDecision",
+        seq: 8,
+        decision: {
+          required: true,
+          browserTextMetrics: {
+            defaultStyle: "s0",
+            textStyles: [
+              {
+                id: "s0",
+                fontFamily: "Verdana",
+                fontSize: 8,
+                fontStyle: "normal",
+                fontWeight: "400",
+                lineHeight: 12,
+                cssFont: "8px Verdana",
+              },
+            ],
+          },
+          input: "graph TD\nA-->B",
+          format: "svg",
+          configJson: "{}",
+        },
+      },
+    ]);
+  });
+
+  it("returns structured errors for browser text metrics resolver failures", async () => {
+    const loadWasmModule = vi.fn(
+      async (): Promise<MockWasmModule> => ({
+        default: async () => {},
+        browserTextMetricsRequest: () => {
+          throw new Error("RenderConfig.graph_text_style is not supported");
+        },
+        render: () => "static unused",
+        renderWithBrowserTextMetrics: () => "dynamic unused",
+        validate: () => '{"valid":true}',
+      }),
+    );
+
+    const responses: WorkerResponseMessage[] = [];
+    const handler = createWorkerRequestHandler({
+      loadWasmModule,
+      postMessage: (message) => responses.push(message),
+    });
+
+    await handler({
+      type: "resolveBrowserTextMetrics",
+      seq: 15,
+      input: "graph TD\nA-->B",
+      format: "svg",
+      configJson: '{"fontFamily":"Inter","fontSize":16}',
+    });
+
+    expect(responses).toEqual([
+      {
+        type: "error",
+        seq: 15,
+        error: "RenderConfig.graph_text_style is not supported",
+      },
+    ]);
+  });
+
   it("prepares browser metrics and invokes the dynamic wasm export", async () => {
     const measureText = vi.fn(() => 42);
     const prepareBrowserTextMetrics = vi.fn(async () => ({
@@ -180,6 +314,7 @@ describe("createWorkerRequestHandler", () => {
     const loadWasmModule = vi.fn(
       async (): Promise<MockWasmModule> => ({
         default: async () => {},
+        browserTextMetricsRequest: () => "unused",
         render: () => "static unused",
         renderWithBrowserTextMetrics,
         validate: () => '{"valid":true}',
@@ -232,6 +367,7 @@ describe("createWorkerRequestHandler", () => {
     const loadWasmModule = vi.fn(
       async (): Promise<MockWasmModule> => ({
         default: async () => {},
+        browserTextMetricsRequest: () => "unused",
         render: () => "static unused",
         renderWithBrowserTextMetrics: () => "dynamic unused",
         validate: () => '{"valid":true}',
@@ -272,6 +408,7 @@ describe("createWorkerRequestHandler", () => {
     const loadWasmModule = vi.fn(
       async (): Promise<MockWasmModule> => ({
         default: async () => {},
+        browserTextMetricsRequest: () => "unused",
         render: () => "static unused",
         renderWithBrowserTextMetrics: () => "dynamic unused",
         validate: () => '{"valid":true}',
@@ -323,6 +460,7 @@ describe("createWorkerRequestHandler", () => {
     const loadWasmModule = vi.fn(
       async (): Promise<MockWasmModule> => ({
         default: async () => {},
+        browserTextMetricsRequest: () => "unused",
         render: () => "static unused",
         renderWithBrowserTextMetrics: () => "dynamic unused",
         validate: () => '{"valid":true}',

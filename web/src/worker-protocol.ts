@@ -25,9 +25,23 @@ export interface WorkerDynamicTextMetricsRenderRequestMessage {
   browserTextMetrics: BrowserTextMetricsRequest;
 }
 
+export interface BrowserTextMetricsDecision {
+  required: boolean;
+  browserTextMetrics?: BrowserTextMetricsRequest;
+}
+
+export interface WorkerBrowserTextMetricsRequestMessage {
+  type: "resolveBrowserTextMetrics";
+  seq: number;
+  input: string;
+  format: WorkerOutputFormat;
+  configJson: string;
+}
+
 export type WorkerRequestMessage =
   | WorkerRenderRequestMessage
   | WorkerDynamicTextMetricsRenderRequestMessage
+  | WorkerBrowserTextMetricsRequestMessage
   | WorkerValidateRequestMessage;
 
 export interface WorkerResultMessage {
@@ -43,6 +57,12 @@ export interface WorkerValidationMessage {
   resultJson: string;
 }
 
+export interface WorkerBrowserTextMetricsDecisionMessage {
+  type: "browserTextMetricsDecision";
+  seq: number;
+  decision: BrowserTextMetricsDecision;
+}
+
 export interface WorkerErrorMessage {
   type: "error";
   seq: number;
@@ -53,4 +73,5 @@ export interface WorkerErrorMessage {
 export type WorkerResponseMessage =
   | WorkerResultMessage
   | WorkerValidationMessage
+  | WorkerBrowserTextMetricsDecisionMessage
   | WorkerErrorMessage;

@@ -8,8 +8,10 @@ import type {
 
 interface MockWorkerOptions {
   dynamicResponse?: WorkerResponseMessage;
+  resolverResponse?: WorkerResponseMessage;
   suppressDynamicResponse?: boolean;
   throwOnDynamicPost?: boolean;
+  throwOnResolverPost?: boolean;
 }
 
 class MockWorker {
@@ -24,6 +26,12 @@ class MockWorker {
     if (
       message.type === "renderWithBrowserTextMetrics" &&
       this.options.throwOnDynamicPost
+    ) {
+      throw new Error("worker post failed");
+    }
+    if (
+      message.type === "resolveBrowserTextMetrics" &&
+      this.options.throwOnResolverPost
     ) {
       throw new Error("worker post failed");
     }
@@ -63,6 +71,42 @@ class MockWorker {
             seq: message.seq,
             format: message.format,
             output: `${message.format}:${message.input}:${message.configJson}:${message.browserTextMetrics.fontFamily}`,
+          },
+        } as MessageEvent<WorkerResponseMessage>);
+        return;
+      }
+
+      if (message.type === "resolveBrowserTextMetrics") {
+        if (this.options.resolverResponse) {
+          this.onmessage?.({
+            data: this.options.resolverResponse,
+          } as MessageEvent<WorkerResponseMessage>);
+          return;
+        }
+
+        this.onmessage?.({
+          data: {
+            type: "browserTextMetricsDecision",
+            seq: message.seq,
+            decision: {
+              required: message.input.includes("font-family"),
+              browserTextMetrics: message.input.includes("font-family")
+                ? {
+                    defaultStyle: "s0",
+                    textStyles: [
+                      {
+                        id: "s0",
+                        fontFamily: "Verdana",
+                        fontSize: 8,
+                        fontStyle: "normal",
+                        fontWeight: "400",
+                        lineHeight: 12,
+                        cssFont: "8px Verdana",
+                      },
+                    ],
+                  }
+                : undefined,
+            },
           },
         } as MessageEvent<WorkerResponseMessage>);
         return;
@@ -110,6 +154,90 @@ describe("createRenderWorkerClient", () => {
       seq: 7,
       format: "svg",
       output: 'svg:graph TD\nA-->B:{"padding":2}',
+    });
+    await expect(validatePromise).resolves.toBe('{"valid":true}');
+  });
+
+  it("resolves browser text metrics decisions by sequence id", async () => {
+    const worker = new MockWorker();
+    const client = createRenderWorkerClient(worker as unknown as Worker);
+
+    const response = await client.resolveBrowserTextMetricsRequest({
+      seq: 21,
+      input: "graph TD\nA[Regular]\nstyle A font-family:Verdana,font-size:8px",
+      format: "svg",
+      configJson: "{}",
+    });
+
+    expect(response).toEqual({
+      required: true,
+      browserTextMetrics: {
+        defaultStyle: "s0",
+        textStyles: [
+          {
+            id: "s0",
+            fontFamily: "Verdana",
+            fontSize: 8,
+            fontStyle: "normal",
+            fontWeight: "400",
+            lineHeight: 12,
+            cssFont: "8px Verdana",
+          },
+        ],
+      },
+    });
+    expect(worker.messages.at(-1)).toEqual({
+      type: "resolveBrowserTextMetrics",
+      seq: 21,
+      input: "graph TD\nA[Regular]\nstyle A font-family:Verdana,font-size:8px",
+      format: "svg",
+      configJson: "{}",
+    });
+  });
+
+  it("propagates browser text metrics resolver errors", async () => {
+    const worker = new MockWorker({
+      resolverResponse: {
+        type: "error",
+        seq: 22,
+        error: "RenderConfig.graph_text_style is not supported",
+      },
+    });
+    const client = createRenderWorkerClient(worker as unknown as Worker);
+
+    await expect(
+      client.resolveBrowserTextMetricsRequest({
+        seq: 22,
+        input: "graph TD\nA-->B",
+        format: "svg",
+        configJson: '{"fontFamily":"Inter","fontSize":16}',
+      }),
+    ).rejects.toThrow("graph_text_style");
+  });
+
+  it("keeps resolver, render, and validation responses independent", async () => {
+    const worker = new MockWorker();
+    const client = createRenderWorkerClient(worker as unknown as Worker);
+
+    const resolverPromise = client.resolveBrowserTextMetricsRequest({
+      seq: 31,
+      input: "graph TD\nA[Regular]\nstyle A font-family:Verdana,font-size:8px",
+      format: "svg",
+      configJson: "{}",
+    });
+    const renderPromise = client.render({
+      seq: 32,
+      input: "graph TD\nA-->B",
+      format: "svg",
+      configJson: "{}",
+    });
+    const validatePromise = client.validate("graph TD\nA-->B");
+
+    await expect(resolverPromise).resolves.toMatchObject({ required: true });
+    await expect(renderPromise).resolves.toEqual({
+      seq: 32,
+      format: "svg",
+      output: "svg:graph TD\nA-->B:{}",
     });
     await expect(validatePromise).resolves.toBe('{"valid":true}');
   });

@@ -1,5 +1,10 @@
 export interface WasmModule {
   default: () => Promise<void>;
+  browserTextMetricsRequest: (
+    input: string,
+    format: string,
+    configJson: string,
+  ) => string;
   render: (input: string, format: string, configJson: string) => string;
   renderWithBrowserTextMetrics: (
     input: string,

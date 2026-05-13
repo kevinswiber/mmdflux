@@ -2,6 +2,7 @@ use std::cell::Cell;
 
 use mmdflux::dynamic_text_metrics::{
     DynamicMetricsInput, DynamicTextMetricsError, render_graph_family_with_dynamic_text_metrics,
+    resolve_browser_text_metrics_request,
 };
 use mmdflux::errors::RenderError;
 use mmdflux::format::OutputFormat;
@@ -23,6 +24,24 @@ pub fn render(input: &str, format: &str, config_json: &str) -> Result<String, Js
     let config = parse_render_config(format, config_json)?;
 
     render_diagram(input, format, &config).map_err(|err| js_error(err.message))
+}
+
+#[wasm_bindgen(js_name = browserTextMetricsRequest)]
+pub fn browser_text_metrics_request(
+    input: &str,
+    format: &str,
+    config_json: &str,
+) -> Result<String, JsError> {
+    let format = parse_output_format(format)?;
+    let config = parse_resolver_config(config_json)?;
+    let decision = resolve_browser_text_metrics_request(input, format, &config)
+        .map_err(|err| js_error(err.message))?;
+
+    serde_json::to_string(&decision).map_err(|error| {
+        js_error(format!(
+            "failed to serialize browser metrics decision: {error}"
+        ))
+    })
 }
 
 #[wasm_bindgen(js_name = renderWithBrowserTextMetrics)]
@@ -90,6 +109,18 @@ fn parse_render_config(format: OutputFormat, config_json: &str) -> Result<Render
     // Wasm forces flux-layered for SVG.
     apply_svg_surface_defaults(format, &mut config, true);
     Ok(config)
+}
+
+fn parse_resolver_config(config_json: &str) -> Result<RenderConfig, JsError> {
+    if config_json.trim().is_empty() {
+        return Ok(RenderConfig::default());
+    }
+
+    let input: RuntimeConfigInput = serde_json::from_str(config_json)
+        .map_err(|error| js_error(format!("invalid config_json: {error}")))?;
+    input
+        .into_render_config()
+        .map_err(|err| js_error(err.message))
 }
 
 fn parse_dynamic_render_config(config_json: &str) -> Result<RenderConfig, JsError> {

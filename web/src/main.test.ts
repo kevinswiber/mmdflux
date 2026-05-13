@@ -1,10 +1,49 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import type { BrowserTextMetricsRequest } from "./browser-text-metrics";
 import { createDefaultRenderWorkerClient, renderApp } from "./main";
 import type { BrowserTextMetricsRenderRequest } from "./services/render-client";
 
+function multiStyleBrowserMetricsRequest(): BrowserTextMetricsRequest {
+  return {
+    defaultStyle: "s0",
+    textStyles: [
+      {
+        id: "s0",
+        fontFamily: "Verdana",
+        fontSize: 8,
+        lineHeight: 12,
+        fontStyle: "normal",
+        fontWeight: "400",
+        cssFont: "8px Verdana",
+      },
+      {
+        id: "s1",
+        fontFamily: "Courier New",
+        fontSize: 20,
+        lineHeight: 30,
+        fontStyle: "normal",
+        fontWeight: "400",
+        cssFont: "20px Courier New",
+      },
+      {
+        id: "s2",
+        fontFamily: "Times New Roman",
+        fontSize: 32,
+        lineHeight: 48,
+        fontStyle: "normal",
+        fontWeight: "400",
+        cssFont: "32px Times New Roman",
+      },
+    ],
+  };
+}
+
 describe("renderApp", () => {
+  const fontStyledInput =
+    "graph TD\nA[Regular]-->B\nstyle A font-family:Verdana";
+
   it("main bootstraps the app without owning render or persistence logic", async () => {
     const source = await readFile(
       path.resolve(process.cwd(), "src/main.ts"),
@@ -20,6 +59,7 @@ describe("renderApp", () => {
     const client = {
       render: vi.fn(),
       renderWithBrowserTextMetrics: vi.fn(),
+      resolveBrowserTextMetricsRequest: vi.fn(),
       validate: vi.fn(),
       terminate: vi.fn(),
     };
@@ -61,6 +101,7 @@ describe("renderApp", () => {
             format: "svg",
             output: `svg:${request.input}`,
           }),
+          resolveBrowserTextMetricsRequest: async () => ({ required: false }),
           validate: async () => '{"valid":true}',
           terminate: () => {},
         }),
@@ -87,6 +128,129 @@ describe("renderApp", () => {
     } finally {
       history.replaceState(null, "", window.location.pathname);
       delete window.__mmdfluxDebug;
+    }
+  });
+
+  it("routes live svg renders with font styles through browser metrics", async () => {
+    try {
+      history.replaceState(null, "", window.location.pathname);
+
+      const render = vi.fn(async (request) => ({
+        seq: request.seq,
+        format: request.format,
+        output: `${request.format}:static`,
+      }));
+      const renderWithBrowserTextMetrics = vi.fn(async (request) => ({
+        seq: request.seq,
+        format: "svg" as const,
+        output: `<svg>${request.browserTextMetrics.textStyles?.length}</svg>`,
+      }));
+      const resolveBrowserTextMetricsRequest = vi.fn(async () => ({
+        required: true,
+        browserTextMetrics: {
+          defaultStyle: "s0",
+          textStyles: [
+            {
+              id: "s0",
+              fontFamily: "Verdana",
+              fontSize: 8,
+              lineHeight: 12,
+              fontStyle: "normal",
+              fontWeight: "400",
+            },
+          ],
+        },
+      }));
+
+      const root = document.createElement("div");
+      renderApp(root, {
+        renderClientFactory: () => ({
+          render,
+          renderWithBrowserTextMetrics,
+          resolveBrowserTextMetricsRequest,
+          validate: async () => '{"valid":true}',
+          terminate: () => {},
+        }),
+        debounceMs: 0,
+        stateStorage: {
+          getItem: () =>
+            JSON.stringify({
+              v: 4,
+              input: fontStyledInput,
+              format: "svg",
+              renderSettings: {},
+              textPreviewMode: "plain",
+              selectedExampleId: "__draft__",
+              customInput: fontStyledInput,
+            }),
+          setItem: () => {},
+        },
+      });
+
+      await vi.waitFor(() => {
+        expect(renderWithBrowserTextMetrics).toHaveBeenCalledTimes(1);
+      });
+
+      expect(resolveBrowserTextMetricsRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ format: "svg", input: fontStyledInput }),
+      );
+      expect(renderWithBrowserTextMetrics).toHaveBeenCalledWith({
+        seq: expect.any(Number),
+        input: expect.any(String),
+        configJson: expect.any(String),
+        browserTextMetrics: expect.objectContaining({ defaultStyle: "s0" }),
+      });
+      expect(render).not.toHaveBeenCalled();
+      expect(root.querySelector("[data-preview-output]")?.textContent).toBe(
+        "1",
+      );
+    } finally {
+      history.replaceState(null, "", window.location.pathname);
+    }
+  });
+
+  it("keeps unstyled svg live renders on the static path", async () => {
+    try {
+      history.replaceState(null, "", window.location.pathname);
+
+      const render = vi.fn(async (request) => ({
+        seq: request.seq,
+        format: request.format,
+        output: `${request.format}:static`,
+      }));
+      const renderWithBrowserTextMetrics = vi.fn(async (request) => ({
+        seq: request.seq,
+        format: "svg" as const,
+        output: `<svg>${request.browserTextMetrics.textStyles?.length}</svg>`,
+      }));
+      const resolveBrowserTextMetricsRequest = vi.fn(async () => ({
+        required: false,
+      }));
+
+      const root = document.createElement("div");
+      renderApp(root, {
+        renderClientFactory: () => ({
+          render,
+          renderWithBrowserTextMetrics,
+          resolveBrowserTextMetricsRequest,
+          validate: async () => '{"valid":true}',
+          terminate: () => {},
+        }),
+        debounceMs: 0,
+        stateStorage: {
+          getItem: () => null,
+          setItem: () => {},
+        },
+      });
+
+      await vi.waitFor(() => {
+        expect(render).toHaveBeenCalledTimes(1);
+      });
+
+      expect(resolveBrowserTextMetricsRequest).not.toHaveBeenCalled();
+      expect(renderWithBrowserTextMetrics).not.toHaveBeenCalled();
+    } finally {
+      history.replaceState(null, "", window.location.pathname);
     }
   });
 
@@ -118,6 +282,7 @@ describe("renderApp", () => {
             output: `${request.format}:${request.input}`,
           }),
           renderWithBrowserTextMetrics,
+          resolveBrowserTextMetricsRequest: async () => ({ required: false }),
           validate: async () => '{"valid":true}',
           terminate: () => {},
         }),
@@ -176,6 +341,113 @@ describe("renderApp", () => {
         },
       });
       expect(renderWithBrowserTextMetrics).toHaveBeenCalledTimes(1);
+    } finally {
+      history.replaceState(null, "", window.location.pathname);
+      delete window.__mmdfluxDebug;
+    }
+  });
+
+  it("debug console helper accepts worker and main-thread style-set metrics", async () => {
+    const renderWithBrowserTextMetrics = vi.fn(
+      async (request: BrowserTextMetricsRenderRequest) => ({
+        seq: request.seq,
+        format: "svg" as const,
+        output: `<span>worker:${request.browserTextMetrics.textStyles?.length}</span>`,
+      }),
+    );
+    const mainThreadRenderWithBrowserTextMetrics = vi.fn(
+      async (request: BrowserTextMetricsRenderRequest) => ({
+        seq: request.seq,
+        format: "svg" as const,
+        output: `<span>main-thread:${request.browserTextMetrics.textStyles?.length}</span>`,
+      }),
+    );
+    const multiFontInput = `graph TD
+    A[Regular] -->|link| B(Styled Node)
+    style A font-family:Verdana,font-size:8px
+    style B font-family:Courier New,font-size:20px
+    linkStyle 0 font-family:Times New Roman,font-size:32px`;
+    const browserTextMetrics = multiStyleBrowserMetricsRequest();
+
+    try {
+      history.replaceState(null, "", "?debugBrowserMetrics=1");
+
+      const root = document.createElement("div");
+      renderApp(root, {
+        renderClientFactory: () => ({
+          render: async (request) => ({
+            seq: request.seq,
+            format: request.format,
+            output: `${request.format}:${request.input}`,
+          }),
+          renderWithBrowserTextMetrics,
+          resolveBrowserTextMetricsRequest: async () => ({ required: false }),
+          validate: async () => '{"valid":true}',
+          terminate: () => {},
+        }),
+        mainThreadBrowserTextMetricsRendererFactory: () => ({
+          renderWithBrowserTextMetrics: mainThreadRenderWithBrowserTextMetrics,
+        }),
+        debounceMs: 10_000,
+        stateStorage: {
+          getItem: () => null,
+          setItem: () => {},
+        },
+      });
+
+      const debug = window.__mmdfluxDebug;
+      const workerResult = await debug?.renderBrowserMetrics({
+        input: multiFontInput,
+        browserTextMetrics,
+      });
+      const mainThreadResult = await debug?.renderBrowserMetricsMainThread({
+        input: multiFontInput,
+        browserTextMetrics,
+        show: false,
+      });
+
+      expect(workerResult?.source).toBe("worker-client");
+      expect(mainThreadResult?.source).toBe("main-thread");
+      expect(renderWithBrowserTextMetrics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          browserTextMetrics: expect.objectContaining({
+            textStyles: expect.arrayContaining([
+              expect.objectContaining({
+                fontFamily: "Verdana",
+                cssFont: expect.stringContaining("Verdana"),
+              }),
+              expect.objectContaining({
+                fontFamily: "Courier New",
+                cssFont: expect.stringContaining("Courier New"),
+              }),
+              expect.objectContaining({
+                fontFamily: "Times New Roman",
+                cssFont: expect.stringContaining("Times New Roman"),
+              }),
+            ]),
+          }),
+        }),
+      );
+      expect(mainThreadRenderWithBrowserTextMetrics).toHaveBeenCalledWith(
+        expect.objectContaining({
+          browserTextMetrics: expect.objectContaining({
+            textStyles: expect.arrayContaining([
+              expect.objectContaining({
+                fontFamily: "Verdana",
+                cssFont: expect.stringContaining("Verdana"),
+              }),
+              expect.objectContaining({
+                fontFamily: "Courier New",
+                cssFont: expect.stringContaining("Courier New"),
+              }),
+              expect.objectContaining({
+                fontFamily: "Times New Roman",
+                cssFont: expect.stringContaining("Times New Roman"),
+              }),
+            ]),
+          }),
+        }),
+      );
     } finally {
       history.replaceState(null, "", window.location.pathname);
       delete window.__mmdfluxDebug;

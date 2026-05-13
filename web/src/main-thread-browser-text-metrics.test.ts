@@ -4,6 +4,11 @@ import type { BrowserTextMetricsRenderRequest } from "./services/render-client";
 
 interface MockWasmModule {
   default: () => Promise<void>;
+  browserTextMetricsRequest: (
+    input: string,
+    format: string,
+    configJson: string,
+  ) => string;
   render: (input: string, format: string, configJson: string) => string;
   renderWithBrowserTextMetrics: (
     input: string,
@@ -44,10 +49,12 @@ function wasmModuleFixture(
   ),
 ) {
   const initialize = vi.fn(async () => {});
+  const browserTextMetricsRequest = vi.fn(() => '{"required":false}');
   const render = vi.fn(() => "static unused");
   const validate = vi.fn(() => '{"valid":true}');
   const module: MockWasmModule = {
     default: initialize,
+    browserTextMetricsRequest,
     render,
     renderWithBrowserTextMetrics,
     validate,
@@ -56,6 +63,7 @@ function wasmModuleFixture(
   return {
     initialize,
     module,
+    browserTextMetricsRequest,
     render,
     renderWithBrowserTextMetrics,
     validate,

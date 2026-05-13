@@ -1,3 +1,4 @@
+import type { BrowserTextMetricsRequest } from "../browser-text-metrics";
 import { createEditorController } from "../editor";
 import {
   DEFAULT_EXAMPLE_ID,
@@ -22,6 +23,7 @@ import {
   type TextPreviewMode,
 } from "../preview";
 import { createPreviewControls } from "../preview-controls";
+import { renderPlaygroundRequest } from "../services/dynamic-svg-routing";
 import {
   createMainThreadBrowserTextMetricsRenderer,
   type MainThreadBrowserTextMetricsRenderer,
@@ -74,6 +76,7 @@ type SearchLocation = URL | Pick<Location, "search">;
 
 interface BrowserMetricsDebugOptions {
   input?: string;
+  browserTextMetrics?: BrowserTextMetricsRequest;
   fontFamily?: string;
   fontSizePx?: number;
   lineHeightPx?: number;
@@ -137,6 +140,30 @@ function positiveFiniteNumber(value: number, label: string): number {
   }
 
   return value;
+}
+
+function legacyBrowserMetricsDebugRequest(
+  options: BrowserMetricsDebugOptions,
+): BrowserTextMetricsRequest {
+  const fontFamily = (options.fontFamily ?? "Arial, sans-serif").trim();
+  if (fontFamily.length === 0) {
+    throw new Error("fontFamily must not be empty");
+  }
+
+  const fontSizePx = positiveFiniteNumber(
+    options.fontSizePx ?? 16,
+    "fontSizePx",
+  );
+  const lineHeightPx = positiveFiniteNumber(
+    options.lineHeightPx ?? fontSizePx * 1.5,
+    "lineHeightPx",
+  );
+
+  return {
+    fontFamily,
+    fontSizePx,
+    lineHeightPx,
+  };
 }
 
 function toErrorMessage(error: unknown): string {
@@ -922,7 +949,7 @@ export function renderApp(
     debounceMs:
       options.debounceMs ??
       ((request) => defaultAdaptiveDebounce(request.input)),
-    render: (request) => workerClient.render(request),
+    render: (request) => renderPlaygroundRequest(workerClient, request),
     onResult: (response) => {
       preview.showResult({
         format: response.format,
@@ -949,28 +976,13 @@ export function renderApp(
   const renderBrowserMetricsDebug = async (
     options: BrowserMetricsDebugOptions = {},
   ): Promise<BrowserMetricsDebugResult> => {
-    const fontFamily = (options.fontFamily ?? "Arial, sans-serif").trim();
-    if (fontFamily.length === 0) {
-      throw new Error("fontFamily must not be empty");
-    }
-
-    const fontSizePx = positiveFiniteNumber(
-      options.fontSizePx ?? 16,
-      "fontSizePx",
-    );
-    const lineHeightPx = positiveFiniteNumber(
-      options.lineHeightPx ?? fontSizePx * 1.5,
-      "lineHeightPx",
-    );
+    const browserTextMetrics =
+      options.browserTextMetrics ?? legacyBrowserMetricsDebugRequest(options);
     const request = {
       seq: nextBrowserMetricsDebugSeq,
       input: options.input ?? editor.getValue(),
       configJson: options.configJson ?? currentSvgConfigJson(),
-      browserTextMetrics: {
-        fontFamily,
-        fontSizePx,
-        lineHeightPx,
-      },
+      browserTextMetrics,
     };
     nextBrowserMetricsDebugSeq -= 1;
 

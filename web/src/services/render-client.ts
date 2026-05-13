@@ -1,5 +1,6 @@
 import type { BrowserTextMetricsRequest } from "../browser-text-metrics";
 import type {
+  BrowserTextMetricsDecision,
   WorkerOutputFormat,
   WorkerRequestMessage,
   WorkerResponseMessage,
@@ -26,6 +27,13 @@ export interface BrowserTextMetricsRenderRequest {
   browserTextMetrics: BrowserTextMetricsRequest;
 }
 
+export interface BrowserTextMetricsDecisionRequest {
+  seq: number;
+  input: string;
+  format: WorkerOutputFormat;
+  configJson?: string;
+}
+
 interface PendingRenderRequest {
   kind: "render";
   resolve: (response: RenderResponse) => void;
@@ -40,13 +48,25 @@ interface PendingValidateRequest {
   reject: (error: Error) => void;
 }
 
-type PendingRequest = PendingRenderRequest | PendingValidateRequest;
+interface PendingBrowserTextMetricsDecisionRequest {
+  kind: "resolveBrowserTextMetrics";
+  resolve: (decision: BrowserTextMetricsDecision) => void;
+  reject: (error: Error) => void;
+}
+
+type PendingRequest =
+  | PendingRenderRequest
+  | PendingValidateRequest
+  | PendingBrowserTextMetricsDecisionRequest;
 
 export interface RenderWorkerClient {
   render: (request: RenderRequest) => Promise<RenderResponse>;
   renderWithBrowserTextMetrics: (
     request: BrowserTextMetricsRenderRequest,
   ) => Promise<RenderResponse>;
+  resolveBrowserTextMetricsRequest: (
+    request: BrowserTextMetricsDecisionRequest,
+  ) => Promise<BrowserTextMetricsDecision>;
   validate: (input: string) => Promise<string>;
   terminate: () => void;
 }
@@ -104,6 +124,20 @@ export function createRenderWorkerClient(
       return;
     }
 
+    if (response.type === "browserTextMetricsDecision") {
+      if (pendingRequest.kind !== "resolveBrowserTextMetrics") {
+        pendingRequest.reject(
+          new Error(
+            "worker returned browser metrics output for another request",
+          ),
+        );
+        return;
+      }
+
+      pendingRequest.resolve(response.decision);
+      return;
+    }
+
     if (response.type === "validation") {
       if (pendingRequest.kind !== "validate") {
         pendingRequest.reject(
@@ -151,6 +185,36 @@ export function createRenderWorkerClient(
           pending.delete(currentSeq);
           reject(
             new Error(`failed to post render request: ${toMessage(error)}`),
+          );
+        }
+      });
+    },
+    resolveBrowserTextMetricsRequest: (request) => {
+      const currentSeq = request.seq;
+
+      return new Promise<BrowserTextMetricsDecision>((resolve, reject) => {
+        const message: WorkerRequestMessage = {
+          type: "resolveBrowserTextMetrics",
+          seq: currentSeq,
+          input: request.input,
+          format: request.format,
+          configJson: request.configJson ?? "{}",
+        };
+
+        pending.set(currentSeq, {
+          kind: "resolveBrowserTextMetrics",
+          resolve,
+          reject,
+        });
+
+        try {
+          worker.postMessage(message);
+        } catch (error) {
+          pending.delete(currentSeq);
+          reject(
+            new Error(
+              `failed to post browser text metrics request: ${toMessage(error)}`,
+            ),
           );
         }
       });

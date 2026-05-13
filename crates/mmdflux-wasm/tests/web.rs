@@ -1,4 +1,7 @@
-use mmdflux_wasm::{detect, render, render_with_browser_text_metrics, validate, version};
+use mmdflux_wasm::{
+    browser_text_metrics_request, detect, render, render_with_browser_text_metrics, validate,
+    version,
+};
 use wasm_bindgen::JsCast;
 use wasm_bindgen_test::*;
 
@@ -61,6 +64,46 @@ fn dynamic_metrics_json_with_profile_fields(
 
 fn callback(body: &str) -> js_sys::Function {
     js_sys::Function::new_with_args("text, cssFont", body)
+}
+
+#[wasm_bindgen_test]
+fn browser_text_metrics_request_returns_style_set_for_multi_font_graph() {
+    let input = include_str!("../../../tests/fixtures/flowchart/dynamic/multi_font_styles.mmd");
+    let decision =
+        browser_text_metrics_request(input, "svg", "{}").expect("resolver export should succeed");
+    let value: serde_json::Value =
+        serde_json::from_str(&decision).expect("decision should be JSON");
+
+    assert_eq!(value["required"], true);
+    let styles = value["browserTextMetrics"]["textStyles"]
+        .as_array()
+        .expect("styles should be an array");
+    assert!(styles.iter().any(|style| {
+        style["fontFamily"] == "Verdana" && style["cssFont"] == r#"normal 400 8px "Verdana""#
+    }));
+    assert!(
+        styles
+            .iter()
+            .any(|style| style["fontFamily"] == "Courier New"
+                && style["cssFont"] == r#"normal 400 20px "Courier New""#)
+    );
+    assert!(
+        styles
+            .iter()
+            .any(|style| style["fontFamily"] == "Times New Roman"
+                && style["cssFont"] == r#"normal 400 32px "Times New Roman""#)
+    );
+}
+
+#[wasm_bindgen_test]
+fn browser_text_metrics_request_returns_not_required_for_unstyled_svg() {
+    let decision = browser_text_metrics_request("graph TD\nA-->B", "svg", "{}")
+        .expect("resolver export should succeed");
+    let value: serde_json::Value =
+        serde_json::from_str(&decision).expect("decision should be JSON");
+
+    assert_eq!(value["required"], false);
+    assert!(value.get("browserTextMetrics").is_none());
 }
 
 #[wasm_bindgen_test]

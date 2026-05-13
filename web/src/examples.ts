@@ -78,6 +78,18 @@ export const PLAYGROUND_EXAMPLES: PlaygroundExample[] = [
     Error -.->|retry| Setup`,
   },
   {
+    id: "flowchart-dynamic-fonts",
+    name: "Dynamic Fonts",
+    description: "Mermaid font-family and font-size styles",
+    category: "flowchart",
+    featured: true,
+    input: `graph TD
+    A[Regular] -->|link| B(Styled Node)
+    style A font-family:Verdana,font-size:8px
+    style B font-family:Courier New,font-size:20px
+    linkStyle 0 font-family:Times New Roman,font-size:32px`,
+  },
+  {
     id: "flowchart-direction-bt",
     name: "Bottom to Top",
     description: "Direction override using BT layout",

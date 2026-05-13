@@ -1,0 +1,20 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+describe("dynamic font docs", () => {
+  it("describe the playground dynamic font boundary", async () => {
+    const docs = await readFile(
+      path.resolve(process.cwd(), "../docs/development/wasm.md"),
+      "utf8",
+    );
+
+    expect(docs).toContain(
+      "playground routes graph-family SVG font styles through browser text metrics",
+    );
+    expect(docs).toContain("Text, ASCII, and sequence remain unsupported");
+    expect(docs).toContain(
+      "requested font is unavailable, rendering fails instead of measuring a fallback font",
+    );
+  });
+});

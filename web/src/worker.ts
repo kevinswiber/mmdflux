@@ -4,6 +4,7 @@ import {
 } from "./browser-text-metrics";
 import { loadWasmModule, type WasmModule } from "./wasm-module";
 import type {
+  BrowserTextMetricsDecision,
   WorkerRequestMessage,
   WorkerResponseMessage,
 } from "./worker-protocol";
@@ -54,6 +55,22 @@ export function createWorkerRequestHandler(
           seq: message.seq,
           format: message.format,
           output,
+        });
+        return;
+      }
+
+      if (message.type === "resolveBrowserTextMetrics") {
+        const decisionJson = wasmModule.browserTextMetricsRequest(
+          message.input,
+          message.format,
+          message.configJson,
+        );
+        const decision = JSON.parse(decisionJson) as BrowserTextMetricsDecision;
+
+        postMessage({
+          type: "browserTextMetricsDecision",
+          seq: message.seq,
+          decision,
         });
         return;
       }

@@ -4,10 +4,10 @@
 //! provider API is not part of the stable Rust facade.
 
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::builtins::default_registry;
 use crate::errors::RenderError;
@@ -16,8 +16,9 @@ use crate::frontends::{InputFrontend, detect_input_frontend};
 use crate::graph::measure::{
     DEFAULT_LABEL_PADDING_X, DEFAULT_LABEL_PADDING_Y, DEFAULT_PROPORTIONAL_NODE_PADDING_X,
     DEFAULT_PROPORTIONAL_NODE_PADDING_Y, GraphTextStyleKey, TextMeasurementCache,
-    TextMeasurementStyle, TextMetricsLayoutDescriptor, TextMetricsProfileDescriptor,
-    TextMetricsProvider, TextMetricsStyleDescriptor,
+    TextMeasurementStyle, TextMetricsLayoutDescriptor, TextMetricsProfileConfig,
+    TextMetricsProfileDescriptor, TextMetricsProvider, TextMetricsStyleDescriptor,
+    edge_text_style_key, node_text_style_key, resolve_text_metrics_profile,
 };
 use crate::payload::Diagram;
 use crate::registry::DiagramFamily;
@@ -25,16 +26,18 @@ use crate::render::graph::SvgRenderOptions;
 use crate::runtime::config::RenderConfig;
 use crate::runtime::config_input::apply_svg_surface_defaults;
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DynamicMetricsInput {
     pub default_style: String,
     pub text_styles: Vec<DynamicTextStyleInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile_version: Option<u32>,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DynamicTextStyleInput {
     pub id: String,
@@ -44,6 +47,14 @@ pub struct DynamicTextStyleInput {
     pub font_weight: String,
     pub line_height: f64,
     pub css_font: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BrowserTextMetricsDecision {
+    pub required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_text_metrics: Option<DynamicMetricsInput>,
 }
 
 impl DynamicMetricsInput {
@@ -613,6 +624,202 @@ fn mmds_input_diagram_type(input: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+pub fn resolve_browser_text_metrics_request(
+    input: &str,
+    format: OutputFormat,
+    config: &RenderConfig,
+) -> Result<BrowserTextMetricsDecision, RenderError> {
+    if !matches!(format, OutputFormat::Svg) {
+        return Ok(browser_text_metrics_not_required());
+    }
+    if config.graph_text_style.is_some() {
+        return Err(RenderError {
+            message: "browser text metrics resolution uses resolved Mermaid styles; do not pass RenderConfig.graph_text_style"
+                .to_string(),
+        });
+    }
+    if !matches!(detect_input_frontend(input), Some(InputFrontend::Mermaid)) {
+        return Ok(browser_text_metrics_not_required());
+    }
+
+    let registry = default_registry();
+    let resolved = registry.resolve(input).ok_or_else(|| RenderError {
+        message: "unknown diagram type".to_string(),
+    })?;
+    if !matches!(resolved.family(), DiagramFamily::Graph) {
+        return Ok(browser_text_metrics_not_required());
+    }
+    if !resolved.supported_formats().contains(&format) {
+        return Ok(browser_text_metrics_not_required());
+    }
+
+    let instance = registry
+        .create(resolved.diagram_id())
+        .ok_or_else(|| RenderError {
+            message: format!(
+                "no implementation for diagram type: {}",
+                resolved.diagram_id()
+            ),
+        })?;
+    let parsed = instance.parse(input).map_err(|error| RenderError {
+        message: format!("parse error: {error}"),
+    })?;
+    let effective_config = super::effective_render_config(input, format, config);
+    let payload =
+        super::payload::prepare_payload_for_render(parsed.into_payload()?, &effective_config);
+    let graph = match &payload {
+        Diagram::Flowchart(graph) | Diagram::Class(graph) | Diagram::State(graph) => graph,
+        Diagram::Sequence(_) => return Ok(browser_text_metrics_not_required()),
+    };
+
+    let metrics = resolve_text_metrics_profile(TextMetricsProfileConfig::default())
+        .map_err(|error| RenderError {
+            message: error.to_string(),
+        })?
+        .metrics;
+    let default_style = GraphTextStyleKey::default_provider_style(&metrics);
+    let styles = collect_graph_browser_text_styles(graph, &metrics);
+    if styles.iter().all(|style| style == &default_style) {
+        return Ok(browser_text_metrics_not_required());
+    }
+
+    Ok(BrowserTextMetricsDecision {
+        required: true,
+        browser_text_metrics: Some(browser_text_metrics_input(default_style, styles)),
+    })
+}
+
+fn browser_text_metrics_not_required() -> BrowserTextMetricsDecision {
+    BrowserTextMetricsDecision {
+        required: false,
+        browser_text_metrics: None,
+    }
+}
+
+fn collect_graph_browser_text_styles(
+    graph: &crate::graph::Graph,
+    provider: &dyn TextMetricsProvider,
+) -> BTreeSet<GraphTextStyleKey> {
+    let mut styles = BTreeSet::new();
+    for node in graph.nodes.values() {
+        styles.insert(node_text_style_key(provider, node));
+    }
+    // Subgraph class styling is not represented in the graph IR yet, so
+    // subgraph titles currently render with the provider default. When
+    // subgraph style parity lands, title styles need to join this set.
+    for edge in &graph.edges {
+        if edge.label.is_some() || edge.head_label.is_some() || edge.tail_label.is_some() {
+            styles.insert(edge_text_style_key(provider, edge));
+        }
+    }
+    styles
+}
+
+fn browser_text_metrics_input(
+    default_style: GraphTextStyleKey,
+    styles: BTreeSet<GraphTextStyleKey>,
+) -> DynamicMetricsInput {
+    let mut text_styles = Vec::with_capacity(styles.len().max(1));
+    // The dynamic provider requires a declared default style even when every
+    // measured node/edge label uses an explicit non-default style.
+    text_styles.push(dynamic_text_style_input_for_key("s0", &default_style));
+    for (index, style) in styles
+        .into_iter()
+        .filter(|style| style != &default_style)
+        .enumerate()
+    {
+        text_styles.push(dynamic_text_style_input_for_key(
+            &format!("s{}", index + 1),
+            &style,
+        ));
+    }
+
+    DynamicMetricsInput {
+        default_style: "s0".to_string(),
+        text_styles,
+        profile_id: None,
+        profile_version: None,
+    }
+}
+
+fn dynamic_text_style_input_for_key(id: &str, style: &GraphTextStyleKey) -> DynamicTextStyleInput {
+    let font_size = style.font_size_px();
+    let line_height = style.line_height_px();
+    DynamicTextStyleInput {
+        id: id.to_string(),
+        font_family: style.font_family.clone(),
+        font_size,
+        font_style: style.font_style.clone(),
+        font_weight: style.font_weight.clone(),
+        line_height,
+        css_font: format!(
+            "{} {} {}px {}",
+            style.font_style,
+            style.font_weight,
+            css_number(font_size),
+            css_font_family_stack(&style.font_family)
+        ),
+    }
+}
+
+fn css_number(value: f64) -> String {
+    if (value.fract()).abs() < f64::EPSILON {
+        format!("{value:.0}")
+    } else {
+        value.to_string()
+    }
+}
+
+fn css_font_family_stack(font_family: &str) -> String {
+    font_family
+        .split(',')
+        .map(css_font_family_token)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn css_font_family_token(family: &str) -> String {
+    let unquoted = strip_one_quote_layer(family.trim());
+    if is_css_generic_family(unquoted) {
+        return unquoted.to_ascii_lowercase();
+    }
+
+    format!(
+        "\"{}\"",
+        unquoted.replace('\\', "\\\\").replace('"', "\\\"")
+    )
+}
+
+fn strip_one_quote_layer(value: &str) -> &str {
+    if value.len() >= 2
+        && ((value.starts_with('"') && value.ends_with('"'))
+            || (value.starts_with('\'') && value.ends_with('\'')))
+    {
+        value[1..value.len() - 1].trim()
+    } else {
+        value
+    }
+}
+
+fn is_css_generic_family(family: &str) -> bool {
+    matches!(
+        family.to_ascii_lowercase().as_str(),
+        "serif"
+            | "sans-serif"
+            | "monospace"
+            | "cursive"
+            | "fantasy"
+            | "system-ui"
+            | "ui-serif"
+            | "ui-sans-serif"
+            | "ui-monospace"
+            | "ui-rounded"
+            | "emoji"
+            | "math"
+            | "fangsong"
+    )
+}
+
 pub fn render_graph_family_svg_with_dynamic_text_metrics<F>(
     input: &str,
     config: &RenderConfig,
@@ -1125,6 +1332,97 @@ mod tests {
             profile_id: None,
             profile_version: None,
         }
+    }
+
+    #[test]
+    fn browser_metrics_request_resolves_multi_font_graph_styles() {
+        let decision = resolve_browser_text_metrics_request(
+            multi_font_mermaid_input(),
+            OutputFormat::Svg,
+            &RenderConfig::default(),
+        )
+        .expect("resolver should parse graph input");
+
+        assert!(decision.required);
+        let request = decision.browser_text_metrics.expect("metrics request");
+        assert_eq!(request.default_style, "s0");
+        assert!(request.text_styles.iter().any(|style| {
+            style.font_family == "Verdana"
+                && (style.font_size - 8.0).abs() < f64::EPSILON
+                && style.css_font == r#"normal 400 8px "Verdana""#
+        }));
+        assert!(request.text_styles.iter().any(|style| {
+            style.font_family == "Courier New"
+                && (style.font_size - 20.0).abs() < f64::EPSILON
+                && style.css_font == r#"normal 400 20px "Courier New""#
+        }));
+        assert!(request.text_styles.iter().any(|style| {
+            style.font_family == "Times New Roman"
+                && (style.font_size - 32.0).abs() < f64::EPSILON
+                && style.css_font == r#"normal 400 32px "Times New Roman""#
+        }));
+    }
+
+    #[test]
+    fn browser_metrics_request_not_required_for_unstyled_graph_svg() {
+        let decision = resolve_browser_text_metrics_request(
+            "graph TD\nA-->B",
+            OutputFormat::Svg,
+            &RenderConfig::default(),
+        )
+        .expect("unstyled graph should resolve");
+
+        assert!(!decision.required);
+        assert!(decision.browser_text_metrics.is_none());
+    }
+
+    #[test]
+    fn browser_metrics_request_not_required_for_terminal_formats() {
+        for format in [OutputFormat::Text, OutputFormat::Ascii] {
+            let decision = resolve_browser_text_metrics_request(
+                multi_font_mermaid_input(),
+                format,
+                &RenderConfig::default(),
+            )
+            .expect("terminal formats should not require browser metrics");
+
+            assert!(!decision.required);
+            assert!(decision.browser_text_metrics.is_none());
+        }
+    }
+
+    #[test]
+    fn browser_metrics_request_not_required_for_sequence_svg() {
+        let decision = resolve_browser_text_metrics_request(
+            "sequenceDiagram\nAlice->>Bob: hello",
+            OutputFormat::Svg,
+            &RenderConfig::default(),
+        )
+        .expect("sequence input should resolve without dynamic metrics");
+
+        assert!(!decision.required);
+        assert!(decision.browser_text_metrics.is_none());
+    }
+
+    #[test]
+    fn browser_metrics_request_rejects_render_config_graph_text_style() {
+        let config = RenderConfig {
+            graph_text_style: Some(GraphTextStyleConfig::new("Inter", 16.0)),
+            ..RenderConfig::default()
+        };
+
+        let err = resolve_browser_text_metrics_request(
+            multi_font_mermaid_input(),
+            OutputFormat::Svg,
+            &config,
+        )
+        .expect_err("render-level graph text style should be rejected");
+
+        assert!(
+            err.message.contains("graph_text_style"),
+            "error should name rejected graph_text_style field: {}",
+            err.message
+        );
     }
 
     #[test]
