@@ -121,10 +121,29 @@ diagrams are rejected instead of silently falling back to a static profile.
 
 ```json
 {
-  "cssFont": "normal 400 16px \"Inter\"",
-  "fontFamily": "Inter",
-  "fontSizePx": 16,
-  "lineHeightPx": 24
+  "profileId": "mmdflux-browser-canvas-v1",
+  "profileVersion": 1,
+  "defaultStyle": "s0",
+  "textStyles": [
+    {
+      "id": "s0",
+      "fontFamily": "Verdana",
+      "fontSize": 8,
+      "fontStyle": "normal",
+      "fontWeight": "400",
+      "lineHeight": 12,
+      "cssFont": "normal 400 8px Verdana"
+    },
+    {
+      "id": "s1",
+      "fontFamily": "Times New Roman",
+      "fontSize": 32,
+      "fontStyle": "normal",
+      "fontWeight": "400",
+      "lineHeight": 48,
+      "cssFont": "normal 400 32px Times New Roman"
+    }
+  ]
 }
 ```
 
@@ -134,8 +153,8 @@ are rejected on this export even when they match `metricsJson`.
 
 The JavaScript adapter must complete async font preflight before Rust layout
 starts. Both browser modes call `load(cssFont)`, await `ready`, and then use a
-post-load `check(cssFont)` validity gate before invoking Rust. `check()` alone
-is not proof that a requested font loaded.
+post-load `check(cssFont)` validity gate for every entry in `textStyles` before
+invoking Rust. `check()` alone is not proof that a requested font loaded.
 
 | Mode | Required browser capabilities | Notes |
 | ---- | ----------------------------- | ----- |
@@ -156,12 +175,16 @@ fail the render.
 The dynamic path does not fall back to `mmdflux-sans-v1` or
 `mmdflux-heuristic-proportional-v1` after a measurement failure. For dynamic
 MMDS output and provider-bound replay, `metricsJson` carries provider identity
-(`profileId = "mmdflux-browser-canvas-v1"`, `profileVersion = 1`, font style,
-font weight, and line height). Dynamic MMDS output includes
-`org.mmdflux.text-measurements.v1`, a measured-query sidecar that lets the
-static `render` export replay graph-family dynamic MMDS to SVG provider-free
-when the sidecar is complete. Missing measured queries remain explicit replay
-errors; Text/ASCII, sequence, and relayout after changing constraints are still
+(`profileId = "mmdflux-browser-canvas-v1"`, `profileVersion = 1`) plus a
+style set. Each style supplies `fontFamily`, `fontSize`, `fontStyle`,
+`fontWeight`, `lineHeight`, and `cssFont`; the browser callback receives the
+CSS font for each measured text query. Dynamic MMDS output includes
+`org.mmdflux.text-measurements.v1`, a measured-query sidecar keyed by
+`textStyles`, `lineWidths`, and `scalarWidths`. That sidecar lets the static
+`render` export replay graph-family dynamic MMDS to SVG provider-free when it
+is complete; this is the static `render` export replay path for dynamic MMDS.
+Missing measured queries remain explicit replay errors;
+Text/ASCII, sequence, and relayout after changing constraints are still
 unsupported.
 
 Text and ASCII reject dynamic metrics because browser pixel widths do not map to

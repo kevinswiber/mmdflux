@@ -481,6 +481,24 @@ fn mmds_output_emits_node_style_extension_when_styles_exist() {
 }
 
 #[test]
+fn schema_accepts_edge_style_extension_entries() {
+    let mut value: Value = serde_json::from_str(STYLED_MMDS_LAYOUT).unwrap();
+    value["extensions"]["org.mmdflux.node-style.v1"] = json!({
+        "edges": {
+            "e0": {
+                "stroke-width": "2px",
+                "font-family": "Times New Roman",
+                "font-size": "32px",
+                "font-style": "italic",
+                "font-weight": "700"
+            }
+        }
+    });
+
+    assert_schema_valid(value);
+}
+
+#[test]
 fn mmds_output_omits_node_style_extension_when_styles_absent() {
     let json = render_json("graph TD\nA-->B");
     let value: Value = serde_json::from_str(&json).unwrap();
@@ -1783,6 +1801,31 @@ fn schema_accepts_dynamic_text_measurements_extension() {
 }
 
 #[test]
+fn schema_accepts_style_keyed_dynamic_text_measurements_multi_style_sidecar() {
+    let mut value = dynamic_mmds_value_with_text_measurements_extension();
+    let sidecar = &mut value["extensions"]["org.mmdflux.text-measurements.v1"];
+    sidecar["textStyles"].as_array_mut().unwrap().push(json!({
+        "id": "s1",
+        "fontFamily": "Times New Roman",
+        "fontSize": 32.0,
+        "fontStyle": "normal",
+        "fontWeight": "400",
+        "lineHeight": 48.0,
+        "cssFont": "32px Times New Roman"
+    }));
+    sidecar["lineWidths"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({ "style": "s1", "text": "link", "width": 52.25 }));
+    sidecar["scalarWidths"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({ "style": "s1", "text": "k", "width": 15.5 }));
+
+    assert_schema_valid(value);
+}
+
+#[test]
 fn schema_accepts_empty_text_measurement_query_arrays() {
     let mut value = dynamic_mmds_value_with_text_measurements_extension();
     value["extensions"]["org.mmdflux.text-measurements.v1"]["lineWidths"] = json!([]);
@@ -1828,6 +1871,42 @@ fn schema_rejects_text_measurements_missing_query_arrays() {
 fn schema_rejects_text_measurements_empty_text_styles() {
     let mut value = dynamic_mmds_value_with_text_measurements_extension();
     value["extensions"]["org.mmdflux.text-measurements.v1"]["textStyles"] = json!([]);
+
+    assert_schema_invalid(value);
+}
+
+#[test]
+fn schema_rejects_text_measurements_duplicate_text_style_entries() {
+    let mut value = dynamic_mmds_value_with_text_measurements_extension();
+    let text_styles = value["extensions"]["org.mmdflux.text-measurements.v1"]["textStyles"]
+        .as_array_mut()
+        .unwrap();
+    text_styles.push(text_styles[0].clone());
+
+    assert_schema_invalid(value);
+}
+
+#[test]
+fn schema_rejects_text_measurement_width_entries_without_style_id() {
+    for array_name in ["lineWidths", "scalarWidths"] {
+        let mut value = dynamic_mmds_value_with_text_measurements_extension();
+        value["extensions"]["org.mmdflux.text-measurements.v1"][array_name][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("style");
+
+        assert_schema_invalid(value);
+    }
+}
+
+#[test]
+fn schema_rejects_text_measurement_style_descriptors_with_kebab_case_keys() {
+    let mut value = dynamic_mmds_value_with_text_measurements_extension();
+    let style = value["extensions"]["org.mmdflux.text-measurements.v1"]["textStyles"][0]
+        .as_object_mut()
+        .unwrap();
+    let font_family = style.remove("fontFamily").unwrap();
+    style.insert("font-family".to_string(), font_family);
 
     assert_schema_invalid(value);
 }
@@ -1882,6 +1961,38 @@ fn schema_accepts_text_measurements_non_bmp_scalar_prefilter() {
         json!([{ "style": "s0", "text": "🦀", "width": 16.25 }]);
 
     assert_schema_valid(value);
+}
+
+#[test]
+fn text_measurements_replay_rejects_duplicate_style_ids() {
+    let mut value = dynamic_mmds_value_with_text_measurements_extension();
+    let text_styles = value["extensions"]["org.mmdflux.text-measurements.v1"]["textStyles"]
+        .as_array_mut()
+        .unwrap();
+    let mut duplicate = text_styles[0].clone();
+    duplicate["fontFamily"] = json!("Times New Roman");
+    text_styles.push(duplicate);
+    let input = serde_json::to_string(&value).unwrap();
+
+    let err = render_diagram(&input, OutputFormat::Svg, &RenderConfig::default())
+        .expect_err("duplicate style ids should reject replay");
+
+    assert!(err.message.contains("duplicate textStyles id"), "{err}");
+}
+
+#[test]
+fn text_measurements_replay_rejects_unknown_style_references() {
+    let mut value = dynamic_mmds_value_with_text_measurements_extension();
+    value["extensions"]["org.mmdflux.text-measurements.v1"]["lineWidths"][0]["style"] =
+        json!("missing-style");
+    let input = serde_json::to_string(&value).unwrap();
+
+    let err = render_diagram(&input, OutputFormat::Svg, &RenderConfig::default())
+        .expect_err("unknown style refs should reject replay");
+
+    assert!(err.message.contains("lineWidths"), "{err}");
+    assert!(err.message.contains("missing-style"), "{err}");
+    assert!(err.message.contains("textStyles"), "{err}");
 }
 
 #[test]
@@ -2006,6 +2117,23 @@ fn docs_and_schema_reference_text_metrics_extension_contract() {
     assert!(schema.contains("recorded"));
     assert!(schema.contains("dynamic"));
     assert!(schema.contains("edge-label-max-width"));
+}
+
+#[test]
+fn mmds_docs_describe_style_keyed_dynamic_text_measurements() {
+    let docs = std::fs::read_to_string("docs/mmds.md").unwrap();
+    let section = docs
+        .split("## Style-keyed dynamic text measurements")
+        .nth(1)
+        .expect("style-keyed dynamic text measurements section should exist");
+
+    assert!(docs.contains("org.mmdflux.text-measurements.v1"));
+    assert!(section.contains("textStyles"));
+    assert!(section.contains("fontFamily"));
+    assert!(section.contains("lineWidths"));
+    assert!(section.contains("scalarWidths"));
+    assert!(section.contains("Text/ASCII"));
+    assert!(section.contains("#323"));
 }
 
 #[test]

@@ -333,7 +333,8 @@ MMDS keeps core graph semantics compact while allowing renderer- or adapter-spec
 
 ### Node Style Extension
 
-When at least one node carries a non-empty internal `NodeStyle`, mmdflux emits:
+When at least one node or edge label carries a non-empty internal style,
+mmdflux emits:
 
 - profile: `mmdflux-node-style-v1`
 - extension namespace: `org.mmdflux.node-style.v1`
@@ -351,6 +352,14 @@ Payload shape:
           "stroke": "#333",
           "color": "#111"
         }
+      },
+      "edges": {
+        "e0": {
+          "font-family": "Times New Roman",
+          "font-size": "32px",
+          "font-style": "normal",
+          "font-weight": "400"
+        }
       }
     }
   }
@@ -359,9 +368,13 @@ Payload shape:
 
 Rules:
 
-- Omit the profile and extension entirely when no node styles are present.
+- Omit the profile and extension entirely when no node or edge-label styles are
+  present.
 - `fill`, `stroke`, and `color` preserve the raw Mermaid/MMDS color token.
-- MMDS input hydration replays this extension back into internal node styles for text and SVG rendering.
+- Edge-label entries are keyed by MMDS edge id and preserve Mermaid `linkStyle`
+  font tokens for SVG rendering and dynamic text measurement replay.
+- MMDS input hydration replays this extension back into internal node and edge
+  label styles for text and SVG rendering.
 - Mermaid generation from MMDS style extensions is still deferred.
 
 ### Text Metrics Extension
@@ -451,6 +464,82 @@ Rules:
 - Older MMDS documents without the extension replay with the `mmdflux-heuristic-proportional-v1` compatibility defaults.
 - A recognized text metrics extension with an unsupported `metricsProfile.id` is a replay error.
 - Sequence-family full text-metrics parity remains deferred.
+
+## Style-keyed dynamic text measurements
+
+Dynamic graph-family rendering can persist provider-free replay data in
+`org.mmdflux.text-measurements.v1`. The sidecar is a query cache, not a font
+registry: it records the exact measured widths the dynamic provider observed
+for each `(style, text)` line query and each `(style, scalar)` character query.
+
+Payload shape:
+
+```json
+{
+  "extensions": {
+    "org.mmdflux.text-measurements.v1": {
+      "profileRef": {
+        "id": "mmdflux-browser-canvas-v1",
+        "source": "dynamic",
+        "version": 1
+      },
+      "textStyles": [
+        {
+          "id": "s0",
+          "fontFamily": "Verdana",
+          "fontSize": 8,
+          "fontStyle": "normal",
+          "fontWeight": "400",
+          "lineHeight": 12,
+          "cssFont": "normal 400 8px Verdana"
+        },
+        {
+          "id": "s1",
+          "fontFamily": "Times New Roman",
+          "fontSize": 32,
+          "fontStyle": "normal",
+          "fontWeight": "400",
+          "lineHeight": 48,
+          "cssFont": "normal 400 32px Times New Roman"
+        }
+      ],
+      "lineWidths": [
+        { "style": "s0", "text": "Regular", "width": 31.5 },
+        { "style": "s1", "text": "link", "width": 52.25 }
+      ],
+      "scalarWidths": [
+        { "style": "s0", "text": "R", "width": 5.75 },
+        { "style": "s1", "text": "k", "width": 15.5 }
+      ]
+    }
+  }
+}
+```
+
+Rules:
+
+- `profileRef` must match the sibling `org.mmdflux.text-metrics.v1`
+  `metricsProfile`; dynamic measurement sidecars are valid only for
+  `source = "dynamic"`.
+- `textStyles` defines the style ids referenced by `lineWidths` and
+  `scalarWidths`. Descriptor keys are camelCase: `fontFamily`, `fontSize`,
+  `fontStyle`, `fontWeight`, `lineHeight`, and `cssFont`.
+- `lineWidths` entries require a style id, exact line text, and a finite
+  non-negative width.
+- `scalarWidths` entries require a style id, exact text containing one Unicode
+  scalar value, and a finite non-negative width. No Unicode normalization is
+  performed; cache keys are exact strings as observed by the renderer.
+- Missing measured queries fail replay instead of falling back to static
+  profiles or browser remeasurement.
+- Text/ASCII and sequence remain unsupported for dynamic metrics. Text and
+  ASCII use terminal-grid projection; sequence uses the timeline-family layout
+  path.
+- Playground controls for editing these Mermaid-compatible font styles are
+  deferred to #323. The current contract is core plumbing and replay data, not
+  UI exposure.
+- MMDS document size grows with the number of unique `(style, text)` and
+  `(style, scalar)` queries. Typical diagrams add a small sidecar; diagrams
+  with many unique labels and many distinct font styles can add more.
 
 ### Graph Font Config And Mermaid Init
 

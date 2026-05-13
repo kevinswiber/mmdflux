@@ -403,7 +403,6 @@
     },
     "NodeStyleExtension": {
       "type": "object",
-      "required": ["nodes"],
       "properties": {
         "nodes": {
           "type": "object",
@@ -411,8 +410,17 @@
           "additionalProperties": {
             "$ref": "#/$defs/NodeStyle"
           }
+        },
+        "edges": {
+          "type": "object",
+          "description": "Edge-ID keyed style overrides replayed into renderer-visible edge label font properties.",
+          "additionalProperties": {
+            "$ref": "#/$defs/EdgeLabelStyle"
+          }
         }
-      }
+      },
+      "anyOf": [{ "required": ["nodes"] }, { "required": ["edges"] }],
+      "additionalProperties": false
     },
     "TextMetricsExtension": {
       "type": "object",
@@ -441,6 +449,7 @@
         "textStyles": {
           "type": "array",
           "minItems": 1,
+          "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/TextMeasurementTextStyle"
           },
@@ -522,6 +531,37 @@
           "type": "string",
           "minLength": 1,
           "description": "Canonical CSS font shorthand measured by the dynamic provider."
+        }
+      },
+      "additionalProperties": false
+    },
+    "EdgeLabelStyle": {
+      "type": "object",
+      "properties": {
+        "stroke-width": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw Mermaid linkStyle stroke-width token."
+        },
+        "font-family": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw Mermaid linkStyle font-family token for the edge label."
+        },
+        "font-size": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw Mermaid linkStyle font-size token for the edge label."
+        },
+        "font-style": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw Mermaid linkStyle font-style token for the edge label."
+        },
+        "font-weight": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw Mermaid linkStyle font-weight token for the edge label."
         }
       },
       "additionalProperties": false
