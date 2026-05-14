@@ -417,9 +417,20 @@
           "additionalProperties": {
             "$ref": "#/$defs/EdgeLabelStyle"
           }
+        },
+        "subgraphs": {
+          "type": "object",
+          "description": "Subgraph-ID keyed style overrides replayed into renderer-visible subgraph container and title properties.",
+          "additionalProperties": {
+            "$ref": "#/$defs/NodeStyle"
+          }
         }
       },
-      "anyOf": [{ "required": ["nodes"] }, { "required": ["edges"] }],
+      "anyOf": [
+        { "required": ["nodes"] },
+        { "required": ["edges"] },
+        { "required": ["subgraphs"] }
+      ],
       "additionalProperties": false
     },
     "TextMetricsExtension": {

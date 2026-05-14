@@ -16,5 +16,9 @@ describe("PLAYGROUND_EXAMPLES", () => {
     expect(example?.input).toContain(
       "linkStyle 0 font-family:Times New Roman,font-size:32px",
     );
+    expect(example?.input).toContain(
+      "classDef groupTitle font-family:Georgia,font-size:24px,font-style:italic,color:#24476b",
+    );
+    expect(example?.input).toContain("class G groupTitle");
   });
 });

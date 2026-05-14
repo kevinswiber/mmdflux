@@ -333,7 +333,7 @@ MMDS keeps core graph semantics compact while allowing renderer- or adapter-spec
 
 ### Node Style Extension
 
-When at least one node or edge label carries a non-empty internal style,
+When at least one node, edge label, or subgraph carries a non-empty internal style,
 mmdflux emits:
 
 - profile: `mmdflux-node-style-v1`
@@ -360,6 +360,16 @@ Payload shape:
           "font-style": "normal",
           "font-weight": "400"
         }
+      },
+      "subgraphs": {
+        "A": {
+          "fill": "#e1f5fe",
+          "stroke": "#01579b",
+          "stroke-width": "2px",
+          "color": "#123456",
+          "font-style": "italic",
+          "font-weight": "700"
+        }
       }
     }
   }
@@ -368,13 +378,22 @@ Payload shape:
 
 Rules:
 
-- Omit the profile and extension entirely when no node or edge-label styles are
-  present.
+- Omit the profile and extension entirely when no node, edge-label, or subgraph
+  styles are present.
 - `fill`, `stroke`, and `color` preserve the raw Mermaid/MMDS color token.
 - Edge-label entries are keyed by MMDS edge id and preserve Mermaid `linkStyle`
   font tokens for SVG rendering and dynamic text measurement replay.
-- MMDS input hydration replays this extension back into internal node and edge
-  label styles for text and SVG rendering.
+- Subgraph entries live at `org.mmdflux.node-style.v1.subgraphs`; the historical
+  namespace name is retained, but these entries are graph subgraph style
+  overrides. Container visual styles replay provider-free. The rule is:
+  custom subgraph title font family or size requires dynamic metrics because
+  title geometry is layout-affecting.
+- Provider-free replay preserves the persisted style attributes, but MMDS keeps
+  canonical graph geometry. Direct dynamic SVG rendering can use visual SVG
+  geometry, so styled-title replay is not guaranteed to be byte-identical to the
+  original dynamic SVG output.
+- MMDS input hydration replays this extension back into internal node, edge
+  label, and subgraph styles for text and SVG rendering.
 - Mermaid generation from MMDS style extensions is still deferred.
 
 ### Text Metrics Extension

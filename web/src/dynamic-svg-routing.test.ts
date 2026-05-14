@@ -89,6 +89,51 @@ describe("renderPlaygroundRequest", () => {
     expect(client.render).not.toHaveBeenCalled();
   });
 
+  it("routes subgraph title font styles through dynamic render", async () => {
+    const client = renderClientFixture({
+      resolveBrowserTextMetricsRequest: vi.fn(async () => ({
+        required: true,
+        browserTextMetrics: {
+          defaultStyle: "s0",
+          textStyles: [
+            {
+              id: "s0",
+              fontFamily: "Verdana",
+              fontSize: 20,
+              lineHeight: 30,
+              fontStyle: "normal",
+              fontWeight: "400",
+            },
+          ],
+        },
+      })),
+    });
+    const request = {
+      seq: 8,
+      input:
+        "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef title font-family:Verdana,font-size:20px\nclass A title",
+      format: "svg" as const,
+      configJson: "{}",
+    };
+
+    await expect(renderPlaygroundRequest(client, request)).resolves.toEqual({
+      seq: 8,
+      format: "svg",
+      output: "dynamic-svg-output",
+    });
+
+    expect(client.resolveBrowserTextMetricsRequest).toHaveBeenCalledWith(
+      request,
+    );
+    expect(client.renderWithBrowserTextMetrics).toHaveBeenCalledWith({
+      seq: 8,
+      input: request.input,
+      configJson: "{}",
+      browserTextMetrics: expect.objectContaining({ defaultStyle: "s0" }),
+    });
+    expect(client.render).not.toHaveBeenCalled();
+  });
+
   it("routes not-required SVG through static render", async () => {
     const client = renderClientFixture();
 
@@ -138,6 +183,27 @@ describe("renderPlaygroundRequest", () => {
       format: "svg",
       configJson: "{}",
     });
+    expect(client.renderWithBrowserTextMetrics).not.toHaveBeenCalled();
+  });
+
+  it("routes visual-only subgraph styles through static render without resolving", async () => {
+    const client = renderClientFixture();
+    const request = {
+      seq: 9,
+      input:
+        "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef blue fill:#e1f5fe,stroke:#01579b\nclass A blue",
+      format: "svg" as const,
+      configJson: "{}",
+    };
+
+    await expect(renderPlaygroundRequest(client, request)).resolves.toEqual({
+      seq: 9,
+      format: "svg",
+      output: "svg-output",
+    });
+
+    expect(client.resolveBrowserTextMetricsRequest).not.toHaveBeenCalled();
+    expect(client.render).toHaveBeenCalledWith(request);
     expect(client.renderWithBrowserTextMetrics).not.toHaveBeenCalled();
   });
 

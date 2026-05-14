@@ -410,6 +410,7 @@ fn build_document(
     };
     let styled_nodes = collect_styled_nodes(diagram);
     let styled_edges = collect_styled_edges(diagram);
+    let styled_subgraphs = collect_styled_subgraphs(diagram);
 
     // At routed level, use the recomputed routed bounds (which cover all
     // routed edge paths) instead of stale layout bounds.
@@ -537,12 +538,12 @@ fn build_document(
             grid_projection_extension(grid_projection),
         );
     }
-    if !styled_nodes.is_empty() || !styled_edges.is_empty() {
+    if !styled_nodes.is_empty() || !styled_edges.is_empty() || !styled_subgraphs.is_empty() {
         push_profile(&mut profiles, CORE_PROFILE);
         push_profile(&mut profiles, NODE_STYLE_PROFILE);
         extensions.insert(
             NODE_STYLE_EXTENSION_NAMESPACE.to_string(),
-            style_extension(styled_nodes, styled_edges),
+            style_extension(styled_nodes, styled_edges, styled_subgraphs),
         );
     }
     if let Some(text_metrics_descriptor) = options.text_metrics_descriptor {
@@ -590,6 +591,15 @@ fn collect_styled_edges(diagram: &Graph) -> BTreeMap<String, EdgeStyle> {
         .enumerate()
         .filter(|(_, edge)| !edge.style.is_empty())
         .map(|(index, edge)| (format!("e{index}"), edge.style.clone()))
+        .collect()
+}
+
+fn collect_styled_subgraphs(diagram: &Graph) -> BTreeMap<String, NodeStyle> {
+    diagram
+        .subgraphs
+        .iter()
+        .filter(|(_, subgraph)| !subgraph.style.is_empty())
+        .map(|(subgraph_id, subgraph)| (subgraph_id.clone(), subgraph.style.clone()))
         .collect()
 }
 
@@ -729,6 +739,7 @@ fn rect_value(rect: crate::graph::geometry::FRect) -> Value {
 fn style_extension(
     styled_nodes: BTreeMap<String, NodeStyle>,
     styled_edges: BTreeMap<String, EdgeStyle>,
+    styled_subgraphs: BTreeMap<String, NodeStyle>,
 ) -> Map<String, Value> {
     let mut extension = Map::new();
     if !styled_nodes.is_empty() {
@@ -754,6 +765,18 @@ fn style_extension(
             })
             .collect();
         extension.insert("edges".to_string(), Value::Object(edges));
+    }
+    if !styled_subgraphs.is_empty() {
+        let subgraphs = styled_subgraphs
+            .iter()
+            .map(|(subgraph_id, style)| {
+                (
+                    subgraph_id.clone(),
+                    Value::Object(serialize_node_style_extension(style)),
+                )
+            })
+            .collect();
+        extension.insert("subgraphs".to_string(), Value::Object(subgraphs));
     }
     extension
 }

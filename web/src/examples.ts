@@ -84,10 +84,14 @@ export const PLAYGROUND_EXAMPLES: PlaygroundExample[] = [
     category: "flowchart",
     featured: true,
     input: `graph TD
-    A[Regular] -->|link| B(Styled Node)
+    subgraph G[Styled Group]
+        A[Regular] -->|link| B(Styled Node)
+    end
     style A font-family:Verdana,font-size:8px
     style B font-family:Courier New,font-size:20px
-    linkStyle 0 font-family:Times New Roman,font-size:32px`,
+    linkStyle 0 font-family:Times New Roman,font-size:32px
+    classDef groupTitle font-family:Georgia,font-size:24px,font-style:italic,color:#24476b
+    class G groupTitle`,
   },
   {
     id: "flowchart-direction-bt",

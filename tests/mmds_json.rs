@@ -481,6 +481,30 @@ fn mmds_output_emits_node_style_extension_when_styles_exist() {
 }
 
 #[test]
+fn mmds_output_emits_subgraph_style_extension_when_styles_exist() {
+    let json = render_json(
+        "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef blue fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#123456,font-style:italic,font-weight:700\nclass A blue\n",
+    );
+    let value: Value = serde_json::from_str(&json).unwrap();
+
+    assert!(
+        value["profiles"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|profile| profile == "mmdflux-node-style-v1")
+    );
+    let style = &value["extensions"]["org.mmdflux.node-style.v1"]["subgraphs"]["A"];
+    assert_eq!(style["fill"], "#e1f5fe");
+    assert_eq!(style["stroke"], "#01579b");
+    assert_eq!(style["stroke-width"], "2px");
+    assert_eq!(style["color"], "#123456");
+    assert_eq!(style["font-style"], "italic");
+    assert_eq!(style["font-weight"], "700");
+    assert_schema_valid(value);
+}
+
+#[test]
 fn schema_accepts_edge_style_extension_entries() {
     let mut value: Value = serde_json::from_str(STYLED_MMDS_LAYOUT).unwrap();
     value["extensions"]["org.mmdflux.node-style.v1"] = json!({
@@ -499,8 +523,90 @@ fn schema_accepts_edge_style_extension_entries() {
 }
 
 #[test]
+fn schema_accepts_subgraph_style_extension_entries() {
+    let mut value: Value = serde_json::from_str(STYLED_MMDS_LAYOUT).unwrap();
+    value["extensions"]["org.mmdflux.node-style.v1"] = json!({
+        "subgraphs": {
+            "A": {
+                "fill": "#e1f5fe",
+                "stroke": "#01579b",
+                "stroke-width": "2px",
+                "font-family": "Verdana",
+                "font-size": "20px",
+                "font-style": "italic",
+                "font-weight": "700",
+                "color": "#123456"
+            }
+        }
+    });
+
+    assert_schema_valid(value);
+}
+
+#[test]
+fn schema_accepts_mixed_node_edge_and_subgraph_style_extension_entries() {
+    let mut value: Value = serde_json::from_str(STYLED_MMDS_LAYOUT).unwrap();
+    value["extensions"]["org.mmdflux.node-style.v1"] = json!({
+        "nodes": {
+            "A": {
+                "fill": "#ffeeaa"
+            }
+        },
+        "edges": {
+            "e0": {
+                "font-family": "Times New Roman"
+            }
+        },
+        "subgraphs": {
+            "A": {
+                "stroke": "#01579b"
+            }
+        }
+    });
+
+    assert_schema_valid(value);
+}
+
+#[test]
+fn schema_rejects_unknown_node_style_extension_keys() {
+    let mut value: Value = serde_json::from_str(STYLED_MMDS_LAYOUT).unwrap();
+    value["extensions"]["org.mmdflux.node-style.v1"] = json!({
+        "subgraphs": {
+            "A": {
+                "stroke": "#01579b"
+            }
+        },
+        "groups": {
+            "A": {
+                "stroke": "#01579b"
+            }
+        }
+    });
+
+    assert_schema_invalid(value);
+}
+
+#[test]
 fn mmds_output_omits_node_style_extension_when_styles_absent() {
     let json = render_json("graph TD\nA-->B");
+    let value: Value = serde_json::from_str(&json).unwrap();
+
+    assert!(!value["profiles"].as_array().is_some_and(|profiles| {
+        profiles
+            .iter()
+            .any(|profile| profile == "mmdflux-node-style-v1")
+    }));
+    assert!(
+        value
+            .get("extensions")
+            .and_then(|extensions| extensions.get("org.mmdflux.node-style.v1"))
+            .is_none()
+    );
+}
+
+#[test]
+fn mmds_output_omits_node_style_extension_when_only_unstyled_subgraphs_exist() {
+    let json = render_json("flowchart LR\nsubgraph A[Source]\na1\nend\n");
     let value: Value = serde_json::from_str(&json).unwrap();
 
     assert!(!value["profiles"].as_array().is_some_and(|profiles| {
@@ -1074,6 +1180,100 @@ fn mmds_hydration_replays_hyphenated_node_style_keys_into_svg() {
     assert!(
         svg.contains("stroke-dasharray=\"4 2\""),
         "styled MMDS SVG stroke-dasharray missing: {svg}"
+    );
+}
+
+#[test]
+fn mmds_hydration_replays_subgraph_styles_into_svg() {
+    let mut payload: Value =
+        serde_json::from_str(&render_json("flowchart LR\nsubgraph A[Source]\na1\nend\n"))
+            .expect("subgraph MMDS should parse");
+    payload["profiles"]
+        .as_array_mut()
+        .expect("profiles should be an array")
+        .push(Value::String("mmdflux-node-style-v1".to_string()));
+    payload["extensions"]["org.mmdflux.node-style.v1"] = json!({
+        "subgraphs": {
+            "A": {
+                "fill": "#e1f5fe",
+                "stroke": "#01579b",
+                "stroke-width": "2px",
+                "color": "#123456",
+                "font-style": "italic",
+                "font-weight": "700"
+            }
+        }
+    });
+
+    let input = serde_json::to_string(&payload).expect("MMDS payload should serialize");
+    let svg = render_mmds_input(&input, OutputFormat::Svg, RenderConfig::default());
+
+    assert!(
+        svg.contains(r##"fill="#e1f5fe""##),
+        "styled MMDS subgraph fill missing: {svg}"
+    );
+    assert!(
+        svg.contains(r##"stroke="#01579b""##),
+        "styled MMDS subgraph stroke missing: {svg}"
+    );
+    assert!(
+        svg.contains(r#"stroke-width="2px""#),
+        "styled MMDS subgraph stroke width missing: {svg}"
+    );
+    let title = regex::Regex::new(r##"<text [^>]*fill="#123456"[^>]*font-style="italic"[^>]*font-weight="700"[^>]*>Source</text>"##)
+        .expect("title regex should compile");
+    assert!(title.is_match(&svg), "{svg}");
+}
+
+#[test]
+fn mmds_hydration_keeps_colliding_node_and_subgraph_styles_separate() {
+    let mut payload: Value = serde_json::from_str(STYLED_MMDS_LAYOUT).unwrap();
+    payload["subgraphs"] = json!([
+        {
+            "id": "A",
+            "title": "Group",
+            "children": ["B"]
+        }
+    ]);
+    payload["extensions"]["org.mmdflux.node-style.v1"] = json!({
+        "nodes": {
+            "A": {
+                "fill": "#ffeeaa",
+                "stroke": "#333333"
+            }
+        },
+        "subgraphs": {
+            "A": {
+                "fill": "#e1f5fe",
+                "stroke": "#01579b",
+                "stroke-width": "2px"
+            }
+        }
+    });
+    assert_schema_valid(payload.clone());
+
+    let input = serde_json::to_string(&payload).expect("MMDS payload should serialize");
+    let svg = render_mmds_input(&input, OutputFormat::Svg, RenderConfig::default());
+
+    assert!(
+        svg.contains(r##"fill="#ffeeaa""##),
+        "node style for colliding id missing: {svg}"
+    );
+    assert!(
+        svg.contains(r##"stroke="#333333""##),
+        "node stroke for colliding id missing: {svg}"
+    );
+    assert!(
+        svg.contains(r##"fill="#e1f5fe""##),
+        "subgraph fill for colliding id missing: {svg}"
+    );
+    assert!(
+        svg.contains(r##"stroke="#01579b""##),
+        "subgraph stroke for colliding id missing: {svg}"
+    );
+    assert!(
+        svg.contains(r#"stroke-width="2px""#),
+        "subgraph stroke width for colliding id missing: {svg}"
     );
 }
 
@@ -2076,9 +2276,13 @@ fn docs_and_schema_reference_node_style_extension_contract() {
     let docs = std::fs::read_to_string("docs/mmds.md").unwrap();
     assert!(docs.contains("mmdflux-node-style-v1"));
     assert!(docs.contains("org.mmdflux.node-style.v1"));
+    assert!(docs.contains("org.mmdflux.node-style.v1.subgraphs"));
+    assert!(docs.contains("subgraph style"));
+    assert!(docs.contains("custom subgraph title font family or size requires dynamic metrics"));
 
     let schema = std::fs::read_to_string("docs/mmds.schema.json").unwrap();
     assert!(schema.contains("org.mmdflux.node-style.v1"));
+    assert!(schema.contains("\"subgraphs\""));
 }
 
 #[test]
@@ -2207,6 +2411,7 @@ fn docs_cover_live_style_scope_and_wasm_color_config() {
     assert!(wasm_docs.contains("org.mmdflux.text-measurements.v1"));
     assert!(wasm_docs.contains("static `render` export replay"));
     assert!(wasm_docs.contains("Missing measured queries"));
+    assert!(wasm_docs.contains("custom subgraph title font family or size"));
     assert!(!wasm_docs.contains("currently accepts only"));
 
     let readme = std::fs::read_to_string("README.md").unwrap();

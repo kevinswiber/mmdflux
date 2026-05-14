@@ -2486,6 +2486,44 @@ mod tests {
     }
 
     #[test]
+    fn dynamic_mmds_subgraph_title_style_replays_provider_free() {
+        let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef title font-family:Verdana,font-size:32px,font-style:italic,font-weight:700,color:#123456\nclass A title\n";
+
+        let dynamic_mmds = render_graph_family_with_dynamic_text_metrics(
+            input,
+            OutputFormat::Mmds,
+            &routed_config(),
+            styled_subgraph_title_input(),
+            |text, css_font| {
+                if text == "Source" && css_font.contains("Verdana") {
+                    Ok(320.0)
+                } else {
+                    Ok(text.chars().count() as f64 * 8.0)
+                }
+            },
+        )
+        .expect("dynamic styled subgraph title MMDS should render");
+
+        let value: serde_json::Value =
+            serde_json::from_str(&dynamic_mmds).expect("dynamic MMDS should parse");
+        let style = &value["extensions"]["org.mmdflux.node-style.v1"]["subgraphs"]["A"];
+        assert_eq!(style["font-family"], "Verdana");
+        assert_eq!(style["font-size"], "32px");
+        assert_eq!(style["font-style"], "italic");
+        assert_eq!(style["font-weight"], "700");
+        assert_eq!(style["color"], "#123456");
+
+        let replay_svg = render_diagram(&dynamic_mmds, OutputFormat::Svg, &RenderConfig::default())
+            .expect("provider-free styled subgraph title MMDS replay should render");
+
+        let title = regex::Regex::new(
+            r##"<text [^>]*fill="#123456"[^>]*font-family="Verdana"[^>]*font-size="32(?:\.00)?"[^>]*font-style="italic"[^>]*font-weight="700"[^>]*>Source</text>"##,
+        )
+        .expect("title regex should compile");
+        assert!(title.is_match(&replay_svg), "{replay_svg}");
+    }
+
+    #[test]
     fn dynamic_mmds_without_measurements_still_requires_provider_free_replay_provider() {
         let dynamic_mmds = dynamic_mmds_fixture();
         let mut value: serde_json::Value = serde_json::from_str(&dynamic_mmds).unwrap();

@@ -53,9 +53,6 @@ pub fn from_document(output: &Document) -> Result<Graph, HydrationError> {
                 dir: subgraph.direction,
                 invisible: subgraph.invisible,
                 concurrent_regions: subgraph.concurrent_regions.clone(),
-                // Graph subgraph styles are not persisted in MMDS yet. Keep
-                // provider-free replay honest by defaulting until the document
-                // schema carries this field explicitly.
                 style: Default::default(),
             },
         );
@@ -204,21 +201,36 @@ fn hydrate_node_style_extension(
     let Some(extension) = extensions.get(NODE_STYLE_EXTENSION_NAMESPACE) else {
         return;
     };
-    let Some(nodes) = extension.get("nodes").and_then(Value::as_object) else {
-        return;
-    };
 
-    for (node_id, raw_style) in nodes {
-        let Some(style_object) = raw_style.as_object() else {
-            continue;
-        };
-        let Some(node) = diagram.nodes.get_mut(node_id) else {
-            continue;
-        };
+    if let Some(nodes) = extension.get("nodes").and_then(Value::as_object) {
+        for (node_id, raw_style) in nodes {
+            let Some(style_object) = raw_style.as_object() else {
+                continue;
+            };
+            let Some(node) = diagram.nodes.get_mut(node_id) else {
+                continue;
+            };
 
-        let style = parse_node_style_extension(style_object);
-        if !style.is_empty() {
-            node.style = node.style.merge(&style);
+            let style = parse_node_style_extension(style_object);
+            if !style.is_empty() {
+                node.style = node.style.merge(&style);
+            }
+        }
+    }
+
+    if let Some(subgraphs) = extension.get("subgraphs").and_then(Value::as_object) {
+        for (subgraph_id, raw_style) in subgraphs {
+            let Some(style_object) = raw_style.as_object() else {
+                continue;
+            };
+            let Some(subgraph) = diagram.subgraphs.get_mut(subgraph_id) else {
+                continue;
+            };
+
+            let style = parse_node_style_extension(style_object);
+            if !style.is_empty() {
+                subgraph.style = subgraph.style.merge(&style);
+            }
         }
     }
 }

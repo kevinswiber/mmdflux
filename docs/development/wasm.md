@@ -113,7 +113,9 @@ change `render` output.
 The playground routes graph-family SVG font styles through browser text metrics
 when Mermaid `style`, `classDef`/`class`, or `linkStyle` declarations include
 layout-affecting font properties. Static/default SVG renders without font
-styling continue to use the portable `render` path. Text, ASCII, and sequence remain unsupported for dynamic metrics.
+styling continue to use the portable `render` path. Subgraph container visual
+styles can replay provider-free, but custom subgraph title font family or size
+requires dynamic metrics because it changes layout geometry. Text, ASCII, and sequence remain unsupported for dynamic metrics.
 
 `renderWithBrowserTextMetrics(input, format, configJson, metricsJson, measureText)`
 is a separate experimental export for browser-owned font measurement. It
