@@ -3,6 +3,10 @@
 /deps
 # Gumbo (plans, research, issues tracked separately)
 /.gumbo
+# Stray vitest cache when `vitest run` is invoked from the worktree root
+# (no package.json there). Per-package node_modules under web/ and
+# packages/*/ stay scoped by their own .gitignore.
+/node_modules
 CLAUDE.local.md
 AGENTS.local.md
 

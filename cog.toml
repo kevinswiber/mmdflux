@@ -11,7 +11,7 @@ skip_untracked = false
 tag_prefix = "v"
 
 # Scopes map to monorepo packages. Unscoped commits apply to the root crate.
-scopes = ["version", "wasm", "xtask", "web", "mmds-core", "mmds-excalidraw", "mmds-tldraw"]
+scopes = ["version", "wasm", "xtask", "web", "mmds-core", "mmds-excalidraw", "mmds-tldraw", "mmds-browser-text-metrics"]
 
 pre_bump_hooks = []
 post_bump_hooks = []
@@ -116,7 +116,7 @@ username = "fukata"
 [packages.mmdflux]
 path = "."
 include = ["**"]
-ignore = ["crates/mmdflux-wasm/**", "xtask/**", "packages/mmds-core/**", "packages/mmds-excalidraw/**", "packages/mmds-tldraw/**"]
+ignore = ["crates/mmdflux-wasm/**", "xtask/**", "packages/mmds-core/**", "packages/mmds-excalidraw/**", "packages/mmds-tldraw/**", "packages/mmds-browser-text-metrics/**"]
 public_api = true
 pre_bump_hooks = [
     "just lint",
@@ -190,3 +190,21 @@ bump_profiles.ci.post_bump_hooks = [
     "gh workflow run packages-release.yml -f tag={{package}}-v{{version}}",
 ]
 bump_order = 2
+
+[packages.mmds-browser-text-metrics]
+path = "packages/mmds-browser-text-metrics"
+public_api = true
+pre_bump_hooks = [
+    "../../scripts/bump-browser-text-metrics-wasm-peer.sh",
+    "npm version {{version}} --no-git-tag-version",
+]
+bump_profiles.ci.pre_bump_hooks = [
+    "../../scripts/bump-browser-text-metrics-wasm-peer.sh",
+    "npm version {{version}} --no-git-tag-version",
+]
+bump_profiles.ci.post_bump_hooks = [
+    "git push",
+    "git push origin {{package}}-v{{version}}",
+    "gh workflow run packages-release.yml -f tag={{package}}-v{{version}}",
+]
+bump_order = 1

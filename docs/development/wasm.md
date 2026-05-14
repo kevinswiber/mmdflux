@@ -166,9 +166,13 @@ Supplying the same font identity with a different `lineHeight` is rejected so
 layout and replay stay keyed to the same measured style.
 
 The JavaScript adapter must complete async font preflight before Rust layout
-starts. Both browser modes call `load(cssFont)`, await `ready`, and then use a
-post-load `check(cssFont)` validity gate for every entry in `textStyles` before
-invoking Rust. `check()` alone is not proof that a requested font loaded.
+starts. Both browser modes call `load(cssFont)` and then use a post-load
+`check(cssFont)` validity gate for every entry in `textStyles` before
+invoking Rust. The adapter intentionally does NOT await `FontFaceSet.ready`
+because Chrome's worker `FontFaceSet.ready` can stay pending indefinitely
+for system-font stacks even after `load` resolves and `check` passes;
+`load` plus post-load `check` is the requested-font contract.
+`check()` alone is not proof that a requested font loaded.
 
 | Mode | Required browser capabilities | Notes |
 | ---- | ----------------------------- | ----- |

@@ -6,10 +6,11 @@ on:
       - "mmds-core-v*"
       - "mmds-excalidraw-v*"
       - "mmds-tldraw-v*"
+      - "mmds-browser-text-metrics-v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g., mmds-core-v0.2.0)"
+        description: "Tag to release (e.g., mmds-core-v0.2.0 or mmds-browser-text-metrics-v0.1.0)"
         required: true
         type: string
 
@@ -57,6 +58,10 @@ jobs:
             echo "pkg_dir=packages/mmds-tldraw" >> "$GITHUB_OUTPUT"
             echo "npm_name=@mmds/tldraw" >> "$GITHUB_OUTPUT"
             echo "version=${TAG#mmds-tldraw-v}" >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" == mmds-browser-text-metrics-v* ]]; then
+            echo "pkg_dir=packages/mmds-browser-text-metrics" >> "$GITHUB_OUTPUT"
+            echo "npm_name=@mmds/browser-text-metrics" >> "$GITHUB_OUTPUT"
+            echo "version=${TAG#mmds-browser-text-metrics-v}" >> "$GITHUB_OUTPUT"
           else
             echo "Unknown tag format: $TAG" >&2
             exit 1

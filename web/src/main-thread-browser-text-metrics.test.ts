@@ -1,24 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { wasmModuleFixture } from "./__test-fixtures__/wasm-module";
 import { createMainThreadBrowserTextMetricsRenderer } from "./services/main-thread-browser-text-metrics";
 import type { BrowserTextMetricsRenderRequest } from "./services/render-client";
-
-interface MockWasmModule {
-  default: () => Promise<void>;
-  browserTextMetricsRequest: (
-    input: string,
-    format: string,
-    configJson: string,
-  ) => string;
-  render: (input: string, format: string, configJson: string) => string;
-  renderWithBrowserTextMetrics: (
-    input: string,
-    format: string,
-    configJson: string,
-    metricsJson: string,
-    measureText: (text: string, cssFont: string) => number,
-  ) => string;
-  validate: (input: string) => string;
-}
 
 function renderRequest(
   overrides: Partial<BrowserTextMetricsRenderRequest> = {},
@@ -33,40 +16,6 @@ function renderRequest(
       lineHeightPx: 24,
     },
     ...overrides,
-  };
-}
-
-function wasmModuleFixture(
-  renderWithBrowserTextMetrics = vi.fn(
-    (
-      input: string,
-      format: string,
-      configJson: string,
-      metricsJson: string,
-      callback: (text: string, cssFont: string) => number,
-    ) =>
-      `${format}:${input}:${configJson}:${metricsJson}:${callback("A", "font")}`,
-  ),
-) {
-  const initialize = vi.fn(async () => {});
-  const browserTextMetricsRequest = vi.fn(() => '{"required":false}');
-  const render = vi.fn(() => "static unused");
-  const validate = vi.fn(() => '{"valid":true}');
-  const module: MockWasmModule = {
-    default: initialize,
-    browserTextMetricsRequest,
-    render,
-    renderWithBrowserTextMetrics,
-    validate,
-  };
-
-  return {
-    initialize,
-    module,
-    browserTextMetricsRequest,
-    render,
-    renderWithBrowserTextMetrics,
-    validate,
   };
 }
 

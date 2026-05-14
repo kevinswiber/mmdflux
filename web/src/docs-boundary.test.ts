@@ -17,4 +17,17 @@ describe("dynamic font docs", () => {
       "requested font is unavailable, rendering fails instead of measuring a fallback font",
     );
   });
+
+  it("describe load+check preflight without awaiting FontFaceSet.ready", async () => {
+    const docs = await readFile(
+      path.resolve(process.cwd(), "../docs/development/wasm.md"),
+      "utf8",
+    );
+
+    expect(docs).not.toMatch(/await[^.]*\bready\b/);
+    expect(docs).toContain("intentionally does NOT await `FontFaceSet.ready`");
+    expect(docs).toContain(
+      "`load` plus post-load `check` is the requested-font contract",
+    );
+  });
 });

@@ -1,6 +1,7 @@
 {
   "private": true,
   "workspaces": [
+    "mmds-browser-text-metrics",
     "mmds-core",
     "mmds-excalidraw",
     "mmds-tldraw"

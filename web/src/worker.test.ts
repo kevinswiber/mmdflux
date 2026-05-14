@@ -1,28 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import type { MockWasmModule } from "./__test-fixtures__/wasm-module";
 import { BrowserTextMetricsCapabilityError } from "./browser-text-metrics";
 import { createWorkerRequestHandler } from "./worker";
 import type {
   WorkerRequestMessage,
   WorkerResponseMessage,
 } from "./worker-protocol";
-
-interface MockWasmModule {
-  default: () => Promise<void>;
-  browserTextMetricsRequest: (
-    input: string,
-    format: string,
-    configJson: string,
-  ) => string;
-  render: (input: string, format: string, configJson: string) => string;
-  renderWithBrowserTextMetrics: (
-    input: string,
-    format: string,
-    configJson: string,
-    metricsJson: string,
-    measureText: (text: string, cssFont: string) => number,
-  ) => string;
-  validate: (input: string) => string;
-}
 
 describe("createWorkerRequestHandler", () => {
   it("initializes worker once and returns render results", async () => {

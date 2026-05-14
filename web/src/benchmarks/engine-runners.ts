@@ -33,9 +33,8 @@ export interface CreateBenchmarkEngineRunnersOptions {
 }
 
 export async function loadMmdfluxModule(): Promise<MmdfluxWasmModule> {
-  return (await import(
-    "../wasm-pkg/mmdflux_wasm.js"
-  )) as unknown as MmdfluxWasmModule;
+  const { loadWasmModule } = await import("../wasm-module");
+  return (await loadWasmModule()) as MmdfluxWasmModule;
 }
 
 export async function loadMermaidModule(): Promise<MermaidModule> {

@@ -21,6 +21,7 @@ on:
           - mmds-core
           - mmds-excalidraw
           - mmds-tldraw
+          - mmds-browser-text-metrics
 
 permissions:
   contents: write
@@ -59,7 +60,7 @@ jobs:
           out() { tee -a "$PLAN_FILE" >> "$GITHUB_STEP_SUMMARY"; }
 
           # Package definitions: name:tag_prefix
-          PACKAGES="mmdflux:mmdflux-v mmds-core:mmds-core-v mmds-excalidraw:mmds-excalidraw-v mmds-tldraw:mmds-tldraw-v"
+          PACKAGES="mmdflux:mmdflux-v mmds-core:mmds-core-v mmds-excalidraw:mmds-excalidraw-v mmds-tldraw:mmds-tldraw-v mmds-browser-text-metrics:mmds-browser-text-metrics-v"
 
           HEAD_SHA=$(git rev-parse HEAD)
           HEAD_SHORT=$(git rev-parse --short HEAD)
@@ -104,35 +105,49 @@ jobs:
               echo ""
             } | out
 
-            # Find latest tag for this package that is an ancestor of HEAD
+            # Find latest tag for this package that is an ancestor of HEAD.
+            # An empty result is a first-release case — Cocogitto handles
+            # that path; we just adjust the header and skip the (rangeless)
+            # changelog preview.
             latest_tag=$(git describe --tags --match "${tag_prefix}*" --abbrev=0 2>/dev/null || echo "")
 
-            if [ -z "$latest_tag" ]; then
-              {
-                echo "No previous release tag found."
-                echo ""
-              } | out
-              continue
+            current_version=""
+            if [ -n "$latest_tag" ]; then
+              current_version="${latest_tag#"${tag_prefix}"}"
             fi
-
-            current_version="${latest_tag#"${tag_prefix}"}"
 
             # Dry-run to check for a pending bump. Keep Cocogitto failures
             # visible so error text cannot be mistaken for a version number.
             if dry_output=$(cog bump --package "$pkg" --auto --dry-run --skip-untracked 2>&1); then
               true
             elif echo "$dry_output" | grep -q "No conventional commit found"; then
-              {
-                echo "**Current version:** ${current_version}"
-                echo ""
-                echo "No unreleased changes."
-                echo ""
-              } | out
+              if [ -n "$current_version" ]; then
+                {
+                  echo "**Current version:** ${current_version}"
+                  echo ""
+                  echo "No unreleased changes."
+                  echo ""
+                } | out
+              else
+                {
+                  echo "No previous release tag found and no conventional commits to publish."
+                  echo ""
+                } | out
+              fi
               continue
             else
+              if [ -n "$current_version" ]; then
+                {
+                  echo "**Current version:** ${current_version}"
+                  echo ""
+                } | out
+              else
+                {
+                  echo "**First release**"
+                  echo ""
+                } | out
+              fi
               {
-                echo "**Current version:** ${current_version}"
-                echo ""
                 echo "Could not determine next version."
                 echo ""
                 echo '```'
@@ -146,9 +161,18 @@ jobs:
             # Extract next version from dry-run output
             next_version=$(echo "$dry_output" | sed -nE "s/^${pkg}-v([0-9]+\.[0-9]+\.[0-9]+)$/\1/p" | tail -1)
             if [ -z "$next_version" ]; then
+              if [ -n "$current_version" ]; then
+                {
+                  echo "**Current version:** ${current_version}"
+                  echo ""
+                } | out
+              else
+                {
+                  echo "**First release**"
+                  echo ""
+                } | out
+              fi
               {
-                echo "**Current version:** ${current_version}"
-                echo ""
                 echo "Could not parse next version from Cocogitto dry-run output."
                 echo ""
                 echo '```'
@@ -159,26 +183,36 @@ jobs:
               exit 1
             fi
 
-            {
-              echo "**Current version:** ${current_version} **-->** ${next_version}"
-              echo ""
-            } | out
+            if [ -n "$current_version" ]; then
+              {
+                echo "**Current version:** ${current_version} **-->** ${next_version}"
+                echo ""
+              } | out
+            else
+              {
+                echo "**First release:** ${next_version}"
+                echo ""
+              } | out
+            fi
 
             bump_commands="${bump_commands}cog bump --package ${pkg} --auto\n"
 
-            # Changelog preview
-            changelog=$(cog changelog "${latest_tag}..HEAD" 2>&1 || echo "(changelog generation failed)")
+            # Changelog preview — only when there's a prior tag to bound the
+            # range; first releases would otherwise dump the entire history.
+            if [ -n "$latest_tag" ]; then
+              changelog=$(cog changelog "${latest_tag}..HEAD" 2>&1 || echo "(changelog generation failed)")
 
-            if [ -n "$changelog" ]; then
-              {
-                echo "<details>"
-                echo "<summary>Changelog preview</summary>"
-                echo ""
-                echo "$changelog"
-                echo ""
-                echo "</details>"
-                echo ""
-              } | out
+              if [ -n "$changelog" ]; then
+                {
+                  echo "<details>"
+                  echo "<summary>Changelog preview</summary>"
+                  echo ""
+                  echo "$changelog"
+                  echo ""
+                  echo "</details>"
+                  echo ""
+                } | out
+              fi
             fi
           done
 
