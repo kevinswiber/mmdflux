@@ -287,6 +287,14 @@ SVG-only styling. Provider-free static rendering accepts only values that match
 the selected static profile descriptor; arbitrary browser fonts require the
 separate browser dynamic metrics export.
 
+The web playground uses that browser metrics path automatically for graph-family
+SVG diagrams whose Mermaid `style`, `classDef`/`class`, or `linkStyle`
+declarations set layout-affecting font properties. Node labels, edge labels, and
+subgraph titles can each use their effective `font-family`, `font-size`,
+`font-style`, and `font-weight` while still measuring with the same browser font
+identity used for SVG output. Text, ASCII, sequence diagrams, and provider-free
+static rendering keep the deterministic static-profile behavior.
+
 ## Adapter workflows
 
 mmdflux is not only a one-shot renderer. Advanced Rust integrations can treat
