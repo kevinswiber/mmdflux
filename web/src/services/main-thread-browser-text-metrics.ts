@@ -1,4 +1,5 @@
-import { prepareMainThreadBrowserTextMetrics } from "../browser-text-metrics";
+import { createMmdsMainThreadRenderer } from "@mmds/browser-text-metrics/main-thread";
+import type { prepareMainThreadBrowserTextMetrics as defaultPrepareMainThreadBrowserTextMetrics } from "../browser-text-metrics";
 import { loadWasmModule, type WasmModule } from "../wasm-module";
 import type {
   BrowserTextMetricsRenderRequest,
@@ -13,45 +14,31 @@ export interface MainThreadBrowserTextMetricsRenderer {
 
 export interface MainThreadBrowserTextMetricsRendererOptions {
   loadWasmModule?: () => Promise<WasmModule>;
-  prepareMainThreadBrowserTextMetrics?: typeof prepareMainThreadBrowserTextMetrics;
+  prepareMainThreadBrowserTextMetrics?: typeof defaultPrepareMainThreadBrowserTextMetrics;
 }
 
 export function createMainThreadBrowserTextMetricsRenderer(
   options: MainThreadBrowserTextMetricsRendererOptions = {},
 ): MainThreadBrowserTextMetricsRenderer {
-  const loadModule = options.loadWasmModule ?? loadWasmModule;
-  const prepareMetrics =
-    options.prepareMainThreadBrowserTextMetrics ??
-    prepareMainThreadBrowserTextMetrics;
-  let modulePromise: Promise<WasmModule> | null = null;
-
-  const getWasmModule = async (): Promise<WasmModule> => {
-    if (!modulePromise) {
-      modulePromise = loadModule().then(async (module) => {
-        await module.default();
-        return module;
-      });
-    }
-
-    return modulePromise;
-  };
+  const prepareLegacy = options.prepareMainThreadBrowserTextMetrics;
+  const renderer = createMmdsMainThreadRenderer({
+    loadWasmModule: options.loadWasmModule ?? loadWasmModule,
+    prepareMainThreadTextMetrics: prepareLegacy
+      ? ({ request }) => prepareLegacy(request)
+      : undefined,
+  });
 
   return {
     renderWithBrowserTextMetrics: async (request) => {
-      const prepared = await prepareMetrics(request.browserTextMetrics);
-      const wasmModule = await getWasmModule();
-      const output = wasmModule.renderWithBrowserTextMetrics(
-        request.input,
-        "svg",
-        request.configJson ?? "{}",
-        prepared.metricsJson,
-        prepared.measureText,
-      );
-
+      const result = await renderer.renderSvg({
+        input: request.input,
+        browserTextMetrics: request.browserTextMetrics,
+        configJson: request.configJson ?? "{}",
+      });
       return {
         seq: request.seq,
         format: "svg",
-        output,
+        output: result.output,
       };
     },
   };
