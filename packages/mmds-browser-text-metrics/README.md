@@ -22,6 +22,8 @@ between minor versions before 1.0.0; pin exact versions in dependants.
 | `./main-thread`      | `createMmdsMainThreadRenderer` factory                             |
 | `./worker`           | `createWorkerRequestHandler` for worker hosts                      |
 | `./worker-protocol`  | Worker request/response message types                              |
+| `./prepare`          | `prepareWorkerTextMetrics` + `prepareMainThreadTextMetrics` preflight |
+| `./css-font`         | `buildCssFont` + `cssFontFamilyStack` formatting helpers           |
 | `./loader`           | `loadMmdsWasm` + `MmdsWasmExports` (the only `@mmds/wasm` seam)    |
 | `./routing`          | `mayNeedBrowserTextMetrics` heuristic                              |
 | `./fixtures`         | Test fixtures for downstream consumers                             |

@@ -34,6 +34,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@mmds/browser-text-metrics": "file:../packages/mmds-browser-text-metrics",
     "@codemirror/commands": "^6.10.2",
     "@codemirror/language": "^6.12.1",
     "@codemirror/lint": "^6.9.4",

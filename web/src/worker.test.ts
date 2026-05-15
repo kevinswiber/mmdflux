@@ -401,10 +401,11 @@ describe("createWorkerRequestHandler", () => {
     const handler = createWorkerRequestHandler({
       loadWasmModule,
       prepareBrowserTextMetrics: vi.fn(async () => {
-        throw new BrowserTextMetricsCapabilityError(
-          "worker-offscreen-canvas-unavailable",
-          "Dynamic text metrics require OffscreenCanvas in the worker.",
-        );
+        throw new BrowserTextMetricsCapabilityError({
+          code: "worker-offscreen-canvas-unavailable",
+          message:
+            "Dynamic text metrics require OffscreenCanvas in the worker.",
+        });
       }),
       postMessage: (message) => responses.push(message),
     });
@@ -453,11 +454,12 @@ describe("createWorkerRequestHandler", () => {
     const handler = createWorkerRequestHandler({
       loadWasmModule,
       prepareBrowserTextMetrics: vi.fn(async () => {
-        throw new BrowserTextMetricsCapabilityError(
-          "main-thread-font-face-set-unavailable",
-          "Dynamic text metrics require document.fonts on the main thread.",
-          false,
-        );
+        throw new BrowserTextMetricsCapabilityError({
+          code: "main-thread-font-face-set-unavailable",
+          message:
+            "Dynamic text metrics require document.fonts on the main thread.",
+          fallbackEligible: false,
+        });
       }),
       postMessage: (message) => responses.push(message),
     });

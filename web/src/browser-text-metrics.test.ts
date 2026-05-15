@@ -63,7 +63,7 @@ describe("prepareBrowserTextMetrics", () => {
         },
       ),
     ).rejects.toMatchObject({
-      code: "canvas-2d-context-unavailable",
+      code: "worker-canvas-2d-context-unavailable",
       fallbackEligible: true,
     });
   });

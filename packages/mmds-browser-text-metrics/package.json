@@ -31,6 +31,14 @@
       "types": "./dist/loader.d.ts",
       "import": "./dist/loader.js"
     },
+    "./prepare": {
+      "types": "./dist/prepare.d.ts",
+      "import": "./dist/prepare.js"
+    },
+    "./css-font": {
+      "types": "./dist/css-font.d.ts",
+      "import": "./dist/css-font.js"
+    },
     "./routing": {
       "types": "./dist/routing.d.ts",
       "import": "./dist/routing.js"

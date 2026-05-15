@@ -8,7 +8,15 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable", "ESNext"],
-    "types": ["vitest/globals", "node"]
+    "types": ["vitest/globals", "node"],
+    "paths": {
+      "@mmds/browser-text-metrics": [
+        "../packages/mmds-browser-text-metrics/src/index.ts"
+      ],
+      "@mmds/browser-text-metrics/*": [
+        "../packages/mmds-browser-text-metrics/src/*.ts"
+      ]
+    }
   },
   "include": ["src", "vite.config.ts"]
 }
