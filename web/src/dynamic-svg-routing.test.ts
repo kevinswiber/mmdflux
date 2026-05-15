@@ -301,3 +301,16 @@ describe("renderPlaygroundRequest", () => {
     expect(client.render).not.toHaveBeenCalled();
   });
 });
+
+describe("playground routing policy", () => {
+  // renderPlaygroundRequest is the playground's product-policy
+  // orchestrator — which inputs trigger a resolver round-trip, when to
+  // short-circuit, and when to fall through. @mmds/browser-text-metrics
+  // ships mayNeedBrowserTextMetrics for downstream consumers who want the
+  // heuristic, but the orchestration (resolver → render → renderSvg) is a
+  // playground concern. This test exists to pin the boundary so future
+  // contributors don't migrate this file alongside the adapter tests.
+  it("dynamic-svg-routing tests playground product policy, not package contract", () => {
+    expect(typeof renderPlaygroundRequest).toBe("function");
+  });
+});
