@@ -68,9 +68,11 @@ jobs:
           echo "Resolved tag: $TAG"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          targets: ${{ matrix.target }}
+          toolchain: stable
+          target: ${{ matrix.target }}
+          cache: false
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
