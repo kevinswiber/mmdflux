@@ -1,8 +1,9 @@
 import { vi } from "vitest";
 import type { MainThreadBrowserTextMetricsRenderer } from "../services/main-thread-browser-text-metrics";
-import type {
-  WorkerRequestMessage,
-  WorkerResponseMessage,
+import {
+  PROTOCOL_VERSION,
+  type WorkerRequestMessage,
+  type WorkerResponseMessage,
 } from "../worker-protocol";
 
 export interface MockWorkerOptions {
@@ -43,6 +44,7 @@ export class MockWorker {
       if (message.type === "render") {
         this.onmessage?.({
           data: {
+            version: PROTOCOL_VERSION,
             type: "result",
             seq: message.seq,
             format: message.format,
@@ -66,6 +68,7 @@ export class MockWorker {
 
         this.onmessage?.({
           data: {
+            version: PROTOCOL_VERSION,
             type: "result",
             seq: message.seq,
             format: message.format,
@@ -85,6 +88,7 @@ export class MockWorker {
 
         this.onmessage?.({
           data: {
+            version: PROTOCOL_VERSION,
             type: "browserTextMetricsDecision",
             seq: message.seq,
             decision: {
@@ -113,6 +117,7 @@ export class MockWorker {
 
       this.onmessage?.({
         data: {
+          version: PROTOCOL_VERSION,
           type: "validation",
           seq: message.seq,
           resultJson: '{"valid":true}',

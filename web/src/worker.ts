@@ -3,10 +3,11 @@ import {
   prepareBrowserTextMetrics,
 } from "./browser-text-metrics";
 import { loadWasmModule, type WasmModule } from "./wasm-module";
-import type {
-  BrowserTextMetricsDecision,
-  WorkerRequestMessage,
-  WorkerResponseMessage,
+import {
+  PROTOCOL_VERSION,
+  type WorkerBrowserTextMetricsDecision,
+  type WorkerRequestMessage,
+  type WorkerResponseMessage,
 } from "./worker-protocol";
 
 export type {
@@ -51,6 +52,7 @@ export function createWorkerRequestHandler(
         );
 
         postMessage({
+          version: PROTOCOL_VERSION,
           type: "result",
           seq: message.seq,
           format: message.format,
@@ -65,9 +67,12 @@ export function createWorkerRequestHandler(
           message.format,
           message.configJson,
         );
-        const decision = JSON.parse(decisionJson) as BrowserTextMetricsDecision;
+        const decision = JSON.parse(
+          decisionJson,
+        ) as WorkerBrowserTextMetricsDecision;
 
         postMessage({
+          version: PROTOCOL_VERSION,
           type: "browserTextMetricsDecision",
           seq: message.seq,
           decision,
@@ -86,6 +91,7 @@ export function createWorkerRequestHandler(
         );
 
         postMessage({
+          version: PROTOCOL_VERSION,
           type: "result",
           seq: message.seq,
           format: message.format,
@@ -96,12 +102,14 @@ export function createWorkerRequestHandler(
 
       const resultJson = wasmModule.validate(message.input);
       postMessage({
+        version: PROTOCOL_VERSION,
         type: "validation",
         seq: message.seq,
         resultJson,
       });
     } catch (error) {
       postMessage({
+        version: PROTOCOL_VERSION,
         type: "error",
         seq: message.seq,
         error: formatError(error),

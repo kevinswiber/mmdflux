@@ -4,6 +4,7 @@ import {
   mainThreadRendererFixture,
 } from "./__test-fixtures__/mock-render-worker";
 import { createRenderWorkerClient } from "./services/render-client";
+import { PROTOCOL_VERSION } from "./worker-protocol";
 
 describe("createRenderWorkerClient", () => {
   it("routes render and validation requests over the same worker", async () => {
@@ -55,6 +56,7 @@ describe("createRenderWorkerClient", () => {
       },
     });
     expect(worker.messages.at(-1)).toEqual({
+      version: PROTOCOL_VERSION,
       type: "resolveBrowserTextMetrics",
       seq: 21,
       input: "graph TD\nA[Regular]\nstyle A font-family:Verdana,font-size:8px",
@@ -66,6 +68,7 @@ describe("createRenderWorkerClient", () => {
   it("propagates browser text metrics resolver errors", async () => {
     const worker = new MockWorker({
       resolverResponse: {
+        version: PROTOCOL_VERSION,
         type: "error",
         seq: 22,
         error: "RenderConfig.graph_text_style is not supported",
@@ -137,6 +140,7 @@ describe("createRenderWorkerClient", () => {
       output: "svg:graph TD\nA-->B:{}:Inter",
     });
     expect(worker.messages.at(-1)).toEqual({
+      version: PROTOCOL_VERSION,
       type: "renderWithBrowserTextMetrics",
       seq: 11,
       input: "graph TD\nA-->B",
@@ -153,6 +157,7 @@ describe("createRenderWorkerClient", () => {
   it("falls back to main-thread dynamic rendering on worker capability errors", async () => {
     const worker = new MockWorker({
       dynamicResponse: {
+        version: PROTOCOL_VERSION,
         type: "error",
         seq: 11,
         error: "Dynamic text metrics require OffscreenCanvas in the worker.",
@@ -217,6 +222,7 @@ describe("createRenderWorkerClient", () => {
   it("does not fallback on ordinary dynamic worker errors", async () => {
     const worker = new MockWorker({
       dynamicResponse: {
+        version: PROTOCOL_VERSION,
         type: "error",
         seq: 12,
         error: "Dynamic text metrics unavailable for font Inter.",

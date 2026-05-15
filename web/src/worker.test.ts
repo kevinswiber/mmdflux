@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { MockWasmModule } from "./__test-fixtures__/wasm-module";
 import { BrowserTextMetricsCapabilityError } from "./browser-text-metrics";
 import { createWorkerRequestHandler } from "./worker";
-import type {
-  WorkerRequestMessage,
-  WorkerResponseMessage,
+import {
+  PROTOCOL_VERSION,
+  type WorkerRequestMessage,
+  type WorkerResponseMessage,
 } from "./worker-protocol";
 
 describe("createWorkerRequestHandler", () => {
@@ -35,6 +36,7 @@ describe("createWorkerRequestHandler", () => {
     });
 
     const first: WorkerRequestMessage = {
+      version: PROTOCOL_VERSION,
       type: "render",
       seq: 1,
       input: "graph TD\nA-->B",
@@ -42,6 +44,7 @@ describe("createWorkerRequestHandler", () => {
       configJson: "{}",
     };
     const second: WorkerRequestMessage = {
+      version: PROTOCOL_VERSION,
       type: "render",
       seq: 2,
       input: "graph TD\nB-->C",
@@ -58,12 +61,14 @@ describe("createWorkerRequestHandler", () => {
     expect(validate).not.toHaveBeenCalled();
     expect(responses).toEqual([
       {
+        version: PROTOCOL_VERSION,
         type: "result",
         seq: 1,
         format: "text",
         output: "text:graph TD\nA-->B:{}",
       },
       {
+        version: PROTOCOL_VERSION,
         type: "result",
         seq: 2,
         format: "svg",
@@ -92,6 +97,7 @@ describe("createWorkerRequestHandler", () => {
     });
 
     const request: WorkerRequestMessage = {
+      version: PROTOCOL_VERSION,
       type: "render",
       seq: 42,
       input: "graph TD\nA-->B",
@@ -103,6 +109,7 @@ describe("createWorkerRequestHandler", () => {
 
     expect(responses).toHaveLength(1);
     expect(responses[0]).toEqual({
+      version: PROTOCOL_VERSION,
       type: "error",
       seq: 42,
       error: "unknown output format: bad",
@@ -134,6 +141,7 @@ describe("createWorkerRequestHandler", () => {
     });
 
     const request: WorkerRequestMessage = {
+      version: PROTOCOL_VERSION,
       type: "validate",
       seq: -1,
       input: "graph TD\nA-->B",
@@ -145,6 +153,7 @@ describe("createWorkerRequestHandler", () => {
     expect(initialize).toHaveBeenCalledTimes(1);
     expect(responses).toEqual([
       {
+        version: PROTOCOL_VERSION,
         type: "validation",
         seq: -1,
         resultJson: '{"valid":true,"diagnostics":[]}',
@@ -199,6 +208,7 @@ describe("createWorkerRequestHandler", () => {
     });
 
     await handler({
+      version: PROTOCOL_VERSION,
       type: "resolveBrowserTextMetrics",
       seq: 8,
       input: "graph TD\nA-->B",
@@ -216,6 +226,7 @@ describe("createWorkerRequestHandler", () => {
     expect(prepareBrowserTextMetrics).not.toHaveBeenCalled();
     expect(responses).toEqual([
       {
+        version: PROTOCOL_VERSION,
         type: "browserTextMetricsDecision",
         seq: 8,
         decision: {
@@ -262,6 +273,7 @@ describe("createWorkerRequestHandler", () => {
     });
 
     await handler({
+      version: PROTOCOL_VERSION,
       type: "resolveBrowserTextMetrics",
       seq: 15,
       input: "graph TD\nA-->B",
@@ -271,6 +283,7 @@ describe("createWorkerRequestHandler", () => {
 
     expect(responses).toEqual([
       {
+        version: PROTOCOL_VERSION,
         type: "error",
         seq: 15,
         error: "RenderConfig.graph_text_style is not supported",
@@ -312,6 +325,7 @@ describe("createWorkerRequestHandler", () => {
     });
 
     await handler({
+      version: PROTOCOL_VERSION,
       type: "renderWithBrowserTextMetrics",
       seq: 9,
       input: "graph TD\nA-->B",
@@ -338,6 +352,7 @@ describe("createWorkerRequestHandler", () => {
     );
     expect(responses).toEqual([
       {
+        version: PROTOCOL_VERSION,
         type: "result",
         seq: 9,
         format: "svg",
@@ -366,6 +381,7 @@ describe("createWorkerRequestHandler", () => {
     });
 
     await handler({
+      version: PROTOCOL_VERSION,
       type: "renderWithBrowserTextMetrics",
       seq: 10,
       input: "graph TD\nA-->B",
@@ -380,6 +396,7 @@ describe("createWorkerRequestHandler", () => {
 
     expect(responses).toEqual([
       {
+        version: PROTOCOL_VERSION,
         type: "error",
         seq: 10,
         error: "Dynamic text metrics require OffscreenCanvas",
@@ -411,6 +428,7 @@ describe("createWorkerRequestHandler", () => {
     });
 
     await handler({
+      version: PROTOCOL_VERSION,
       type: "renderWithBrowserTextMetrics",
       seq: 11,
       input: "graph TD\nA-->B",
@@ -425,6 +443,7 @@ describe("createWorkerRequestHandler", () => {
 
     expect(responses).toEqual([
       {
+        version: PROTOCOL_VERSION,
         type: "error",
         seq: 11,
         error: "Dynamic text metrics require OffscreenCanvas in the worker.",
@@ -465,6 +484,7 @@ describe("createWorkerRequestHandler", () => {
     });
 
     await handler({
+      version: PROTOCOL_VERSION,
       type: "renderWithBrowserTextMetrics",
       seq: 12,
       input: "graph TD\nA-->B",
@@ -479,6 +499,7 @@ describe("createWorkerRequestHandler", () => {
 
     expect(responses).toEqual([
       {
+        version: PROTOCOL_VERSION,
         type: "error",
         seq: 12,
         error:

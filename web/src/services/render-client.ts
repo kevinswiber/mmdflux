@@ -1,9 +1,10 @@
 import type { BrowserTextMetricsRequest } from "../browser-text-metrics";
-import type {
-  BrowserTextMetricsDecision,
-  WorkerOutputFormat,
-  WorkerRequestMessage,
-  WorkerResponseMessage,
+import {
+  PROTOCOL_VERSION,
+  type WorkerBrowserTextMetricsDecision,
+  type WorkerOutputFormat,
+  type WorkerRequestMessage,
+  type WorkerResponseMessage,
 } from "../worker-protocol";
 import type { MainThreadBrowserTextMetricsRenderer } from "./main-thread-browser-text-metrics";
 
@@ -50,7 +51,7 @@ interface PendingValidateRequest {
 
 interface PendingBrowserTextMetricsDecisionRequest {
   kind: "resolveBrowserTextMetrics";
-  resolve: (decision: BrowserTextMetricsDecision) => void;
+  resolve: (decision: WorkerBrowserTextMetricsDecision) => void;
   reject: (error: Error) => void;
 }
 
@@ -66,7 +67,7 @@ export interface RenderWorkerClient {
   ) => Promise<RenderResponse>;
   resolveBrowserTextMetricsRequest: (
     request: BrowserTextMetricsDecisionRequest,
-  ) => Promise<BrowserTextMetricsDecision>;
+  ) => Promise<WorkerBrowserTextMetricsDecision>;
   validate: (input: string) => Promise<string>;
   terminate: () => void;
 }
@@ -170,6 +171,7 @@ export function createRenderWorkerClient(
 
       return new Promise<RenderResponse>((resolve, reject) => {
         const message: WorkerRequestMessage = {
+          version: PROTOCOL_VERSION,
           type: "render",
           seq: currentSeq,
           input: request.input,
@@ -192,32 +194,35 @@ export function createRenderWorkerClient(
     resolveBrowserTextMetricsRequest: (request) => {
       const currentSeq = request.seq;
 
-      return new Promise<BrowserTextMetricsDecision>((resolve, reject) => {
-        const message: WorkerRequestMessage = {
-          type: "resolveBrowserTextMetrics",
-          seq: currentSeq,
-          input: request.input,
-          format: request.format,
-          configJson: request.configJson ?? "{}",
-        };
+      return new Promise<WorkerBrowserTextMetricsDecision>(
+        (resolve, reject) => {
+          const message: WorkerRequestMessage = {
+            version: PROTOCOL_VERSION,
+            type: "resolveBrowserTextMetrics",
+            seq: currentSeq,
+            input: request.input,
+            format: request.format,
+            configJson: request.configJson ?? "{}",
+          };
 
-        pending.set(currentSeq, {
-          kind: "resolveBrowserTextMetrics",
-          resolve,
-          reject,
-        });
+          pending.set(currentSeq, {
+            kind: "resolveBrowserTextMetrics",
+            resolve,
+            reject,
+          });
 
-        try {
-          worker.postMessage(message);
-        } catch (error) {
-          pending.delete(currentSeq);
-          reject(
-            new Error(
-              `failed to post browser text metrics request: ${toMessage(error)}`,
-            ),
-          );
-        }
-      });
+          try {
+            worker.postMessage(message);
+          } catch (error) {
+            pending.delete(currentSeq);
+            reject(
+              new Error(
+                `failed to post browser text metrics request: ${toMessage(error)}`,
+              ),
+            );
+          }
+        },
+      );
     },
     renderWithBrowserTextMetrics: (request) => {
       const currentSeq = request.seq;
@@ -233,6 +238,7 @@ export function createRenderWorkerClient(
           mainThreadFallback,
         };
         const message: WorkerRequestMessage = {
+          version: PROTOCOL_VERSION,
           type: "renderWithBrowserTextMetrics",
           seq: currentSeq,
           input: request.input,
@@ -279,6 +285,7 @@ export function createRenderWorkerClient(
 
       return new Promise<string>((resolve, reject) => {
         const message: WorkerRequestMessage = {
+          version: PROTOCOL_VERSION,
           type: "validate",
           seq,
           input,
