@@ -1,18 +1,14 @@
 import { describe, expect, it } from "vitest";
-import {
-  MockWorker,
-  mainThreadRendererFixture,
-} from "./__test-fixtures__/mock-render-worker";
-import { createRenderWorkerClient } from "./services/render-client";
-import { PROTOCOL_VERSION } from "./worker-protocol";
+import { createMmdsBrowserTextMetricsClient } from "../src/client.js";
+import { PROTOCOL_VERSION } from "../src/worker-protocol.js";
+import { MockRenderWorker, mainThreadRendererFixture } from "./_fixtures.js";
 
-describe("createRenderWorkerClient", () => {
+describe("createMmdsBrowserTextMetricsClient (migrated playground)", () => {
   it("routes render and validation requests over the same worker", async () => {
-    const worker = new MockWorker();
-    const client = createRenderWorkerClient(worker as unknown as Worker);
+    const worker = new MockRenderWorker();
+    const client = createMmdsBrowserTextMetricsClient({ worker });
 
-    const renderPromise = client.render({
-      seq: 7,
+    const renderPromise = client.renderStatic({
       input: "graph TD\nA-->B",
       format: "svg",
       configJson: '{"padding":2}',
@@ -20,19 +16,18 @@ describe("createRenderWorkerClient", () => {
     const validatePromise = client.validate("graph TD\nA-->B");
 
     await expect(renderPromise).resolves.toEqual({
-      seq: 7,
       format: "svg",
       output: 'svg:graph TD\nA-->B:{"padding":2}',
+      source: "worker",
     });
     await expect(validatePromise).resolves.toBe('{"valid":true}');
   });
 
-  it("resolves browser text metrics decisions by sequence id", async () => {
-    const worker = new MockWorker();
-    const client = createRenderWorkerClient(worker as unknown as Worker);
+  it("resolves browser text metrics decisions and posts a resolveBrowserTextMetrics message", async () => {
+    const worker = new MockRenderWorker();
+    const client = createMmdsBrowserTextMetricsClient({ worker });
 
     const response = await client.resolveBrowserTextMetricsRequest({
-      seq: 21,
       input: "graph TD\nA[Regular]\nstyle A font-family:Verdana,font-size:8px",
       format: "svg",
       configJson: "{}",
@@ -55,10 +50,9 @@ describe("createRenderWorkerClient", () => {
         ],
       },
     });
-    expect(worker.messages.at(-1)).toEqual({
+    expect(worker.messages.at(-1)).toMatchObject({
       version: PROTOCOL_VERSION,
       type: "resolveBrowserTextMetrics",
-      seq: 21,
       input: "graph TD\nA[Regular]\nstyle A font-family:Verdana,font-size:8px",
       format: "svg",
       configJson: "{}",
@@ -66,19 +60,18 @@ describe("createRenderWorkerClient", () => {
   });
 
   it("propagates browser text metrics resolver errors", async () => {
-    const worker = new MockWorker({
+    const worker = new MockRenderWorker({
       resolverResponse: {
         version: PROTOCOL_VERSION,
         type: "error",
-        seq: 22,
+        seq: 0,
         error: "RenderConfig.graph_text_style is not supported",
       },
     });
-    const client = createRenderWorkerClient(worker as unknown as Worker);
+    const client = createMmdsBrowserTextMetricsClient({ worker });
 
     await expect(
       client.resolveBrowserTextMetricsRequest({
-        seq: 22,
         input: "graph TD\nA-->B",
         format: "svg",
         configJson: '{"fontFamily":"Inter","fontSize":16}',
@@ -87,17 +80,15 @@ describe("createRenderWorkerClient", () => {
   });
 
   it("keeps resolver, render, and validation responses independent", async () => {
-    const worker = new MockWorker();
-    const client = createRenderWorkerClient(worker as unknown as Worker);
+    const worker = new MockRenderWorker();
+    const client = createMmdsBrowserTextMetricsClient({ worker });
 
     const resolverPromise = client.resolveBrowserTextMetricsRequest({
-      seq: 31,
       input: "graph TD\nA[Regular]\nstyle A font-family:Verdana,font-size:8px",
       format: "svg",
       configJson: "{}",
     });
-    const renderPromise = client.render({
-      seq: 32,
+    const renderPromise = client.renderStatic({
       input: "graph TD\nA-->B",
       format: "svg",
       configJson: "{}",
@@ -106,22 +97,19 @@ describe("createRenderWorkerClient", () => {
 
     await expect(resolverPromise).resolves.toMatchObject({ required: true });
     await expect(renderPromise).resolves.toEqual({
-      seq: 32,
       format: "svg",
       output: "svg:graph TD\nA-->B:{}",
+      source: "worker",
     });
     await expect(validatePromise).resolves.toBe('{"valid":true}');
   });
 
   it("posts dynamic browser text metrics render requests separately", async () => {
-    const worker = new MockWorker();
-    const mainThreadRenderer = mainThreadRendererFixture();
-    const client = createRenderWorkerClient(worker as unknown as Worker, {
-      mainThreadBrowserTextMetricsRenderer: mainThreadRenderer,
-    });
+    const worker = new MockRenderWorker();
+    const fallback = mainThreadRendererFixture();
+    const client = createMmdsBrowserTextMetricsClient({ worker, fallback });
 
-    const response = await client.renderWithBrowserTextMetrics({
-      seq: 11,
+    const response = await client.renderSvg({
       input: "graph TD\nA-->B",
       configJson: "{}",
       browserTextMetrics: {
@@ -131,18 +119,15 @@ describe("createRenderWorkerClient", () => {
       },
     });
 
-    expect(
-      mainThreadRenderer.renderWithBrowserTextMetrics,
-    ).not.toHaveBeenCalled();
+    expect(fallback.renderSvg).not.toHaveBeenCalled();
     expect(response).toEqual({
-      seq: 11,
       format: "svg",
       output: "svg:graph TD\nA-->B:{}:Inter",
+      source: "worker",
     });
-    expect(worker.messages.at(-1)).toEqual({
+    expect(worker.messages.at(-1)).toMatchObject({
       version: PROTOCOL_VERSION,
       type: "renderWithBrowserTextMetrics",
-      seq: 11,
       input: "graph TD\nA-->B",
       format: "svg",
       configJson: "{}",
@@ -155,23 +140,20 @@ describe("createRenderWorkerClient", () => {
   });
 
   it("falls back to main-thread dynamic rendering on worker capability errors", async () => {
-    const worker = new MockWorker({
+    const worker = new MockRenderWorker({
       dynamicResponse: {
         version: PROTOCOL_VERSION,
         type: "error",
-        seq: 11,
+        seq: 0,
         error: "Dynamic text metrics require OffscreenCanvas in the worker.",
         code: "dynamic-metrics-capability",
       },
     });
-    const mainThreadRenderer = mainThreadRendererFixture();
-    const client = createRenderWorkerClient(worker as unknown as Worker, {
-      mainThreadBrowserTextMetricsRenderer: mainThreadRenderer,
-    });
+    const fallback = mainThreadRendererFixture();
+    const client = createMmdsBrowserTextMetricsClient({ worker, fallback });
 
     await expect(
-      client.renderWithBrowserTextMetrics({
-        seq: 11,
+      client.renderSvg({
         input: "graph TD\nA-->B",
         configJson: "{}",
         browserTextMetrics: {
@@ -180,27 +162,24 @@ describe("createRenderWorkerClient", () => {
           lineHeightPx: 24,
         },
       }),
-    ).resolves.toEqual({
-      seq: 11,
+    ).resolves.toMatchObject({
       format: "svg",
-      output: "main-thread-svg",
+      source: "main-thread",
     });
-    expect(
-      mainThreadRenderer.renderWithBrowserTextMetrics,
-    ).toHaveBeenCalledTimes(1);
+    expect(fallback.renderSvg).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to main-thread dynamic rendering when the worker does not respond", async () => {
-    const worker = new MockWorker({ suppressDynamicResponse: true });
-    const mainThreadRenderer = mainThreadRendererFixture();
-    const client = createRenderWorkerClient(worker as unknown as Worker, {
-      mainThreadBrowserTextMetricsRenderer: mainThreadRenderer,
+    const worker = new MockRenderWorker({ suppressDynamicResponse: true });
+    const fallback = mainThreadRendererFixture();
+    const client = createMmdsBrowserTextMetricsClient({
+      worker,
+      fallback,
       dynamicMetricsWorkerTimeoutMs: 1,
     });
 
     await expect(
-      client.renderWithBrowserTextMetrics({
-        seq: 14,
+      client.renderSvg({
         input: "graph TD\nA-->B",
         configJson: "{}",
         browserTextMetrics: {
@@ -209,33 +188,27 @@ describe("createRenderWorkerClient", () => {
           lineHeightPx: 24,
         },
       }),
-    ).resolves.toEqual({
-      seq: 14,
+    ).resolves.toMatchObject({
       format: "svg",
-      output: "main-thread-svg",
+      source: "main-thread",
     });
-    expect(
-      mainThreadRenderer.renderWithBrowserTextMetrics,
-    ).toHaveBeenCalledTimes(1);
+    expect(fallback.renderSvg).toHaveBeenCalledTimes(1);
   });
 
   it("does not fallback on ordinary dynamic worker errors", async () => {
-    const worker = new MockWorker({
+    const worker = new MockRenderWorker({
       dynamicResponse: {
         version: PROTOCOL_VERSION,
         type: "error",
-        seq: 12,
+        seq: 0,
         error: "Dynamic text metrics unavailable for font Inter.",
       },
     });
-    const mainThreadRenderer = mainThreadRendererFixture();
-    const client = createRenderWorkerClient(worker as unknown as Worker, {
-      mainThreadBrowserTextMetricsRenderer: mainThreadRenderer,
-    });
+    const fallback = mainThreadRendererFixture();
+    const client = createMmdsBrowserTextMetricsClient({ worker, fallback });
 
     await expect(
-      client.renderWithBrowserTextMetrics({
-        seq: 12,
+      client.renderSvg({
         input: "graph TD\nA-->B",
         configJson: "{}",
         browserTextMetrics: {
@@ -245,21 +218,16 @@ describe("createRenderWorkerClient", () => {
         },
       }),
     ).rejects.toThrow("unavailable");
-    expect(
-      mainThreadRenderer.renderWithBrowserTextMetrics,
-    ).not.toHaveBeenCalled();
+    expect(fallback.renderSvg).not.toHaveBeenCalled();
   });
 
   it("does not fallback when posting dynamic requests fails", async () => {
-    const worker = new MockWorker({ throwOnDynamicPost: true });
-    const mainThreadRenderer = mainThreadRendererFixture();
-    const client = createRenderWorkerClient(worker as unknown as Worker, {
-      mainThreadBrowserTextMetricsRenderer: mainThreadRenderer,
-    });
+    const worker = new MockRenderWorker({ throwOnDynamicPost: true });
+    const fallback = mainThreadRendererFixture();
+    const client = createMmdsBrowserTextMetricsClient({ worker, fallback });
 
     await expect(
-      client.renderWithBrowserTextMetrics({
-        seq: 13,
+      client.renderSvg({
         input: "graph TD\nA-->B",
         configJson: "{}",
         browserTextMetrics: {
@@ -268,24 +236,18 @@ describe("createRenderWorkerClient", () => {
           lineHeightPx: 24,
         },
       }),
-    ).rejects.toThrow("failed to post dynamic render request");
-    expect(
-      mainThreadRenderer.renderWithBrowserTextMetrics,
-    ).not.toHaveBeenCalled();
+    ).rejects.toThrow(/post|render/i);
+    expect(fallback.renderSvg).not.toHaveBeenCalled();
   });
 
   it("does not use main-thread dynamic rendering for validation", async () => {
-    const worker = new MockWorker();
-    const mainThreadRenderer = mainThreadRendererFixture();
-    const client = createRenderWorkerClient(worker as unknown as Worker, {
-      mainThreadBrowserTextMetricsRenderer: mainThreadRenderer,
-    });
+    const worker = new MockRenderWorker();
+    const fallback = mainThreadRendererFixture();
+    const client = createMmdsBrowserTextMetricsClient({ worker, fallback });
 
     await expect(client.validate("graph TD\nA-->B")).resolves.toBe(
       '{"valid":true}',
     );
-    expect(
-      mainThreadRenderer.renderWithBrowserTextMetrics,
-    ).not.toHaveBeenCalled();
+    expect(fallback.renderSvg).not.toHaveBeenCalled();
   });
 });

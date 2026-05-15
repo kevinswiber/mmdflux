@@ -1,35 +1,35 @@
 import { describe, expect, it, vi } from "vitest";
+import { MmdsBrowserTextMetricsCapabilityError } from "../src/capability.js";
+import { buildCssFont } from "../src/css-font.js";
+import {
+  type MainThreadBrowserTextMetricsEnvironment,
+  prepareMainThreadTextMetrics,
+  prepareWorkerTextMetrics,
+} from "../src/prepare.js";
 import {
   environmentFixture,
   fontSetFixture,
   mainThreadEnvironmentFixture,
   multiStyleRequest,
-} from "./__test-fixtures__/browser-text-metrics-fakes";
-import {
-  BrowserTextMetricsCapabilityError,
-  buildCssFont,
-  type MainThreadBrowserTextMetricsEnvironment,
-  prepareBrowserTextMetrics,
-  prepareMainThreadBrowserTextMetrics,
-} from "./browser-text-metrics";
+} from "./_fixtures.js";
 
-describe("prepareBrowserTextMetrics", () => {
+describe("prepareWorkerTextMetrics (migrated playground)", () => {
   it("fails honestly without OffscreenCanvas", async () => {
     await expect(
-      prepareBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
-        { fonts: fontSetFixture() },
-      ),
+      prepareWorkerTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+        environment: { fonts: fontSetFixture() },
+      }),
     ).rejects.toMatchObject({
       code: "worker-offscreen-canvas-unavailable",
       fallbackEligible: true,
     });
     await expect(
-      prepareBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
-        { fonts: fontSetFixture() },
-      ),
-    ).rejects.toBeInstanceOf(BrowserTextMetricsCapabilityError);
+      prepareWorkerTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+        environment: { fonts: fontSetFixture() },
+      }),
+    ).rejects.toBeInstanceOf(MmdsBrowserTextMetricsCapabilityError);
   });
 
   it("fails honestly without worker FontFaceSet support", async () => {
@@ -37,10 +37,10 @@ describe("prepareBrowserTextMetrics", () => {
     environment.fonts = undefined;
 
     await expect(
-      prepareBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+      prepareWorkerTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
         environment,
-      ),
+      }),
     ).rejects.toMatchObject({
       code: "worker-font-face-set-unavailable",
       fallbackEligible: true,
@@ -55,13 +55,13 @@ describe("prepareBrowserTextMetrics", () => {
     }
 
     await expect(
-      prepareBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
-        {
+      prepareWorkerTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+        environment: {
           OffscreenCanvas: FakeOffscreenCanvasWithout2dContext,
           fonts: fontSetFixture(),
         },
-      ),
+      }),
     ).rejects.toMatchObject({
       code: "worker-canvas-2d-context-unavailable",
       fallbackEligible: true,
@@ -83,10 +83,10 @@ describe("prepareBrowserTextMetrics", () => {
     });
     const { environment } = environmentFixture(fonts);
 
-    const prepared = await prepareBrowserTextMetrics(
-      { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+    const prepared = await prepareWorkerTextMetrics({
+      request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
       environment,
-    );
+    });
 
     expect(fonts.load).toHaveBeenCalledWith('normal 400 16px "Inter"');
     expect(fonts.check).toHaveBeenCalledWith('normal 400 16px "Inter"');
@@ -118,10 +118,10 @@ describe("prepareBrowserTextMetrics", () => {
     );
 
     await expect(
-      prepareBrowserTextMetrics(
-        { fontFamily: "Arial", fontSizePx: 16, lineHeightPx: 24 },
+      prepareWorkerTextMetrics({
+        request: { fontFamily: "Arial", fontSizePx: 16, lineHeightPx: 24 },
         environment,
-      ),
+      }),
     ).resolves.toMatchObject({
       metricsJson: expect.stringContaining('"fontFamily":"Arial"'),
     });
@@ -129,31 +129,29 @@ describe("prepareBrowserTextMetrics", () => {
 
   it("does not classify failed post-load checks as fallback-eligible", async () => {
     const { environment } = environmentFixture(
-      fontSetFixture({
-        check: vi.fn(() => false),
-      }),
+      fontSetFixture({ check: vi.fn(() => false) }),
     );
 
     await expect(
-      prepareBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+      prepareWorkerTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
         environment,
-      ),
+      }),
     ).rejects.toThrow("unavailable");
     await expect(
-      prepareBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+      prepareWorkerTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
         environment,
-      ),
+      }),
     ).rejects.not.toMatchObject({ fallbackEligible: true });
   });
 
   it("returns a synchronous finite width from canvas measureText", async () => {
     const { context, environment } = environmentFixture();
-    const prepared = await prepareBrowserTextMetrics(
-      { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+    const prepared = await prepareWorkerTextMetrics({
+      request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
       environment,
-    );
+    });
 
     expect(prepared.measureText("Alpha", 'normal 400 16px "Inter"')).toBe(15);
     expect(context.font).toBe('normal 400 16px "Inter"');
@@ -161,10 +159,10 @@ describe("prepareBrowserTextMetrics", () => {
 
   it("caches repeated exact text and font measurements", async () => {
     const { context, environment } = environmentFixture();
-    const prepared = await prepareBrowserTextMetrics(
-      { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+    const prepared = await prepareWorkerTextMetrics({
+      request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
       environment,
-    );
+    });
 
     prepared.measureText("Alpha", 'normal 400 16px "Inter"');
     prepared.measureText("Alpha", 'normal 400 16px "Inter"');
@@ -177,10 +175,10 @@ describe("prepareBrowserTextMetrics", () => {
     const fonts = fontSetFixture();
     const { context, environment } = environmentFixture(fonts);
 
-    const prepared = await prepareBrowserTextMetrics(
-      multiStyleRequest(),
+    const prepared = await prepareWorkerTextMetrics({
+      request: multiStyleRequest(),
       environment,
-    );
+    });
 
     expect(fonts.load).toHaveBeenCalledWith('normal 400 16px "Inter"');
     expect(fonts.load).toHaveBeenCalledWith('normal 400 8px "Verdana"');
@@ -227,7 +225,10 @@ describe("prepareBrowserTextMetrics", () => {
     );
 
     await expect(
-      prepareBrowserTextMetrics(multiStyleRequest(), environment),
+      prepareWorkerTextMetrics({
+        request: multiStyleRequest(),
+        environment,
+      }),
     ).rejects.toThrow("Verdana");
   });
 
@@ -249,22 +250,26 @@ describe("prepareBrowserTextMetrics", () => {
     ).toBe('normal 400 16px "Arial", "Trebuchet MS", sans-serif');
 
     await expect(
-      prepareBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 0, lineHeightPx: 24 },
-        environmentFixture().environment,
-      ),
+      prepareWorkerTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 0, lineHeightPx: 24 },
+        environment: environmentFixture().environment,
+      }),
     ).rejects.toThrow("fontSize");
 
     await expect(
-      prepareBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: Number.NaN },
-        environmentFixture().environment,
-      ),
+      prepareWorkerTextMetrics({
+        request: {
+          fontFamily: "Inter",
+          fontSizePx: 16,
+          lineHeightPx: Number.NaN,
+        },
+        environment: environmentFixture().environment,
+      }),
     ).rejects.toThrow("lineHeight");
 
     await expect(
-      prepareBrowserTextMetrics(
-        {
+      prepareWorkerTextMetrics({
+        request: {
           defaultStyle: "s0",
           textStyles: [
             {
@@ -277,13 +282,13 @@ describe("prepareBrowserTextMetrics", () => {
             },
           ],
         },
-        environmentFixture().environment,
-      ),
+        environment: environmentFixture().environment,
+      }),
     ).rejects.toThrow("fontSize");
 
     await expect(
-      prepareBrowserTextMetrics(
-        {
+      prepareWorkerTextMetrics({
+        request: {
           defaultStyle: "s0",
           textStyles: [
             {
@@ -296,13 +301,13 @@ describe("prepareBrowserTextMetrics", () => {
             },
           ],
         },
-        environmentFixture().environment,
-      ),
+        environment: environmentFixture().environment,
+      }),
     ).rejects.toThrow("lineHeight");
   });
 });
 
-describe("prepareMainThreadBrowserTextMetrics", () => {
+describe("prepareMainThreadTextMetrics (migrated playground)", () => {
   it("prepares main-thread metrics with document fonts and a canvas", async () => {
     const calls: string[] = [];
     const fonts = fontSetFixture({
@@ -318,10 +323,10 @@ describe("prepareMainThreadBrowserTextMetrics", () => {
     });
     const { context, environment } = mainThreadEnvironmentFixture(fonts);
 
-    const prepared = await prepareMainThreadBrowserTextMetrics(
-      { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+    const prepared = await prepareMainThreadTextMetrics({
+      request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
       environment,
-    );
+    });
 
     expect(calls).toEqual(["load", "check"]);
     expect(fonts.load).toHaveBeenCalledWith('normal 400 16px "Inter"');
@@ -348,10 +353,10 @@ describe("prepareMainThreadBrowserTextMetrics", () => {
     environment.document.fonts = undefined;
 
     await expect(
-      prepareMainThreadBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+      prepareMainThreadTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
         environment,
-      ),
+      }),
     ).rejects.toMatchObject({
       code: "main-thread-font-face-set-unavailable",
       fallbackEligible: false,
@@ -369,10 +374,10 @@ describe("prepareMainThreadBrowserTextMetrics", () => {
     };
 
     await expect(
-      prepareMainThreadBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+      prepareMainThreadTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
         environment,
-      ),
+      }),
     ).rejects.toMatchObject({
       code: "main-thread-canvas-2d-context-unavailable",
       fallbackEligible: false,
@@ -381,35 +386,33 @@ describe("prepareMainThreadBrowserTextMetrics", () => {
 
   it("does not classify main-thread unavailable fonts as fallback-eligible", async () => {
     const { environment } = mainThreadEnvironmentFixture(
-      fontSetFixture({
-        check: vi.fn(() => false),
-      }),
+      fontSetFixture({ check: vi.fn(() => false) }),
     );
 
     await expect(
-      prepareMainThreadBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+      prepareMainThreadTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
         environment,
-      ),
+      }),
     ).rejects.toThrow("unavailable");
     await expect(
-      prepareMainThreadBrowserTextMetrics(
-        { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+      prepareMainThreadTextMetrics({
+        request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
         environment,
-      ),
+      }),
     ).rejects.not.toMatchObject({ fallbackEligible: true });
   });
 
   it("caches repeated main-thread measurements per prepared provider", async () => {
     const { context, environment } = mainThreadEnvironmentFixture();
-    const first = await prepareMainThreadBrowserTextMetrics(
-      { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+    const first = await prepareMainThreadTextMetrics({
+      request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
       environment,
-    );
-    const second = await prepareMainThreadBrowserTextMetrics(
-      { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
+    });
+    const second = await prepareMainThreadTextMetrics({
+      request: { fontFamily: "Inter", fontSizePx: 16, lineHeightPx: 24 },
       environment,
-    );
+    });
 
     first.measureText("Alpha", 'normal 400 16px "Inter"');
     first.measureText("Alpha", 'normal 400 16px "Inter"');

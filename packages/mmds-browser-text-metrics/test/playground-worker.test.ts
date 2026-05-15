@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import type { MockWasmModule } from "./__test-fixtures__/wasm-module";
-import { BrowserTextMetricsCapabilityError } from "./browser-text-metrics";
-import { createWorkerRequestHandler } from "./worker";
+import { MmdsBrowserTextMetricsCapabilityError } from "../src/capability.js";
+import { createWorkerRequestHandler } from "../src/worker.js";
 import {
   PROTOCOL_VERSION,
   type WorkerRequestMessage,
   type WorkerResponseMessage,
-} from "./worker-protocol";
+} from "../src/worker-protocol.js";
+import type { MockWasmModule } from "./_fixtures.js";
 
-describe("createWorkerRequestHandler", () => {
+describe("createWorkerRequestHandler (migrated playground)", () => {
   it("initializes worker once and returns render results", async () => {
     const initialize = vi.fn(async () => {});
     const render = vi.fn(
@@ -423,7 +423,7 @@ describe("createWorkerRequestHandler", () => {
     const handler = createWorkerRequestHandler({
       loadWasmModule,
       prepareBrowserTextMetrics: vi.fn(async () => {
-        throw new BrowserTextMetricsCapabilityError({
+        throw new MmdsBrowserTextMetricsCapabilityError({
           code: "worker-offscreen-canvas-unavailable",
           message:
             "Dynamic text metrics require OffscreenCanvas in the worker.",
@@ -478,7 +478,7 @@ describe("createWorkerRequestHandler", () => {
     const handler = createWorkerRequestHandler({
       loadWasmModule,
       prepareBrowserTextMetrics: vi.fn(async () => {
-        throw new BrowserTextMetricsCapabilityError({
+        throw new MmdsBrowserTextMetricsCapabilityError({
           code: "main-thread-font-face-set-unavailable",
           message:
             "Dynamic text metrics require document.fonts on the main thread.",
