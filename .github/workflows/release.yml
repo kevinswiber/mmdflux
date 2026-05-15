@@ -78,6 +78,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: release-${{ matrix.target }}
+          # macos-15 images (rolled out 2026-05-11) ship rustup state that
+          # collides with cached ~/.cargo/bin contents, leaving `cargo` as
+          # the rustup-init installer. Don't cache rustup binaries.
+          # See Swatinem/rust-cache#341, actions/runner-images#14099.
+          cache-bin: false
 
       - name: Build binary
         run: cargo build --release --locked --target ${{ matrix.target }}
