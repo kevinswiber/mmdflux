@@ -83,7 +83,7 @@ fn process_statements(
             Statement::Vertex(vertex) => {
                 resolve_class_annotation(
                     diagram,
-                    style_targets.node_styles,
+                    style_targets,
                     class_defs,
                     &vertex.id,
                     &vertex.class_name,
@@ -98,7 +98,7 @@ fn process_statements(
             Statement::Edge(edge_spec) => {
                 resolve_class_annotation(
                     diagram,
-                    style_targets.node_styles,
+                    style_targets,
                     class_defs,
                     &edge_spec.from.id,
                     &edge_spec.from.class_name,
@@ -111,7 +111,7 @@ fn process_statements(
                 );
                 resolve_class_annotation(
                     diagram,
-                    style_targets.node_styles,
+                    style_targets,
                     class_defs,
                     &edge_spec.to.id,
                     &edge_spec.to.class_name,
@@ -193,18 +193,21 @@ fn collect_subgraph_ids_recursive(statements: &[Statement], ids: &mut HashSet<St
 }
 
 /// Resolve a `:::className` annotation by looking up the class in the registry
-/// and merging its style into the node's accumulated styles.
+/// and merging its style into the target's accumulated styles. When the target
+/// id matches a declared subgraph, the style routes to the subgraph style map
+/// (the same rule used by `class A foo` and `style A …` statements) rather
+/// than being silently absorbed by a soon-to-be-pruned spurious node.
 fn resolve_class_annotation(
     diagram: &mut Graph,
-    node_styles: &mut HashMap<String, NodeStyle>,
+    style_targets: &mut StyleTargets<'_>,
     class_defs: &ClassDefRegistry,
-    node_id: &str,
+    target_id: &str,
     class_name: &Option<String>,
 ) {
     if let Some(cn) = class_name
         && let Some(style) = class_defs.get(cn)
     {
-        merge_node_style(diagram, node_styles, node_id, style);
+        merge_target_style(diagram, style_targets, target_id, style);
     }
 }
 
@@ -303,6 +306,13 @@ fn merge_subgraph_style(
     }
 }
 
+/// Route a style declaration to the appropriate style map.
+///
+/// When `target_id` matches a declared subgraph id, the style merges into the
+/// subgraph style map; otherwise it merges into the node style map. This rule
+/// is shared by `style A …`, `class A foo`, and inline `A:::foo`. The two
+/// style maps are kept independent, so MMDS `styleMap` and `subgraphStyleMap`
+/// never collide on a shared id even when the input declares both.
 fn merge_target_style(
     diagram: &mut Graph,
     style_targets: &mut StyleTargets<'_>,
@@ -868,6 +878,69 @@ mod tests {
         assert_eq!(style.fill.as_ref().map(|c| c.raw()), Some("#e1f5fe"));
         assert_eq!(style.stroke.as_ref().map(|c| c.raw()), Some("#b71c1c"));
         assert_eq!(style.stroke_width.as_deref(), Some("2px"));
+    }
+
+    #[test]
+    fn inline_triple_colon_class_on_subgraph_id_applies_to_subgraph() {
+        // `A:::blue` after `subgraph A …` previously routed through the node
+        // style map and was silently discarded by the spurious-node cleanup.
+        // It now routes the same way as `class A blue` and `style A …`, which
+        // matches Mermaid's observed behavior — see
+        // docs/development/mermaid-style-routing-parity.md.
+        let input =
+            "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef blue fill:#e1f5fe\nA:::blue\n";
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        assert_eq!(
+            diagram.subgraphs["A"].style.fill.as_ref().map(|c| c.raw()),
+            Some("#e1f5fe"),
+        );
+        assert!(!diagram.nodes.contains_key("A"));
+    }
+
+    #[test]
+    fn explicit_node_with_same_id_as_subgraph_keeps_style_maps_independent() {
+        // mmdflux can structurally hold both a node and a subgraph with the
+        // same id when an explicit `A[Box]` precedes `subgraph A`. Mermaid's
+        // unified id namespace does not reproduce this — its parser folds the
+        // node into the cluster. The broader structural collision (edge
+        // resolution, parent assignment, layout overlap) is unresolved and
+        // tracked in issue #352. This test pins the style-map routing slice
+        // only: every style/class declaration targeting a subgraph id routes
+        // to the subgraph, the node style map stays independent, and MMDS
+        // `styleMap` and `subgraphStyleMap` never collide on the shared id.
+        // See docs/development/mermaid-style-routing-parity.md.
+        let input = concat!(
+            "flowchart LR\n",
+            "A[NodeBox]\n",
+            "subgraph A\n",
+            "a1\n",
+            "end\n",
+            "classDef blue fill:#e1f5fe\n",
+            "class A blue\n",
+            "style A stroke:#b71c1c\n",
+        );
+        let flowchart = parse_flowchart(input).unwrap();
+        let diagram = compile_to_graph(&flowchart);
+
+        let sg_style = &diagram.subgraphs["A"].style;
+        assert_eq!(
+            sg_style.fill.as_ref().map(|c| c.raw()),
+            Some("#e1f5fe"),
+            "subgraph receives classDef fill",
+        );
+        assert_eq!(
+            sg_style.stroke.as_ref().map(|c| c.raw()),
+            Some("#b71c1c"),
+            "subgraph receives direct style stroke",
+        );
+
+        let node_style = &diagram.nodes["A"].style;
+        assert!(
+            node_style.fill.is_none() && node_style.stroke.is_none(),
+            "node A keeps its independent (unstyled) entry",
+        );
     }
 
     #[test]
