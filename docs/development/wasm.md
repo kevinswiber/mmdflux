@@ -104,112 +104,71 @@ Notes:
 - Legacy keys such as `edgeRouting`, `edgeStyle`, `svgEdgeCurve`, and
   `svgEdgeCurveRadius` are rejected.
 
-## Experimental Browser Text Metrics
+## Browser Text Metrics
 
 The existing `render` export remains static and deterministic. It never calls
 browser measurement APIs, and importing the browser metrics export does not
 change `render` output.
 
-The playground routes graph-family SVG font styles through browser text metrics
-when Mermaid `style`, `classDef`/`class`, or `linkStyle` declarations include
-layout-affecting font properties. Static/default SVG renders without font
-styling continue to use the portable `render` path. Subgraph container visual
-styles can replay provider-free, but custom subgraph title font family or size
-requires dynamic metrics because it changes layout geometry. Text, ASCII, and sequence remain unsupported for dynamic metrics.
+The browser-side adapter for `@mmds/wasm` lives in `@mmds/browser-text-metrics`
+(`packages/mmds-browser-text-metrics/`). It exposes
+`createMmdsBrowserTextMetricsClient`, `createMmdsMainThreadRenderer`, and
+`createWorkerRequestHandler`. See the package README for the worker and
+main-thread setup, the capability error contract, and the routing heuristic.
+The core adapter invariants — `load(cssFont)` plus post-load `check(cssFont)`
+(the adapter intentionally does NOT await `FontFaceSet.ready`), `metricsJson`
+as the only dynamic-font source, graph-family SVG only, and a synchronous
+finite non-negative `measureText` — are enforced by the package and pinned by
+`crates/mmdflux-wasm/tests/web.rs`. Phrased as a one-line rule:
+`load` plus post-load `check` is the requested-font contract; `check()`
+alone is not proof that a requested font loaded.
 
 `renderWithBrowserTextMetrics(input, format, configJson, metricsJson, measureText)`
-is a separate experimental export for browser-owned font measurement. It
-supports SVG graph-family Mermaid input, dynamic graph-family MMDS output, and
-provider-bound dynamic MMDS-to-SVG replay. Text, ASCII, and sequence-family
-diagrams are rejected instead of silently falling back to a static profile.
+is the wasm export used by the adapter. It supports SVG graph-family Mermaid input, dynamic graph-family MMDS output and provider-bound replay, and provider-bound dynamic MMDS-to-SVG replay.
 
-`metricsJson` is intentionally separate from `configJson`:
+Text and ASCII reject dynamic metrics because browser pixel widths do not
+map to the monospaced terminal grid used by those outputs, and
+sequence-family diagrams use a separate timeline-family layout path that
+would need a dedicated metrics plan before browser measurement could be
+honestly applied.
 
-```json
-{
-  "profileId": "mmdflux-browser-canvas-v1",
-  "profileVersion": 1,
-  "defaultStyle": "s0",
-  "textStyles": [
-    {
-      "id": "s0",
-      "fontFamily": "Verdana",
-      "fontSize": 8,
-      "fontStyle": "normal",
-      "fontWeight": "400",
-      "lineHeight": 12,
-      "cssFont": "normal 400 8px Verdana"
-    },
-    {
-      "id": "s1",
-      "fontFamily": "Times New Roman",
-      "fontSize": 32,
-      "fontStyle": "normal",
-      "fontWeight": "400",
-      "lineHeight": 48,
-      "cssFont": "normal 400 32px Times New Roman"
-    }
-  ]
-}
-```
-
-`renderWithBrowserTextMetrics uses metricsJson for font identity`.
+`metricsJson` carries provider identity
+(`profileId = "mmdflux-browser-canvas-v1"`, `profileVersion = 1`),
+`defaultStyle`, and a `textStyles` array; each style entry supplies
+`fontFamily`, `fontSize`, `fontStyle`, `fontWeight`, `lineHeight`, and
+`cssFont`. `renderWithBrowserTextMetrics uses metricsJson for font identity`
+and is intentionally separate from `configJson`:
 `configJson.fontFamily`, `configJson.fontSize`, and `configJson.themeVariables`
 are rejected on this export even when they match `metricsJson`.
-
-Mermaid graph styles can override `font-family`, `font-size`, `font-style`, and
-`font-weight`, but they do not carry a per-element line-height. mmdflux derives a
-styled element's line-height from the default style's line-height ratio. For
-example, a default style of `fontSize = 16` and `lineHeight = 24` gives an 8-px
-Mermaid-styled label a required `lineHeight = 12` entry in `metricsJson`.
-Supplying the same font identity with a different `lineHeight` is rejected so
-layout and replay stay keyed to the same measured style.
-
-The JavaScript adapter must complete async font preflight before Rust layout
-starts. Both browser modes call `load(cssFont)` and then use a post-load
-`check(cssFont)` validity gate for every entry in `textStyles` before
-invoking Rust. The adapter intentionally does NOT await `FontFaceSet.ready`
-because Chrome's worker `FontFaceSet.ready` can stay pending indefinitely
-for system-font stacks even after `load` resolves and `check` passes;
-`load` plus post-load `check` is the requested-font contract.
-`check()` alone is not proof that a requested font loaded.
 
 | Mode | Required browser capabilities | Notes |
 | ---- | ----------------------------- | ----- |
 | Worker dynamic metrics | worker `FontFaceSet` (`self.fonts`) and `OffscreenCanvas` | Preferred path. Layout and `measureText` stay inside the worker. |
 | Main-thread dynamic metrics | `document.fonts` and a normal canvas | Fallback for worker font/canvas capability gaps. This can block the UI during render. |
 
-Main-thread fallback is used only when worker dynamic metrics fail because the
-worker lacks font or canvas capabilities. Missing fonts, failed post-load
-`check()`, invalid `measureText` output, and Rust render errors remain explicit
-failures; they do not retry through another mode or fall back to static
-profiles. When the requested font is unavailable, rendering fails instead of measuring a fallback font and pretending it matched the request.
-
-The `measureText` callback itself is synchronous from Rust's perspective and
-must return a finite non-negative width number for each `(text, cssFont)`
-request. Promises, objects, `NaN`, `Infinity`, negative values, and thrown errors
-fail the render.
+Mermaid graph styles can override `font-family`, `font-size`, `font-style`, and
+`font-weight`, but they do not carry a per-element line-height. mmdflux derives
+a styled element's line-height from the default style's line-height ratio. For
+example, a default style of `fontSize = 16` and `lineHeight = 24` gives an 8-px
+Mermaid-styled label a required `lineHeight = 12` entry in `metricsJson`.
+Supplying the same font identity with a different `lineHeight` is rejected so
+layout and replay stay keyed to the same measured style.
 
 The dynamic path does not fall back to `mmdflux-sans-v1` or
-`mmdflux-heuristic-proportional-v1` after a measurement failure. For dynamic
-MMDS output and provider-bound replay, `metricsJson` carries provider identity
-(`profileId = "mmdflux-browser-canvas-v1"`, `profileVersion = 1`) plus a
-style set. Each style supplies `fontFamily`, `fontSize`, `fontStyle`,
-`fontWeight`, `lineHeight`, and `cssFont`; the browser callback receives the
-CSS font for each measured text query. Dynamic MMDS output includes
-`org.mmdflux.text-measurements.v1`, a measured-query sidecar keyed by
-`textStyles`, `lineWidths`, and `scalarWidths`. That sidecar lets the static
-`render` export replay graph-family dynamic MMDS to SVG provider-free when it
-is complete; this is the static `render` export replay path for dynamic MMDS.
-Missing measured queries remain explicit replay errors;
-Text/ASCII, sequence, and relayout after changing constraints are still
-unsupported.
+`mmdflux-heuristic-proportional-v1` after a measurement failure.
+When the requested font is unavailable, rendering fails instead of measuring a fallback font and pretending it matched the request.
+The `measureText` callback must return a synchronous finite non-negative width
+number for each `(text, cssFont)` request; promises, objects, `NaN`,
+`Infinity`, negative values, and thrown errors fail the render.
 
-Text and ASCII reject dynamic metrics because browser pixel widths do not map to
-the monospaced terminal grid used by those outputs. Sequence diagrams also
-reject dynamic metrics: they use a separate timeline-family layout path and
-would need a dedicated timeline metrics plan before browser measurement could be
-honestly applied.
+Dynamic MMDS output includes `org.mmdflux.text-measurements.v1`, a
+measured-query sidecar keyed by `textStyles`, `lineWidths`, and
+`scalarWidths`. That sidecar lets the static `render` export replay
+graph-family dynamic MMDS to SVG provider-free when complete.
+Missing measured queries remain explicit replay errors. Relayout after
+changing constraints is still unsupported.
+
+The playground routes graph-family SVG font styles through browser text metrics when Mermaid `style`, `classDef`/`class`, or `linkStyle` declarations include layout-affecting font properties. Static/default SVG renders without font styling continue to use the portable `render` path. Subgraph container visual styles can replay provider-free, but custom subgraph title font family or size requires dynamic metrics because it changes layout geometry. Text, ASCII, and sequence remain unsupported.
 
 ## Tracing and Diagnostics
 
@@ -243,21 +202,23 @@ Example:
 
 ## npm Release Contract
 
-Wasm publishing is tag-driven via:
+Two npm packages are published from this repo via tag-driven workflows:
 
-- `.github/workflows/wasm-release.yml`
-
-Rules enforced by the workflow:
-
-- Release is triggered by the `mmdflux-v*` tag (created by `cog bump --package mmdflux`). Tag version must equal crate version.
-- Root `Cargo.toml` version and `crates/mmdflux-wasm/Cargo.toml` version must match.
-- Bundler package is published to npm as `@mmds/wasm`.
+- `mmdflux-v*` tags (`.github/workflows/wasm-release.yml`) publish the
+  generated bundler artifact as `@mmds/wasm`. Triggered by
+  `cog bump --package mmdflux`; tag version must equal crate version. Root
+  `Cargo.toml` and `crates/mmdflux-wasm/Cargo.toml` versions must match.
+- `mmds-browser-text-metrics-v*` tags
+  (`.github/workflows/packages-release.yml`) publish the hand-written
+  adapter as `@mmds/browser-text-metrics`. Triggered by
+  `cog bump --package mmds-browser-text-metrics`. The adapter declares
+  `@mmds/wasm` as a peer dependency; the host application installs both.
 
 Required repository setup:
 
-- Preferred (steady state): configure npm trusted publishing for
-  `@mmds/wasm` in npm package settings, linked to this GitHub repository
-  workflow (`.github/workflows/wasm-release.yml`).
+- Preferred (steady state): configure npm trusted publishing for both
+  `@mmds/wasm` and `@mmds/browser-text-metrics` in npm package settings,
+  linked to the matching GitHub repository workflow.
 - Bootstrap (first publish, before package settings exist): publish once
   manually from a maintainer machine.
 - After first publish succeeds: configure trusted publisher in npm settings.

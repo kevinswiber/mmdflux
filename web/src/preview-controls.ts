@@ -1,6 +1,5 @@
+import type { WorkerOutputFormat } from "@mmds/browser-text-metrics/worker-protocol";
 import Panzoom from "@panzoom/panzoom";
-
-import type { WorkerOutputFormat } from "./worker-protocol";
 
 interface PanzoomInstance {
   destroy: () => void;

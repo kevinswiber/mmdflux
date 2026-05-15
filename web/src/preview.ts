@@ -1,5 +1,5 @@
+import type { WorkerOutputFormat } from "@mmds/browser-text-metrics/worker-protocol";
 import { escapeAnsiForDisplay, parseAnsiSegments, stripAnsi } from "./ansi";
-import type { WorkerOutputFormat } from "./worker-protocol";
 
 interface PreviewElements {
   output: HTMLElement;

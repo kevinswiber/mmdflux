@@ -1,4 +1,4 @@
-import type { WorkerOutputFormat } from "./worker-protocol";
+import type { WorkerOutputFormat } from "@mmds/browser-text-metrics/worker-protocol";
 
 export interface LiveUpdateRequest {
   input: string;

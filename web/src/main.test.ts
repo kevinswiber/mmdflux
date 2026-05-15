@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import type { BrowserTextMetricsRequest } from "@mmds/browser-text-metrics";
 import { describe, expect, it, vi } from "vitest";
-import type { BrowserTextMetricsRequest } from "./browser-text-metrics";
 import { createDefaultRenderWorkerClient, renderApp } from "./main";
 import type { BrowserTextMetricsRenderRequest } from "./services/render-client";
 
@@ -64,7 +64,9 @@ describe("renderApp", () => {
       terminate: vi.fn(),
     };
     const fallbackRenderer = {
-      renderWithBrowserTextMetrics: vi.fn(),
+      renderSvg: vi.fn(),
+      renderStatic: vi.fn(),
+      validate: vi.fn(),
     };
     const createClient = vi.fn(() => client);
     const createFallbackRenderer = vi.fn(() => fallbackRenderer);
@@ -80,7 +82,7 @@ describe("renderApp", () => {
 
     expect(createFallbackRenderer).toHaveBeenCalledTimes(1);
     expect(createClient).toHaveBeenCalledWith(undefined, {
-      mainThreadBrowserTextMetricsRenderer: fallbackRenderer,
+      mainThreadRenderer: fallbackRenderer,
     });
   });
 
@@ -262,13 +264,11 @@ describe("renderApp", () => {
         output: `<span>${request.browserTextMetrics.fontFamily}:${request.input}</span>`,
       }),
     );
-    const mainThreadRenderWithBrowserTextMetrics = vi.fn(
-      async (request: BrowserTextMetricsRenderRequest) => ({
-        seq: request.seq,
-        format: "svg" as const,
-        output: `<span>main-thread:${request.input}</span>`,
-      }),
-    );
+    const mainThreadRenderSvg = vi.fn(async (options: { input: string }) => ({
+      output: `<span>main-thread:${options.input}</span>`,
+      format: "svg" as const,
+      source: "main-thread" as const,
+    }));
 
     try {
       history.replaceState(null, "", "?debugBrowserMetrics=1");
@@ -286,8 +286,10 @@ describe("renderApp", () => {
           validate: async () => '{"valid":true}',
           terminate: () => {},
         }),
-        mainThreadBrowserTextMetricsRendererFactory: () => ({
-          renderWithBrowserTextMetrics: mainThreadRenderWithBrowserTextMetrics,
+        mainThreadRendererFactory: () => ({
+          renderSvg: mainThreadRenderSvg,
+          renderStatic: vi.fn(),
+          validate: vi.fn(),
         }),
         debounceMs: 10_000,
         stateStorage: {
@@ -330,8 +332,7 @@ describe("renderApp", () => {
         show: false,
       });
 
-      expect(mainThreadRenderWithBrowserTextMetrics).toHaveBeenCalledWith({
-        seq: expect.any(Number),
+      expect(mainThreadRenderSvg).toHaveBeenCalledWith({
         input: "graph TD\nM-->N",
         configJson: '{"pathSimplification":"lossless"}',
         browserTextMetrics: {
@@ -355,11 +356,14 @@ describe("renderApp", () => {
         output: `<span>worker:${request.browserTextMetrics.textStyles?.length}</span>`,
       }),
     );
-    const mainThreadRenderWithBrowserTextMetrics = vi.fn(
-      async (request: BrowserTextMetricsRenderRequest) => ({
-        seq: request.seq,
+    const mainThreadRenderSvg = vi.fn(
+      async (options: {
+        input: string;
+        browserTextMetrics: BrowserTextMetricsRequest;
+      }) => ({
+        output: `<span>main-thread:${options.browserTextMetrics.textStyles?.length}</span>`,
         format: "svg" as const,
-        output: `<span>main-thread:${request.browserTextMetrics.textStyles?.length}</span>`,
+        source: "main-thread" as const,
       }),
     );
     const multiFontInput = `graph TD
@@ -385,8 +389,10 @@ describe("renderApp", () => {
           validate: async () => '{"valid":true}',
           terminate: () => {},
         }),
-        mainThreadBrowserTextMetricsRendererFactory: () => ({
-          renderWithBrowserTextMetrics: mainThreadRenderWithBrowserTextMetrics,
+        mainThreadRendererFactory: () => ({
+          renderSvg: mainThreadRenderSvg,
+          renderStatic: vi.fn(),
+          validate: vi.fn(),
         }),
         debounceMs: 10_000,
         stateStorage: {
@@ -428,7 +434,7 @@ describe("renderApp", () => {
           }),
         }),
       );
-      expect(mainThreadRenderWithBrowserTextMetrics).toHaveBeenCalledWith(
+      expect(mainThreadRenderSvg).toHaveBeenCalledWith(
         expect.objectContaining({
           browserTextMetrics: expect.objectContaining({
             textStyles: expect.arrayContaining([

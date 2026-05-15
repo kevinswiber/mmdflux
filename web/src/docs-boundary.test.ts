@@ -14,7 +14,7 @@ describe("dynamic font docs", () => {
     );
     expect(docs).toContain("Text, ASCII, and sequence remain unsupported");
     expect(docs).toContain(
-      "requested font is unavailable, rendering fails instead of measuring a fallback font",
+      "rendering fails instead of measuring a fallback font",
     );
   });
 
@@ -29,5 +29,17 @@ describe("dynamic font docs", () => {
     expect(docs).toContain(
       "`load` plus post-load `check` is the requested-font contract",
     );
+  });
+
+  it("point at the @mmds/browser-text-metrics adapter package", async () => {
+    const docs = await readFile(
+      path.resolve(process.cwd(), "../docs/development/wasm.md"),
+      "utf8",
+    );
+
+    expect(docs).toContain("@mmds/browser-text-metrics");
+    expect(docs).toContain("createMmdsBrowserTextMetricsClient");
+    expect(docs).toContain("createMmdsMainThreadRenderer");
+    expect(docs).toContain("mmds-browser-text-metrics-v*");
   });
 });

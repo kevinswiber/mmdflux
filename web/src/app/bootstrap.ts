@@ -1,4 +1,8 @@
-import type { BrowserTextMetricsRequest } from "../browser-text-metrics";
+import type { BrowserTextMetricsRequest } from "@mmds/browser-text-metrics";
+import {
+  createMmdsMainThreadRenderer,
+  type MmdsMainThreadRenderer,
+} from "@mmds/browser-text-metrics/main-thread";
 import { createEditorController } from "../editor";
 import {
   DEFAULT_EXAMPLE_ID,
@@ -25,10 +29,6 @@ import {
 import { createPreviewControls } from "../preview-controls";
 import { renderPlaygroundRequest } from "../services/dynamic-svg-routing";
 import {
-  createMainThreadBrowserTextMetricsRenderer,
-  type MainThreadBrowserTextMetricsRenderer,
-} from "../services/main-thread-browser-text-metrics";
-import {
   persistPlaygroundState,
   readPersistedPlaygroundState,
   resolveStateStorage,
@@ -50,6 +50,7 @@ import {
   type SharePathSimplification,
 } from "../share";
 import { createThemeController, type ThemePreference } from "../theme";
+import { loadWasmModule } from "../wasm-module";
 import {
   createPlaygroundStateStore,
   DRAFT_EXAMPLE_ID,
@@ -67,7 +68,7 @@ interface RenderControlBinding {
 
 export interface RenderAppOptions {
   renderClientFactory?: () => RenderWorkerClient | null;
-  mainThreadBrowserTextMetricsRendererFactory?: () => MainThreadBrowserTextMetricsRenderer;
+  mainThreadRendererFactory?: () => MmdsMainThreadRenderer;
   debounceMs?: LiveUpdateDebounceSetting;
   stateStorage?: StateStorage;
 }
@@ -231,15 +232,19 @@ type RenderWorkerClientFactory = (
 
 export function createDefaultRenderWorkerClient(
   createClient: RenderWorkerClientFactory = createRenderWorkerClient,
-  createMainThreadRenderer: () => MainThreadBrowserTextMetricsRenderer = createMainThreadBrowserTextMetricsRenderer,
+  createMainThreadRenderer: () => MmdsMainThreadRenderer = createPlaygroundMainThreadRenderer,
 ): RenderWorkerClient | null {
   if (typeof Worker === "undefined") {
     return null;
   }
 
   return createClient(undefined, {
-    mainThreadBrowserTextMetricsRenderer: createMainThreadRenderer(),
+    mainThreadRenderer: createMainThreadRenderer(),
   });
+}
+
+function createPlaygroundMainThreadRenderer(): MmdsMainThreadRenderer {
+  return createMmdsMainThreadRenderer({ loadWasmModule });
 }
 
 function viewportHeight(): number {
@@ -662,8 +667,7 @@ export function renderApp(
     error: previewError,
   });
   const createMainThreadRenderer =
-    options.mainThreadBrowserTextMetricsRendererFactory ??
-    createMainThreadBrowserTextMetricsRenderer;
+    options.mainThreadRendererFactory ?? createPlaygroundMainThreadRenderer;
   const workerClient = options.renderClientFactory
     ? options.renderClientFactory()
     : createDefaultRenderWorkerClient(undefined, createMainThreadRenderer);
@@ -964,11 +968,11 @@ export function renderApp(
   });
 
   let nextBrowserMetricsDebugSeq = -1_000_000;
-  let browserMetricsDebugMainThreadRenderer: MainThreadBrowserTextMetricsRenderer | null =
+  let browserMetricsDebugMainThreadRenderer: MmdsMainThreadRenderer | null =
     null;
 
   const getBrowserMetricsDebugMainThreadRenderer =
-    (): MainThreadBrowserTextMetricsRenderer => {
+    (): MmdsMainThreadRenderer => {
       browserMetricsDebugMainThreadRenderer ??= createMainThreadRenderer();
       return browserMetricsDebugMainThreadRenderer;
     };
@@ -989,15 +993,24 @@ export function renderApp(
     const source = options.forceMainThread ? "main-thread" : "worker-client";
 
     try {
-      const response = options.forceMainThread
-        ? await getBrowserMetricsDebugMainThreadRenderer().renderWithBrowserTextMetrics(
-            request,
-          )
-        : await workerClient.renderWithBrowserTextMetrics(request);
+      let output: string;
+      if (options.forceMainThread) {
+        const mainThreadResult =
+          await getBrowserMetricsDebugMainThreadRenderer().renderSvg({
+            input: request.input,
+            browserTextMetrics: request.browserTextMetrics,
+            configJson: request.configJson,
+          });
+        output = mainThreadResult.output;
+      } else {
+        const workerResponse =
+          await workerClient.renderWithBrowserTextMetrics(request);
+        output = workerResponse.output;
+      }
       const result: BrowserMetricsDebugResult = {
-        seq: response.seq,
+        seq: request.seq,
         format: "svg",
-        output: response.output,
+        output,
         source,
       };
 

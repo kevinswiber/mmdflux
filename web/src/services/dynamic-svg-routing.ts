@@ -1,3 +1,4 @@
+import { mayNeedBrowserTextMetrics } from "@mmds/browser-text-metrics/routing";
 import type {
   RenderRequest,
   RenderResponse,
@@ -30,23 +31,4 @@ export async function renderPlaygroundRequest(
     configJson: request.configJson,
     browserTextMetrics: decision.browserTextMetrics,
   });
-}
-
-function mayNeedBrowserTextMetrics(request: RenderRequest): boolean {
-  const input = request.input.toLowerCase();
-  if (
-    input.includes("font-family") ||
-    input.includes("font-size") ||
-    input.includes("font-style") ||
-    input.includes("font-weight")
-  ) {
-    return true;
-  }
-
-  const configJson = request.configJson?.toLowerCase() ?? "";
-  return (
-    configJson.includes("fontfamily") ||
-    configJson.includes("fontsize") ||
-    configJson.includes("themevariables")
-  );
 }

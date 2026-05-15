@@ -1,12 +1,12 @@
-import type { BrowserTextMetricsRequest } from "../browser-text-metrics";
+import type { BrowserTextMetricsRequest } from "@mmds/browser-text-metrics";
+import type { MmdsMainThreadRenderer } from "@mmds/browser-text-metrics/main-thread";
 import {
   PROTOCOL_VERSION,
   type WorkerBrowserTextMetricsDecision,
   type WorkerOutputFormat,
   type WorkerRequestMessage,
   type WorkerResponseMessage,
-} from "../worker-protocol";
-import type { MainThreadBrowserTextMetricsRenderer } from "./main-thread-browser-text-metrics";
+} from "@mmds/browser-text-metrics/worker-protocol";
 
 export interface RenderRequest {
   seq: number;
@@ -73,7 +73,7 @@ export interface RenderWorkerClient {
 }
 
 export interface RenderWorkerClientOptions {
-  mainThreadBrowserTextMetricsRenderer?: MainThreadBrowserTextMetricsRenderer;
+  mainThreadRenderer?: MmdsMainThreadRenderer;
   dynamicMetricsWorkerTimeoutMs?: number;
 }
 
@@ -92,7 +92,7 @@ export function createRenderWorkerClient(
   options: RenderWorkerClientOptions = {},
 ): RenderWorkerClient {
   const pending = new Map<number, PendingRequest>();
-  const mainThreadRenderer = options.mainThreadBrowserTextMetricsRenderer;
+  const mainThreadRenderer = options.mainThreadRenderer;
   const dynamicMetricsWorkerTimeoutMs =
     options.dynamicMetricsWorkerTimeoutMs ?? 5_000;
   let nextValidationSeq = -1;
@@ -229,7 +229,18 @@ export function createRenderWorkerClient(
 
       return new Promise<RenderResponse>((resolve, reject) => {
         const mainThreadFallback = mainThreadRenderer
-          ? () => mainThreadRenderer.renderWithBrowserTextMetrics(request)
+          ? async (): Promise<RenderResponse> => {
+              const result = await mainThreadRenderer.renderSvg({
+                input: request.input,
+                browserTextMetrics: request.browserTextMetrics,
+                configJson: request.configJson ?? "{}",
+              });
+              return {
+                seq: request.seq,
+                format: "svg",
+                output: result.output,
+              };
+            }
           : undefined;
         const pendingRequest: PendingRenderRequest = {
           kind: "render",
