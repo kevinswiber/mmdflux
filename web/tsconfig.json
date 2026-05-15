@@ -18,5 +18,9 @@
       ]
     }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": [
+    "src",
+    "vite.config.ts",
+    "../packages/mmds-browser-text-metrics/src/mmds-wasm-shim.d.ts"
+  ]
 }

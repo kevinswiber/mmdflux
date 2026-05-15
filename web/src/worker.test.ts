@@ -113,6 +113,7 @@ describe("createWorkerRequestHandler", () => {
       type: "error",
       seq: 42,
       error: "unknown output format: bad",
+      code: "wasm-render-rejected",
     });
   });
 
@@ -287,6 +288,7 @@ describe("createWorkerRequestHandler", () => {
         type: "error",
         seq: 15,
         error: "RenderConfig.graph_text_style is not supported",
+        code: "wasm-config-rejected",
       },
     ]);
   });
@@ -339,9 +341,12 @@ describe("createWorkerRequestHandler", () => {
     });
 
     expect(prepareBrowserTextMetrics).toHaveBeenCalledWith({
-      fontFamily: "Inter",
-      fontSizePx: 16,
-      lineHeightPx: 24,
+      request: {
+        fontFamily: "Inter",
+        fontSizePx: 16,
+        lineHeightPx: 24,
+      },
+      environment: undefined,
     });
     expect(renderWithBrowserTextMetrics).toHaveBeenCalledWith(
       "graph TD\nA-->B",
