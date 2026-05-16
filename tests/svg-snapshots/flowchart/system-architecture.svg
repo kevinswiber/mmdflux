@@ -6,12 +6,18 @@
   </defs>
   <g transform="translate(-35.00,-4.00)">
     <g class="clusters">
-      <rect class="subgraph" x="43.00" y="33.45" width="370.42" height="286.60" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="228.21" y="37.45" text-anchor="middle" dominant-baseline="hanging" fill="#333">Client Layer</text>
-      <rect class="subgraph" x="842.12" y="12.00" width="204.41" height="443.89" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="944.32" y="16.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Data Layer</text>
-      <rect class="subgraph" x="533.42" y="17.22" width="188.70" height="383.93" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="627.77" y="21.22" text-anchor="middle" dominant-baseline="hanging" fill="#333">Service Layer</text>
+      <g class="cluster" id="clients">
+        <rect class="subgraph" x="43.00" y="33.45" width="370.42" height="286.60" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="228.21" y="37.45" text-anchor="middle" dominant-baseline="hanging" fill="#333">Client Layer</text>
+      </g>
+      <g class="cluster" id="data">
+        <rect class="subgraph" x="842.12" y="12.00" width="204.41" height="443.89" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="944.32" y="16.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Data Layer</text>
+      </g>
+      <g class="cluster" id="services">
+        <rect class="subgraph" x="533.42" y="17.22" width="188.70" height="383.93" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="627.77" y="21.22" text-anchor="middle" dominant-baseline="hanging" fill="#333">Service Layer</text>
+      </g>
     </g>
     <g class="edgePaths">
       <path d="M180.81,110.45 L189.64,110.45 Q193.64,110.45 193.64,114.45 L193.64,118.45 L193.64,165.68 Q193.64,170.68 198.64,170.68 L241.05,170.68" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

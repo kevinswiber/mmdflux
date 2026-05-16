@@ -561,7 +561,14 @@ fn sorted_subgraphs(output: &Document) -> Vec<&Subgraph> {
 fn flowchart_visual_uses_replay_smoke(name: &str) -> bool {
     matches!(
         name,
-        "subgraph_as_node_edge.mmd" | "subgraph_to_subgraph_edge.mmd"
+        "subgraph_as_node_edge.mmd"
+            | "subgraph_to_subgraph_edge.mmd"
+            // SVG wrappers now carry the subgraph id; the Mermaid generator
+            // normalizes non-alphanumeric chars in identifiers (e.g. `-` to `_`),
+            // so byte-identical SVG comparison breaks for fixtures whose source
+            // ids contain such characters. Semantic and layout tiers still
+            // verify the round-trip; visual divergence is the id-attribute only.
+            | "external_node_subgraph.mmd"
     )
 }
 

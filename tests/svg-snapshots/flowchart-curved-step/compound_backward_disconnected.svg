@@ -6,12 +6,18 @@
   </defs>
   <g transform="translate(-20.00,-19.00)">
     <g class="clusters">
-      <rect class="subgraph" x="28.44" y="27.00" width="324.53" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="190.71" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Top</text>
-      <rect class="subgraph" x="28.44" y="231.00" width="324.53" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="190.71" y="235.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Middle</text>
-      <rect class="subgraph" x="28.00" y="435.00" width="326.30" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="191.15" y="439.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Bottom</text>
+      <g class="cluster" id="A">
+        <rect class="subgraph" x="28.44" y="27.00" width="324.53" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="190.71" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Top</text>
+      </g>
+      <g class="cluster" id="B">
+        <rect class="subgraph" x="28.44" y="231.00" width="324.53" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="190.71" y="235.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Middle</text>
+      </g>
+      <g class="cluster" id="C">
+        <rect class="subgraph" x="28.00" y="435.00" width="326.30" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="191.15" y="439.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Bottom</text>
+      </g>
     </g>
     <g class="edgePaths">
       <path d="M104.57,112.00 L104.57,162.00 L104.57,166.17 C104.57,170.33 104.57,178.67 104.57,187.00 C104.57,195.33 104.57,203.67 104.57,207.83 L104.57,212.00 L104.57,258.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

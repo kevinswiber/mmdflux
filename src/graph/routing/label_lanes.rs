@@ -913,6 +913,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         diagram.subgraphs.insert(
@@ -926,6 +927,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         diagram.subgraphs.insert(
@@ -939,6 +941,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         diagram.add_edge(crate::graph::Edge::new("A", "B").with_label("shared parent label"));

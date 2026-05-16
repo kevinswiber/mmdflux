@@ -6,12 +6,18 @@
   </defs>
   <g transform="translate(-25.00,0.00)">
     <g class="clusters">
-      <rect class="subgraph" x="33.00" y="150.00" width="438.94" height="250.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="252.47" y="154.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Cloud</text>
-      <rect class="subgraph" x="282.47" y="181.00" width="174.47" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="369.70" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US East Region</text>
-      <rect class="subgraph" x="48.00" y="181.00" width="174.47" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="135.23" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US West Region</text>
+      <g class="cluster" id="Cloud">
+        <rect class="subgraph" x="33.00" y="150.00" width="438.94" height="250.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="252.47" y="154.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Cloud</text>
+      </g>
+      <g class="cluster" id="us-east">
+        <rect class="subgraph" x="282.47" y="181.00" width="174.47" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="369.70" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US East Region</text>
+      </g>
+      <g class="cluster" id="us-west">
+        <rect class="subgraph" x="48.00" y="181.00" width="174.47" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="135.23" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">US West Region</text>
+      </g>
     </g>
     <g class="edgePaths">
       <path d="M369.70,266.00 L369.70,268.78 C369.70,271.56 369.70,277.11 369.70,282.67 C369.70,288.22 369.70,293.78 369.70,298.67 C369.70,303.56 369.70,307.78 369.70,309.89 L369.70,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

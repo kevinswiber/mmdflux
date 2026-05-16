@@ -6,10 +6,14 @@
   </defs>
   <g transform="translate(-30.00,0.00)">
     <g class="clusters">
-      <rect class="subgraph" x="38.00" y="114.00" width="297.56" height="250.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="186.78" y="118.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Outer LR</text>
-      <rect class="subgraph" x="219.89" y="145.00" width="100.67" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="270.23" y="149.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Inner BT</text>
+      <g class="cluster" id="outer">
+        <rect class="subgraph" x="38.00" y="114.00" width="297.56" height="250.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="186.78" y="118.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Outer LR</text>
+      </g>
+      <g class="cluster" id="inner">
+        <rect class="subgraph" x="219.89" y="145.00" width="100.67" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="270.23" y="149.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Inner BT</text>
+      </g>
     </g>
     <g class="edgePaths">
       <path d="M270.23,280.00 L270.23,277.22 C270.23,274.44 270.23,268.89 270.23,263.33 C270.23,257.78 270.23,252.22 270.23,247.33 C270.23,242.44 270.23,238.22 270.23,236.11 L270.23,234.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

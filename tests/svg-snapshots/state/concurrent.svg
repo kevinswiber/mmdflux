@@ -6,8 +6,10 @@
   </defs>
   <g transform="translate(-25.00,0.00)">
     <g class="clusters">
-      <rect class="subgraph" x="33.00" y="126.00" width="209.14" height="392.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="137.57" y="130.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Active</text>
+      <g class="cluster" id="Active">
+        <rect class="subgraph" x="33.00" y="126.00" width="209.14" height="392.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="137.57" y="130.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Active</text>
+      </g>
       <line x1="137.57" y1="126.00" x2="137.57" y2="518.00" stroke="#888" stroke-width="1.00" stroke-dasharray="6,4" />
     </g>
     <g class="edgePaths">

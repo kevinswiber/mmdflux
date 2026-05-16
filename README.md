@@ -172,6 +172,8 @@ mmdflux --lint diagram.mmd
 
 With ANSI enabled, text/ascii output maps Mermaid styling to terminal colors where it has a clear analogue: node `style`/`classDef` `fill`, `stroke`, and `color` drive node background, border, and label color; flowchart `linkStyle ... stroke:<color>` drives edge and arrow foreground color; SVG-specific properties such as `stroke-width` and `stroke-dasharray` remain no-ops in text/ascii output.
 
+The SVG output exposes Mermaid-compatible CSS hooks: each subgraph is wrapped in `<g class="cluster {userClasses}" id="{id}">` so external stylesheets can target whole subgraphs and the user classes applied via `class A foo` or `A:::foo`. See [`docs/svg-output.md`](./docs/svg-output.md) for the full hook surface.
+
 See more examples in the sections below.
 
 ## What It Supports

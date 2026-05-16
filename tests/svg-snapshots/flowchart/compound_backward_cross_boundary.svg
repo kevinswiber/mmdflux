@@ -6,12 +6,18 @@
   </defs>
   <g transform="translate(-20.00,-19.00)">
     <g class="clusters">
-      <rect class="subgraph" x="42.87" y="27.00" width="404.24" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="244.99" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Input Layer</text>
-      <rect class="subgraph" x="162.37" y="823.61" width="149.34" height="281.36" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="237.04" y="827.61" text-anchor="middle" dominant-baseline="hanging" fill="#333">Output Layer</text>
-      <rect class="subgraph" x="28.00" y="287.00" width="415.04" height="376.61" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="235.52" y="291.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Processing</text>
+      <g class="cluster" id="input">
+        <rect class="subgraph" x="42.87" y="27.00" width="404.24" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="244.99" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Input Layer</text>
+      </g>
+      <g class="cluster" id="output">
+        <rect class="subgraph" x="162.37" y="823.61" width="149.34" height="281.36" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="237.04" y="827.61" text-anchor="middle" dominant-baseline="hanging" fill="#333">Output Layer</text>
+      </g>
+      <g class="cluster" id="processing">
+        <rect class="subgraph" x="28.00" y="287.00" width="415.04" height="376.61" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="235.52" y="291.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Processing</text>
+      </g>
     </g>
     <g class="edgePaths">
       <path d="M133.06,112.00 L133.06,307.63 Q133.06,312.63 138.06,312.63 L254.44,312.63 Q259.44,312.63 259.44,317.63 L259.44,338.23" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

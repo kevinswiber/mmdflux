@@ -1,0 +1,11 @@
+flowchart TD
+    subgraph outer [Outer]
+        subgraph inner [Inner]
+            A --> B
+        end
+        C --> A
+    end
+    classDef outerSkin fill:#fce
+    classDef innerSkin fill:#cef
+    class outer outerSkin
+    class inner innerSkin

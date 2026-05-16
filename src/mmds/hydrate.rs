@@ -54,6 +54,7 @@ pub fn from_document(output: &Document) -> Result<Graph, HydrationError> {
                 invisible: subgraph.invisible,
                 concurrent_regions: subgraph.concurrent_regions.clone(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         diagram.subgraph_order.push(subgraph.id.clone());
@@ -230,6 +231,14 @@ fn hydrate_node_style_extension(
             let style = parse_node_style_extension(style_object);
             if !style.is_empty() {
                 subgraph.style = subgraph.style.merge(&style);
+            }
+
+            if let Some(class_names) = style_object.get("classNames").and_then(Value::as_array) {
+                for name in class_names.iter().filter_map(Value::as_str) {
+                    if !subgraph.class_names.iter().any(|existing| existing == name) {
+                        subgraph.class_names.push(name.to_string());
+                    }
+                }
             }
         }
     }
@@ -1143,6 +1152,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         diagram.subgraphs.insert(
@@ -1156,6 +1166,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
 

@@ -161,6 +161,7 @@ fn process_statements(
                             .get(&sg_spec.id)
                             .cloned()
                             .unwrap_or_default(),
+                        class_names: Vec::new(),
                     },
                 );
                 diagram.subgraph_order.push(sg_spec.id.clone());
@@ -171,6 +172,7 @@ fn process_statements(
                     style_targets,
                     &style_stmt.node_id,
                     &style_stmt.style,
+                    None,
                 );
             }
             Statement::ClassDef(_) => {
@@ -179,7 +181,13 @@ fn process_statements(
             Statement::ClassApply(apply) => {
                 if let Some(style) = class_defs.get(&apply.class_name) {
                     for node_id in &apply.node_ids {
-                        merge_target_style(diagram, style_targets, node_id, style);
+                        merge_target_style(
+                            diagram,
+                            style_targets,
+                            node_id,
+                            style,
+                            Some(&apply.class_name),
+                        );
                     }
                 }
             }
@@ -281,7 +289,7 @@ fn resolve_class_annotation(
     if let Some(cn) = class_name
         && let Some(style) = class_defs.get(cn)
     {
-        merge_target_style(diagram, style_targets, target_id, style);
+        merge_target_style(diagram, style_targets, target_id, style, Some(cn.as_str()));
     }
 }
 
@@ -412,14 +420,26 @@ fn merge_subgraph_style(
 /// is shared by `style A …`, `class A foo`, and inline `A:::foo`. The two
 /// style maps are kept independent, so MMDS `styleMap` and `subgraphStyleMap`
 /// never collide on a shared id even when the input declares both.
+///
+/// When `class_name` is `Some`, the identifier is recorded on
+/// `Subgraph.class_names` (preserving application order and de-duplicating)
+/// so the SVG renderer can surface it as a CSS hook. `None` covers `style A …`,
+/// which carries no class identity.
 fn merge_target_style(
     diagram: &mut Graph,
     style_targets: &mut StyleTargets<'_>,
     target_id: &str,
     style: &NodeStyle,
+    class_name: Option<&str>,
 ) {
     if style_targets.subgraph_ids.contains(target_id) {
         merge_subgraph_style(diagram, style_targets.subgraph_styles, target_id, style);
+        if let Some(name) = class_name
+            && let Some(subgraph) = diagram.subgraphs.get_mut(target_id)
+            && !subgraph.class_names.iter().any(|existing| existing == name)
+        {
+            subgraph.class_names.push(name.to_string());
+        }
     } else {
         merge_node_style(diagram, style_targets.node_styles, target_id, style);
     }
@@ -2153,5 +2173,76 @@ end
             collisions.is_empty(),
             "bare reference must not register as a collision: {collisions:?}",
         );
+    }
+
+    fn compile_input(input: &str) -> Graph {
+        let flowchart = parse_flowchart(input).expect("parses");
+        compile_to_graph(&flowchart)
+    }
+
+    #[test]
+    fn class_statement_captures_class_names_on_subgraph() {
+        let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+    classDef blueFill fill:#00f
+    class lr blueFill
+";
+        let diagram = compile_input(input);
+        let sg = diagram.subgraphs.get("lr").expect("subgraph lr present");
+        assert_eq!(sg.class_names, vec!["blueFill".to_string()]);
+    }
+
+    #[test]
+    fn multiple_class_applications_accumulate_on_subgraph_in_order() {
+        let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+    classDef blueFill fill:#00f
+    classDef thickBorder stroke-width:3
+    class lr blueFill
+    class lr thickBorder
+";
+        let diagram = compile_input(input);
+        let sg = diagram.subgraphs.get("lr").expect("subgraph lr present");
+        assert_eq!(
+            sg.class_names,
+            vec!["blueFill".to_string(), "thickBorder".to_string()]
+        );
+    }
+
+    #[test]
+    fn duplicate_class_application_does_not_duplicate_on_subgraph() {
+        let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+    classDef blueFill fill:#00f
+    class lr blueFill
+    class lr blueFill
+";
+        let diagram = compile_input(input);
+        let sg = diagram.subgraphs.get("lr").expect("subgraph lr present");
+        assert_eq!(sg.class_names, vec!["blueFill".to_string()]);
+    }
+
+    #[test]
+    fn class_application_to_node_does_not_populate_subgraph_class_names() {
+        let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+    classDef blueFill fill:#00f
+    class A blueFill
+";
+        let diagram = compile_input(input);
+        let sg = diagram.subgraphs.get("lr").expect("subgraph lr present");
+        assert!(sg.class_names.is_empty());
     }
 }

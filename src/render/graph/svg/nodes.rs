@@ -114,6 +114,17 @@ impl<'a> ResolvedSvgSubgraphStyle<'a> {
     }
 }
 
+/// Convert a Mermaid identifier into a value safe to use as an SVG `id`
+/// attribute. XML-significant characters are entity-escaped via
+/// [`escape_text`]; ASCII whitespace becomes `_` so the result is also a
+/// valid CSS-selectable id. Unicode letters pass through unchanged.
+fn xml_safe_id(input: &str) -> String {
+    escape_text(input)
+        .chars()
+        .map(|c| if c.is_whitespace() { '_' } else { c })
+        .collect()
+}
+
 pub(super) fn render_subgraphs(
     writer: &mut SvgWriter,
     diagram: &Graph,
@@ -143,6 +154,21 @@ pub(super) fn render_subgraphs(
 
     writer.start_group("clusters");
     for (_id, subgraph, sg_geom) in subgraphs {
+        let user_classes = if subgraph.class_names.is_empty() {
+            String::new()
+        } else {
+            let mut acc = String::new();
+            for name in &subgraph.class_names {
+                acc.push(' ');
+                acc.push_str(&escape_text(name));
+            }
+            acc
+        };
+        let id_attr = xml_safe_id(&subgraph.id);
+        writer.start_tag(&format!(
+            r#"<g class="cluster{user_classes}" id="{id_attr}">"#
+        ));
+
         let rect = scale_rect(&sg_geom.rect, scale);
         let style = ResolvedSvgSubgraphStyle::from_subgraph(subgraph);
         let fill = style.fill_or("none");
@@ -197,6 +223,7 @@ pub(super) fn render_subgraphs(
             );
             writer.push_line(&text);
         }
+        writer.end_tag("</g>");
     }
 
     // Draw dashed divider lines between concurrent regions.
@@ -975,5 +1002,42 @@ fn render_node_shape(
             );
             writer.push_line(&bar);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::xml_safe_id;
+
+    #[test]
+    fn xml_safe_id_passes_simple_identifier_unchanged() {
+        assert_eq!(xml_safe_id("lr"), "lr");
+        assert_eq!(xml_safe_id("subgraph_42"), "subgraph_42");
+        assert_eq!(xml_safe_id("a-b-c"), "a-b-c");
+    }
+
+    #[test]
+    fn xml_safe_id_escapes_quote_and_amp() {
+        assert_eq!(xml_safe_id(r#"foo"bar"#), "foo&quot;bar");
+        assert_eq!(xml_safe_id("foo&bar"), "foo&amp;bar");
+        assert_eq!(xml_safe_id("a<b>c"), "a&lt;b&gt;c");
+    }
+
+    #[test]
+    fn xml_safe_id_handles_whitespace_via_underscore_substitution() {
+        assert_eq!(xml_safe_id("Left to Right"), "Left_to_Right");
+        assert_eq!(xml_safe_id("multi\nline"), "multi_line");
+        assert_eq!(xml_safe_id("tab\there"), "tab_here");
+    }
+
+    #[test]
+    fn xml_safe_id_passes_unicode_letters() {
+        assert_eq!(xml_safe_id("café"), "café");
+        assert_eq!(xml_safe_id("日本語"), "日本語");
+    }
+
+    #[test]
+    fn xml_safe_id_empty_yields_empty() {
+        assert_eq!(xml_safe_id(""), "");
     }
 }

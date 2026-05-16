@@ -52,6 +52,11 @@ pub struct Subgraph {
     /// Resolved Mermaid style properties for this subgraph.
     #[serde(default, skip_serializing_if = "NodeStyle::is_empty")]
     pub style: NodeStyle,
+    /// Original Mermaid class names applied to this subgraph, preserved so the
+    /// SVG renderer can emit them on the `<g class="cluster ...">` wrapper.
+    /// Order is preserved in application order; duplicates are not stored.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub class_names: Vec<String>,
 }
 
 /// Position of a note annotation relative to its target node.
@@ -270,6 +275,7 @@ mod tests {
             invisible: false,
             concurrent_regions: Vec::new(),
             style: Default::default(),
+            class_names: Vec::new(),
         };
         assert_eq!(sg.id, "sg1");
         assert_eq!(sg.title, "My Group");
@@ -287,6 +293,7 @@ mod tests {
             invisible: false,
             concurrent_regions: Vec::new(),
             style: Default::default(),
+            class_names: Vec::new(),
         };
 
         let value = serde_json::to_value(&sg).expect("subgraph should serialize");
@@ -304,6 +311,7 @@ mod tests {
             invisible: false,
             concurrent_regions: Vec::new(),
             style: Default::default(),
+            class_names: Vec::new(),
         };
         assert_eq!(sg.parent, Some("outer".to_string()));
     }
@@ -335,6 +343,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         assert!(diagram.has_subgraphs());
@@ -356,6 +365,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         g
@@ -384,6 +394,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         // "inner" is a subgraph, so it should be skipped; "A" or "B" returned.
@@ -406,6 +417,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         assert!(g.find_non_cluster_child("sg1").is_none());
@@ -437,6 +449,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         let sink = g.find_subgraph_sink("sg1");
@@ -462,6 +475,7 @@ mod tests {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         let sink = g.find_subgraph_sink("sg1");
@@ -472,5 +486,37 @@ mod tests {
     fn find_subgraph_sink_nonexistent() {
         let g = Graph::new(Direction::TopDown);
         assert!(g.find_subgraph_sink("nope").is_none());
+    }
+
+    #[test]
+    fn subgraph_default_has_empty_class_names() {
+        let sg = Subgraph::default();
+        assert!(sg.class_names.is_empty());
+    }
+
+    #[test]
+    fn subgraph_class_names_serialize_when_present() {
+        let sg = Subgraph {
+            id: "lr".to_string(),
+            title: "LR".to_string(),
+            class_names: vec!["blueFill".to_string(), "thickBorder".to_string()],
+            ..Subgraph::default()
+        };
+        let json = serde_json::to_string(&sg).unwrap();
+        assert!(
+            json.contains(r#""class_names":["blueFill","thickBorder"]"#),
+            "{json}"
+        );
+    }
+
+    #[test]
+    fn subgraph_class_names_omitted_when_empty() {
+        let sg = Subgraph {
+            id: "lr".to_string(),
+            title: "LR".to_string(),
+            ..Subgraph::default()
+        };
+        let json = serde_json::to_string(&sg).unwrap();
+        assert!(!json.contains("class_names"), "{json}");
     }
 }

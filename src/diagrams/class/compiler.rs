@@ -180,6 +180,7 @@ fn apply_namespaces(model: &ClassModel, diagram: &mut Graph) {
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         diagram.subgraph_order.push(namespace.id.clone());

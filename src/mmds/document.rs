@@ -594,12 +594,26 @@ fn collect_styled_edges(diagram: &Graph) -> BTreeMap<String, EdgeStyle> {
         .collect()
 }
 
-fn collect_styled_subgraphs(diagram: &Graph) -> BTreeMap<String, NodeStyle> {
+#[derive(Debug, Default, Clone)]
+struct SubgraphStyleEntry {
+    style: NodeStyle,
+    class_names: Vec<String>,
+}
+
+fn collect_styled_subgraphs(diagram: &Graph) -> BTreeMap<String, SubgraphStyleEntry> {
     diagram
         .subgraphs
         .iter()
-        .filter(|(_, subgraph)| !subgraph.style.is_empty())
-        .map(|(subgraph_id, subgraph)| (subgraph_id.clone(), subgraph.style.clone()))
+        .filter(|(_, subgraph)| !subgraph.style.is_empty() || !subgraph.class_names.is_empty())
+        .map(|(subgraph_id, subgraph)| {
+            (
+                subgraph_id.clone(),
+                SubgraphStyleEntry {
+                    style: subgraph.style.clone(),
+                    class_names: subgraph.class_names.clone(),
+                },
+            )
+        })
         .collect()
 }
 
@@ -739,7 +753,7 @@ fn rect_value(rect: crate::graph::geometry::FRect) -> Value {
 fn style_extension(
     styled_nodes: BTreeMap<String, NodeStyle>,
     styled_edges: BTreeMap<String, EdgeStyle>,
-    styled_subgraphs: BTreeMap<String, NodeStyle>,
+    styled_subgraphs: BTreeMap<String, SubgraphStyleEntry>,
 ) -> Map<String, Value> {
     let mut extension = Map::new();
     if !styled_nodes.is_empty() {
@@ -769,11 +783,21 @@ fn style_extension(
     if !styled_subgraphs.is_empty() {
         let subgraphs = styled_subgraphs
             .iter()
-            .map(|(subgraph_id, style)| {
-                (
-                    subgraph_id.clone(),
-                    Value::Object(serialize_node_style_extension(style)),
-                )
+            .map(|(subgraph_id, entry)| {
+                let mut payload = serialize_node_style_extension(&entry.style);
+                if !entry.class_names.is_empty() {
+                    payload.insert(
+                        "classNames".to_string(),
+                        Value::Array(
+                            entry
+                                .class_names
+                                .iter()
+                                .map(|name| Value::String(name.clone()))
+                                .collect(),
+                        ),
+                    );
+                }
+                (subgraph_id.clone(), Value::Object(payload))
             })
             .collect();
         extension.insert("subgraphs".to_string(), Value::Object(subgraphs));

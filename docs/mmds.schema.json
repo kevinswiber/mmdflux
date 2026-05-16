@@ -420,9 +420,9 @@
         },
         "subgraphs": {
           "type": "object",
-          "description": "Subgraph-ID keyed style overrides replayed into renderer-visible subgraph container and title properties.",
+          "description": "Subgraph-ID keyed style overrides replayed into renderer-visible subgraph container and title properties, plus any user-applied class names from Mermaid `class`/`:::` annotations.",
           "additionalProperties": {
-            "$ref": "#/$defs/NodeStyle"
+            "$ref": "#/$defs/SubgraphStyle"
           }
         }
       },
@@ -716,6 +716,29 @@
       },
       "additionalProperties": true,
       "description": "Marker for MMDS payloads materialized by the Rust views API."
+    },
+    "SubgraphStyle": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Per-subgraph extension entry: any subset of NodeStyle fields and/or an array of user-applied class names from Mermaid `class`/`:::` statements on the subgraph id.",
+      "properties": {
+        "fill": { "type": "string", "description": "Raw color token for subgraph fill." },
+        "stroke": { "type": "string", "description": "Raw color token for subgraph border stroke." },
+        "color": { "type": "string", "description": "Raw color token for subgraph title text." },
+        "font-family": { "type": "string", "description": "CSS font-family value for subgraph title text." },
+        "font-size": { "type": "string", "description": "CSS font-size value for subgraph title text." },
+        "font-style": { "type": "string", "description": "CSS font-style value (e.g. italic)." },
+        "font-weight": { "type": "string", "description": "CSS font-weight value (e.g. bold, 700)." },
+        "stroke-width": { "type": "string", "description": "CSS stroke-width value (e.g. 4px)." },
+        "stroke-dasharray": { "type": "string", "description": "SVG stroke-dasharray value (e.g. 5,3)." },
+        "rx": { "type": "string", "description": "SVG rx (border-radius) value." },
+        "classNames": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Original Mermaid class names applied to this subgraph (preserves application order)."
+        }
+      },
+      "additionalProperties": false
     },
     "NodeStyle": {
       "type": "object",

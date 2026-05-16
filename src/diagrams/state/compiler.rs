@@ -320,6 +320,7 @@ fn process_state_decl(
                     invisible: true,
                     concurrent_regions: Vec::new(),
                     style: Default::default(),
+                    class_names: Vec::new(),
                 },
             );
             graph.subgraph_order.push(region_sg_id.clone());
@@ -362,6 +363,7 @@ fn process_state_decl(
                 invisible: false,
                 concurrent_regions: region_sg_ids,
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         graph.subgraph_order.push(decl.id.clone());
@@ -401,6 +403,7 @@ fn process_state_decl(
                 invisible: false,
                 concurrent_regions: Vec::new(),
                 style: Default::default(),
+                class_names: Vec::new(),
             },
         );
         graph.subgraph_order.push(decl.id.clone());

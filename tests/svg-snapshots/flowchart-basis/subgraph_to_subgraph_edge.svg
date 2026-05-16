@@ -6,10 +6,14 @@
   </defs>
   <g transform="translate(-20.00,-19.00)">
     <g class="clusters">
-      <rect class="subgraph" x="41.80" y="335.00" width="167.36" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="125.48" y="339.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Backend</text>
-      <rect class="subgraph" x="28.00" y="27.00" width="194.95" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="125.48" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Frontend</text>
+      <g class="cluster" id="backend">
+        <rect class="subgraph" x="41.80" y="335.00" width="167.36" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="125.48" y="339.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Backend</text>
+      </g>
+      <g class="cluster" id="frontend">
+        <rect class="subgraph" x="28.00" y="27.00" width="194.95" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="125.48" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Frontend</text>
+      </g>
     </g>
     <g class="edgePaths">
       <path d="M125.48,112.00 L125.48,114.78 C125.48,117.56 125.48,123.11 125.48,128.67 C125.48,134.22 125.48,139.78 125.48,144.67 C125.48,149.56 125.48,153.78 125.48,155.89 L125.48,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

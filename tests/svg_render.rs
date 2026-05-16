@@ -926,3 +926,183 @@ fn svg_node_with_font_style() {
         "expected font-style in SVG: {svg}"
     );
 }
+
+#[test]
+fn flowchart_subgraph_renders_g_wrapper_with_cluster_class() {
+    let input = load_flowchart_fixture("subgraph_direction_mixed.mmd");
+    let svg = render_svg(&input, &RenderConfig::default());
+    assert!(
+        svg.contains(r#"<g class="cluster" id=""#),
+        "expected each subgraph to be wrapped in <g class=\"cluster\" id=\"...\">, got: {svg}"
+    );
+    let cluster_count = svg.matches(r#"<g class="cluster""#).count();
+    assert_eq!(
+        cluster_count, 2,
+        "expected 2 subgraph wrappers, got {cluster_count}\n{svg}"
+    );
+}
+
+#[test]
+fn flowchart_subgraph_keeps_inner_rect_class_for_measurement_regex_compat() {
+    let input = load_flowchart_fixture("subgraph_direction_mixed.mmd");
+    let svg = render_svg(&input, &RenderConfig::default());
+    assert!(
+        svg.contains(r#"<rect class="subgraph""#),
+        "inner rect must keep class=\"subgraph\" so dynamic measurement regex stays intact, got: {svg}"
+    );
+}
+
+#[test]
+fn flowchart_user_class_lands_on_subgraph_wrapper() {
+    let input = load_flowchart_fixture("subgraph_user_class.mmd");
+    let svg = render_svg(&input, &RenderConfig::default());
+    assert!(
+        svg.contains(r#"<g class="cluster blueFill" id="lr">"#),
+        "expected wrapper with user class blueFill on subgraph lr, got: {svg}"
+    );
+}
+
+#[test]
+fn flowchart_user_class_does_not_leak_to_non_classed_subgraphs() {
+    let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+    subgraph bt [Bottom to Top]
+        C --> D
+    end
+    classDef blueFill fill:#9cf
+    class lr blueFill
+";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains(r#"<g class="cluster blueFill" id="lr">"#),
+        "{svg}"
+    );
+    assert!(svg.contains(r#"<g class="cluster" id="bt">"#), "{svg}");
+    assert!(
+        !svg.contains(r#"<g class="cluster blueFill" id="bt">"#),
+        "{svg}"
+    );
+}
+
+#[test]
+fn flowchart_user_class_resolved_style_applies_to_inner_rect() {
+    let input = load_flowchart_fixture("subgraph_user_class.mmd");
+    let svg = render_svg(&input, &RenderConfig::default());
+    assert!(
+        svg.contains(r##"fill="#9cf""##) || svg.contains(r##"fill="#9CF""##),
+        "expected fill from classDef on inner rect, got: {svg}"
+    );
+}
+
+#[test]
+fn nested_subgraphs_each_get_their_own_wrapper_and_class() {
+    let input = load_flowchart_fixture("subgraph_nested_classes.mmd");
+    let svg = render_svg(&input, &RenderConfig::default());
+    assert!(
+        svg.contains(r#"<g class="cluster outerSkin" id="outer">"#),
+        "outer wrapper missing or wrong class: {svg}"
+    );
+    assert!(
+        svg.contains(r#"<g class="cluster innerSkin" id="inner">"#),
+        "inner wrapper missing or wrong class: {svg}"
+    );
+}
+
+#[test]
+fn nested_subgraph_outer_class_does_not_inherit_to_inner() {
+    let input = load_flowchart_fixture("subgraph_nested_classes.mmd");
+    let svg = render_svg(&input, &RenderConfig::default());
+    let inner_open = svg
+        .find(r#"<g class="cluster innerSkin" id="inner">"#)
+        .expect("inner wrapper exists");
+    let inner_line_end = svg[inner_open..].find('>').unwrap() + inner_open;
+    let inner_line = &svg[inner_open..=inner_line_end];
+    assert!(
+        !inner_line.contains("outerSkin"),
+        "inner wrapper must not inherit outer class, got: {inner_line}"
+    );
+}
+
+#[test]
+fn nested_subgraph_wrappers_are_ordered_outer_before_inner() {
+    let input = load_flowchart_fixture("subgraph_nested_classes.mmd");
+    let svg = render_svg(&input, &RenderConfig::default());
+    let outer = svg
+        .find(r#"<g class="cluster outerSkin" id="outer">"#)
+        .expect("outer wrapper present");
+    let inner = svg
+        .find(r#"<g class="cluster innerSkin" id="inner">"#)
+        .expect("inner wrapper present");
+    assert!(
+        outer < inner,
+        "outer wrapper should appear before inner in render order, got outer@{outer} inner@{inner}"
+    );
+}
+
+#[test]
+fn class_diagram_namespace_renders_g_wrapper() {
+    let input = load_class_fixture("namespaces.mmd");
+    let svg = render_svg(&input, &RenderConfig::default());
+    assert!(
+        svg.contains(r#"<g class="cluster" id=""#),
+        "class namespace should emit <g class=\"cluster\" id=\"...\"> wrapper, got: {svg}"
+    );
+    let wrapper_count = svg.matches(r#"<g class="cluster""#).count();
+    assert!(
+        wrapper_count >= 2,
+        "expected >=2 namespace wrappers in namespaces.mmd, got {wrapper_count}\n{svg}"
+    );
+}
+
+#[test]
+fn state_composite_region_renders_g_wrapper() {
+    let input = load_state_fixture("composite.mmd");
+    let svg = render_svg(&input, &RenderConfig::default());
+    assert!(
+        svg.contains(r#"<g class="cluster" id=""#),
+        "state composite region should emit <g class=\"cluster\" id=\"...\"> wrapper, got: {svg}"
+    );
+}
+
+#[test]
+fn cross_family_wrappers_preserve_inner_rect_subgraph_class() {
+    let class_svg = render_svg(
+        &load_class_fixture("namespaces.mmd"),
+        &RenderConfig::default(),
+    );
+    let state_svg = render_svg(
+        &load_state_fixture("composite.mmd"),
+        &RenderConfig::default(),
+    );
+    assert!(
+        class_svg.contains(r#"<rect class="subgraph""#),
+        "{class_svg}"
+    );
+    assert!(
+        state_svg.contains(r#"<rect class="subgraph""#),
+        "{state_svg}"
+    );
+}
+
+#[test]
+fn flowchart_subgraph_g_wrapper_closes_after_text() {
+    let input = "flowchart TD\n    subgraph lr [Left to Right]\n        A --> B\n    end\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    let open = svg
+        .find(r#"<g class="cluster" id=""#)
+        .expect("wrapper opens");
+    let inner = &svg[open..];
+    let close_rel = inner.find("</g>").expect("wrapper closes");
+    let between = &inner[..close_rel];
+    assert!(
+        between.contains(r#"<rect class="subgraph""#),
+        "rect must be inside wrapper: {between}"
+    );
+    assert!(
+        between.contains(">Left to Right</text>"),
+        "title must be inside wrapper: {between}"
+    );
+}

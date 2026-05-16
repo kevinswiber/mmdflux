@@ -6,12 +6,18 @@
   </defs>
   <g transform="translate(-48.92,-38.00)">
     <g class="clusters">
-      <rect class="subgraph" x="56.92" y="46.00" width="276.08" height="564.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="194.96" y="50.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Outer region</text>
-      <rect class="subgraph" x="140.17" y="77.00" width="177.82" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="229.08" y="81.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">A region</text>
-      <rect class="subgraph" x="71.92" y="391.00" width="177.82" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="160.83" y="395.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">B region</text>
+      <g class="cluster" id="outer">
+        <rect class="subgraph" x="56.92" y="46.00" width="276.08" height="564.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="194.96" y="50.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Outer region</text>
+      </g>
+      <g class="cluster" id="inner_a">
+        <rect class="subgraph" x="140.17" y="77.00" width="177.82" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="229.08" y="81.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">A region</text>
+      </g>
+      <g class="cluster" id="inner_b">
+        <rect class="subgraph" x="71.92" y="391.00" width="177.82" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="160.83" y="395.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">B region</text>
+      </g>
     </g>
     <g class="edgePaths">
       <path d="M212.68,162.00 L243.30,208.66" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

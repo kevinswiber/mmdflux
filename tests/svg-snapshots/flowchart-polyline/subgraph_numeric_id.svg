@@ -6,10 +6,14 @@
   </defs>
   <g transform="translate(-20.00,-19.00)">
     <g class="clusters">
-      <rect class="subgraph" x="28.44" y="27.00" width="100.67" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="78.78" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Phase 1</text>
-      <rect class="subgraph" x="28.00" y="335.00" width="101.55" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
-      <text x="78.78" y="339.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Phase 2</text>
+      <g class="cluster" id="1phase">
+        <rect class="subgraph" x="28.44" y="27.00" width="100.67" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="78.78" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Phase 1</text>
+      </g>
+      <g class="cluster" id="2phase">
+        <rect class="subgraph" x="28.00" y="335.00" width="101.55" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
+        <text x="78.78" y="339.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Phase 2</text>
+      </g>
     </g>
     <g class="edgePaths">
       <path d="M78.78,112.00 L78.78,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />

@@ -3261,6 +3261,132 @@ fn mmds_collapses_node_id_that_collides_with_subgraph() {
 // the authoritative source.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Subgraph classNames round-trip — extension serialize + hydrate parity.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn mmds_subgraph_with_class_names_serializes_them() {
+    let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+    classDef blueFill fill:#9cf
+    class lr blueFill
+";
+    let mmds = render_json(input);
+    let v: Value = serde_json::from_str(&mmds).unwrap();
+    let subgraph_ext = v
+        .pointer("/extensions/org.mmdflux.node-style.v1/subgraphs/lr")
+        .expect("subgraph extension present");
+    let class_names = subgraph_ext.get("classNames").expect("classNames present");
+    assert_eq!(class_names, &json!(["blueFill"]));
+}
+
+#[test]
+fn mmds_subgraph_without_class_names_omits_field() {
+    let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+    style lr fill:#9cf
+";
+    let mmds = render_json(input);
+    let v: Value = serde_json::from_str(&mmds).unwrap();
+    let subgraph_ext = v
+        .pointer("/extensions/org.mmdflux.node-style.v1/subgraphs/lr")
+        .expect("subgraph extension present (via style)");
+    assert!(
+        subgraph_ext.get("classNames").is_none(),
+        "classNames must be omitted when empty: {subgraph_ext:?}",
+    );
+}
+
+#[test]
+fn mmds_subgraph_unstyled_unclassed_omits_extension() {
+    let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+";
+    let mmds = render_json(input);
+    let v: Value = serde_json::from_str(&mmds).unwrap();
+    let subgraphs_ext = v.pointer("/extensions/org.mmdflux.node-style.v1/subgraphs");
+    if let Some(s) = subgraphs_ext {
+        assert!(
+            s.get("lr").is_none(),
+            "unstyled+unclassed subgraph must not appear: {s:?}",
+        );
+    }
+}
+
+#[test]
+fn mmds_hydrate_round_trips_subgraph_class_names() {
+    let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+    classDef blueFill fill:#9cf
+    class lr blueFill
+";
+    let mmds = render_json(input);
+    let svg_from_mmds = render_mmds_input(&mmds, OutputFormat::Svg, RenderConfig::default());
+    assert!(
+        svg_from_mmds.contains(r#"<g class="cluster blueFill" id="lr">"#),
+        "MMDS round-trip lost user class: {svg_from_mmds}"
+    );
+}
+
+#[test]
+fn mmds_hydrate_preserves_class_names_order() {
+    let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+    classDef a fill:#9cf
+    classDef b stroke:#039
+    class lr a
+    class lr b
+";
+    let mmds = render_json(input);
+    let svg_from_mmds = render_mmds_input(&mmds, OutputFormat::Svg, RenderConfig::default());
+    assert!(
+        svg_from_mmds.contains(r#"<g class="cluster a b" id="lr">"#),
+        "MMDS round-trip lost class order: {svg_from_mmds}"
+    );
+}
+
+#[test]
+fn mmds_hydrate_no_class_names_field_yields_empty_vec() {
+    // Legacy MMDS predating classNames must hydrate cleanly to an empty Vec.
+    let input = "\
+flowchart TD
+    subgraph lr [Left to Right]
+        A --> B
+    end
+";
+    let mmds = render_json(input);
+    // Sanity: no classNames in this MMDS to start with.
+    let value: Value = serde_json::from_str(&mmds).unwrap();
+    let subgraphs_ext = value.pointer("/extensions/org.mmdflux.node-style.v1/subgraphs");
+    assert!(
+        subgraphs_ext.is_none()
+            || subgraphs_ext
+                .and_then(|s| s.get("lr"))
+                .and_then(|e| e.get("classNames"))
+                .is_none(),
+        "fixture must not pre-emit classNames"
+    );
+    // Re-render: must produce the wrapper without user classes and without panicking.
+    let svg = render_mmds_input(&mmds, OutputFormat::Svg, RenderConfig::default());
+    assert!(svg.contains(r#"<g class="cluster" id="lr">"#), "{svg}");
+}
+
 mod plan_0151_routed_mmds_replay_contract {
     use super::*;
 

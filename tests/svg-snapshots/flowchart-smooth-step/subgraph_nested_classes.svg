@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 146.67 389.00" style="max-width: 146.67px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(-25.00,-19.00)">
+    <g class="clusters">
+      <g class="cluster outerSkin" id="outer">
+        <rect class="subgraph" x="33.00" y="27.00" width="130.67" height="373.00" fill="#fce" stroke="#888" stroke-width="1.00" />
+        <text x="98.34" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Outer</text>
+      </g>
+      <g class="cluster innerSkin" id="inner">
+        <rect class="subgraph" x="48.00" y="181.00" width="100.67" height="204.00" fill="#cef" stroke="#888" stroke-width="1.00" />
+        <text x="98.34" y="185.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Inner</text>
+      </g>
+    </g>
+    <g class="edgePaths">
+      <path d="M98.34,266.00 L98.34,312.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M98.34,112.00 L98.34,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="63.00" y="212.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="98.34" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      <rect x="63.00" y="316.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="98.34" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+      <rect x="62.56" y="58.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="98.34" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+    </g>
+    <g class="edgeLabels">
+    </g>
+  </g>
+</svg>

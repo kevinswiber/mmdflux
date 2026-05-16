@@ -1153,6 +1153,7 @@ mod tests {
             invisible: false,
             concurrent_regions: Vec::new(),
             style: Default::default(),
+            class_names: Vec::new(),
         };
         subgraph.style.font_family = Some("Verdana".to_string());
         subgraph.style.font_size = Some("20px".to_string());
