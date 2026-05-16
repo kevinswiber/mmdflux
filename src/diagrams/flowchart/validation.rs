@@ -3,13 +3,13 @@
 //! Produces `ParseDiagnostic` warnings for unsupported keywords,
 //! missing subgraph `end` keywords, and strict-mode parse failures.
 
+use crate::diagrams::flowchart::compiler::{IdCollision, collect_id_collisions};
 use crate::errors::ParseDiagnostic;
 use crate::graph::style::{
     parse_classdef_statement, parse_linkstyle_statement, parse_node_style_statement,
 };
 use crate::mermaid::{
-    ParseOptions, Statement, Vertex, parse_flowchart, parse_flowchart_with_options,
-    strip_theme_only_compat_syntax,
+    ParseOptions, parse_flowchart, parse_flowchart_with_options, strip_theme_only_compat_syntax,
 };
 
 const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
@@ -202,83 +202,44 @@ fn collect_id_collision_warnings(input: &str) -> Vec<ParseDiagnostic> {
         return Vec::new();
     };
 
-    let mut subgraph_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-    collect_subgraph_ids_recursive(&flowchart.statements, &mut subgraph_ids);
-    if subgraph_ids.is_empty() {
-        return Vec::new();
-    }
-
-    let mut collisions: Vec<String> = Vec::new();
-    walk_collision_references(&flowchart.statements, &subgraph_ids, &mut collisions);
+    let collisions = collect_id_collisions(&flowchart);
     if collisions.is_empty() {
         return Vec::new();
     }
 
+    let positions = locate_collisions(input, &collisions);
+    collisions
+        .iter()
+        .zip(positions)
+        .map(|(collision, position)| {
+            let id = &collision.id;
+            let (line_num, column) = match position {
+                Some((row, col)) => (Some(row + 1), Some(col + 1)),
+                None => (None, None),
+            };
+            let message = format!(
+                "Identifier '{id}' is declared as a subgraph; the explicit \
+                 node reference is collapsed into the subgraph.",
+            );
+            ParseDiagnostic::warning(line_num, column, message)
+        })
+        .collect()
+}
+
+/// Locate each collision in source text. Returns a parallel vector with
+/// `None` for collisions whose source line could not be recovered.
+fn locate_collisions(input: &str, collisions: &[IdCollision]) -> Vec<Option<(usize, usize)>> {
     let lines: Vec<String> = input.lines().map(censor_edge_label_text).collect();
     let mut used: Vec<(usize, usize)> = Vec::new();
-    let mut warnings = Vec::new();
-    for id in &collisions {
-        let position = find_collision_position(&lines, id, &used);
+    let mut positions = Vec::with_capacity(collisions.len());
+    for collision in collisions {
+        let position = find_collision_position(&lines, &collision.id, &used);
         if let Some(pos) = position {
             used.push(pos);
         }
-        let (line_num, column) = match position {
-            Some((row, col)) => (Some(row + 1), Some(col + 1)),
-            None => (None, None),
-        };
-        let message = format!(
-            "Identifier '{id}' is declared as a subgraph; the explicit \
-             node reference is collapsed into the subgraph.",
-        );
-        warnings.push(ParseDiagnostic::warning(line_num, column, message));
+        positions.push(position);
     }
-
-    warnings
-}
-
-fn collect_subgraph_ids_recursive(
-    statements: &[Statement],
-    out: &mut std::collections::HashSet<String>,
-) {
-    for stmt in statements {
-        if let Statement::Subgraph(sg) = stmt {
-            out.insert(sg.id.clone());
-            collect_subgraph_ids_recursive(&sg.statements, out);
-        }
-    }
-}
-
-fn walk_collision_references(
-    statements: &[Statement],
-    subgraph_ids: &std::collections::HashSet<String>,
-    out: &mut Vec<String>,
-) {
-    for stmt in statements {
-        match stmt {
-            Statement::Vertex(v) => record_collision(v, subgraph_ids, out),
-            Statement::Edge(e) => {
-                record_collision(&e.from, subgraph_ids, out);
-                record_collision(&e.to, subgraph_ids, out);
-            }
-            Statement::Subgraph(sg) => {
-                walk_collision_references(&sg.statements, subgraph_ids, out);
-            }
-            Statement::NodeStyle(_)
-            | Statement::ClassDef(_)
-            | Statement::ClassApply(_)
-            | Statement::LinkStyle(_) => {}
-        }
-    }
-}
-
-fn record_collision(
-    vertex: &Vertex,
-    subgraph_ids: &std::collections::HashSet<String>,
-    out: &mut Vec<String>,
-) {
-    if vertex.shape.is_some() && subgraph_ids.contains(&vertex.id) {
-        out.push(vertex.id.clone());
-    }
+    positions
 }
 
 /// Replace bytes inside `|...|` segments with spaces so a collision-position
@@ -604,10 +565,15 @@ end
     }
 
     #[test]
-    fn strict_parse_does_not_yet_escalate_id_collision() {
-        // Phase 1 contract: id collisions emit a permissive warning but do
-        // not escalate under strict parsing. A follow-up to issue #352 will
-        // flip this assertion to pin the escalated error path.
+    fn strict_parse_does_not_escalate_id_collision() {
+        // Id collisions are resolved at the compiler layer
+        // (`add_vertex_to_diagram` / `apply_collision_nesting`); the pest
+        // grammar accepts the same input under strict and permissive
+        // options. There is no strict-mode rejection path to advise
+        // about, so the strict-warning channel intentionally stays
+        // silent for collisions — only the permissive
+        // "declared as a subgraph" warning fires (see
+        // `collect_id_collision_warnings`). Issue #352.
         let input = "\
 flowchart LR
 
@@ -627,8 +593,7 @@ end
             Some(diagnostic) => {
                 assert!(
                     !diagnostic.message.contains("declared as a subgraph"),
-                    "strict-mode escalation of id collisions is a separate \
-                     follow-up; got premature escalation: {diagnostic:?}",
+                    "strict-mode advisories should not duplicate the permissive collision warning; got {diagnostic:?}",
                 );
             }
         }

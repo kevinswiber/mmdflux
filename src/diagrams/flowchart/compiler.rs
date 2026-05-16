@@ -203,6 +203,69 @@ fn collect_subgraph_ids_recursive(statements: &[Statement], ids: &mut HashSet<St
     }
 }
 
+/// A single explicit-shape id collision found in the AST.
+///
+/// Sourced by walking the parsed `Flowchart`. Bare references (`A --> B`
+/// where `A` is a subgraph and the reference carries no shape) are
+/// intentionally excluded — they are edge endpoints handled by
+/// `resolve_subgraph_edges`, not collisions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct IdCollision {
+    pub id: String,
+    pub parent: Option<String>,
+}
+
+/// Walk the AST and return every explicit-shape collision occurrence in
+/// document order. Multiple references to the same id produce multiple
+/// entries.
+pub(super) fn collect_id_collisions(flowchart: &Flowchart) -> Vec<IdCollision> {
+    let subgraph_ids = collect_subgraph_ids(&flowchart.statements);
+    if subgraph_ids.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    walk_collisions(&flowchart.statements, None, &subgraph_ids, &mut out);
+    out
+}
+
+fn walk_collisions(
+    statements: &[Statement],
+    parent: Option<&str>,
+    subgraph_ids: &HashSet<String>,
+    out: &mut Vec<IdCollision>,
+) {
+    for stmt in statements {
+        match stmt {
+            Statement::Vertex(v) => record_collision_occurrence(v, parent, subgraph_ids, out),
+            Statement::Edge(e) => {
+                record_collision_occurrence(&e.from, parent, subgraph_ids, out);
+                record_collision_occurrence(&e.to, parent, subgraph_ids, out);
+            }
+            Statement::Subgraph(sg) => {
+                walk_collisions(&sg.statements, Some(&sg.id), subgraph_ids, out);
+            }
+            Statement::NodeStyle(_)
+            | Statement::ClassDef(_)
+            | Statement::ClassApply(_)
+            | Statement::LinkStyle(_) => {}
+        }
+    }
+}
+
+fn record_collision_occurrence(
+    vertex: &Vertex,
+    parent: Option<&str>,
+    subgraph_ids: &HashSet<String>,
+    out: &mut Vec<IdCollision>,
+) {
+    if vertex.shape.is_some() && subgraph_ids.contains(&vertex.id) {
+        out.push(IdCollision {
+            id: vertex.id.clone(),
+            parent: parent.map(|s| s.to_string()),
+        });
+    }
+}
+
 /// Resolve a `:::className` annotation by looking up the class in the registry
 /// and merging its style into the target's accumulated styles. When the target
 /// id matches a declared subgraph, the style routes to the subgraph style map
@@ -1930,5 +1993,109 @@ A[NodeBox]
             )
         });
         compile_to_graph(&flowchart)
+    }
+
+    #[test]
+    fn collect_id_collisions_returns_explicit_shape_collisions_only() {
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+subgraph C
+A[NodeBox] --> B[NodeBox2]
+end
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let collisions = collect_id_collisions(&flowchart);
+
+        assert_eq!(collisions.len(), 1, "got {collisions:?}");
+        assert_eq!(collisions[0].id, "A");
+        assert_eq!(collisions[0].parent.as_deref(), Some("C"));
+    }
+
+    #[test]
+    fn reverse_declaration_order_yields_same_ir_as_forward_order() {
+        let forward = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+subgraph C
+A[NodeBox] --> B[NodeBox2]
+end
+";
+
+        let reverse = "\
+flowchart LR
+
+subgraph C
+A[NodeBox] --> B[NodeBox2]
+end
+
+subgraph A
+a1
+end
+";
+
+        let forward_graph = compile_to_graph(&parse_flowchart(forward).expect("parses"));
+        let reverse_graph = compile_to_graph(&parse_flowchart(reverse).expect("parses"));
+
+        let forward_nodes: std::collections::BTreeSet<&String> =
+            forward_graph.nodes.keys().collect();
+        let reverse_nodes: std::collections::BTreeSet<&String> =
+            reverse_graph.nodes.keys().collect();
+        assert_eq!(
+            forward_nodes, reverse_nodes,
+            "explicit-node set must be order-independent",
+        );
+
+        let forward_sgs: std::collections::BTreeSet<&String> =
+            forward_graph.subgraphs.keys().collect();
+        let reverse_sgs: std::collections::BTreeSet<&String> =
+            reverse_graph.subgraphs.keys().collect();
+        assert_eq!(
+            forward_sgs, reverse_sgs,
+            "subgraph set must be order-independent",
+        );
+
+        assert_eq!(
+            forward_graph.subgraphs["A"].parent.as_deref(),
+            Some("C"),
+            "forward: A nested under C",
+        );
+        assert_eq!(
+            reverse_graph.subgraphs["A"].parent.as_deref(),
+            Some("C"),
+            "reverse: A nested under C (same as forward)",
+        );
+
+        assert!(!forward_graph.nodes.contains_key("A"));
+        assert!(!reverse_graph.nodes.contains_key("A"));
+    }
+
+    #[test]
+    fn collect_id_collisions_skips_bare_references() {
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+subgraph C
+A --> B
+end
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let collisions = collect_id_collisions(&flowchart);
+        assert!(
+            collisions.is_empty(),
+            "bare reference must not register as a collision: {collisions:?}",
+        );
     }
 }
