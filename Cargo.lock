@@ -1472,6 +1472,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "windows-sys 0.52.0",
+ "xterm-color",
 ]
 
 [[package]]
@@ -4173,6 +4174,12 @@ dependencies = [
  "tracing-subscriber",
  "ttf-parser",
 ]
+
+[[package]]
+name = "xterm-color"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7008a9d8ba97a7e47d9b2df63fcdb8dade303010c5a7cd5bf2469d4da6eba673"
 
 [[package]]
 name = "yoke"

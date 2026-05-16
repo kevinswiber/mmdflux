@@ -228,6 +228,22 @@ SVG theming is opt-in and affects SVG output only.
 - **Dynamic mode is additive.** `--svg-theme-mode dynamic` emits the same hex fallbacks plus root CSS variables and a `<style>` block for browser embedding.
 - **Default auto-theme mapping is `light:default,dark:dark`.** Override it with `--svg-theme-auto=light:zinc-light,dark:dracula` when a different light/dark pair is a better fit.
 
+#### Detecting terminal appearance inside tmux/screen
+
+`--svg-theme-auto` probes the terminal's background color via OSC 11. Inside a
+multiplexer (tmux/screen) the query is intercepted by default, so mmdflux falls
+back to `$COLORFGBG` and then to the OS-level theme — none of which track a
+terminal profile switch. For tmux ≥ 3.3, enable passthrough so OSC 11 reaches
+the outer terminal:
+
+```tmux
+set -g allow-passthrough on
+set -as terminal-features ',*:RGB:OSC11'
+```
+
+This fixes background detection for every tool that queries OSC 11, not just
+mmdflux.
+
 ### Built-in themes
 
 | Theme               | Family            |

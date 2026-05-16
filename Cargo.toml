@@ -25,6 +25,7 @@ serde_json = "1"
 thiserror = "2"
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.23", optional = true, default-features = false, features = ["std", "fmt", "ansi", "env-filter", "json"] }
+xterm-color = { version = "1", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.52", features = [
@@ -40,7 +41,7 @@ windows-sys = { version = "0.52", features = [
 # Keep CLI behavior by default while allowing library/Wasm users to opt out.
 default = ["cli"]
 # CLI-only dependency surface.
-cli = ["dep:clap", "dep:libc", "dep:tracing-subscriber", "dep:windows-sys"]
+cli = ["dep:clap", "dep:libc", "dep:tracing-subscriber", "dep:windows-sys", "dep:xterm-color"]
 engine-elk = []
 # Experimental bridge for callback-backed browser text measurement. This is
 # intentionally disabled by default and only consumed by mmdflux-wasm.

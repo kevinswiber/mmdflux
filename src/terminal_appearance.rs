@@ -33,7 +33,37 @@ const OSC_11_READ_DEADLINE: Duration = Duration::from_millis(500);
 const TRACE_POST_LOGICAL_RESTORE_WINDOW: Duration = Duration::from_millis(250);
 
 pub(crate) fn detect_terminal_appearance() -> Option<TerminalAppearance> {
-    detect_osc_terminal_appearance()
+    detect_osc_terminal_appearance().or_else(detect_colorfgbg_appearance)
+}
+
+#[cfg(any(unix, windows))]
+fn detect_colorfgbg_appearance() -> Option<TerminalAppearance> {
+    let value = env::var("COLORFGBG").ok()?;
+    parse_colorfgbg(&value)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn detect_colorfgbg_appearance() -> Option<TerminalAppearance> {
+    None
+}
+
+fn parse_colorfgbg(value: &str) -> Option<TerminalAppearance> {
+    // COLORFGBG is set by xterm/rxvt/urxvt/konsole at startup. Format is
+    // either `<fg>;<bg>` or the urxvt variant `<fg>;default;<bg>`. The last
+    // `;`-separated field is the background palette index; `default` (or any
+    // non-numeric token) yields no verdict. Require at least one `;` so a
+    // stray single-field value can't be misread as a background index.
+    value.find(';')?;
+    let bg = value.rsplit(';').next()?.trim();
+    if bg.is_empty() || bg.eq_ignore_ascii_case("default") {
+        return None;
+    }
+    let bg = bg.parse::<u32>().ok()?;
+    if bg < 8 {
+        Some(TerminalAppearance::Dark)
+    } else {
+        Some(TerminalAppearance::Light)
+    }
 }
 
 pub(crate) fn detect_os_appearance() -> Option<TerminalAppearance> {
@@ -244,48 +274,45 @@ fn read_additional_chunks(
 
 #[cfg(any(unix, windows))]
 fn parse_terminal_appearance(response: &[u8]) -> Option<TerminalAppearance> {
-    let (red, green, blue) = parse_rgb_triplet(response)?;
-    let luminance =
-        ((u32::from(red) * 299) + (u32::from(green) * 587) + (u32::from(blue) * 114)) / 1000;
-    if luminance < 128 {
+    let body = extract_osc_11_payload(response)?;
+    let color = xterm_color::Color::parse(body).ok()?;
+    if color.perceived_lightness() < 0.5 {
         Some(TerminalAppearance::Dark)
     } else {
         Some(TerminalAppearance::Light)
     }
 }
 
+/// Strips the `\x1b]11;` introducer and `\x07` / `\x1b\\` terminator from an
+/// OSC 11 response, returning the color-spec payload. Surrounding ASCII
+/// whitespace is trimmed so `xterm_color::Color::parse` sees only the
+/// color string itself.
 #[cfg(any(unix, windows))]
-fn parse_rgb_triplet(response: &[u8]) -> Option<(u8, u8, u8)> {
-    let response = String::from_utf8_lossy(response);
-    let rgb = response.split_once("rgb:")?.1;
-    let mut components = rgb.split('/');
-    let red = normalize_component(leading_hex_component(components.next()?))?;
-    let green = normalize_component(leading_hex_component(components.next()?))?;
-    let blue = normalize_component(leading_hex_component(components.next()?))?;
-    Some((red, green, blue))
-}
+fn extract_osc_11_payload(response: &[u8]) -> Option<&[u8]> {
+    const PREFIX: &[u8] = b"\x1b]11;";
+    let start = response.windows(PREFIX.len()).position(|w| w == PREFIX)?;
+    let body = &response[start + PREFIX.len()..];
 
-#[cfg(any(unix, windows))]
-fn leading_hex_component(component: &str) -> &str {
-    let len = component
-        .bytes()
-        .take_while(|byte| byte.is_ascii_hexdigit())
-        .count();
-    &component[..len]
-}
+    let bel = body.iter().position(|&b| b == 0x07);
+    let st = body.windows(2).position(|w| w == b"\x1b\\");
+    let end = match (bel, st) {
+        (Some(a), Some(b)) => a.min(b),
+        (Some(a), None) => a,
+        (None, Some(b)) => b,
+        (None, None) => body.len(),
+    };
 
-#[cfg(any(unix, windows))]
-fn normalize_component(component: &str) -> Option<u8> {
-    if component.is_empty() || !component.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return None;
-    }
-
-    let value = u32::from_str_radix(component, 16).ok()?;
-    let max = (16_u32)
-        .checked_pow(component.len() as u32)?
-        .checked_sub(1)?;
-    let normalized = ((value * 255) + (max / 2)) / max;
-    u8::try_from(normalized).ok()
+    let payload = &body[..end];
+    let leading = payload
+        .iter()
+        .position(|b| !b.is_ascii_whitespace())
+        .unwrap_or(payload.len());
+    let trailing = payload
+        .iter()
+        .rev()
+        .position(|b| !b.is_ascii_whitespace())
+        .unwrap_or(0);
+    Some(&payload[leading..payload.len() - trailing])
 }
 
 #[cfg(any(unix, windows))]
@@ -1037,4 +1064,150 @@ fn win_read_additional_chunks(
     }
 
     Ok(response.len().saturating_sub(initial_len))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(any(unix, windows))]
+    fn osc_bel(payload: &[u8]) -> Vec<u8> {
+        let mut buffer = Vec::with_capacity(payload.len() + 6);
+        buffer.extend_from_slice(b"\x1b]11;");
+        buffer.extend_from_slice(payload);
+        buffer.push(0x07);
+        buffer
+    }
+
+    #[cfg(any(unix, windows))]
+    fn osc_st(payload: &[u8]) -> Vec<u8> {
+        let mut buffer = Vec::with_capacity(payload.len() + 7);
+        buffer.extend_from_slice(b"\x1b]11;");
+        buffer.extend_from_slice(payload);
+        buffer.extend_from_slice(b"\x1b\\");
+        buffer
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn parses_rgb_with_short_components() {
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"rgb:0/0/0")),
+            Some(TerminalAppearance::Dark)
+        );
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"rgb:f/f/f")),
+            Some(TerminalAppearance::Light)
+        );
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn parses_rgb_with_two_three_four_hex_components() {
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"rgb:1e/1e/1e")),
+            Some(TerminalAppearance::Dark)
+        );
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"rgb:fff/fff/fff")),
+            Some(TerminalAppearance::Light)
+        );
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"rgb:1e1e/1e1e/1e1e")),
+            Some(TerminalAppearance::Dark)
+        );
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn parses_sharp_form() {
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"#ffffff")),
+            Some(TerminalAppearance::Light)
+        );
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"#000000")),
+            Some(TerminalAppearance::Dark)
+        );
+        // `#RGB` short form is bit-shifted (per xparsecolor): `#222` becomes
+        // `#202020...` in 16-bit space, a clear dark gray.
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"#222")),
+            Some(TerminalAppearance::Dark)
+        );
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"#fff")),
+            Some(TerminalAppearance::Light)
+        );
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn parses_rgba_low_alpha_does_not_drop_verdict() {
+        // rxvt-unicode with transparency. The dark RGB triplet must still
+        // produce a Dark verdict even though the alpha component is non-max.
+        assert_eq!(
+            parse_terminal_appearance(&osc_bel(b"rgba:0000/0000/4444/cccc")),
+            Some(TerminalAppearance::Dark)
+        );
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn parses_st_terminated_response() {
+        assert_eq!(
+            parse_terminal_appearance(&osc_st(b"rgb:ffff/ffff/ffff")),
+            Some(TerminalAppearance::Light)
+        );
+    }
+
+    #[cfg(any(unix, windows))]
+    #[test]
+    fn rejects_malformed_response() {
+        assert_eq!(parse_terminal_appearance(b""), None);
+        assert_eq!(parse_terminal_appearance(b"\x1b]11;not-a-color\x07"), None);
+        // Missing OSC introducer.
+        assert_eq!(parse_terminal_appearance(b"rgb:00/00/00"), None);
+        assert_eq!(parse_terminal_appearance(&osc_bel(b"rgb:gg/gg/gg")), None);
+        // Empty OSC body must not yield a verdict.
+        assert_eq!(parse_terminal_appearance(b"\x1b]11;\x07"), None);
+        assert_eq!(parse_terminal_appearance(b"\x1b]11;\x1b\\"), None);
+    }
+
+    #[test]
+    fn colorfgbg_two_field_form() {
+        assert_eq!(parse_colorfgbg("15;0"), Some(TerminalAppearance::Dark));
+        assert_eq!(parse_colorfgbg("0;15"), Some(TerminalAppearance::Light));
+        assert_eq!(parse_colorfgbg("7;7"), Some(TerminalAppearance::Dark));
+        assert_eq!(parse_colorfgbg("7;8"), Some(TerminalAppearance::Light));
+    }
+
+    #[test]
+    fn colorfgbg_three_field_form() {
+        // urxvt-style `<fg>;default;<bg>`.
+        assert_eq!(
+            parse_colorfgbg("15;default;0"),
+            Some(TerminalAppearance::Dark)
+        );
+        assert_eq!(
+            parse_colorfgbg("0;default;15"),
+            Some(TerminalAppearance::Light)
+        );
+    }
+
+    #[test]
+    fn colorfgbg_skips_default_or_malformed_bg() {
+        // Background `default` means no verdict.
+        assert_eq!(parse_colorfgbg("7;default"), None);
+        assert_eq!(parse_colorfgbg("15;default;default"), None);
+        // Non-numeric background → no verdict.
+        assert_eq!(parse_colorfgbg("7;banana"), None);
+        // Empty / single-field is rejected.
+        assert_eq!(parse_colorfgbg(""), None);
+        assert_eq!(parse_colorfgbg(";"), None);
+        // A single field with no `;` is not a valid COLORFGBG value even if
+        // it happens to parse as a number — require at least one separator.
+        assert_eq!(parse_colorfgbg("7"), None);
+        assert_eq!(parse_colorfgbg("default"), None);
+    }
 }
