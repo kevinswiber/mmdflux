@@ -652,6 +652,16 @@ the routed path.
 | `direction` | string?           | both   | Direction override: `"TD"`, `"TB"`, `"BT"`, `"LR"`, or `"RL"`; `"TB"` deserializes as canonical `"TD"` |
 | `bounds`    | `{width, height}` | routed | Bounding box dimensions                               |
 
+### Identifier Namespace
+
+Flowchart node and subgraph identifiers occupy a single namespace.
+`set(nodes[].id)` and `set(subgraphs[].id)` MUST be disjoint in any MMDS
+document. When an input names the same identifier as both a subgraph and an
+explicit node — for example, `subgraph A` followed by `A[NodeBox]` — the
+subgraph definition wins: the explicit-node reference is collapsed and a
+`ParseDiagnostic` warning is emitted. Nested subgraphs convey membership via
+their own `parent` field; `children` lists direct nodes only.
+
 ## Schema
 
 The formal JSON Schema is available at [`docs/mmds.schema.json`](./mmds.schema.json).

@@ -26,6 +26,7 @@ pub fn compile_to_graph(flowchart: &Flowchart) -> Graph {
     let mut edge_styles = Vec::new();
     let class_defs = collect_class_defs(&flowchart.statements);
     let subgraph_ids = collect_subgraph_ids(&flowchart.statements);
+    let mut collision_nesting: Vec<(String, String)> = Vec::new();
     {
         let mut style_targets = StyleTargets {
             node_styles: &mut node_styles,
@@ -39,10 +40,12 @@ pub fn compile_to_graph(flowchart: &Flowchart) -> Graph {
             &mut style_targets,
             &mut edge_styles,
             &class_defs,
+            &mut collision_nesting,
         );
     }
     apply_default_class(&mut diagram, &node_styles, &class_defs);
     resolve_subgraph_edges(&mut diagram);
+    apply_collision_nesting(&mut diagram, &collision_nesting);
     apply_edge_styles(&mut diagram, &edge_styles);
     diagram
 }
@@ -77,6 +80,7 @@ fn process_statements(
     style_targets: &mut StyleTargets<'_>,
     edge_styles: &mut Vec<LinkStyleStatement>,
     class_defs: &ClassDefRegistry,
+    collision_nesting: &mut Vec<(String, String)>,
 ) {
     for statement in statements {
         match statement {
@@ -93,6 +97,8 @@ fn process_statements(
                     vertex,
                     parent_subgraph,
                     style_targets.node_styles.get(&vertex.id),
+                    style_targets.subgraph_ids,
+                    collision_nesting,
                 );
             }
             Statement::Edge(edge_spec) => {
@@ -108,6 +114,8 @@ fn process_statements(
                     &edge_spec.from,
                     parent_subgraph,
                     style_targets.node_styles.get(&edge_spec.from.id),
+                    style_targets.subgraph_ids,
+                    collision_nesting,
                 );
                 resolve_class_annotation(
                     diagram,
@@ -121,6 +129,8 @@ fn process_statements(
                     &edge_spec.to,
                     parent_subgraph,
                     style_targets.node_styles.get(&edge_spec.to.id),
+                    style_targets.subgraph_ids,
+                    collision_nesting,
                 );
                 let edge = convert_edge(edge_spec);
                 diagram.add_edge(edge);
@@ -133,6 +143,7 @@ fn process_statements(
                     style_targets,
                     edge_styles,
                     class_defs,
+                    collision_nesting,
                 );
                 let node_ids = collect_node_ids(&sg_spec.statements);
                 diagram.subgraphs.insert(
@@ -241,12 +252,37 @@ fn convert_direction(dir: ParseDirection) -> Direction {
     }
 }
 
+/// Insert (or update) the explicit-node entry for `vertex`.
+///
+/// When `vertex.id` is already declared as a subgraph, the explicit-node
+/// reference is dropped: the subgraph wins on identifier collision. The
+/// unified-namespace policy keeps `Graph.nodes` and `Graph.subgraphs`
+/// disjoint and aligns with the existing style-routing rule in
+/// `merge_target_style`.
+///
+/// Reference-site nesting: when an *explicit-shape* reference (e.g.
+/// `A[NodeBox]`) collides with a declared subgraph and sits inside another
+/// subgraph's body, a `(child_sg_id, parent_sg_id)` pair is recorded so
+/// `apply_collision_nesting` can reparent the child subgraph. Bare
+/// references (`A` with no shape) are NOT recorded — they are edge
+/// endpoints, not nesting declarations.
 fn add_vertex_to_diagram(
     diagram: &mut Graph,
     vertex: &Vertex,
     parent: Option<&str>,
     style: Option<&NodeStyle>,
+    subgraph_ids: &HashSet<String>,
+    collision_nesting: &mut Vec<(String, String)>,
 ) {
+    if subgraph_ids.contains(&vertex.id) {
+        if vertex.shape.is_some()
+            && let Some(parent_sg) = parent
+            && vertex.id != parent_sg
+        {
+            collision_nesting.push((vertex.id.clone(), parent_sg.to_string()));
+        }
+        return;
+    }
     if let Some(existing) = diagram.nodes.get_mut(&vertex.id) {
         // Update existing node if this vertex has more specific shape info
         if let Some(shape_spec) = &vertex.shape
@@ -388,14 +424,28 @@ fn resolve_subgraph_edges(diagram: &mut Graph) {
 
     diagram.edges = resolved_edges;
 
-    // Remove spurious regular nodes created for subgraph IDs during edge parsing
+    // Identifiers occupy a single namespace; when an id is both a node and a
+    // subgraph, the subgraph wins. The insertion path normally prevents this;
+    // this pass is a safety net for synthesized nodes that bypass it.
     let subgraph_ids: Vec<String> = diagram.subgraphs.keys().cloned().collect();
     for sg_id in &subgraph_ids {
-        if let Some(node) = diagram.nodes.get(sg_id)
-            && node.parent.is_none()
-            && node.label == *sg_id
+        diagram.nodes.remove(sg_id);
+    }
+}
+
+/// Reparent declared subgraphs whose ids were referenced with an explicit
+/// shape inside another subgraph's body.
+///
+/// Each `(child_id, parent_id)` pair was recorded by `add_vertex_to_diagram`
+/// when it skipped an explicit-shape collision. Existing parents are not
+/// clobbered — a subgraph already nested by syntax keeps its declared
+/// parent.
+fn apply_collision_nesting(diagram: &mut Graph, pairs: &[(String, String)]) {
+    for (child_id, parent_id) in pairs {
+        if let Some(child_sg) = diagram.subgraphs.get_mut(child_id)
+            && child_sg.parent.is_none()
         {
-            diagram.nodes.remove(sg_id);
+            child_sg.parent = Some(parent_id.clone());
         }
     }
 }
@@ -626,6 +676,245 @@ fn map_arrow_head(head: ArrowHead) -> Arrow {
 mod tests {
     use super::*;
     use crate::mermaid::parse_flowchart;
+
+    #[test]
+    fn flowchart_with_colliding_subgraph_and_node_ids_yields_clean_ir() {
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+subgraph C
+A[NodeBox] --> B[NodeBox2]
+end
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let graph = compile_to_graph(&flowchart);
+
+        let node_ids: HashSet<&str> = graph.nodes.keys().map(String::as_str).collect();
+        let sg_ids: HashSet<&str> = graph.subgraphs.keys().map(String::as_str).collect();
+
+        assert_eq!(node_ids, HashSet::from(["a1", "B"]));
+        assert_eq!(sg_ids, HashSet::from(["A", "C"]));
+        assert!(
+            node_ids.is_disjoint(&sg_ids),
+            "node and subgraph id sets must be disjoint",
+        );
+
+        assert_eq!(graph.edges.len(), 1);
+        let edge = &graph.edges[0];
+        assert_eq!(edge.from, "a1");
+        assert_eq!(edge.to, "B");
+        assert_eq!(edge.from_subgraph.as_deref(), Some("A"));
+        assert_eq!(edge.to_subgraph, None);
+
+        let sg_a = &graph.subgraphs["A"];
+        let sg_c = &graph.subgraphs["C"];
+        assert_eq!(
+            sg_a.parent.as_deref(),
+            Some("C"),
+            "subgraph A should nest under C because its id was referenced \
+             inside C's body",
+        );
+        assert_eq!(sg_c.parent, None, "subgraph C is top-level");
+        assert!(
+            sg_a.nodes.iter().any(|id| id == "a1"),
+            "subgraph A should still contain a1: {:?}",
+            sg_a.nodes,
+        );
+        let sg_c_children: HashSet<&str> = sg_c.nodes.iter().map(String::as_str).collect();
+        assert_eq!(
+            sg_c_children,
+            HashSet::from(["A", "B"]),
+            "subgraph C should list both 'A' (the nested subgraph) and 'B'",
+        );
+    }
+
+    #[test]
+    fn explicit_shape_collision_inside_outer_subgraph_nests_inner_subgraph() {
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+subgraph C
+A[NodeBox] --> B[NodeBox2]
+end
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let graph = compile_to_graph(&flowchart);
+
+        let sg_a = graph.subgraphs.get("A").expect("subgraph A should survive");
+        assert_eq!(
+            sg_a.parent.as_deref(),
+            Some("C"),
+            "subgraph A should nest under C because its id was referenced \
+             WITH SHAPE inside C's body",
+        );
+
+        let sg_c = graph.subgraphs.get("C").expect("subgraph C should exist");
+        assert!(sg_c.nodes.iter().any(|id| id == "A"));
+        assert!(sg_c.nodes.iter().any(|id| id == "B"));
+        assert_eq!(sg_c.parent, None);
+    }
+
+    #[test]
+    fn bare_reference_to_subgraph_does_not_reparent() {
+        // `A --> B` inside subgraph C, where A is a top-level subgraph.
+        // Mermaid treats bare A as an edge endpoint, not as a nesting
+        // declaration. The existing resolve_subgraph_edges rewrite handles
+        // the source/target.
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+subgraph C
+A --> B
+end
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let graph = compile_to_graph(&flowchart);
+
+        let sg_a = graph.subgraphs.get("A").expect("subgraph A");
+        assert_eq!(
+            sg_a.parent, None,
+            "bare A inside C must NOT reparent subgraph A; it is an edge \
+             endpoint, not a nesting declaration. Got parent={:?}",
+            sg_a.parent,
+        );
+
+        assert_eq!(graph.edges.len(), 1);
+        assert_eq!(graph.edges[0].from, "a1");
+        assert_eq!(graph.edges[0].from_subgraph.as_deref(), Some("A"));
+    }
+
+    #[test]
+    fn nesting_pass_does_not_overwrite_existing_parents() {
+        // If A is syntactically nested inside C already, its parent must
+        // remain "C" and the nesting pass must not touch it.
+        let input = "\
+flowchart LR
+
+subgraph C
+  subgraph A
+    a1
+  end
+  B
+end
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let graph = compile_to_graph(&flowchart);
+        let sg_a = graph.subgraphs.get("A").expect("subgraph A");
+        assert_eq!(sg_a.parent.as_deref(), Some("C"));
+    }
+
+    #[test]
+    fn explicit_shape_collision_at_top_level_does_not_reparent() {
+        // `A[NodeBox]` outside any other subgraph — the spurious node is
+        // dropped by collision suppression, but there is no enclosing
+        // subgraph to reparent A under, so subgraph A keeps parent=None.
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+A[NodeBox]
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let graph = compile_to_graph(&flowchart);
+        let sg_a = graph.subgraphs.get("A").expect("subgraph A");
+        assert_eq!(sg_a.parent, None);
+        assert!(!graph.nodes.contains_key("A"));
+    }
+
+    #[test]
+    fn resolve_subgraph_edges_prunes_collision_node_with_parent() {
+        let mut graph = Graph::new(Direction::LeftRight);
+
+        graph.subgraphs.insert(
+            "A".to_string(),
+            Subgraph {
+                id: "A".into(),
+                title: "A".into(),
+                nodes: vec!["a1".into()],
+                ..Default::default()
+            },
+        );
+        graph.subgraphs.insert(
+            "C".to_string(),
+            Subgraph {
+                id: "C".into(),
+                title: "C".into(),
+                nodes: vec!["A".into(), "B".into()],
+                ..Default::default()
+            },
+        );
+        graph
+            .subgraph_order
+            .extend(["A".to_string(), "C".to_string()]);
+
+        let mut a1 = Node::new("a1");
+        a1.parent = Some("A".into());
+        graph.add_node(a1);
+        let mut b = Node::new("B");
+        b.label = "NodeBox2".into();
+        b.parent = Some("C".into());
+        graph.add_node(b);
+        // Spurious collision node — same id as subgraph A, has a parent, label differs.
+        let mut spurious = Node::new("A");
+        spurious.label = "NodeBox".into();
+        spurious.parent = Some("C".into());
+        graph.add_node(spurious);
+        graph.add_edge(Edge::new("A", "B"));
+
+        resolve_subgraph_edges(&mut graph);
+
+        assert!(
+            !graph.nodes.contains_key("A"),
+            "collision node A must be pruned even when label!=id and parent is set",
+        );
+        assert_eq!(graph.edges.len(), 1);
+        assert_eq!(graph.edges[0].from, "a1");
+        assert_eq!(graph.edges[0].from_subgraph.as_deref(), Some("A"));
+    }
+
+    #[test]
+    fn add_vertex_skips_when_id_is_subgraph() {
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+A[NodeBox]
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let graph = compile_to_graph(&flowchart);
+
+        assert!(
+            !graph.nodes.contains_key("A"),
+            "explicit node A should be collapsed into subgraph A; got {:?}",
+            graph.nodes.get("A"),
+        );
+        assert!(
+            graph.subgraphs.contains_key("A"),
+            "subgraph A should survive"
+        );
+        assert!(
+            graph.nodes.contains_key("a1"),
+            "child node a1 should survive"
+        );
+    }
 
     #[test]
     fn test_build_simple_diagram() {
@@ -901,15 +1190,11 @@ mod tests {
 
     #[test]
     fn explicit_node_with_same_id_as_subgraph_keeps_style_maps_independent() {
-        // mmdflux can structurally hold both a node and a subgraph with the
-        // same id when an explicit `A[Box]` precedes `subgraph A`. Mermaid's
-        // unified id namespace does not reproduce this — its parser folds the
-        // node into the cluster. The broader structural collision (edge
-        // resolution, parent assignment, layout overlap) is unresolved and
-        // tracked in issue #352. This test pins the style-map routing slice
-        // only: every style/class declaration targeting a subgraph id routes
-        // to the subgraph, the node style map stays independent, and MMDS
-        // `styleMap` and `subgraphStyleMap` never collide on the shared id.
+        // When an explicit `A[Box]` shares its id with `subgraph A`, the
+        // subgraph wins: the explicit-node entry is dropped from `Graph.nodes`
+        // and every style/class declaration targeting the shared id routes to
+        // the subgraph style map. This test pins both the style routing rule
+        // and the disjoint-ids invariant between `nodes` and `subgraphs`.
         // See docs/development/mermaid-style-routing-parity.md.
         let input = concat!(
             "flowchart LR\n",
@@ -936,10 +1221,9 @@ mod tests {
             "subgraph receives direct style stroke",
         );
 
-        let node_style = &diagram.nodes["A"].style;
         assert!(
-            node_style.fill.is_none() && node_style.stroke.is_none(),
-            "node A keeps its independent (unstyled) entry",
+            !diagram.nodes.contains_key("A"),
+            "explicit node A collapses into subgraph A on id collision",
         );
     }
 

@@ -7,7 +7,10 @@ use crate::errors::ParseDiagnostic;
 use crate::graph::style::{
     parse_classdef_statement, parse_linkstyle_statement, parse_node_style_statement,
 };
-use crate::mermaid::{ParseOptions, parse_flowchart_with_options, strip_theme_only_compat_syntax};
+use crate::mermaid::{
+    ParseOptions, Statement, Vertex, parse_flowchart, parse_flowchart_with_options,
+    strip_theme_only_compat_syntax,
+};
 
 const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
 
@@ -20,6 +23,7 @@ const UNSUPPORTED_KEYWORDS: &[(&str, &str)] = &[(
 pub(crate) fn collect_all_warnings(input: &str) -> Vec<ParseDiagnostic> {
     let mut warnings = collect_unsupported_warnings(input);
     warnings.extend(collect_subgraph_warnings(input));
+    warnings.extend(collect_id_collision_warnings(input));
 
     if let Some(strict_warning) = collect_strict_parse_warning(input) {
         warnings.push(strict_warning);
@@ -181,6 +185,184 @@ fn ci_starts_with(line: &str, prefix: &str) -> bool {
             .iter()
             .zip(prefix.as_bytes())
             .all(|(a, b)| a.eq_ignore_ascii_case(b))
+}
+
+/// Detect subgraph/node id collisions via the parser.
+///
+/// We parse the input, walk the AST to find vertices with an explicit shape
+/// whose id matches a declared subgraph, then look up a source line for each
+/// occurrence. Sourcing from the parser (rather than a private text scan)
+/// guarantees the warning's coverage matches the compiler's collapse rule —
+/// numeric ids, dotted ids, and the `@{shape: …}` form all flow through.
+/// Bare references like `A --> B` are NOT collisions (no `vertex.shape`).
+/// Text inside edge labels never becomes a `Vertex`, so the false-positive
+/// case `B -->|A[NotNode]| C` is naturally excluded.
+fn collect_id_collision_warnings(input: &str) -> Vec<ParseDiagnostic> {
+    let Ok(flowchart) = parse_flowchart(input) else {
+        return Vec::new();
+    };
+
+    let mut subgraph_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+    collect_subgraph_ids_recursive(&flowchart.statements, &mut subgraph_ids);
+    if subgraph_ids.is_empty() {
+        return Vec::new();
+    }
+
+    let mut collisions: Vec<String> = Vec::new();
+    walk_collision_references(&flowchart.statements, &subgraph_ids, &mut collisions);
+    if collisions.is_empty() {
+        return Vec::new();
+    }
+
+    let lines: Vec<String> = input.lines().map(censor_edge_label_text).collect();
+    let mut used: Vec<(usize, usize)> = Vec::new();
+    let mut warnings = Vec::new();
+    for id in &collisions {
+        let position = find_collision_position(&lines, id, &used);
+        if let Some(pos) = position {
+            used.push(pos);
+        }
+        let (line_num, column) = match position {
+            Some((row, col)) => (Some(row + 1), Some(col + 1)),
+            None => (None, None),
+        };
+        let message = format!(
+            "Identifier '{id}' is declared as a subgraph; the explicit \
+             node reference is collapsed into the subgraph.",
+        );
+        warnings.push(ParseDiagnostic::warning(line_num, column, message));
+    }
+
+    warnings
+}
+
+fn collect_subgraph_ids_recursive(
+    statements: &[Statement],
+    out: &mut std::collections::HashSet<String>,
+) {
+    for stmt in statements {
+        if let Statement::Subgraph(sg) = stmt {
+            out.insert(sg.id.clone());
+            collect_subgraph_ids_recursive(&sg.statements, out);
+        }
+    }
+}
+
+fn walk_collision_references(
+    statements: &[Statement],
+    subgraph_ids: &std::collections::HashSet<String>,
+    out: &mut Vec<String>,
+) {
+    for stmt in statements {
+        match stmt {
+            Statement::Vertex(v) => record_collision(v, subgraph_ids, out),
+            Statement::Edge(e) => {
+                record_collision(&e.from, subgraph_ids, out);
+                record_collision(&e.to, subgraph_ids, out);
+            }
+            Statement::Subgraph(sg) => {
+                walk_collision_references(&sg.statements, subgraph_ids, out);
+            }
+            Statement::NodeStyle(_)
+            | Statement::ClassDef(_)
+            | Statement::ClassApply(_)
+            | Statement::LinkStyle(_) => {}
+        }
+    }
+}
+
+fn record_collision(
+    vertex: &Vertex,
+    subgraph_ids: &std::collections::HashSet<String>,
+    out: &mut Vec<String>,
+) {
+    if vertex.shape.is_some() && subgraph_ids.contains(&vertex.id) {
+        out.push(vertex.id.clone());
+    }
+}
+
+/// Replace bytes inside `|...|` segments with spaces so a collision-position
+/// scan doesn't latch onto an edge-label substring like `B -->|A[NotNode]| C`.
+fn censor_edge_label_text(line: &str) -> String {
+    let mut censored = line.as_bytes().to_vec();
+    let mut i = 0;
+    while i < censored.len() {
+        if censored[i] == b'|' {
+            let start = i + 1;
+            let mut j = start;
+            while j < censored.len() && censored[j] != b'|' {
+                j += 1;
+            }
+            if j < censored.len() {
+                for byte in &mut censored[start..j] {
+                    *byte = b' ';
+                }
+                i = j + 1;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    String::from_utf8(censored).unwrap_or_else(|_| line.to_string())
+}
+
+/// Find the first un-used line/column where `id` appears as a token followed
+/// by a vertex-shape opener (`[`, `(`, `{`, `>`, or `@{`). Skips
+/// `subgraph <id>…` declaration lines so the diagnostic points at the
+/// colliding reference.
+fn find_collision_position(
+    lines: &[String],
+    id: &str,
+    used: &[(usize, usize)],
+) -> Option<(usize, usize)> {
+    let id_bytes = id.as_bytes();
+    for (row, line) in lines.iter().enumerate() {
+        let trimmed = line.trim_start();
+        if ci_starts_with(trimmed, "subgraph ") {
+            continue;
+        }
+        let bytes = line.as_bytes();
+        let mut start = 0;
+        while let Some(rel) = find_subsequence(&bytes[start..], id_bytes) {
+            let pos = start + rel;
+            start = pos + 1;
+
+            if used.contains(&(row, pos)) {
+                continue;
+            }
+
+            let prev_is_ident_continue = pos > 0 && is_ident_continue(bytes[pos - 1]);
+            if prev_is_ident_continue {
+                continue;
+            }
+
+            let after = pos + id_bytes.len();
+            let next = bytes.get(after).copied();
+            // Shape openers: `[`, `(`, `{`, `>` (asymmetric `>…]`), and
+            // `@{` (Mermaid v11 `@{shape: …}` form).
+            let matches_shape = matches!(next, Some(b'[' | b'(' | b'{' | b'>'))
+                || (next == Some(b'@') && bytes.get(after + 1) == Some(&b'{'));
+            if !matches_shape {
+                continue;
+            }
+
+            return Some((row, pos));
+        }
+    }
+    None
+}
+
+fn is_ident_continue(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-' || byte == b'.'
+}
+
+fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    if needle.is_empty() || needle.len() > haystack.len() {
+        return None;
+    }
+    haystack
+        .windows(needle.len())
+        .position(|window| window == needle)
 }
 
 #[cfg(test)]
@@ -350,6 +532,243 @@ mod tests {
             warnings.is_empty(),
             "bare linkStyle keyword (no target) should not match: {:?}",
             warnings
+        );
+    }
+
+    #[test]
+    fn id_collision_emits_warning_with_line() {
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+subgraph C
+A[NodeBox] --> B[NodeBox2]
+end
+";
+
+        let warnings = collect_all_warnings(input);
+
+        let collision = warnings
+            .iter()
+            .find(|w| w.message.contains("declared as a subgraph"))
+            .expect("expected a collision warning");
+
+        assert!(
+            collision.message.contains("'A'"),
+            "warning should single-quote the colliding id; got {:?}",
+            collision.message,
+        );
+        assert_eq!(collision.severity, "warning");
+        assert_eq!(
+            collision.line,
+            Some(8),
+            "warning should point at the A[NodeBox] --> B[NodeBox2] line",
+        );
+    }
+
+    #[test]
+    fn no_collision_yields_no_warning() {
+        let input = "flowchart LR\nsubgraph A\na1\nend\n";
+        let warnings = collect_all_warnings(input);
+        assert!(
+            !warnings
+                .iter()
+                .any(|w| w.message.contains("declared as a subgraph")),
+            "no collision in input but warning emitted: {warnings:?}",
+        );
+    }
+
+    #[test]
+    fn bare_reference_to_subgraph_id_does_not_emit_collision_warning() {
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+subgraph C
+A --> B
+end
+";
+        let warnings = collect_all_warnings(input);
+        assert!(
+            !warnings
+                .iter()
+                .any(|w| w.message.contains("declared as a subgraph")),
+            "bare reference must not trigger a collision warning: {warnings:?}",
+        );
+    }
+
+    #[test]
+    fn strict_parse_does_not_yet_escalate_id_collision() {
+        // Phase 1 contract: id collisions emit a permissive warning but do
+        // not escalate under strict parsing. A follow-up to issue #352 will
+        // flip this assertion to pin the escalated error path.
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+subgraph C
+A[NodeBox] --> B[NodeBox2]
+end
+";
+
+        let warning = collect_strict_parse_warning(input);
+
+        match warning {
+            None => {}
+            Some(diagnostic) => {
+                assert!(
+                    !diagnostic.message.contains("declared as a subgraph"),
+                    "strict-mode escalation of id collisions is a separate \
+                     follow-up; got premature escalation: {diagnostic:?}",
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn numeric_subgraph_id_collision_emits_warning() {
+        let input = "\
+flowchart LR
+
+subgraph 123[Numbers]
+a1
+end
+
+subgraph C
+123[NodeBox] --> B
+end
+";
+        let warnings = collect_all_warnings(input);
+        assert!(
+            warnings.iter().any(
+                |w| w.message.contains("declared as a subgraph") && w.message.contains("'123'")
+            ),
+            "numeric id collision must warn: {warnings:?}",
+        );
+    }
+
+    #[test]
+    fn dotted_subgraph_id_collision_emits_warning() {
+        let input = "\
+flowchart LR
+
+subgraph my.node[Group]
+a1
+end
+
+subgraph C
+my.node[NodeBox] --> B
+end
+";
+        let warnings = collect_all_warnings(input);
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.message.contains("declared as a subgraph")
+                    && w.message.contains("'my.node'")),
+            "dotted id collision must warn: {warnings:?}",
+        );
+    }
+
+    #[test]
+    fn asymmetric_shape_collision_emits_warning_with_line() {
+        // Mermaid's asymmetric/flag shape `>...]`. The parser recognizes
+        // `A>NodeBox]` as a Vertex with shape, so the warning must
+        // line-locate it like the other shape forms.
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+A>NodeBox]
+";
+        let warnings = collect_all_warnings(input);
+        let collision = warnings
+            .iter()
+            .find(|w| w.message.contains("declared as a subgraph"))
+            .expect("expected a collision warning");
+        assert_eq!(
+            collision.line,
+            Some(7),
+            "asymmetric shape collision must line-locate; got {:?}",
+            collision,
+        );
+    }
+
+    #[test]
+    fn at_brace_shape_collision_emits_warning() {
+        // Mermaid v11 `@{shape: ...}` shape syntax: the compiler collapses
+        // `A@{shape: rect, label: "NodeBox"}` against `subgraph A`, so the
+        // diagnostic path must too.
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+A@{shape: rect, label: \"NodeBox\"}
+";
+        let warnings = collect_all_warnings(input);
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.message.contains("declared as a subgraph") && w.message.contains("'A'")),
+            "@{{shape}} collision must warn: {warnings:?}",
+        );
+    }
+
+    #[test]
+    fn bare_id_in_edge_label_does_not_emit_collision_warning() {
+        // `B -->|A[NotNode]| C` writes the literal `A[NotNode]` as an edge
+        // label between pipes. The parser sees no Vertex for `A` here, so
+        // the warning path must not surface a false collision.
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+B -->|A[NotNode]| C
+";
+        let warnings = collect_all_warnings(input);
+        assert!(
+            !warnings
+                .iter()
+                .any(|w| w.message.contains("declared as a subgraph")),
+            "edge-label text must not trigger a collision warning: {warnings:?}",
+        );
+    }
+
+    #[test]
+    fn top_level_explicit_shape_collision_still_emits_warning() {
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+A[NodeBox]
+";
+        let warnings = collect_all_warnings(input);
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.message.contains("declared as a subgraph")),
+            "top-level explicit-shape collision must still warn: {warnings:?}",
         );
     }
 }

@@ -3115,6 +3115,131 @@ fn mmds_routed_to_layout_down_conversion_strips_routed_only_edge_fields() {
     }
 }
 
+#[test]
+fn every_flowchart_fixture_has_disjoint_node_and_subgraph_ids() {
+    let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("flowchart");
+
+    let mut checked = 0usize;
+    let mut violations: Vec<String> = Vec::new();
+
+    for entry in std::fs::read_dir(&fixtures_dir).expect("read flowchart fixtures") {
+        let entry = entry.expect("dir entry");
+        let path = entry.path();
+        if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("mmd") {
+            continue;
+        }
+        let rel = path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .expect("file name");
+
+        let input = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let json = render_json(&input);
+        let doc: Value = serde_json::from_str(&json).expect("valid MMDS JSON");
+
+        let node_ids: std::collections::HashSet<&str> = doc["nodes"]
+            .as_array()
+            .map(|arr| arr.iter().map(|n| n["id"].as_str().unwrap_or("")).collect())
+            .unwrap_or_default();
+        let sg_ids: std::collections::HashSet<&str> = doc["subgraphs"]
+            .as_array()
+            .map(|arr| arr.iter().map(|s| s["id"].as_str().unwrap_or("")).collect())
+            .unwrap_or_default();
+
+        if !node_ids.is_disjoint(&sg_ids) {
+            let overlap: Vec<&str> = node_ids.intersection(&sg_ids).copied().collect();
+            violations.push(format!("{rel}: {overlap:?}"));
+        }
+        checked += 1;
+    }
+
+    assert!(checked > 0, "no flowchart fixtures discovered");
+    assert!(
+        violations.is_empty(),
+        "fixtures with overlapping node/subgraph ids:\n{}",
+        violations.join("\n"),
+    );
+}
+
+#[test]
+fn mmds_collapses_node_id_that_collides_with_subgraph() {
+    let input = flowchart_fixture("subgraph_node_id_collision.mmd");
+    let json = render_json(&input);
+    let doc: Value = serde_json::from_str(&json).expect("valid MMDS JSON");
+
+    let nodes = doc["nodes"].as_array().expect("nodes array");
+    let subgraphs = doc["subgraphs"].as_array().expect("subgraphs array");
+
+    let node_ids: std::collections::HashSet<&str> = nodes
+        .iter()
+        .map(|n| n["id"].as_str().expect("node id"))
+        .collect();
+    let sg_ids: std::collections::HashSet<&str> = subgraphs
+        .iter()
+        .map(|s| s["id"].as_str().expect("subgraph id"))
+        .collect();
+
+    assert_eq!(node_ids, std::collections::HashSet::from(["a1", "B"]));
+    assert_eq!(sg_ids, std::collections::HashSet::from(["A", "C"]));
+    assert!(node_ids.is_disjoint(&sg_ids));
+
+    let edges = doc["edges"].as_array().expect("edges array");
+    assert_eq!(edges.len(), 1);
+    let edge = &edges[0];
+    assert_eq!(edge["source"].as_str(), Some("a1"));
+    assert_eq!(edge["target"].as_str(), Some("B"));
+    assert_eq!(edge["from_subgraph"].as_str(), Some("A"));
+    assert!(
+        edge.get("to_subgraph").is_none_or(|v| v.is_null()),
+        "to_subgraph should be absent or null for this edge",
+    );
+
+    let by_id: std::collections::HashMap<&str, &Value> = subgraphs
+        .iter()
+        .map(|s| (s["id"].as_str().unwrap_or(""), s))
+        .collect();
+    let sg_a = by_id["A"];
+    let sg_c = by_id["C"];
+
+    assert_eq!(
+        sg_a.get("parent").and_then(|v| v.as_str()),
+        Some("C"),
+        "subgraph A should have parent C; got {:?}",
+        sg_a.get("parent"),
+    );
+    assert!(
+        sg_c.get("parent").is_none_or(|v| v.is_null()),
+        "subgraph C should be top-level",
+    );
+
+    // MMDS `children` is direct nodes only — subgraph-to-subgraph nesting is
+    // conveyed via the child subgraph's `parent` field (asserted above), not
+    // via repetition in the enclosing subgraph's `children` array.
+    let sg_c_children: std::collections::HashSet<&str> = sg_c["children"]
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
+        .unwrap_or_default();
+    assert_eq!(
+        sg_c_children,
+        std::collections::HashSet::from(["B"]),
+        "subgraph C should list only its direct node 'B' in children",
+    );
+
+    let sg_a_children: std::collections::HashSet<&str> = sg_a["children"]
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect())
+        .unwrap_or_default();
+    assert_eq!(
+        sg_a_children,
+        std::collections::HashSet::from(["a1"]),
+        "subgraph A should still contain a1",
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Plan 0151 Task 2.1: routed MMDS replay must preserve authoritative label
 // geometry, not snap back to a stale `label_position`.
