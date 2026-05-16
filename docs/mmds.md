@@ -662,6 +662,28 @@ subgraph definition wins: the explicit-node reference is collapsed and a
 `ParseDiagnostic` warning is emitted. Nested subgraphs convey membership via
 their own `parent` field; `children` lists direct nodes only.
 
+### Diagnostic surface for id collisions
+
+The disjoint-ids invariant is enforced at compile time, so the MMDS document
+is the post-collapse view. The collapse is **observable through parse
+diagnostics**, not through MMDS:
+
+- `mmdflux <input>` prints a warning per collision to stderr in human-readable
+  form (subject to `--quiet`).
+- `mmdflux --lint <input>` prints the same diagnostics to stderr and exits 0
+  if the input is otherwise valid.
+- `mmdflux --lint -f json <input>` emits a structured JSON report on stdout
+  that includes the warning under `warnings[]`.
+- Library callers can read `DiagramInstance::validation_warnings()` on the
+  flowchart instance for the same per-collision warnings.
+
+MMDS deliberately does **not** include a top-level `collisions[]` field. The
+document is the renderer-facing geometry; routing collision metadata through
+it would couple the renderer to parser concerns. Consumers who need
+collision detail should call the parse path. See issue
+[#352](https://github.com/kevinswiber/mmdflux/issues/352) for the original
+motivation.
+
 ## Schema
 
 The formal JSON Schema is available at [`docs/mmds.schema.json`](./mmds.schema.json).

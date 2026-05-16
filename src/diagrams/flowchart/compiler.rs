@@ -980,6 +980,62 @@ A[NodeBox]
     }
 
     #[test]
+    fn edge_from_subgraph_id_resolves_to_real_node_with_from_subgraph_set() {
+        let input = "\
+flowchart LR
+
+subgraph A
+a1
+end
+
+A --> B
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let graph = compile_to_graph(&flowchart);
+
+        assert_eq!(graph.edges.len(), 1);
+        let edge = &graph.edges[0];
+        assert_eq!(
+            edge.from, "a1",
+            "from must be the real node, not subgraph A"
+        );
+        assert_eq!(edge.from_subgraph.as_deref(), Some("A"));
+        assert_eq!(edge.to, "B");
+        assert!(graph.nodes.contains_key("a1"));
+        assert!(graph.nodes.contains_key("B"));
+        assert!(graph.subgraphs.contains_key("A"));
+        assert!(!graph.nodes.contains_key("A"));
+    }
+
+    #[test]
+    fn edge_to_nested_subgraph_resolves_through_non_cluster_child() {
+        let input = "\
+flowchart LR
+
+top
+
+subgraph Outer
+  subgraph Inner
+    leaf
+  end
+end
+
+top --> Outer
+";
+        let flowchart = parse_flowchart(input).expect("parses");
+        let graph = compile_to_graph(&flowchart);
+
+        assert_eq!(graph.edges.len(), 1);
+        let edge = &graph.edges[0];
+        assert_eq!(edge.from, "top");
+        assert_eq!(edge.to, "leaf", "to must drill through to the real node");
+        assert_eq!(edge.to_subgraph.as_deref(), Some("Outer"));
+        assert!(graph.nodes.contains_key("leaf"));
+        assert!(!graph.nodes.contains_key("Outer"));
+        assert!(!graph.nodes.contains_key("Inner"));
+    }
+
+    #[test]
     fn test_build_simple_diagram() {
         let flowchart = parse_flowchart("graph TD\nA --> B\n").unwrap();
         let diagram = compile_to_graph(&flowchart);
