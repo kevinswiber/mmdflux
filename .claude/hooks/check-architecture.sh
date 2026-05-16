@@ -14,9 +14,19 @@ if [[ "$file_path" != *.rs ]]; then
     exit 0
 fi
 
+# After EnterWorktree, $PWD reflects the worktree but $CLAUDE_PROJECT_DIR
+# remains frozen at session-launch. Prefer $PWD when it looks like a
+# sibling checkout of this project, so worktree edits key off the
+# correct hash and start a worktree-local watcher.
+project_dir="$CLAUDE_PROJECT_DIR"
+if [ -n "$PWD" ] && [ "$PWD" != "$CLAUDE_PROJECT_DIR" ] \
+    && [ -f "$PWD/Cargo.toml" ] && [ -d "$PWD/.claude/hooks" ]; then
+    project_dir="$PWD"
+fi
+
 # If no watcher is running for THIS project dir, restart it for next time.
 # PID files encode a hash of the project dir so worktrees don't collide.
-project_hash=$(printf '%s' "$CLAUDE_PROJECT_DIR" | shasum -a 256 | cut -c1-12)
+project_hash=$(printf '%s' "$project_dir" | shasum -a 256 | cut -c1-12)
 watcher_alive=false
 for pidfile in /tmp/mmdflux-arch-watch-*-"${project_hash}".pid; do
     [ -f "$pidfile" ] || continue
@@ -31,7 +41,7 @@ if ! $watcher_alive; then
     disown
 fi
 
-cd "$CLAUDE_PROJECT_DIR" || exit 0
+cd "$project_dir" || exit 0
 output=$(cargo +stable xtask architecture check 2>&1)
 status=$?
 if [ $status -ne 0 ]; then
