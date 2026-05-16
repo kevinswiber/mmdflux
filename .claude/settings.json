@@ -58,8 +58,7 @@
     ]
   },
   "enabledPlugins": {
-    "rust-analyzer-lsp@claude-plugins-official": false,
-    "rust-analyzer-lsp@mmdflux-local": true
+    "rust-analyzer-lsp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "mmdflux-local": {
