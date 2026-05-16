@@ -1,5 +1,6 @@
 //! Node and glyph drawing for graph text output.
 
+use crate::format::display_width;
 use crate::graph::grid::NodeBounds;
 use crate::graph::measure::grid_node_dimensions;
 use crate::graph::{Direction, Node, Shape};
@@ -225,7 +226,7 @@ pub fn render_node(
 ) -> NodeBounds {
     let (width, height) = node_dimensions(node, direction);
     let label = &node.label;
-    let label_len = label.chars().count();
+    let label_len = display_width(label);
     let style = ResolvedTextNodeStyle::from_node(node);
 
     match categorize_shape(node.shape) {
@@ -392,7 +393,7 @@ fn render_box(
         canvas.set(x, mid_y, left_vertical);
         merge_fg(canvas, x, mid_y, style.stroke);
         merge_bg_span(canvas, x + 1, x + width - 1, mid_y, style.fill);
-        let label_start = x + (width - label.chars().count()) / 2;
+        let label_start = x + (width - display_width(label)) / 2;
         canvas.write_str(label_start, mid_y, label);
         merge_text_fg(canvas, label_start, mid_y, label, style.color);
         canvas.set(x + width - 1, mid_y, right_vertical);
@@ -427,7 +428,7 @@ fn render_box(
                     true
                 };
                 let label_start = if center_line {
-                    x + (width - line.chars().count()) / 2
+                    x + (width - display_width(line)) / 2
                 } else {
                     x + 2
                 };
@@ -495,7 +496,7 @@ fn render_borderless(
     style: ResolvedTextNodeStyle,
 ) {
     let mid_y = y + height / 2;
-    let label_len = label.chars().count();
+    let label_len = display_width(label);
     if label_len == 0 {
         return;
     }
@@ -550,7 +551,7 @@ fn render_glyph(
         GlyphKind::FramedCircle => charset.glyph_framed_circle,
         GlyphKind::CrossedCircle => charset.glyph_crossed_circle,
     };
-    let glyph_len = glyph.chars().count();
+    let glyph_len = display_width(glyph);
     let mid_y = y + height / 2;
     let start_x = x + (width / 2).saturating_sub(glyph_len / 2);
     canvas.write_str(start_x, mid_y, glyph);

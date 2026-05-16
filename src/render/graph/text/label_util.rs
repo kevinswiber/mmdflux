@@ -44,7 +44,7 @@ pub(super) fn label_block(label: &str) -> LabelBlock<'_> {
     let lines: Vec<&str> = label.split('\n').collect();
     let width = lines
         .iter()
-        .map(|line| line.chars().count())
+        .map(|line| crate::format::display_width(line))
         .max()
         .unwrap_or(0);
     let height = lines.len().max(1);

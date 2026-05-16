@@ -30,7 +30,30 @@ fixture_globs = [
   "tests/fixtures/**/*.mmd",
   "tests/fixtures/**/*.json",
 ]
-explicit_fallback_codepoints = []
+explicit_fallback_codepoints = [
+  # CJK ideographs used in tests/fixtures/**/cjk_*.mmd.
+  # Liberation Sans does not cover these; SVG fallback metrics handle them.
+  "U+4E2D", # 中
+  "U+4EA4", # 交
+  "U+529F", # 功
+  "U+56FE", # 图
+  "U+5904", # 处
+  "U+5931", # 失
+  "U+5B50", # 子
+  "U+5B8C", # 完
+  "U+6210", # 成
+  "U+63D0", # 提
+  "U+6807", # 标
+  "U+7406", # 理
+  "U+7A7A", # 空
+  "U+8BD5", # 试
+  "U+8BEF", # 误
+  "U+8D25", # 败
+  "U+91CD", # 重
+  "U+9519", # 错
+  "U+95F2", # 闲
+  "U+9898", # 题
+]
 
 [[coverage.ranges]]
 start = "U+00A0"

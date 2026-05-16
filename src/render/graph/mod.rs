@@ -13,7 +13,7 @@ pub(crate) mod svg;
 pub mod text;
 
 pub use self::svg::SvgRenderOptions;
-use crate::format::{OutputFormat, RoutingStyle, TextColorMode};
+use crate::format::{OutputFormat, RoutingStyle, TextColorMode, display_width};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
 use crate::graph::measure::{TextMetricsProvider, default_proportional_text_metrics};
@@ -319,13 +319,7 @@ pub(crate) fn layout_config_for_diagram(
         .edges
         .iter()
         .filter_map(|e| e.label.as_ref())
-        .map(|label| {
-            label
-                .split('\n')
-                .map(|line| line.chars().count())
-                .max()
-                .unwrap_or(0)
-        })
+        .map(|label| label.split('\n').map(display_width).max().unwrap_or(0))
         .max()
         .unwrap_or(0);
 
@@ -390,11 +384,11 @@ fn branching_label_info(diagram: &Graph) -> (bool, usize, usize) {
     for labels in labeled_edges_per_source.values() {
         if labels.len() >= 2 {
             has_branching = true;
-            max_left = max_left.max(labels[0].chars().count());
+            max_left = max_left.max(display_width(labels[0]));
             max_right = max_right.max(
                 labels[1..]
                     .iter()
-                    .map(|l| l.chars().count())
+                    .map(|l| display_width(l))
                     .max()
                     .unwrap_or(0),
             );

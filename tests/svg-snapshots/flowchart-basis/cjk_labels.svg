@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 451.00 196.00" style="max-width: 451.00px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M100.00,55.32 L101.39,55.32 C102.78,55.32 105.56,55.32 108.33,54.99 C111.11,54.65 113.89,53.99 116.00,53.65 C118.11,53.32 119.56,53.32 120.28,53.32 L121.00,53.32" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M233.00,39.43 L240.88,38.03 L243.73,37.53 C246.58,37.02 252.29,36.01 262.31,35.51 C272.33,35.00 286.67,35.00 300.17,35.00 C313.67,35.00 326.33,35.00 332.67,35.00 L339.00,35.00 L347.00,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M233.00,76.00 L239.49,80.67 L242.58,82.90 C245.66,85.12 251.83,89.56 262.08,91.78 C272.33,94.00 286.67,94.00 300.36,97.06 C314.04,100.11 327.09,106.23 333.61,109.29 L340.13,112.34 L347.38,115.74" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M397.00,166.00 L397.00,174.00 L397.00,174.33 C397.00,174.67 397.00,175.33 339.83,175.67 C282.67,176.00 168.33,176.00 111.17,163.00 C54.00,150.00 54.00,124.00 54.00,111.00 L54.00,98.00 L54.00,90.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="125.00" y="22.00" width="108.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="179.00" y="49.00" text-anchor="middle" dominant-baseline="middle" fill="#333">处理中</text>
+      <rect x="351.00" y="8.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="397.00" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">完成</text>
+      <rect x="8.00" y="32.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="54.00" y="59.00" text-anchor="middle" dominant-baseline="middle" fill="#333">空闲</text>
+      <rect x="351.00" y="112.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="397.00" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">错误</text>
+    </g>
+    <g class="edgeLabels">
+      <rect x="269.81" y="21.00" width="40.00" height="28.00" fill="white" />
+      <text x="289.81" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">成功</text>
+      <rect x="269.71" y="80.00" width="40.00" height="28.00" fill="white" />
+      <text x="289.71" y="94.00" text-anchor="middle" dominant-baseline="middle" fill="#333">失败</text>
+      <rect x="165.50" y="160.00" width="40.00" height="28.00" fill="white" />
+      <text x="185.50" y="174.00" text-anchor="middle" dominant-baseline="middle" fill="#333">重试</text>
+    </g>
+  </g>
+</svg>

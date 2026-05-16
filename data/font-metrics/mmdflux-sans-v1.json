@@ -93,7 +93,28 @@
         "description": "left-right double arrow"
       }
     ],
-    "explicitFallbackCodepoints": []
+    "explicitFallbackCodepoints": [
+      "U+4E2D",
+      "U+4EA4",
+      "U+529F",
+      "U+56FE",
+      "U+5904",
+      "U+5931",
+      "U+5B50",
+      "U+5B8C",
+      "U+6210",
+      "U+63D0",
+      "U+6807",
+      "U+7406",
+      "U+7A7A",
+      "U+8BD5",
+      "U+8BEF",
+      "U+8D25",
+      "U+91CD",
+      "U+9519",
+      "U+95F2",
+      "U+9898"
+    ]
   },
   "fallbackPolicy": {
     "tab": "four spaces",

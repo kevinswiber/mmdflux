@@ -2,6 +2,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::format::{char_display_width, display_width};
 use crate::graph::geometry::RoutedGraphGeometry;
 use crate::graph::grid::{AttachDirection, GridLayout, Point, RoutedEdge, Segment, SubgraphBounds};
 use crate::graph::{Arrow, Direction, Edge, Stroke, Subgraph};
@@ -1176,22 +1177,29 @@ fn write_label_block(
 ) {
     for (line_idx, line) in lines.iter().enumerate() {
         let row_y = y + line_idx;
-        let line_width = line.chars().count();
+        let line_width = display_width(line);
         let line_x = x + (block_width.saturating_sub(line_width) / 2);
-        for (ch_idx, ch) in line.chars().enumerate() {
-            let cell_x = line_x + ch_idx;
-            if blocked_points
-                .iter()
-                .any(|&(bx, by)| bx == cell_x && by == row_y)
-            {
-                continue;
-            }
-            let can_write = canvas.get(cell_x, row_y).is_some_and(|cell| {
-                !cell.is_node && (overwrite_arrows || !charset.is_arrow(cell.ch))
+        let mut cell_offset = 0usize;
+        let mut buf = [0u8; 4];
+        for ch in line.chars() {
+            let w = char_display_width(ch);
+            let cell_x = line_x + cell_offset;
+            let blocked = (0..w).any(|d| {
+                blocked_points
+                    .iter()
+                    .any(|&(bx, by)| bx == cell_x + d && by == row_y)
             });
-            if can_write {
-                canvas.set(cell_x, row_y, ch);
+            if !blocked {
+                let can_write = (0..w).all(|d| {
+                    canvas.get(cell_x + d, row_y).is_some_and(|cell| {
+                        !cell.is_node && (overwrite_arrows || !charset.is_arrow(cell.ch))
+                    })
+                });
+                if can_write {
+                    canvas.write_str(cell_x, row_y, ch.encode_utf8(&mut buf));
+                }
             }
+            cell_offset += w;
         }
     }
 }

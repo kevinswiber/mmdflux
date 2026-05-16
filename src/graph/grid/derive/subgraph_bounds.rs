@@ -1010,7 +1010,7 @@ fn max_internal_edge_label_width(edges: &[Edge], members: &HashSet<&str>) -> usi
         .map(|label| {
             label
                 .split('\n')
-                .map(|line| line.chars().count())
+                .map(crate::format::display_width)
                 .max()
                 .unwrap_or(0)
         })

@@ -1471,6 +1471,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",
+ "unicode-width",
  "windows-sys 0.52.0",
  "xterm-color",
 ]

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 222.00 507.00" style="max-width: 222.00px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M69.00,22.00 L69.00,68.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M69.00,126.00 L69.00,203.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M38.50,261.00 L38.50,363.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M100.00,261.00 L100.00,273.00 Q100.00,278.00 105.00,278.00 L129.87,278.00 Q134.87,278.00 134.87,283.00 L134.87,363.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M182.00,394.00 L189.00,394.00 Q194.00,394.00 194.00,389.00 L194.00,104.00 Q194.00,99.00 189.00,99.00 L104.00,99.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M45.23,421.00 L45.23,441.00 Q45.23,446.00 50.23,446.00 L51.77,446.00 Q56.77,446.00 56.77,451.00 L56.77,467.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <circle cx="60.00" cy="485.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <circle cx="60.00" cy="485.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="60.00" y="485.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <circle cx="69.00" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="69.00" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <rect x="30.00" y="207.00" width="78.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="69.00" y="234.00" text-anchor="middle" dominant-baseline="middle" fill="#333">处理中</text>
+      <rect x="8.00" y="367.00" width="62.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="39.00" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">完成</text>
+      <rect x="38.00" y="72.00" width="62.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="69.00" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">空闲</text>
+      <rect x="120.00" y="367.00" width="62.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="151.00" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">错误</text>
+    </g>
+    <g class="edgeLabels">
+      <rect x="49.00" y="152.50" width="40.00" height="28.00" fill="white" />
+      <text x="69.00" y="166.50" text-anchor="middle" dominant-baseline="middle" fill="#333">提交</text>
+      <rect x="18.50" y="300.00" width="40.00" height="28.00" fill="white" />
+      <text x="38.50" y="314.00" text-anchor="middle" dominant-baseline="middle" fill="#333">成功</text>
+      <rect x="114.87" y="280.56" width="40.00" height="28.00" fill="white" />
+      <text x="134.87" y="294.56" text-anchor="middle" dominant-baseline="middle" fill="#333">失败</text>
+      <rect x="174.00" y="193.50" width="40.00" height="28.00" fill="white" />
+      <text x="194.00" y="207.50" text-anchor="middle" dominant-baseline="middle" fill="#333">重试</text>
+    </g>
+  </g>
+</svg>

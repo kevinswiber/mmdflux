@@ -4,6 +4,7 @@ use std::fmt;
 
 use super::chars::CharSet;
 pub use super::connections::Connections;
+use crate::format::char_display_width;
 use crate::graph::Stroke;
 
 /// Optional ANSI style metadata carried alongside a visible cell.
@@ -57,6 +58,11 @@ pub struct Cell {
     pub is_subgraph_border: bool,
     /// Whether this cell contains subgraph title text (protected from edge overwrite).
     pub is_subgraph_title: bool,
+    /// Whether this cell is the trailing column of a width-2 (East Asian wide)
+    /// character that lives in the cell immediately to its left. Continuation
+    /// cells must not be emitted: the terminal already paints this column as
+    /// part of the wide glyph.
+    pub is_continuation: bool,
 }
 
 impl Cell {
@@ -129,15 +135,58 @@ impl Canvas {
     /// Set the character at the given position.
     ///
     /// Returns `false` if the position is out of bounds.
+    ///
+    /// If `ch` is a width-2 character (East Asian wide), the cell at
+    /// `(x + 1, y)` is automatically marked as a continuation so the
+    /// renderer does not double-emit the trailing column.
     pub fn set(&mut self, x: usize, y: usize, ch: char) -> bool {
+        let was_continuation;
         if let Some(cell) = self.get_mut(x, y) {
             if cell.is_subgraph_title {
                 return false;
             }
+            was_continuation = cell.is_continuation;
             cell.ch = ch;
-            true
+            cell.is_continuation = false;
         } else {
-            false
+            return false;
+        }
+        if was_continuation {
+            self.break_wide_owner(x, y);
+        }
+        self.clear_dangling_continuation(x, y);
+        if char_display_width(ch) == 2
+            && let Some(cont) = self.get_mut(x + 1, y)
+            && !cont.is_subgraph_title
+        {
+            cont.ch = ' ';
+            cont.is_continuation = true;
+        }
+        true
+    }
+
+    /// If the cell to the left of `(x, y)` owns a wide glyph whose continuation
+    /// just got stomped on, neutralize it so the terminal doesn't paint half a
+    /// wide char into the cell that was overwritten.
+    fn break_wide_owner(&mut self, x: usize, y: usize) {
+        if x == 0 {
+            return;
+        }
+        if let Some(owner) = self.get_mut(x - 1, y)
+            && char_display_width(owner.ch) == 2
+        {
+            owner.ch = ' ';
+        }
+    }
+
+    /// If the cell `(x, y)` previously owned a wide glyph, demote the
+    /// continuation at `x + 1` to a plain space so it can be reused.
+    fn clear_dangling_continuation(&mut self, x: usize, y: usize) {
+        if let Some(neighbor) = self.get_mut(x + 1, y)
+            && neighbor.is_continuation
+        {
+            neighbor.is_continuation = false;
+            neighbor.ch = ' ';
         }
     }
 
@@ -199,6 +248,7 @@ impl Canvas {
         charset: &CharSet,
         stroke: Stroke,
     ) -> bool {
+        let was_continuation;
         if let Some(cell) = self.get_mut(x, y) {
             if cell.is_node || cell.is_subgraph_title || charset.is_arrow(cell.ch) {
                 return false;
@@ -229,10 +279,16 @@ impl Canvas {
                 charset.junction(merged)
             };
             cell.is_edge = true;
-            true
+            was_continuation = cell.is_continuation;
+            cell.is_continuation = false;
         } else {
-            false
+            return false;
         }
+        if was_continuation {
+            self.break_wide_owner(x, y);
+        }
+        self.clear_dangling_continuation(x, y);
+        true
     }
 
     /// Mark a cell as part of a node (protected from edge overwrite).
@@ -249,19 +305,28 @@ impl Canvas {
     ///
     /// Border cells are NOT protected from overwrite by nodes or edges.
     pub fn set_subgraph_border(&mut self, x: usize, y: usize, ch: char) -> bool {
+        let was_continuation;
         if let Some(cell) = self.get_mut(x, y) {
             cell.ch = ch;
             cell.is_subgraph_border = true;
-            true
+            was_continuation = cell.is_continuation;
+            cell.is_continuation = false;
         } else {
-            false
+            return false;
         }
+        if was_continuation {
+            self.break_wide_owner(x, y);
+        }
+        self.clear_dangling_continuation(x, y);
+        true
     }
 
-    /// Set a cell as a subgraph title character (protected from edge overwrite).
-    pub fn set_subgraph_title_char(&mut self, x: usize, y: usize, ch: char) -> bool {
+    /// Tag an existing cell as a subgraph title cell without modifying its
+    /// glyph or continuation status. Used to protect the title row after the
+    /// content has already been written with `write_str`, so wide-character
+    /// title glyphs retain their continuation marker.
+    pub fn mark_subgraph_title(&mut self, x: usize, y: usize) -> bool {
         if let Some(cell) = self.get_mut(x, y) {
-            cell.ch = ch;
             cell.is_subgraph_border = true;
             cell.is_subgraph_title = true;
             true
@@ -272,10 +337,14 @@ impl Canvas {
 
     /// Write a string starting at the given position (left to right).
     ///
+    /// Each character advances the cursor by its terminal column width;
+    /// `set` reserves the continuation cell for any width-2 glyph.
     /// Characters that fall outside the canvas are ignored.
     pub fn write_str(&mut self, x: usize, y: usize, s: &str) {
-        for (i, ch) in s.chars().enumerate() {
-            self.set(x + i, y, ch);
+        let mut advance = 0usize;
+        for ch in s.chars() {
+            self.set(x + advance, y, ch);
+            advance += char_display_width(ch);
         }
     }
 
@@ -322,6 +391,9 @@ impl Canvas {
             let mut active_style = None;
 
             for cell in &row[start..end] {
+                if cell.is_continuation {
+                    continue;
+                }
                 if cell.style != active_style {
                     push_sgr_transition(&mut output, active_style, cell.style);
                     active_style = cell.style;
@@ -401,7 +473,11 @@ impl fmt::Display for Canvas {
             .cells
             .iter()
             .map(|row| {
-                let line: String = row.iter().map(|cell| cell.ch).collect();
+                let line: String = row
+                    .iter()
+                    .filter(|cell| !cell.is_continuation)
+                    .map(|cell| cell.ch)
+                    .collect();
                 line.trim_end().to_string()
             })
             .collect();
@@ -728,11 +804,12 @@ mod tests {
         canvas.set_subgraph_border(0, 0, '┌');
         canvas.set_subgraph_border(1, 0, '─');
         canvas.set_subgraph_border(2, 0, ' ');
-        // Title characters
-        canvas.set_subgraph_title_char(3, 0, 'T');
-        canvas.set_subgraph_title_char(4, 0, 'e');
-        canvas.set_subgraph_title_char(5, 0, 's');
-        canvas.set_subgraph_title_char(6, 0, 't');
+        // Title content + protection pass — mirrors the canonical flow in
+        // render::graph::text::subgraph.
+        canvas.write_str(3, 0, "Test");
+        for x in 3..=6 {
+            canvas.mark_subgraph_title(x, 0);
+        }
         canvas.set_subgraph_border(7, 0, ' ');
         canvas.set_subgraph_border(8, 0, '─');
         canvas.set_subgraph_border(9, 0, '┐');
@@ -755,6 +832,53 @@ mod tests {
             canvas.get(4, 0).unwrap().ch,
             'e',
             "Title 'e' should be preserved"
+        );
+    }
+
+    #[test]
+    fn edge_does_not_overwrite_wide_title_continuation() {
+        // CJK regression: the continuation cell of a width-2 title glyph must
+        // also be protected, so an edge cannot stomp on the trailing column
+        // of `中` and break terminal rendering.
+        use crate::render::text::chars::CharSet;
+        let charset = CharSet::unicode();
+        let mut canvas = Canvas::new(20, 5);
+
+        canvas.set_subgraph_border(0, 0, '┌');
+        canvas.set_subgraph_border(1, 0, '─');
+        canvas.set_subgraph_border(2, 0, ' ');
+        // Two wide CJK glyphs occupying columns 3-4 and 5-6.
+        canvas.write_str(3, 0, "中文");
+        for x in 3..=6 {
+            canvas.mark_subgraph_title(x, 0);
+        }
+        canvas.set_subgraph_border(7, 0, ' ');
+        canvas.set_subgraph_border(8, 0, '─');
+        canvas.set_subgraph_border(9, 0, '┐');
+
+        let conns = Connections {
+            up: true,
+            down: true,
+            left: false,
+            right: false,
+        };
+
+        // Edge attempt at the continuation column of `中` (col 4) must be
+        // rejected — protection covers the whole glyph footprint.
+        let overwritten = canvas.set_with_connection(4, 0, conns, &charset, Stroke::Solid);
+        assert!(
+            !overwritten,
+            "wide-title continuation cell at col 4 must be protected"
+        );
+
+        // Both the owner and the continuation cell must keep their state.
+        let owner = canvas.get(3, 0).expect("owner cell present");
+        assert_eq!(owner.ch, '中', "wide title glyph preserved");
+        assert!(!owner.is_continuation, "owner is not a continuation");
+        let cont = canvas.get(4, 0).expect("continuation cell present");
+        assert!(
+            cont.is_continuation,
+            "trailing cell of 中 must remain a continuation"
         );
     }
 

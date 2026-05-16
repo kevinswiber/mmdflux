@@ -8,6 +8,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::format::display_width;
 use crate::graph::font_metrics::{
     RECORDED_SANS_CSS_LINE_HEIGHT_RATIO, RECORDED_SANS_PROFILE_ID, RECORDED_SANS_PROFILE_SOURCE,
     RecordedMetricsProfile,
@@ -879,7 +880,7 @@ pub fn grid_node_dimensions(node: &Node, direction: Direction) -> (usize, usize)
     let max_line_len = lines
         .iter()
         .filter(|l| **l != Node::SEPARATOR)
-        .map(|l| l.chars().count())
+        .map(|l| display_width(l))
         .max()
         .unwrap_or(0);
 
@@ -908,7 +909,7 @@ pub fn grid_edge_label_dimensions(label: &str) -> (f64, f64) {
     let lines: Vec<&str> = label.split('\n').collect();
     let width = lines
         .iter()
-        .map(|line| line.chars().count())
+        .map(|line| display_width(line))
         .max()
         .unwrap_or(0);
     let height = lines.len().max(1);
@@ -922,7 +923,7 @@ pub fn grid_edge_label_dimensions(label: &str) -> (f64, f64) {
 pub fn grid_edge_label_dimensions_wrapped(lines: &[String]) -> (f64, f64) {
     let width = lines
         .iter()
-        .map(|line| line.chars().count())
+        .map(|line| display_width(line))
         .max()
         .unwrap_or(0);
     let height = lines.len().max(1);

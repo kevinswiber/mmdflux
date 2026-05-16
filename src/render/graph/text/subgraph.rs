@@ -2,9 +2,28 @@
 
 use std::collections::HashMap;
 
+use crate::format::{char_display_width, display_width};
 use crate::graph::grid::SubgraphBounds;
 use crate::render::text::canvas::Canvas;
 use crate::render::text::chars::CharSet;
+
+/// Truncate `s` so its total terminal-column width fits in `max_width`.
+///
+/// A width-2 character is dropped rather than split, so the result is always
+/// `display_width(...) <= max_width`.
+fn truncate_to_display_width(s: &str, max_width: usize) -> String {
+    let mut out = String::new();
+    let mut width = 0usize;
+    for ch in s.chars() {
+        let w = char_display_width(ch);
+        if width + w > max_width {
+            break;
+        }
+        out.push(ch);
+        width += w;
+    }
+    out
+}
 
 /// Render subgraph border rectangles and concurrent region dividers on the canvas.
 ///
@@ -43,10 +62,13 @@ pub fn render_subgraph_borders(
         let inner_width = w.saturating_sub(2); // space between corners
         let has_visible_title = !bounds.title.is_empty() && !bounds.title.trim().is_empty();
         if has_visible_title && inner_width >= 5 {
-            // Title section: "─ Title ─" = title.len() + 4 chars overhead
-            let max_title_len = inner_width.saturating_sub(4);
-            let title: String = bounds.title.chars().take(max_title_len).collect();
-            let title_section_len = title.len() + 4; // "─ " + title + " ─"
+            // Title section: "─ Title ─" = display_width(title) + 4 cells overhead.
+            // Widths are in terminal columns so East Asian wide characters
+            // reserve the two cells the terminal will paint.
+            let max_title_width = inner_width.saturating_sub(4);
+            let title = truncate_to_display_width(&bounds.title, max_title_width);
+            let title_width = display_width(&title);
+            let title_section_len = title_width + 4;
             let left_fill = (inner_width.saturating_sub(title_section_len)) / 2;
 
             // Left horizontal fill
@@ -56,13 +78,12 @@ pub fn render_subgraph_borders(
             // "─ " prefix
             canvas.set_subgraph_border(x + 1 + left_fill, y, charset.horizontal);
             canvas.set_subgraph_border(x + 1 + left_fill + 1, y, ' ');
-            // Centered title
+            // Title content: write_str advances by terminal-column width and
+            // marks the trailing cell of any wide glyph as a continuation.
             let title_start = x + 1 + left_fill + 2;
-            for (i, ch) in title.chars().enumerate() {
-                canvas.set_subgraph_title_char(title_start + i, y, ch);
-            }
+            canvas.write_str(title_start, y, &title);
             // " " suffix
-            let title_end = title_start + title.len();
+            let title_end = title_start + title_width;
             canvas.set_subgraph_border(title_end, y, ' ');
 
             // Right horizontal fill
@@ -70,12 +91,11 @@ pub fn render_subgraph_borders(
                 canvas.set_subgraph_border(dx, y, charset.horizontal);
             }
 
-            // Protect the entire top border row so edges cannot corrupt
-            // the embedded title segment.
+            // Protect the entire top border row so edges cannot corrupt the
+            // embedded title segment. Use the non-clobbering marker so that
+            // continuation cells of wide title glyphs keep their flag.
             for dx in 1..(w - 1) {
-                if let Some(cell) = canvas.get(x + dx, y) {
-                    let _ = canvas.set_subgraph_title_char(x + dx, y, cell.ch);
-                }
+                canvas.mark_subgraph_title(x + dx, y);
             }
         } else {
             // No title or too narrow: plain horizontal

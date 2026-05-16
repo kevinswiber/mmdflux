@@ -2,10 +2,36 @@
 
 use std::str::FromStr;
 
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+
 /// Normalize an enum token: trim, lowercase, replace underscores with hyphens.
 pub fn normalize_enum_token(value: &str) -> String {
     value.trim().to_ascii_lowercase().replace('_', "-")
 }
+
+/// Terminal column width of `s`, treating East Asian "wide" characters as 2 cells.
+///
+/// Used everywhere the Text/ASCII pipeline needs to size grid cells against a
+/// label string. Control characters and other zero-width code points report 0;
+/// the [`UnicodeWidthStr`] sum reflects what a fixed-width terminal will draw.
+pub fn display_width(s: &str) -> usize {
+    UnicodeWidthStr::width(s)
+}
+
+/// Terminal column width of a single character, with a 1-cell floor.
+///
+/// Mirrors [`UnicodeWidthChar::width`] but clamps zero-width and undefined
+/// results to 1 so per-character cursor advancement in the canvas never
+/// collapses on control characters. Note this diverges from
+/// [`display_width`] on combining marks (decomposed strings): summing
+/// `char_display_width` over each char reserves a cell for each combining
+/// mark, while `display_width` of the same string does not. Callers that
+/// must round-trip a single width should use one function consistently and
+/// not mix them.
+pub fn char_display_width(c: char) -> usize {
+    UnicodeWidthChar::width(c).unwrap_or(0).max(1)
+}
+
 use crate::errors::RenderError;
 
 /// Output format for rendering.

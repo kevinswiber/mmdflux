@@ -1808,3 +1808,155 @@ mod edge_rendering_regression {
         );
     }
 }
+
+mod cjk_width_invariant {
+    //! Issue #361: East Asian wide characters (CJK, fullwidth forms) occupy two
+    //! terminal columns. The Text/ASCII pipeline must size grid cells using
+    //! `unicode_width`, not `chars().count()`, so the right-side `│` of a node
+    //! box lands in the same column on the label row as the `╮` on the top
+    //! border.
+    use unicode_width::UnicodeWidthChar;
+
+    use super::*;
+
+    fn render_state_fixture(name: &str) -> String {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
+            .join("state")
+            .join(name);
+        let input = fs::read_to_string(&path).unwrap_or_else(|error| {
+            panic!("Failed to read state fixture {}: {}", path.display(), error)
+        });
+        crate::render_diagram(
+            &input,
+            OutputFormat::Text,
+            &RenderConfig {
+                text_color_mode: TextColorMode::Plain,
+                ..RenderConfig::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("Failed to render state fixture {name}: {error}"))
+    }
+
+    fn terminal_columns_of(line: &str) -> Vec<usize> {
+        let mut cols = Vec::with_capacity(line.chars().count());
+        let mut col = 0usize;
+        for ch in line.chars() {
+            cols.push(col);
+            col += UnicodeWidthChar::width(ch).unwrap_or(0);
+        }
+        cols
+    }
+
+    /// Pair every box-top `╭`/`┌` with the nearest following `╮`/`┐` on the
+    /// same line. Returns `(left_col, right_col)` pairs in terminal columns.
+    fn box_top_pairs(line: &str) -> Vec<(usize, usize)> {
+        let cols = terminal_columns_of(line);
+        let chars: Vec<(char, usize)> = line.chars().zip(cols.iter().copied()).collect();
+        let mut pairs = Vec::new();
+        let mut i = 0;
+        while i < chars.len() {
+            let (ch, col) = chars[i];
+            if (ch == '╭' || ch == '┌')
+                && let Some((_, right_col)) = chars[i + 1..]
+                    .iter()
+                    .copied()
+                    .find(|(c, _)| matches!(c, '╮' | '┐'))
+            {
+                pairs.push((col, right_col));
+            }
+            i += 1;
+        }
+        pairs
+    }
+
+    fn char_at_col(line: &str, target_col: usize) -> Option<char> {
+        let cols = terminal_columns_of(line);
+        line.chars()
+            .zip(cols.iter().copied())
+            .find_map(|(c, col)| (col == target_col).then_some(c))
+    }
+
+    fn assert_box_columns_aligned(label: &str, text: &str) {
+        let lines: Vec<&str> = text.lines().collect();
+        let mut checked = 0;
+        for (idx, line) in lines.iter().enumerate() {
+            let pairs = box_top_pairs(line);
+            if pairs.is_empty() {
+                continue;
+            }
+            let label_row = lines
+                .get(idx + 1)
+                .unwrap_or_else(|| panic!("{label}: top border at row {idx} has no row below"));
+            for (left_col, right_col) in pairs {
+                let label_left = char_at_col(label_row, left_col);
+                let label_right = char_at_col(label_row, right_col);
+                assert_eq!(
+                    label_left,
+                    Some('│'),
+                    "{label}: row below `╭` at col {left_col} should have `│`, got {label_left:?}\n--top--\n{line}\n--below--\n{label_row}\n--full--\n{text}"
+                );
+                assert_eq!(
+                    label_right,
+                    Some('│'),
+                    "{label}: row below `╮` at col {right_col} should have `│`, got {label_right:?}\n--top--\n{line}\n--below--\n{label_row}\n--full--\n{text}"
+                );
+                checked += 1;
+            }
+        }
+        assert!(
+            checked > 0,
+            "{label}: expected at least one boxed node to validate\n{text}"
+        );
+    }
+
+    #[test]
+    fn state_cjk_labels_box_borders_align_in_terminal_columns() {
+        let text = render_state_fixture("cjk_labels.mmd");
+        assert_box_columns_aligned("state/cjk_labels", &text);
+    }
+
+    #[test]
+    fn flowchart_cjk_labels_box_borders_align_in_terminal_columns() {
+        let text = render_flowchart_fixture("cjk_labels.mmd");
+        assert_box_columns_aligned("flowchart/cjk_labels", &text);
+    }
+
+    #[test]
+    fn flowchart_cjk_subgraph_title_corner_columns_align() {
+        // Subgraph title row has the form `┌─── 子图标题 ───┐`. The closing
+        // `┐` must sit at the rightmost terminal column of the bottom-border
+        // row's `┘`, i.e. the box is rectangular.
+        let text = render_flowchart_fixture("cjk_subgraph.mmd");
+        let lines: Vec<&str> = text.lines().collect();
+        let mut checked = 0;
+        for (idx, line) in lines.iter().enumerate() {
+            let cols = terminal_columns_of(line);
+            let chars: Vec<(char, usize)> = line.chars().zip(cols.iter().copied()).collect();
+            let Some((_, tl_col)) = chars.iter().copied().find(|(c, _)| *c == '┌') else {
+                continue;
+            };
+            let Some((_, tr_col)) = chars.iter().rev().copied().find(|(c, _)| *c == '┐') else {
+                continue;
+            };
+            let bottom = (idx + 1..lines.len()).find_map(|j| {
+                let row = lines[j];
+                let bcols = terminal_columns_of(row);
+                let bchars: Vec<(char, usize)> = row.chars().zip(bcols.iter().copied()).collect();
+                let bl = bchars.iter().copied().find(|(c, _)| *c == '└')?.1;
+                let br = bchars.iter().rev().copied().find(|(c, _)| *c == '┘')?.1;
+                (bl == tl_col && br == tr_col).then_some(j)
+            });
+            assert!(
+                bottom.is_some(),
+                "flowchart/cjk_subgraph: subgraph at row {idx} (┌@{tl_col}, ┐@{tr_col}) must have a matching bottom row with └/┘ at the same columns\n{text}"
+            );
+            checked += 1;
+        }
+        assert!(
+            checked > 0,
+            "flowchart/cjk_subgraph: expected at least one subgraph border to validate\n{text}"
+        );
+    }
+}

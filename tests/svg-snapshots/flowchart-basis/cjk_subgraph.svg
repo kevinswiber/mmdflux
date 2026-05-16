@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 154.00 324.00" style="max-width: 154.00px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(-20.00,-19.00)">
+    <g class="clusters">
+      <rect class="subgraph" x="28.00" y="27.00" width="138.00" height="308.00" fill="none" stroke="#888" stroke-width="1.00" />
+      <text x="97.00" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">子图标题</text>
+    </g>
+    <g class="edgePaths">
+      <path d="M97.00,112.00 L97.00,114.78 C97.00,117.56 97.00,123.11 97.00,128.67 C97.00,134.22 97.00,139.78 97.00,144.67 C97.00,149.56 97.00,153.78 97.00,155.89 L97.00,158.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M97.00,216.00 L97.00,218.78 C97.00,221.56 97.00,227.11 97.00,232.67 C97.00,238.22 97.00,243.78 97.00,248.67 C97.00,253.56 97.00,257.78 97.00,259.89 L97.00,262.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <rect x="51.00" y="58.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="97.00" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">空闲</text>
+      <rect x="43.00" y="162.00" width="108.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="97.00" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">处理中</text>
+      <rect x="51.00" y="266.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+      <text x="97.00" y="293.00" text-anchor="middle" dominant-baseline="middle" fill="#333">完成</text>
+    </g>
+    <g class="edgeLabels">
+    </g>
+  </g>
+</svg>
