@@ -67,12 +67,12 @@ impl SequenceSvgPalette {
                 participant_text: theme.roles.text.clone(),
                 lifeline_stroke: theme.roles.line.clone(),
                 marker_color: theme.roles.arrow.clone(),
-                note_fill: theme.roles.key_badge.clone(),
-                activation_fill: theme.roles.inner_stroke.clone(),
+                note_fill: theme.roles.node_fill.clone(),
+                activation_fill: theme.roles.node_fill.clone(),
                 actor_stroke: theme.roles.node_stroke.clone(),
-                block_stroke: theme.roles.inner_stroke.clone(),
+                block_stroke: theme.roles.node_stroke.clone(),
                 block_label_bg: theme.roles.group_fill.clone(),
-                participant_box_stroke: theme.roles.inner_stroke.clone(),
+                participant_box_stroke: theme.roles.node_stroke.clone(),
                 participant_box_label_bg: theme.roles.group_fill.clone(),
                 dynamic_css: theme.dynamic.is_some(),
             },
@@ -222,7 +222,7 @@ fn render_participant_group_box(
     let stroke_dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,
         "sequence-participant-group-stroke",
-        &["stroke:var(--_inner-stroke);"],
+        &["stroke:var(--_node-stroke);"],
     );
 
     match fill {
@@ -545,7 +545,7 @@ fn render_block(writer: &mut SvgWriter, block: &SvgBlock, palette: &SequenceSvgP
     let rect_dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,
         "sequence-block-stroke",
-        &["stroke:var(--_inner-stroke);"],
+        &["stroke:var(--_node-stroke);"],
     );
     writer.push_line(&format!(
         "<rect x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\" fill=\"none\" stroke=\"{stroke}\" stroke-width=\"1\" stroke-dasharray=\"{BLOCK_STROKE_DASH}\"{dynamic_attrs} />",
@@ -595,7 +595,7 @@ fn render_block_divider(
     let line_dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,
         "sequence-block-stroke",
-        &["stroke:var(--_inner-stroke);"],
+        &["stroke:var(--_node-stroke);"],
     );
     writer.push_line(&format!(
         "<line x1=\"{x1}\" y1=\"{y}\" x2=\"{x2}\" y2=\"{y}\" stroke=\"{stroke}\" stroke-width=\"1\" stroke-dasharray=\"{BLOCK_STROKE_DASH}\"{dynamic_attrs} />",
@@ -630,7 +630,7 @@ fn render_block_operator_tab(
     let tab_dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,
         "sequence-block-tab",
-        &["fill:var(--_group-fill);", "stroke:var(--_inner-stroke);"],
+        &["fill:var(--_group-fill);", "stroke:var(--_node-stroke);"],
     );
     writer.push_line(&format!(
         "<polygon points=\"{x0},{y0} {x1},{y0} {x1},{y1} {x2},{y2} {x0},{y2}\" fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"1\"{dynamic_attrs} />",
@@ -778,7 +778,7 @@ fn render_note(writer: &mut SvgWriter, note: &SvgNote, palette: &SequenceSvgPale
     let note_dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,
         "sequence-note",
-        &["fill:var(--_key-badge);", "stroke:var(--_line);"],
+        &["fill:var(--_node-fill);", "stroke:var(--_line);"],
     );
     let note_stroke_dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,
@@ -836,7 +836,7 @@ fn render_activation(writer: &mut SvgWriter, act: &SvgActivation, palette: &Sequ
     let dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,
         "sequence-activation",
-        &["fill:var(--_inner-stroke);", "stroke:var(--_line);"],
+        &["fill:var(--_node-fill);", "stroke:var(--_line);"],
     );
     writer.push_line(&format!(
         "<rect x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\" \

@@ -390,6 +390,42 @@ fn graph_circle_markers_use_default_canvas_fill() {
 }
 
 #[test]
+fn themed_flowchart_subgraph_uses_visible_stroke_and_title_slots() {
+    let input = load_flowchart_fixture("subgraph_direction_mixed.mmd");
+    let svg = render_svg(
+        &input,
+        &RenderConfig {
+            svg_theme: Some(SvgThemeConfig {
+                name: Some("dark".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    );
+
+    let subgraph_rect_lines: Vec<&str> = svg
+        .lines()
+        .filter(|line| line.contains("class=\"subgraph\""))
+        .collect();
+    assert!(!subgraph_rect_lines.is_empty(), "{svg}");
+    for line in &subgraph_rect_lines {
+        assert!(
+            line.contains("stroke=\"#cccccc\""),
+            "subgraph rect should use the theme node_stroke slot (#cccccc), got: {line}\nfull svg: {svg}"
+        );
+    }
+    for title in ["Left to Right", "Bottom to Top"] {
+        let expected = format!("fill=\"#cccccc\">{title}</text>");
+        assert!(
+            svg.contains(&expected),
+            "subgraph title `{title}` should use fill=#cccccc, full svg: {svg}"
+        );
+    }
+    assert!(!svg.contains("#454545"), "{svg}");
+    assert!(!svg.contains("#3b3b3b"), "{svg}");
+}
+
+#[test]
 fn themed_graph_circle_markers_use_theme_background_fill() {
     let input = load_class_fixture("lollipop_interfaces.mmd");
     let svg = render_svg(
@@ -729,11 +765,14 @@ fn sequence_svg_theme_changes_note_and_activation_colors() {
     );
 
     assert!(svg.contains("background-color: #333333;"), "{svg}");
-    assert!(svg.contains("fill=\"#1f2020\""), "{svg}");
-    assert!(svg.contains("fill=\"#424242\""), "{svg}");
-    assert!(svg.contains("fill=\"#454545\""), "{svg}");
+    // Two participants + activation rect + note path all draw with the
+    // theme's surface slot (#1f2020) — pre-fix the note and activation
+    // collapsed to the near-bg key_badge/inner_stroke mixes.
+    assert_eq!(svg.matches("fill=\"#1f2020\"").count(), 4, "{svg}");
     assert!(!svg.contains("#ffffcc"), "{svg}");
     assert!(!svg.contains("#ddd"), "{svg}");
+    assert!(!svg.contains("#424242"), "{svg}");
+    assert!(!svg.contains("#454545"), "{svg}");
 }
 
 #[test]

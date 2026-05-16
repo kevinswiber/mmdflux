@@ -151,7 +151,7 @@ pub(super) fn render_subgraphs(
         let stroke_width = style.stroke_width.unwrap_or(&default_stroke_width);
         let mut dynamic_declarations = Vec::new();
         if !style.stroke_is_overridden() {
-            dynamic_declarations.push("stroke:var(--_inner-stroke);");
+            dynamic_declarations.push("stroke:var(--_node-stroke);");
         }
         let dynamic_attrs = dynamic_css_attrs(
             palette.dynamic_css,
@@ -181,7 +181,7 @@ pub(super) fn render_subgraphs(
             let title_y = rect.y + metrics.font_size_for_style(&title_style) * scale * 0.25;
             let mut declarations = Vec::new();
             if !style.text_is_overridden() {
-                declarations.push("fill:var(--_group-hdr);");
+                declarations.push("fill:var(--_text);");
             }
             let dynamic_attrs =
                 dynamic_css_attrs(palette.dynamic_css, "graph-subgraph-text", &declarations);

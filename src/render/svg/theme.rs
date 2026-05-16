@@ -40,9 +40,6 @@ impl std::fmt::Display for SvgThemeError {
 impl std::error::Error for SvgThemeError {}
 
 const MIX_NODE_FILL: f64 = 0.03;
-const MIX_GROUP_HEADER: f64 = 0.05;
-const MIX_KEY_BADGE: f64 = 0.10;
-const MIX_INNER_STROKE: f64 = 0.12;
 const MIX_NODE_STROKE: f64 = 0.20;
 const MIX_TEXT_FAINT: f64 = 0.25;
 const MIX_TEXT_MUTED: f64 = 0.40;
@@ -91,9 +88,6 @@ pub(crate) struct DerivedThemeRoles {
     pub node_fill: String,
     pub node_stroke: String,
     pub group_fill: String,
-    pub group_header: String,
-    pub inner_stroke: String,
-    pub key_badge: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -442,9 +436,6 @@ pub(crate) fn resolve_svg_theme(config: &SvgThemeSpec) -> Result<ResolvedSvgThem
         node_fill: slots.surface.clone(),
         node_stroke: slots.border.clone(),
         group_fill: slots.bg.clone(),
-        group_header: mix_hex(&slots.fg, &slots.bg, MIX_GROUP_HEADER)?,
-        inner_stroke: mix_hex(&slots.fg, &slots.bg, MIX_INNER_STROKE)?,
-        key_badge: mix_hex(&slots.fg, &slots.bg, MIX_KEY_BADGE)?,
     };
 
     let dynamic = if matches!(config.mode, SvgThemeRenderMode::Dynamic) {
@@ -567,9 +558,6 @@ fn build_dynamic_style_block() -> String {
         "  --_node-fill: var(--surface);",
         "  --_node-stroke: var(--border);",
         "  --_group-fill: var(--bg);",
-        "  --_group-hdr: color-mix(in srgb, var(--fg) 5%, var(--bg));",
-        "  --_inner-stroke: color-mix(in srgb, var(--fg) 12%, var(--bg));",
-        "  --_key-badge: color-mix(in srgb, var(--fg) 10%, var(--bg));",
         "}",
     ]
     .join("\n")
@@ -655,9 +643,6 @@ mod tests {
         assert_eq!(resolved.roles.text_secondary, "#7d7d7f");
         assert_eq!(resolved.roles.text_muted, "#a9a9aa");
         assert_eq!(resolved.roles.text_faint, "#c9c9ca");
-        assert_eq!(resolved.roles.group_header, "#f4f4f4");
-        assert_eq!(resolved.roles.inner_stroke, "#e5e5e5");
-        assert_eq!(resolved.roles.key_badge, "#e9e9ea");
     }
 
     #[test]
