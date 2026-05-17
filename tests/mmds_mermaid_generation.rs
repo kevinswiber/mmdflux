@@ -91,6 +91,47 @@ fn generator_emits_minlen_connector_variants_across_styles() {
 }
 
 #[test]
+fn generator_preserves_dashes_in_subgraph_and_node_ids() {
+    // Mermaid's flowchart lexer accepts interior dashes in node, subgraph,
+    // and class identifiers (NODE_STRING / idString → MINUS). The SVG
+    // emitter's `xml_safe_id` (src/render/graph/svg/nodes.rs) also passes
+    // dashes through unchanged, so the MMDS → Mermaid → SVG round-trip is
+    // byte-stable for dashed ids only when this generator preserves them.
+    // If this assertion regresses, the `external_node_subgraph.mmd` fixture
+    // in tests/mmds_conformance.rs will diverge too — but this test fails
+    // first with a localized message.
+    let mmds = fixture("generation/dashed-ids.json");
+    let mermaid = generate_mermaid_from_str(&mmds).unwrap();
+
+    assert!(
+        mermaid.contains("subgraph us-east"),
+        "expected dashed subgraph id preserved:\n{mermaid}"
+    );
+    assert!(
+        mermaid.contains("web-server[Web]"),
+        "expected dashed node id preserved:\n{mermaid}"
+    );
+}
+
+#[test]
+fn generator_collapses_double_dashes_and_trims_edge_dashes_in_ids() {
+    // Mermaid's `--` token is the edge operator, so the generator must not
+    // emit identifiers containing `--` or starting/ending with `-`. The
+    // collision-suffix path then preserves uniqueness.
+    let mmds = fixture("generation/dash-edge-cases.json");
+    let mermaid = generate_mermaid_from_str(&mmds).unwrap();
+
+    assert!(
+        mermaid.contains("foo-bar[First]"),
+        "expected leading/trailing dashes trimmed and double dashes collapsed:\n{mermaid}"
+    );
+    assert!(
+        mermaid.contains("foo-bar_2[Second]"),
+        "expected collision suffix applied after normalization:\n{mermaid}"
+    );
+}
+
+#[test]
 fn generator_rejects_non_graph_diagram_payloads() {
     let mmds = fixture("generation/non-graph-payload.json");
     let err = generate_mermaid_from_str(&mmds).unwrap_err();

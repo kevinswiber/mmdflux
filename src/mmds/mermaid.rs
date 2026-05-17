@@ -105,10 +105,19 @@ where
 }
 
 fn normalize_identifier(raw: &str, fallback_prefix: &str) -> String {
+    // Interior ASCII dashes are preserved because Mermaid's flowchart lexer
+    // accepts them inside node, subgraph, and class identifiers (the
+    // NODE_STRING / idString tokens include MINUS). Keeping them through
+    // MMDS → Mermaid emission also keeps SVG `id` attributes byte-stable
+    // across the round-trip: see `xml_safe_id` in
+    // src/render/graph/svg/nodes.rs, which already passes dashes through
+    // unchanged. Consecutive dashes are collapsed and leading/trailing
+    // dashes are trimmed because `--` is the edge operator in Mermaid and
+    // would otherwise re-tokenize the identifier.
     let mut normalized: String = raw
         .chars()
         .map(|ch| {
-            if ch.is_ascii_alphanumeric() || ch == '_' {
+            if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' {
                 ch
             } else {
                 '_'
@@ -119,8 +128,13 @@ fn normalize_identifier(raw: &str, fallback_prefix: &str) -> String {
     while normalized.contains("__") {
         normalized = normalized.replace("__", "_");
     }
+    while normalized.contains("--") {
+        normalized = normalized.replace("--", "-");
+    }
 
-    normalized = normalized.trim_matches('_').to_string();
+    normalized = normalized
+        .trim_matches(|ch: char| ch == '_' || ch == '-')
+        .to_string();
     if normalized.is_empty() {
         return fallback_prefix.to_string();
     }

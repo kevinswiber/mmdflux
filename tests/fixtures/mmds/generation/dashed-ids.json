@@ -13,27 +13,23 @@
   "metadata": {
     "diagram_type": "flowchart",
     "direction": "TD",
-    "bounds": { "width": 220.0, "height": 120.0 }
+    "bounds": { "width": 200.0, "height": 100.0 }
   },
   "nodes": [
     {
-      "id": "node 1",
-      "label": "A | B",
+      "id": "web-server",
+      "label": "Web",
+      "parent": "us-east",
       "position": { "x": 40.0, "y": 30.0 },
       "size": { "width": 44.0, "height": 24.0 }
-    },
-    {
-      "id": "node.1",
-      "label": "Second",
-      "position": { "x": 140.0, "y": 30.0 },
-      "size": { "width": 54.0, "height": 24.0 }
     }
   ],
-  "edges": [
+  "edges": [],
+  "subgraphs": [
     {
-      "id": "e0",
-      "source": "node 1",
-      "target": "node.1"
+      "id": "us-east",
+      "title": "us-east",
+      "children": ["web-server"]
     }
   ]
 }
