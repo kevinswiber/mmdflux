@@ -105,6 +105,10 @@ impl<'a> ResolvedSvgSubgraphStyle<'a> {
         self.text.unwrap_or(default)
     }
 
+    fn fill_is_overridden(self) -> bool {
+        self.fill.is_some()
+    }
+
     fn stroke_is_overridden(self) -> bool {
         self.stroke.is_some()
     }
@@ -171,17 +175,23 @@ pub(super) fn render_subgraphs(
 
         let rect = scale_rect(&sg_geom.rect, scale);
         let style = ResolvedSvgSubgraphStyle::from_subgraph(subgraph);
-        let fill = style.fill_or("none");
+        // Default subgraph fill follows Mermaid `clusterBkg` parity. The palette
+        // seeds the themed default; un-themed renders stay on `"none"` for
+        // snapshot byte-stability. Explicit `style`/`classDef` fill always wins.
+        let fill = style.fill_or(&palette.subgraph_fill);
         let stroke = style.stroke_or(&palette.subgraph_stroke);
         let default_stroke_width = fmt_f64(1.0 * scale);
         let stroke_width = style.stroke_width.unwrap_or(&default_stroke_width);
         let mut dynamic_declarations = Vec::new();
+        if !style.fill_is_overridden() {
+            dynamic_declarations.push("fill:var(--_cluster-bkg);");
+        }
         if !style.stroke_is_overridden() {
             dynamic_declarations.push("stroke:var(--_node-stroke);");
         }
         let dynamic_attrs = dynamic_css_attrs(
             palette.dynamic_css,
-            "graph-subgraph-stroke",
+            "graph-subgraph-rect",
             &dynamic_declarations,
         );
         let dasharray_attr = style

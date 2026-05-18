@@ -309,6 +309,129 @@ fn unstyled_subgraph_container_rect_stays_byte_stable() {
 }
 
 #[test]
+fn themed_subgraph_default_fill_follows_mermaid_cluster_bkg_not_node_fill() {
+    // Mermaid `dark` theme: clusterBkg = #302F3D, surface (node_fill) = #1f2020.
+    // The subgraph rect must consume cluster_bkg, not node_fill.
+    let input = "flowchart LR\nsubgraph A[Source]\na1\nend\n";
+    let svg = render_svg(
+        input,
+        &RenderConfig {
+            svg_theme: Some(SvgThemeConfig {
+                name: Some("dark".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    );
+
+    let subgraph_lines: Vec<&str> = svg
+        .lines()
+        .filter(|line| line.contains(r#"class="subgraph""#))
+        .collect();
+    assert!(!subgraph_lines.is_empty(), "{svg}");
+    for line in &subgraph_lines {
+        assert!(
+            line.contains(r##"fill="#302f3d""##),
+            "themed subgraph should pick up cluster_bkg #302f3d, got: {line}"
+        );
+        assert!(
+            !line.contains(r##"fill="#1f2020""##),
+            "themed subgraph must not fall back to node_fill #1f2020, got: {line}"
+        );
+    }
+}
+
+#[test]
+fn explicit_subgraph_class_fill_wins_over_theme_cluster_bkg() {
+    // Even when a theme would seed cluster_bkg, an author-specified classDef
+    // fill must take precedence (preserves the precedence guarantee from #328).
+    let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef blue fill:#e1f5fe,stroke:#01579b,stroke-width:2px\nclass A blue\n";
+    let svg = render_svg(
+        input,
+        &RenderConfig {
+            svg_theme: Some(SvgThemeConfig {
+                name: Some("dark".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    );
+
+    assert!(svg.contains(r##"fill="#e1f5fe""##), "{svg}");
+    assert!(
+        !svg.contains(r##"fill="#302f3d""##),
+        "themed cluster_bkg must yield to explicit classDef fill: {svg}"
+    );
+}
+
+#[test]
+fn dynamic_themed_subgraph_emits_cluster_bkg_css_variable() {
+    // Dynamic theme mode wires `--cluster-bkg` so adapters can override the
+    // subgraph default at runtime without re-rendering.
+    let input = "flowchart LR\nsubgraph A[Source]\na1\nend\n";
+    let svg = render_svg(
+        input,
+        &RenderConfig {
+            svg_theme: Some(SvgThemeConfig {
+                name: Some("dark".into()),
+                mode: SvgThemeMode::Dynamic,
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    );
+
+    assert!(svg.contains("--cluster-bkg:#302f3d"), "{svg}");
+    assert!(
+        svg.contains("--_cluster-bkg: var(--cluster-bkg);"),
+        "dynamic style block should bridge --cluster-bkg into --_cluster-bkg: {svg}"
+    );
+    assert!(
+        svg.contains("fill:var(--_cluster-bkg);"),
+        "subgraph rect should carry the dynamic fill declaration: {svg}"
+    );
+    assert!(
+        svg.contains(r#"data-svg-role="graph-subgraph-rect""#),
+        "subgraph rect must tag data-svg-role=\"graph-subgraph-rect\" for adapter targeting: {svg}"
+    );
+}
+
+#[test]
+fn named_theme_keeps_cluster_bkg_when_caller_overrides_surface_slot() {
+    // Custom surface override on a named theme must not drag cluster_bkg with
+    // it — the named seed (#302f3d for dark) is the parity contract, and an
+    // ad-hoc surface tweak is for nodes only.
+    let input = "flowchart LR\nsubgraph A[Source]\na1\nend\n";
+    let svg = render_svg(
+        input,
+        &RenderConfig {
+            svg_theme: Some(SvgThemeConfig {
+                name: Some("dark".into()),
+                surface: Some("#123456".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    );
+
+    let subgraph_lines: Vec<&str> = svg
+        .lines()
+        .filter(|line| line.contains(r#"class="subgraph""#))
+        .collect();
+    assert!(!subgraph_lines.is_empty(), "{svg}");
+    for line in &subgraph_lines {
+        assert!(
+            line.contains(r##"fill="#302f3d""##),
+            "named theme cluster_bkg must survive a surface override: {line}"
+        );
+        assert!(
+            !line.contains(r##"fill="#123456""##),
+            "surface override must not bleed into subgraph fill: {line}"
+        );
+    }
+}
+
+#[test]
 fn svg_subgraph_title_uses_visual_font_attrs_from_class_style() {
     let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef title font-style:italic,font-weight:700,color:#123456\nclass A title\n";
     let svg = render_svg(input, &RenderConfig::default());

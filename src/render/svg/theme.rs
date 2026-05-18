@@ -74,6 +74,7 @@ pub(crate) struct ResolvedThemeSlots {
     pub muted: String,
     pub surface: String,
     pub border: String,
+    pub cluster_bkg: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,6 +89,7 @@ pub(crate) struct DerivedThemeRoles {
     pub node_fill: String,
     pub node_stroke: String,
     pub group_fill: String,
+    pub cluster_bkg: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -111,6 +113,10 @@ pub(crate) struct ThemeSeed {
     pub muted: Option<&'static str>,
     pub surface: Option<&'static str>,
     pub border: Option<&'static str>,
+    /// Mermaid `clusterBkg` parity — background fill for subgraph cluster rects.
+    /// `None` falls back to `surface` (matching node fill) inside
+    /// `resolve_optional_slot`.
+    pub cluster_bkg: Option<&'static str>,
 }
 
 const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
@@ -124,6 +130,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: None,
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -136,6 +143,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: None,
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -148,6 +156,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#565f89"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -160,6 +169,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#565f89"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -172,6 +182,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#9699a3"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -184,6 +195,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#6c7086"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -196,6 +208,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#9ca0b0"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -208,6 +221,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#616e88"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -220,6 +234,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#7b88a1"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -232,6 +247,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#6272a4"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -244,6 +260,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#59636e"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -256,6 +273,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#9198a1"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -268,6 +286,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#93a1a1"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -280,6 +299,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#586e75"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
     named_theme(
@@ -292,6 +312,7 @@ const BEAUTIFUL_MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#5c6370"),
             surface: None,
             border: None,
+            cluster_bkg: None,
         },
     ),
 ];
@@ -307,6 +328,8 @@ const MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#666666"),
             surface: Some("#ececff"),
             border: Some("#9370db"),
+            // Mermaid base theme: clusterBkg = tertiaryColor (#ECECFF).
+            cluster_bkg: Some("#ececff"),
         },
     ),
     named_theme(
@@ -319,6 +342,8 @@ const MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#cccccc"),
             surface: Some("#1f2020"),
             border: Some("#cccccc"),
+            // Mermaid dark theme: clusterBkg = '#302F3D' (explicit).
+            cluster_bkg: Some("#302f3d"),
         },
     ),
     named_theme(
@@ -331,6 +356,8 @@ const MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#333333"),
             surface: Some("#cde498"),
             border: Some("#13540c"),
+            // Mermaid forest theme: clusterBkg = secondBkg = '#cdffb2'.
+            cluster_bkg: Some("#cdffb2"),
         },
     ),
     named_theme(
@@ -343,6 +370,9 @@ const MERMAID_THEMES: &[NamedSvgThemeDefinition] = &[
             muted: Some("#333333"),
             surface: Some("#eeeeee"),
             border: Some("#999999"),
+            // Mermaid neutral theme: clusterBkg = secondBkg, calculated from
+            // contrast (#707070) via lighten(.., 55); resolves to ~#eeeeee.
+            cluster_bkg: Some("#eeeeee"),
         },
     ),
 ];
@@ -385,44 +415,60 @@ pub(crate) fn resolve_svg_theme(config: &SvgThemeSpec) -> Result<ResolvedSvgThem
         DEFAULT_FG,
     )?;
 
+    let line = resolve_optional_slot(
+        config.line.as_deref(),
+        named.and_then(|theme| theme.seed.line),
+        &fg,
+        &bg,
+        MIX_LINE,
+    )?;
+    let accent = resolve_optional_slot(
+        config.accent.as_deref(),
+        named.and_then(|theme| theme.seed.accent),
+        &fg,
+        &bg,
+        MIX_ARROW,
+    )?;
+    let muted = resolve_optional_slot(
+        config.muted.as_deref(),
+        named.and_then(|theme| theme.seed.muted),
+        &fg,
+        &bg,
+        MIX_TEXT_MUTED,
+    )?;
+    let surface = resolve_optional_slot(
+        config.surface.as_deref(),
+        named.and_then(|theme| theme.seed.surface),
+        &fg,
+        &bg,
+        MIX_NODE_FILL,
+    )?;
+    let border = resolve_optional_slot(
+        config.border.as_deref(),
+        named.and_then(|theme| theme.seed.border),
+        &fg,
+        &bg,
+        MIX_NODE_STROKE,
+    )?;
+    // `cluster_bkg` mirrors Mermaid's `clusterBkg` theme variable. There is no
+    // direct public override hook on `SvgThemeSpec`; the seed comes from the
+    // named theme, and otherwise falls back to the resolved `surface` slot so
+    // unseeded themes (beautiful palettes, custom slot overrides) keep behaving
+    // like a tinted node background instead of leaking `bg` through.
+    let cluster_bkg = match named.and_then(|theme| theme.seed.cluster_bkg) {
+        Some(color) => normalize_hex_color(color)?,
+        None => surface.clone(),
+    };
+
     let slots = ResolvedThemeSlots {
         bg: bg.clone(),
         fg: fg.clone(),
-        line: resolve_optional_slot(
-            config.line.as_deref(),
-            named.and_then(|theme| theme.seed.line),
-            &fg,
-            &bg,
-            MIX_LINE,
-        )?,
-        accent: resolve_optional_slot(
-            config.accent.as_deref(),
-            named.and_then(|theme| theme.seed.accent),
-            &fg,
-            &bg,
-            MIX_ARROW,
-        )?,
-        muted: resolve_optional_slot(
-            config.muted.as_deref(),
-            named.and_then(|theme| theme.seed.muted),
-            &fg,
-            &bg,
-            MIX_TEXT_MUTED,
-        )?,
-        surface: resolve_optional_slot(
-            config.surface.as_deref(),
-            named.and_then(|theme| theme.seed.surface),
-            &fg,
-            &bg,
-            MIX_NODE_FILL,
-        )?,
-        border: resolve_optional_slot(
-            config.border.as_deref(),
-            named.and_then(|theme| theme.seed.border),
-            &fg,
-            &bg,
-            MIX_NODE_STROKE,
-        )?,
+        line,
+        accent,
+        muted,
+        surface,
+        border,
+        cluster_bkg,
     };
 
     let roles = DerivedThemeRoles {
@@ -436,6 +482,7 @@ pub(crate) fn resolve_svg_theme(config: &SvgThemeSpec) -> Result<ResolvedSvgThem
         node_fill: slots.surface.clone(),
         node_stroke: slots.border.clone(),
         group_fill: slots.bg.clone(),
+        cluster_bkg: slots.cluster_bkg.clone(),
     };
 
     let dynamic = if matches!(config.mode, SvgThemeRenderMode::Dynamic) {
@@ -451,6 +498,7 @@ pub(crate) fn resolve_svg_theme(config: &SvgThemeSpec) -> Result<ResolvedSvgThem
                     ("--muted".into(), slots.muted.clone()),
                     ("--surface".into(), slots.surface.clone()),
                     ("--border".into(), slots.border.clone()),
+                    ("--cluster-bkg".into(), slots.cluster_bkg.clone()),
                 ],
                 style_block: Some(style_block.clone()),
             },
@@ -558,6 +606,7 @@ fn build_dynamic_style_block() -> String {
         "  --_node-fill: var(--surface);",
         "  --_node-stroke: var(--border);",
         "  --_group-fill: var(--bg);",
+        "  --_cluster-bkg: var(--cluster-bkg);",
         "}",
     ]
     .join("\n")
@@ -670,6 +719,9 @@ mod tests {
         assert!(root_vars.contains(&"--muted:#a9a9aa".to_string()));
         assert!(root_vars.contains(&"--surface:#f9f9f9".to_string()));
         assert!(root_vars.contains(&"--border:#d4d4d4".to_string()));
+        // Unseeded themes fall the cluster_bkg slot back to `surface` so the
+        // dynamic CSS payload still surfaces a value (no surprise blanks).
+        assert!(root_vars.contains(&"--cluster-bkg:#f9f9f9".to_string()));
         assert!(dynamic.style_block.contains("--_text: var(--fg);"));
         assert!(dynamic.style_block.contains("--_line: var(--line);"));
         assert!(
@@ -682,5 +734,62 @@ mod tests {
                 .style_block
                 .contains("--_node-stroke: var(--border);")
         );
+        assert!(
+            dynamic
+                .style_block
+                .contains("--_cluster-bkg: var(--cluster-bkg);")
+        );
+    }
+
+    #[test]
+    fn mermaid_named_themes_seed_cluster_bkg_to_documented_values() {
+        // Mermaid base theme: clusterBkg = tertiaryColor (#ECECFF).
+        let base = resolve_svg_theme(&SvgThemeSpec {
+            name: Some("default".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(base.slots.cluster_bkg, "#ececff");
+        assert_eq!(base.roles.cluster_bkg, "#ececff");
+
+        // Mermaid dark theme pins clusterBkg explicitly as #302F3D.
+        let dark = resolve_svg_theme(&SvgThemeSpec {
+            name: Some("dark".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(dark.slots.cluster_bkg, "#302f3d");
+
+        // Mermaid forest theme: clusterBkg = secondBkg = #cdffb2 (distinct
+        // from the resolved surface slot at #cde498).
+        let forest = resolve_svg_theme(&SvgThemeSpec {
+            name: Some("forest".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(forest.slots.cluster_bkg, "#cdffb2");
+        assert_ne!(forest.slots.cluster_bkg, forest.slots.surface);
+
+        // Mermaid neutral theme: clusterBkg derives to a pale gray; mmdflux
+        // seeds #eeeeee to match the established surface tone.
+        let neutral = resolve_svg_theme(&SvgThemeSpec {
+            name: Some("neutral".into()),
+            ..Default::default()
+        })
+        .unwrap();
+        assert_eq!(neutral.slots.cluster_bkg, "#eeeeee");
+    }
+
+    #[test]
+    fn unseeded_themes_fall_cluster_bkg_back_to_resolved_surface() {
+        // Beautiful palette themes have no Mermaid-style clusterBkg parity
+        // documentation, so the slot inherits the resolved surface fill.
+        let resolved = resolve_svg_theme(&SvgThemeSpec {
+            name: Some("tokyo-night".into()),
+            ..Default::default()
+        })
+        .unwrap();
+
+        assert_eq!(resolved.slots.cluster_bkg, resolved.slots.surface);
     }
 }

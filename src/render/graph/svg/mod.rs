@@ -35,6 +35,10 @@ type Rect = FRect;
 
 const UNTHEMED_STROKE_COLOR: &str = "#333";
 const UNTHEMED_SUBGRAPH_STROKE: &str = "#888";
+/// Preserves the historic subgraph default rendering when no SVG theme is
+/// applied — Mermaid parity (`clusterBkg`) only kicks in when a theme is in
+/// scope, so un-themed snapshots stay byte-identical.
+const UNTHEMED_SUBGRAPH_FILL: &str = "none";
 const UNTHEMED_NODE_FILL: &str = "white";
 const UNTHEMED_TEXT_COLOR: &str = "#333";
 const MIN_BASIS_VISIBLE_STEM_PX: f64 = 8.0;
@@ -47,6 +51,7 @@ pub(super) struct GraphSvgPalette {
     pub(super) node_text: String,
     pub(super) edge_stroke: String,
     pub(super) edge_label_text: String,
+    pub(super) subgraph_fill: String,
     pub(super) subgraph_stroke: String,
     pub(super) subgraph_title_text: String,
     pub(super) edge_label_background: String,
@@ -79,6 +84,7 @@ impl GraphSvgPalette {
                 edge_stroke: theme.roles.line.clone(),
                 edge_label_text: theme.roles.text.clone(),
                 edge_label_background: theme.roles.background.clone(),
+                subgraph_fill: theme.roles.cluster_bkg.clone(),
                 subgraph_stroke: theme.roles.node_stroke.clone(),
                 subgraph_title_text: theme.roles.text.clone(),
                 marker_color: theme.roles.arrow.clone(),
@@ -92,6 +98,7 @@ impl GraphSvgPalette {
                 edge_stroke: UNTHEMED_STROKE_COLOR.to_string(),
                 edge_label_text: UNTHEMED_TEXT_COLOR.to_string(),
                 edge_label_background: UNTHEMED_NODE_FILL.to_string(),
+                subgraph_fill: UNTHEMED_SUBGRAPH_FILL.to_string(),
                 subgraph_stroke: UNTHEMED_SUBGRAPH_STROKE.to_string(),
                 subgraph_title_text: UNTHEMED_TEXT_COLOR.to_string(),
                 marker_color: UNTHEMED_STROKE_COLOR.to_string(),
