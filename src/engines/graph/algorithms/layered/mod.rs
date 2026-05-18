@@ -19,7 +19,7 @@ pub use kernel::graph::DiGraph;
 pub(crate) use kernel::pipeline::layout;
 pub use kernel::types::{
     AcyclicPolicy, Direction, LabelDummyPlacement, LabelDummyRouting, LabelSideStrategy,
-    LayoutConfig, Ranker,
+    LayoutConfig, Ranker, SubgraphTitleMargin,
 };
 #[cfg(test)]
 pub use kernel::types::{EdgeLayout, LayoutResult, NodeId, Point, Rect, SelfEdgeLayout};

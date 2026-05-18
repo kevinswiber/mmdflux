@@ -188,6 +188,27 @@ pub enum LabelSideStrategy {
     DirectionDown,
 }
 
+/// Pixel margins around a subgraph's title text, mirroring Mermaid's
+/// `flowchart.subGraphTitleMargin: { top, bottom }` configuration.
+///
+/// The two fields are summed and applied as the rank-axis padding between
+/// the subgraph title and its first member row. `top + bottom` matches
+/// Mermaid's `subGraphTitleTotalMargin`.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct SubgraphTitleMargin {
+    /// Pixels above the subgraph title (Mermaid `subGraphTitleMargin.top`).
+    pub top: f64,
+    /// Pixels below the subgraph title (Mermaid `subGraphTitleMargin.bottom`).
+    pub bottom: f64,
+}
+
+impl SubgraphTitleMargin {
+    /// Total rank-axis space reserved for the title (top + bottom).
+    pub fn total(&self) -> f64 {
+        self.top + self.bottom
+    }
+}
+
 /// Metadata for a dummy node inserted during normalization.
 #[derive(Debug, Clone)]
 pub struct DummyNode {
@@ -392,6 +413,13 @@ pub struct LayoutConfig {
     /// Maximum edge-label width in pixels before greedy wrap kicks in.
     /// `None` disables wrap (dagre-parity fallback).
     pub edge_label_max_width: Option<f64>,
+
+    /// Optional override for the rank-axis margin reserved around a
+    /// subgraph's title, mirroring Mermaid's
+    /// `flowchart.subGraphTitleMargin`. `None` preserves the
+    /// measurement-driven default (one font-size of padding) so existing
+    /// renders are byte-identical.
+    pub subgraph_title_margin: Option<SubgraphTitleMargin>,
 }
 
 impl LayoutConfig {
@@ -432,6 +460,7 @@ impl Default for LayoutConfig {
             edge_label_spacing: 2.0,
             backward_edge_side_grouping: false,
             edge_label_max_width: None,
+            subgraph_title_margin: None,
         }
     }
 }

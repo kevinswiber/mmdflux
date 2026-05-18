@@ -6,7 +6,7 @@
 
 use serde::Deserialize;
 
-use crate::engines::graph::{EngineAlgorithmId, Ranker};
+use crate::engines::graph::{EngineAlgorithmId, Ranker, SubgraphTitleMargin};
 use crate::errors::RenderError;
 use crate::format::{
     ColorWhen, Curve, EdgePreset, OutputFormat, RoutingStyle, normalize_enum_token,
@@ -59,6 +59,48 @@ pub struct LayoutConfigInput {
     pub rank_sep: Option<f64>,
     pub margin: Option<f64>,
     pub ranker: Option<String>,
+    /// Subgraph title margin in pixels, mirroring Mermaid's
+    /// `flowchart.subGraphTitleMargin: { top, bottom }`. Both fields
+    /// default to `0` when the object is provided. Omit entirely (or set
+    /// to `null`) to keep mmdflux's measurement-driven default.
+    ///
+    /// Accepts Mermaid's `subGraphTitleMargin` (capital `G`) alongside the
+    /// camelCase `subgraphTitleMargin` form produced by `rename_all`.
+    #[serde(alias = "subGraphTitleMargin")]
+    pub subgraph_title_margin: Option<SubgraphTitleMarginInput>,
+}
+
+/// Serde-friendly subgraph title margin, mirroring Mermaid's
+/// `flowchart.subGraphTitleMargin: { top, bottom }`.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default, rename_all = "camelCase", deny_unknown_fields)]
+pub struct SubgraphTitleMarginInput {
+    /// Pixels above the subgraph title (Mermaid `subGraphTitleMargin.top`).
+    pub top: Option<f64>,
+    /// Pixels below the subgraph title (Mermaid `subGraphTitleMargin.bottom`).
+    pub bottom: Option<f64>,
+}
+
+impl SubgraphTitleMarginInput {
+    fn into_config(self) -> Result<SubgraphTitleMargin, RenderError> {
+        let top = self.top.unwrap_or(0.0);
+        let bottom = self.bottom.unwrap_or(0.0);
+        for (label, value) in [("top", top), ("bottom", bottom)] {
+            if !value.is_finite() {
+                return Err(RenderError {
+                    message: format!("subGraphTitleMargin.{label} must be a finite number"),
+                });
+            }
+            if value < 0.0 {
+                return Err(RenderError {
+                    message: format!(
+                        "subGraphTitleMargin.{label} must be non-negative, got {value}"
+                    ),
+                });
+            }
+        }
+        Ok(SubgraphTitleMargin { top, bottom })
+    }
 }
 
 /// Serde-friendly SVG theme config nested inside [`RuntimeConfigInput`].
@@ -158,6 +200,9 @@ impl RuntimeConfigInput {
             }
             if let Some(ranker) = layout.ranker {
                 config.layout.ranker = parse_ranker(&ranker)?;
+            }
+            if let Some(subgraph_title_margin) = layout.subgraph_title_margin {
+                config.layout.subgraph_title_margin = Some(subgraph_title_margin.into_config()?);
             }
         }
 

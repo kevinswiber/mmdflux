@@ -176,7 +176,10 @@ impl GraphEngine for MermaidLayeredEngine {
         let EngineConfig::Layered(ref layered_cfg) = *config;
         let mut layout_config = layout_config_from_layered(layered_cfg, diagram);
         layout_config.cluster_rank_sep = 0.0;
-        let mermaid_flags = mermaid_layout_flags();
+        let mut mermaid_flags = mermaid_layout_flags();
+        // Forward the user-configured subgraph title margin onto the Mermaid
+        // profile so `flowchart.subGraphTitleMargin` reaches the kernel.
+        mermaid_flags.subgraph_title_margin = layered_cfg.subgraph_title_margin;
         let geometry = build_float_layout_with_flags(
             diagram,
             &layout_config,

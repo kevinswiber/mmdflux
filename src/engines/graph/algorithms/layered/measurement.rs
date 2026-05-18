@@ -148,6 +148,7 @@ pub fn run_layered_layout(
     lc.label_dummy_placement = layered_cfg.label_dummy_placement;
     lc.label_dummy_routing = layered_cfg.label_dummy_routing;
     lc.backward_edge_side_grouping = layered_cfg.backward_edge_side_grouping;
+    lc.subgraph_title_margin = layered_cfg.subgraph_title_margin;
 
     let direction = diagram.direction;
     let edge_label_spacing = lc.edge_label_spacing;

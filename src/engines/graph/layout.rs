@@ -141,6 +141,64 @@ pub enum LabelSideStrategy {
     DirectionDown,
 }
 
+/// Rank-axis margin reserved around a subgraph's title text, mirroring
+/// Mermaid's `flowchart.subGraphTitleMargin: { top, bottom }` knob.
+///
+/// `top` and `bottom` are in pixels. The values are summed (matching
+/// Mermaid's `subGraphTitleTotalMargin`) and applied as the rank-axis
+/// padding between a subgraph's title and its first member row. Both
+/// fields default to `0.0` when an instance is constructed; in
+/// `LayoutConfig` the entire knob defaults to `None`, which preserves
+/// today's measurement-driven default (one font-size of padding).
+///
+/// **Mermaid parity divergence**: Mermaid's defaults are non-zero
+/// (`{top: 8, bottom: 8}` in v9, `{top: 25, bottom: 5}` in v10+), so an
+/// unset `LayoutConfig::subgraph_title_margin` is intentionally NOT
+/// Mermaid-equivalent — it preserves byte-stable existing renders.
+/// Set `Some(SubgraphTitleMargin { top: 0.0, bottom: 0.0 })` to collapse
+/// the gap entirely, matching Mermaid's literal zero default; set the
+/// pair to match the Mermaid version you are targeting otherwise.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[non_exhaustive]
+pub struct SubgraphTitleMargin {
+    /// Pixels above the subgraph title (Mermaid `subGraphTitleMargin.top`).
+    pub top: f64,
+    /// Pixels below the subgraph title (Mermaid `subGraphTitleMargin.bottom`).
+    pub bottom: f64,
+}
+
+impl SubgraphTitleMargin {
+    /// Construct an explicit `{ top, bottom }` margin pair. Required for
+    /// external callers because the struct is `#[non_exhaustive]`.
+    pub fn new(top: f64, bottom: f64) -> Self {
+        Self { top, bottom }
+    }
+
+    /// Total rank-axis space reserved for the title, matching Mermaid's
+    /// `subGraphTitleTotalMargin = top + bottom` semantics.
+    pub fn total(&self) -> f64 {
+        self.top + self.bottom
+    }
+}
+
+impl From<SubgraphTitleMargin> for crate::engines::graph::algorithms::layered::SubgraphTitleMargin {
+    fn from(value: SubgraphTitleMargin) -> Self {
+        Self {
+            top: value.top,
+            bottom: value.bottom,
+        }
+    }
+}
+
+impl From<crate::engines::graph::algorithms::layered::SubgraphTitleMargin> for SubgraphTitleMargin {
+    fn from(value: crate::engines::graph::algorithms::layered::SubgraphTitleMargin) -> Self {
+        Self {
+            top: value.top,
+            bottom: value.bottom,
+        }
+    }
+}
+
 impl From<LabelSideStrategy> for crate::engines::graph::algorithms::layered::LabelSideStrategy {
     fn from(value: LabelSideStrategy) -> Self {
         match value {
@@ -199,6 +257,12 @@ pub struct LayoutConfig {
     /// Maximum edge-label width in pixels before greedy wrap kicks in.
     /// `None` disables wrap (dagre-parity fallback).
     pub edge_label_max_width: Option<f64>,
+    /// Rank-axis margin reserved around a subgraph's title, mirroring
+    /// Mermaid's `flowchart.subGraphTitleMargin`. `None` preserves the
+    /// measurement-driven default (one font-size of padding) so existing
+    /// renders are byte-identical; `Some({top, bottom})` overrides the
+    /// total reservation with `top + bottom`.
+    pub subgraph_title_margin: Option<SubgraphTitleMargin>,
 }
 
 impl Default for LayoutConfig {
@@ -228,6 +292,10 @@ impl Default for LayoutConfig {
             // wrapped out of the box. Set to `None` to opt out (dagre-parity /
             // unwrapped measurement).
             edge_label_max_width: Some(200.0),
+            // Default `None` keeps today's measurement-driven margin
+            // (one font-size of rank-axis padding). Set `Some({top, bottom})`
+            // to match Mermaid's `flowchart.subGraphTitleMargin` knob.
+            subgraph_title_margin: None,
         }
     }
 }
@@ -266,6 +334,7 @@ impl From<LayoutConfig> for crate::engines::graph::algorithms::layered::LayoutCo
             edge_label_spacing: value.edge_label_spacing,
             backward_edge_side_grouping: value.backward_edge_side_grouping,
             edge_label_max_width: value.edge_label_max_width,
+            subgraph_title_margin: value.subgraph_title_margin.map(Into::into),
         }
     }
 }
@@ -300,6 +369,7 @@ impl From<crate::engines::graph::algorithms::layered::LayoutConfig> for LayoutCo
             edge_label_spacing: value.edge_label_spacing,
             backward_edge_side_grouping: value.backward_edge_side_grouping,
             edge_label_max_width: value.edge_label_max_width,
+            subgraph_title_margin: value.subgraph_title_margin.map(Into::into),
         }
     }
 }

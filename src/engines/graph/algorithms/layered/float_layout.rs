@@ -118,6 +118,7 @@ pub(crate) fn build_float_layout_with_flags(
         layered_config.label_dummy_placement = flags.label_dummy_placement;
         layered_config.label_dummy_routing = flags.label_dummy_routing;
         layered_config.backward_edge_side_grouping = flags.backward_edge_side_grouping;
+        layered_config.subgraph_title_margin = flags.subgraph_title_margin;
     }
     let edge_label_spacing = layered_config.edge_label_spacing;
     let mut layout = build_layered_layout_with_config(
@@ -141,7 +142,14 @@ pub(crate) fn build_float_layout_with_flags(
         },
         skip_non_isolated_overrides,
     );
-    let title_pad_y = metrics.font_size();
+    // Resolve the rank-axis title margin. `Some({top, bottom})` mirrors
+    // Mermaid's `flowchart.subGraphTitleMargin` exactly; `None` preserves
+    // the original measurement-driven default of one font-size of padding
+    // so existing renders stay byte-identical.
+    let title_pad_y = layered_config
+        .subgraph_title_margin
+        .map(|m| m.total())
+        .unwrap_or_else(|| metrics.font_size());
     let content_pad_y = metrics.font_size() * 0.3;
     reconcile_sublayouts(
         diagram,
@@ -153,7 +161,7 @@ pub(crate) fn build_float_layout_with_flags(
 
     // Expand parent subgraph bounds to encompass repositioned children.
     let child_margin = metrics.node_padding_x().max(metrics.node_padding_y());
-    let title_margin = metrics.font_size();
+    let title_margin = title_pad_y;
     expand_parent_bounds(diagram, &mut layout, child_margin, title_margin);
 
     // Push external nodes that now overlap with reconciled subgraph bounds.

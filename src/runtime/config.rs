@@ -3,6 +3,7 @@
 use crate::engines::graph::{EngineAlgorithmId, EngineId};
 pub use crate::engines::graph::{
     LabelDummyPlacement, LabelDummyRouting, LayoutConfig, LayoutDirection, Ranker,
+    SubgraphTitleMargin,
 };
 use crate::format::{CornerStyle, Curve, EdgePreset, OutputFormat, RoutingStyle, TextColorMode};
 use crate::graph::GeometryLevel;

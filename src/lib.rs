@@ -351,6 +351,7 @@ pub use runtime::config::{GraphTextStyleConfig, RenderConfig, SvgThemeConfig, Sv
 /// Layout configuration for the Sugiyama hierarchical engine.
 pub use runtime::config::{
     LabelDummyPlacement, LabelDummyRouting, LayoutConfig, LayoutDirection, Ranker,
+    SubgraphTitleMargin,
 };
 /// Serde-friendly config input for JSON consumers (Wasm, API).
 pub use runtime::config_input::RuntimeConfigInput;
