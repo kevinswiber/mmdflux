@@ -6308,6 +6308,22 @@ mod plan_0145_q9_red {
         let failures = svg_viewbox_contains_rects(&svg);
         assert!(failures.is_empty(), "viewBox violations: {failures:?}");
     }
+
+    #[test]
+    fn svg_viewbox_covers_git_workflow_lr_backward_label() {
+        let input = load_flowchart_fixture("git_workflow.mmd");
+        let svg = render_svg_default(&input);
+        let failures = svg_viewbox_contains_rects(&svg);
+        assert!(failures.is_empty(), "viewBox violations: {failures:?}");
+    }
+
+    #[test]
+    fn svg_viewbox_covers_git_workflow_td_backward_label() {
+        let input = load_flowchart_fixture("git_workflow_td.mmd");
+        let svg = render_svg_default(&input);
+        let failures = svg_viewbox_contains_rects(&svg);
+        assert!(failures.is_empty(), "viewBox violations: {failures:?}");
+    }
 }
 
 mod sibling_subgraph_label_placement {

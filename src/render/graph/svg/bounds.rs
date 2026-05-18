@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use super::labels::{fallback_label_position, precomputed_label_positions};
+use super::labels::resolve_edge_label;
 use super::{Point, Rect};
 use crate::graph::geometry::GraphGeometry;
 use crate::graph::measure::{
@@ -57,6 +57,7 @@ pub(super) fn compute_svg_bounds(
     metrics: &dyn TextMetricsProvider,
     self_edge_paths: &HashMap<usize, Vec<Point>>,
     rendered_edge_paths: &HashMap<usize, Vec<Point>>,
+    override_nodes: &HashMap<String, String>,
 ) -> SvgBounds {
     let mut bounds = SvgBounds::new();
 
@@ -109,8 +110,6 @@ pub(super) fn compute_svg_bounds(
         }
     }
 
-    let label_positions = precomputed_label_positions(geom);
-
     for edge in diagram.edges.iter() {
         if edge.stroke == Stroke::Invisible {
             continue;
@@ -118,42 +117,25 @@ pub(super) fn compute_svg_bounds(
         let Some(label) = edge.label.as_ref() else {
             continue;
         };
-        let edge_idx = edge.index;
-        // Use precomputed label positions only when the edge was NOT re-routed.
-        // Re-routed edges (e.g. backward edges with channel detours) have their
-        // labels placed on the rendered path, which can differ from the
-        // precomputed geometry position.
-        let use_precomputed = edge.from_subgraph.is_none()
-            && edge.to_subgraph.is_none()
-            && !rendered_edge_paths.contains_key(&edge.index);
-
-        // Prefer label_geometry.rect when precomputed positions would be used.
-        // label_geometry is the authoritative source populated by the routing
-        // label-lane pass; it carries both center and padded rect.
-        // TODO: remove precomputed/revalidate fallback once label_lanes
-        // populates label_geometry for all edges.
-        let layout_edge = geom.edges.iter().find(|e| e.index == edge_idx);
-        if let Some(g) = layout_edge.and_then(|e| e.label_geometry.as_ref())
-            && use_precomputed
-        {
-            bounds.update_rect(&g.rect);
-            continue;
-        }
-
-        let position = if use_precomputed {
-            label_positions.get(&edge_idx).copied()
-        } else {
-            None
-        }
-        .or_else(|| fallback_label_position(geom, edge_idx, self_edge_paths, rendered_edge_paths));
-        let Some(point) = position else {
+        let Some(resolved_label) = resolve_edge_label(
+            diagram,
+            edge,
+            geom,
+            self_edge_paths,
+            rendered_edge_paths,
+            override_nodes,
+        ) else {
             continue;
         };
-        let style = edge_text_style_key(metrics, edge);
-        let (w, h) = edge_label_dimensions_for_provider_and_style(metrics, &style, label);
+        let (w, h) = if let Some(g) = resolved_label.geometry {
+            (g.rect.width, g.rect.height)
+        } else {
+            let style = edge_text_style_key(metrics, edge);
+            edge_label_dimensions_for_provider_and_style(metrics, &style, label)
+        };
         let rect = Rect {
-            x: point.x - w / 2.0,
-            y: point.y - h / 2.0,
+            x: resolved_label.center.x - w / 2.0,
+            y: resolved_label.center.y - h / 2.0,
             width: w,
             height: h,
         };
@@ -227,6 +209,7 @@ mod tests {
         let (diagram, mut geom) = minimal_labeled_edge_fixtures();
         let metrics = default_proportional_text_metrics();
         let empty_map = HashMap::new();
+        let empty_overrides = HashMap::new();
 
         // Set label_geometry with a rect far outside the normal layout bounds.
         geom.edges[0].label_geometry = Some(EdgeLabelGeometry {
@@ -238,7 +221,14 @@ mod tests {
             compartment_size: 1,
         });
 
-        let bounds = compute_svg_bounds(&diagram, &geom, &metrics, &empty_map, &empty_map);
+        let bounds = compute_svg_bounds(
+            &diagram,
+            &geom,
+            &metrics,
+            &empty_map,
+            &empty_map,
+            &empty_overrides,
+        );
         let (min_x, min_y, max_x, max_y) = bounds.finalize(200.0, 200.0);
 
         // The bounds must include the label_geometry rect (490..510, 495..505).

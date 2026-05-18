@@ -249,6 +249,7 @@ fn render_svg_with_geometry_context(
         metrics,
         &self_edge_paths,
         &prepared_edges.paths,
+        context.override_nodes,
     );
     let padding = options.diagram_padding;
     let (min_x, min_y, max_x, max_y) = bounds.finalize(geom.bounds.width, geom.bounds.height);

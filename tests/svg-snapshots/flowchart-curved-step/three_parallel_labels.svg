@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 136.71 230.00" style="max-width: 136.71px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 110.25 230.00" style="max-width: 110.25px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
     </marker>
   </defs>
-  <g transform="translate(17.35,0.00)">
+  <g transform="translate(-9.11,0.00)">
     <g class="edgePaths">
       <path d="M34.46,62.00 L34.46,92.50 L34.46,94.62 C34.46,96.75 34.46,101.00 34.46,105.25 C34.46,109.50 34.46,113.75 34.46,115.88 L34.46,118.00 L34.46,164.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M61.80,62.00 L61.80,97.33 L61.80,100.28 C61.80,103.22 61.80,109.11 61.80,115.00 C61.80,120.89 61.80,126.78 61.80,129.72 L61.80,132.67 L61.80,164.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
