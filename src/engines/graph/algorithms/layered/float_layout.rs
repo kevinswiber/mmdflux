@@ -17,7 +17,7 @@ use crate::graph::measure::{
     edge_label_dimensions_wrapped_for_provider_and_style, edge_text_style_key,
     proportional_node_dimensions_with_provider, subgraph_title_text_style_key,
 };
-use crate::graph::routing::{EdgeRouting, route_graph_geometry_with_provider};
+use crate::graph::routing::{EdgeRouting, LabelBendPolicy, route_graph_geometry_with_provider};
 use crate::graph::{Direction, Edge, Graph, Stroke};
 
 /// Edge-label sizing that honors the pre-engine wrap artifact when present.
@@ -259,7 +259,17 @@ fn inject_routed_paths(
     edge_routing: EdgeRouting,
     metrics: &dyn TextMetricsProvider,
 ) -> GraphGeometry {
-    let routed = route_graph_geometry_with_provider(diagram, geom, edge_routing, metrics);
+    // `build_float_layout_with_flags` always runs in a proportional context
+    // (its only callers are flux.rs and mermaid.rs SVG/MMDS solves), so the
+    // injected routed paths feed proportional consumers. Opt in to the lane
+    // label-bend's `adjusted_path` bow. See issue #240.
+    let routed = route_graph_geometry_with_provider(
+        diagram,
+        geom,
+        edge_routing,
+        metrics,
+        LabelBendPolicy::ApplyIfLanePacked,
+    );
     let mut updated = geom.clone();
     apply_routed_edge_paths(&mut updated, routed.edges);
     updated

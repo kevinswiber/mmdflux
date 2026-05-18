@@ -33,17 +33,54 @@ pub enum EdgeRouting {
     OrthogonalRoute,
 }
 
+/// Whether the routing stage applies the lane label-bend's `adjusted_path`
+/// bow around lane-displaced edge labels.
+///
+/// Proportional consumers (SVG, MMDS routed) can opt in via
+/// `ApplyIfLanePacked`; the Grid text renderer must stay on `Skip` because
+/// bending routed paths corrupts text-grid corridor closure for backward
+/// edges (the text renderer reads routed paths directly). See issue #240 and
+/// research 0065 Q1 for the regression that motivates the gate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelBendPolicy {
+    /// Discard `adjusted_path` and keep the unbent routed polyline.
+    #[default]
+    Skip,
+    /// Apply `adjusted_path` when the lane pass placed a label off track 0 in
+    /// a multi-member compartment.
+    ApplyIfLanePacked,
+}
+
 /// Route graph geometry to produce fully-routed edge paths.
 ///
 /// Consumes engine-agnostic `GraphGeometry` and produces `RoutedGraphGeometry`
-/// with polyline paths for every edge.
+/// with polyline paths for every edge. Defaults to [`LabelBendPolicy::Skip`];
+/// callers that target proportional output (SVG / MMDS routed) should use
+/// [`route_graph_geometry_with_policy`].
 pub fn route_graph_geometry(
     diagram: &Graph,
     geometry: &GraphGeometry,
     edge_routing: EdgeRouting,
     metrics: &ProportionalTextMetrics,
 ) -> RoutedGraphGeometry {
-    route_graph_geometry_with_provider(diagram, geometry, edge_routing, metrics)
+    route_graph_geometry_with_provider(
+        diagram,
+        geometry,
+        edge_routing,
+        metrics,
+        LabelBendPolicy::Skip,
+    )
+}
+
+/// Route graph geometry with an explicit [`LabelBendPolicy`].
+pub fn route_graph_geometry_with_policy(
+    diagram: &Graph,
+    geometry: &GraphGeometry,
+    edge_routing: EdgeRouting,
+    metrics: &ProportionalTextMetrics,
+    policy: LabelBendPolicy,
+) -> RoutedGraphGeometry {
+    route_graph_geometry_with_provider(diagram, geometry, edge_routing, metrics, policy)
 }
 
 pub(crate) fn route_graph_geometry_with_provider(
@@ -51,6 +88,7 @@ pub(crate) fn route_graph_geometry_with_provider(
     geometry: &GraphGeometry,
     edge_routing: EdgeRouting,
     metrics: &dyn TextMetricsProvider,
+    policy: LabelBendPolicy,
 ) -> RoutedGraphGeometry {
     let port_attachments = compute_port_attachments_from_geometry(diagram, geometry);
     #[cfg(test)]
@@ -262,20 +300,38 @@ pub(crate) fn route_graph_geometry_with_provider(
             track: outcome.track,
             compartment_size: outcome.compartment_size,
         });
-        // Note: Algorithm C produces an `adjusted_path` that bows the path
-        // around lane-displaced labels. We deliberately do NOT apply it
-        // here. Bending routed paths corrupts the text grid's corridor
-        // closure for backward edges (text renderer reads routed paths
-        // directly), and reciprocal pairs are already separated at the
-        // routing layer (backward corridors place reverse edges to the
-        // side, not collinear with the forward edge). Label-only shifts
-        // are sufficient to resolve overlap. See Q9 tests + finding
-        // `task-3.9-text-renderer-coupling.md`.
+        // Note: the lane label-bend produces an `adjusted_path` that
+        // bows the path around lane-displaced labels. We deliberately
+        // do NOT apply it for Grid consumers. Bending routed paths
+        // corrupts the text grid's corridor closure for backward edges
+        // (text renderer reads routed paths directly), and reciprocal
+        // pairs are already separated at the routing layer (backward
+        // corridors place reverse edges to the side, not collinear
+        // with the forward edge). Label-only shifts are sufficient to
+        // resolve overlap for the Grid path.
         //
-        // The adjusted_path field is kept in LabelTrackOutcome for
-        // potential future use (e.g., a follow-on plan that adds a
-        // text-aware path-bend pass).
-        let _ = &outcome.adjusted_path;
+        // Apply the lane label-bend's `adjusted_path` bow for
+        // proportional consumers that opted in via `ApplyIfLanePacked`.
+        // The bow is safe to apply because
+        // `label_lanes::shift_middle_segment` emits a Z-shape with
+        // face-perpendicular stubs at both ends — so neither SVG
+        // endpoint clipping nor the corner-rounding pass can
+        // re-project the markers or emit acute Q-curves near the
+        // endpoints. The text renderer keeps its `Skip` default and
+        // continues to read unbent routed paths.
+        //
+        // Skip the clone only when the path was not actually shifted.
+        // `label_lanes` symmetrizes tracks around the cluster's
+        // `track_center`, so a `[0, +1]` cluster yields displacements
+        // `[-0.5, +0.5]` — the raw `track` field is not a sufficient
+        // proxy for "no displacement". Use the centered offset instead.
+        let centered_track = outcome.track as f64 - outcome.track_center;
+        if matches!(policy, LabelBendPolicy::ApplyIfLanePacked)
+            && centered_track.abs() > f64::EPSILON
+            && !outcome.adjusted_path.is_empty()
+        {
+            routed_edge.path = outcome.adjusted_path.clone();
+        }
     }
 
     // Lane-aware re-wrap. Runs AFTER the wire-up loop above (so routed edges

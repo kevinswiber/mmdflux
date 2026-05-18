@@ -6,6 +6,7 @@ mod edge_endpoint_invariant;
 mod event_change_mapping;
 mod graph_routing_pipeline;
 mod grid_routing_regression;
+mod label_bend_endpoint_invariants;
 mod label_node_overlap;
 mod layered_adapter_pipeline;
 mod layout_stability;

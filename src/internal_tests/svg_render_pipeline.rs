@@ -6096,7 +6096,7 @@ fn render_svg_from_routed_geometry_preserves_label_geometry_rect() {
 // These tests exercise the Q9 acceptance matrix SVG rows (#1, #3, #4, #6,
 // #7, #8, #9) and assert pairwise label background-rect disjointness or
 // viewBox containment. PR 3 introduced the lane-assignment / label-side
-// selection (Algorithm C) that closes the gate; Task 3.8 un-ignored them.
+// selection that closes the gate; Task 3.8 un-ignored them.
 //
 // Note: tests live here (in `src/internal_tests/`) rather than in
 // `tests/svg_render.rs` because the helpers `svg_pairwise_label_rect_overlaps`
@@ -6180,8 +6180,8 @@ mod plan_0145_q9_red {
     // the helper was extended to also scope-match `<g class="edgeLabels">`,
     // several fixtures genuinely fail: labels overlap and/or overrun the
     // viewBox. Tier A cannot shrink already-wrapped rects into narrow
-    // lane budgets; resolving this needs Algorithm C adjusted_path bending
-    // or a product tweak to `edge_label_max_width`. Marked `#[ignore]`
+    // lane budgets; resolving this needs the label-bend bow's adjusted_path
+    // applied or a product tweak to `edge_label_max_width`. Marked `#[ignore]`
     // pending a follow-up.
     // Plan 0149 out of scope: per-compartment re-wrap does not address
     // cross-compartment X overlap. The three concurrent regions each
@@ -6902,7 +6902,7 @@ mod plan_0147_task_4_1 {
     /// `layered_kernel_bend::user_rl_repro_edges_do_not_cross_peer_label_rects`
     /// (Task 2.2): verifies path waypoints stay outside peer rect interiors,
     /// which is all Tier A promises — full `adjusted_path` bending around
-    /// (Tier B / Algorithm C) is deliberately deferred (`routing/stage.rs`).
+    /// (Tier B / label-bend bow) is deliberately deferred (`routing/stage.rs`).
     /// The edge's own label rect is exempt (the Tier A Bend path passes
     /// behind the background rect that masks the edge visually).
     fn svg_paths_through_peer_label_rects(svg: &str) -> Vec<(usize, usize)> {

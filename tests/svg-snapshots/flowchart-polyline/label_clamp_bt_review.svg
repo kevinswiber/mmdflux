@@ -6,8 +6,8 @@
   </defs>
   <g transform="translate(0.00,0.00)">
     <g class="edgePaths">
-      <path d="M53.12,232.00 L53.12,176.00 L53.12,207.00 L53.12,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M57.94,62.00 L73.12,147.00 L58.65,228.06" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M53.12,232.00 L67.12,224.00 L67.12,176.00 L67.12,207.00 L53.12,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M98.23,53.05 L73.12,43.00 L59.12,43.00 L59.12,251.00 L73.12,251.00 L94.53,242.44" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
       <g class="node default" id="A" data-id="A" data-look="classic">

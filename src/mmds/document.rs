@@ -20,7 +20,8 @@ use crate::graph::measure::{
 };
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
 use crate::graph::routing::{
-    EdgeRouting, route_graph_geometry, route_graph_geometry_with_provider,
+    EdgeRouting, LabelBendPolicy, route_graph_geometry_with_policy,
+    route_graph_geometry_with_provider,
 };
 use crate::graph::style::{EdgeStyle, NodeStyle};
 use crate::graph::{Arrow, Direction, GeometryLevel, Graph, Shape, Stroke};
@@ -291,18 +292,28 @@ pub(crate) fn to_document_typed_with_routing_and_text_metrics(
     text_measurements: Option<&TextMeasurementCache>,
 ) -> Result<Document, RenderError> {
     let routed_owned = (routed.is_none() && matches!(level, GeometryLevel::Routed)).then(|| {
+        // MMDS routed output is a proportional consumer; opt into the lane
+        // label-bend's `adjusted_path` bow on both the metrics-provided and
+        // fallback paths. See issue #240.
         match text_metrics_provider {
             Some(metrics) => route_graph_geometry_with_provider(
                 diagram,
                 geometry,
                 EdgeRouting::OrthogonalRoute,
                 metrics,
+                LabelBendPolicy::ApplyIfLanePacked,
             ),
             None => {
                 // Static MMDS fallback routing for legacy adapter callers that
                 // request routed output without already carrying resolved metrics.
                 let metrics = default_proportional_text_metrics();
-                route_graph_geometry(diagram, geometry, EdgeRouting::OrthogonalRoute, &metrics)
+                route_graph_geometry_with_policy(
+                    diagram,
+                    geometry,
+                    EdgeRouting::OrthogonalRoute,
+                    &metrics,
+                    LabelBendPolicy::ApplyIfLanePacked,
+                )
             }
         }
     });

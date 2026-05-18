@@ -1,4 +1,4 @@
-//! Label-lane packing types and compartment grouping for Algorithm C.
+//! Label-lane packing types and compartment grouping for the lane label-bend pass.
 //!
 //! This module introduces the core data structures for interval-track lane
 //! packing of edge labels. `LabelDescriptor` captures the axis/cross bands,
@@ -677,14 +677,93 @@ fn shift_label(desc: &LabelDescriptor, offset: f64, direction: Direction) -> (FP
 /// Shift the middle segment of an orthogonal path on the cross axis.
 /// For TD/BU, cross axis is X. For LR/RL, cross axis is Y.
 ///
+/// Visual cap on the face-perpendicular stub length used by
+/// `shift_middle_segment` to preserve endpoint approach angles after a
+/// lateral lane offset. Sized to match the typical lateral-offset
+/// magnitude so the Z-shape's stub corners read as a clean right-angle
+/// hand-off rather than a long detour.
+///
+/// Not a strict bound on the lateral `offset`. The actual offset is
+/// `centered_track * label_step * PATH_LANE_RATIO`; `label_step` and
+/// track counts vary per compartment and the offset can exceed
+/// `STUB_LEN_MAX` in dense compartments. The cap only governs how long
+/// the face-perpendicular stub is.
+const STUB_LEN_MAX: f64 = 8.0;
+
+/// Compute the (start, end) **unshifted** stub anchors for a routed
+/// path. Each anchor sits on the original path's face-perpendicular
+/// approach line, advanced `STUB_LEN_MAX` along that approach (clamped
+/// to half the adjacent segment length so it never crosses the
+/// segment midpoint).
+///
+/// Callers apply `offset_on_cross_axis` to produce the matching
+/// **shifted** anchor; emitting both lets the polyline transition from
+/// face-perpendicular to laterally-shifted at a right angle.
+fn compute_stub_anchors(path: &[FPoint]) -> (FPoint, FPoint) {
+    debug_assert!(path.len() >= 3, "stub anchors require at least 3 points");
+    let start = path[0];
+    let end = *path.last().unwrap();
+    let second = path[1];
+    let penultimate = path[path.len() - 2];
+
+    let stub_start = STUB_LEN_MAX.min(point_distance(start, second) * 0.5);
+    let stub_end = STUB_LEN_MAX.min(point_distance(penultimate, end) * 0.5);
+
+    let start_dir = unit_vector(start, second);
+    let end_dir = unit_vector(penultimate, end);
+
+    let start_anchor = FPoint::new(
+        start.x + start_dir.x * stub_start,
+        start.y + start_dir.y * stub_start,
+    );
+    let end_anchor = FPoint::new(end.x - end_dir.x * stub_end, end.y - end_dir.y * stub_end);
+
+    (start_anchor, end_anchor)
+}
+
+#[inline]
+fn point_distance(a: FPoint, b: FPoint) -> f64 {
+    let dx = b.x - a.x;
+    let dy = b.y - a.y;
+    (dx * dx + dy * dy).sqrt()
+}
+
+#[inline]
+fn unit_vector(from: FPoint, to: FPoint) -> FPoint {
+    let dx = to.x - from.x;
+    let dy = to.y - from.y;
+    let len = (dx * dx + dy * dy).sqrt();
+    if len < f64::EPSILON {
+        FPoint::new(0.0, 0.0)
+    } else {
+        FPoint::new(dx / len, dy / len)
+    }
+}
+
+/// Bow a routed orthogonal path around its midpoint so a laterally-shifted
+/// label sits on the bow rather than on the original spine. The contract is
+/// **endpoint-direction preserving**: the first and last segments of the
+/// returned path remain face-perpendicular (same primary-axis direction as
+/// the routed approach), so downstream SVG endpoint clipping and corner
+/// rounding never re-project the start/end markers into the node face or
+/// emit acute Q-curves at the endpoints.
+///
+/// The bow is built as a **Z-shape** with face-perpendicular stubs at each
+/// end: `[start, start_unshifted, start_shifted, ...interior_shifted,
+/// end_shifted, end_unshifted, end]`. Each end gets two added anchors — the
+/// unshifted anchor sits on the original approach line `STUB_LEN_MAX`
+/// (clamped to half the adjacent segment) along the approach direction, and
+/// the shifted anchor is the unshifted anchor displaced on the cross axis.
+/// Every join is a right angle.
+///
 /// Three shapes are handled:
 /// - Two-point direct paths: no interior to bend (label-only shift legal
-///   for reciprocal pairs).
-/// - Three-point collinear path: synthesize a bend by inserting two
-///   interior points at the 25% / 75% marks and offsetting them on the
-///   cross axis. Endpoints preserved.
-/// - Multi-segment orthogonal path: shift every interior point on the
-///   cross axis. Endpoints preserved.
+///   for reciprocal pairs); path returned unchanged.
+/// - Three-point collinear path: 6-point Z-shape with stub anchors clamped
+///   to half the total path length on short corridors.
+/// - Multi-segment orthogonal path: original interior shifted on the cross
+///   axis, bracketed by Z-shape stub pairs at each end (`path.len() + 4`
+///   points).
 fn shift_middle_segment(path: &[FPoint], offset: f64, direction: Direction) -> Vec<FPoint> {
     if path.len() < 2 || offset == 0.0 {
         return path.to_vec();
@@ -693,22 +772,47 @@ fn shift_middle_segment(path: &[FPoint], offset: f64, direction: Direction) -> V
         return path.to_vec();
     }
     if path.len() == 3 && are_collinear(path) {
-        let start = path[0];
-        let end = path[2];
-        let lerp = |t: f64, a: FPoint, b: FPoint| {
-            FPoint::new(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
-        };
-        let mut p1 = lerp(0.25, start, end);
-        let mut p2 = lerp(0.75, start, end);
-        offset_on_cross_axis(&mut p1, offset, direction);
-        offset_on_cross_axis(&mut p2, offset, direction);
-        return vec![start, p1, p2, end];
+        // Z-shape: unshifted stub → shifted stub → shifted stub →
+        // unshifted stub → end. The unshifted stubs preserve the
+        // face-perpendicular approach; the shifted pair carries the
+        // cross-axis displacement.
+        let (start_unshifted, end_unshifted) = compute_stub_anchors(path);
+        let mut start_shifted = start_unshifted;
+        let mut end_shifted = end_unshifted;
+        offset_on_cross_axis(&mut start_shifted, offset, direction);
+        offset_on_cross_axis(&mut end_shifted, offset, direction);
+        return vec![
+            path[0],
+            start_unshifted,
+            start_shifted,
+            end_shifted,
+            end_unshifted,
+            path[path.len() - 1],
+        ];
     }
-    let mut new_path = path.to_vec();
-    let last = new_path.len() - 1;
-    for point in new_path.iter_mut().take(last).skip(1) {
-        offset_on_cross_axis(point, offset, direction);
+    // Z-shape: unshifted stub → shifted stub → ...interior (shifted)... →
+    // shifted stub → unshifted stub → end. The unshifted stubs preserve
+    // the face-perpendicular approach; the shifted stub pair brackets the
+    // cross-axis-displaced interior at both ends so every join is a
+    // right angle.
+    let (start_unshifted, end_unshifted) = compute_stub_anchors(path);
+    let mut start_shifted = start_unshifted;
+    let mut end_shifted = end_unshifted;
+    offset_on_cross_axis(&mut start_shifted, offset, direction);
+    offset_on_cross_axis(&mut end_shifted, offset, direction);
+
+    let mut new_path = Vec::with_capacity(path.len() + 4);
+    new_path.push(path[0]);
+    new_path.push(start_unshifted);
+    new_path.push(start_shifted);
+    for point in path.iter().skip(1).take(path.len() - 2) {
+        let mut shifted = *point;
+        offset_on_cross_axis(&mut shifted, offset, direction);
+        new_path.push(shifted);
     }
+    new_path.push(end_shifted);
+    new_path.push(end_unshifted);
+    new_path.push(path[path.len() - 1]);
     new_path
 }
 
@@ -1232,6 +1336,46 @@ mod tests {
     }
 
     #[test]
+    fn compute_stub_anchors_returns_face_perpendicular_anchors_clamped_to_half_segment() {
+        let path = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(0.0, 40.0),
+            FPoint::new(50.0, 40.0),
+            FPoint::new(50.0, 80.0),
+        ];
+        let (start_anchor, end_anchor) = compute_stub_anchors(&path);
+
+        assert!(
+            (start_anchor.x - 0.0).abs() < 1e-6,
+            "start_anchor should sit on the start primary-axis line (x=0); got {start_anchor:?}"
+        );
+        assert!(
+            (start_anchor.y - STUB_LEN_MAX).abs() < 1e-6,
+            "start_anchor should advance STUB_LEN_MAX along the approach direction; got {start_anchor:?}"
+        );
+        assert!(
+            (end_anchor.x - 50.0).abs() < 1e-6,
+            "end_anchor should sit on the end primary-axis line (x=50); got {end_anchor:?}"
+        );
+        assert!(
+            (end_anchor.y - (80.0 - STUB_LEN_MAX)).abs() < 1e-6,
+            "end_anchor should retreat STUB_LEN_MAX along the approach direction; got {end_anchor:?}"
+        );
+
+        let short = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(0.0, 6.0),
+            FPoint::new(10.0, 6.0),
+            FPoint::new(10.0, 12.0),
+        ];
+        let (start_anchor, _) = compute_stub_anchors(&short);
+        assert!(
+            (start_anchor.y - 3.0).abs() < 1e-6,
+            "short-segment stub should clamp to half-distance (3.0); got {start_anchor:?}"
+        );
+    }
+
+    #[test]
     fn shift_middle_segment_two_point_path_unchanged() {
         let path = vec![FPoint::new(0.0, 0.0), FPoint::new(10.0, 0.0)];
         let new_path = shift_middle_segment(&path, 5.0, Direction::TopDown);
@@ -1259,6 +1403,43 @@ mod tests {
         assert!(
             has_x_shift,
             "interior should shift on cross axis (x for TD)"
+        );
+    }
+
+    #[test]
+    fn shift_middle_segment_three_collinear_preserves_face_perpendicular_endpoint_segments() {
+        // Collinear vertical TD path (3 points along the same x). After
+        // lateral offset, the first segment from start and the last segment
+        // into end must remain vertical (dx == 0). Today's 3-point branch
+        // inserts shifted interior points at 25%/75% which makes BOTH
+        // endpoint segments diagonal.
+        let path = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(0.0, 5.0),
+            FPoint::new(0.0, 10.0),
+        ];
+        let new_path = shift_middle_segment(&path, 8.0, Direction::TopDown);
+
+        assert_eq!(new_path.first(), path.first());
+        assert_eq!(new_path.last(), path.last());
+
+        let first_dx = new_path[1].x - new_path[0].x;
+        assert!(
+            first_dx.abs() < 1e-6,
+            "first segment must stay vertical for TD collinear; got dx={first_dx}, new_path={new_path:?}"
+        );
+
+        let last = new_path.len() - 1;
+        let last_dx = new_path[last].x - new_path[last - 1].x;
+        assert!(
+            last_dx.abs() < 1e-6,
+            "last segment must stay vertical for TD collinear; got dx={last_dx}, new_path={new_path:?}"
+        );
+
+        let any_interior_shifted = new_path[1..last].iter().any(|p| p.x.abs() > 1e-6);
+        assert!(
+            any_interior_shifted,
+            "interior should carry cross-axis displacement; new_path={new_path:?}"
         );
     }
 
@@ -1428,5 +1609,86 @@ mod tests {
         let new_path = shift_middle_segment(&path, 8.0, Direction::TopDown);
         assert_eq!(new_path.first(), path.first());
         assert_eq!(new_path.last(), path.last());
+    }
+
+    #[test]
+    fn shift_middle_segment_preserves_face_perpendicular_first_and_last_segment_td_multi_segment() {
+        // Orthogonal TD path: vertical-out from start, horizontal middle,
+        // vertical-in to end. After lateral offset on the cross axis (x),
+        // the first segment (new_path[0] → new_path[1]) must remain
+        // vertical (dx == 0), and the last segment must also remain
+        // vertical. Today's implementation shifts p1 on x, making the
+        // first segment diagonal, which downstream SVG endpoint clipping
+        // (adjust_edge_points_for_shapes, clip_points_to_rect_start/end)
+        // re-projects against the node face, pulling markers into the node.
+        let path = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(0.0, 40.0),
+            FPoint::new(50.0, 40.0),
+            FPoint::new(50.0, 80.0),
+        ];
+        let new_path = shift_middle_segment(&path, 8.0, Direction::TopDown);
+
+        assert_eq!(new_path.first(), path.first());
+        assert_eq!(new_path.last(), path.last());
+
+        let first_dx = new_path[1].x - new_path[0].x;
+        assert!(
+            first_dx.abs() < 1e-6,
+            "first segment must stay vertical for TD; got dx={first_dx}, new_path={new_path:?}"
+        );
+
+        let last = new_path.len() - 1;
+        let last_dx = new_path[last].x - new_path[last - 1].x;
+        assert!(
+            last_dx.abs() < 1e-6,
+            "last segment must stay vertical for TD; got dx={last_dx}, new_path={new_path:?}"
+        );
+
+        let any_interior_shifted = new_path[2..last - 1]
+            .iter()
+            .any(|p| (p.x - 50.0).abs() > 1e-6);
+        assert!(
+            any_interior_shifted,
+            "interior should be shifted on cross axis; new_path={new_path:?}"
+        );
+    }
+
+    #[test]
+    fn shift_middle_segment_preserves_face_perpendicular_first_and_last_segment_lr_multi_segment() {
+        // Orthogonal LR path: horizontal-out from start, vertical middle,
+        // horizontal-in to end. After lateral offset on the cross axis (y),
+        // the first and last segments must stay horizontal (dy == 0).
+        let path = vec![
+            FPoint::new(0.0, 0.0),
+            FPoint::new(40.0, 0.0),
+            FPoint::new(40.0, 50.0),
+            FPoint::new(80.0, 50.0),
+        ];
+        let new_path = shift_middle_segment(&path, 8.0, Direction::LeftRight);
+
+        assert_eq!(new_path.first(), path.first());
+        assert_eq!(new_path.last(), path.last());
+
+        let first_dy = new_path[1].y - new_path[0].y;
+        assert!(
+            first_dy.abs() < 1e-6,
+            "first segment must stay horizontal for LR; got dy={first_dy}, new_path={new_path:?}"
+        );
+
+        let last = new_path.len() - 1;
+        let last_dy = new_path[last].y - new_path[last - 1].y;
+        assert!(
+            last_dy.abs() < 1e-6,
+            "last segment must stay horizontal for LR; got dy={last_dy}, new_path={new_path:?}"
+        );
+
+        let any_interior_shifted = new_path[2..last - 1]
+            .iter()
+            .any(|p| (p.y - 50.0).abs() > 1e-6);
+        assert!(
+            any_interior_shifted,
+            "interior should be shifted on cross axis; new_path={new_path:?}"
+        );
     }
 }

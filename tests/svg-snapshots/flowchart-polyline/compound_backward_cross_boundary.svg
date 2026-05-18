@@ -27,9 +27,9 @@
       <path d="M247.38,387.30 L112.52,448.59 L112.52,479.59 L112.52,500.59" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
       <path d="M152.30,558.59 L185.83,581.35" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M237.04,648.61 L237.04,673.61 L237.04,704.61 L237.04,754.61 L237.04,804.61 L237.04,850.61" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M360.05,558.59 L360.05,583.59 L360.05,614.59 L360.05,673.61 L360.05,754.61 L360.05,804.61 L283.57,852.49" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M360.05,558.59 L368.05,566.59 L368.05,583.59 L368.05,614.59 L368.05,673.61 L368.05,754.61 L368.05,804.61 L283.57,852.49" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M237.04,908.61 L237.04,933.61 L237.04,964.61 L231.27,1010.64" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M263.73,1052.29 L350.47,1052.29 L350.47,370.80 L340.47,370.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
+      <path d="M263.73,1052.29 L273.73,1052.29 L336.47,1052.29 L336.47,370.80 L350.47,370.80 L340.47,370.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
       <g class="node default" id="A" data-id="A" data-look="classic">

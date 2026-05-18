@@ -17,7 +17,7 @@ use crate::errors::RenderError;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::measure::{TextMetricsProvider, default_proportional_text_metrics};
 use crate::graph::routing::{
-    EdgeRouting, route_graph_geometry, route_graph_geometry_with_provider,
+    EdgeRouting, LabelBendPolicy, route_graph_geometry, route_graph_geometry_with_provider,
 };
 use crate::graph::{GeometryLevel, Graph};
 
@@ -307,11 +307,21 @@ impl GraphEngine for FluxLayeredEngine {
                         &fallback_metrics
                     }
                 };
+                // Opt into the lane label-bend's `adjusted_path` bow only
+                // when the request resolves to a proportional measurement
+                // mode (SVG / MMDS routed). Grid text falls through to
+                // `Skip` so the text renderer continues to read unbent
+                // routed paths. See issue #240.
+                let bend_policy = match mode {
+                    MeasurementMode::Proportional(_) => LabelBendPolicy::ApplyIfLanePacked,
+                    MeasurementMode::Grid => LabelBendPolicy::Skip,
+                };
                 Some(route_graph_geometry_with_provider(
                     diagram,
                     &geometry,
                     edge_routing,
                     solve_metrics,
+                    bend_policy,
                 ))
             } else {
                 None

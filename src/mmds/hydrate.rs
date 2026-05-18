@@ -16,7 +16,7 @@ use crate::graph::geometry::{
 };
 use crate::graph::measure::{TextMetricsProvider, default_proportional_text_metrics};
 use crate::graph::projection::{GridProjection, OverrideSubgraphProjection};
-use crate::graph::routing::{EdgeRouting, route_graph_geometry_with_provider};
+use crate::graph::routing::{EdgeRouting, LabelBendPolicy, route_graph_geometry_with_provider};
 use crate::graph::space::{FPoint, FRect};
 use crate::graph::style::{ColorToken, EdgeStyle, NodeStyle};
 use crate::graph::{Edge as GraphEdge, GeometryLevel, Graph, Node, Subgraph};
@@ -426,7 +426,17 @@ pub(crate) fn hydrate_routed_geometry_from_document_with_provider(
     } else {
         EdgeRouting::PolylineRoute
     };
-    let mut routed = route_graph_geometry_with_provider(&diagram, &geometry, edge_routing, metrics);
+    // MMDS hydrate rebuilds routed geometry for a proportional consumer
+    // (SVG / MMDS replay). Opt into the lane label-bend's `adjusted_path`
+    // bow so the bow-aware paths the producer emitted survive the
+    // round-trip. See issue #240.
+    let mut routed = route_graph_geometry_with_provider(
+        &diagram,
+        &geometry,
+        edge_routing,
+        metrics,
+        LabelBendPolicy::ApplyIfLanePacked,
+    );
 
     // Preserve authoritative routed label geometry by overwriting
     // `label_geometry` on routed edges with the semantics carried by the MMDS

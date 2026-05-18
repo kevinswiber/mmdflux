@@ -25,7 +25,9 @@ pub use self::float_core::{
 pub use self::labels::compute_end_label_positions;
 pub use self::orthogonal::{OrthogonalRoutingOptions, route_edges_orthogonal};
 pub(crate) use self::stage::route_graph_geometry_with_provider;
-pub use self::stage::{EdgeRouting, route_graph_geometry};
+pub use self::stage::{
+    EdgeRouting, LabelBendPolicy, route_graph_geometry, route_graph_geometry_with_policy,
+};
 #[cfg(test)]
 use crate::graph::Graph;
 #[cfg(test)]
@@ -1682,6 +1684,7 @@ mod tests {
             &geom,
             EdgeRouting::PolylineRoute,
             &provider,
+            LabelBendPolicy::Skip,
         );
 
         let label_rect = routed.edges[0].label_geometry.as_ref().unwrap().rect;
@@ -1791,6 +1794,7 @@ mod tests {
             &geom,
             EdgeRouting::PolylineRoute,
             &provider,
+            LabelBendPolicy::Skip,
         );
 
         let small_rect = routed.edges[0].label_geometry.as_ref().unwrap().rect;

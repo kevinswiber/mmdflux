@@ -27,9 +27,9 @@
       <path d="M241.96,381.88 L117.52,381.88 Q112.52,381.88 112.52,386.88 L112.52,500.59" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
       <path d="M152.30,558.59 L152.30,561.59 Q152.30,564.59 155.30,564.59 L190.80,564.59 Q195.80,564.59 195.80,569.59 L195.80,579.59" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M237.04,648.61 L237.04,850.61" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M360.05,558.59 L360.05,820.01 Q360.05,825.01 355.05,825.01 L293.72,825.01 Q288.72,825.01 288.72,830.01 L288.72,850.61" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M360.05,558.59 L360.05,562.59 Q360.05,566.59 364.05,566.59 L364.05,566.59 Q368.05,566.59 368.05,570.59 L368.05,820.01 Q368.05,825.01 363.05,825.01 L296.72,825.01 L292.72,825.01 Q288.72,825.01 288.72,829.01 L288.72,850.61" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M233.91,908.61 L233.91,1010.61" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M263.73,1052.29 L347.47,1052.29 Q352.47,1052.29 352.47,1047.29 L352.47,375.80 Q352.47,370.80 347.47,370.80 L340.47,370.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
+      <path d="M263.73,1052.29 L335.47,1052.29 Q340.47,1052.29 340.47,1047.29 L340.47,370.80" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
       <g class="node default" id="A" data-id="A" data-look="classic">
