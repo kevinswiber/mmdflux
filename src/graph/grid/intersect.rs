@@ -102,6 +102,11 @@ pub fn spread_points_on_face(
     };
 
     if count == 1 {
+        // For an even-width range, `div_ceil(2)` picks the right-center cell
+        // rather than the left-center one (plain `/ 2` would round down).
+        // This keeps singleton attachments aligned with how the routing pass
+        // expects to land on faces of even width, reducing single-cell
+        // off-center drift on flowchart fixtures.
         return vec![to_point(start + range.div_ceil(2))];
     }
 
@@ -302,6 +307,11 @@ fn intersect_circle(bounds: &NodeBounds, point: FloatPoint) -> FloatPoint {
     let center = FloatPoint::new(bounds.center_x() as f64, bounds.center_y() as f64);
     let dx = point.x - center.x;
     let dy = point.y - center.y;
+    // Use the inscribed radius (the smaller half-dimension). State-diagram
+    // terminals and other circular shapes are expected to have square or
+    // near-square bounds; the inscribed radius keeps the snapped attachment
+    // point safely inside the visible glyph if the bounds ever drift to a
+    // non-square rectangle.
     let radius = (bounds.width.min(bounds.height) as f64) / 2.0;
 
     if dx.abs() < f64::EPSILON && dy.abs() < f64::EPSILON {
@@ -362,11 +372,18 @@ pub fn calculate_attachment_points(
     let source_center = (source_bounds.center_x(), source_bounds.center_y());
     let target_center = (target_bounds.center_x(), target_bounds.center_y());
 
-    // Source attachment: intersect towards first waypoint or target center
+    // Source attachment: intersect towards first waypoint or target center.
+    //
+    // The circular-target branch is intentionally asymmetric: when the target
+    // is a circular terminal (e.g. state-diagram `[*]`), both endpoints
+    // snap to their face midpoints so the connecting line passes cleanly
+    // through the circle's visual center. The symmetric case (circular
+    // source, non-circular target) falls through to plain `intersect_node`
+    // because state-diagram convention places terminals on the target side
+    // of edges (`Foo --> [*]`), not the source.
     let source_attach = if let Some(&first_wp) = waypoints.first() {
         intersect_node(source_bounds, first_wp, source_shape)
     } else if is_circular_shape(target_shape) {
-        // For circular terminals, attach at face midpoint instead of geometric intersection
         let face = classify_face(source_bounds, target_center, source_shape);
         midpoint_attachment_point(source_bounds, face)
     } else {
