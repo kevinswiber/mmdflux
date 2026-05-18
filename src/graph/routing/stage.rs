@@ -33,17 +33,54 @@ pub enum EdgeRouting {
     OrthogonalRoute,
 }
 
+/// Whether the routing stage applies Algorithm C's `adjusted_path` bow around
+/// lane-displaced edge labels.
+///
+/// Proportional consumers (SVG, MMDS routed) can opt in via
+/// `ApplyIfLanePacked`; the Grid text renderer must stay on `Skip` because
+/// bending routed paths corrupts text-grid corridor closure for backward
+/// edges (the text renderer reads routed paths directly). See issue #240 and
+/// research 0065 Q1 for the regression that motivates the gate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LabelBendPolicy {
+    /// Discard `adjusted_path` and keep the unbent routed polyline.
+    #[default]
+    Skip,
+    /// Apply `adjusted_path` when the lane pass placed a label off track 0 in
+    /// a multi-member compartment.
+    ApplyIfLanePacked,
+}
+
 /// Route graph geometry to produce fully-routed edge paths.
 ///
 /// Consumes engine-agnostic `GraphGeometry` and produces `RoutedGraphGeometry`
-/// with polyline paths for every edge.
+/// with polyline paths for every edge. Defaults to [`LabelBendPolicy::Skip`];
+/// callers that target proportional output (SVG / MMDS routed) should use
+/// [`route_graph_geometry_with_policy`].
 pub fn route_graph_geometry(
     diagram: &Graph,
     geometry: &GraphGeometry,
     edge_routing: EdgeRouting,
     metrics: &ProportionalTextMetrics,
 ) -> RoutedGraphGeometry {
-    route_graph_geometry_with_provider(diagram, geometry, edge_routing, metrics)
+    route_graph_geometry_with_provider(
+        diagram,
+        geometry,
+        edge_routing,
+        metrics,
+        LabelBendPolicy::Skip,
+    )
+}
+
+/// Route graph geometry with an explicit [`LabelBendPolicy`].
+pub fn route_graph_geometry_with_policy(
+    diagram: &Graph,
+    geometry: &GraphGeometry,
+    edge_routing: EdgeRouting,
+    metrics: &ProportionalTextMetrics,
+    policy: LabelBendPolicy,
+) -> RoutedGraphGeometry {
+    route_graph_geometry_with_provider(diagram, geometry, edge_routing, metrics, policy)
 }
 
 pub(crate) fn route_graph_geometry_with_provider(
@@ -51,6 +88,7 @@ pub(crate) fn route_graph_geometry_with_provider(
     geometry: &GraphGeometry,
     edge_routing: EdgeRouting,
     metrics: &dyn TextMetricsProvider,
+    policy: LabelBendPolicy,
 ) -> RoutedGraphGeometry {
     let port_attachments = compute_port_attachments_from_geometry(diagram, geometry);
     #[cfg(test)]
@@ -275,7 +313,29 @@ pub(crate) fn route_graph_geometry_with_provider(
         // The adjusted_path field is kept in LabelTrackOutcome for
         // potential future use (e.g., a follow-on plan that adds a
         // text-aware path-bend pass).
-        let _ = &outcome.adjusted_path;
+        //
+        // `LabelBendPolicy::ApplyIfLanePacked` is plumbed through every
+        // proportional call site so a future Algorithm C revision can
+        // flip this gate without re-threading the parameter, but the
+        // current `shift_middle_segment` only displaces interior points
+        // and leaves the endpoint approach angles unchanged. Wiring the
+        // bow in directly produces visible regressions in proportional
+        // output:
+        //
+        //   1. SVG endpoint clipping (`adjust_edge_points_for_shapes`
+        //      and `clip_points_to_rect_*`) re-projects the now-diagonal
+        //      first/last segment against the node face, pulling the
+        //      arrowhead marker inside the node.
+        //   2. The corner-rounding pass in `path_emit::path_from_points_rounded`
+        //      emits more pronounced curves at the new acute joins,
+        //      producing visible kinks/loops near each endpoint.
+        //
+        // Until Algorithm C learns to preserve the perpendicular
+        // approach to each face (e.g. via an S-curve that meets the
+        // node faces orthogonally), the wire-up here stays a no-op even
+        // when the policy is `ApplyIfLanePacked`. See issue #240 for
+        // the regression catalog.
+        let _ = (policy, &outcome.adjusted_path);
     }
 
     // Lane-aware re-wrap. Runs AFTER the wire-up loop above (so routed edges

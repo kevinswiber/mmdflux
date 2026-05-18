@@ -17,7 +17,7 @@ use crate::engines::graph::{
 };
 use crate::errors::RenderError;
 use crate::graph::geometry::RoutedGraphGeometry;
-use crate::graph::routing::{EdgeRouting, route_graph_geometry_with_provider};
+use crate::graph::routing::{EdgeRouting, LabelBendPolicy, route_graph_geometry_with_provider};
 use crate::graph::{GeometryLevel, Graph};
 
 /// Mermaid dagre default for isolated subgraphs without explicit direction:
@@ -192,11 +192,15 @@ impl GraphEngine for MermaidLayeredEngine {
             (request.geometry_contract, request.geometry_level),
             (GraphGeometryContract::Canonical, GeometryLevel::Routed)
         ) {
+            // Mermaid-layered always solves in a proportional context (the
+            // earlier guard rejects `MeasurementMode::Grid`), so it can opt
+            // into the Algorithm C bow unconditionally. See issue #240.
             Some(route_graph_geometry_with_provider(
                 diagram,
                 &geometry,
                 EdgeRouting::PolylineRoute,
                 metrics,
+                LabelBendPolicy::ApplyIfLanePacked,
             ))
         } else {
             None
