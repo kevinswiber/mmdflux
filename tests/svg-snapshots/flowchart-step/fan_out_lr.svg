@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 262.48 382.00" style="max-width: 262.48px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M93.79,172.00 L105.19,172.00 L105.19,164.00 L105.19,54.00 L139.79,54.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M93.79,182.00 L131.79,182.00 L131.79,157.51 L139.79,157.51" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M93.79,200.00 L116.79,200.00 L116.79,224.00 L139.79,224.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M93.79,210.00 L105.19,210.00 L105.19,218.00 L105.19,328.00 L139.79,328.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <g class="node default" id="API" data-id="API" data-look="classic">
+        <rect x="8.00" y="164.00" width="85.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="50.89" y="191.00" text-anchor="middle" dominant-baseline="middle" fill="#333">API</text>
+      </g>
+      <g class="node default" id="Auth" data-id="Auth" data-look="classic">
+        <rect x="143.79" y="8.00" width="92.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="190.25" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Auth</text>
+      </g>
+      <g class="node default" id="Billing" data-id="Billing" data-look="classic">
+        <rect x="143.79" y="112.00" width="102.69" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="195.13" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Billing</text>
+      </g>
+      <g class="node default" id="Profile" data-id="Profile" data-look="classic">
+        <rect x="143.79" y="320.00" width="105.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="196.46" y="347.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Profile</text>
+      </g>
+      <g class="node default" id="Search" data-id="Search" data-look="classic">
+        <rect x="143.79" y="216.00" width="110.70" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="199.14" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Search</text>
+      </g>
+    </g>
+    <g class="edgeLabels">
+    </g>
+  </g>
+</svg>

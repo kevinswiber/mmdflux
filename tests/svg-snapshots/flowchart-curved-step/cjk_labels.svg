@@ -8,7 +8,7 @@
     <g class="edgePaths">
       <path d="M100.00,54.32 L100.83,54.32 C101.67,54.32 103.33,54.32 106.83,54.32 C110.33,54.32 115.67,54.32 118.33,54.32 L121.00,54.32" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M233.00,30.00 L233.00,39.43 L236.03,39.43 C239.07,39.43 245.13,39.43 248.17,38.69 C251.20,37.95 251.20,36.48 251.20,35.74 L251.20,35.00 L347.00,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
-      <path d="M233.00,68.00 L251.20,68.00 L251.20,76.67 C251.20,85.33 251.20,102.67 252.33,111.33 C253.47,120.00 255.73,120.00 256.87,120.00 L258.00,120.00 L347.00,120.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M233.00,68.00 L241.00,68.00 L241.00,76.67 C241.00,85.33 241.00,102.67 242.70,111.33 C244.40,120.00 247.80,120.00 249.50,120.00 L251.20,120.00 L347.00,120.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M397.00,166.00 L397.00,178.00 L368.42,178.00 C339.83,178.00 282.67,178.00 225.50,178.00 C168.33,178.00 111.17,178.00 82.58,178.00 L54.00,178.00 L54.00,90.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
@@ -32,8 +32,8 @@
     <g class="edgeLabels">
       <rect x="265.02" y="21.00" width="40.00" height="28.00" fill="white" />
       <text x="285.02" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">成功</text>
-      <rect x="247.18" y="106.00" width="40.00" height="28.00" fill="white" />
-      <text x="267.18" y="120.00" text-anchor="middle" dominant-baseline="middle" fill="#333">失败</text>
+      <rect x="248.60" y="106.00" width="40.00" height="28.00" fill="white" />
+      <text x="268.60" y="120.00" text-anchor="middle" dominant-baseline="middle" fill="#333">失败</text>
       <rect x="167.50" y="164.00" width="40.00" height="28.00" fill="white" />
       <text x="187.50" y="178.00" text-anchor="middle" dominant-baseline="middle" fill="#333">重试</text>
     </g>

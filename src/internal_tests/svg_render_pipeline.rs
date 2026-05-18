@@ -5916,6 +5916,38 @@ fn svg_lr_architecture_target_transit_runtime_to_errors_does_not_cross_errors_in
 }
 
 #[test]
+fn svg_lr_fanout_does_not_cross_sibling_edges_near_source() {
+    let diagram = load_flowchart_fixture_diagram("fan_out_lr.mmd");
+    let svg = render_svg(
+        &diagram,
+        &RenderConfig {
+            routing_style: Some(RoutingStyle::Orthogonal),
+            curve: Some(Curve::Linear(CornerStyle::Sharp)),
+            path_simplification: PathSimplification::None,
+            ..Default::default()
+        },
+    );
+
+    let pairs = [
+        ("API", "Search", "API", "Profile"),
+        ("API", "Search", "API", "Billing"),
+        ("API", "Auth", "API", "Billing"),
+        ("API", "Auth", "API", "Search"),
+        ("API", "Auth", "API", "Profile"),
+        ("API", "Billing", "API", "Profile"),
+    ];
+    for (af, at, bf, bt) in pairs {
+        let a = edge_path_for_svg_order(&diagram, &svg, edge_index(&diagram, af, at));
+        let b = edge_path_for_svg_order(&diagram, &svg, edge_index(&diagram, bf, bt));
+        assert!(
+            !paths_have_strict_interior_crossing(&a, &b),
+            "sibling edges {af}->{at} and {bf}->{bt} should not have a \
+             strict interior crossing; a={a:?}, b={b:?}",
+        );
+    }
+}
+
+#[test]
 fn svg_root_stays_transparent_when_no_theme_is_selected() {
     let flowchart =
         parse_flowchart("graph TD\nA[Start] --> B[End]\n").expect("inline flowchart should parse");

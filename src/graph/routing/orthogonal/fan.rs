@@ -885,6 +885,12 @@ pub(super) fn stagger_primary_face_shared_axis_segment(
 
     let primary_vertical = matches!(direction, Direction::TopDown | Direction::BottomTop);
 
+    // Collect every internal cross-axis segment flanked by primary-axis
+    // neighbors. For 4-point L-paths there is one candidate. For 6-point paths
+    // with a source-side approach stem the first candidate is the stem; the
+    // last is the main bend column, which is what the lane-depth policy is
+    // trying to move. Issue #372.
+    let mut candidates: Vec<usize> = Vec::new();
     for i in 1..path.len().saturating_sub(2) {
         let seg_is_gathering = if primary_vertical {
             (path[i].y - path[i + 1].y).abs() <= EPS && (path[i].x - path[i + 1].x).abs() > EPS
@@ -910,29 +916,60 @@ pub(super) fn stagger_primary_face_shared_axis_segment(
         if !prev_is_normal || !next_is_normal {
             continue;
         }
+        candidates.push(i);
+    }
 
-        if primary_vertical {
-            if let Some(y) = stagger_axis_value(
-                path[0].y,
-                path[path.len() - 1].y,
-                depth,
-                MIN_SOURCE_STEM,
-                MIN_TARGET_STEM,
-            ) {
-                path[i].y = y;
-                path[i + 1].y = y;
-            }
-        } else if let Some(x) = stagger_axis_value(
-            path[0].x,
-            path[path.len() - 1].x,
+    // Detect the source-stem pattern that `ensure_primary_stem_for_flat_off_center_fanout_sources`
+    // produces: the first candidate's primary-axis position sits within one
+    // MIN_SOURCE_STEM of the source endpoint. In that case the first candidate
+    // is the source-side stem and the last is the main bend column the
+    // lane-depth policy should move. Otherwise keep the original "take first"
+    // semantics so fan-in/engine-supplied multi-bend routes aren't perturbed.
+    // Issue #372.
+    let pick = if candidates.len() >= 2 {
+        let first = candidates[0];
+        let first_primary = if primary_vertical {
+            path[first].y
+        } else {
+            path[first].x
+        };
+        let source_primary = if primary_vertical {
+            path[0].y
+        } else {
+            path[0].x
+        };
+        if (first_primary - source_primary).abs() <= MIN_SOURCE_STEM + EPS {
+            candidates.last().copied()
+        } else {
+            candidates.first().copied()
+        }
+    } else {
+        candidates.first().copied()
+    };
+    let Some(i) = pick else {
+        return;
+    };
+
+    if primary_vertical {
+        if let Some(y) = stagger_axis_value(
+            path[0].y,
+            path[path.len() - 1].y,
             depth,
             MIN_SOURCE_STEM,
             MIN_TARGET_STEM,
         ) {
-            path[i].x = x;
-            path[i + 1].x = x;
+            path[i].y = y;
+            path[i + 1].y = y;
         }
-        return;
+    } else if let Some(x) = stagger_axis_value(
+        path[0].x,
+        path[path.len() - 1].x,
+        depth,
+        MIN_SOURCE_STEM,
+        MIN_TARGET_STEM,
+    ) {
+        path[i].x = x;
+        path[i + 1].x = x;
     }
 }
 
