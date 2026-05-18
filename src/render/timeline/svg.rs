@@ -67,7 +67,7 @@ impl SequenceSvgPalette {
                 participant_text: theme.roles.text.clone(),
                 lifeline_stroke: theme.roles.line.clone(),
                 marker_color: theme.roles.arrow.clone(),
-                note_fill: theme.roles.node_fill.clone(),
+                note_fill: theme.roles.note_fill.clone(),
                 activation_fill: theme.roles.node_fill.clone(),
                 actor_stroke: theme.roles.node_stroke.clone(),
                 block_stroke: theme.roles.node_stroke.clone(),
@@ -778,7 +778,7 @@ fn render_note(writer: &mut SvgWriter, note: &SvgNote, palette: &SequenceSvgPale
     let note_dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,
         "sequence-note",
-        &["fill:var(--_node-fill);", "stroke:var(--_line);"],
+        &["fill:var(--_note-fill);", "stroke:var(--_line);"],
     );
     let note_stroke_dynamic_attrs = dynamic_css_attrs(
         palette.dynamic_css,

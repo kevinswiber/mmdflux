@@ -888,14 +888,114 @@ fn sequence_svg_theme_changes_note_and_activation_colors() {
     );
 
     assert!(svg.contains("background-color: #333333;"), "{svg}");
-    // Two participants + activation rect + note path all draw with the
-    // theme's surface slot (#1f2020) — pre-fix the note and activation
-    // collapsed to the near-bg key_badge/inner_stroke mixes.
-    assert_eq!(svg.matches("fill=\"#1f2020\"").count(), 4, "{svg}");
+    // Two participants + activation rect = three rects at the theme's
+    // surface fill. The note path now resolves through its own `note_fill`
+    // slot (sticky yellow) instead of collapsing onto the surface, which is
+    // the parity behavior #358 restored.
+    assert_eq!(svg.matches("fill=\"#1f2020\"").count(), 3, "{svg}");
+    assert!(svg.contains("fill=\"#fff5ad\""), "{svg}");
     assert!(!svg.contains("#ffffcc"), "{svg}");
     assert!(!svg.contains("#ddd"), "{svg}");
     assert!(!svg.contains("#424242"), "{svg}");
     assert!(!svg.contains("#454545"), "{svg}");
+}
+
+#[test]
+fn sequence_svg_themed_note_fill_is_distinct_from_participant_fill() {
+    // Parity coverage for #358: every themed render must paint notes with a
+    // fill that is visibly distinct from the participant/node fill so the
+    // sticky-note cue survives theming. Checks light and dark Mermaid base
+    // themes so a future seed regression on either side trips the test.
+    let input = "sequenceDiagram\n    Alice->>Bob: Hello\n    Note right of Bob: Important\n";
+
+    // Every named Mermaid theme should produce a note fill that is distinct
+    // from the participant rect fill. Beautiful palettes fall back to surface
+    // and are covered by the broader theme suite once they each grow a tuned
+    // `note_fill`; until then the named Mermaid themes are the parity floor.
+    for theme_name in [
+        "default",
+        "dark",
+        "forest",
+        "neutral",
+        "zinc-light",
+        "zinc-dark",
+    ] {
+        let svg = render_svg(
+            input,
+            &RenderConfig {
+                svg_theme: Some(SvgThemeConfig {
+                    name: Some(theme_name.into()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        );
+
+        // Extract the note path fill (the only <path ... Z" fill="..." />).
+        let note_marker = "Z\" fill=\"";
+        let note_idx = svg.find(note_marker).unwrap_or_else(|| {
+            panic!(
+                "expected a closed-path note fill in themed sequence SVG for {theme_name}: {svg}"
+            )
+        });
+        let after = &svg[note_idx + note_marker.len()..];
+        let note_fill = &after[..after.find('"').expect("note fill should be quoted")];
+
+        // Extract a participant rect fill: every theme renders the first
+        // participant via `<rect ... fill="..." stroke=...`.
+        let participant_marker = "<rect x=\"10.00\"";
+        let part_idx = svg
+            .find(participant_marker)
+            .unwrap_or_else(|| panic!("expected participant rect for {theme_name}: {svg}"));
+        let part_slice = &svg[part_idx..];
+        let fill_marker = "fill=\"";
+        let fill_idx = part_slice.find(fill_marker).expect("participant fill");
+        let after_part = &part_slice[fill_idx + fill_marker.len()..];
+        let participant_fill = &after_part[..after_part.find('"').expect("participant fill quote")];
+
+        assert_ne!(
+            note_fill, participant_fill,
+            "{theme_name}: note fill and participant fill collapsed to the same value ({note_fill}); \
+             #357 fixed visibility by routing both through `surface`, #358 restores the distinction"
+        );
+    }
+}
+
+#[test]
+fn sequence_svg_untheme_path_preserves_legacy_sticky_yellow() {
+    // Un-themed renders must keep the historical `#ffffcc` sticky-note fill
+    // byte-identically. This is the byte-stability anchor #358 promises for
+    // every fixture that does not opt into a theme.
+    let input = "sequenceDiagram\n    Alice->>Bob: Hello\n    Note right of Bob: Important\n";
+    let svg = render_svg(input, &RenderConfig::default());
+
+    assert!(svg.contains("fill=\"#ffffcc\""), "{svg}");
+    assert!(!svg.contains("fill=\"#fff5ad\""), "{svg}");
+}
+
+#[test]
+fn sequence_svg_dynamic_theme_emits_note_fill_css_variable() {
+    // Dynamic theme mode must surface `--note-fill` in the root style and
+    // bridge it through `--_note-fill: var(--note-fill);` so adapters can
+    // recolor sticky-notes at runtime without re-rendering.
+    let input = "sequenceDiagram\n    Alice->>Bob: Hello\n    Note right of Bob: Important\n";
+    let svg = render_svg(
+        input,
+        &RenderConfig {
+            svg_theme: Some(SvgThemeConfig {
+                name: Some("default".into()),
+                mode: SvgThemeMode::Dynamic,
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    );
+
+    assert!(svg.contains("--note-fill:#fff5ad"), "{svg}");
+    assert!(
+        svg.contains("--_note-fill: var(--note-fill);"),
+        "dynamic style block should bridge --note-fill into --_note-fill: {svg}"
+    );
 }
 
 #[test]
