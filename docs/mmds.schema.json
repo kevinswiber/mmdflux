@@ -207,6 +207,55 @@
         "engine": {
           "type": "string",
           "description": "Engine+algorithm identifier that produced this output (e.g., 'flux-layered', 'mermaid-layered'). Present when the output was produced via the solve pipeline."
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/MetadataDiagnostics",
+          "description": "Optional routed diagnostics emitted by mmdflux. Present only when routed geometry detected reportable conditions."
+        }
+      }
+    },
+    "MetadataDiagnostics": {
+      "type": "object",
+      "properties": {
+        "unfit_label_overlaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UnfitLabelOverlapDiagnostic"
+          },
+          "default": [],
+          "description": "Labels that could not fit in the available edge gap after marker avoidance. Routed level only."
+        }
+      }
+    },
+    "UnfitLabelOverlapDiagnostic": {
+      "type": "object",
+      "required": [
+        "edge_id",
+        "label",
+        "gap_pixels",
+        "label_span_pixels",
+        "attempted_side"
+      ],
+      "properties": {
+        "edge_id": {
+          "type": "string",
+          "description": "MMDS edge ID whose label could not fit."
+        },
+        "label": {
+          "type": "string",
+          "description": "Rendered edge label text."
+        },
+        "gap_pixels": {
+          "type": "number",
+          "description": "Available gap along the edge-parallel axis in current mmdflux output coordinates."
+        },
+        "label_span_pixels": {
+          "type": "number",
+          "description": "Padded label span along the edge-parallel axis in current mmdflux output coordinates."
+        },
+        "attempted_side": {
+          "enum": ["above", "below", "center"],
+          "description": "Label side attempted by the routed layout."
         }
       }
     },

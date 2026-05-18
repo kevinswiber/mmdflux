@@ -40,6 +40,7 @@ fn output(nodes: Vec<Node>, edges: Vec<Edge>, subgraphs: Vec<Subgraph>) -> Docum
                 height: 200.0,
             },
             engine: None,
+            diagnostics: None,
         },
         nodes,
         edges,

@@ -295,6 +295,7 @@ mmdflux --format mmds --geometry-level routed diagram.mmd
 | `metadata.direction`    | string                   | `"TD"`, `"TB"`, `"BT"`, `"LR"`, or `"RL"`; `"TB"` deserializes as canonical `"TD"`                                                   |
 | `metadata.bounds`       | object                   | Overall diagram canvas extents (`width`, `height`) in unitless MMDS coordinate space (currently SVG-pixel-aligned in mmdflux output) |
 | `metadata.engine`       | string?                  | Engine+algorithm that produced this output (e.g., `"flux-layered"`). Omitted when not produced via the solve pipeline.               |
+| `metadata.diagnostics`  | object?                  | Optional mmdflux diagnostics emitted from routed geometry. Omitted when empty and only populated for `"routed"` geometry output.     |
 | `subgraphs`             | array                    | Subgraph inventory (omitted when empty)                                                                                              |
 
 ## Profiles and Extensions Governance
@@ -663,6 +664,24 @@ the routed path.
 | `parent`    | string?           | both   | Parent subgraph ID                                    |
 | `direction` | string?           | both   | Direction override: `"TD"`, `"TB"`, `"BT"`, `"LR"`, or `"RL"`; `"TB"` deserializes as canonical `"TD"` |
 | `bounds`    | `{width, height}` | routed | Bounding box dimensions                               |
+
+### Metadata Diagnostics
+
+`metadata.diagnostics` is an optional object for diagnostics that are derived
+from routed geometry. mmdflux omits it when no routed diagnostics are present.
+Layout-level MMDS does not include routed diagnostics because layout output has
+no routed path or routed label rectangle to attach them to.
+
+Current diagnostic fields:
+
+| Field                                             | Type   | Level  | Description                                                                 |
+| ------------------------------------------------- | ------ | ------ | --------------------------------------------------------------------------- |
+| `metadata.diagnostics.unfit_label_overlaps`       | array  | routed | Labels that could not fit in the available edge gap after marker avoidance. |
+| `unfit_label_overlaps[].edge_id`                  | string | routed | MMDS edge ID whose label could not fit.                                      |
+| `unfit_label_overlaps[].label`                    | string | routed | Rendered edge label text.                                                    |
+| `unfit_label_overlaps[].gap_pixels`               | number | routed | Available edge-parallel gap in current mmdflux output coordinates.          |
+| `unfit_label_overlaps[].label_span_pixels`        | number | routed | Padded label span in current mmdflux output coordinates.                    |
+| `unfit_label_overlaps[].attempted_side`           | string | routed | Attempted label side: `"above"`, `"below"`, or `"center"`.                  |
 
 ### Identifier Namespace
 

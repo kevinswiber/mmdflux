@@ -1077,6 +1077,7 @@ mod tests {
                     height: 160.0,
                 },
                 engine: None,
+                diagnostics: None,
             },
             nodes: vec![
                 crate::mmds::Node {

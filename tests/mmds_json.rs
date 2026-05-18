@@ -22,8 +22,8 @@ use mmdflux::mmds::{
 };
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{
-    EngineAlgorithmId, GraphTextStyleConfig, OutputFormat, RenderConfig, TextColorMode,
-    materialize_diagram, render_diagram,
+    EngineAlgorithmId, GraphTextStyleConfig, LayoutConfig, OutputFormat, RenderConfig,
+    TextColorMode, materialize_diagram, render_diagram,
 };
 use serde_json::{Value, json};
 
@@ -3113,8 +3113,18 @@ fn mmds_schema_rejects_label_side_with_invalid_enum() {
 #[test]
 fn mmds_routed_to_layout_down_conversion_strips_routed_only_edge_fields() {
     let routed_json = render_json_with_level("graph TD\nA -->|forward| B", GeometryLevel::Routed);
+    let mut routed_value: Value = serde_json::from_str(&routed_json).unwrap();
+    routed_value["metadata"]["diagnostics"] = json!({
+        "unfit_label_overlaps": [{
+            "edge_id": "e0",
+            "label": "forward",
+            "gap_pixels": 1.0,
+            "label_span_pixels": 2.0,
+            "attempted_side": "above"
+        }]
+    });
     let layout_output = render_mmds_input(
-        &routed_json,
+        &serde_json::to_string_pretty(&routed_value).unwrap(),
         OutputFormat::Mmds,
         RenderConfig {
             geometry_level: GeometryLevel::Layout,
@@ -3123,6 +3133,10 @@ fn mmds_routed_to_layout_down_conversion_strips_routed_only_edge_fields() {
     );
     let parsed: Document = serde_json::from_str(&layout_output).unwrap();
     assert_eq!(parsed.geometry_level, GeometryLevel::Layout);
+    assert!(
+        parsed.metadata.diagnostics.is_none(),
+        "routed diagnostics must be stripped at layout level"
+    );
     for edge in &parsed.edges {
         assert!(edge.path.is_none(), "path must be stripped at layout level");
         assert!(
@@ -3640,4 +3654,83 @@ mod plan_0151_routed_mmds_replay_contract {
             "replay SVG anchor {anchor:?} must track the authoritative label_rect center {authoritative:?}; drift {drift:.2} px"
         );
     }
+}
+
+#[test]
+fn mmds_parses_metadata_diagnostics_unfit_label_overlaps() {
+    let value = serde_json::json!({
+      "version": 1,
+      "defaults": {"node": {}, "edge": {}},
+      "geometry_level": "routed",
+      "metadata": {
+        "diagram_type": "flowchart",
+        "direction": "TD",
+        "bounds": {"width": 10.0, "height": 10.0},
+        "diagnostics": {
+          "unfit_label_overlaps": [{
+            "edge_id": "e0",
+            "label": "long",
+            "gap_pixels": 10.0,
+            "label_span_pixels": 20.0,
+            "attempted_side": "above"
+          }]
+        }
+      },
+      "nodes": [{"id":"A","label":"A","position":{"x":0.0,"y":0.0},"size":{"width":1.0,"height":1.0}}],
+      "edges": [{"id":"e0","source":"A","target":"A"}],
+      "subgraphs": []
+    });
+    let doc: Document = serde_json::from_value(value).expect("document should parse");
+    let overlaps = doc
+        .metadata
+        .diagnostics
+        .expect("diagnostics should parse")
+        .unfit_label_overlaps;
+    assert_eq!(overlaps.len(), 1);
+    assert_eq!(overlaps[0].edge_id, "e0");
+}
+
+#[test]
+fn mmds_routed_output_populates_unfit_label_overlap_diagnostics() {
+    let input = "graph LR\nA -->|this is a deliberately long label that cannot fit| B\n";
+    let config = |level| RenderConfig {
+        geometry_level: level,
+        layout: LayoutConfig {
+            rank_sep: 1.0,
+            ..LayoutConfig::default()
+        },
+        svg_node_padding_x: Some(300.0),
+        svg_node_padding_y: Some(20.0),
+        ..RenderConfig::default()
+    };
+
+    let layout_output: Document = serde_json::from_str(&render_json_with_config(
+        input,
+        &config(GeometryLevel::Layout),
+    ))
+    .unwrap();
+    assert_eq!(layout_output.geometry_level, GeometryLevel::Layout);
+    assert!(
+        layout_output.metadata.diagnostics.is_none(),
+        "layout MMDS must not carry routed diagnostics"
+    );
+
+    let routed_json = render_json_with_config(input, &config(GeometryLevel::Routed));
+    let routed_value: Value = serde_json::from_str(&routed_json).unwrap();
+    assert_schema_valid(routed_value);
+
+    let routed_output: Document = serde_json::from_str(&routed_json).unwrap();
+    assert_eq!(routed_output.geometry_level, GeometryLevel::Routed);
+    let overlaps = routed_output
+        .metadata
+        .diagnostics
+        .expect("routed diagnostics should be present")
+        .unfit_label_overlaps;
+    assert_eq!(overlaps.len(), 1);
+    assert_eq!(overlaps[0].edge_id, "e0");
+    assert_eq!(
+        overlaps[0].label,
+        "this is a deliberately long label that cannot fit"
+    );
+    assert!(overlaps[0].gap_pixels < overlaps[0].label_span_pixels);
 }

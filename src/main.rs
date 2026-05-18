@@ -17,8 +17,8 @@ use mmdflux::graph::measure::validate_text_metrics_profile_id;
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{
     ColorWhen, EngineAlgorithmId, LayoutConfig, OutputFormat, Ranker, RenderConfig, SvgThemeConfig,
-    SvgThemeMode, TextColorMode, apply_svg_surface_defaults, detect_diagram, render_diagram,
-    validate_diagram,
+    SvgThemeMode, TextColorMode, apply_svg_surface_defaults, detect_diagram, materialize_diagram,
+    render_diagram, render_document, validate_diagram,
 };
 use serde::{Deserialize, Serialize};
 use svg_theme_auto::{SVG_THEME_AUTO_DEFAULT_SPEC, SvgThemeAutoMap, select_auto_theme_name};
@@ -54,6 +54,35 @@ struct CliLintJson {
 }
 
 const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
+
+fn extract_mmds_unfit_warning_lines(document: &mmdflux::mmds::Document) -> Vec<String> {
+    let Some(diag) = document.metadata.diagnostics.as_ref() else {
+        return Vec::new();
+    };
+    diag.unfit_label_overlaps
+        .iter()
+        .map(|overlap| {
+            let label = serde_json::to_string(&overlap.label)
+                .unwrap_or_else(|_| format!("{:?}", overlap.label));
+            format!(
+                "Warning: edge {} label {} could not fit gap (gap={:.2}, span={:.2}, side={})",
+                overlap.edge_id,
+                label,
+                overlap.gap_pixels,
+                overlap.label_span_pixels,
+                edge_label_side_name(overlap.attempted_side)
+            )
+        })
+        .collect()
+}
+
+fn edge_label_side_name(side: mmdflux::graph::geometry::EdgeLabelSide) -> &'static str {
+    match side {
+        mmdflux::graph::geometry::EdgeLabelSide::Above => "above",
+        mmdflux::graph::geometry::EdgeLabelSide::Below => "below",
+        mmdflux::graph::geometry::EdgeLabelSide::Center => "center",
+    }
+}
 
 fn normalize_validation_result(result: ValidationResult) -> CliLintJson {
     let default_severity = if result.valid {
@@ -749,7 +778,24 @@ fn main() -> io::Result<()> {
     }
 
     // Render through the shared facade contract.
-    match render_diagram(&input, format, &config) {
+    let rendered = if format == OutputFormat::Mmds && matches!(diagram_id, "flowchart" | "class") {
+        materialize_diagram(&input, &config).and_then(|document| {
+            let output = render_document(&document, OutputFormat::Mmds, &config)?;
+            if !cli.quiet
+                && document.geometry_level == GeometryLevel::Routed
+                && config.geometry_level == GeometryLevel::Routed
+            {
+                for line in extract_mmds_unfit_warning_lines(&document) {
+                    eprintln!("{line}");
+                }
+            }
+            Ok(output)
+        })
+    } else {
+        render_diagram(&input, format, &config)
+    };
+
+    match rendered {
         Ok(output) => match &cli.output {
             Some(path) => fs::write(path, &output)?,
             None => print!("{}", output),
@@ -931,5 +977,37 @@ mod tests {
         );
 
         assert_eq!(auto_output, explicit_output);
+    }
+
+    #[test]
+    fn extract_mmds_unfit_warning_lines_from_metadata_diagnostics() {
+        let json = r#"{
+          "version": 1,
+          "defaults": {"node": {}, "edge": {}},
+          "geometry_level": "routed",
+          "metadata": {
+            "diagram_type": "flowchart",
+            "direction": "TD",
+            "bounds": {"width": 10.0, "height": 10.0},
+            "diagnostics": {
+              "unfit_label_overlaps": [{
+                "edge_id": "e4",
+                "label": "too\nlong",
+                "gap_pixels": 8.0,
+                "label_span_pixels": 14.0,
+                "attempted_side": "below"
+              }]
+            }
+          },
+          "nodes": [],
+          "edges": [],
+          "subgraphs": []
+        }"#;
+        let document = mmdflux::mmds::parse_input(json).expect("MMDS document should parse");
+        let lines = extract_mmds_unfit_warning_lines(&document);
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].contains("edge e4"));
+        assert!(lines[0].contains(r#"label "too\nlong""#));
+        assert!(lines[0].contains("could not fit gap"));
     }
 }

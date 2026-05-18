@@ -423,6 +423,21 @@ fn build_document(
             height: effective_bounds.height,
         },
         engine: options.engine_id.map(|id| id.to_string()),
+        diagnostics: routed.and_then(|r| {
+            (!r.unfit_label_overlaps.is_empty()).then(|| MetadataDiagnostics {
+                unfit_label_overlaps: r
+                    .unfit_label_overlaps
+                    .iter()
+                    .map(|u| UnfitLabelOverlapDiagnostic {
+                        edge_id: format!("e{}", u.edge_index),
+                        label: u.label.clone(),
+                        gap_pixels: u.gap_pixels,
+                        label_span_pixels: u.label_span_pixels,
+                        attempted_side: u.attempted_side,
+                    })
+                    .collect(),
+            })
+        }),
     };
 
     // Build nodes from geometry (float positions)
@@ -1173,6 +1188,28 @@ pub struct Metadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub engine: Option<String>,
+    /// Optional routed diagnostics surfaced for consumers/CLI warnings.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub diagnostics: Option<MetadataDiagnostics>,
+}
+
+/// Optional routed diagnostics attached under `metadata.diagnostics`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MetadataDiagnostics {
+    /// Labels that could not fit in the available edge gap after marker avoidance.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unfit_label_overlaps: Vec<UnfitLabelOverlapDiagnostic>,
+}
+
+/// One unfit edge-label overlap diagnostic entry for MMDS/CLI surfaces.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UnfitLabelOverlapDiagnostic {
+    pub edge_id: String,
+    pub label: String,
+    pub gap_pixels: f64,
+    pub label_span_pixels: f64,
+    pub attempted_side: EdgeLabelSide,
 }
 
 /// Bounding box dimensions.

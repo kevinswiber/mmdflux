@@ -1280,6 +1280,7 @@ fn prefixed_display_error(prefix: &str, error: impl Display) -> RenderError {
 fn strip_routed_fields(payload: &Document) -> Document {
     let mut output = payload.clone();
     output.geometry_level = crate::graph::GeometryLevel::Layout;
+    output.metadata.diagnostics = None;
     for edge in &mut output.edges {
         edge.path = None;
         edge.label_position = None;

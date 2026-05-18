@@ -1418,6 +1418,30 @@ fn cli_json_routed_level_includes_paths() {
 }
 
 #[test]
+fn cli_mmds_routed_level_warns_for_unfit_label_overlaps() {
+    mmdflux()
+        .args([
+            "--format",
+            "mmds",
+            "--geometry-level",
+            "routed",
+            "--rank-spacing",
+            "1",
+            "--svg-node-padding-x",
+            "300",
+            "--svg-node-padding-y",
+            "20",
+        ])
+        .write_stdin("graph LR\nA -->|this is a deliberately long label that cannot fit| B\n")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"unfit_label_overlaps\""))
+        .stderr(predicate::str::contains(
+            "Warning: edge e0 label \"this is a deliberately long label that cannot fit\" could not fit gap",
+        ));
+}
+
+#[test]
 fn cli_json_routed_level_accepts_path_simplification_lossless() {
     mmdflux()
         .args([
