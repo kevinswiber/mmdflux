@@ -37,12 +37,12 @@
     <g class="edgeLabels">
       <rect x="74.46" y="101.00" width="64.91" height="28.00" fill="white" />
       <text x="106.92" y="115.00" text-anchor="middle" dominant-baseline="middle" fill="#333">initialize</text>
-      <rect x="65.17" y="249.11" width="73.82" height="28.00" fill="white" />
-      <text x="102.08" y="263.11" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
-      <rect x="59.73" y="435.12" width="32.90" height="28.00" fill="white" />
-      <text x="76.18" y="449.12" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="169.52" y="426.60" width="25.80" height="28.00" fill="white" />
-      <text x="182.42" y="440.60" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="62.34" y="248.50" width="73.82" height="28.00" fill="white" />
+      <text x="99.25" y="262.50" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
+      <rect x="62.79" y="440.48" width="32.90" height="28.00" fill="white" />
+      <text x="79.24" y="454.48" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="169.70" y="409.98" width="25.80" height="28.00" fill="white" />
+      <text x="182.60" y="423.98" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
       <rect x="314.52" y="266.39" width="40.00" height="28.00" fill="white" />
       <text x="334.52" y="280.39" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>

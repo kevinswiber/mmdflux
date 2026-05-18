@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 509.28 679.75" style="max-width: 509.28px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 523.28 679.75" style="max-width: 523.28px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -47,8 +47,8 @@
       <text x="98.92" y="455.25" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
       <rect x="318.77" y="441.25" width="28.45" height="28.00" fill="white" />
       <text x="332.99" y="455.25" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
-      <rect x="375.02" y="309.64" width="126.27" height="28.00" fill="white" />
-      <text x="438.15" y="323.64" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
+      <rect x="389.02" y="307.64" width="126.27" height="28.00" fill="white" />
+      <text x="452.15" y="321.64" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
     </g>
   </g>
 </svg>

@@ -43,10 +43,10 @@
     <g class="edgeLabels">
       <rect x="200.17" y="101.00" width="113.81" height="28.00" fill="white" />
       <text x="257.08" y="115.00" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Request</text>
-      <rect x="141.72" y="437.93" width="35.57" height="28.00" fill="white" />
-      <text x="159.51" y="451.93" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
-      <rect x="292.81" y="444.58" width="28.45" height="28.00" fill="white" />
-      <text x="307.04" y="458.58" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
+      <rect x="81.13" y="441.25" width="35.57" height="28.00" fill="white" />
+      <text x="98.92" y="455.25" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <rect x="280.81" y="459.25" width="28.45" height="28.00" fill="white" />
+      <text x="295.04" y="473.25" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
       <rect x="371.02" y="307.64" width="126.27" height="28.00" fill="white" />
       <text x="434.15" y="321.64" text-anchor="middle" dominant-baseline="middle" fill="#333">HTTP Response</text>
     </g>

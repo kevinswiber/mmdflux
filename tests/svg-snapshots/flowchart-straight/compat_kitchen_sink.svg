@@ -35,10 +35,10 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="84.27" y="277.49" width="40.91" height="28.00" fill="#ffffff" />
-      <text x="104.73" y="291.49" text-anchor="middle" dominant-baseline="middle" fill="#333333">valid</text>
-      <rect x="180.41" y="277.49" width="53.36" height="28.00" fill="#ffffff" />
-      <text x="207.09" y="291.49" text-anchor="middle" dominant-baseline="middle" fill="#333333">invalid</text>
+      <rect x="53.56" y="259.88" width="40.91" height="28.00" fill="#ffffff" />
+      <text x="74.01" y="273.88" text-anchor="middle" dominant-baseline="middle" fill="#333333">valid</text>
+      <rect x="211.12" y="259.88" width="53.36" height="28.00" fill="#ffffff" />
+      <text x="237.80" y="273.88" text-anchor="middle" dominant-baseline="middle" fill="#333333">invalid</text>
     </g>
   </g>
 </svg>

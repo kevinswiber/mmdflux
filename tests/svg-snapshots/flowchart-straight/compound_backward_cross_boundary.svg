@@ -69,24 +69,24 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="166.97" y="208.98" width="61.37" height="28.00" fill="white" />
-      <text x="197.65" y="222.98" text-anchor="middle" dominant-baseline="middle" fill="#333">request</text>
-      <rect x="294.16" y="204.12" width="51.59" height="28.00" fill="white" />
-      <text x="319.96" y="218.12" text-anchor="middle" dominant-baseline="middle" fill="#333">health</text>
-      <rect x="236.03" y="482.90" width="40.02" height="28.00" fill="white" />
-      <text x="256.04" y="496.90" text-anchor="middle" dominant-baseline="middle" fill="#333">read</text>
-      <rect x="295.78" y="438.76" width="69.38" height="28.00" fill="white" />
-      <text x="330.46" y="452.76" text-anchor="middle" dominant-baseline="middle" fill="#333">fast path</text>
-      <rect x="163.97" y="434.05" width="41.78" height="28.00" fill="white" />
-      <text x="184.86" y="448.05" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
+      <rect x="177.68" y="201.00" width="61.37" height="28.00" fill="white" />
+      <text x="208.37" y="215.00" text-anchor="middle" dominant-baseline="middle" fill="#333">request</text>
+      <rect x="288.63" y="201.00" width="51.59" height="28.00" fill="white" />
+      <text x="314.43" y="215.00" text-anchor="middle" dominant-baseline="middle" fill="#333">health</text>
+      <rect x="217.03" y="488.09" width="40.02" height="28.00" fill="white" />
+      <text x="237.04" y="502.09" text-anchor="middle" dominant-baseline="middle" fill="#333">read</text>
+      <rect x="325.36" y="432.09" width="69.38" height="28.00" fill="white" />
+      <text x="360.05" y="446.09" text-anchor="middle" dominant-baseline="middle" fill="#333">fast path</text>
+      <rect x="91.63" y="432.09" width="41.78" height="28.00" fill="white" />
+      <text x="112.52" y="446.09" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
       <rect x="213.48" y="737.61" width="47.12" height="28.00" fill="white" />
       <text x="237.04" y="751.61" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
       <rect x="286.10" y="692.60" width="24.90" height="28.00" fill="white" />
       <text x="298.55" y="706.60" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
-      <rect x="194.84" y="945.62" width="73.82" height="28.00" fill="white" />
-      <text x="231.75" y="959.62" text-anchor="middle" dominant-baseline="middle" fill="#333">response</text>
-      <rect x="330.47" y="735.92" width="40.00" height="28.00" fill="white" />
-      <text x="350.47" y="749.92" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <rect x="200.13" y="917.11" width="73.82" height="28.00" fill="white" />
+      <text x="237.04" y="931.11" text-anchor="middle" dominant-baseline="middle" fill="#333">response</text>
+      <rect x="324.47" y="733.92" width="40.00" height="28.00" fill="white" />
+      <text x="344.47" y="747.92" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>
 </svg>

@@ -116,22 +116,22 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="362.44" y="626.61" width="25.80" height="28.00" fill="white" />
-      <text x="375.34" y="640.61" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <rect x="541.51" y="643.33" width="32.90" height="28.00" fill="white" />
-      <text x="557.96" y="657.33" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="499.64" y="900.44" width="40.90" height="28.00" fill="white" />
-      <text x="520.09" y="914.44" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
-      <rect x="652.68" y="904.01" width="49.80" height="28.00" fill="white" />
-      <text x="677.58" y="918.01" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
-      <rect x="620.65" y="1565.66" width="25.80" height="28.00" fill="white" />
-      <text x="633.55" y="1579.66" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <rect x="509.16" y="1546.27" width="32.90" height="28.00" fill="white" />
-      <text x="525.61" y="1560.27" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="256.63" y="616.77" width="25.80" height="28.00" fill="white" />
+      <text x="269.53" y="630.77" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="545.17" y="642.27" width="32.90" height="28.00" fill="white" />
+      <text x="561.62" y="656.27" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="512.88" y="916.48" width="40.90" height="28.00" fill="white" />
+      <text x="533.33" y="930.48" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
+      <rect x="642.86" y="916.48" width="49.80" height="28.00" fill="white" />
+      <text x="667.76" y="930.48" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
+      <rect x="622.54" y="1572.25" width="25.80" height="28.00" fill="white" />
+      <text x="635.43" y="1586.25" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="518.55" y="1558.34" width="32.90" height="28.00" fill="white" />
+      <text x="535.00" y="1572.34" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <rect x="77.14" y="402.29" width="24.90" height="28.00" fill="white" />
       <text x="89.59" y="416.29" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
-      <rect x="258.31" y="444.69" width="40.88" height="28.00" fill="white" />
-      <text x="278.75" y="458.69" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
+      <rect x="185.56" y="402.29" width="40.88" height="28.00" fill="white" />
+      <text x="206.01" y="416.29" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
       <rect x="685.57" y="1399.66" width="42.68" height="28.00" fill="white" />
       <text x="706.91" y="1413.66" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>

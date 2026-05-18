@@ -53,6 +53,32 @@ fn render_svg(diagram: &crate::graph::Graph, config: &RenderConfig) -> String {
     }
 }
 
+fn render_svg_with_geometry(
+    diagram: &crate::graph::Graph,
+    config: &RenderConfig,
+) -> (String, crate::graph::geometry::GraphGeometry) {
+    let engine = FluxLayeredEngine::text();
+    let metrics = default_proportional_text_metrics();
+    let request = GraphSolveRequest::new(
+        MeasurementMode::Proportional(&metrics),
+        GraphGeometryContract::Visual,
+        config.geometry_level,
+        config
+            .routing_style
+            .or_else(|| config.edge_preset.map(|preset| preset.expand().0)),
+        Default::default(),
+    );
+    let result = engine
+        .solve(
+            diagram,
+            &EngineConfig::Layered(config.layout.clone().into()),
+            &request,
+        )
+        .expect("SVG render should succeed");
+    let svg = render_svg_from_geometry(diagram, &result.geometry, &config.svg_render_options());
+    (svg, result.geometry)
+}
+
 fn render_svg_with_provider_for_test(input: &str, provider: &dyn TextMetricsProvider) -> String {
     let flowchart = parse_flowchart(input).expect("fixture parses");
     let diagram = compile_to_graph(&flowchart);
@@ -600,65 +626,72 @@ fn euclidean_distance(a: (f64, f64), b: (f64, f64)) -> f64 {
     ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()
 }
 
-fn distance_point_to_svg_segment(point: (f64, f64), a: (f64, f64), b: (f64, f64)) -> f64 {
-    let dx = b.0 - a.0;
-    let dy = b.1 - a.1;
-    let seg_len_sq = dx * dx + dy * dy;
-    if seg_len_sq <= 0.000_001 {
-        return euclidean_distance(point, a);
-    }
-
-    let projection = ((point.0 - a.0) * dx + (point.1 - a.1) * dy) / seg_len_sq;
-    let t = projection.clamp(0.0, 1.0);
-    let closest = (a.0 + t * dx, a.1 + t * dy);
-    euclidean_distance(point, closest)
-}
-
-fn distance_point_to_svg_path(point: (f64, f64), path: &[(f64, f64)]) -> f64 {
-    if path.is_empty() {
-        return f64::INFINITY;
-    }
-    if path.len() == 1 {
-        return euclidean_distance(point, path[0]);
-    }
-    path.windows(2)
-        .map(|segment| distance_point_to_svg_segment(point, segment[0], segment[1]))
-        .fold(f64::INFINITY, f64::min)
-}
-
-fn svg_label_drift_failures(
+fn svg_label_geometry_center_failures(
     svg: &str,
     diagram: &crate::graph::Graph,
-    max_distance: f64,
+    geom: &crate::graph::geometry::GraphGeometry,
 ) -> Vec<String> {
-    let expected_labels = diagram
-        .edges
-        .iter()
-        .filter(|edge| edge.label.is_some())
-        .count();
     let label_positions = extract_edge_label_positions(svg, diagram);
-    let paths: Vec<Vec<(f64, f64)>> = edge_path_data(svg)
-        .iter()
-        .map(|path| parse_svg_path_points(path))
-        .collect();
+    let mut expected_by_label: HashMap<String, Vec<(f64, f64)>> = HashMap::new();
+    for edge in &diagram.edges {
+        let Some(label) = &edge.label else {
+            continue;
+        };
+        let Some(label_geometry) = geom
+            .edges
+            .iter()
+            .find(|layout_edge| layout_edge.index == edge.index)
+            .and_then(|layout_edge| layout_edge.label_geometry.as_ref())
+        else {
+            continue;
+        };
+        expected_by_label
+            .entry(label.clone())
+            .or_default()
+            .push((label_geometry.center.x, label_geometry.center.y));
+    }
 
+    let expected_count: usize = expected_by_label.values().map(Vec::len).sum();
     let mut failures = Vec::new();
-    if label_positions.len() != expected_labels {
+    if label_positions.len() != expected_count {
         failures.push(format!(
-            "edge-label extraction mismatch: expected={expected_labels}, extracted={}",
+            "edge-label extraction mismatch: expected={expected_count}, extracted={}",
             label_positions.len()
         ));
     }
 
-    for (label, point) in label_positions {
-        let drift = paths
+    for (label, actual) in label_positions {
+        let Some(candidates) = expected_by_label.get_mut(&label) else {
+            failures.push(format!("unexpected rendered edge label {label:?}"));
+            continue;
+        };
+        let Some((best_index, best_distance)) = candidates
             .iter()
-            .map(|path| distance_point_to_svg_path(point, path))
-            .fold(f64::INFINITY, f64::min);
-        if drift > max_distance {
+            .enumerate()
+            .map(|(index, expected)| (index, euclidean_distance(actual, *expected)))
+            .min_by(|(_, a), (_, b)| a.total_cmp(b))
+        else {
+            failures.push(format!("no remaining label_geometry center for {label:?}"));
+            continue;
+        };
+        let expected = candidates.remove(best_index);
+        if best_distance > SVG_LABEL_GEOMETRY_CENTER_TOLERANCE {
             failures.push(format!(
-                "label {label:?} at ({:.2}, {:.2}) drift={drift:.2} exceeds {max_distance:.2}",
-                point.0, point.1
+                "label {label:?} at ({:.2}, {:.2}) expected ({:.2}, {:.2}) distance={best_distance:.2} exceeds {:.2}",
+                actual.0,
+                actual.1,
+                expected.0,
+                expected.1,
+                SVG_LABEL_GEOMETRY_CENTER_TOLERANCE
+            ));
+        }
+    }
+
+    for (label, remaining) in expected_by_label {
+        for expected in remaining {
+            failures.push(format!(
+                "missing rendered edge label {label:?} for label_geometry center ({:.2}, {:.2})",
+                expected.0, expected.1
             ));
         }
     }
@@ -2363,17 +2396,10 @@ fn routed_svg_defaults_to_none_path_simplification() {
     }
 }
 
-// Tolerance for SVG label drift from rendered active path segments.
-// Plan 0145 PR 3 lane shifts intentionally place labels off-path by
-// `track * label_step` (typically 16-32 px) to resolve compartment
-// overlap. The lane-shifted labels are excluded from this assertion
-// in `labeled_edge_label_drift_failures_for_svg`. Non-lane-shifted
-// labels (singletons, `track == 0`) should still attach tightly to
-// their edge, so the original 2.0 px gate stays.
-const SVG_LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT: f64 = 2.0;
+const SVG_LABEL_GEOMETRY_CENTER_TOLERANCE: f64 = 1.0;
 
 #[test]
-fn svg_orthogonal_orthogonal_route_labeled_edges_labels_remain_attached_to_active_segments() {
+fn svg_orthogonal_orthogonal_route_labeled_edges_labels_use_label_geometry_centers() {
     let diagram = load_flowchart_fixture_diagram("labeled_edges.mmd");
     let options = RenderConfig {
         routing_style: Some(RoutingStyle::Orthogonal),
@@ -2381,23 +2407,18 @@ fn svg_orthogonal_orthogonal_route_labeled_edges_labels_remain_attached_to_activ
         path_simplification: PathSimplification::None,
         ..Default::default()
     };
-    let svg = render_svg(&diagram, &options);
+    let (svg, geom) = render_svg_with_geometry(&diagram, &options);
 
-    let failures = svg_label_drift_failures(
-        &svg,
-        &diagram,
-        SVG_LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT,
-    );
+    let failures = svg_label_geometry_center_failures(&svg, &diagram, &geom);
     assert!(
         failures.is_empty(),
-        "Label revalidation regression: labeled_edges rendered off-path edge labels:\n{}",
+        "labeled_edges SVG labels diverged from label_geometry centers:\n{}",
         failures.join("\n")
     );
 }
 
 #[test]
-fn svg_orthogonal_orthogonal_route_inline_label_flowchart_labels_remain_attached_to_active_segments()
- {
+fn svg_orthogonal_orthogonal_route_inline_label_flowchart_labels_use_label_geometry_centers() {
     let diagram = load_flowchart_fixture_diagram("inline_label_flowchart.mmd");
     let options = RenderConfig {
         routing_style: Some(RoutingStyle::Orthogonal),
@@ -2405,16 +2426,12 @@ fn svg_orthogonal_orthogonal_route_inline_label_flowchart_labels_remain_attached
         path_simplification: PathSimplification::None,
         ..Default::default()
     };
-    let svg = render_svg(&diagram, &options);
+    let (svg, geom) = render_svg_with_geometry(&diagram, &options);
 
-    let failures = svg_label_drift_failures(
-        &svg,
-        &diagram,
-        SVG_LABEL_REVALIDATION_MAX_DISTANCE_TO_ACTIVE_SEGMENT,
-    );
+    let failures = svg_label_geometry_center_failures(&svg, &diagram, &geom);
     assert!(
         failures.is_empty(),
-        "Label revalidation regression: inline_label_flowchart rendered off-path edge labels:\n{}",
+        "inline_label_flowchart SVG labels diverged from label_geometry centers:\n{}",
         failures.join("\n")
     );
 }
@@ -6304,6 +6321,22 @@ mod plan_0145_q9_red {
     #[test]
     fn svg_viewbox_covers_all_label_background_rects_multi_edge() {
         let input = load_flowchart_fixture("multi_edge_labeled.mmd");
+        let svg = render_svg_default(&input);
+        let failures = svg_viewbox_contains_rects(&svg);
+        assert!(failures.is_empty(), "viewBox violations: {failures:?}");
+    }
+
+    #[test]
+    fn svg_viewbox_covers_git_workflow_lr_backward_label() {
+        let input = load_flowchart_fixture("git_workflow.mmd");
+        let svg = render_svg_default(&input);
+        let failures = svg_viewbox_contains_rects(&svg);
+        assert!(failures.is_empty(), "viewBox violations: {failures:?}");
+    }
+
+    #[test]
+    fn svg_viewbox_covers_git_workflow_td_backward_label() {
+        let input = load_flowchart_fixture("git_workflow_td.mmd");
         let svg = render_svg_default(&input);
         let failures = svg_viewbox_contains_rects(&svg);
         assert!(failures.is_empty(), "viewBox violations: {failures:?}");

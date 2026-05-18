@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 451.00 196.00" style="max-width: 451.00px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 451.00 199.50" style="max-width: 451.00px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
     </marker>
   </defs>
-  <g transform="translate(0.00,0.00)">
+  <g transform="translate(0.00,3.50)">
     <g class="edgePaths">
       <path d="M100.00,55.32 L101.39,55.32 C102.78,55.32 105.56,55.32 108.33,54.99 C111.11,54.65 113.89,53.99 116.00,53.65 C118.11,53.32 119.56,53.32 120.28,53.32 L121.00,53.32" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M233.00,39.43 L240.88,38.03 L243.73,37.53 C246.58,37.02 252.29,36.01 262.31,35.51 C272.33,35.00 286.67,35.00 300.17,35.00 C313.67,35.00 326.33,35.00 332.67,35.00 L339.00,35.00 L347.00,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
@@ -30,10 +30,10 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="269.81" y="21.00" width="40.00" height="28.00" fill="white" />
-      <text x="289.81" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">成功</text>
-      <rect x="269.71" y="80.00" width="40.00" height="28.00" fill="white" />
-      <text x="289.71" y="94.00" text-anchor="middle" dominant-baseline="middle" fill="#333">失败</text>
+      <rect x="259.50" y="4.50" width="40.00" height="28.00" fill="white" />
+      <text x="279.50" y="18.50" text-anchor="middle" dominant-baseline="middle" fill="#333">成功</text>
+      <rect x="259.50" y="63.50" width="40.00" height="28.00" fill="white" />
+      <text x="279.50" y="77.50" text-anchor="middle" dominant-baseline="middle" fill="#333">失败</text>
       <rect x="165.50" y="160.00" width="40.00" height="28.00" fill="white" />
       <text x="185.50" y="174.00" text-anchor="middle" dominant-baseline="middle" fill="#333">重试</text>
     </g>

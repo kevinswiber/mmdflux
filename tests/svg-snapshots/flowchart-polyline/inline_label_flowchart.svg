@@ -116,12 +116,12 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="320.86" y="596.47" width="25.80" height="28.00" fill="white" />
-      <text x="333.76" y="610.47" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="256.63" y="616.77" width="25.80" height="28.00" fill="white" />
+      <text x="269.53" y="630.77" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
       <rect x="599.90" y="624.94" width="32.90" height="28.00" fill="white" />
       <text x="616.35" y="638.94" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="453.14" y="874.69" width="40.90" height="28.00" fill="white" />
-      <text x="473.59" y="888.69" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
+      <rect x="429.87" y="889.48" width="40.90" height="28.00" fill="white" />
+      <text x="450.31" y="903.48" text-anchor="middle" dominant-baseline="middle" fill="#333">sync</text>
       <rect x="694.27" y="908.18" width="49.80" height="28.00" fill="white" />
       <text x="719.16" y="922.18" text-anchor="middle" dominant-baseline="middle" fill="#333">async</text>
       <rect x="622.54" y="1572.25" width="25.80" height="28.00" fill="white" />
@@ -130,8 +130,8 @@
       <text x="571.35" y="1542.84" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
       <rect x="77.14" y="402.29" width="24.90" height="28.00" fill="white" />
       <text x="89.59" y="416.29" text-anchor="middle" dominant-baseline="middle" fill="#333">hit</text>
-      <rect x="265.52" y="462.16" width="40.88" height="28.00" fill="white" />
-      <text x="285.96" y="476.16" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
+      <rect x="185.56" y="402.29" width="40.88" height="28.00" fill="white" />
+      <text x="206.01" y="416.29" text-anchor="middle" dominant-baseline="middle" fill="#333">miss</text>
       <rect x="728.95" y="1387.49" width="42.68" height="28.00" fill="white" />
       <text x="750.29" y="1401.49" text-anchor="middle" dominant-baseline="middle" fill="#333">warn</text>
     </g>

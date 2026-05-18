@@ -57,8 +57,8 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="370.51" y="212.79" width="40.91" height="28.00" fill="white" />
-      <text x="390.96" y="226.79" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <rect x="382.40" y="227.40" width="40.91" height="28.00" fill="white" />
+      <text x="402.85" y="241.40" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
       <rect x="127.90" y="232.32" width="53.36" height="28.00" fill="white" />
       <text x="154.58" y="246.32" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
       <rect x="514.54" y="130.54" width="32.90" height="28.00" fill="white" />

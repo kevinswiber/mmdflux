@@ -21,8 +21,8 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="-9.35" y="99.00" width="34.70" height="28.00" fill="white" />
-      <text x="8.00" y="113.00" text-anchor="middle" dominant-baseline="middle" fill="#333">one</text>
+      <rect x="-9.35" y="70.50" width="34.70" height="28.00" fill="white" />
+      <text x="8.00" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">one</text>
       <rect x="45.35" y="94.75" width="32.90" height="28.00" fill="white" />
       <text x="61.80" y="108.75" text-anchor="middle" dominant-baseline="middle" fill="#333">two</text>
       <rect x="66.90" y="126.75" width="44.47" height="28.00" fill="white" />

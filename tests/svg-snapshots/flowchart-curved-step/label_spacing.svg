@@ -24,10 +24,10 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="39.49" y="99.00" width="40.91" height="28.00" fill="white" />
-      <text x="59.95" y="113.00" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
-      <rect x="121.16" y="99.00" width="53.36" height="28.00" fill="white" />
-      <text x="147.84" y="113.00" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <rect x="22.88" y="70.50" width="40.91" height="28.00" fill="white" />
+      <text x="43.34" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <rect x="137.77" y="70.50" width="53.36" height="28.00" fill="white" />
+      <text x="164.45" y="84.50" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
     </g>
   </g>
 </svg>

@@ -30,10 +30,10 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="50.21" y="292.11" width="35.57" height="28.00" fill="white" />
-      <text x="68.00" y="306.11" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
-      <rect x="150.12" y="281.14" width="28.45" height="28.00" fill="white" />
-      <text x="164.35" y="295.14" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
+      <rect x="42.45" y="267.87" width="35.57" height="28.00" fill="white" />
+      <text x="60.23" y="281.87" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes</text>
+      <rect x="132.80" y="267.87" width="28.45" height="28.00" fill="white" />
+      <text x="147.03" y="281.87" text-anchor="middle" dominant-baseline="middle" fill="#333">No</text>
     </g>
   </g>
 </svg>

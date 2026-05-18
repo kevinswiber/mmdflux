@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 559.43 737.41" style="max-width: 559.43px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 573.43 737.41" style="max-width: 573.43px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -61,10 +61,10 @@
       <text x="443.07" y="246.32" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
       <rect x="127.90" y="232.32" width="53.36" height="28.00" fill="white" />
       <text x="154.58" y="246.32" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
-      <rect x="518.54" y="132.54" width="32.90" height="28.00" fill="white" />
-      <text x="534.98" y="146.54" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="284.77" y="516.65" width="25.80" height="28.00" fill="white" />
-      <text x="297.67" y="530.65" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="532.54" y="130.54" width="32.90" height="28.00" fill="white" />
+      <text x="548.98" y="144.54" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
+      <rect x="441.29" y="554.91" width="25.80" height="28.00" fill="white" />
+      <text x="454.19" y="568.91" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>

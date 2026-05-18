@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1121.15 174.00" style="max-width: 1121.15px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1121.15 177.50" style="max-width: 1121.15px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
     </marker>
   </defs>
-  <g transform="translate(0.00,0.00)">
+  <g transform="translate(0.00,3.50)">
     <g class="edgePaths">
       <path d="M129.36,87.00 L132.14,87.00 C134.91,87.00 140.47,87.00 145.47,87.00 C150.47,87.00 154.91,87.00 159.80,87.00 C164.69,87.00 170.03,87.00 172.69,87.00 L175.36,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
       <path d="M274.94,87.00 L277.72,87.00 C280.49,87.00 286.05,87.00 291.05,87.00 C296.05,87.00 300.49,87.00 305.38,87.00 C310.27,87.00 315.60,87.00 318.27,87.00 L320.94,87.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
@@ -44,10 +44,10 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="828.71" y="21.00" width="59.59" height="28.00" fill="white" />
-      <text x="858.51" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
-      <rect x="817.15" y="125.00" width="82.72" height="28.00" fill="white" />
-      <text x="858.51" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
+      <rect x="832.65" y="4.50" width="59.59" height="28.00" fill="white" />
+      <text x="862.45" y="18.50" text-anchor="middle" dominant-baseline="middle" fill="#333">staging</text>
+      <rect x="832.65" y="108.50" width="82.72" height="28.00" fill="white" />
+      <text x="874.01" y="122.50" text-anchor="middle" dominant-baseline="middle" fill="#333">production</text>
     </g>
   </g>
 </svg>

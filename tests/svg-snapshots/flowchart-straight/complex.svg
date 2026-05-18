@@ -57,14 +57,14 @@
       </g>
     </g>
     <g class="edgeLabels">
-      <rect x="341.58" y="232.86" width="40.91" height="28.00" fill="white" />
-      <text x="362.03" y="246.86" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
-      <rect x="166.00" y="237.09" width="53.36" height="28.00" fill="white" />
-      <text x="192.68" y="251.09" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
+      <rect x="326.91" y="250.32" width="40.91" height="28.00" fill="white" />
+      <text x="347.36" y="264.32" text-anchor="middle" dominant-baseline="middle" fill="#333">valid</text>
+      <rect x="127.90" y="232.32" width="53.36" height="28.00" fill="white" />
+      <text x="154.58" y="246.32" text-anchor="middle" dominant-baseline="middle" fill="#333">invalid</text>
       <rect x="514.54" y="130.54" width="32.90" height="28.00" fill="white" />
       <text x="530.98" y="144.54" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="324.05" y="578.11" width="25.80" height="28.00" fill="white" />
-      <text x="336.95" y="592.11" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="340.02" y="596.91" width="25.80" height="28.00" fill="white" />
+      <text x="352.92" y="610.91" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
     </g>
   </g>
 </svg>

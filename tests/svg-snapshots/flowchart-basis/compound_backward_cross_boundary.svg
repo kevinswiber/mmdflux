@@ -77,8 +77,8 @@
       <text x="237.04" y="502.09" text-anchor="middle" dominant-baseline="middle" fill="#333">read</text>
       <rect x="325.36" y="432.09" width="69.38" height="28.00" fill="white" />
       <text x="360.05" y="446.09" text-anchor="middle" dominant-baseline="middle" fill="#333">fast path</text>
-      <rect x="135.39" y="414.70" width="41.78" height="28.00" fill="white" />
-      <text x="156.28" y="428.70" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
+      <rect x="91.63" y="432.09" width="41.78" height="28.00" fill="white" />
+      <text x="112.52" y="446.09" text-anchor="middle" dominant-baseline="middle" fill="#333">write</text>
       <rect x="213.48" y="657.11" width="47.12" height="28.00" fill="white" />
       <text x="237.04" y="671.11" text-anchor="middle" dominant-baseline="middle" fill="#333">result</text>
       <rect x="347.60" y="740.32" width="24.90" height="28.00" fill="white" />

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 222.00 507.00" style="max-width: 222.00px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 236.00 507.00" style="max-width: 236.00px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -45,10 +45,10 @@
       <text x="69.00" y="166.50" text-anchor="middle" dominant-baseline="middle" fill="#333">提交</text>
       <rect x="18.50" y="300.00" width="40.00" height="28.00" fill="white" />
       <text x="38.50" y="314.00" text-anchor="middle" dominant-baseline="middle" fill="#333">成功</text>
-      <rect x="114.87" y="280.56" width="40.00" height="28.00" fill="white" />
-      <text x="134.87" y="294.56" text-anchor="middle" dominant-baseline="middle" fill="#333">失败</text>
-      <rect x="174.00" y="193.50" width="40.00" height="28.00" fill="white" />
-      <text x="194.00" y="207.50" text-anchor="middle" dominant-baseline="middle" fill="#333">重试</text>
+      <rect x="85.00" y="269.50" width="40.00" height="28.00" fill="white" />
+      <text x="105.00" y="283.50" text-anchor="middle" dominant-baseline="middle" fill="#333">失败</text>
+      <rect x="188.00" y="191.50" width="40.00" height="28.00" fill="white" />
+      <text x="208.00" y="205.50" text-anchor="middle" dominant-baseline="middle" fill="#333">重试</text>
     </g>
   </g>
 </svg>

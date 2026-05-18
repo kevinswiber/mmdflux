@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 366.52 569.48" style="max-width: 366.52px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 380.52 569.48" style="max-width: 380.52px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
   <defs>
     <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
       <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
@@ -41,10 +41,10 @@
       <text x="95.27" y="262.50" text-anchor="middle" dominant-baseline="middle" fill="#333">configure</text>
       <rect x="51.57" y="429.26" width="32.90" height="28.00" fill="white" />
       <text x="68.02" y="443.26" text-anchor="middle" dominant-baseline="middle" fill="#333">yes</text>
-      <rect x="214.22" y="370.71" width="25.80" height="28.00" fill="white" />
-      <text x="227.12" y="384.71" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
-      <rect x="318.52" y="268.39" width="40.00" height="28.00" fill="white" />
-      <text x="338.52" y="282.39" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
+      <rect x="169.70" y="409.98" width="25.80" height="28.00" fill="white" />
+      <text x="182.60" y="423.98" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+      <rect x="332.52" y="266.39" width="40.00" height="28.00" fill="white" />
+      <text x="352.52" y="280.39" text-anchor="middle" dominant-baseline="middle" fill="#333">retry</text>
     </g>
   </g>
 </svg>
