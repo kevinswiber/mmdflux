@@ -264,6 +264,7 @@ fn parse_node_style_extension(style_object: &Map<String, Value>) -> NodeStyle {
             "stroke_dasharray",
         ),
         rx: parse_style_string(style_object, "rx"),
+        ry: parse_style_string(style_object, "ry"),
     }
 }
 

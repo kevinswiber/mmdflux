@@ -840,6 +840,9 @@ fn serialize_node_style_extension(style: &NodeStyle) -> Map<String, Value> {
     if let Some(v) = &style.rx {
         payload.insert("rx".to_string(), Value::String(v.clone()));
     }
+    if let Some(v) = &style.ry {
+        payload.insert("ry".to_string(), Value::String(v.clone()));
+    }
     payload
 }
 

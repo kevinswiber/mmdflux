@@ -382,6 +382,10 @@ Rules:
 - Omit the profile and extension entirely when no node, edge-label, or subgraph
   styles are present.
 - `fill`, `stroke`, and `color` preserve the raw Mermaid/MMDS color token.
+- `rx` and `ry` carry the SVG horizontal and vertical corner radii. When `ry`
+  is omitted, SVG falls back to `rx`, so single-radius styles emit only `rx`
+  for byte-identical replay; independent vertical curvature requires an
+  explicit `ry` value.
 - Edge-label entries are keyed by MMDS edge id and preserve Mermaid `linkStyle`
   font tokens for SVG rendering and dynamic text measurement replay.
 - Subgraph entries live at `org.mmdflux.node-style.v1.subgraphs`; the historical

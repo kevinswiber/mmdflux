@@ -731,7 +731,8 @@
         "font-weight": { "type": "string", "description": "CSS font-weight value (e.g. bold, 700)." },
         "stroke-width": { "type": "string", "description": "CSS stroke-width value (e.g. 4px)." },
         "stroke-dasharray": { "type": "string", "description": "SVG stroke-dasharray value (e.g. 5,3)." },
-        "rx": { "type": "string", "description": "SVG rx (border-radius) value." },
+        "rx": { "type": "string", "description": "SVG rx (horizontal border-radius) value." },
+        "ry": { "type": "string", "description": "SVG ry (vertical border-radius) value. When omitted, SVG falls back to rx." },
         "classNames": {
           "type": "array",
           "items": { "type": "string" },
@@ -782,7 +783,11 @@
         },
         "rx": {
           "type": "string",
-          "description": "SVG rx (border-radius) value."
+          "description": "SVG rx (horizontal border-radius) value."
+        },
+        "ry": {
+          "type": "string",
+          "description": "SVG ry (vertical border-radius) value. When omitted, SVG falls back to rx."
         }
       },
       "additionalProperties": false

@@ -22,6 +22,7 @@ struct ResolvedSvgNodeStyle<'a> {
     stroke_width: Option<&'a str>,
     stroke_dasharray: Option<&'a str>,
     rx: Option<&'a str>,
+    ry: Option<&'a str>,
 }
 
 impl<'a> ResolvedSvgNodeStyle<'a> {
@@ -33,6 +34,7 @@ impl<'a> ResolvedSvgNodeStyle<'a> {
             stroke_width: node.style.stroke_width.as_deref(),
             stroke_dasharray: node.style.stroke_dasharray.as_deref(),
             rx: node.style.rx.as_deref(),
+            ry: node.style.ry.as_deref(),
         }
     }
 
@@ -79,6 +81,7 @@ struct ResolvedSvgSubgraphStyle<'a> {
     stroke_width: Option<&'a str>,
     stroke_dasharray: Option<&'a str>,
     rx: Option<&'a str>,
+    ry: Option<&'a str>,
 }
 
 impl<'a> ResolvedSvgSubgraphStyle<'a> {
@@ -90,6 +93,7 @@ impl<'a> ResolvedSvgSubgraphStyle<'a> {
             stroke_width: subgraph.style.stroke_width.as_deref(),
             stroke_dasharray: subgraph.style.stroke_dasharray.as_deref(),
             rx: subgraph.style.rx.as_deref(),
+            ry: subgraph.style.ry.as_deref(),
         }
     }
 
@@ -115,6 +119,22 @@ impl<'a> ResolvedSvgSubgraphStyle<'a> {
 
     fn text_is_overridden(self) -> bool {
         self.text.is_some()
+    }
+}
+
+/// Format the optional `rx`/`ry` SVG corner-radius attributes.
+///
+/// Preserves byte-identical output for the historical single-radius case:
+/// `(Some(rx), None)` emits `rx=".." ry=".."` with the same value for both
+/// axes, matching SVG's implicit fallback. When `ry` is explicitly set and
+/// differs from `rx`, both attributes are emitted independently. When only
+/// `ry` is set, just `ry` is emitted and `rx` falls back to SVG defaults.
+fn format_rx_ry_attrs(rx: Option<&str>, ry: Option<&str>) -> String {
+    match (rx, ry) {
+        (None, None) => String::new(),
+        (Some(rx_val), None) => format!(" rx=\"{rx_val}\" ry=\"{rx_val}\""),
+        (None, Some(ry_val)) => format!(" ry=\"{ry_val}\""),
+        (Some(rx_val), Some(ry_val)) => format!(" rx=\"{rx_val}\" ry=\"{ry_val}\""),
     }
 }
 
@@ -198,10 +218,7 @@ pub(super) fn render_subgraphs(
             .stroke_dasharray
             .map(|v| format!(" stroke-dasharray=\"{v}\""))
             .unwrap_or_default();
-        let rx_attr = style
-            .rx
-            .map(|v| format!(" rx=\"{v}\" ry=\"{v}\""))
-            .unwrap_or_default();
+        let rx_attr = format_rx_ry_attrs(style.rx, style.ry);
         let rect_line = format!(
             "<rect class=\"subgraph\" x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\"{rx_attr} fill=\"{fill}\" stroke=\"{stroke}\" stroke-width=\"{stroke_width}\"{dasharray_attr}{dynamic_attrs} />",
             x = fmt_f64(rect.x),
@@ -509,10 +526,7 @@ fn render_node_shape(
 
     match node.shape {
         Shape::Rectangle => {
-            let rx_attr = node_style
-                .rx
-                .map(|v| format!(" rx=\"{v}\" ry=\"{v}\""))
-                .unwrap_or_default();
+            let rx_attr = format_rx_ry_attrs(node_style.rx, node_style.ry);
             let line = format!(
                 "<rect x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\"{rx_attr}{style} />",
                 x = fmt_f64(rect.x),
@@ -527,6 +541,7 @@ fn render_node_shape(
         Shape::Round => {
             let default_radius = fmt_f64(5.0 * scale);
             let rx_val = node_style.rx.unwrap_or(&default_radius);
+            let ry_val = node_style.ry.unwrap_or(rx_val);
             let line = format!(
                 "<rect x=\"{x}\" y=\"{y}\" width=\"{w}\" height=\"{h}\" rx=\"{rx}\" ry=\"{ry}\"{style} />",
                 x = fmt_f64(rect.x),
@@ -534,7 +549,7 @@ fn render_node_shape(
                 w = fmt_f64(rect.width),
                 h = fmt_f64(rect.height),
                 rx = rx_val,
-                ry = rx_val,
+                ry = ry_val,
                 style = style
             );
             writer.push_line(&line);

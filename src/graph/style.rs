@@ -29,6 +29,8 @@ pub struct NodeStyle {
     pub stroke_dasharray: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rx: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ry: Option<String>,
 }
 
 impl NodeStyle {
@@ -43,6 +45,7 @@ impl NodeStyle {
             && self.stroke_width.is_none()
             && self.stroke_dasharray.is_none()
             && self.rx.is_none()
+            && self.ry.is_none()
     }
 
     pub fn with_fill(mut self, fill: ColorToken) -> Self {
@@ -87,6 +90,7 @@ impl NodeStyle {
                 .clone()
                 .or_else(|| self.stroke_dasharray.clone()),
             rx: overlay.rx.clone().or_else(|| self.rx.clone()),
+            ry: overlay.ry.clone().or_else(|| self.ry.clone()),
         }
     }
 }
@@ -226,7 +230,7 @@ impl NodeStyleIssue {
     pub fn message(&self) -> String {
         match self {
             NodeStyleIssue::UnsupportedProperty { property } => format!(
-                "style property '{}' is not supported; supported properties are fill, stroke, color, font-family, font-size, font-style, font-weight, stroke-width, stroke-dasharray, and rx",
+                "style property '{}' is not supported; supported properties are fill, stroke, color, font-family, font-size, font-style, font-weight, stroke-width, stroke-dasharray, rx, and ry",
                 property
             ),
             NodeStyleIssue::UnsupportedColorSyntax { property, value } => format!(
@@ -439,6 +443,10 @@ pub(crate) fn parse_node_style_declarations(raw: &str) -> ParsedNodeStyleDeclara
             }
             "rx" => {
                 style.rx = Some(value.to_string());
+                continue;
+            }
+            "ry" => {
+                style.ry = Some(value.to_string());
                 continue;
             }
             _ => {}
@@ -880,6 +888,15 @@ mod tests {
                 parsed.issues
             );
         }
+    }
+
+    #[test]
+    fn parse_node_style_accepts_independent_rx_and_ry() {
+        let parsed = parse_node_style_declarations("rx:8,ry:14");
+
+        assert_eq!(parsed.style.rx.as_deref(), Some("8"));
+        assert_eq!(parsed.style.ry.as_deref(), Some("14"));
+        assert!(parsed.issues.is_empty(), "{:?}", parsed.issues);
     }
 
     #[test]

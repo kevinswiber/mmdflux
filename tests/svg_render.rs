@@ -1031,6 +1031,51 @@ fn svg_node_with_rx() {
 }
 
 #[test]
+fn svg_node_with_rx_only_mirrors_ry_for_backwards_compatibility() {
+    // Historical single-radius behaviour: when only `rx` is supplied, the SVG
+    // emits `rx=<v> ry=<v>` so the rect renders as a uniform rounded corner.
+    let input = "graph TD\n  classDef rounded rx:10\n  A[Box]:::rounded\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("rx=\"10\" ry=\"10\""),
+        "expected mirrored rx/ry in SVG: {svg}"
+    );
+}
+
+#[test]
+fn svg_node_with_independent_ry_emits_distinct_radius() {
+    let input = "graph TD\n  classDef ovalish rx:10,ry:20\n  A[Box]:::ovalish\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("rx=\"10\" ry=\"20\""),
+        "expected independent rx and ry in SVG: {svg}"
+    );
+}
+
+#[test]
+fn svg_subgraph_with_independent_ry_emits_distinct_radius() {
+    let input = "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef rounded rx:10,ry:24\nclass A rounded\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("rx=\"10\" ry=\"24\""),
+        "expected independent rx/ry on subgraph rect: {svg}"
+    );
+}
+
+#[test]
+fn svg_subgraph_with_rx_only_keeps_single_radius() {
+    // Default subgraph styles (no explicit ry) MUST keep the historical
+    // single-radius output for byte-identical replay.
+    let input =
+        "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef rounded rx:10\nclass A rounded\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains("rx=\"10\" ry=\"10\""),
+        "expected mirrored rx/ry on subgraph rect: {svg}"
+    );
+}
+
+#[test]
 fn svg_node_with_stroke_dasharray() {
     let input = "graph TD\n  classDef dashed stroke-dasharray:5,3\n  A:::dashed\n";
     let svg = render_svg(input, &RenderConfig::default());

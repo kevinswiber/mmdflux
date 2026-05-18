@@ -505,6 +505,39 @@ fn mmds_output_emits_subgraph_style_extension_when_styles_exist() {
 }
 
 #[test]
+fn mmds_output_round_trips_independent_subgraph_corner_radii() {
+    let json = render_json(
+        "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef rounded rx:10,ry:24\nclass A rounded\n",
+    );
+    let value: Value = serde_json::from_str(&json).unwrap();
+    let style = &value["extensions"]["org.mmdflux.node-style.v1"]["subgraphs"]["A"];
+    assert_eq!(style["rx"], "10");
+    assert_eq!(style["ry"], "24");
+    assert_schema_valid(value.clone());
+
+    let input = serde_json::to_string(&value).expect("MMDS payload should serialize");
+    let svg = render_mmds_input(&input, OutputFormat::Svg, RenderConfig::default());
+    assert!(
+        svg.contains("rx=\"10\" ry=\"24\""),
+        "expected independent rx/ry on subgraph after MMDS replay: {svg}"
+    );
+}
+
+#[test]
+fn mmds_output_round_trips_subgraph_rx_only_without_emitting_ry() {
+    let json = render_json(
+        "flowchart LR\nsubgraph A[Source]\na1\nend\nclassDef rounded rx:10\nclass A rounded\n",
+    );
+    let value: Value = serde_json::from_str(&json).unwrap();
+    let style = &value["extensions"]["org.mmdflux.node-style.v1"]["subgraphs"]["A"];
+    assert_eq!(style["rx"], "10");
+    assert!(
+        style.get("ry").is_none(),
+        "single-radius subgraph styles must not emit ry to keep MMDS payloads stable: {value}"
+    );
+}
+
+#[test]
 fn schema_accepts_edge_style_extension_entries() {
     let mut value: Value = serde_json::from_str(STYLED_MMDS_LAYOUT).unwrap();
     value["extensions"]["org.mmdflux.node-style.v1"] = json!({
