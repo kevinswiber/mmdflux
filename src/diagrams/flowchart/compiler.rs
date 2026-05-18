@@ -14,6 +14,12 @@ type ClassDefRegistry = HashMap<String, NodeStyle>;
 struct StyleTargets<'a> {
     node_styles: &'a mut HashMap<String, NodeStyle>,
     subgraph_styles: &'a mut HashMap<String, NodeStyle>,
+    /// Class names recorded against node ids whose `Node` may not yet exist in
+    /// the diagram (resolve_class_annotation runs before add_vertex_to_diagram).
+    /// `add_vertex_to_diagram` consults the entry when it instantiates the
+    /// node; the buffer is retained so re-mentions of the same vertex still
+    /// see the captured names without re-reading the AST.
+    node_class_names: &'a mut HashMap<String, Vec<String>>,
     subgraph_ids: &'a HashSet<String>,
 }
 
@@ -23,6 +29,7 @@ pub fn compile_to_graph(flowchart: &Flowchart) -> Graph {
     let mut diagram = Graph::new(direction);
     let mut node_styles = HashMap::new();
     let mut subgraph_styles = HashMap::new();
+    let mut node_class_names: HashMap<String, Vec<String>> = HashMap::new();
     let mut edge_styles = Vec::new();
     let class_defs = collect_class_defs(&flowchart.statements);
     let subgraph_ids = collect_subgraph_ids(&flowchart.statements);
@@ -31,6 +38,7 @@ pub fn compile_to_graph(flowchart: &Flowchart) -> Graph {
         let mut style_targets = StyleTargets {
             node_styles: &mut node_styles,
             subgraph_styles: &mut subgraph_styles,
+            node_class_names: &mut node_class_names,
             subgraph_ids: &subgraph_ids,
         };
         process_statements(
@@ -97,6 +105,10 @@ fn process_statements(
                     vertex,
                     parent_subgraph,
                     style_targets.node_styles.get(&vertex.id),
+                    style_targets
+                        .node_class_names
+                        .get(&vertex.id)
+                        .map(|v| v.as_slice()),
                     style_targets.subgraph_ids,
                     collision_nesting,
                 );
@@ -114,6 +126,10 @@ fn process_statements(
                     &edge_spec.from,
                     parent_subgraph,
                     style_targets.node_styles.get(&edge_spec.from.id),
+                    style_targets
+                        .node_class_names
+                        .get(&edge_spec.from.id)
+                        .map(|v| v.as_slice()),
                     style_targets.subgraph_ids,
                     collision_nesting,
                 );
@@ -129,6 +145,10 @@ fn process_statements(
                     &edge_spec.to,
                     parent_subgraph,
                     style_targets.node_styles.get(&edge_spec.to.id),
+                    style_targets
+                        .node_class_names
+                        .get(&edge_spec.to.id)
+                        .map(|v| v.as_slice()),
                     style_targets.subgraph_ids,
                     collision_nesting,
                 );
@@ -342,6 +362,7 @@ fn add_vertex_to_diagram(
     vertex: &Vertex,
     parent: Option<&str>,
     style: Option<&NodeStyle>,
+    class_names: Option<&[String]>,
     subgraph_ids: &HashSet<String>,
     collision_nesting: &mut Vec<(String, String)>,
 ) {
@@ -370,11 +391,21 @@ fn add_vertex_to_diagram(
         if let Some(style) = style {
             existing.style = style.clone();
         }
+        if let Some(names) = class_names {
+            for name in names {
+                if !existing.class_names.iter().any(|existing| existing == name) {
+                    existing.class_names.push(name.clone());
+                }
+            }
+        }
     } else {
         let mut node = convert_vertex(vertex);
         node.parent = parent.map(|s| s.to_string());
         if let Some(style) = style {
             node.style = style.clone();
+        }
+        if let Some(names) = class_names {
+            node.class_names = names.to_vec();
         }
         diagram.add_node(node);
     }
@@ -422,9 +453,9 @@ fn merge_subgraph_style(
 /// never collide on a shared id even when the input declares both.
 ///
 /// When `class_name` is `Some`, the identifier is recorded on
-/// `Subgraph.class_names` (preserving application order and de-duplicating)
-/// so the SVG renderer can surface it as a CSS hook. `None` covers `style A …`,
-/// which carries no class identity.
+/// `Subgraph.class_names` / `Node.class_names` (preserving application order
+/// and de-duplicating) so the SVG renderer can surface it as a CSS hook.
+/// `None` covers `style A …`, which carries no class identity.
 fn merge_target_style(
     diagram: &mut Graph,
     style_targets: &mut StyleTargets<'_>,
@@ -442,6 +473,20 @@ fn merge_target_style(
         }
     } else {
         merge_node_style(diagram, style_targets.node_styles, target_id, style);
+        if let Some(name) = class_name {
+            let entry = style_targets
+                .node_class_names
+                .entry(target_id.to_string())
+                .or_default();
+            if !entry.iter().any(|existing| existing == name) {
+                entry.push(name.to_string());
+            }
+            if let Some(node) = diagram.nodes.get_mut(target_id)
+                && !node.class_names.iter().any(|existing| existing == name)
+            {
+                node.class_names.push(name.to_string());
+            }
+        }
     }
 }
 

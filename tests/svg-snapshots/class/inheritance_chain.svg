@@ -11,14 +11,22 @@
       <path d="M77.12,171.00 L77.12,216.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="34.23" y="112.00" width="85.78" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.12" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Car</text>
-      <rect x="8.00" y="216.00" width="138.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.12" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ElectricCar</text>
-      <rect x="170.01" y="112.00" width="100.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="220.01" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Truck</text>
-      <rect x="92.32" y="8.00" width="112.48" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="148.56" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Vehicle</text>
+      <g class="node default" id="Car" data-id="Car" data-look="classic">
+        <rect x="34.23" y="112.00" width="85.78" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.12" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Car</text>
+      </g>
+      <g class="node default" id="ElectricCar" data-id="ElectricCar" data-look="classic">
+        <rect x="8.00" y="216.00" width="138.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.12" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ElectricCar</text>
+      </g>
+      <g class="node default" id="Truck" data-id="Truck" data-look="classic">
+        <rect x="170.01" y="112.00" width="100.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="220.01" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Truck</text>
+      </g>
+      <g class="node default" id="Vehicle" data-id="Vehicle" data-look="classic">
+        <rect x="92.32" y="8.00" width="112.48" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="148.56" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Vehicle</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

@@ -10,12 +10,18 @@
       <path d="M105.84,62.00 L105.84,192.00 Q105.84,197.00 100.84,197.00 L83.50,197.00 Q78.50,197.00 78.50,202.00 L78.50,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="43.17" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="78.50" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
-      <rect x="8.00" y="112.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="43.34" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
-      <rect x="42.73" y="216.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="78.50" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="43.17" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="78.50" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="112.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="43.34" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="42.73" y="216.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="78.50" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

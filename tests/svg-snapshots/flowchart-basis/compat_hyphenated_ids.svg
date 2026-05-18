@@ -11,14 +11,22 @@
       <path d="M74.46,315.35 L74.46,323.35 L74.46,326.18 C74.46,329.02 74.46,334.68 74.46,342.68 C74.46,350.68 74.46,361.02 74.46,372.52 C74.46,384.02 74.46,396.68 74.46,403.02 L74.46,409.35 L74.46,417.35" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <polygon points="74.46,216.00 124.13,265.68 74.46,315.35 24.78,265.68" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="74.46" y="265.68" text-anchor="middle" dominant-baseline="middle" fill="#333">Check</text>
-      <rect x="25.33" y="421.35" width="98.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="74.46" y="448.35" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
-      <rect x="8.00" y="112.00" width="132.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="74.46" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process A</text>
-      <rect x="27.56" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="74.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      <g class="node default" id="decision-point" data-id="decision-point" data-look="classic">
+        <polygon points="74.46,216.00 124.13,265.68 74.46,315.35 24.78,265.68" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="74.46" y="265.68" text-anchor="middle" dominant-baseline="middle" fill="#333">Check</text>
+      </g>
+      <g class="node default" id="end-node" data-id="end-node" data-look="classic">
+        <rect x="25.33" y="421.35" width="98.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="74.46" y="448.35" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
+      </g>
+      <g class="node default" id="process-1" data-id="process-1" data-look="classic">
+        <rect x="8.00" y="112.00" width="132.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="74.46" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process A</text>
+      </g>
+      <g class="node default" id="start-node" data-id="start-node" data-look="classic">
+        <rect x="27.56" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="74.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="62.01" y="323.85" width="24.90" height="28.00" fill="white" />

@@ -6,11 +6,11 @@
   </defs>
   <g transform="translate(-35.00,-4.00)">
     <g class="clusters">
-      <g class="cluster" id="sg1">
+      <g class="cluster" id="sg1" data-id="sg1" data-look="classic">
         <rect class="subgraph" x="43.00" y="12.00" width="241.79" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="163.89" y="16.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Frontend</text>
       </g>
-      <g class="cluster" id="sg2">
+      <g class="cluster" id="sg2" data-id="sg2" data-look="classic">
         <rect class="subgraph" x="404.79" y="12.00" width="269.35" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="539.46" y="16.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Backend</text>
       </g>
@@ -21,14 +21,22 @@
       <path d="M269.79,70.00 L319.79,70.00 L323.96,70.00 C328.12,70.00 336.46,70.00 344.79,70.00 C353.12,70.00 361.46,70.00 365.62,70.00 L369.79,70.00 L415.79,70.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="58.00" y="43.00" width="76.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="96.00" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">UI</text>
-      <rect x="184.00" y="43.00" width="85.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="226.89" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">API</text>
-      <rect x="419.79" y="43.00" width="107.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="473.35" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server</text>
-      <rect x="576.91" y="43.00" width="82.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="618.03" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">DB</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="58.00" y="43.00" width="76.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="96.00" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">UI</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="184.00" y="43.00" width="85.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="226.89" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">API</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="419.79" y="43.00" width="107.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="473.35" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="576.91" y="43.00" width="82.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="618.03" y="70.00" text-anchor="middle" dominant-baseline="middle" fill="#333">DB</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

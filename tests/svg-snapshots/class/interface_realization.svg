@@ -10,16 +10,22 @@
       <path d="M272.40,163.00 L272.40,208.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2.00,4.00" marker-start="url(#open-arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="208.00" width="168.52" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="92.26" y="235.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ConsoleLogger</text>
-      <rect x="226.52" y="208.00" width="135.60" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="294.32" y="235.00" text-anchor="middle" dominant-baseline="middle" fill="#333">FileLogger</text>
-      <rect x="110.16" y="8.00" width="166.27" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="193.29" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">&lt;&lt;interface&gt;&gt;</text>
-      <text x="193.29" y="59.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Logger</text>
-      <line x1="110.16" y1="83.00" x2="276.43" y2="83.00" stroke="#333" stroke-width="1.00" />
-      <line x1="110.16" y1="107.00" x2="276.43" y2="107.00" stroke="#333" stroke-width="1.00" />
-      <text x="125.16" y="131.00" text-anchor="start" dominant-baseline="middle" fill="#333">+log(message)</text>
+      <g class="node default" id="ConsoleLogger" data-id="ConsoleLogger" data-look="classic">
+        <rect x="8.00" y="208.00" width="168.52" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="92.26" y="235.00" text-anchor="middle" dominant-baseline="middle" fill="#333">ConsoleLogger</text>
+      </g>
+      <g class="node default" id="FileLogger" data-id="FileLogger" data-look="classic">
+        <rect x="226.52" y="208.00" width="135.60" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="294.32" y="235.00" text-anchor="middle" dominant-baseline="middle" fill="#333">FileLogger</text>
+      </g>
+      <g class="node default" id="Logger" data-id="Logger" data-look="classic">
+        <rect x="110.16" y="8.00" width="166.27" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="193.29" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">&lt;&lt;interface&gt;&gt;</text>
+        <text x="193.29" y="59.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Logger</text>
+        <line x1="110.16" y1="83.00" x2="276.43" y2="83.00" stroke="#333" stroke-width="1.00" />
+        <line x1="110.16" y1="107.00" x2="276.43" y2="107.00" stroke="#333" stroke-width="1.00" />
+        <text x="125.16" y="131.00" text-anchor="start" dominant-baseline="middle" fill="#333">+log(message)</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

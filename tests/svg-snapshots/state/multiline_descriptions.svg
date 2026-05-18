@@ -10,15 +10,21 @@
       <path d="M114.60,174.00 L114.60,220.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="72.00" width="213.20" height="102.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="114.60" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Listening on port 8080</text>
-      <line x1="8.00" y1="123.00" x2="221.20" y2="123.00" stroke="#333" stroke-width="1.00" />
-      <text x="23.00" y="147.00" text-anchor="start" dominant-baseline="middle" fill="#333">Accepts TCP connections</text>
-      <circle cx="114.60" cy="238.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <circle cx="114.60" cy="238.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="114.60" y="238.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <circle cx="114.60" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="114.60" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <g class="node default" id="Server" data-id="Server" data-look="classic">
+        <rect x="8.00" y="72.00" width="213.20" height="102.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="114.60" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Listening on port 8080</text>
+        <line x1="8.00" y1="123.00" x2="221.20" y2="123.00" stroke="#333" stroke-width="1.00" />
+        <text x="23.00" y="147.00" text-anchor="start" dominant-baseline="middle" fill="#333">Accepts TCP connections</text>
+      </g>
+      <g class="node default" id="__root_end" data-id="__root_end" data-look="classic">
+        <circle cx="114.60" cy="238.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <circle cx="114.60" cy="238.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="114.60" y="238.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="__root_start" data-id="__root_start" data-look="classic">
+        <circle cx="114.60" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="114.60" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

@@ -14,19 +14,31 @@
       <path d="M51.52,421.00 L51.52,441.00 Q51.52,446.00 56.52,446.00 L63.93,446.00 Q68.93,446.00 68.93,451.00 L68.93,467.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="367.00" width="68.25" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="42.12" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
-      <rect x="126.25" y="367.00" width="65.55" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="159.03" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Error</text>
-      <rect x="49.57" y="72.00" width="55.80" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.47" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Idle</text>
-      <rect x="22.89" y="207.00" width="109.15" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.47" y="234.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Processing</text>
-      <circle cx="73.80" cy="485.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <circle cx="73.80" cy="485.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="73.80" y="485.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <circle cx="77.47" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.47" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <g class="node default" id="Done" data-id="Done" data-look="classic">
+        <rect x="8.00" y="367.00" width="68.25" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="42.12" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
+      </g>
+      <g class="node default" id="Error" data-id="Error" data-look="classic">
+        <rect x="126.25" y="367.00" width="65.55" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="159.03" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Error</text>
+      </g>
+      <g class="node default" id="Idle" data-id="Idle" data-look="classic">
+        <rect x="49.57" y="72.00" width="55.80" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.47" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Idle</text>
+      </g>
+      <g class="node default" id="Processing" data-id="Processing" data-look="classic">
+        <rect x="22.89" y="207.00" width="109.15" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.47" y="234.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Processing</text>
+      </g>
+      <g class="node default" id="__root_end" data-id="__root_end" data-look="classic">
+        <circle cx="73.80" cy="485.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <circle cx="73.80" cy="485.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="73.80" y="485.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="__root_start" data-id="__root_start" data-look="classic">
+        <circle cx="77.47" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.47" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="49.91" y="152.50" width="55.12" height="28.00" fill="white" />

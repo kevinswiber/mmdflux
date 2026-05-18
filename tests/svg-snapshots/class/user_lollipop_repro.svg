@@ -11,17 +11,27 @@
       <path d="M75.36,42.00 L75.36,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#circlehead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="112.00" width="134.71" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="75.36" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Class01</text>
-      <line x1="8.00" y1="163.00" x2="142.71" y2="163.00" stroke="#333" stroke-width="1.00" />
-      <text x="23.00" y="187.00" text-anchor="start" dominant-baseline="middle" fill="#333">int amount</text>
-      <line x1="8.00" y1="211.00" x2="142.71" y2="211.00" stroke="#333" stroke-width="1.00" />
-      <text x="23.00" y="235.00" text-anchor="start" dominant-baseline="middle" fill="#333">draw()</text>
-      <rect x="145.37" y="8.00" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="204.27" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Class02</text>
-      <text x="75.36" y="324.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
-      <text x="204.27" y="124.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
-      <text x="75.36" y="20.00" text-anchor="middle" dominant-baseline="middle" fill="#333">foo</text>
+      <g class="node default" id="Class01" data-id="Class01" data-look="classic">
+        <rect x="8.00" y="112.00" width="134.71" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="75.36" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Class01</text>
+        <line x1="8.00" y1="163.00" x2="142.71" y2="163.00" stroke="#333" stroke-width="1.00" />
+        <text x="23.00" y="187.00" text-anchor="start" dominant-baseline="middle" fill="#333">int amount</text>
+        <line x1="8.00" y1="211.00" x2="142.71" y2="211.00" stroke="#333" stroke-width="1.00" />
+        <text x="23.00" y="235.00" text-anchor="start" dominant-baseline="middle" fill="#333">draw()</text>
+      </g>
+      <g class="node default" id="Class02" data-id="Class02" data-look="classic">
+        <rect x="145.37" y="8.00" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="204.27" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Class02</text>
+      </g>
+      <g class="node default" id="__mmdflux_lollipop_0_end" data-id="__mmdflux_lollipop_0_end" data-look="classic">
+        <text x="75.36" y="324.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
+      </g>
+      <g class="node default" id="__mmdflux_lollipop_1_end" data-id="__mmdflux_lollipop_1_end" data-look="classic">
+        <text x="204.27" y="124.00" text-anchor="middle" dominant-baseline="middle" fill="#333">bar</text>
+      </g>
+      <g class="node default" id="__mmdflux_lollipop_2_start" data-id="__mmdflux_lollipop_2_start" data-look="classic">
+        <text x="75.36" y="20.00" text-anchor="middle" dominant-baseline="middle" fill="#333">foo</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

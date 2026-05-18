@@ -18,25 +18,43 @@
       <path d="M153.66,504.00 L153.66,510.40 Q153.66,515.40 148.66,515.40 L122.66,515.40 Q117.66,515.40 117.66,520.40 L117.66,550.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="129.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="46.13" y="156.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State2</text>
-      <rect x="134.26" y="129.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="172.39" y="156.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State3</text>
-      <rect x="8.00" y="450.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="46.13" y="477.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State4</text>
-      <rect x="134.26" y="450.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="172.39" y="477.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State5</text>
-      <circle cx="109.26" cy="568.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <circle cx="109.26" cy="568.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="109.26" y="568.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <circle cx="109.26" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="109.26" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <rect x="74.26" y="72.00" width="70.00" height="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="109.26" y="75.50" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <polygon points="109.26,290.00 136.26,317.00 109.26,344.00 82.26,317.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="109.26" y="317.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <rect x="74.26" y="233.00" width="70.00" height="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="109.26" y="236.50" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <g class="node default" id="State2" data-id="State2" data-look="classic">
+        <rect x="8.00" y="129.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="46.13" y="156.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State2</text>
+      </g>
+      <g class="node default" id="State3" data-id="State3" data-look="classic">
+        <rect x="134.26" y="129.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="172.39" y="156.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State3</text>
+      </g>
+      <g class="node default" id="State4" data-id="State4" data-look="classic">
+        <rect x="8.00" y="450.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="46.13" y="477.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State4</text>
+      </g>
+      <g class="node default" id="State5" data-id="State5" data-look="classic">
+        <rect x="134.26" y="450.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="172.39" y="477.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State5</text>
+      </g>
+      <g class="node default" id="__root_end" data-id="__root_end" data-look="classic">
+        <circle cx="109.26" cy="568.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <circle cx="109.26" cy="568.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="109.26" y="568.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="__root_start" data-id="__root_start" data-look="classic">
+        <circle cx="109.26" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="109.26" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="fork_state" data-id="fork_state" data-look="classic">
+        <rect x="74.26" y="72.00" width="70.00" height="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="109.26" y="75.50" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="if_state" data-id="if_state" data-look="classic">
+        <polygon points="109.26,290.00 136.26,317.00 109.26,344.00 82.26,317.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="109.26" y="317.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="join_state" data-id="join_state" data-look="classic">
+        <rect x="74.26" y="233.00" width="70.00" height="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="109.26" y="236.50" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="29.68" y="352.50" width="32.90" height="28.00" fill="white" />

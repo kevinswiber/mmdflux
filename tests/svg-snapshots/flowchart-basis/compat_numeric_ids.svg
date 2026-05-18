@@ -10,12 +10,18 @@
       <path d="M263.37,35.00 L266.14,35.00 C268.92,35.00 274.48,35.00 280.03,35.00 C285.59,35.00 291.14,35.00 296.03,35.00 C300.92,35.00 305.14,35.00 307.26,35.00 L309.37,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="8.00" width="91.10" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="53.55" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">First</text>
-      <rect x="149.10" y="8.00" width="114.27" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="206.23" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Second</text>
-      <rect x="313.37" y="8.00" width="96.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="361.59" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Third</text>
+      <g class="node default" id="1" data-id="1" data-look="classic">
+        <rect x="8.00" y="8.00" width="91.10" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="53.55" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">First</text>
+      </g>
+      <g class="node default" id="2" data-id="2" data-look="classic">
+        <rect x="149.10" y="8.00" width="114.27" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="206.23" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Second</text>
+      </g>
+      <g class="node default" id="3" data-id="3" data-look="classic">
+        <rect x="313.37" y="8.00" width="96.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="361.59" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Third</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

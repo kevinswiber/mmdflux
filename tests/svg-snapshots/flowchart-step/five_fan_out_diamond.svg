@@ -13,18 +13,30 @@
       <path d="M457.57,66.96 L703.20,66.96 L703.20,158.70" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <polygon points="411.84,8.00 464.19,60.35 411.84,112.70 359.49,60.35" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="411.84" y="60.35" text-anchor="middle" dominant-baseline="middle" fill="#333">Source</text>
-      <rect x="8.00" y="162.70" width="121.36" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="68.68" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target A</text>
-      <rect x="179.36" y="162.70" width="121.36" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="240.04" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target B</text>
-      <rect x="350.72" y="162.70" width="122.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="411.84" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target C</text>
-      <rect x="522.96" y="162.70" width="122.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="584.08" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target D</text>
-      <rect x="695.20" y="162.70" width="121.36" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="755.88" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target E</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <polygon points="411.84,8.00 464.19,60.35 411.84,112.70 359.49,60.35" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="411.84" y="60.35" text-anchor="middle" dominant-baseline="middle" fill="#333">Source</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="162.70" width="121.36" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="68.68" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target A</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="179.36" y="162.70" width="121.36" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="240.04" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target B</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="350.72" y="162.70" width="122.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="411.84" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target C</text>
+      </g>
+      <g class="node default" id="E" data-id="E" data-look="classic">
+        <rect x="522.96" y="162.70" width="122.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="584.08" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target D</text>
+      </g>
+      <g class="node default" id="F" data-id="F" data-look="classic">
+        <rect x="695.20" y="162.70" width="121.36" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="755.88" y="189.70" text-anchor="middle" dominant-baseline="middle" fill="#333">Target E</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

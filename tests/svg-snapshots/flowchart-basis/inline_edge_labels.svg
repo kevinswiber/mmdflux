@@ -12,16 +12,26 @@
       <path d="M58.46,544.00 L58.46,552.00 L58.46,554.83 C58.46,557.67 58.46,563.33 58.46,571.33 C58.46,579.33 58.46,589.67 58.46,601.17 C58.46,612.67 58.46,625.33 58.46,631.67 L58.46,638.00 L58.46,646.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="11.57" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
-      <rect x="12.01" y="168.00" width="92.90" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.46" y="195.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Next</text>
-      <rect x="8.00" y="328.00" width="100.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.46" y="355.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Again</text>
-      <rect x="9.34" y="490.00" width="98.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.46" y="517.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
-      <rect x="12.00" y="650.00" width="92.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.46" y="677.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Stop</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="11.57" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="12.01" y="168.00" width="92.90" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.46" y="195.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Next</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="8.00" y="328.00" width="100.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.46" y="355.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Again</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="9.34" y="490.00" width="98.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.46" y="517.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
+      </g>
+      <g class="node default" id="E" data-id="E" data-look="classic">
+        <rect x="12.00" y="650.00" width="92.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.46" y="677.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Stop</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="42.01" y="101.00" width="32.90" height="28.00" fill="white" />

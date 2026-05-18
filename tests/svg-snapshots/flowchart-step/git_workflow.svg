@@ -12,14 +12,22 @@
       <path d="M934.35,62.00 L934.35,78.00 L79.78,78.00 L79.78,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="572.01" y="8.00" width="140.95" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="642.48" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Local Repo</text>
-      <rect x="854.99" y="8.00" width="158.72" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="934.35" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Remote Repo</text>
-      <rect x="260.60" y="8.00" width="152.51" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="336.86" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Area</text>
-      <rect x="8.00" y="8.00" width="143.56" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="79.78" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Working Dir</text>
+      <g class="node default" id="Local" data-id="Local" data-look="classic">
+        <rect x="572.01" y="8.00" width="140.95" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="642.48" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Local Repo</text>
+      </g>
+      <g class="node default" id="Remote" data-id="Remote" data-look="classic">
+        <rect x="854.99" y="8.00" width="158.72" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="934.35" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Remote Repo</text>
+      </g>
+      <g class="node default" id="Staging" data-id="Staging" data-look="classic">
+        <rect x="260.60" y="8.00" width="152.51" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="336.86" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Area</text>
+      </g>
+      <g class="node default" id="Working" data-id="Working" data-look="classic">
+        <rect x="8.00" y="8.00" width="143.56" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="79.78" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Working Dir</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="178.06" y="21.00" width="56.04" height="28.00" fill="white" />

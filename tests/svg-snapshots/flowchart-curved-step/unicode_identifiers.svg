@@ -11,14 +11,22 @@
       <path d="M440.12,35.00 L442.89,35.00 C445.67,35.00 451.23,35.00 456.23,35.00 C461.23,35.00 465.67,35.00 470.56,35.00 C475.45,35.00 480.78,35.00 483.45,35.00 L486.12,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="8.00" width="112.49" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="64.25" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Lasaña</text>
-      <rect x="170.49" y="8.00" width="121.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="231.18" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Máquina</text>
-      <rect x="341.87" y="8.00" width="98.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="390.99" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Ñoño</text>
-      <rect x="490.12" y="8.00" width="94.68" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="537.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Über</text>
+      <g class="node default" id="Lasaña" data-id="Lasaña" data-look="classic">
+        <rect x="8.00" y="8.00" width="112.49" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="64.25" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Lasaña</text>
+      </g>
+      <g class="node default" id="Máquina" data-id="Máquina" data-look="classic">
+        <rect x="170.49" y="8.00" width="121.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="231.18" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Máquina</text>
+      </g>
+      <g class="node default" id="Ñoño" data-id="Ñoño" data-look="classic">
+        <rect x="341.87" y="8.00" width="98.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="390.99" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Ñoño</text>
+      </g>
+      <g class="node default" id="Über" data-id="Über" data-look="classic">
+        <rect x="490.12" y="8.00" width="94.68" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="537.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Über</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

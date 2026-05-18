@@ -406,7 +406,7 @@
       "properties": {
         "nodes": {
           "type": "object",
-          "description": "Node-ID keyed style overrides replayed into renderer-visible node fill/stroke/text colors.",
+          "description": "Node-ID keyed style overrides replayed into renderer-visible node fill/stroke/text colors, plus any user-applied class names from Mermaid `class`/`:::` annotations.",
           "additionalProperties": {
             "$ref": "#/$defs/NodeStyle"
           }
@@ -788,6 +788,11 @@
         "ry": {
           "type": "string",
           "description": "SVG ry (vertical border-radius) value. When omitted, SVG falls back to rx."
+        },
+        "classNames": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Original Mermaid class names applied to this node (preserves application order)."
         }
       },
       "additionalProperties": false

@@ -11,14 +11,22 @@
       <path d="M171.20,199.63 L220.03,252.36 L220.03,283.36 L220.03,329.36" stroke="#d3d3d3" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="96.57" y="8.00" width="93.79" height="54.00" fill="#1f2020" stroke="#cccccc" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="143.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">Start</text>
-      <polygon points="143.46,112.00 201.14,169.68 143.46,227.36 85.79,169.68" fill="#1f2020" stroke="#cccccc" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="143.46" y="169.68" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">Decision</text>
-      <rect x="8.00" y="333.36" width="117.80" height="54.00" fill="#1f2020" stroke="#cccccc" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="66.90" y="360.36" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">Process</text>
-      <rect x="175.80" y="333.36" width="88.47" height="54.00" fill="#1f2020" stroke="#cccccc" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="220.03" y="360.36" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">End</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="96.57" y="8.00" width="93.79" height="54.00" fill="#1f2020" stroke="#cccccc" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="143.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">Start</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <polygon points="143.46,112.00 201.14,169.68 143.46,227.36 85.79,169.68" fill="#1f2020" stroke="#cccccc" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="143.46" y="169.68" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">Decision</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="8.00" y="333.36" width="117.80" height="54.00" fill="#1f2020" stroke="#cccccc" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="66.90" y="360.36" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">Process</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="175.80" y="333.36" width="88.47" height="54.00" fill="#1f2020" stroke="#cccccc" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="220.03" y="360.36" text-anchor="middle" dominant-baseline="middle" fill="#cccccc">End</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="49.11" y="235.86" width="35.57" height="28.00" fill="#333333" />

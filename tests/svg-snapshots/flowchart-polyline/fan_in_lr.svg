@@ -11,14 +11,22 @@
       <path d="M108.00,216.00 L155.17,168.83" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="8.00" width="99.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="57.56" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Src A</text>
-      <rect x="8.00" y="112.00" width="99.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="57.56" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Src B</text>
-      <rect x="8.00" y="216.00" width="100.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.00" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Src C</text>
-      <rect x="158.00" y="112.00" width="106.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="211.12" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Target</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="8.00" y="8.00" width="99.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="57.56" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Src A</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="112.00" width="99.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="57.56" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Src B</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="8.00" y="216.00" width="100.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.00" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Src C</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="158.00" y="112.00" width="106.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="211.12" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Target</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

@@ -6,11 +6,11 @@
   </defs>
   <g transform="translate(-25.11,-27.00)">
     <g class="clusters">
-      <g class="cluster" id="A">
+      <g class="cluster" id="A" data-id="A" data-look="classic">
         <rect class="subgraph" x="33.11" y="35.00" width="335.80" height="100.00" fill="#e9efff" stroke="#1f4fff" stroke-width="1px" />
         <text x="201.01" y="39.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">a</text>
       </g>
-      <g class="cluster" id="G">
+      <g class="cluster" id="G" data-id="G" data-look="classic">
         <rect class="subgraph" x="141.79" y="447.00" width="217.80" height="100.00" fill="#e9efff" stroke="#1f4fff" stroke-width="1px" />
         <text x="250.68" y="451.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">g</text>
       </g>
@@ -27,26 +27,46 @@
       <path d="M315.02,370.00 L315.02,474.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="48.11" y="66.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="82.56" y="93.00" text-anchor="middle" dominant-baseline="middle" fill="#000">b</text>
-      <rect x="285.91" y="66.00" width="68.00" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="319.91" y="93.00" text-anchor="middle" dominant-baseline="middle" fill="#000">c</text>
-      <rect x="167.01" y="66.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="201.46" y="93.00" text-anchor="middle" dominant-baseline="middle" fill="#000">u</text>
-      <rect x="43.00" y="212.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="77.45" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#000">b</text>
-      <rect x="291.02" y="212.00" width="68.00" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="325.02" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#000">c</text>
-      <rect x="43.00" y="316.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="77.45" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#000">d</text>
-      <rect x="280.57" y="316.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="315.02" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#000">e</text>
-      <rect x="154.12" y="316.00" width="64.45" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="186.35" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#000">f</text>
-      <rect x="275.68" y="478.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="310.13" y="505.00" text-anchor="middle" dominant-baseline="middle" fill="#000">a</text>
-      <rect x="156.79" y="478.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
-      <text x="191.24" y="505.00" text-anchor="middle" dominant-baseline="middle" fill="#000">b</text>
+      <g class="node default node" id="Ab" data-id="Ab" data-look="classic">
+        <rect x="48.11" y="66.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="82.56" y="93.00" text-anchor="middle" dominant-baseline="middle" fill="#000">b</text>
+      </g>
+      <g class="node default node" id="Ac" data-id="Ac" data-look="classic">
+        <rect x="285.91" y="66.00" width="68.00" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="319.91" y="93.00" text-anchor="middle" dominant-baseline="middle" fill="#000">c</text>
+      </g>
+      <g class="node default node" id="Au" data-id="Au" data-look="classic">
+        <rect x="167.01" y="66.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="201.46" y="93.00" text-anchor="middle" dominant-baseline="middle" fill="#000">u</text>
+      </g>
+      <g class="node default node" id="Bmid" data-id="Bmid" data-look="classic">
+        <rect x="43.00" y="212.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="77.45" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#000">b</text>
+      </g>
+      <g class="node default node" id="Cmid" data-id="Cmid" data-look="classic">
+        <rect x="291.02" y="212.00" width="68.00" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="325.02" y="239.00" text-anchor="middle" dominant-baseline="middle" fill="#000">c</text>
+      </g>
+      <g class="node default node" id="D" data-id="D" data-look="classic">
+        <rect x="43.00" y="316.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="77.45" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#000">d</text>
+      </g>
+      <g class="node default node" id="E" data-id="E" data-look="classic">
+        <rect x="280.57" y="316.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="315.02" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#000">e</text>
+      </g>
+      <g class="node default node" id="F" data-id="F" data-look="classic">
+        <rect x="154.12" y="316.00" width="64.45" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="186.35" y="343.00" text-anchor="middle" dominant-baseline="middle" fill="#000">f</text>
+      </g>
+      <g class="node default node" id="Ga" data-id="Ga" data-look="classic">
+        <rect x="275.68" y="478.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="310.13" y="505.00" text-anchor="middle" dominant-baseline="middle" fill="#000">a</text>
+      </g>
+      <g class="node default node" id="Gb" data-id="Gb" data-look="classic">
+        <rect x="156.79" y="478.00" width="68.90" height="54.00" fill="#f7f9ff" stroke="#1f4fff" stroke-width="1px" stroke-linejoin="round" />
+        <text x="191.24" y="505.00" text-anchor="middle" dominant-baseline="middle" fill="#000">b</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

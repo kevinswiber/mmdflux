@@ -15,20 +15,34 @@
       <path d="M426.98,216.00 L426.98,191.00 L448.11,191.00 L448.11,170.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="353.86" y="112.00" width="106.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="406.98" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Target</text>
-      <rect x="361.42" y="216.00" width="91.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="406.98" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Sink</text>
-      <rect x="8.00" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="67.80" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source1</text>
-      <rect x="177.59" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="237.39" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source2</text>
-      <rect x="347.19" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="406.98" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source3</text>
-      <rect x="516.78" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="576.58" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source4</text>
-      <rect x="686.38" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="746.17" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source5</text>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="353.86" y="112.00" width="106.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="406.98" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Target</text>
+      </g>
+      <g class="node default" id="Loop" data-id="Loop" data-look="classic">
+        <rect x="361.42" y="216.00" width="91.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="406.98" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Sink</text>
+      </g>
+      <g class="node default" id="P1" data-id="P1" data-look="classic">
+        <rect x="8.00" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="67.80" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source1</text>
+      </g>
+      <g class="node default" id="P2" data-id="P2" data-look="classic">
+        <rect x="177.59" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="237.39" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source2</text>
+      </g>
+      <g class="node default" id="P3" data-id="P3" data-look="classic">
+        <rect x="347.19" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="406.98" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source3</text>
+      </g>
+      <g class="node default" id="P4" data-id="P4" data-look="classic">
+        <rect x="516.78" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="576.58" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source4</text>
+      </g>
+      <g class="node default" id="P5" data-id="P5" data-look="classic">
+        <rect x="686.38" y="8.00" width="119.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="746.17" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source5</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

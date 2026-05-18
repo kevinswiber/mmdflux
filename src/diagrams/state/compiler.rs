@@ -67,21 +67,46 @@ fn collect_class_defs_recursive(
     }
 }
 
-/// Merge a style into a node, creating or updating the node's style.
+/// Merge a style into a node or composite-state subgraph, creating or updating
+/// the resolved style. When `class_name` is `Some`, the identifier is also
+/// pushed onto the target's `class_names` (preserving application order and
+/// de-duplicating) so the SVG renderer can surface it as a CSS hook.
+///
+/// Composite-state subgraphs win on identifier collision: when the same id
+/// exists as both a `Subgraph` (composite state) and a `Node` (implicit leaf
+/// from an early transition before the composite block was processed), the
+/// style and class name route to the subgraph. This mirrors the flowchart
+/// compiler's "subgraph wins" rule in `merge_target_style`.
 fn merge_node_style(
     graph: &mut Graph,
     node_styles: &mut HashMap<String, NodeStyle>,
-    node_id: &str,
+    target_id: &str,
     style: &NodeStyle,
+    class_name: Option<&str>,
 ) {
     let merged = node_styles
-        .entry(node_id.to_string())
+        .entry(target_id.to_string())
         .and_modify(|existing| *existing = existing.merge(style))
         .or_insert_with(|| style.clone())
         .clone();
 
-    if let Some(node) = graph.nodes.get_mut(node_id) {
+    if let Some(subgraph) = graph.subgraphs.get_mut(target_id) {
+        subgraph.style = merged;
+        if let Some(name) = class_name
+            && !subgraph.class_names.iter().any(|existing| existing == name)
+        {
+            subgraph.class_names.push(name.to_string());
+        }
+        return;
+    }
+
+    if let Some(node) = graph.nodes.get_mut(target_id) {
         node.style = merged;
+        if let Some(name) = class_name
+            && !node.class_names.iter().any(|existing| existing == name)
+        {
+            node.class_names.push(name.to_string());
+        }
     }
 }
 
@@ -195,14 +220,26 @@ fn process_statements(
                     && let Some(style) = state.class_defs.get(class_name.as_str())
                 {
                     let style = style.clone();
-                    merge_node_style(graph, &mut state.node_styles, &t.from, &style);
+                    merge_node_style(
+                        graph,
+                        &mut state.node_styles,
+                        &t.from,
+                        &style,
+                        Some(class_name.as_str()),
+                    );
                 }
                 if let Some(class_name) = &t.to_class
                     && t.to != "[*]"
                     && let Some(style) = state.class_defs.get(class_name.as_str())
                 {
                     let style = style.clone();
-                    merge_node_style(graph, &mut state.node_styles, &t.to, &style);
+                    merge_node_style(
+                        graph,
+                        &mut state.node_styles,
+                        &t.to,
+                        &style,
+                        Some(class_name.as_str()),
+                    );
                 }
             }
             StateStatement::State(decl) => {
@@ -240,13 +277,20 @@ fn process_statements(
                     &mut state.node_styles,
                     &style_stmt.node_id,
                     &style_stmt.style,
+                    None,
                 );
             }
             StateStatement::ClassApply(apply) => {
                 if let Some(style) = state.class_defs.get(&apply.class_name) {
                     let style = style.clone();
                     for node_id in &apply.node_ids {
-                        merge_node_style(graph, &mut state.node_styles, node_id, &style);
+                        merge_node_style(
+                            graph,
+                            &mut state.node_styles,
+                            node_id,
+                            &style,
+                            Some(apply.class_name.as_str()),
+                        );
                     }
                 }
             }
@@ -417,7 +461,13 @@ fn process_state_decl(
         && let Some(style) = state.class_defs.get(class_name.as_str())
     {
         let style = style.clone();
-        merge_node_style(graph, &mut state.node_styles, &decl.id, &style);
+        merge_node_style(
+            graph,
+            &mut state.node_styles,
+            &decl.id,
+            &style,
+            Some(class_name.as_str()),
+        );
     }
 }
 

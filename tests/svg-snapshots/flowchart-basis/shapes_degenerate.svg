@@ -15,22 +15,38 @@
       <path d="M58.90,686.00 L58.90,688.78 C58.90,691.56 58.90,697.11 58.90,702.67 C58.90,708.22 58.90,713.78 58.90,718.67 C58.90,723.56 58.90,727.78 58.90,729.89 L58.90,732.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="10.22" y="216.00" width="97.37" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.90" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Bang</text>
-      <rect x="15.12" y="112.00" width="87.57" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.90" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Bolt</text>
-      <rect x="8.00" y="8.00" width="101.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.90" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Cloud</text>
-      <rect x="16.01" y="632.00" width="85.78" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.90" y="659.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Flip</text>
-      <rect x="11.56" y="424.00" width="94.68" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.90" y="451.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Hour</text>
-      <rect x="13.78" y="320.00" width="90.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.90" y="347.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Icon</text>
-      <rect x="8.00" y="736.00" width="101.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.90" y="763.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Notch</text>
-      <rect x="19.57" y="528.00" width="78.66" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.90" y="555.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Tri</text>
+      <g class="node default" id="bang" data-id="bang" data-look="classic">
+        <rect x="10.22" y="216.00" width="97.37" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.90" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Bang</text>
+      </g>
+      <g class="node default" id="bolt" data-id="bolt" data-look="classic">
+        <rect x="15.12" y="112.00" width="87.57" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.90" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Bolt</text>
+      </g>
+      <g class="node default" id="cloud" data-id="cloud" data-look="classic">
+        <rect x="8.00" y="8.00" width="101.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.90" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Cloud</text>
+      </g>
+      <g class="node default" id="flip" data-id="flip" data-look="classic">
+        <rect x="16.01" y="632.00" width="85.78" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.90" y="659.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Flip</text>
+      </g>
+      <g class="node default" id="hourglass" data-id="hourglass" data-look="classic">
+        <rect x="11.56" y="424.00" width="94.68" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.90" y="451.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Hour</text>
+      </g>
+      <g class="node default" id="icon" data-id="icon" data-look="classic">
+        <rect x="13.78" y="320.00" width="90.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.90" y="347.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Icon</text>
+      </g>
+      <g class="node default" id="notch" data-id="notch" data-look="classic">
+        <rect x="8.00" y="736.00" width="101.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.90" y="763.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Notch</text>
+      </g>
+      <g class="node default" id="tri" data-id="tri" data-look="classic">
+        <rect x="19.57" y="528.00" width="78.66" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.90" y="555.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Tri</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

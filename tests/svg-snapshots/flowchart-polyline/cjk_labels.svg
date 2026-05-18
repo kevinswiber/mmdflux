@@ -12,14 +12,22 @@
       <path d="M397.00,166.00 L397.00,176.00 L54.00,176.00 L54.00,90.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="125.00" y="22.00" width="108.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="179.00" y="49.00" text-anchor="middle" dominant-baseline="middle" fill="#333">处理中</text>
-      <rect x="351.00" y="8.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="397.00" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">完成</text>
-      <rect x="8.00" y="32.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="54.00" y="59.00" text-anchor="middle" dominant-baseline="middle" fill="#333">空闲</text>
-      <rect x="351.00" y="112.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="397.00" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">错误</text>
+      <g class="node default" id="处理中" data-id="处理中" data-look="classic">
+        <rect x="125.00" y="22.00" width="108.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="179.00" y="49.00" text-anchor="middle" dominant-baseline="middle" fill="#333">处理中</text>
+      </g>
+      <g class="node default" id="完成" data-id="完成" data-look="classic">
+        <rect x="351.00" y="8.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="397.00" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">完成</text>
+      </g>
+      <g class="node default" id="空闲" data-id="空闲" data-look="classic">
+        <rect x="8.00" y="32.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="54.00" y="59.00" text-anchor="middle" dominant-baseline="middle" fill="#333">空闲</text>
+      </g>
+      <g class="node default" id="错误" data-id="错误" data-look="classic">
+        <rect x="351.00" y="112.00" width="92.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="397.00" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">错误</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="269.81" y="21.00" width="40.00" height="28.00" fill="white" />

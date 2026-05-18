@@ -13,10 +13,14 @@
       <path d="M114.04,174.00 L114.04,128.00 Q114.04,123.00 119.04,123.00 L163.08,123.00 Q168.08,123.00 168.08,118.00 L168.08,66.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#circlehead)" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="8.00" width="172.08" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="94.04" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Aggregate Root</text>
-      <rect x="44.03" y="184.00" width="100.02" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="94.04" y="211.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Entity</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="8.00" y="8.00" width="172.08" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="94.04" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Aggregate Root</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="44.03" y="184.00" width="100.02" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="94.04" y="211.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Entity</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="44.24" y="125.00" width="99.60" height="28.00" fill="white" />

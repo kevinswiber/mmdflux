@@ -10,12 +10,18 @@
       <path d="M158.92,35.00 L156.14,35.00 C153.37,35.00 147.81,35.00 142.26,35.00 C136.70,35.00 131.14,35.00 126.26,35.00 C121.37,35.00 117.14,35.00 115.03,35.00 L112.92,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="326.72" y="8.00" width="102.68" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="378.06" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Finish</text>
-      <rect x="158.92" y="8.00" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="217.82" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
-      <rect x="8.00" y="8.00" width="100.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="58.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Begin</text>
+      <g class="node default" id="End" data-id="End" data-look="classic">
+        <rect x="326.72" y="8.00" width="102.68" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="378.06" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Finish</text>
+      </g>
+      <g class="node default" id="Middle" data-id="Middle" data-look="classic">
+        <rect x="158.92" y="8.00" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="217.82" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
+      </g>
+      <g class="node default" id="Start" data-id="Start" data-look="classic">
+        <rect x="8.00" y="8.00" width="100.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="58.46" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Begin</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

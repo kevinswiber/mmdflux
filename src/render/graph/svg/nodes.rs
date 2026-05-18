@@ -149,6 +149,26 @@ fn xml_safe_id(input: &str) -> String {
         .collect()
 }
 
+/// Mermaid `data-look` value. mmdflux currently renders only the classic
+/// look, but the attribute is emitted unconditionally so Mermaid-targeted
+/// CSS scoped by `[data-look="classic"]` continues to match.
+const DATA_LOOK_CLASSIC: &str = "classic";
+
+/// Build the user-class suffix appended to a wrapper's `class` attribute
+/// (e.g. ` blueFill thickBorder`). Returns an empty string when no class
+/// identifiers are applied. Each name is XML-attribute-escaped.
+fn render_user_classes(class_names: &[String]) -> String {
+    if class_names.is_empty() {
+        return String::new();
+    }
+    let mut acc = String::new();
+    for name in class_names {
+        acc.push(' ');
+        acc.push_str(&escape_text(name));
+    }
+    acc
+}
+
 pub(super) fn render_subgraphs(
     writer: &mut SvgWriter,
     diagram: &Graph,
@@ -178,19 +198,11 @@ pub(super) fn render_subgraphs(
 
     writer.start_group("clusters");
     for (_id, subgraph, sg_geom) in subgraphs {
-        let user_classes = if subgraph.class_names.is_empty() {
-            String::new()
-        } else {
-            let mut acc = String::new();
-            for name in &subgraph.class_names {
-                acc.push(' ');
-                acc.push_str(&escape_text(name));
-            }
-            acc
-        };
+        let user_classes = render_user_classes(&subgraph.class_names);
         let id_attr = xml_safe_id(&subgraph.id);
+        let data_id_attr = escape_text(&subgraph.id);
         writer.start_tag(&format!(
-            r#"<g class="cluster{user_classes}" id="{id_attr}">"#
+            r#"<g class="cluster{user_classes}" id="{id_attr}" data-id="{data_id_attr}" data-look="{DATA_LOOK_CLASSIC}">"#
         ));
 
         let rect = scale_rect(&sg_geom.rect, scale);
@@ -331,6 +343,14 @@ pub(super) fn render_nodes(
         let rect: Rect = pos_node.rect;
         let style = ResolvedSvgNodeStyle::from_node(node);
         let text_style = node_text_style_key(metrics, node);
+
+        let user_classes = render_user_classes(&node.class_names);
+        let id_attr = xml_safe_id(&node.id);
+        let data_id_attr = escape_text(&node.id);
+        writer.start_tag(&format!(
+            r#"<g class="node default{user_classes}" id="{id_attr}" data-id="{data_id_attr}" data-look="{DATA_LOOK_CLASSIC}">"#
+        ));
+
         render_node_shape(
             writer,
             node,
@@ -383,6 +403,7 @@ pub(super) fn render_nodes(
                 palette,
             },
         );
+        writer.end_tag("</g>");
     }
 
     writer.end_group();

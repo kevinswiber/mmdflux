@@ -11,12 +11,18 @@
       <path d="M75.42,261.35 L77.83,253.72 L79.34,248.94 C80.85,244.15 83.88,234.58 84.64,227.44 C85.41,220.30 83.92,215.59 83.18,213.23 L82.43,210.87 L80.02,203.24" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="20.00" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="66.90" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
-      <polygon points="66.90,112.00 116.57,161.68 66.90,211.35 17.22,161.68" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="66.90" y="161.68" text-anchor="middle" dominant-baseline="middle" fill="#333">Check</text>
-      <rect x="8.00" y="261.35" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="66.90" y="288.35" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="20.00" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="66.90" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <polygon points="66.90,112.00 116.57,161.68 66.90,211.35 17.22,161.68" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="66.90" y="161.68" text-anchor="middle" dominant-baseline="middle" fill="#333">Check</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="8.00" y="261.35" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="66.90" y="288.35" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

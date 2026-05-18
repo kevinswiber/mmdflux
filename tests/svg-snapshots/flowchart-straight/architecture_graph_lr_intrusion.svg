@@ -16,18 +16,30 @@
       <path d="M120.45,128.00 L168.56,38.52" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="506.63" y="153.00" width="105.34" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="559.30" y="180.00" text-anchor="middle" dominant-baseline="middle" fill="#333">format</text>
-      <rect x="341.50" y="8.00" width="100.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="391.96" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">graph</text>
-      <rect x="170.45" y="8.00" width="116.05" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="228.48" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">payload</text>
-      <rect x="8.00" y="101.00" width="112.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="64.23" y="128.00" text-anchor="middle" dominant-baseline="middle" fill="#333">registry</text>
-      <rect x="170.45" y="112.00" width="106.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="223.58" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">render</text>
-      <rect x="341.50" y="112.00" width="115.13" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="399.07" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">timeline</text>
+      <g class="node default" id="format" data-id="format" data-look="classic">
+        <rect x="506.63" y="153.00" width="105.34" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="559.30" y="180.00" text-anchor="middle" dominant-baseline="middle" fill="#333">format</text>
+      </g>
+      <g class="node default" id="graph" data-id="graph" data-look="classic">
+        <rect x="341.50" y="8.00" width="100.92" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="391.96" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">graph</text>
+      </g>
+      <g class="node default" id="payload" data-id="payload" data-look="classic">
+        <rect x="170.45" y="8.00" width="116.05" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="228.48" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">payload</text>
+      </g>
+      <g class="node default" id="registry" data-id="registry" data-look="classic">
+        <rect x="8.00" y="101.00" width="112.45" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="64.23" y="128.00" text-anchor="middle" dominant-baseline="middle" fill="#333">registry</text>
+      </g>
+      <g class="node default" id="render" data-id="render" data-look="classic">
+        <rect x="170.45" y="112.00" width="106.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="223.58" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">render</text>
+      </g>
+      <g class="node default" id="timeline" data-id="timeline" data-look="classic">
+        <rect x="341.50" y="112.00" width="115.13" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="399.07" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">timeline</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

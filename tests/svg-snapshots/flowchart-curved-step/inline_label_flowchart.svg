@@ -34,46 +34,86 @@
       <path d="M409.43,1832.34 L409.43,1835.12 C409.43,1837.90 409.43,1843.45 409.43,1848.45 C409.43,1853.45 409.43,1857.90 409.43,1862.79 C409.43,1867.68 409.43,1873.01 409.43,1875.68 L409.43,1878.34" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <ellipse cx="409.43" cy="1916.47" rx="34.12" ry="34.12" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="409.43" y="1916.47" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
-      <rect x="674.04" y="1545.34" width="152.49" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="750.29" y="1572.34" text-anchor="middle" dominant-baseline="middle" fill="#333">Page On-call</text>
-      <rect x="905.65" y="225.79" width="127.61" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="969.45" y="252.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Audit Log</text>
-      <rect x="8.00" y="329.79" width="163.19" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="89.59" y="356.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Lookup Cache</text>
-      <rect x="8.90" y="499.79" width="161.39" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="89.59" y="526.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Serve Cached</text>
-      <rect x="431.04" y="121.79" width="167.62" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="514.85" y="148.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Ingest Request</text>
-      <rect x="335.43" y="1778.34" width="148.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="409.43" y="1805.34" text-anchor="middle" dominant-baseline="middle" fill="#333">Emit Metrics</text>
-      <rect x="162.28" y="905.98" width="139.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="231.84" y="932.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Notify User</text>
-      <rect x="334.90" y="225.79" width="164.06" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="416.93" y="252.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Parse Payload</text>
-      <rect x="389.19" y="1674.34" width="158.70" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="468.54" y="1701.34" text-anchor="middle" dominant-baseline="middle" fill="#333">Persist Result</text>
-      <rect x="589.52" y="1227.98" width="148.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="663.54" y="1254.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Process Job</text>
-      <rect x="642.01" y="1009.98" width="154.30" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="719.16" y="1036.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Enqueue Job</text>
-      <rect x="216.85" y="714.27" width="105.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="269.53" y="741.27" text-anchor="middle" dominant-baseline="middle" fill="#333">Reject</text>
-      <rect x="694.30" y="1674.34" width="98.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="743.41" y="1701.34" text-anchor="middle" dominant-baseline="middle" fill="#333">Retry</text>
-      <polygon points="616.35,714.27 684.71,782.62 616.35,850.98 548.00,782.62" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="616.35" y="782.62" text-anchor="middle" dominant-baseline="middle" fill="#333">Route Type</text>
-      <ellipse cx="514.85" cy="39.89" rx="31.89" ry="31.89" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="514.85" y="39.89" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
-      <polygon points="601.47,1346.98 663.15,1408.66 601.47,1470.34 539.79,1408.66" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="601.47" y="1408.66" text-anchor="middle" dominant-baseline="middle" fill="#333">Success?</text>
-      <rect x="371.84" y="1009.98" width="156.95" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="450.31" y="1036.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Sync Pipeline</text>
-      <polygon points="506.90,499.79 556.13,549.03 506.90,598.27 457.66,549.03" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="506.90" y="549.03" text-anchor="middle" dominant-baseline="middle" fill="#333">Valid?</text>
-      <rect x="589.53" y="1118.98" width="148.02" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="663.54" y="1145.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Worker Pool</text>
+      <g class="node default" id="End" data-id="End" data-look="classic">
+        <ellipse cx="409.43" cy="1916.47" rx="34.12" ry="34.12" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="409.43" y="1916.47" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
+      </g>
+      <g class="node default" id="alert" data-id="alert" data-look="classic">
+        <rect x="674.04" y="1545.34" width="152.49" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="750.29" y="1572.34" text-anchor="middle" dominant-baseline="middle" fill="#333">Page On-call</text>
+      </g>
+      <g class="node default" id="audit" data-id="audit" data-look="classic">
+        <rect x="905.65" y="225.79" width="127.61" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="969.45" y="252.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Audit Log</text>
+      </g>
+      <g class="node default" id="cache" data-id="cache" data-look="classic">
+        <rect x="8.00" y="329.79" width="163.19" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="89.59" y="356.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Lookup Cache</text>
+      </g>
+      <g class="node default" id="fastpath" data-id="fastpath" data-look="classic">
+        <rect x="8.90" y="499.79" width="161.39" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="89.59" y="526.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Serve Cached</text>
+      </g>
+      <g class="node default" id="ingest" data-id="ingest" data-look="classic">
+        <rect x="431.04" y="121.79" width="167.62" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="514.85" y="148.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Ingest Request</text>
+      </g>
+      <g class="node default" id="metrics" data-id="metrics" data-look="classic">
+        <rect x="335.43" y="1778.34" width="148.00" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="409.43" y="1805.34" text-anchor="middle" dominant-baseline="middle" fill="#333">Emit Metrics</text>
+      </g>
+      <g class="node default" id="notify" data-id="notify" data-look="classic">
+        <rect x="162.28" y="905.98" width="139.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="231.84" y="932.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Notify User</text>
+      </g>
+      <g class="node default" id="parse" data-id="parse" data-look="classic">
+        <rect x="334.90" y="225.79" width="164.06" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="416.93" y="252.79" text-anchor="middle" dominant-baseline="middle" fill="#333">Parse Payload</text>
+      </g>
+      <g class="node default" id="persist" data-id="persist" data-look="classic">
+        <rect x="389.19" y="1674.34" width="158.70" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="468.54" y="1701.34" text-anchor="middle" dominant-baseline="middle" fill="#333">Persist Result</text>
+      </g>
+      <g class="node default" id="process" data-id="process" data-look="classic">
+        <rect x="589.52" y="1227.98" width="148.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="663.54" y="1254.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Process Job</text>
+      </g>
+      <g class="node default" id="queue" data-id="queue" data-look="classic">
+        <rect x="642.01" y="1009.98" width="154.30" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="719.16" y="1036.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Enqueue Job</text>
+      </g>
+      <g class="node default" id="reject" data-id="reject" data-look="classic">
+        <rect x="216.85" y="714.27" width="105.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="269.53" y="741.27" text-anchor="middle" dominant-baseline="middle" fill="#333">Reject</text>
+      </g>
+      <g class="node default" id="retry" data-id="retry" data-look="classic">
+        <rect x="694.30" y="1674.34" width="98.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="743.41" y="1701.34" text-anchor="middle" dominant-baseline="middle" fill="#333">Retry</text>
+      </g>
+      <g class="node default" id="route" data-id="route" data-look="classic">
+        <polygon points="616.35,714.27 684.71,782.62 616.35,850.98 548.00,782.62" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="616.35" y="782.62" text-anchor="middle" dominant-baseline="middle" fill="#333">Route Type</text>
+      </g>
+      <g class="node default" id="start" data-id="start" data-look="classic">
+        <ellipse cx="514.85" cy="39.89" rx="31.89" ry="31.89" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="514.85" y="39.89" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
+      <g class="node default" id="success" data-id="success" data-look="classic">
+        <polygon points="601.47,1346.98 663.15,1408.66 601.47,1470.34 539.79,1408.66" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="601.47" y="1408.66" text-anchor="middle" dominant-baseline="middle" fill="#333">Success?</text>
+      </g>
+      <g class="node default" id="sync" data-id="sync" data-look="classic">
+        <rect x="371.84" y="1009.98" width="156.95" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="450.31" y="1036.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Sync Pipeline</text>
+      </g>
+      <g class="node default" id="validate" data-id="validate" data-look="classic">
+        <polygon points="506.90,499.79 556.13,549.03 506.90,598.27 457.66,549.03" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="506.90" y="549.03" text-anchor="middle" dominant-baseline="middle" fill="#333">Valid?</text>
+      </g>
+      <g class="node default" id="worker" data-id="worker" data-look="classic">
+        <rect x="589.53" y="1118.98" width="148.02" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="663.54" y="1145.98" text-anchor="middle" dominant-baseline="middle" fill="#333">Worker Pool</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="278.22" y="543.17" width="25.80" height="28.00" fill="white" />

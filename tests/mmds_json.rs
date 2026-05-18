@@ -3369,7 +3369,8 @@ flowchart TD
     let mmds = render_json(input);
     let svg_from_mmds = render_mmds_input(&mmds, OutputFormat::Svg, RenderConfig::default());
     assert!(
-        svg_from_mmds.contains(r#"<g class="cluster blueFill" id="lr">"#),
+        svg_from_mmds
+            .contains(r#"<g class="cluster blueFill" id="lr" data-id="lr" data-look="classic">"#),
         "MMDS round-trip lost user class: {svg_from_mmds}"
     );
 }
@@ -3389,8 +3390,54 @@ flowchart TD
     let mmds = render_json(input);
     let svg_from_mmds = render_mmds_input(&mmds, OutputFormat::Svg, RenderConfig::default());
     assert!(
-        svg_from_mmds.contains(r#"<g class="cluster a b" id="lr">"#),
+        svg_from_mmds
+            .contains(r#"<g class="cluster a b" id="lr" data-id="lr" data-look="classic">"#),
         "MMDS round-trip lost class order: {svg_from_mmds}"
+    );
+}
+
+#[test]
+fn mmds_persists_node_class_names_for_dom_hook_replay() {
+    let input = "\
+flowchart TD
+    classDef highlight fill:#fc6
+    A --> B
+    class A highlight
+";
+    let mmds = render_json(input);
+    let value: Value = serde_json::from_str(&mmds).unwrap();
+    let class_names = value
+        .pointer("/extensions/org.mmdflux.node-style.v1/nodes/A/classNames")
+        .and_then(Value::as_array)
+        .expect("nodes.A.classNames present");
+    assert_eq!(class_names.len(), 1);
+    assert_eq!(class_names[0].as_str(), Some("highlight"));
+
+    let svg_from_mmds = render_mmds_input(&mmds, OutputFormat::Svg, RenderConfig::default());
+    assert!(
+        svg_from_mmds.contains(
+            r#"<g class="node default highlight" id="A" data-id="A" data-look="classic">"#
+        ),
+        "MMDS round-trip lost node user class: {svg_from_mmds}"
+    );
+}
+
+#[test]
+fn mmds_node_class_names_preserve_application_order_on_replay() {
+    let input = "\
+flowchart TD
+    classDef a fill:#9cf
+    classDef b stroke:#039
+    A --> B
+    class A a
+    class A b
+";
+    let mmds = render_json(input);
+    let svg_from_mmds = render_mmds_input(&mmds, OutputFormat::Svg, RenderConfig::default());
+    assert!(
+        svg_from_mmds
+            .contains(r#"<g class="node default a b" id="A" data-id="A" data-look="classic">"#),
+        "MMDS round-trip lost node class order: {svg_from_mmds}"
     );
 }
 
@@ -3417,7 +3464,10 @@ flowchart TD
     );
     // Re-render: must produce the wrapper without user classes and without panicking.
     let svg = render_mmds_input(&mmds, OutputFormat::Svg, RenderConfig::default());
-    assert!(svg.contains(r#"<g class="cluster" id="lr">"#), "{svg}");
+    assert!(
+        svg.contains(r#"<g class="cluster" id="lr" data-id="lr" data-look="classic">"#),
+        "{svg}"
+    );
 }
 
 mod plan_0151_routed_mmds_replay_contract {

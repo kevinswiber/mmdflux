@@ -9,9 +9,13 @@
       <path d="M15.00,43.00 L17.78,43.00 C20.56,43.00 26.11,43.00 31.11,43.00 C36.11,43.00 40.56,43.00 45.44,43.00 C50.33,43.00 55.67,43.00 58.33,43.00 L61.00,43.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="8.00" width="7.00" height="70.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="11.50" y="43.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <text x="81.90" y="43.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Note</text>
+      <g class="node default" id="fork" data-id="fork" data-look="classic">
+        <rect x="8.00" y="8.00" width="7.00" height="70.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="11.50" y="43.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="note" data-id="note" data-look="classic">
+        <text x="81.90" y="43.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Note</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

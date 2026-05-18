@@ -11,12 +11,18 @@
       <path d="M66.90,166.00 L66.90,168.78 C66.90,171.56 66.90,177.11 66.90,182.67 C66.90,188.22 66.90,193.78 66.90,198.67 C66.90,203.56 66.90,207.78 66.90,209.89 L66.90,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="20.00" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="66.90" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
-      <rect x="8.00" y="112.00" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="66.90" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
-      <rect x="22.66" y="216.00" width="88.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="66.90" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="20.00" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="66.90" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="112.00" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="66.90" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="22.66" y="216.00" width="88.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="66.90" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

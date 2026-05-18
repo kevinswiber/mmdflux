@@ -12,17 +12,27 @@
       <path d="M294.90,35.00 L340.90,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="72.00" y="8.00" width="40.67" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="92.34" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
-      <rect x="162.67" y="8.00" width="40.67" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="183.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
-      <rect x="253.34" y="8.00" width="41.55" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="274.12" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
-      <circle cx="358.90" cy="35.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <circle cx="358.90" cy="35.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="358.90" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <circle cx="15.00" cy="35.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="15.00" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="72.00" y="8.00" width="40.67" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="92.34" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="162.67" y="8.00" width="40.67" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="183.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="253.34" y="8.00" width="41.55" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="274.12" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      </g>
+      <g class="node default" id="__root_end" data-id="__root_end" data-look="classic">
+        <circle cx="358.90" cy="35.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <circle cx="358.90" cy="35.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="358.90" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="__root_start" data-id="__root_start" data-look="classic">
+        <circle cx="15.00" cy="35.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="15.00" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

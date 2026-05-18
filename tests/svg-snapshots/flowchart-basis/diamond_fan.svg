@@ -12,14 +12,22 @@
       <path d="M174.93,166.00 L174.93,168.78 C174.93,171.56 174.93,177.11 169.24,182.67 C163.55,188.22 152.17,193.78 146.48,198.67 C140.79,203.56 140.79,207.78 140.79,209.89 L140.79,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="75.46" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="122.35" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
-      <rect x="8.00" y="112.00" width="86.69" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="51.34" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Left</text>
-      <rect x="144.69" y="112.00" width="97.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="193.36" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Right</text>
-      <rect x="78.12" y="216.00" width="88.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="122.35" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="75.46" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="122.35" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="112.00" width="86.69" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="51.34" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Left</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="144.69" y="112.00" width="97.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="193.36" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Right</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="78.12" y="216.00" width="88.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="122.35" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

@@ -6,15 +6,15 @@
   </defs>
   <g transform="translate(-25.00,-19.00)">
     <g class="clusters">
-      <g class="cluster" id="namespace:BaseShapes">
+      <g class="cluster" id="namespace:BaseShapes" data-id="namespace:BaseShapes" data-look="classic">
         <rect class="subgraph" x="33.00" y="231.00" width="192.05" height="269.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="129.02" y="235.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">BaseShapes</text>
       </g>
-      <g class="cluster" id="namespace:Tools">
+      <g class="cluster" id="namespace:Tools" data-id="namespace:Tools" data-look="classic">
         <rect class="subgraph" x="58.68" y="27.00" width="140.70" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="129.02" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Tools</text>
       </g>
-      <g class="cluster" id="namespace:BaseShapes/Primitives">
+      <g class="cluster" id="namespace:BaseShapes/Primitives" data-id="namespace:BaseShapes/Primitives" data-look="classic">
         <rect class="subgraph" x="48.00" y="385.00" width="162.05" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="129.02" y="389.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Primitives</text>
       </g>
@@ -24,12 +24,18 @@
       <path d="M129.02,112.00 L129.02,258.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="73.68" y="58.00" width="110.70" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="129.02" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Painter</text>
-      <rect x="63.00" y="416.00" width="132.05" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="129.02" y="443.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rectangle</text>
-      <rect x="70.12" y="262.00" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="129.02" y="289.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Triangle</text>
+      <g class="node default" id="Painter" data-id="Painter" data-look="classic">
+        <rect x="73.68" y="58.00" width="110.70" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="129.02" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Painter</text>
+      </g>
+      <g class="node default" id="Rectangle" data-id="Rectangle" data-look="classic">
+        <rect x="63.00" y="416.00" width="132.05" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="129.02" y="443.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rectangle</text>
+      </g>
+      <g class="node default" id="Triangle" data-id="Triangle" data-look="classic">
+        <rect x="70.12" y="262.00" width="117.80" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="129.02" y="289.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Triangle</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

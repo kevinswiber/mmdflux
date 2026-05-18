@@ -13,18 +13,30 @@
       <path d="M527.79,62.00 L324.30,145.96" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="43.34" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
-      <rect x="128.67" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="164.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
-      <rect x="249.34" y="8.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="285.12" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
-      <rect x="370.90" y="8.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="406.68" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
-      <rect x="492.45" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="527.79" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">E</text>
-      <polygon points="285.12,112.00 335.24,162.12 285.12,212.24 235.00,162.12" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="285.12" y="162.12" text-anchor="middle" dominant-baseline="middle" fill="#333">Target</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="8.00" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="43.34" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="128.67" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="164.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="249.34" y="8.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="285.12" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="370.90" y="8.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="406.68" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
+      </g>
+      <g class="node default" id="E" data-id="E" data-look="classic">
+        <rect x="492.45" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="527.79" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">E</text>
+      </g>
+      <g class="node default" id="F" data-id="F" data-look="classic">
+        <polygon points="285.12,112.00 335.24,162.12 285.12,212.24 235.00,162.12" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="285.12" y="162.12" text-anchor="middle" dominant-baseline="middle" fill="#333">Target</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

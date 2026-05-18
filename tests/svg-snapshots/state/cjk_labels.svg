@@ -14,19 +14,31 @@
       <path d="M45.23,421.00 L45.23,441.00 Q45.23,446.00 50.23,446.00 L51.77,446.00 Q56.77,446.00 56.77,451.00 L56.77,467.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <circle cx="60.00" cy="485.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <circle cx="60.00" cy="485.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="60.00" y="485.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <circle cx="69.00" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="69.00" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <rect x="30.00" y="207.00" width="78.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="69.00" y="234.00" text-anchor="middle" dominant-baseline="middle" fill="#333">处理中</text>
-      <rect x="8.00" y="367.00" width="62.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="39.00" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">完成</text>
-      <rect x="38.00" y="72.00" width="62.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="69.00" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">空闲</text>
-      <rect x="120.00" y="367.00" width="62.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="151.00" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">错误</text>
+      <g class="node default" id="__root_end" data-id="__root_end" data-look="classic">
+        <circle cx="60.00" cy="485.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <circle cx="60.00" cy="485.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="60.00" y="485.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="__root_start" data-id="__root_start" data-look="classic">
+        <circle cx="69.00" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="69.00" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="处理中" data-id="处理中" data-look="classic">
+        <rect x="30.00" y="207.00" width="78.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="69.00" y="234.00" text-anchor="middle" dominant-baseline="middle" fill="#333">处理中</text>
+      </g>
+      <g class="node default" id="完成" data-id="完成" data-look="classic">
+        <rect x="8.00" y="367.00" width="62.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="39.00" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">完成</text>
+      </g>
+      <g class="node default" id="空闲" data-id="空闲" data-look="classic">
+        <rect x="38.00" y="72.00" width="62.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="69.00" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">空闲</text>
+      </g>
+      <g class="node default" id="错误" data-id="错误" data-look="classic">
+        <rect x="120.00" y="367.00" width="62.00" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="151.00" y="394.00" text-anchor="middle" dominant-baseline="middle" fill="#333">错误</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="49.00" y="152.50" width="40.00" height="28.00" fill="white" />

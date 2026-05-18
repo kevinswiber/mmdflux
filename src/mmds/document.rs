@@ -575,13 +575,27 @@ fn build_document(
     }
 }
 
-fn collect_styled_nodes(diagram: &Graph) -> BTreeMap<String, NodeStyle> {
+fn collect_styled_nodes(diagram: &Graph) -> BTreeMap<String, NodeStyleEntry> {
     diagram
         .nodes
         .iter()
-        .filter(|(_, node)| !node.style.is_empty())
-        .map(|(node_id, node)| (node_id.clone(), node.style.clone()))
+        .filter(|(_, node)| !node.style.is_empty() || !node.class_names.is_empty())
+        .map(|(node_id, node)| {
+            (
+                node_id.clone(),
+                NodeStyleEntry {
+                    style: node.style.clone(),
+                    class_names: node.class_names.clone(),
+                },
+            )
+        })
         .collect()
+}
+
+#[derive(Debug, Default, Clone)]
+struct NodeStyleEntry {
+    style: NodeStyle,
+    class_names: Vec<String>,
 }
 
 fn collect_styled_edges(diagram: &Graph) -> BTreeMap<String, EdgeStyle> {
@@ -751,7 +765,7 @@ fn rect_value(rect: crate::graph::geometry::FRect) -> Value {
 }
 
 fn style_extension(
-    styled_nodes: BTreeMap<String, NodeStyle>,
+    styled_nodes: BTreeMap<String, NodeStyleEntry>,
     styled_edges: BTreeMap<String, EdgeStyle>,
     styled_subgraphs: BTreeMap<String, SubgraphStyleEntry>,
 ) -> Map<String, Value> {
@@ -759,11 +773,21 @@ fn style_extension(
     if !styled_nodes.is_empty() {
         let nodes = styled_nodes
             .iter()
-            .map(|(node_id, style)| {
-                (
-                    node_id.clone(),
-                    Value::Object(serialize_node_style_extension(style)),
-                )
+            .map(|(node_id, entry)| {
+                let mut payload = serialize_node_style_extension(&entry.style);
+                if !entry.class_names.is_empty() {
+                    payload.insert(
+                        "classNames".to_string(),
+                        Value::Array(
+                            entry
+                                .class_names
+                                .iter()
+                                .map(|name| Value::String(name.clone()))
+                                .collect(),
+                        ),
+                    );
+                }
+                (node_id.clone(), Value::Object(payload))
             })
             .collect();
         extension.insert("nodes".to_string(), Value::Object(nodes));

@@ -11,14 +11,22 @@
       <path d="M161.53,166.00 L206.61,213.11" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <polygon points="96.09,112.00 175.30,112.00 201.71,139.00 175.30,166.00 96.09,166.00 69.69,139.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="135.70" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
-      <rect x="8.00" y="216.00" width="108.03" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="62.02" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output</text>
-      <rect x="87.90" y="8.00" width="95.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="135.70" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Input</text>
-      <rect x="166.03" y="216.00" width="86.70" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="209.38" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Log</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <polygon points="96.09,112.00 175.30,112.00 201.71,139.00 175.30,166.00 96.09,166.00 69.69,139.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="135.70" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Process</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="216.00" width="108.03" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="62.02" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="87.90" y="8.00" width="95.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="135.70" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Input</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="166.03" y="216.00" width="86.70" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="209.38" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Log</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

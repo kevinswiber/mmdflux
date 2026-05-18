@@ -11,15 +11,23 @@
       <path d="M95.46,286.00 L95.46,332.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="72.00" width="174.93" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="95.46" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">The system is active</text>
-      <rect x="22.66" y="232.00" width="145.61" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="95.46" y="259.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Waiting for input</text>
-      <circle cx="95.46" cy="350.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <circle cx="95.46" cy="350.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="95.46" y="350.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <circle cx="95.46" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="95.46" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <g class="node default" id="Active" data-id="Active" data-look="classic">
+        <rect x="8.00" y="72.00" width="174.93" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="95.46" y="99.00" text-anchor="middle" dominant-baseline="middle" fill="#333">The system is active</text>
+      </g>
+      <g class="node default" id="Idle" data-id="Idle" data-look="classic">
+        <rect x="22.66" y="232.00" width="145.61" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="95.46" y="259.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Waiting for input</text>
+      </g>
+      <g class="node default" id="__root_end" data-id="__root_end" data-look="classic">
+        <circle cx="95.46" cy="350.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <circle cx="95.46" cy="350.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="95.46" y="350.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="__root_start" data-id="__root_start" data-look="classic">
+        <circle cx="95.46" cy="15.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="95.46" y="15.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="65.23" y="134.50" width="60.47" height="28.00" fill="white" />

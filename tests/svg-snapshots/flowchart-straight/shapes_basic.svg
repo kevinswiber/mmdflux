@@ -14,23 +14,37 @@
       <path d="M77.60,653.74 L77.60,699.74" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <path d="M33.26,434.38 A44.34,10.38 0 0,0 121.95,434.38 A44.34,10.38 0 0,0 33.26,434.38 L33.26,478.00 A44.34,10.38 0 0,0 121.95,478.00 L121.95,434.38" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <path d="M33.26,434.38 A44.34,10.38 0 0,1 121.95,434.38" fill="none" stroke="#333" stroke-width="1.00" />
-      <text x="77.60" y="461.38" text-anchor="middle" dominant-baseline="middle" fill="#333">Cylinder</text>
-      <polygon points="77.60,538.38 135.28,596.06 77.60,653.74 19.92,596.06" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.60" y="596.06" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
-      <polygon points="35.84,703.74 119.36,703.74 147.20,730.74 119.36,757.74 35.84,757.74 8.00,730.74" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.60" y="730.74" text-anchor="middle" dominant-baseline="middle" fill="#333">Hexagon</text>
-      <rect x="11.58" y="8.00" width="132.05" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.60" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rectangle</text>
-      <rect x="30.13" y="112.00" width="94.95" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.60" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rounded</text>
-      <rect x="19.75" y="216.00" width="115.70" height="54.00" rx="27.00" ry="27.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.60" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Stadium</text>
-      <rect x="13.91" y="320.00" width="127.39" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <line x1="21.91" y1="320.00" x2="21.91" y2="374.00" stroke="#333" stroke-width="1.00" />
-      <line x1="133.30" y1="320.00" x2="133.30" y2="374.00" stroke="#333" stroke-width="1.00" />
-      <text x="77.60" y="347.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Subroutine</text>
+      <g class="node default" id="cyl" data-id="cyl" data-look="classic">
+        <path d="M33.26,434.38 A44.34,10.38 0 0,0 121.95,434.38 A44.34,10.38 0 0,0 33.26,434.38 L33.26,478.00 A44.34,10.38 0 0,0 121.95,478.00 L121.95,434.38" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <path d="M33.26,434.38 A44.34,10.38 0 0,1 121.95,434.38" fill="none" stroke="#333" stroke-width="1.00" />
+        <text x="77.60" y="461.38" text-anchor="middle" dominant-baseline="middle" fill="#333">Cylinder</text>
+      </g>
+      <g class="node default" id="diamond" data-id="diamond" data-look="classic">
+        <polygon points="77.60,538.38 135.28,596.06 77.60,653.74 19.92,596.06" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.60" y="596.06" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
+      </g>
+      <g class="node default" id="hex" data-id="hex" data-look="classic">
+        <polygon points="35.84,703.74 119.36,703.74 147.20,730.74 119.36,757.74 35.84,757.74 8.00,730.74" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.60" y="730.74" text-anchor="middle" dominant-baseline="middle" fill="#333">Hexagon</text>
+      </g>
+      <g class="node default" id="rect" data-id="rect" data-look="classic">
+        <rect x="11.58" y="8.00" width="132.05" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.60" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rectangle</text>
+      </g>
+      <g class="node default" id="round" data-id="round" data-look="classic">
+        <rect x="30.13" y="112.00" width="94.95" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.60" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Rounded</text>
+      </g>
+      <g class="node default" id="stadium" data-id="stadium" data-look="classic">
+        <rect x="19.75" y="216.00" width="115.70" height="54.00" rx="27.00" ry="27.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.60" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Stadium</text>
+      </g>
+      <g class="node default" id="sub" data-id="sub" data-look="classic">
+        <rect x="13.91" y="320.00" width="127.39" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <line x1="21.91" y1="320.00" x2="21.91" y2="374.00" stroke="#333" stroke-width="1.00" />
+        <line x1="133.30" y1="320.00" x2="133.30" y2="374.00" stroke="#333" stroke-width="1.00" />
+        <text x="77.60" y="347.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Subroutine</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

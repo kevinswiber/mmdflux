@@ -11,15 +11,23 @@
       <path d="M221.21,163.00 L271.21,163.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5.00" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="20.00" width="178.53" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="97.27" y="47.00" text-anchor="middle" dominant-baseline="middle" fill="#333">The state with a note</text>
-      <rect x="271.21" y="8.00" width="287.01" height="78.00" fill="#fff5ad" stroke="#aaaa33" stroke-width="1.00" />
-      <text x="414.71" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Important information! You can write</text>
-      <text x="414.71" y="59.00" text-anchor="middle" dominant-baseline="middle" fill="#333">notes.</text>
-      <rect x="271.21" y="136.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="309.34" y="163.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State2</text>
-      <rect x="8.00" y="136.00" width="213.21" height="54.00" fill="#fff5ad" stroke="#aaaa33" stroke-width="1.00" />
-      <text x="114.61" y="163.00" text-anchor="middle" dominant-baseline="middle" fill="#333">This is the note to the left.</text>
+      <g class="node default" id="State1" data-id="State1" data-look="classic">
+        <rect x="8.00" y="20.00" width="178.53" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="97.27" y="47.00" text-anchor="middle" dominant-baseline="middle" fill="#333">The state with a note</text>
+      </g>
+      <g class="node default" id="State1____note_0" data-id="State1____note_0" data-look="classic">
+        <rect x="271.21" y="8.00" width="287.01" height="78.00" fill="#fff5ad" stroke="#aaaa33" stroke-width="1.00" />
+        <text x="414.71" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Important information! You can write</text>
+        <text x="414.71" y="59.00" text-anchor="middle" dominant-baseline="middle" fill="#333">notes.</text>
+      </g>
+      <g class="node default" id="State2" data-id="State2" data-look="classic">
+        <rect x="271.21" y="136.00" width="76.26" height="54.00" rx="5.00" ry="5.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="309.34" y="163.00" text-anchor="middle" dominant-baseline="middle" fill="#333">State2</text>
+      </g>
+      <g class="node default" id="State2____note_1" data-id="State2____note_1" data-look="classic">
+        <rect x="8.00" y="136.00" width="213.21" height="54.00" fill="#fff5ad" stroke="#aaaa33" stroke-width="1.00" />
+        <text x="114.61" y="163.00" text-anchor="middle" dominant-baseline="middle" fill="#333">This is the note to the left.</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

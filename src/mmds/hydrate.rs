@@ -216,6 +216,14 @@ fn hydrate_node_style_extension(
             if !style.is_empty() {
                 node.style = node.style.merge(&style);
             }
+
+            if let Some(class_names) = style_object.get("classNames").and_then(Value::as_array) {
+                for name in class_names.iter().filter_map(Value::as_str) {
+                    if !node.class_names.iter().any(|existing| existing == name) {
+                        node.class_names.push(name.to_string());
+                    }
+                }
+            }
         }
     }
 

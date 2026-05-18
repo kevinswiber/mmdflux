@@ -6,11 +6,11 @@
   </defs>
   <g transform="translate(-25.00,-19.00)">
     <g class="clusters">
-      <g class="cluster" id="outer">
+      <g class="cluster" id="outer" data-id="outer" data-look="classic">
         <rect class="subgraph" x="33.00" y="27.00" width="372.90" height="277.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="219.45" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Vertical Outer</text>
       </g>
-      <g class="cluster" id="inner">
+      <g class="cluster" id="inner" data-id="inner" data-look="classic">
         <rect class="subgraph" x="48.00" y="189.00" width="342.90" height="100.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="219.45" y="193.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Horizontal Inner</text>
       </g>
@@ -21,14 +21,22 @@
       <path d="M98.34,112.00 L98.34,216.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="63.00" y="220.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="98.34" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
-      <rect x="183.67" y="220.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="219.01" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
-      <rect x="304.34" y="220.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="340.12" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
-      <rect x="62.56" y="58.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="98.34" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="63.00" y="220.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="98.34" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="183.67" y="220.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="219.01" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="304.34" y="220.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="340.12" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="62.56" y="58.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="98.34" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

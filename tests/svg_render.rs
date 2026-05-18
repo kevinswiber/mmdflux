@@ -1225,7 +1225,7 @@ fn flowchart_user_class_lands_on_subgraph_wrapper() {
     let input = load_flowchart_fixture("subgraph_user_class.mmd");
     let svg = render_svg(&input, &RenderConfig::default());
     assert!(
-        svg.contains(r#"<g class="cluster blueFill" id="lr">"#),
+        svg.contains(r#"<g class="cluster blueFill" id="lr" data-id="lr" data-look="classic">"#),
         "expected wrapper with user class blueFill on subgraph lr, got: {svg}"
     );
 }
@@ -1245,12 +1245,15 @@ flowchart TD
 ";
     let svg = render_svg(input, &RenderConfig::default());
     assert!(
-        svg.contains(r#"<g class="cluster blueFill" id="lr">"#),
+        svg.contains(r#"<g class="cluster blueFill" id="lr" data-id="lr" data-look="classic">"#),
         "{svg}"
     );
-    assert!(svg.contains(r#"<g class="cluster" id="bt">"#), "{svg}");
     assert!(
-        !svg.contains(r#"<g class="cluster blueFill" id="bt">"#),
+        svg.contains(r#"<g class="cluster" id="bt" data-id="bt" data-look="classic">"#),
+        "{svg}"
+    );
+    assert!(
+        !svg.contains(r#"<g class="cluster blueFill" id="bt""#),
         "{svg}"
     );
 }
@@ -1270,11 +1273,15 @@ fn nested_subgraphs_each_get_their_own_wrapper_and_class() {
     let input = load_flowchart_fixture("subgraph_nested_classes.mmd");
     let svg = render_svg(&input, &RenderConfig::default());
     assert!(
-        svg.contains(r#"<g class="cluster outerSkin" id="outer">"#),
+        svg.contains(
+            r#"<g class="cluster outerSkin" id="outer" data-id="outer" data-look="classic">"#
+        ),
         "outer wrapper missing or wrong class: {svg}"
     );
     assert!(
-        svg.contains(r#"<g class="cluster innerSkin" id="inner">"#),
+        svg.contains(
+            r#"<g class="cluster innerSkin" id="inner" data-id="inner" data-look="classic">"#
+        ),
         "inner wrapper missing or wrong class: {svg}"
     );
 }
@@ -1284,7 +1291,7 @@ fn nested_subgraph_outer_class_does_not_inherit_to_inner() {
     let input = load_flowchart_fixture("subgraph_nested_classes.mmd");
     let svg = render_svg(&input, &RenderConfig::default());
     let inner_open = svg
-        .find(r#"<g class="cluster innerSkin" id="inner">"#)
+        .find(r#"<g class="cluster innerSkin" id="inner" data-id="inner" data-look="classic">"#)
         .expect("inner wrapper exists");
     let inner_line_end = svg[inner_open..].find('>').unwrap() + inner_open;
     let inner_line = &svg[inner_open..=inner_line_end];
@@ -1299,10 +1306,10 @@ fn nested_subgraph_wrappers_are_ordered_outer_before_inner() {
     let input = load_flowchart_fixture("subgraph_nested_classes.mmd");
     let svg = render_svg(&input, &RenderConfig::default());
     let outer = svg
-        .find(r#"<g class="cluster outerSkin" id="outer">"#)
+        .find(r#"<g class="cluster outerSkin" id="outer" data-id="outer" data-look="classic">"#)
         .expect("outer wrapper present");
     let inner = svg
-        .find(r#"<g class="cluster innerSkin" id="inner">"#)
+        .find(r#"<g class="cluster innerSkin" id="inner" data-id="inner" data-look="classic">"#)
         .expect("inner wrapper present");
     assert!(
         outer < inner,
@@ -1372,5 +1379,143 @@ fn flowchart_subgraph_g_wrapper_closes_after_text() {
     assert!(
         between.contains(">Left to Right</text>"),
         "title must be inside wrapper: {between}"
+    );
+}
+
+#[test]
+fn flowchart_node_g_wrapper_closes_after_label() {
+    let input = "flowchart TD\n    A --> B\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    let open = svg
+        .find(r#"<g class="node default" id="A" data-id="A" data-look="classic">"#)
+        .expect("node A wrapper opens");
+    let inner = &svg[open..];
+    let close_rel = inner.find("</g>").expect("node A wrapper closes");
+    let between = &inner[..close_rel];
+    assert!(
+        between.contains("<rect"),
+        "shape primitive must be inside wrapper: {between}"
+    );
+    assert!(
+        between.contains(">A</text>"),
+        "label must be inside wrapper: {between}"
+    );
+}
+
+#[test]
+fn flowchart_node_renders_g_wrapper_with_node_default_class() {
+    let input = "flowchart TD\n    A --> B\n";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains(r#"<g class="node default" id="A" data-id="A" data-look="classic">"#),
+        "expected node wrapper for A, got: {svg}"
+    );
+    assert!(
+        svg.contains(r#"<g class="node default" id="B" data-id="B" data-look="classic">"#),
+        "expected node wrapper for B, got: {svg}"
+    );
+}
+
+#[test]
+fn flowchart_node_user_class_lands_on_wrapper() {
+    let input = "\
+flowchart TD
+    classDef highlight fill:#fc6
+    A --> B
+    class A highlight
+";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains(
+            r#"<g class="node default highlight" id="A" data-id="A" data-look="classic">"#
+        ),
+        "expected highlight on node A wrapper, got: {svg}"
+    );
+    assert!(
+        svg.contains(r#"<g class="node default" id="B" data-id="B" data-look="classic">"#),
+        "B must stay unclassed: {svg}"
+    );
+}
+
+#[test]
+fn flowchart_inline_class_annotation_lands_on_node_wrapper() {
+    let input = "\
+flowchart TD
+    classDef highlight fill:#fc6
+    A:::highlight --> B
+";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains(
+            r#"<g class="node default highlight" id="A" data-id="A" data-look="classic">"#
+        ),
+        "expected inline class on node A wrapper, got: {svg}"
+    );
+}
+
+#[test]
+fn flowchart_node_user_class_resolved_style_still_applies_to_inner_shape() {
+    let input = "\
+flowchart TD
+    classDef highlight fill:#9cf
+    A --> B
+    class A highlight
+";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains(r##"fill="#9cf""##) || svg.contains(r##"fill="#9CF""##),
+        "expected fill from classDef on inner shape, got: {svg}"
+    );
+}
+
+#[test]
+fn flowchart_node_class_application_order_preserved() {
+    let input = "\
+flowchart TD
+    classDef a fill:#9cf
+    classDef b stroke:#039
+    A --> B
+    class A a
+    class A b
+";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains(r#"<g class="node default a b" id="A" data-id="A" data-look="classic">"#),
+        "expected class order a then b on wrapper, got: {svg}"
+    );
+}
+
+#[test]
+fn state_node_user_class_via_inline_annotation_lands_on_wrapper() {
+    let input = "\
+stateDiagram-v2
+    classDef active fill:#bfb
+    [*] --> Running
+    Running:::active --> Done
+";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains(
+            r#"<g class="node default active" id="Running" data-id="Running" data-look="classic">"#
+        ),
+        "expected active class on Running wrapper, got: {svg}"
+    );
+}
+
+#[test]
+fn state_node_user_class_via_class_statement_lands_on_wrapper() {
+    let input = "\
+stateDiagram-v2
+    classDef active fill:#bfb
+    [*] --> Running
+    Running --> Done
+    class Running active
+";
+    let svg = render_svg(input, &RenderConfig::default());
+    assert!(
+        svg.contains(
+            r#"<g class="node default active" id="Running" data-id="Running" data-look="classic">"#
+        ),
+        "expected active class via `class` statement, got: {svg}"
     );
 }

@@ -9,10 +9,14 @@
       <path d="M97.59,62.00 L97.59,164.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="168.00" width="179.17" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="97.59" y="195.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Code Repository</text>
-      <rect x="9.34" y="8.00" width="176.50" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="97.59" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Application User</text>
+      <g class="node default" id="Repo" data-id="Repo" data-look="classic">
+        <rect x="8.00" y="168.00" width="179.17" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="97.59" y="195.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Code Repository</text>
+      </g>
+      <g class="node default" id="User" data-id="User" data-look="classic">
+        <rect x="9.34" y="8.00" width="176.50" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="97.59" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Application User</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="73.57" y="70.50" width="48.02" height="28.00" fill="white" />

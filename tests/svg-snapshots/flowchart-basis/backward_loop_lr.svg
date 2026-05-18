@@ -17,22 +17,38 @@
       <path d="M1328.07,139.00 L1336.07,139.00 L1338.90,139.00 C1341.74,139.00 1347.40,139.00 1358.00,139.00 C1368.59,139.00 1384.12,139.00 1398.21,139.00 C1412.31,139.00 1424.97,139.00 1431.31,139.00 L1437.64,139.00 L1445.64,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="60.00" width="132.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="74.45" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Narratives</text>
-      <rect x="190.91" y="60.00" width="163.16" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="272.48" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Domain Model</text>
-      <rect x="404.06" y="112.00" width="169.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="488.75" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server Scaffold</text>
-      <rect x="404.06" y="8.00" width="138.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="473.19" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">IA Schema</text>
-      <rect x="623.45" y="8.00" width="186.30" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="716.59" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Frontend Scaffold</text>
-      <rect x="859.74" y="112.00" width="188.95" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="954.22" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">AI Implementation</text>
-      <rect x="1160.48" y="112.00" width="167.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1244.27" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Quality Checks</text>
-      <rect x="1449.64" y="112.00" width="179.19" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1539.23" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production Code</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="8.00" y="60.00" width="132.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="74.45" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Narratives</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="190.91" y="60.00" width="163.16" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="272.48" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Domain Model</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="404.06" y="112.00" width="169.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="488.75" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server Scaffold</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="404.06" y="8.00" width="138.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="473.19" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">IA Schema</text>
+      </g>
+      <g class="node default" id="E" data-id="E" data-look="classic">
+        <rect x="623.45" y="8.00" width="186.30" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="716.59" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Frontend Scaffold</text>
+      </g>
+      <g class="node default" id="F" data-id="F" data-look="classic">
+        <rect x="859.74" y="112.00" width="188.95" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="954.22" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">AI Implementation</text>
+      </g>
+      <g class="node default" id="G" data-id="G" data-look="classic">
+        <rect x="1160.48" y="112.00" width="167.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="1244.27" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Quality Checks</text>
+      </g>
+      <g class="node default" id="H" data-id="H" data-look="classic">
+        <rect x="1449.64" y="112.00" width="179.19" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="1539.23" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production Code</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="1087.70" y="143.00" width="33.78" height="28.00" fill="white" />

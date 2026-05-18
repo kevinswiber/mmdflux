@@ -14,20 +14,34 @@
       <path d="M780.73,112.42 L780.73,134.00 Q780.73,139.00 785.73,139.00 L962.87,139.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="179.36" y="60.00" width="95.58" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="227.15" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Build</text>
-      <polygon points="749.80,30.65 806.15,87.00 749.80,143.35 693.45,87.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="749.80" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Deploy?</text>
-      <rect x="507.85" y="60.00" width="135.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="575.65" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Lint Check</text>
-      <rect x="966.87" y="112.00" width="136.49" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1035.11" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production</text>
-      <rect x="8.00" y="60.00" width="121.36" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="68.68" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Git Push</text>
-      <rect x="966.87" y="8.00" width="146.28" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="1040.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Env</text>
-      <rect x="324.94" y="60.00" width="132.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="391.39" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Run Tests</text>
+      <g class="node default" id="Build" data-id="Build" data-look="classic">
+        <rect x="179.36" y="60.00" width="95.58" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="227.15" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Build</text>
+      </g>
+      <g class="node default" id="Deploy" data-id="Deploy" data-look="classic">
+        <polygon points="749.80,30.65 806.15,87.00 749.80,143.35 693.45,87.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="749.80" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Deploy?</text>
+      </g>
+      <g class="node default" id="Lint" data-id="Lint" data-look="classic">
+        <rect x="507.85" y="60.00" width="135.59" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="575.65" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Lint Check</text>
+      </g>
+      <g class="node default" id="Prod" data-id="Prod" data-look="classic">
+        <rect x="966.87" y="112.00" width="136.49" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="1035.11" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Production</text>
+      </g>
+      <g class="node default" id="Push" data-id="Push" data-look="classic">
+        <rect x="8.00" y="60.00" width="121.36" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="68.68" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Git Push</text>
+      </g>
+      <g class="node default" id="Staging" data-id="Staging" data-look="classic">
+        <rect x="966.87" y="8.00" width="146.28" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="1040.01" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Staging Env</text>
+      </g>
+      <g class="node default" id="Test" data-id="Test" data-look="classic">
+        <rect x="324.94" y="60.00" width="132.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="391.39" y="87.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Run Tests</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="828.71" y="21.00" width="59.59" height="28.00" fill="white" />

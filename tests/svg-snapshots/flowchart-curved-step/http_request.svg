@@ -15,18 +15,30 @@
       <path d="M344.01,644.75 L438.15,644.75 L438.15,593.94 C438.15,543.12 438.15,441.50 438.15,339.88 C438.15,238.25 438.15,136.62 438.15,85.81 L438.15,35.00 L311.53,35.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <polygon points="257.08,272.00 337.45,352.38 257.08,432.75 176.70,352.38" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="257.08" y="352.38" text-anchor="middle" dominant-baseline="middle" fill="#333">Authenticated?</text>
-      <rect x="206.62" y="8.00" width="100.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="257.08" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Client</text>
-      <rect x="8.00" y="513.75" width="181.84" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="98.92" y="540.75" text-anchor="middle" dominant-baseline="middle" fill="#333">Process Request</text>
-      <rect x="239.84" y="513.75" width="186.31" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="332.99" y="540.75" text-anchor="middle" dominant-baseline="middle" fill="#333">401 Unauthorized</text>
-      <rect x="170.15" y="617.75" width="173.86" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="257.08" y="644.75" text-anchor="middle" dominant-baseline="middle" fill="#333">Send Response</text>
-      <rect x="203.52" y="168.00" width="107.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="257.08" y="195.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server</text>
+      <g class="node default" id="Auth" data-id="Auth" data-look="classic">
+        <polygon points="257.08,272.00 337.45,352.38 257.08,432.75 176.70,352.38" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="257.08" y="352.38" text-anchor="middle" dominant-baseline="middle" fill="#333">Authenticated?</text>
+      </g>
+      <g class="node default" id="Client" data-id="Client" data-look="classic">
+        <rect x="206.62" y="8.00" width="100.91" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="257.08" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Client</text>
+      </g>
+      <g class="node default" id="Process" data-id="Process" data-look="classic">
+        <rect x="8.00" y="513.75" width="181.84" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="98.92" y="540.75" text-anchor="middle" dominant-baseline="middle" fill="#333">Process Request</text>
+      </g>
+      <g class="node default" id="Reject" data-id="Reject" data-look="classic">
+        <rect x="239.84" y="513.75" width="186.31" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="332.99" y="540.75" text-anchor="middle" dominant-baseline="middle" fill="#333">401 Unauthorized</text>
+      </g>
+      <g class="node default" id="Response" data-id="Response" data-look="classic">
+        <rect x="170.15" y="617.75" width="173.86" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="257.08" y="644.75" text-anchor="middle" dominant-baseline="middle" fill="#333">Send Response</text>
+      </g>
+      <g class="node default" id="Server" data-id="Server" data-look="classic">
+        <rect x="203.52" y="168.00" width="107.12" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="257.08" y="195.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Server</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="200.17" y="70.50" width="113.81" height="28.00" fill="white" />

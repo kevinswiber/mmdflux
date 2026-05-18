@@ -12,16 +12,26 @@
       <path d="M201.71,166.00 L201.71,177.40 L220.48,177.40 L220.48,212.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.00" y="8.00" width="124.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="70.02" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source 1</text>
-      <rect x="182.04" y="8.00" width="124.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="244.06" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source 2</text>
-      <rect x="104.36" y="112.00" width="105.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="157.04" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Merge</text>
-      <rect x="10.66" y="216.00" width="121.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="71.35" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output 1</text>
-      <rect x="182.04" y="216.00" width="121.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="242.73" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output 2</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="8.00" y="8.00" width="124.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="70.02" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source 1</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="182.04" y="8.00" width="124.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="244.06" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Source 2</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="104.36" y="112.00" width="105.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="157.04" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Merge</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="10.66" y="216.00" width="121.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="71.35" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output 1</text>
+      </g>
+      <g class="node default" id="E" data-id="E" data-look="classic">
+        <rect x="182.04" y="216.00" width="121.38" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="242.73" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Output 2</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

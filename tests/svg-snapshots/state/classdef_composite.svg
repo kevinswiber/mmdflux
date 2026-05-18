@@ -6,7 +6,7 @@
   </defs>
   <g transform="translate(-20.00,-19.00)">
     <g class="clusters">
-      <g class="cluster" id="outer">
+      <g class="cluster" id="outer" data-id="outer" data-look="classic">
         <rect class="subgraph" x="28.00" y="27.00" width="96.47" height="242.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="76.23" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">outer</text>
       </g>
@@ -16,13 +16,19 @@
       <path d="M76.23,176.00 L76.23,222.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="43.00" y="122.00" width="66.47" height="54.00" rx="5.00" ry="5.00" fill="#ff0" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="76.23" y="149.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Inner</text>
-      <circle cx="76.23" cy="240.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <circle cx="76.23" cy="240.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="76.23" y="240.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
-      <circle cx="76.23" cy="65.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="76.23" y="65.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      <g class="node default highlight" id="Inner" data-id="Inner" data-look="classic">
+        <rect x="43.00" y="122.00" width="66.47" height="54.00" rx="5.00" ry="5.00" fill="#ff0" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="76.23" y="149.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Inner</text>
+      </g>
+      <g class="node default" id="outer_end" data-id="outer_end" data-look="classic">
+        <circle cx="76.23" cy="240.00" r="14.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <circle cx="76.23" cy="240.00" r="9.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="76.23" y="240.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
+      <g class="node default" id="outer_start" data-id="outer_start" data-look="classic">
+        <circle cx="76.23" cy="65.00" r="7.00" fill="#333" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="76.23" y="65.00" text-anchor="middle" dominant-baseline="middle" fill="#333"></text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

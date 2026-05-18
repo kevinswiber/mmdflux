@@ -10,10 +10,14 @@
       <path d="M209.12,73.50 L110.23,73.50 L102.23,73.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="209.12" y="27.50" width="90.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="254.25" y="54.50" text-anchor="middle" dominant-baseline="middle" fill="#333">One</text>
-      <rect x="8.00" y="27.50" width="90.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="53.11" y="54.50" text-anchor="middle" dominant-baseline="middle" fill="#333">Two</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="209.12" y="27.50" width="90.24" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="254.25" y="54.50" text-anchor="middle" dominant-baseline="middle" fill="#333">One</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="27.50" width="90.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="53.11" y="54.50" text-anchor="middle" dominant-baseline="middle" fill="#333">Two</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="168.88" y="40.50" width="16.00" height="28.00" fill="white" />

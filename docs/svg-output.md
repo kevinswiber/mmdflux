@@ -11,7 +11,7 @@ Each subgraph (flowchart `subgraph ... end`, class-diagram namespace, state
 composite region) is rendered as:
 
 ```html
-<g class="cluster {userClasses}" id="{subgraphId}">
+<g class="cluster {userClasses}" id="{subgraphId}" data-id="{subgraphId}" data-look="classic">
   <rect class="subgraph" ... />
   <text>{title}</text>
 </g>
@@ -33,14 +33,57 @@ suppressed).
 resolved style continues to flow onto the inner rect as inline attributes; the
 class name itself reaches the wrapper so external CSS can extend or override.
 
-### `id` attribute
+### `id` and `data-id` attributes
 
 The wrapper `id` is derived from the Mermaid subgraph identifier via XML-safe
 escaping: `"`, `&`, `<`, `>` are entity-escaped, and whitespace characters are
 replaced with `_`. Unicode letters pass through unchanged.
 
-The `id` is stable as long as the source identifier in the Mermaid input is
-stable.
+The `data-id` attribute carries the original (un-substituted) subgraph
+identifier, XML-attribute-safe but with whitespace preserved. Use it when the
+caller needs to recover the identifier verbatim.
+
+Both attributes are stable as long as the source identifier in the Mermaid
+input is stable.
+
+### `data-look` attribute
+
+`data-look="classic"` is emitted on every wrapper. mmdflux currently renders
+only the classic look, but the attribute is present unconditionally so
+Mermaid-targeted CSS that scopes by `[data-look="classic"]` continues to
+match.
+
+## Node wrapper
+
+Each node is rendered as:
+
+```html
+<g class="node default {userClasses}" id="{nodeId}" data-id="{nodeId}" data-look="classic">
+  <!-- shape primitives (rect, polygon, circle, …) and label text -->
+</g>
+```
+
+The `<g class="node default">` wrapper is the canonical CSS hook for styling
+individual nodes. `default` mirrors Mermaid's wrapper class so existing
+Mermaid-targeted CSS that uses `g.node.default` keeps working.
+
+### User class names
+
+Mermaid `class A blueFill`, inline `A:::blueFill`, and `class A,B foo`
+annotations append user class identifiers to the wrapper's `class` attribute
+in application order. Duplicates are suppressed.
+
+`classDef blueFill fill:#9cf` defines what `blueFill` *means* visually. The
+resolved style continues to flow onto the inner shape primitives as inline
+attributes; the class name itself reaches the wrapper so external CSS can
+extend or override.
+
+### `id`, `data-id`, and `data-look`
+
+The node `id` is derived from the Mermaid node identifier via the same
+XML-safe escaping used for subgraph ids. `data-id` carries the original
+identifier with whitespace preserved. `data-look="classic"` is emitted
+unconditionally.
 
 ## CSS targeting
 
@@ -63,24 +106,27 @@ g.cluster.blueFill > text {
 g.cluster#lr > rect {
   outline: 2px dashed currentColor;
 }
+
+/* Target every node */
+g.node.default rect,
+g.node.default polygon,
+g.node.default circle {
+  cursor: pointer;
+}
+
+/* Target a node user class */
+g.node.default.highlight rect {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
 ```
 
 ## MMDS round-trip
 
-The user class list survives serialization to MMDS JSON. The
-`org.mmdflux.node-style.v1.subgraphs[<id>].classNames` array preserves the
-applied class names (in order) and is replayed onto the wrapper when the
-document is hydrated back into a diagram. See [`mmds.md`](./mmds.md) for the
-full extension shape.
-
-## Not yet supported
-
-- Node-level `<g>` wrappers with user-class propagation. Subgraph wrappers
-  are the first surface; node-level parity is tracked under the per-element
-  styling umbrella (GitHub issue
-  [#333](https://github.com/kevinswiber/mmdflux/issues/333)).
-- `data-look`, `data-id`, and other Mermaid attribute hooks. These are
-  deferred to follow-up work on the same umbrella.
+The user class list for nodes and subgraphs survives serialization to MMDS
+JSON. The `org.mmdflux.node-style.v1.nodes[<id>].classNames` and
+`.subgraphs[<id>].classNames` arrays preserve applied class names (in order)
+and are replayed onto their respective wrappers when the document is hydrated
+back into a diagram. See [`mmds.md`](./mmds.md) for the full extension shape.
 
 ## What is intentionally preserved
 

@@ -6,7 +6,7 @@
   </defs>
   <g transform="translate(-20.00,-19.00)">
     <g class="clusters">
-      <g class="cluster" id="sg1">
+      <g class="cluster" id="sg1" data-id="sg1" data-look="classic">
         <rect class="subgraph" x="28.00" y="27.00" width="137.15" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="96.57" y="31.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Group</text>
       </g>
@@ -16,10 +16,14 @@
       <path d="M116.57,162.00 L116.57,137.00 L118.00,137.00 C119.43,137.00 122.28,137.00 125.14,137.00 C127.99,137.00 130.85,137.00 132.27,137.00 L133.70,137.00 L133.70,116.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="47.45" y="58.00" width="98.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="96.57" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node</text>
-      <rect x="43.00" y="162.00" width="107.15" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="96.57" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node2</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="47.45" y="58.00" width="98.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="96.57" y="85.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="43.00" y="162.00" width="107.15" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="96.57" y="189.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Node2</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

@@ -11,14 +11,22 @@
       <path d="M240.83,81.23 L315.78,81.23 Q320.78,81.23 320.78,86.23 L320.78,169.36" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <polygon points="198.70,8.00 256.38,65.68 198.70,123.36 141.02,65.68" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="198.70" y="65.68" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
-      <rect x="8.00" y="173.36" width="86.69" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="51.34" y="200.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Left</text>
-      <rect x="144.69" y="173.36" width="108.02" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="198.70" y="200.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Center</text>
-      <rect x="302.71" y="173.36" width="97.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="351.39" y="200.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Right</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <polygon points="198.70,8.00 256.38,65.68 198.70,123.36 141.02,65.68" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="198.70" y="65.68" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="173.36" width="86.69" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="51.34" y="200.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Left</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="144.69" y="173.36" width="108.02" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="198.70" y="200.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Center</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="302.71" y="173.36" width="97.35" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="351.39" y="200.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Right</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

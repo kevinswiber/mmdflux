@@ -11,33 +11,41 @@
       <path d="M406.38,206.88 L406.38,212.40 Q406.38,217.40 411.38,217.40 L460.00,217.40 Q465.00,217.40 465.00,222.40 L465.00,256.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-start="url(#open-arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="244.05" y="8.00" width="165.41" height="198.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="326.76" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Animal</text>
-      <line x1="244.05" y1="59.00" x2="409.46" y2="59.00" stroke="#333" stroke-width="1.00" />
-      <text x="259.05" y="83.00" text-anchor="start" dominant-baseline="middle" fill="#333">+int age</text>
-      <text x="259.05" y="107.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String gender</text>
-      <line x1="244.05" y1="131.00" x2="409.46" y2="131.00" stroke="#333" stroke-width="1.00" />
-      <text x="259.05" y="155.00" text-anchor="start" dominant-baseline="middle" fill="#333">+isMammal()</text>
-      <text x="259.05" y="179.00" text-anchor="start" dominant-baseline="middle" fill="#333">+mate()</text>
-      <rect x="8.00" y="256.00" width="188.52" height="174.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="102.26" y="283.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Duck</text>
-      <line x1="8.00" y1="307.00" x2="196.52" y2="307.00" stroke="#333" stroke-width="1.00" />
-      <text x="23.00" y="331.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String beakColor</text>
-      <line x1="8.00" y1="355.00" x2="196.52" y2="355.00" stroke="#333" stroke-width="1.00" />
-      <text x="23.00" y="379.00" text-anchor="start" dominant-baseline="middle" fill="#333">+swim()</text>
-      <text x="23.00" y="403.00" text-anchor="start" dominant-baseline="middle" fill="#333">+quack()</text>
-      <rect x="246.52" y="256.00" width="160.48" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="326.76" y="283.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Fish</text>
-      <line x1="246.52" y1="307.00" x2="407.00" y2="307.00" stroke="#333" stroke-width="1.00" />
-      <text x="261.52" y="331.00" text-anchor="start" dominant-baseline="middle" fill="#333">-int sizeInFeet</text>
-      <line x1="246.52" y1="355.00" x2="407.00" y2="355.00" stroke="#333" stroke-width="1.00" />
-      <text x="261.52" y="379.00" text-anchor="start" dominant-baseline="middle" fill="#333">-canEat()</text>
-      <rect x="457.00" y="256.00" width="152.05" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="533.03" y="283.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Zebra</text>
-      <line x1="457.00" y1="307.00" x2="609.05" y2="307.00" stroke="#333" stroke-width="1.00" />
-      <text x="472.00" y="331.00" text-anchor="start" dominant-baseline="middle" fill="#333">+bool is_wild</text>
-      <line x1="457.00" y1="355.00" x2="609.05" y2="355.00" stroke="#333" stroke-width="1.00" />
-      <text x="472.00" y="379.00" text-anchor="start" dominant-baseline="middle" fill="#333">+run()</text>
+      <g class="node default" id="Animal" data-id="Animal" data-look="classic">
+        <rect x="244.05" y="8.00" width="165.41" height="198.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="326.76" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Animal</text>
+        <line x1="244.05" y1="59.00" x2="409.46" y2="59.00" stroke="#333" stroke-width="1.00" />
+        <text x="259.05" y="83.00" text-anchor="start" dominant-baseline="middle" fill="#333">+int age</text>
+        <text x="259.05" y="107.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String gender</text>
+        <line x1="244.05" y1="131.00" x2="409.46" y2="131.00" stroke="#333" stroke-width="1.00" />
+        <text x="259.05" y="155.00" text-anchor="start" dominant-baseline="middle" fill="#333">+isMammal()</text>
+        <text x="259.05" y="179.00" text-anchor="start" dominant-baseline="middle" fill="#333">+mate()</text>
+      </g>
+      <g class="node default" id="Duck" data-id="Duck" data-look="classic">
+        <rect x="8.00" y="256.00" width="188.52" height="174.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="102.26" y="283.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Duck</text>
+        <line x1="8.00" y1="307.00" x2="196.52" y2="307.00" stroke="#333" stroke-width="1.00" />
+        <text x="23.00" y="331.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String beakColor</text>
+        <line x1="8.00" y1="355.00" x2="196.52" y2="355.00" stroke="#333" stroke-width="1.00" />
+        <text x="23.00" y="379.00" text-anchor="start" dominant-baseline="middle" fill="#333">+swim()</text>
+        <text x="23.00" y="403.00" text-anchor="start" dominant-baseline="middle" fill="#333">+quack()</text>
+      </g>
+      <g class="node default" id="Fish" data-id="Fish" data-look="classic">
+        <rect x="246.52" y="256.00" width="160.48" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="326.76" y="283.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Fish</text>
+        <line x1="246.52" y1="307.00" x2="407.00" y2="307.00" stroke="#333" stroke-width="1.00" />
+        <text x="261.52" y="331.00" text-anchor="start" dominant-baseline="middle" fill="#333">-int sizeInFeet</text>
+        <line x1="246.52" y1="355.00" x2="407.00" y2="355.00" stroke="#333" stroke-width="1.00" />
+        <text x="261.52" y="379.00" text-anchor="start" dominant-baseline="middle" fill="#333">-canEat()</text>
+      </g>
+      <g class="node default" id="Zebra" data-id="Zebra" data-look="classic">
+        <rect x="457.00" y="256.00" width="152.05" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="533.03" y="283.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Zebra</text>
+        <line x1="457.00" y1="307.00" x2="609.05" y2="307.00" stroke="#333" stroke-width="1.00" />
+        <text x="472.00" y="331.00" text-anchor="start" dominant-baseline="middle" fill="#333">+bool is_wild</text>
+        <line x1="457.00" y1="355.00" x2="609.05" y2="355.00" stroke="#333" stroke-width="1.00" />
+        <text x="472.00" y="379.00" text-anchor="start" dominant-baseline="middle" fill="#333">+run()</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

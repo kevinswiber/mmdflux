@@ -12,22 +12,38 @@
       <path d="M521.82,62.00 L521.82,64.78 C521.82,67.56 521.82,73.11 521.82,78.67 C521.82,84.22 521.82,89.78 521.82,95.33 C521.82,100.89 521.82,106.44 521.82,109.22 L521.82,112.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" />
     </g>
     <g class="nodes">
-      <rect x="15.99" y="8.00" width="95.58" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="63.78" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Solid</text>
-      <rect x="8.00" y="112.00" width="111.56" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="63.78" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Normal</text>
-      <rect x="166.88" y="8.00" width="107.14" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="220.45" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Dotted</text>
-      <rect x="169.56" y="112.00" width="101.78" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="220.45" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Arrow</text>
-      <rect x="324.02" y="8.00" width="98.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="373.14" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Thick</text>
-      <rect x="322.25" y="112.00" width="101.78" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="373.14" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Arrow</text>
-      <rect x="472.25" y="8.00" width="99.14" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="521.82" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Open</text>
-      <rect x="476.70" y="112.00" width="90.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="521.82" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Line</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="15.99" y="8.00" width="95.58" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="63.78" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Solid</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="112.00" width="111.56" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="63.78" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Normal</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="166.88" y="8.00" width="107.14" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="220.45" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Dotted</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="169.56" y="112.00" width="101.78" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="220.45" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Arrow</text>
+      </g>
+      <g class="node default" id="E" data-id="E" data-look="classic">
+        <rect x="324.02" y="8.00" width="98.23" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="373.14" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Thick</text>
+      </g>
+      <g class="node default" id="F" data-id="F" data-look="classic">
+        <rect x="322.25" y="112.00" width="101.78" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="373.14" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Arrow</text>
+      </g>
+      <g class="node default" id="G" data-id="G" data-look="classic">
+        <rect x="472.25" y="8.00" width="99.14" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="521.82" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Open</text>
+      </g>
+      <g class="node default" id="H" data-id="H" data-look="classic">
+        <rect x="476.70" y="112.00" width="90.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="521.82" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Line</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

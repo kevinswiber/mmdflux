@@ -86,6 +86,12 @@ pub struct Node {
     /// Optional style hints carried with the node.
     #[serde(skip_serializing_if = "NodeStyle::is_empty", default)]
     pub style: NodeStyle,
+    /// Original Mermaid class names applied to this node, preserved so the
+    /// SVG renderer can emit them on the `<g class="node default ...">`
+    /// wrapper. Order is preserved in application order; duplicates are not
+    /// stored.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub class_names: Vec<String>,
 }
 
 impl Node {
@@ -102,6 +108,7 @@ impl Node {
             shape: Shape::default(),
             parent: None,
             style: NodeStyle::default(),
+            class_names: Vec::new(),
         }
     }
 
@@ -133,5 +140,29 @@ mod tests {
         let mut node = Node::new("A");
         node.parent = Some("sg1".to_string());
         assert_eq!(node.parent, Some("sg1".to_string()));
+    }
+
+    #[test]
+    fn node_default_has_empty_class_names() {
+        let node = Node::new("A");
+        assert!(node.class_names.is_empty());
+    }
+
+    #[test]
+    fn node_class_names_serialize_when_present() {
+        let mut node = Node::new("A");
+        node.class_names = vec!["highlight".to_string(), "thickBorder".to_string()];
+        let json = serde_json::to_string(&node).unwrap();
+        assert!(
+            json.contains(r#""class_names":["highlight","thickBorder"]"#),
+            "{json}"
+        );
+    }
+
+    #[test]
+    fn node_class_names_omitted_when_empty() {
+        let node = Node::new("A");
+        let json = serde_json::to_string(&node).unwrap();
+        assert!(!json.contains("class_names"), "{json}");
     }
 }

@@ -350,7 +350,8 @@ Payload shape:
         "A": {
           "fill": "#ffeeaa",
           "stroke": "#333",
-          "color": "#111"
+          "color": "#111",
+          "classNames": ["highlight"]
         }
       },
       "edges": {
@@ -393,11 +394,12 @@ Rules:
   overrides. Container visual styles replay provider-free. The rule is:
   custom subgraph title font family or size requires dynamic metrics because
   title geometry is layout-affecting.
-- `classNames` (per-subgraph, optional, array of strings) preserves the user
-  class names from Mermaid `class lr foo` / `lr:::foo` annotations targeting
-  the subgraph id, in application order. The SVG renderer replays them onto
-  the `<g class="cluster ...">` wrapper, so external CSS can target subgraphs
-  the same way as in Mermaid output. Omitted when empty.
+- `classNames` (per-node or per-subgraph, optional, array of strings) preserves
+  the user class names from Mermaid `class A foo` / `A:::foo` annotations, in
+  application order. The SVG renderer replays them onto the
+  `<g class="node default ...">` (nodes) or `<g class="cluster ...">`
+  (subgraphs) wrapper, so external CSS can target the rendered elements the
+  same way as in Mermaid output. Omitted when empty.
 - Provider-free replay preserves the persisted style attributes, but MMDS keeps
   canonical graph geometry. Direct dynamic SVG rendering can use visual SVG
   geometry, so styled-title replay is not guaranteed to be byte-identical to the

@@ -9,20 +9,24 @@
       <path d="M85.80,206.00 L85.80,308.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="8.44" y="312.00" width="154.73" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="85.80" y="339.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Session</text>
-      <line x1="8.44" y1="363.00" x2="163.17" y2="363.00" stroke="#333" stroke-width="1.00" />
-      <text x="23.44" y="387.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String token</text>
-      <line x1="8.44" y1="411.00" x2="163.17" y2="411.00" stroke="#333" stroke-width="1.00" />
-      <text x="23.44" y="435.00" text-anchor="start" dominant-baseline="middle" fill="#333">+isValid()</text>
-      <rect x="8.00" y="8.00" width="155.61" height="198.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="85.80" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">User</text>
-      <line x1="8.00" y1="59.00" x2="163.61" y2="59.00" stroke="#333" stroke-width="1.00" />
-      <text x="23.00" y="83.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String name</text>
-      <text x="23.00" y="107.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String email</text>
-      <line x1="8.00" y1="131.00" x2="163.61" y2="131.00" stroke="#333" stroke-width="1.00" />
-      <text x="23.00" y="155.00" text-anchor="start" dominant-baseline="middle" fill="#333">+login()</text>
-      <text x="23.00" y="179.00" text-anchor="start" dominant-baseline="middle" fill="#333">+logout()</text>
+      <g class="node default" id="Session" data-id="Session" data-look="classic">
+        <rect x="8.44" y="312.00" width="154.73" height="150.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="85.80" y="339.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Session</text>
+        <line x1="8.44" y1="363.00" x2="163.17" y2="363.00" stroke="#333" stroke-width="1.00" />
+        <text x="23.44" y="387.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String token</text>
+        <line x1="8.44" y1="411.00" x2="163.17" y2="411.00" stroke="#333" stroke-width="1.00" />
+        <text x="23.44" y="435.00" text-anchor="start" dominant-baseline="middle" fill="#333">+isValid()</text>
+      </g>
+      <g class="node default" id="User" data-id="User" data-look="classic">
+        <rect x="8.00" y="8.00" width="155.61" height="198.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="85.80" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">User</text>
+        <line x1="8.00" y1="59.00" x2="163.61" y2="59.00" stroke="#333" stroke-width="1.00" />
+        <text x="23.00" y="83.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String name</text>
+        <text x="23.00" y="107.00" text-anchor="start" dominant-baseline="middle" fill="#333">+String email</text>
+        <line x1="8.00" y1="131.00" x2="163.61" y2="131.00" stroke="#333" stroke-width="1.00" />
+        <text x="23.00" y="155.00" text-anchor="start" dominant-baseline="middle" fill="#333">+login()</text>
+        <text x="23.00" y="179.00" text-anchor="start" dominant-baseline="middle" fill="#333">+logout()</text>
+      </g>
     </g>
     <g class="edgeLabels">
       <rect x="55.57" y="214.50" width="60.47" height="28.00" fill="white" />

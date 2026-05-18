@@ -13,14 +13,22 @@
       <path d="M168.22,62.00 L203.32,112.00 L203.32,216.00 L161.93,316.30" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="102.36" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="149.26" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
-      <rect x="8.00" y="112.00" width="106.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="61.13" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Step 1</text>
-      <rect x="52.06" y="216.00" width="106.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="105.19" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Step 2</text>
-      <rect x="105.02" y="320.00" width="88.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="149.26" y="347.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="102.36" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="149.26" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="112.00" width="106.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="61.13" y="139.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Step 1</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="52.06" y="216.00" width="106.26" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="105.19" y="243.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Step 2</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="105.02" y="320.00" width="88.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="149.26" y="347.00" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

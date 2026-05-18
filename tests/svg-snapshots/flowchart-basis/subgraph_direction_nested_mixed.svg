@@ -6,11 +6,11 @@
   </defs>
   <g transform="translate(-65.34,0.00)">
     <g class="clusters">
-      <g class="cluster" id="outer">
+      <g class="cluster" id="outer" data-id="outer" data-look="classic">
         <rect class="subgraph" x="73.34" y="114.00" width="419.12" height="250.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="282.89" y="118.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Outer LR</text>
       </g>
-      <g class="cluster" id="inner">
+      <g class="cluster" id="inner" data-id="inner" data-look="classic">
         <rect class="subgraph" x="88.34" y="145.00" width="100.67" height="204.00" fill="none" stroke="#888" stroke-width="1.00" />
         <text x="138.67" y="149.00" text-anchor="middle" dominant-baseline="hanging" fill="#333">Inner BT</text>
       </g>
@@ -21,16 +21,26 @@
       <path d="M282.89,62.00 L282.89,70.00 L282.89,81.83 C282.89,93.67 282.89,117.33 289.10,129.17 C295.30,141.00 307.71,141.00 313.92,152.17 C320.12,163.33 320.12,185.67 320.12,196.83 L320.12,208.00 L320.12,216.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="103.34" y="280.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="138.67" y="307.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
-      <rect x="103.34" y="176.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="138.67" y="203.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
-      <rect x="284.34" y="220.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="320.12" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
-      <rect x="405.90" y="220.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="441.68" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
-      <rect x="247.56" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="282.89" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">E</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="103.34" y="280.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="138.67" y="307.00" text-anchor="middle" dominant-baseline="middle" fill="#333">A</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="103.34" y="176.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="138.67" y="203.00" text-anchor="middle" dominant-baseline="middle" fill="#333">B</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="284.34" y="220.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="320.12" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">C</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="405.90" y="220.00" width="71.55" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="441.68" y="247.00" text-anchor="middle" dominant-baseline="middle" fill="#333">D</text>
+      </g>
+      <g class="node default" id="E" data-id="E" data-look="classic">
+        <rect x="247.56" y="8.00" width="70.67" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="282.89" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">E</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>

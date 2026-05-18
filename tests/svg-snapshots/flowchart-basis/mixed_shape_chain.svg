@@ -11,14 +11,22 @@
       <path d="M77.60,331.36 L77.60,334.14 C77.60,336.91 77.60,342.47 77.60,348.03 C77.60,353.58 77.60,359.14 77.60,364.03 C77.60,368.91 77.60,373.14 77.60,375.25 L77.60,377.36" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
     </g>
     <g class="nodes">
-      <rect x="30.71" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.60" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
-      <polygon points="77.60,112.00 135.28,169.68 77.60,227.36 19.92,169.68" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.60" y="169.68" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
-      <polygon points="35.84,277.36 119.36,277.36 147.20,304.36 119.36,331.36 35.84,331.36 8.00,304.36" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.60" y="304.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Hexagon</text>
-      <rect x="33.37" y="381.36" width="88.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
-      <text x="77.60" y="408.36" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="30.71" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.60" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <polygon points="77.60,112.00 135.28,169.68 77.60,227.36 19.92,169.68" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.60" y="169.68" text-anchor="middle" dominant-baseline="middle" fill="#333">Decision</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <polygon points="35.84,277.36 119.36,277.36 147.20,304.36 119.36,331.36 35.84,331.36 8.00,304.36" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.60" y="304.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Hexagon</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="33.37" y="381.36" width="88.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="77.60" y="408.36" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      </g>
     </g>
     <g class="edgeLabels">
     </g>
