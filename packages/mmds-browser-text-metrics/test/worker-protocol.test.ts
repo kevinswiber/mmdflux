@@ -100,7 +100,21 @@ describe("worker-protocol", () => {
     ).toBe(false);
   });
 
-  it("rejects renderWithBrowserTextMetrics with non-svg format or bad metrics", () => {
+  it("accepts renderWithBrowserTextMetrics with mmds format", () => {
+    expect(
+      isWorkerRequestMessage({
+        version: 1,
+        type: "renderWithBrowserTextMetrics",
+        seq: 1,
+        input: "x",
+        format: "mmds",
+        configJson: "{}",
+        browserTextMetrics: { fontFamily: "Inter" },
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects renderWithBrowserTextMetrics with non-graph format or bad metrics", () => {
     expect(
       isWorkerRequestMessage({
         version: 1,

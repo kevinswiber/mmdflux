@@ -201,6 +201,7 @@ describe("renderApp", () => {
         input: expect.any(String),
         configJson: expect.any(String),
         browserTextMetrics: expect.objectContaining({ defaultStyle: "s0" }),
+        format: "svg",
       });
       expect(render).not.toHaveBeenCalled();
       expect(root.querySelector("[data-preview-output]")?.textContent).toBe(

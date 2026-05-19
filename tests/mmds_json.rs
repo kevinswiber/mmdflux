@@ -3456,6 +3456,76 @@ flowchart TD
 }
 
 #[test]
+fn mmds_replay_subgraph_rect_contains_children() {
+    // MMDS subgraph.bounds carries width/height only; the replay derives the
+    // top-left from children. Passing the children-derived center to
+    // FRect::new (which treats x/y as top-left) shifts the cluster off its
+    // children by half the bounds, leaving children floating outside the
+    // cluster border (the symptom that surfaced via CLI MMDS replay of a
+    // styled-subgraph document).
+    let input = "\
+flowchart TD
+    subgraph G[Outer]
+        A[Inner] --> B[Leaf]
+    end
+";
+    let mmds = render_json(input);
+    let replay_svg = render_mmds_input(&mmds, OutputFormat::Svg, RenderConfig::default());
+
+    let cluster = parse_first_rect_after(&replay_svg, "class=\"cluster");
+    let node_a = parse_first_rect_after(&replay_svg, "id=\"A\"");
+    let node_b = parse_first_rect_after(&replay_svg, "id=\"B\"");
+    assert!(
+        rect_contains(&cluster, &node_a) && rect_contains(&cluster, &node_b),
+        "subgraph rect must contain its children after MMDS replay.\n\
+         cluster: {cluster:?}\nnode A: {node_a:?}\nnode B: {node_b:?}\n\nreplay SVG:\n{replay_svg}",
+    );
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SvgRect {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+fn parse_first_rect_after(svg: &str, anchor: &str) -> SvgRect {
+    let anchor_start = svg
+        .find(anchor)
+        .unwrap_or_else(|| panic!("missing anchor {anchor:?} in SVG"));
+    let after_anchor = &svg[anchor_start..];
+    let rect_start = after_anchor
+        .find("<rect ")
+        .unwrap_or_else(|| panic!("no rect after anchor {anchor:?}"));
+    let rect_chunk = &after_anchor[rect_start..rect_start + 200];
+    let extract = |attr: &str| -> f64 {
+        let needle = format!("{attr}=\"");
+        let start = rect_chunk
+            .find(&needle)
+            .unwrap_or_else(|| panic!("missing attr {attr} in {rect_chunk}"))
+            + needle.len();
+        let end = rect_chunk[start..]
+            .find('"')
+            .unwrap_or_else(|| panic!("unterminated attr {attr}"));
+        rect_chunk[start..start + end].parse().unwrap()
+    };
+    SvgRect {
+        x: extract("x"),
+        y: extract("y"),
+        width: extract("width"),
+        height: extract("height"),
+    }
+}
+
+fn rect_contains(outer: &SvgRect, inner: &SvgRect) -> bool {
+    outer.x <= inner.x
+        && outer.y <= inner.y
+        && outer.x + outer.width >= inner.x + inner.width
+        && outer.y + outer.height >= inner.y + inner.height
+}
+
+#[test]
 fn mmds_hydrate_no_class_names_field_yields_empty_vec() {
     // Legacy MMDS predating classNames must hydrate cleanly to an empty Vec.
     let input = "\

@@ -762,7 +762,11 @@ fn main() -> io::Result<()> {
     }
 
     // Collect and print warnings to stderr (unless --quiet).
+    // MMDS JSON input is not Mermaid source — skip the Mermaid validator,
+    // which would otherwise complain "Strict parsing would reject this input:
+    // expected header" on every JSON document.
     if !cli.quiet
+        && !mmdflux::mmds::is_mmds_input(&input)
         && let Some(instance) = default_registry().create(diagram_id)
     {
         let warnings = instance.validation_warnings(&input);

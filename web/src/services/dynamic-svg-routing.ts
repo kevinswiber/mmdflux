@@ -1,4 +1,5 @@
 import { mayNeedBrowserTextMetrics } from "@mmds/browser-text-metrics/routing";
+import { isDynamicRenderOutputFormat } from "@mmds/browser-text-metrics/worker-protocol";
 import type {
   RenderRequest,
   RenderResponse,
@@ -9,7 +10,10 @@ export async function renderPlaygroundRequest(
   client: RenderWorkerClient,
   request: RenderRequest,
 ): Promise<RenderResponse> {
-  if (request.format !== "svg" || !mayNeedBrowserTextMetrics(request)) {
+  if (
+    !isDynamicRenderOutputFormat(request.format) ||
+    !mayNeedBrowserTextMetrics(request)
+  ) {
     return client.render(request);
   }
 
@@ -30,5 +34,6 @@ export async function renderPlaygroundRequest(
     input: request.input,
     configJson: request.configJson,
     browserTextMetrics: decision.browserTextMetrics,
+    format: request.format,
   });
 }

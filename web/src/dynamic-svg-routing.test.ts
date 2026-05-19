@@ -85,6 +85,7 @@ describe("renderPlaygroundRequest", () => {
       input: "graph TD\nA[Regular]-->B\nstyle A font-family:Verdana",
       configJson: "{}",
       browserTextMetrics: expect.objectContaining({ defaultStyle: "s0" }),
+      format: "svg",
     });
     expect(client.render).not.toHaveBeenCalled();
   });
@@ -130,6 +131,7 @@ describe("renderPlaygroundRequest", () => {
       input: request.input,
       configJson: "{}",
       browserTextMetrics: expect.objectContaining({ defaultStyle: "s0" }),
+      format: "svg",
     });
     expect(client.render).not.toHaveBeenCalled();
   });
@@ -233,7 +235,8 @@ describe("renderPlaygroundRequest", () => {
 
   it.each([
     "text",
-    "mmds",
+    "ascii",
+    "mermaid",
   ] as const)("routes %s without resolving browser metrics", async (format) => {
     const client = renderClientFixture();
 
@@ -249,6 +252,82 @@ describe("renderPlaygroundRequest", () => {
       seq: 3,
       input: "graph TD\nA-->B",
       format,
+      configJson: "{}",
+    });
+    expect(client.renderWithBrowserTextMetrics).not.toHaveBeenCalled();
+  });
+
+  it("routes required browser metrics through dynamic render for MMDS", async () => {
+    const client = renderClientFixture({
+      resolveBrowserTextMetricsRequest: vi.fn(async () => ({
+        required: true,
+        browserTextMetrics: {
+          defaultStyle: "s0",
+          textStyles: [
+            {
+              id: "s0",
+              fontFamily: "Verdana",
+              fontSize: 8,
+              lineHeight: 12,
+              fontStyle: "normal",
+              fontWeight: "400",
+            },
+          ],
+        },
+      })),
+      renderWithBrowserTextMetrics: vi.fn(
+        async (request: BrowserTextMetricsRenderRequest) => ({
+          seq: request.seq,
+          format: "mmds" as const,
+          output: '{"version":2}',
+        }),
+      ),
+    });
+
+    await expect(
+      renderPlaygroundRequest(client, {
+        seq: 11,
+        input: "graph TD\nA[Regular]-->B\nstyle A font-family:Verdana",
+        format: "mmds",
+        configJson: "{}",
+      }),
+    ).resolves.toEqual({
+      seq: 11,
+      format: "mmds",
+      output: '{"version":2}',
+    });
+
+    expect(client.resolveBrowserTextMetricsRequest).toHaveBeenCalledWith({
+      seq: 11,
+      input: "graph TD\nA[Regular]-->B\nstyle A font-family:Verdana",
+      format: "mmds",
+      configJson: "{}",
+    });
+    expect(client.renderWithBrowserTextMetrics).toHaveBeenCalledWith({
+      seq: 11,
+      input: "graph TD\nA[Regular]-->B\nstyle A font-family:Verdana",
+      format: "mmds",
+      configJson: "{}",
+      browserTextMetrics: expect.objectContaining({ defaultStyle: "s0" }),
+    });
+    expect(client.render).not.toHaveBeenCalled();
+  });
+
+  it("routes MMDS without font hints through static render", async () => {
+    const client = renderClientFixture();
+
+    await renderPlaygroundRequest(client, {
+      seq: 12,
+      input: "graph TD\nA-->B",
+      format: "mmds",
+      configJson: "{}",
+    });
+
+    expect(client.resolveBrowserTextMetricsRequest).not.toHaveBeenCalled();
+    expect(client.render).toHaveBeenCalledWith({
+      seq: 12,
+      input: "graph TD\nA-->B",
+      format: "mmds",
       configJson: "{}",
     });
     expect(client.renderWithBrowserTextMetrics).not.toHaveBeenCalled();

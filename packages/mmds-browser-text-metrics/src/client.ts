@@ -11,6 +11,7 @@ import type {
 } from "./main-thread.js";
 import { mayNeedBrowserTextMetrics } from "./routing.js";
 import {
+  type DynamicRenderOutputFormat,
   isWorkerRequestMessage,
   PROTOCOL_VERSION,
   type WorkerBrowserTextMetricsDecision,
@@ -163,13 +164,14 @@ export function createMmdsBrowserTextMetricsClient(
   return {
     renderSvg(opts) {
       const seq = nextDynamicSeq++;
+      const format: DynamicRenderOutputFormat = opts.format ?? "svg";
       return new Promise<MmdsRenderResult>((resolve, reject) => {
         const mainThreadFallback = fallback
           ? () => fallback.renderSvg(opts)
           : undefined;
         const slot: PendingRender = {
           kind: "render",
-          format: "svg",
+          format,
           resolve,
           reject,
           mainThreadFallback,
@@ -197,7 +199,7 @@ export function createMmdsBrowserTextMetricsClient(
             type: "renderWithBrowserTextMetrics",
             seq,
             input: opts.input,
-            format: "svg",
+            format,
             configJson: opts.configJson ?? "{}",
             browserTextMetrics: opts.browserTextMetrics,
           },
@@ -272,7 +274,7 @@ export function createMmdsBrowserTextMetricsClient(
     },
     async renderAuto(opts) {
       if (
-        opts.format !== "svg" ||
+        (opts.format !== "svg" && opts.format !== "mmds") ||
         !mayNeedBrowserTextMetrics({
           input: opts.input,
           configJson: opts.configJson,
@@ -296,6 +298,7 @@ export function createMmdsBrowserTextMetricsClient(
         input: opts.input,
         configJson: opts.configJson,
         browserTextMetrics: decision.browserTextMetrics,
+        format: opts.format,
       });
     },
     terminate() {

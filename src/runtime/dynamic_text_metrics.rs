@@ -630,7 +630,7 @@ pub fn resolve_browser_text_metrics_request(
     format: OutputFormat,
     config: &RenderConfig,
 ) -> Result<BrowserTextMetricsDecision, RenderError> {
-    if !matches!(format, OutputFormat::Svg) {
+    if !matches!(format, OutputFormat::Svg | OutputFormat::Mmds) {
         return Ok(browser_text_metrics_not_required());
     }
     if config.graph_text_style.is_some() {
@@ -1365,6 +1365,26 @@ mod tests {
             profile_id: None,
             profile_version: None,
         }
+    }
+
+    #[test]
+    fn browser_metrics_request_resolves_multi_font_graph_styles_for_mmds() {
+        let decision = resolve_browser_text_metrics_request(
+            multi_font_mermaid_input(),
+            OutputFormat::Mmds,
+            &RenderConfig::default(),
+        )
+        .expect("resolver should accept mmds graph input");
+
+        assert!(decision.required);
+        let request = decision.browser_text_metrics.expect("metrics request");
+        assert!(
+            request
+                .text_styles
+                .iter()
+                .any(|style| style.font_family == "Verdana"),
+            "mmds resolver should surface Verdana style"
+        );
     }
 
     #[test]

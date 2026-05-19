@@ -7,6 +7,7 @@ import {
   type PrepareMainThreadTextMetricsOptions,
 } from "./prepare.js";
 import { classifyWasmError } from "./wasm-classifier.js";
+import type { DynamicRenderOutputFormat } from "./worker-protocol.js";
 
 export type MmdsRenderFormat = "svg" | "text" | "ascii" | "mmds" | "mermaid";
 
@@ -22,6 +23,8 @@ export interface MmdsDynamicRenderOptions {
   input: string;
   browserTextMetrics: BrowserTextMetricsRequest;
   configJson?: string;
+  /** Defaults to "svg" so existing callers keep behavior. */
+  format?: DynamicRenderOutputFormat;
 }
 
 export interface MmdsStaticRenderOptions {
@@ -56,6 +59,7 @@ export function createMmdsMainThreadRenderer(
 
   return {
     async renderSvg(opts) {
+      const format: DynamicRenderOutputFormat = opts.format ?? "svg";
       const prepared = await prepareMetrics({
         request: opts.browserTextMetrics,
         environment: options.environment,
@@ -64,13 +68,13 @@ export function createMmdsMainThreadRenderer(
       const output = runWasm(() =>
         wasm.renderWithBrowserTextMetrics(
           opts.input,
-          "svg",
+          format,
           opts.configJson ?? "{}",
           prepared.metricsJson,
           prepared.measureText,
         ),
       );
-      return { output, format: "svg", source: "main-thread" };
+      return { output, format, source: "main-thread" };
     },
     async renderStatic(opts) {
       const wasm = await getWasmModule();

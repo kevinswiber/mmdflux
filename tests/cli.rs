@@ -1511,6 +1511,20 @@ fn cli_renders_positioned_mmds_to_svg() {
 }
 
 #[test]
+fn cli_mmds_input_does_not_emit_mermaid_strict_warning() {
+    // The Mermaid strict-mode validator must not fire on MMDS JSON input;
+    // every JSON document looks like a missing `flowchart`/`graph` header
+    // to that validator, so the warning was a false positive on every
+    // MMDS → SVG (or any) CLI invocation.
+    mmdflux()
+        .args(["--format", "svg"])
+        .write_stdin(include_str!("fixtures/mmds/positioned/routed-basic.json"))
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Strict parsing would reject").not());
+}
+
+#[test]
 fn cli_mmds_includes_defaults_block_and_omits_default_edge_fields() {
     let assert = mmdflux()
         .args(["--format", "mmds"])

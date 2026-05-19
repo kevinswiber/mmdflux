@@ -3,6 +3,23 @@ export type WorkerProtocolVersion = typeof PROTOCOL_VERSION;
 
 export type WorkerOutputFormat = "text" | "ascii" | "svg" | "mmds" | "mermaid";
 
+/**
+ * Output formats served by the graph-family dynamic-metrics bridge. Text and
+ * mermaid renderers don't consume measured widths, so the renderer rejects
+ * them; the wire-level guard narrows here to surface drift early.
+ */
+export type DynamicRenderOutputFormat = "svg" | "mmds";
+
+const DYNAMIC_RENDER_FORMATS: ReadonlySet<string> = Object.freeze(
+  new Set<DynamicRenderOutputFormat>(["svg", "mmds"]),
+);
+
+export function isDynamicRenderOutputFormat(
+  value: unknown,
+): value is DynamicRenderOutputFormat {
+  return typeof value === "string" && DYNAMIC_RENDER_FORMATS.has(value);
+}
+
 // Minimal wire shape consumed by the worker handler. The full preflight
 // surface (with profile id, version, textStyles, etc.) lives in prepare.ts
 // and is structurally compatible.
@@ -63,7 +80,7 @@ export interface WorkerDynamicTextMetricsRenderRequestMessage {
   type: "renderWithBrowserTextMetrics";
   seq: number;
   input: string;
-  format: "svg";
+  format: DynamicRenderOutputFormat;
   configJson: string;
   browserTextMetrics: WorkerBrowserTextMetricsRequest;
 }
@@ -219,7 +236,7 @@ export function isWorkerRequestMessage(
     case "renderWithBrowserTextMetrics":
       return (
         typeof v.input === "string" &&
-        v.format === "svg" &&
+        isDynamicRenderOutputFormat(v.format) &&
         typeof v.configJson === "string" &&
         isObjectWithBrowserTextMetrics(v.browserTextMetrics)
       );

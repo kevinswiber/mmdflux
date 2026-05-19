@@ -775,7 +775,12 @@ fn build_subgraph_geometry(
                 subgraph.id.clone(),
                 SubgraphGeometry {
                     id: subgraph.id.clone(),
-                    rect: FRect::new(center_x, center_y, width, height),
+                    rect: FRect::new(
+                        center_x - width / 2.0,
+                        center_y - height / 2.0,
+                        width,
+                        height,
+                    ),
                     title: subgraph.title.clone(),
                     depth: diagram.subgraph_depth(&subgraph.id),
                 },
@@ -801,10 +806,15 @@ fn derive_subgraph_center_and_extent(
         let Some(placed) = nodes.get(&node.id) else {
             continue;
         };
-        let left = placed.rect.x - placed.rect.width / 2.0;
-        let right = placed.rect.x + placed.rect.width / 2.0;
-        let top = placed.rect.y - placed.rect.height / 2.0;
-        let bottom = placed.rect.y + placed.rect.height / 2.0;
+        // PositionedNode.rect uses FRect top-left semantics (see
+        // build_positioned_nodes); the previous version of this function
+        // shifted by ±width/2 as if rect.x/y were centers, which collapsed
+        // the bbox onto the children's top-left corner and propagated to
+        // the cluster rect during SVG replay.
+        let left = placed.rect.x;
+        let right = placed.rect.x + placed.rect.width;
+        let top = placed.rect.y;
+        let bottom = placed.rect.y + placed.rect.height;
         min_x = min_x.min(left);
         max_x = max_x.max(right);
         min_y = min_y.min(top);

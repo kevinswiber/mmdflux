@@ -1,6 +1,7 @@
 import type { BrowserTextMetricsRequest } from "@mmds/browser-text-metrics";
 import type { MmdsMainThreadRenderer } from "@mmds/browser-text-metrics/main-thread";
 import {
+  type DynamicRenderOutputFormat,
   PROTOCOL_VERSION,
   type WorkerBrowserTextMetricsDecision,
   type WorkerOutputFormat,
@@ -26,6 +27,8 @@ export interface BrowserTextMetricsRenderRequest {
   input: string;
   configJson?: string;
   browserTextMetrics: BrowserTextMetricsRequest;
+  /** Defaults to "svg". Set to "mmds" for dynamic-profile MMDS output. */
+  format?: DynamicRenderOutputFormat;
 }
 
 export interface BrowserTextMetricsDecisionRequest {
@@ -226,6 +229,7 @@ export function createRenderWorkerClient(
     },
     renderWithBrowserTextMetrics: (request) => {
       const currentSeq = request.seq;
+      const format: DynamicRenderOutputFormat = request.format ?? "svg";
 
       return new Promise<RenderResponse>((resolve, reject) => {
         const mainThreadFallback = mainThreadRenderer
@@ -234,10 +238,11 @@ export function createRenderWorkerClient(
                 input: request.input,
                 browserTextMetrics: request.browserTextMetrics,
                 configJson: request.configJson ?? "{}",
+                format,
               });
               return {
                 seq: request.seq,
-                format: "svg",
+                format: result.format,
                 output: result.output,
               };
             }
@@ -253,7 +258,7 @@ export function createRenderWorkerClient(
           type: "renderWithBrowserTextMetrics",
           seq: currentSeq,
           input: request.input,
-          format: "svg",
+          format,
           configJson: request.configJson ?? "{}",
           browserTextMetrics: request.browserTextMetrics,
         };
