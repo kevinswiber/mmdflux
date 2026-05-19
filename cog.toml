@@ -143,10 +143,10 @@ bump_profiles.ci.post_bump_hooks = [
 path = "packages/mmds-core"
 public_api = true
 pre_bump_hooks = [
-    "npm version {{version}} --no-git-tag-version",
+    "npm version {{version}} --no-git-tag-version --allow-same-version",
 ]
 bump_profiles.ci.pre_bump_hooks = [
-    "npm version {{version}} --no-git-tag-version",
+    "npm version {{version}} --no-git-tag-version --allow-same-version",
 ]
 bump_profiles.ci.post_bump_hooks = [
     "git push",
@@ -160,11 +160,11 @@ path = "packages/mmds-excalidraw"
 public_api = true
 pre_bump_hooks = [
     "npm install \"@mmds/core@^$(node -p \"require('../mmds-core/package.json').version\")\"",
-    "npm version {{version}} --no-git-tag-version",
+    "npm version {{version}} --no-git-tag-version --allow-same-version",
 ]
 bump_profiles.ci.pre_bump_hooks = [
     "npm install \"@mmds/core@^$(node -p \"require('../mmds-core/package.json').version\")\"",
-    "npm version {{version}} --no-git-tag-version",
+    "npm version {{version}} --no-git-tag-version --allow-same-version",
 ]
 bump_profiles.ci.post_bump_hooks = [
     "git push",
@@ -178,11 +178,11 @@ path = "packages/mmds-tldraw"
 public_api = true
 pre_bump_hooks = [
     "npm install \"@mmds/core@^$(node -p \"require('../mmds-core/package.json').version\")\"",
-    "npm version {{version}} --no-git-tag-version",
+    "npm version {{version}} --no-git-tag-version --allow-same-version",
 ]
 bump_profiles.ci.pre_bump_hooks = [
     "npm install \"@mmds/core@^$(node -p \"require('../mmds-core/package.json').version\")\"",
-    "npm version {{version}} --no-git-tag-version",
+    "npm version {{version}} --no-git-tag-version --allow-same-version",
 ]
 bump_profiles.ci.post_bump_hooks = [
     "git push",
@@ -196,11 +196,11 @@ path = "packages/mmds-browser-text-metrics"
 public_api = true
 pre_bump_hooks = [
     "../../scripts/bump-browser-text-metrics-wasm-peer.sh",
-    "npm version {{version}} --no-git-tag-version",
+    "npm version {{version}} --no-git-tag-version --allow-same-version",
 ]
 bump_profiles.ci.pre_bump_hooks = [
     "../../scripts/bump-browser-text-metrics-wasm-peer.sh",
-    "npm version {{version}} --no-git-tag-version",
+    "npm version {{version}} --no-git-tag-version --allow-same-version",
 ]
 bump_profiles.ci.post_bump_hooks = [
     "git push",
