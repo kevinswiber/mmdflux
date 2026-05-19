@@ -1,11 +1,14 @@
+import { MMDS_NODE_STYLE_NAMESPACE } from "./extensions.js";
 import type {
   MmdsArrow,
   MmdsDirection,
   MmdsDocument,
+  MmdsEdgeLabelSide,
   MmdsEdgeStroke,
   MmdsPort,
   MmdsPortFace,
   MmdsPosition,
+  MmdsRect,
   MmdsSize,
   NormalizedMmdsDocument,
   NormalizedMmdsEdge,
@@ -39,6 +42,11 @@ const EDGE_ARROWS = new Set<MmdsArrow>([
 ]);
 
 const PORT_FACES = new Set<MmdsPortFace>(["top", "bottom", "left", "right"]);
+const EDGE_LABEL_SIDES = new Set<MmdsEdgeLabelSide>([
+  "above",
+  "below",
+  "center",
+]);
 
 function asString(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
@@ -59,6 +67,13 @@ function asEdgeStroke(value: unknown): MmdsEdgeStroke | undefined {
 function asArrow(value: unknown): MmdsArrow | undefined {
   return typeof value === "string" && EDGE_ARROWS.has(value as MmdsArrow)
     ? (value as MmdsArrow)
+    : undefined;
+}
+
+function asEdgeLabelSide(value: unknown): MmdsEdgeLabelSide | undefined {
+  return typeof value === "string" &&
+    EDGE_LABEL_SIDES.has(value as MmdsEdgeLabelSide)
+    ? (value as MmdsEdgeLabelSide)
     : undefined;
 }
 
@@ -94,6 +109,24 @@ function normalizeSize(value: unknown): MmdsSize | undefined {
   return { width, height };
 }
 
+function normalizeRect(value: unknown): MmdsRect | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const maybe = value as Record<string, unknown>;
+  const x = asFiniteNumber(maybe.x);
+  const y = asFiniteNumber(maybe.y);
+  const width = asFiniteNumber(maybe.width);
+  const height = asFiniteNumber(maybe.height);
+  if (
+    x === undefined ||
+    y === undefined ||
+    width === undefined ||
+    height === undefined
+  ) {
+    return undefined;
+  }
+  return { x, y, width, height };
+}
+
 function normalizePort(value: unknown): MmdsPort | undefined {
   if (!value || typeof value !== "object") return undefined;
   const maybe = value as Record<string, unknown>;
@@ -107,6 +140,43 @@ function normalizePort(value: unknown): MmdsPort | undefined {
   if (!face || fraction === undefined || !position || group_size === undefined)
     return undefined;
   return { face, fraction, position, group_size: Math.round(group_size) };
+}
+
+function collectClassNames(entries: unknown): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  if (!entries || typeof entries !== "object") return out;
+
+  for (const [id, rawEntry] of Object.entries(
+    entries as Record<string, unknown>,
+  )) {
+    if (!rawEntry || typeof rawEntry !== "object") continue;
+    const classNames = (rawEntry as { classNames?: unknown }).classNames;
+    if (!Array.isArray(classNames)) continue;
+
+    const list = classNames.filter(
+      (value): value is string => typeof value === "string",
+    );
+    if (list.length > 0) {
+      out.set(id, list);
+    }
+  }
+
+  return out;
+}
+
+function buildClassNamesLookups(
+  extensions: Record<string, unknown> | undefined,
+): { nodes: Map<string, string[]>; subgraphs: Map<string, string[]> } {
+  const raw = extensions?.[MMDS_NODE_STYLE_NAMESPACE];
+  if (!raw || typeof raw !== "object") {
+    return { nodes: new Map(), subgraphs: new Map() };
+  }
+
+  const ext = raw as { nodes?: unknown; subgraphs?: unknown };
+  return {
+    nodes: collectClassNames(ext.nodes),
+    subgraphs: collectClassNames(ext.subgraphs),
+  };
 }
 
 export function normalizeMmds(doc: MmdsDocument): NormalizedMmdsDocument {
@@ -126,6 +196,7 @@ export function normalizeMmds(doc: MmdsDocument): NormalizedMmdsDocument {
     asArrow(doc.defaults?.edge?.arrow_end) ?? DEFAULT_ARROW_END;
   const defaultMinlen =
     asFiniteNumber(doc.defaults?.edge?.minlen) ?? DEFAULT_MINLEN;
+  const classNames = buildClassNamesLookups(doc.extensions);
 
   const nodes: NormalizedMmdsNode[] = doc.nodes.map((node, index) => {
     const id = asString(node.id);
@@ -152,6 +223,7 @@ export function normalizeMmds(doc: MmdsDocument): NormalizedMmdsDocument {
       parent: asString(node.parent),
       position,
       size,
+      classNames: classNames.nodes.get(id),
     };
   });
 
@@ -180,6 +252,8 @@ export function normalizeMmds(doc: MmdsDocument): NormalizedMmdsDocument {
       minlen: asFiniteNumber(edge.minlen) ?? defaultMinlen,
       path: normalizePath(edge.path),
       label_position: normalizePosition(edge.label_position),
+      label_side: asEdgeLabelSide(edge.label_side),
+      label_rect: normalizeRect(edge.label_rect),
       is_backward:
         typeof edge.is_backward === "boolean" ? edge.is_backward : undefined,
       source_port: normalizePort(edge.source_port),
@@ -201,6 +275,11 @@ export function normalizeMmds(doc: MmdsDocument): NormalizedMmdsDocument {
               (value): value is string => typeof value === "string",
             )
           : [];
+        const concurrent_regions = Array.isArray(subgraph.concurrent_regions)
+          ? subgraph.concurrent_regions.filter(
+              (value): value is string => typeof value === "string",
+            )
+          : undefined;
 
         return {
           id,
@@ -219,6 +298,11 @@ export function normalizeMmds(doc: MmdsDocument): NormalizedMmdsDocument {
             typeof subgraph.invisible === "boolean"
               ? subgraph.invisible
               : undefined,
+          concurrent_regions:
+            concurrent_regions && concurrent_regions.length > 0
+              ? concurrent_regions
+              : undefined,
+          classNames: classNames.subgraphs.get(id),
         };
       })
     : [];

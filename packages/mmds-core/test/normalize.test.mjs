@@ -39,6 +39,10 @@ test("mmds-core exposes a curated top-level surface and explicit subpath modules
   assert.ok("assertValidMmdsDocument" in validate);
   assert.equal("normalizeMmds" in validate, false);
 
+  const extensions = await import("@mmds/core/extensions");
+  assert.ok("MMDS_NODE_STYLE_NAMESPACE" in extensions);
+  assert.ok("getNodeStyleExtension" in extensions);
+
   await import("@mmds/core/types");
 });
 

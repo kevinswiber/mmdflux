@@ -10,6 +10,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./extensions": {
+      "types": "./dist/extensions.d.ts",
+      "import": "./dist/extensions.js"
+    },
     "./normalize": {
       "types": "./dist/normalize.d.ts",
       "import": "./dist/normalize.js"
@@ -36,7 +40,7 @@
     "build": "tsc",
     "check": "biome check",
     "fmt": "biome check --write",
-    "test": "npm run build && node --test test/*.test.mjs",
+    "test": "npm run build && tsc --noEmit -p tsconfig.test.json && node --test test/*.test.mjs",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
