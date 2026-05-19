@@ -284,7 +284,7 @@ Practical guidance:
   `--format svg`. Do not stage through MMDS.
 - If you want to drive a downstream graph renderer or adapter from a stable
   structural document with routing information, use MMDS — the Canonical
-  geometry is what you want for replay. See `examples/mmds/` for adapter
+  geometry is what you want for replay. See `examples/` for adapter
   patterns.
 - The persisted `metadata.bounds` and `subgraph.bounds` reflect the Canonical
   envelope; they are not a viewBox for the Visual SVG.
