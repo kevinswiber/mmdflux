@@ -195,12 +195,12 @@ bump_order = 2
 path = "packages/mmds-browser-text-metrics"
 public_api = true
 pre_bump_hooks = [
-    "../../scripts/bump-browser-text-metrics-wasm-peer.sh",
     "npm version {{version}} --no-git-tag-version --allow-same-version",
+    "../../scripts/bump-browser-text-metrics-wasm-peer.sh",
 ]
 bump_profiles.ci.pre_bump_hooks = [
-    "../../scripts/bump-browser-text-metrics-wasm-peer.sh",
     "npm version {{version}} --no-git-tag-version --allow-same-version",
+    "../../scripts/bump-browser-text-metrics-wasm-peer.sh",
 ]
 bump_profiles.ci.post_bump_hooks = [
     "git push",
