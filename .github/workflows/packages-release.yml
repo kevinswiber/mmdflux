@@ -113,6 +113,10 @@ jobs:
           echo "Timed out waiting for @mmds/wasm matching ${RANGE}" >&2
           exit 1
 
+      - name: Sync lockfile with peer range
+        working-directory: packages
+        run: npm install --package-lock-only --no-audit --no-fund
+
       - name: Install dependencies
         working-directory: packages
         run: npm ci
