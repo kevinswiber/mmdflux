@@ -254,6 +254,41 @@ Explicit opt-in via `--geometry-level routed`. Includes everything from layout p
 mmdflux --format mmds --geometry-level routed diagram.mmd
 ```
 
+### Geometry Contract: Canonical (MMDS) vs Visual (SVG)
+
+mmdflux solves graph layout under one of two geometry contracts:
+
+- **Visual** — the tight, pixel-faithful geometry the SVG renderer draws. Cluster
+  rects hug their children; edge paths are simplified to their drawn shape.
+- **Canonical** — a wider, replay-faithful geometry that preserves informational
+  waypoints (e.g. label-aware bend points) and rank-aligned cluster footprints
+  that the visible SVG render trims away.
+
+**MMDS persists Canonical geometry.** Direct SVG output (`--format svg`) uses
+Visual. This means a `Mermaid → MMDS → SVG` round-trip through the CLI is **not
+byte-identical** to a direct `Mermaid → SVG` render — expect somewhat wider
+subgraph rects, slightly different node positions, and extra polyline points
+preserved on edges that bend around labels. Same diagram, same engine, two
+different output projections of the same solve.
+
+Why Canonical for MMDS: downstream adapters that replay edge routing need the
+bend waypoints emitted around labels (e.g. a labeled reciprocal edge produces a
+4+ point polyline so consumers can reproduce the bend topology; the Visual
+contract would simplify that to a single L). Persisting Canonical keeps MMDS
+faithful to "this is how the diagram is shaped" rather than "this is the
+tightest box around the visible pixels."
+
+Practical guidance:
+
+- If you want pixel-faithful SVG, render directly from the Mermaid source with
+  `--format svg`. Do not stage through MMDS.
+- If you want to drive a downstream graph renderer or adapter from a stable
+  structural document with routing information, use MMDS — the Canonical
+  geometry is what you want for replay. See `examples/mmds/` for adapter
+  patterns.
+- The persisted `metadata.bounds` and `subgraph.bounds` reflect the Canonical
+  envelope; they are not a viewBox for the Visual SVG.
+
 ## Document Envelope
 
 ```json
