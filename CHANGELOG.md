@@ -1,6 +1,68 @@
 # Changelog
 
 - - -
+## [mmdflux-v2.5.0](https://github.com/kevinswiber/mmdflux/compare/de61649a1995515f80c58d28818e8f668a5a58cb..mmdflux-v2.5.0) - 2026-05-19
+#### Features
+- (**web**) preflight browser metric style sets - ([82c9e6c](https://github.com/kevinswiber/mmdflux/commit/82c9e6ca1ad5923b12b37ef098048d0854c7e52e)) - [@kevinswiber](https://github.com/kevinswiber)
+- (**web**) add main-thread browser text metrics fallback - ([a2a6693](https://github.com/kevinswiber/mmdflux/commit/a2a669387b3bb37e0ee6a0094dbb1140152ad47b)) - [@kevinswiber](https://github.com/kevinswiber)
+- emit mermaid-compatible svg data hooks and node wrappers - ([675e8bb](https://github.com/kevinswiber/mmdflux/commit/675e8bbadb303f332c6ec6a11bd2173d11a85ce5)) - [@kevinswiber](https://github.com/kevinswiber)
+- add notebkgcolor parity for themed sequence notes - ([e70ed0a](https://github.com/kevinswiber/mmdflux/commit/e70ed0a30a2326db638918af03279dd307a4220f)) - [@kevinswiber](https://github.com/kevinswiber)
+- preserve independent subgraph ry corner radius - ([c4f8744](https://github.com/kevinswiber/mmdflux/commit/c4f8744a365308f46386cfd831bbe7e995a6fd60)) - [@kevinswiber](https://github.com/kevinswiber)
+- align subgraph default fill with mermaid clusterBkg - ([a754286](https://github.com/kevinswiber/mmdflux/commit/a7542866b1fbf412d3afdc635c34300440893c7f)) - [@kevinswiber](https://github.com/kevinswiber)
+- configure flowchart subgraph title margin - ([63c296a](https://github.com/kevinswiber/mmdflux/commit/63c296a38c65e23c1f0e5654a4a5559274abd53a)) - [@kevinswiber](https://github.com/kevinswiber)
+- wrap subgraphs in g.cluster with user class names - ([1ad6646](https://github.com/kevinswiber/mmdflux/commit/1ad6646831d9caa29e0f9b781c481b7277cd6881)) - [@kevinswiber](https://github.com/kevinswiber)
+- add browser text metrics package foundation - ([0b7fbb3](https://github.com/kevinswiber/mmdflux/commit/0b7fbb3f2a96401dbfc7ab547e24368c5cb8bbe3)) - [@kevinswiber](https://github.com/kevinswiber)
+- complete subgraph style mmds replay - ([a445885](https://github.com/kevinswiber/mmdflux/commit/a445885187adfba3c5c8fd4a4bbc32a88ab5529a)) - [@kevinswiber](https://github.com/kevinswiber)
+- render styled subgraph title fonts - ([884ab84](https://github.com/kevinswiber/mmdflux/commit/884ab846f0c63f337acc50f8954f27652ffc5c76)) - [@kevinswiber](https://github.com/kevinswiber)
+- render flowchart subgraph container styles - ([df21165](https://github.com/kevinswiber/mmdflux/commit/df211658b7237bbcb96118938bd73b4ee333b7bd)) - [@kevinswiber](https://github.com/kevinswiber)
+- route playground font styles through browser metrics - ([3f7dfd1](https://github.com/kevinswiber/mmdflux/commit/3f7dfd17e7044ac25ed24305dee78df0b76da859)) - [@kevinswiber](https://github.com/kevinswiber)
+- add multi-font dynamic graph canaries - ([c27b475](https://github.com/kevinswiber/mmdflux/commit/c27b47566a818b4d4dbc9523bacb76f08d73e593)) - [@kevinswiber](https://github.com/kevinswiber)
+- persist style-keyed dynamic measurements - ([878bbc2](https://github.com/kevinswiber/mmdflux/commit/878bbc2a389c07363511a2abd5b6b88ea264eebe)) - [@kevinswiber](https://github.com/kevinswiber)
+- key dynamic text metrics by style - ([ecffe09](https://github.com/kevinswiber/mmdflux/commit/ecffe0971c58cb95cb7591f4748dfbacb19a58db)) - [@kevinswiber](https://github.com/kevinswiber)
+- thread style-aware graph text metrics - ([b3a150d](https://github.com/kevinswiber/mmdflux/commit/b3a150d8a056104d8da13f1f60ed5cb53fb0e4d1)) - [@kevinswiber](https://github.com/kevinswiber)
+- resolve graph font style declarations - ([67f01b1](https://github.com/kevinswiber/mmdflux/commit/67f01b1fe0fcfefeb0dca6960da0c5b38e80d66e)) - [@kevinswiber](https://github.com/kevinswiber)
+- add provider-free dynamic mmds measurements - ([b7add7b](https://github.com/kevinswiber/mmdflux/commit/b7add7ba27fbe4c8adf34ef6836c4e01c8c903d0)) - [@kevinswiber](https://github.com/kevinswiber)
+- add provider-bound dynamic MMDS replay - ([95660e2](https://github.com/kevinswiber/mmdflux/commit/95660e2b36effaf54c9681952179e10aa2d71114)) - [@kevinswiber](https://github.com/kevinswiber)
+- add public graph font config contract - ([2dc89ca](https://github.com/kevinswiber/mmdflux/commit/2dc89caa98ad83d5b0306c9ab1d342984cad71db)) - [@kevinswiber](https://github.com/kevinswiber)
+- add opt-in browser text metrics adapter - ([88131f0](https://github.com/kevinswiber/mmdflux/commit/88131f00e03520589fe2377f6bfa49cf423ec29e)) - [@kevinswiber](https://github.com/kevinswiber)
+- add graph-family text metrics provider seam - ([7a1f1f3](https://github.com/kevinswiber/mmdflux/commit/7a1f1f36b8229f793d6a5f514d748b1c4929693b)) - [@kevinswiber](https://github.com/kevinswiber)
+- switch default text metrics profile - ([0095ab7](https://github.com/kevinswiber/mmdflux/commit/0095ab74c739c890279838ae910c0d5b86ab7a23)) - [@kevinswiber](https://github.com/kevinswiber)
+- add recorded mmdflux sans profile - ([2d85cff](https://github.com/kevinswiber/mmdflux/commit/2d85cff69a12eafc75d15140b4e7000b0d4dd59e)) - [@kevinswiber](https://github.com/kevinswiber)
+- add text metrics compatibility replay - ([de61649](https://github.com/kevinswiber/mmdflux/commit/de61649a1995515f80c58d28818e8f668a5a58cb)) - [@kevinswiber](https://github.com/kevinswiber)
+#### Bug Fixes
+- (**web**) update minor lint warnings - ([aa98bd3](https://github.com/kevinswiber/mmdflux/commit/aa98bd3ac0e177c3cacaa2b95f5269ed47aff848)) - [@kevinswiber](https://github.com/kevinswiber)
+- surface unfit label overlap diagnostics - ([eb2e289](https://github.com/kevinswiber/mmdflux/commit/eb2e289f67aead6261f1e9b0bae59deee0be052f)) - [@kevinswiber](https://github.com/kevinswiber)
+- include rendered svg labels in bounds - ([ca57fd3](https://github.com/kevinswiber/mmdflux/commit/ca57fd378971ff2314a9ffc5b40d1c088dd3b002)) - [@kevinswiber](https://github.com/kevinswiber)
+- stagger lr fan-out main bend column instead of source stem - ([d14de1a](https://github.com/kevinswiber/mmdflux/commit/d14de1af9f5d27cf30f94c89800b0ad7253b9fdc)) - [@kevinswiber](https://github.com/kevinswiber)
+- circular node intersection and attachment logic - ([5d6778f](https://github.com/kevinswiber/mmdflux/commit/5d6778fc8a0a89a9315b97fe47b52ecb75cf7582)) - [@RivoLink](https://github.com/RivoLink)
+- preserve dashes in mermaid identifier normalization - ([5dfa07c](https://github.com/kevinswiber/mmdflux/commit/5dfa07c9789a6af4be140bb78385dcc367296b1a)) - [@kevinswiber](https://github.com/kevinswiber)
+- size text grid cells by terminal columns for East Asian wide characters - ([014206d](https://github.com/kevinswiber/mmdflux/commit/014206df079aafdbd83626942136933eec9d9e44)) - [@kevinswiber](https://github.com/kevinswiber)
+- route themed subgraph and sequence container colors through visible slots - ([f42064e](https://github.com/kevinswiber/mmdflux/commit/f42064e6f5909da09ffea786360d53c900d96a82)) - [@kevinswiber](https://github.com/kevinswiber)
+- tighten OSC 11 parsing and add $COLORFGBG appearance fallback - ([06eaf51](https://github.com/kevinswiber/mmdflux/commit/06eaf5143bfd45e03b6fea3053d56aeb45687eee)) - [@kevinswiber](https://github.com/kevinswiber)
+- prefer $PWD over frozen CLAUDE_PROJECT_DIR in claude hooks - ([f670db7](https://github.com/kevinswiber/mmdflux/commit/f670db72529717abc08a7aab1f8b6378df37607b)) - [@kevinswiber](https://github.com/kevinswiber)
+- collapse node refs colliding with subgraph ids in flowcharts - ([d22b3ef](https://github.com/kevinswiber/mmdflux/commit/d22b3ef2479e0da4eaff32d463432d710a310286)) - [@kevinswiber](https://github.com/kevinswiber)
+- route inline class on subgraph id to subgraph style map - ([2ac0f43](https://github.com/kevinswiber/mmdflux/commit/2ac0f437a0436980984c63c9a4b382f134d12f65)) - [@kevinswiber](https://github.com/kevinswiber)
+- tighten dynamic style metrics validation - ([21d0c14](https://github.com/kevinswiber/mmdflux/commit/21d0c1420d2e161777cb8fa0f8b344cda4136042)) - [@kevinswiber](https://github.com/kevinswiber)
+- harden dynamic text metrics validation - ([0c82b0b](https://github.com/kevinswiber/mmdflux/commit/0c82b0b009362571fd6cd09f9a29bba75b120d6a)) - [@kevinswiber](https://github.com/kevinswiber)
+- harden dynamic metrics unsupported surfaces - ([4eaa775](https://github.com/kevinswiber/mmdflux/commit/4eaa7756445ed224b170451a54a516d287fd16ae)) - [@kevinswiber](https://github.com/kevinswiber)
+- stabilize backward return fan-out routing - ([f517013](https://github.com/kevinswiber/mmdflux/commit/f517013d21222874350975f23ede3ab3d0e0bd5d)) - [@kevinswiber](https://github.com/kevinswiber)
+- stabilize sibling subgraph label placement - ([341c074](https://github.com/kevinswiber/mmdflux/commit/341c07440c13f0b15e51ce890459ebad99339952)) - [@kevinswiber](https://github.com/kevinswiber)
+- keep fan-in overflow routes on perimeter - ([c94c65f](https://github.com/kevinswiber/mmdflux/commit/c94c65ff17fb7a6bd5c0935ac052d1ea2b32453f)) - [@kevinswiber](https://github.com/kevinswiber)
+#### Documentation
+- describe playground font style support - ([64791e8](https://github.com/kevinswiber/mmdflux/commit/64791e837ca6e1158ab2ea22b680267945770e8d)) - [@kevinswiber](https://github.com/kevinswiber)
+- document style-keyed dynamic measurements - ([13e95a0](https://github.com/kevinswiber/mmdflux/commit/13e95a0a6a8d0d60f4998c988ff63199e4460e9e)) - [@kevinswiber](https://github.com/kevinswiber)
+- refresh generated assets - ([6775619](https://github.com/kevinswiber/mmdflux/commit/67756198c86678df3180a07cc0fdcea112f7c1f8)) - [@kevinswiber](https://github.com/kevinswiber)
+- showcase adapter workflows - ([6378157](https://github.com/kevinswiber/mmdflux/commit/63781578f902739437d4afba4af94587817aa110)) - [@kevinswiber](https://github.com/kevinswiber)
+#### Refactoring
+- (**web**) drop @mmds/browser-text-metrics shims and align docs - ([00205f7](https://github.com/kevinswiber/mmdflux/commit/00205f7e847c9c33f32dcce976fbb6a2f15d9c76)) - [@kevinswiber](https://github.com/kevinswiber)
+- (**web**) wrap @mmds/browser-text-metrics/main-thread for playground response shape - ([c81624b](https://github.com/kevinswiber/mmdflux/commit/c81624b82a38b2d10884dbf43eec534ffecbb16a)) - [@kevinswiber](https://github.com/kevinswiber)
+- (**web**) bootstrap worker through @mmds/browser-text-metrics/worker - ([fe30d17](https://github.com/kevinswiber/mmdflux/commit/fe30d1771b1418744ccb9c8d3804a6b5a9bb3d97)) - [@kevinswiber](https://github.com/kevinswiber)
+- (**web**) route worker-protocol types through @mmds/browser-text-metrics - ([6226c8e](https://github.com/kevinswiber/mmdflux/commit/6226c8eb679b283d16997f38c03c9175d38be763)) - [@kevinswiber](https://github.com/kevinswiber)
+- (**web**) route browser-text-metrics through @mmds/browser-text-metrics - ([4435530](https://github.com/kevinswiber/mmdflux/commit/443553076fcfb82e7203392c6f88668937a34867)) - [@kevinswiber](https://github.com/kevinswiber)
+- extract flowchart id-collision detection into shared compiler helper - ([8a91189](https://github.com/kevinswiber/mmdflux/commit/8a911891ca1dcc81b2dd5741ca69ec589a140767)) - [@kevinswiber](https://github.com/kevinswiber)
+
+- - -
+
 ## [mmdflux-v2.4.2](https://github.com/kevinswiber/mmdflux/compare/04ac33670b8dd34764533caf65b4844b74a28bff..mmdflux-v2.4.2) - 2026-05-06
 #### Bug Fixes
 - strengthen MMDS vocabulary types - ([04ac336](https://github.com/kevinswiber/mmdflux/commit/04ac33670b8dd34764533caf65b4844b74a28bff)) - [@kevinswiber](https://github.com/kevinswiber)

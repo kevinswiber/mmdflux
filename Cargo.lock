@@ -1455,7 +1455,7 @@ dependencies = [
 
 [[package]]
 name = "mmdflux"
-version = "2.4.2"
+version = "2.5.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -1478,7 +1478,7 @@ dependencies = [
 
 [[package]]
 name = "mmdflux-wasm"
-version = "2.4.2"
+version = "2.5.0"
 dependencies = [
  "js-sys",
  "mmdflux",
@@ -4150,7 +4150,7 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "xtask"
-version = "2.4.2"
+version = "2.5.0"
 dependencies = [
  "annotate-snippets",
  "anyhow",

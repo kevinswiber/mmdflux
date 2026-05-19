@@ -77,7 +77,7 @@
     "node": ">=18"
   },
   "peerDependencies": {
-    "@mmds/wasm": "^2.4.2"
+    "@mmds/wasm": "^2.5.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",
