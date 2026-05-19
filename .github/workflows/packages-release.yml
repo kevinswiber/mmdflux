@@ -92,6 +92,27 @@ jobs:
           npm install -g npm@^11.5.1
           npm --version
 
+      - name: Wait for @mmds/wasm peer dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          RANGE=$(node -p "require('./packages/mmds-browser-text-metrics/package.json').peerDependencies['@mmds/wasm'] || ''" 2>/dev/null || echo "")
+          if [[ -z "$RANGE" ]]; then
+            echo "No @mmds/wasm peer declared in mmds-browser-text-metrics; skipping wait."
+            exit 0
+          fi
+          echo "Waiting for @mmds/wasm matching ${RANGE} on npm registry..."
+          for i in $(seq 1 60); do
+            if npm view "@mmds/wasm@${RANGE}" version >/dev/null 2>&1; then
+              echo "@mmds/wasm@${RANGE} is available."
+              exit 0
+            fi
+            echo "Attempt ${i}/60: not yet available, sleeping 10s..."
+            sleep 10
+          done
+          echo "Timed out waiting for @mmds/wasm matching ${RANGE}" >&2
+          exit 1
+
       - name: Install dependencies
         working-directory: packages
         run: npm ci
