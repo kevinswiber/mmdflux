@@ -50,6 +50,26 @@ if echo "$header" | grep -q '\.$'; then
     echo "error: commit subject must not end with a period"
     exit 1
 fi
+
+# Workaround for cocogitto/cocogitto#516: `cog verify` does not validate
+# scope against the configured `scopes` list. Fixed upstream in v7.0.0 via
+# cocogitto/cocogitto#541. Remove this block once mmdflux is on cog >= 7
+# (currently blocked on cocogitto/cocogitto#558). Single-line `scopes = [...]`
+# assumed; multi-line arrays would need a real TOML parser.
+scope=$(echo "$header" | sed -nE 's/^[a-z]+\(([^)]+)\)!?:.*/\1/p')
+if [ -n "$scope" ]; then
+    allowed=$(awk -F'=' '/^scopes[[:space:]]*=/ {
+        sub(/^.*=[[:space:]]*\[/, "")
+        sub(/\].*$/, "")
+        gsub(/[" ]/, "")
+        print
+    }' cog.toml)
+    if ! echo "$allowed" | tr ',' '\n' | grep -qx "$scope"; then
+        echo "error: scope '$scope' is not in cog.toml scopes list"
+        echo "  allowed: ${allowed:-<empty>}"
+        exit 1
+    fi
+fi
 '''
 
 [git_hooks.pre-push]
