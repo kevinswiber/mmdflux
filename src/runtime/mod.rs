@@ -12,6 +12,7 @@ pub mod config_input;
 pub mod dynamic_text_metrics;
 
 pub(crate) mod graph_family;
+pub mod layout;
 pub(crate) mod mmds;
 mod payload;
 mod timeline_family;

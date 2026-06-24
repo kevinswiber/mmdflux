@@ -101,7 +101,8 @@ pub struct GraphGeometry {
 #[derive(Debug, Clone)]
 pub struct PositionedNode {
     pub id: String,
-    /// Bounding rect in layout float space (x,y = center).
+    /// Bounding rect in layout float space. `rect.x`/`rect.y` are the
+    /// top-left corner; use `rect.center()` for the center point.
     pub rect: FRect,
     pub shape: Shape,
     pub label: String,

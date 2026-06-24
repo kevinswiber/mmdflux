@@ -364,6 +364,9 @@ pub use runtime::detect_diagram;
 #[cfg(feature = "unstable-text-metrics-provider")]
 #[doc(hidden)]
 pub use runtime::dynamic_text_metrics;
+/// Direct graph-in / geometry-out layout facade
+/// ([`layout::layout_graph`], [`layout::LaidOutGraph`]).
+pub use runtime::layout;
 /// Detect, parse, solve, and materialize Mermaid source or MMDS JSON as MMDS.
 pub use runtime::materialize_diagram;
 /// Detect, parse, and render Mermaid source or MMDS JSON in one call.
