@@ -1,6 +1,6 @@
 [package]
 name = "mmdflux-wasm"
-version = "2.5.0"
+version = "2.6.0"
 edition = "2024"
 description = "wasm-bindgen bindings for mmdflux"
 license = "MIT"

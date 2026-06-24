@@ -1,6 +1,16 @@
 # Changelog
 
 - - -
+## [mmdflux-v2.6.0](https://github.com/kevinswiber/mmdflux/compare/edb4779dc0741c3e92d692dc0b30fe3aa2a77472..mmdflux-v2.6.0) - 2026-06-24
+#### Features
+- add public graph-layout facade for direct graph-in/geometry-out use - ([f7c4c24](https://github.com/kevinswiber/mmdflux/commit/f7c4c24cc02eb758e1cfcc5ef9b83877f3ad840e)) - [@kevinswiber](https://github.com/kevinswiber)
+- route dynamic text metrics through MMDS browser path - ([11d9694](https://github.com/kevinswiber/mmdflux/commit/11d9694e7f30d9a1f9dccd5d6af73026ec906aea)) - [@kevinswiber](https://github.com/kevinswiber)
+#### Documentation
+- fix reference to mmds examples - ([5b9912f](https://github.com/kevinswiber/mmdflux/commit/5b9912fce83d9d9851ec3860fa9ee35e06026bff)) - [@kevinswiber](https://github.com/kevinswiber)
+- document Canonical vs Visual geometry contract for MMDS - ([ff52c16](https://github.com/kevinswiber/mmdflux/commit/ff52c16f0d4397e2f25b63c42afe88811198c66e)) - [@kevinswiber](https://github.com/kevinswiber)
+
+- - -
+
 ## [mmdflux-v2.5.0](https://github.com/kevinswiber/mmdflux/compare/de61649a1995515f80c58d28818e8f668a5a58cb..mmdflux-v2.5.0) - 2026-05-19
 #### Features
 - (**web**) preflight browser metric style sets - ([82c9e6c](https://github.com/kevinswiber/mmdflux/commit/82c9e6ca1ad5923b12b37ef098048d0854c7e52e)) - [@kevinswiber](https://github.com/kevinswiber)

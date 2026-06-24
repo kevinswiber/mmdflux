@@ -1,6 +1,12 @@
 # Changelog
 
 - - -
+## [mmds-core-v0.3.0](https://github.com/kevinswiber/mmdflux/compare/b4a4b9982a37068fca106b24916ab2631b290e4f..mmds-core-v0.3.0) - 2026-06-24
+#### Features
+- (**mmds-core**) catch up MMDS typings - ([b4a4b99](https://github.com/kevinswiber/mmdflux/commit/b4a4b9982a37068fca106b24916ab2631b290e4f)) - [@kevinswiber](https://github.com/kevinswiber)
+
+- - -
+
 ## [mmds-core-v0.2.1](https://github.com/kevinswiber/mmdflux/compare/0d78274c68ea5d1c9fab0d69752d7671d12fdcaa..mmds-core-v0.2.1) - 2026-04-30
 #### Bug Fixes
 - (**mmds-tldraw**) apply note styling and dashed edges in tldraw adapter - ([1ee370f](https://github.com/kevinswiber/mmdflux/commit/1ee370f1d09dfff552cd452caa16a9108cbff2e8)) - [@kevinswiber](https://github.com/kevinswiber)
