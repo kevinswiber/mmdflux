@@ -1,6 +1,12 @@
 # Changelog
 
 - - -
+## [mmdflux-v2.6.1](https://github.com/kevinswiber/mmdflux/compare/ba5b2d226496e1f99fa04eead06a2b55405343a1..mmdflux-v2.6.1) - 2026-08-09
+#### Bug Fixes
+- render multi-line labels on diamond and borderless text nodes - ([f09b97f](https://github.com/kevinswiber/mmdflux/commit/f09b97fbf7ec42ad21dcf0b770ed41dc101a18b1)) - [@kevinswiber](https://github.com/kevinswiber)
+
+- - -
+
 ## [mmdflux-v2.6.0](https://github.com/kevinswiber/mmdflux/compare/edb4779dc0741c3e92d692dc0b30fe3aa2a77472..mmdflux-v2.6.0) - 2026-06-24
 #### Features
 - add public graph-layout facade for direct graph-in/geometry-out use - ([f7c4c24](https://github.com/kevinswiber/mmdflux/commit/f7c4c24cc02eb758e1cfcc5ef9b83877f3ad840e)) - [@kevinswiber](https://github.com/kevinswiber)
