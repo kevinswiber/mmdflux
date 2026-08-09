@@ -226,12 +226,11 @@ pub fn render_node(
 ) -> NodeBounds {
     let (width, height) = node_dimensions(node, direction);
     let label = &node.label;
-    let label_len = display_width(label);
     let style = ResolvedTextNodeStyle::from_node(node);
 
     match categorize_shape(node.shape) {
         ShapeCategory::Diamond => {
-            render_diamond(canvas, x, y, width, label_len, label, charset, style);
+            render_diamond(canvas, x, y, width, height, label, charset, style);
         }
         ShapeCategory::Box { corners, modifier } => {
             let corners = match corners {
@@ -253,7 +252,7 @@ pub fn render_node(
             );
         }
         ShapeCategory::Borderless => {
-            render_borderless(canvas, x, y, width, height, label, style);
+            render_borderless(canvas, x, y, width, label, style);
         }
         ShapeCategory::Glyph(kind) => {
             if label.trim().is_empty() {
@@ -486,23 +485,28 @@ fn render_shadow_box(
 }
 
 /// Render a borderless text block (label only).
+///
+/// Each label line gets its own row, centered on `width`. There is no border to
+/// preserve here, so rows are driven by the label rather than by the measured
+/// height (which `grid_node_dimensions` derives from the same line count).
 fn render_borderless(
     canvas: &mut Canvas,
     x: usize,
     y: usize,
     width: usize,
-    height: usize,
     label: &str,
     style: ResolvedTextNodeStyle,
 ) {
-    let mid_y = y + height / 2;
-    let label_len = display_width(label);
-    if label_len == 0 {
-        return;
+    for (row, line) in label.split('\n').enumerate() {
+        let line_len = display_width(line);
+        if line_len == 0 {
+            continue;
+        }
+        let row_y = y + row;
+        let label_start = x + width.saturating_sub(line_len) / 2;
+        canvas.write_str(label_start, row_y, line);
+        merge_text_fg(canvas, label_start, row_y, line, style.color);
     }
-    let label_start = x + (width - label_len) / 2;
-    canvas.write_str(label_start, mid_y, label);
-    merge_text_fg(canvas, label_start, mid_y, label, style.color);
 }
 
 /// Render a bar (fork/join), perpendicular to flow direction.
@@ -566,13 +570,22 @@ fn render_glyph(
 /// < Christmas >
 /// └───────────┘
 /// ```
+///
+/// Multi-line labels (from `<br>`) get one content row per line, so the drawn
+/// shape fills exactly the box `grid_node_dimensions` measured:
+/// ```text
+/// ┌────────────────────┐
+/// < Is the cache warm? >
+/// <  Check the index   >
+/// └────────────────────┘
+/// ```
 #[allow(clippy::too_many_arguments)]
 fn render_diamond(
     canvas: &mut Canvas,
     x: usize,
     y: usize,
     width: usize,
-    label_len: usize,
+    height: usize,
     label: &str,
     charset: &CharSet,
     style: ResolvedTextNodeStyle,
@@ -587,19 +600,27 @@ fn render_diamond(
     canvas.set(x + width - 1, y, charset.corner_tr);
     merge_fg(canvas, x + width - 1, y, style.stroke);
 
-    // Middle row with label and angle brackets
-    let mid_y = y + 1;
-    canvas.set(x, mid_y, '<');
-    merge_fg(canvas, x, mid_y, style.stroke);
-    merge_bg_span(canvas, x + 1, x + width - 1, mid_y, style.fill);
-    let label_start = x + (width - label_len) / 2;
-    canvas.write_str(label_start, mid_y, label);
-    merge_text_fg(canvas, label_start, mid_y, label, style.color);
-    canvas.set(x + width - 1, mid_y, '>');
-    merge_fg(canvas, x + width - 1, mid_y, style.stroke);
+    // Content rows: one per label line, each centered on its own width.
+    // Rows are driven by `height` rather than by the line count so the shape
+    // stays rectangular even if the two ever disagree.
+    let lines: Vec<&str> = label.split('\n').collect();
+    for row in 0..height.saturating_sub(2) {
+        let row_y = y + 1 + row;
+        let line = lines.get(row).copied().unwrap_or("");
+        merge_bg_span(canvas, x + 1, x + width - 1, row_y, style.fill);
+        let label_start = x + width.saturating_sub(display_width(line)) / 2;
+        canvas.write_str(label_start, row_y, line);
+        merge_text_fg(canvas, label_start, row_y, line, style.color);
+        // Brackets last: an over-wide line loses characters rather than
+        // destroying the shape's sides.
+        canvas.set(x, row_y, '<');
+        merge_fg(canvas, x, row_y, style.stroke);
+        canvas.set(x + width - 1, row_y, '>');
+        merge_fg(canvas, x + width - 1, row_y, style.stroke);
+    }
 
     // Bottom border
-    let bot_y = y + 2;
+    let bot_y = y + height - 1;
     canvas.set(x, bot_y, charset.corner_bl);
     merge_fg(canvas, x, bot_y, style.stroke);
     for dx in 1..width - 1 {
@@ -721,6 +742,82 @@ mod tests {
         assert!(output.contains("┌──────────┐"));
         assert!(output.contains("< Decision >"));
         assert!(output.contains("└──────────┘"));
+    }
+
+    #[test]
+    fn render_diamond_multi_line_label_fills_measured_rows() {
+        let mut canvas = Canvas::new(30, 8);
+        let node = Node::new("B")
+            .with_label("Is the cache warm?\nCheck the index")
+            .with_shape(Shape::Diamond);
+        let charset = CharSet::unicode();
+
+        let bounds = render_node(&mut canvas, &node, 1, 1, &charset, Direction::TopDown);
+
+        // Width is the widest line + 4; height is one row per line + 2 borders,
+        // matching what `grid_node_dimensions` reserved for the node.
+        assert_eq!(bounds.width, 22);
+        assert_eq!(bounds.height, 4);
+
+        let output = canvas.to_string();
+        assert!(output.contains("┌────────────────────┐"), "{output}");
+        assert!(output.contains("< Is the cache warm? >"), "{output}");
+        assert!(output.contains("<  Check the index   >"), "{output}");
+        assert!(output.contains("└────────────────────┘"), "{output}");
+    }
+
+    #[test]
+    fn render_diamond_narrow_multi_line_label_keeps_borders_intact() {
+        // Lines short enough that the old centering arithmetic did not
+        // underflow, but the whole label was still written into one row,
+        // overwriting the `<` bracket and the row below it.
+        let mut canvas = Canvas::new(16, 8);
+        let node = Node::new("B")
+            .with_label("abc\nabc")
+            .with_shape(Shape::Diamond);
+        let charset = CharSet::unicode();
+
+        render_node(&mut canvas, &node, 1, 1, &charset, Direction::TopDown);
+
+        let output = canvas.to_string();
+        assert!(output.contains("┌─────┐"), "{output}");
+        assert_eq!(output.matches("< abc >").count(), 2, "{output}");
+        assert!(output.contains("└─────┘"), "{output}");
+    }
+
+    #[test]
+    fn render_hexagon_multi_line_label_fills_measured_rows() {
+        let mut canvas = Canvas::new(20, 8);
+        let node = Node::new("H")
+            .with_label("Retry?\nGive up")
+            .with_shape(Shape::Hexagon);
+        let charset = CharSet::unicode();
+
+        let bounds = render_node(&mut canvas, &node, 1, 1, &charset, Direction::TopDown);
+
+        assert_eq!(bounds.height, 4);
+
+        let output = canvas.to_string();
+        assert!(output.contains("< Retry?  >"), "{output}");
+        assert!(output.contains("< Give up >"), "{output}");
+    }
+
+    #[test]
+    fn render_borderless_multi_line_label_centers_every_line() {
+        let mut canvas = Canvas::new(20, 6);
+        let node = Node::new("N")
+            .with_label("Hello there\nWorld")
+            .with_shape(Shape::TextBlock);
+        let charset = CharSet::unicode();
+
+        let bounds = render_node(&mut canvas, &node, 1, 1, &charset, Direction::TopDown);
+
+        assert_eq!(bounds.width, 11);
+        assert_eq!(bounds.height, 2);
+
+        let output = canvas.to_string();
+        assert!(output.contains("Hello there"), "{output}");
+        assert!(output.contains("   World"), "{output}");
     }
 
     #[test]

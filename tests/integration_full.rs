@@ -83,6 +83,48 @@ fn font_metrics_profiles_do_not_change_terminal_output() {
     }
 }
 
+/// A `<br/>` inside a diamond/hexagon label used to underflow the text
+/// renderer's centering arithmetic (panic in debug, dropped label in release).
+#[test]
+fn multi_line_labels_render_inside_bracketed_shapes() {
+    let cases = [
+        (
+            "{Is the cache warm?<br/>Check the index}",
+            ["< Is the cache warm? >", "<  Check the index   >"],
+        ),
+        ("{{Retry?<br/>Give up}}", ["< Retry?  >", "< Give up >"]),
+    ];
+
+    for (shape, expected_rows) in cases {
+        let input = format!("flowchart TD\n    A[Start] --> B{shape}\n");
+        for format in [OutputFormat::Text, OutputFormat::Ascii] {
+            let output = render_diagram(&input, format, &RenderConfig::default())
+                .unwrap_or_else(|e| panic!("{shape} should render as {format:?}: {e}"));
+            for row in expected_rows {
+                assert!(
+                    output.contains(row),
+                    "{format:?} output for {shape} is missing {row:?}:\n{output}"
+                );
+            }
+        }
+    }
+}
+
+/// The borderless (`shape: text`) node shares the diamond's centering path and
+/// underflowed the same way on a multi-line label.
+#[test]
+fn multi_line_label_renders_inside_borderless_node() {
+    let input =
+        "flowchart TD\n    A@{ shape: text, label: \"Hello there<br/>World again\" } --> B[x]\n";
+
+    for format in [OutputFormat::Text, OutputFormat::Ascii] {
+        let output = render_diagram(input, format, &RenderConfig::default())
+            .unwrap_or_else(|e| panic!("borderless node should render as {format:?}: {e}"));
+        assert!(output.contains("Hello there"), "{format:?}:\n{output}");
+        assert!(output.contains("World again"), "{format:?}:\n{output}");
+    }
+}
+
 fn render_flowchart_svg(input: &str) -> String {
     render_diagram(input, OutputFormat::Svg, &RenderConfig::default()).expect("should render svg")
 }

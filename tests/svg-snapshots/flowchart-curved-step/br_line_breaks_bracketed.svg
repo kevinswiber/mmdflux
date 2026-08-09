@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 232.73 562.73" style="max-width: 232.73px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M116.36,62.00 L116.36,64.78 C116.36,67.56 116.36,73.11 116.36,78.11 C116.36,83.11 116.36,87.56 116.36,92.44 C116.36,97.33 116.36,102.67 116.36,105.33 L116.36,108.00" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M116.36,328.73 L116.36,331.50 C116.36,334.28 116.36,339.84 116.36,344.84 C116.36,349.84 116.36,354.28 116.36,359.17 C116.36,364.06 116.36,369.39 116.36,372.06 L116.36,374.73" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M116.36,456.73 L116.36,459.50 C116.36,462.28 116.36,467.84 116.36,472.84 C116.36,477.84 116.36,482.28 116.36,487.17 C116.36,492.06 116.36,497.39 116.36,500.06 L116.36,502.73" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="69.47" y="8.00" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="116.36" y="35.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <polygon points="116.36,112.00 224.73,220.36 116.36,328.73 8.00,220.36" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="116.36" y="208.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Is the cache warm?</text>
+        <text x="116.36" y="232.36" text-anchor="middle" dominant-baseline="middle" fill="#333">Check the index</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <polygon points="73.53,378.73 159.19,378.73 187.74,417.73 159.19,456.73 73.53,456.73 44.98,417.73" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="116.36" y="405.73" text-anchor="middle" dominant-baseline="middle" fill="#333">Retry?</text>
+        <text x="116.36" y="429.73" text-anchor="middle" dominant-baseline="middle" fill="#333">Give up</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <text x="116.36" y="518.73" text-anchor="middle" dominant-baseline="middle" fill="#333">Hello there</text>
+        <text x="116.36" y="542.73" text-anchor="middle" dominant-baseline="middle" fill="#333">World again</text>
+      </g>
+    </g>
+    <g class="edgeLabels">
+    </g>
+  </g>
+</svg>

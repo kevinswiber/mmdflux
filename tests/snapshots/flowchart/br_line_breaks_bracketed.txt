@@ -1,0 +1,23 @@
+       ┌───────┐
+       │ Start │
+       └───────┘
+           │
+           │
+           ▼
+┌────────────────────┐
+< Is the cache warm? >
+<  Check the index   >
+└────────────────────┘
+           │
+           │
+           ▼
+      ┌─────────┐
+      < Retry?  >
+      < Give up >
+      └─────────┘
+           │
+           │
+           │
+           ▼
+      Hello there
+      World again
