@@ -167,18 +167,14 @@ pub(crate) fn compute_lca(
     let lim = postorder[v].lim.max(postorder[w].lim);
 
     let mut parent_opt = graph.parents[v];
-    loop {
-        match parent_opt {
-            Some(parent) => {
-                let range = &postorder[parent];
-                if !(range.low > low || lim > range.lim) {
-                    return Some(parent);
-                }
-                parent_opt = graph.parents[parent];
-            }
-            None => return None,
+    while let Some(parent) = parent_opt {
+        let range = &postorder[parent];
+        if !(range.low > low || lim > range.lim) {
+            return Some(parent);
         }
+        parent_opt = graph.parents[parent];
     }
+    None
 }
 
 fn find_path(

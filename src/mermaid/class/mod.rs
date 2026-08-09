@@ -568,13 +568,13 @@ fn relation_type_from_markers(
 fn parse_relation_operator(input: &str) -> Option<(ClassRelationType, bool, bool, &str)> {
     let (start_marker, rest) = parse_left_relation_marker(input);
 
-    let (line, rest) = if let Some(rest) = rest.strip_prefix("--") {
-        (ParsedRelationLine::Solid, rest)
-    } else if let Some(rest) = rest.strip_prefix("..") {
-        (ParsedRelationLine::Dotted, rest)
-    } else {
-        return None;
-    };
+    let (line, rest) = rest
+        .strip_prefix("--")
+        .map(|rest| (ParsedRelationLine::Solid, rest))
+        .or_else(|| {
+            rest.strip_prefix("..")
+                .map(|rest| (ParsedRelationLine::Dotted, rest))
+        })?;
 
     let (end_marker, rest) = parse_right_relation_marker(rest);
     let relation_type = relation_type_from_markers(start_marker, end_marker, line);

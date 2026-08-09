@@ -324,13 +324,9 @@ fn try_parse_note(first_line: &str, lines: &[&str], pos: &mut usize) -> Option<S
     let rest = first_line["note ".len()..].trim();
 
     // Parse position and state ID: `right of StateId` or `left of StateId`
-    let (position, after_pos) = if let Some(r) = strip_keyword_ci(rest, "right of") {
-        (NotePosition::Right, r)
-    } else if let Some(r) = strip_keyword_ci(rest, "left of") {
-        (NotePosition::Left, r)
-    } else {
-        return None;
-    };
+    let (position, after_pos) = strip_keyword_ci(rest, "right of")
+        .map(|r| (NotePosition::Right, r))
+        .or_else(|| strip_keyword_ci(rest, "left of").map(|r| (NotePosition::Left, r)))?;
 
     let after_pos = after_pos.trim();
 
