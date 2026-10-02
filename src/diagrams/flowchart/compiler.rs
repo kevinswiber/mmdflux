@@ -398,12 +398,16 @@ fn add_vertex_to_diagram(
         return;
     }
     if let Some(existing) = diagram.nodes.get_mut(&vertex.id) {
-        // Update existing node if this vertex has more specific shape info
-        if let Some(shape_spec) = &vertex.shape
-            && existing.label == existing.id
-        {
+        // A later declaration with brackets or shape data replaces the shape,
+        // and its text replaces the label, matching Mermaid's last-wins
+        // `addVertex`. Bare mentions (`A --> B`) carry no shape and change
+        // nothing. A shape-only redeclaration (`A@{ shape: doc }`) keeps an
+        // explicit label.
+        if let Some(shape_spec) = &vertex.shape {
             let shape = convert_shape(shape_spec);
-            existing.label = normalize_shape_label(&vertex.id, shape_spec, shape);
+            if !shape_spec.text().is_empty() || existing.label == existing.id {
+                existing.label = normalize_shape_label(&vertex.id, shape_spec, shape);
+            }
             existing.shape = shape;
         }
         // Set parent if provided and not already set
@@ -826,6 +830,99 @@ fn map_arrow_head(head: ArrowHead) -> Arrow {
 mod tests {
     use super::*;
     use crate::mermaid::parse_flowchart;
+
+    fn compiled_node(input: &str, id: &str) -> Node {
+        let flowchart = parse_flowchart(input).expect("parses");
+        compile_to_graph(&flowchart).nodes[id].clone()
+    }
+
+    #[test]
+    fn redeclared_node_takes_the_last_label() {
+        let node = compiled_node("flowchart LR\n  A[First] --> B\n  A[Second]\n", "A");
+        assert_eq!(node.label, "Second");
+        assert_eq!(node.shape, Shape::Rectangle);
+    }
+
+    #[test]
+    fn redeclared_node_takes_the_last_shape() {
+        let node = compiled_node("flowchart LR\n  A[First] --> B\n  A[[First]]\n", "A");
+        assert_eq!(node.label, "First");
+        assert_eq!(node.shape, Shape::Subroutine);
+    }
+
+    #[test]
+    fn redeclared_node_takes_the_last_label_and_shape() {
+        let node = compiled_node("flowchart LR\n  A[[First]] --> B\n  A[Second]\n", "A");
+        assert_eq!(node.label, "Second");
+        assert_eq!(node.shape, Shape::Rectangle);
+
+        let node = compiled_node("flowchart LR\n  A[First] --> B\n  A[[Second]]\n", "A");
+        assert_eq!(node.label, "Second");
+        assert_eq!(node.shape, Shape::Subroutine);
+    }
+
+    #[test]
+    fn grouped_redeclaration_takes_the_lexically_last_declaration() {
+        // Mermaid calls `addVertex` in source order: A, B[First], B[[Second]], C.
+        let node = compiled_node("flowchart LR\n  A & B[First] --> B[[Second]] & C\n", "B");
+        assert_eq!(node.label, "Second");
+        assert_eq!(node.shape, Shape::Subroutine);
+    }
+
+    #[test]
+    fn grouped_redeclaration_on_the_left_takes_the_lexically_last_declaration() {
+        // Source order: B[[Second]], A, B[First].
+        let node = compiled_node("flowchart LR\n  B[[Second]] & A --> B[First]\n", "B");
+        assert_eq!(node.label, "First");
+        assert_eq!(node.shape, Shape::Rectangle);
+    }
+
+    #[test]
+    fn grouped_redeclaration_in_a_chained_segment_takes_the_lexically_last_declaration() {
+        // Source order: X, C, B[First], B[[Second]], D.
+        let input = "flowchart LR\n  X --> C & B[First] --> B[[Second]] & D\n";
+        let node = compiled_node(input, "B");
+        assert_eq!(node.label, "Second");
+        assert_eq!(node.shape, Shape::Subroutine);
+    }
+
+    #[test]
+    fn grouped_redeclaration_keeps_edges_and_node_order() {
+        let flowchart =
+            parse_flowchart("flowchart LR\n  A & B[First] --> B[[Second]] & C\n").expect("parses");
+        let graph = compile_to_graph(&flowchart);
+        let edges: Vec<_> = graph
+            .edges
+            .iter()
+            .map(|e| (e.from.as_str(), e.to.as_str()))
+            .collect();
+        assert_eq!(edges, [("A", "B"), ("A", "C"), ("B", "B"), ("B", "C")]);
+        assert_eq!(graph.nodes["A"].label, "A");
+        assert_eq!(graph.nodes["C"].label, "C");
+    }
+
+    #[test]
+    fn bare_mention_keeps_the_declared_label_and_shape() {
+        let node = compiled_node("flowchart LR\n  A[[First]] --> B\n  B --> A\n  A\n", "A");
+        assert_eq!(node.label, "First");
+        assert_eq!(node.shape, Shape::Subroutine);
+    }
+
+    #[test]
+    fn shape_only_redeclaration_keeps_the_label() {
+        let node = compiled_node("flowchart LR\n  A[Report] --> B\n  A@{ shape: doc }\n", "A");
+        assert_eq!(node.label, "Report");
+        assert_eq!(node.shape, Shape::Document);
+    }
+
+    #[test]
+    fn redeclaration_inside_a_subgraph_relabels_but_keeps_membership() {
+        let input =
+            "flowchart LR\n  subgraph S\n    A[First]\n  end\n  subgraph T\n    A[Second]\n  end\n";
+        let node = compiled_node(input, "A");
+        assert_eq!(node.label, "Second");
+        assert_eq!(node.parent.as_deref(), Some("S"));
+    }
 
     #[test]
     fn flowchart_with_colliding_subgraph_and_node_ids_yields_clean_ir() {

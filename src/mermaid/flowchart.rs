@@ -2,6 +2,8 @@
 
 #![allow(dead_code)]
 
+use std::collections::{HashMap, VecDeque};
+
 use pest::Parser;
 use pest_derive::Parser;
 
@@ -546,6 +548,8 @@ fn parse_vertex_statement(pair: pest::iterators::Pair<Rule>) -> Vec<Statement> {
         // No edges, just standalone node(s)
         statements.extend(current_nodes.into_iter().map(Statement::Vertex));
     } else {
+        let mut declarations = lexical_shape_declarations(&current_nodes, &segments);
+
         // Process chain of edges
         let mut source_nodes = current_nodes;
 
@@ -563,9 +567,44 @@ fn parse_vertex_statement(pair: pest::iterators::Pair<Rule>) -> Vec<Statement> {
             // For chains, the targets become the sources for the next segment
             source_nodes = target_nodes;
         }
+
+        // The cartesian expansion replays each vertex once per edge, which
+        // interleaves declarations out of source order (`A & B[x] --> B[y]`
+        // emits `B[y]` before the `B[x] --> ...` edges). Re-deal each node's
+        // shaped declarations onto its emitted occurrences in source order,
+        // leaving the replays bare, so the last declaration still wins.
+        for statement in &mut statements {
+            if let Statement::Edge(edge) = statement {
+                for vertex in [&mut edge.from, &mut edge.to] {
+                    vertex.shape = declarations
+                        .get_mut(&vertex.id)
+                        .and_then(VecDeque::pop_front);
+                }
+            }
+        }
     }
 
     statements
+}
+
+/// Shaped declarations per node id, in source order across the statement's
+/// node groups.
+fn lexical_shape_declarations(
+    first_group: &[Vertex],
+    segments: &[(ConnectorSpec, Vec<Vertex>)],
+) -> HashMap<String, VecDeque<ShapeSpec>> {
+    let mut declarations: HashMap<String, VecDeque<ShapeSpec>> = HashMap::new();
+    let groups =
+        std::iter::once(first_group).chain(segments.iter().map(|(_, nodes)| nodes.as_slice()));
+    for vertex in groups.flatten() {
+        if let Some(shape) = &vertex.shape {
+            declarations
+                .entry(vertex.id.clone())
+                .or_default()
+                .push_back(shape.clone());
+        }
+    }
+    declarations
 }
 
 fn parse_node_group(pair: pest::iterators::Pair<Rule>) -> Vec<Vertex> {
