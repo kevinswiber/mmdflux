@@ -770,6 +770,32 @@ The formal JSON Schema is available at [`docs/mmds.schema.json`](./mmds.schema.j
 document for consumers outside a Rust process. Its schema is
 [`docs/mmds-diff.schema.json`](./mmds-diff.schema.json).
 
+The CLI exposes the same output:
+
+```text
+mmdflux diff [OPTIONS] <BEFORE> <AFTER>
+mmdflux diff [OPTIONS] --pair <FILE|->   # {"before": "<source>", "after": "<source>"}
+```
+
+- Each input is Mermaid source or MMDS JSON, detected per input; `-` reads
+  stdin for one of them.
+- `-f json` (default) prints the wire document; `-f summary` prints a count
+  line and one line per change.
+- `--layer model` (default), `geometry` or `all`. `--geometry-level` sets the
+  level used to materialize Mermaid inputs (`layout` by default).
+- `--evidence` includes the unstable evidence strings.
+- Diagrams of different types are refused unless `--force` is given; the diff
+  then starts with `DiagramTypeChanged`. Sequence diagrams have no graph diff
+  and are refused.
+- Exit status is 0 on success. With `--exit-code` it is 0 when nothing in the
+  reported layer changed and 1 when something did. A failed comparison exits
+  with 2.
+- `diff` is only the subcommand as the first argument. If a file named `diff`
+  exists and the arguments are not a valid diff invocation (for example bare
+  `mmdflux diff`), that file is rendered as the plain `mmdflux [INPUT]` form.
+  `mmdflux ./diff` or `mmdflux -- diff` always renders it. There is no `help`
+  subcommand; `mmdflux help` renders a file named `help`.
+
 ```json
 {
   "schema": "mmdflux.diff.v1",

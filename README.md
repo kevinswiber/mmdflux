@@ -168,7 +168,15 @@ mmdflux --format mmds --geometry-level routed diagram.mmd
 
 # Lint mode (validate input and print diagnostics)
 mmdflux --lint diagram.mmd
+
+# Compare two versions of a diagram (Mermaid or MMDS JSON) as mmdflux.diff.v1 JSON
+mmdflux diff before.mmd after.mmd
+
+# One line per change; exit 1 when the diagrams differ
+mmdflux diff --format summary --exit-code before.mmd after.mmd
 ```
+
+A file named `diff` still renders with `mmdflux diff` when the arguments are not a valid diff invocation (no second input or `--pair`); `mmdflux ./diff` always renders it. `help` is always treated as an input filename; use `--help`.
 
 With ANSI enabled, text/ascii output maps Mermaid styling to terminal colors where it has a clear analogue: node `style`/`classDef` `fill`, `stroke`, and `color` drive node background, border, and label color; flowchart `linkStyle ... stroke:<color>` drives edge and arrow foreground color; SVG-specific properties such as `stroke-width` and `stroke-dasharray` remain no-ops in text/ascii output.
 

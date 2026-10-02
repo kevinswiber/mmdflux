@@ -1,15 +1,16 @@
 //! mmdflux CLI — Mermaid diagram to text/SVG renderer.
 
+mod diff_cli;
 mod svg_theme_auto;
 mod terminal_appearance;
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io::{self, IsTerminal, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::{env, fmt, fs};
 
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use mmdflux::builtins::default_registry;
 use mmdflux::format::{Curve, EdgePreset, RoutingStyle};
 use mmdflux::graph::GeometryLevel;
@@ -164,7 +165,14 @@ impl fmt::Display for ValidationDiagnostic {
 #[command(name = "mmdflux")]
 #[command(version)]
 #[command(about = "Convert Mermaid diagrams to text, SVG, or MMDS JSON")]
+#[command(args_conflicts_with_subcommands = true)]
+// `help` stays an input filename, as it was before `diff` existed; use
+// `--help` or `diff --help` instead.
+#[command(disable_help_subcommand = true)]
 struct Cli {
+    #[command(subcommand)]
+    command: Option<CliCommand>,
+
     /// Input file (reads from stdin if not provided)
     input: Option<PathBuf>,
 
@@ -338,6 +346,12 @@ struct Cli {
     /// Write tracing output to a file instead of stderr.
     #[arg(long, value_name = "PATH")]
     log_file: Option<PathBuf>,
+}
+
+#[derive(Debug, Subcommand)]
+enum CliCommand {
+    /// Compare two diagrams and print what changed
+    Diff(diff_cli::DiffArgs),
 }
 
 #[derive(Clone, Copy, ValueEnum, Debug)]
@@ -609,8 +623,49 @@ impl Write for SharedLogWriter {
     }
 }
 
+/// Parse the command line, keeping a file named `diff` renderable.
+///
+/// Before the `diff` subcommand existed, `mmdflux diff` rendered a file named
+/// `diff`. When the first argument is `diff`, a file of that name exists, and
+/// the arguments are not a valid diff invocation, they are re-read as the
+/// legacy `mmdflux [OPTIONS] [INPUT]` form with `./diff` as the input. The two
+/// readings never both parse (diff needs two inputs or `--pair`; the legacy
+/// form takes one input and has no `--pair`), so the rule is unambiguous. When
+/// neither parses, the diff subcommand's error is reported.
+fn parse_cli() -> Cli {
+    let args: Vec<OsString> = env::args_os().collect();
+    match Cli::try_parse_from(&args) {
+        Ok(cli) => cli,
+        Err(error) => legacy_diff_file_input(&args).unwrap_or_else(|| error.exit()),
+    }
+}
+
+fn legacy_diff_file_input(args: &[OsString]) -> Option<Cli> {
+    if args.get(1).map(OsString::as_os_str) != Some(OsStr::new(DIFF_SUBCOMMAND))
+        || !Path::new(DIFF_SUBCOMMAND).is_file()
+    {
+        return None;
+    }
+    let mut legacy = args.to_vec();
+    legacy[1] = Path::new(".").join(DIFF_SUBCOMMAND).into_os_string();
+    Cli::try_parse_from(legacy).ok()
+}
+
+const DIFF_SUBCOMMAND: &str = "diff";
+
 fn main() -> io::Result<()> {
-    let cli = Cli::parse();
+    let cli = parse_cli();
+
+    if let Some(CliCommand::Diff(args)) = &cli.command {
+        // Exit 1 means "changed" under --exit-code, so setup failures on the
+        // diff path report diff(1)'s trouble status instead.
+        if let Err(error) = init_tracing(&cli) {
+            eprintln!("Error: {error}");
+            std::process::exit(diff_cli::EXIT_TROUBLE);
+        }
+        std::process::exit(diff_cli::run(args));
+    }
+
     init_tracing(&cli)?;
 
     let input = match &cli.input {
