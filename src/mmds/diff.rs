@@ -18,8 +18,15 @@
 //! not filtered out; callers can use [`ChangeKind::is_model`] and
 //! [`ChangeKind::is_geometry`] to separate model changes from geometry changes.
 //!
+//! Edge ids in MMDS are positional (`e{declaration_index}`), so one id can name different
+//! edges in the two documents. Every edge change therefore carries [`Change::edge_ids`],
+//! the edge's id in the `before` document (none when added) and in the `after` document
+//! (none when removed). [`Subject::Edge`] keeps a single id: the `before` id for a removed
+//! edge and the `after` id otherwise.
+//!
 //! [`Change::related_change_ids`] links geometry effects back to related semantic
-//! changes by index within the same [`Diff::changes`] vector. [`Change::evidence`]
+//! changes by index within the same [`Diff::changes`] vector. For edges, only changes
+//! about the same before/after edge pair are linked. [`Change::evidence`]
 //! contains diagnostic and not format-stable strings intended for debugging and test output,
 //! not for long-lived parsing contracts.
 //!
@@ -60,6 +67,18 @@ pub struct Change {
     pub evidence: Vec<String>,
     /// Change indexes in the same `Diff::changes` vector that are related to this change.
     pub related_change_ids: Vec<usize>,
+    /// For an edge change, the edge's id in each document. `None` for other subjects.
+    pub edge_ids: Option<EdgeIds>,
+}
+
+/// An edge's id in the `before` and `after` documents of a snapshot diff.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EdgeIds {
+    /// Id in the `before` document, or `None` when the edge was added.
+    pub before_id: Option<String>,
+    /// Id in the `after` document, or `None` when the edge was removed.
+    pub after_id: Option<String>,
 }
 
 /// Kind of change observed in an MMDS snapshot diff.
@@ -246,6 +265,7 @@ fn document_change_with_evidence(kind: ChangeKind, evidence: Vec<String>) -> Cha
         subject: Subject::Document,
         evidence,
         related_change_ids: Vec::new(),
+        edge_ids: None,
     }
 }
 
@@ -287,6 +307,7 @@ fn push_removed_added<T>(
             subject: subject(id.clone()),
             evidence: Vec::new(),
             related_change_ids: Vec::new(),
+            edge_ids: None,
         });
     }
 
@@ -296,6 +317,7 @@ fn push_removed_added<T>(
             subject: subject(id.clone()),
             evidence: Vec::new(),
             related_change_ids: Vec::new(),
+            edge_ids: None,
         });
     }
 }
@@ -628,11 +650,11 @@ fn edge_endpoints_exist_in_both_outputs(
 
 fn push_edge_removed_added(events: &mut Vec<Change>, correspondences: &EdgeCorrespondences<'_>) {
     for (id, _) in &correspondences.removed {
-        events.push(edge_change(ChangeKind::EdgeRemoved, id));
+        events.push(edge_change(ChangeKind::EdgeRemoved, id, Some(id), None));
     }
 
     for (id, _) in &correspondences.added {
-        events.push(edge_change(ChangeKind::EdgeAdded, id));
+        events.push(edge_change(ChangeKind::EdgeAdded, id, None, Some(id)));
     }
 }
 
@@ -1334,7 +1356,14 @@ fn link_related_geometry(events: &mut [Change]) {
         .iter()
         .enumerate()
         .filter(|(_, event)| event.kind.is_geometry())
-        .map(|(index, event)| (index, event.subject.clone(), event.kind))
+        .map(|(index, event)| {
+            (
+                index,
+                event.subject.clone(),
+                event.edge_ids.clone(),
+                event.kind,
+            )
+        })
         .collect::<Vec<_>>();
 
     for event in events.iter_mut() {
@@ -1342,8 +1371,10 @@ fn link_related_geometry(events: &mut [Change]) {
             continue;
         }
 
-        for (index, subject, kind) in &geometry_events {
-            if *subject == event.subject {
+        for (index, subject, edge_ids, kind) in &geometry_events {
+            // Edge ids are positional, so an edge subject alone can name different
+            // edges on the two sides; edges must also share their before/after ids.
+            if *subject == event.subject && *edge_ids == event.edge_ids {
                 event.related_change_ids.push(*index);
                 event
                     .evidence
@@ -1383,19 +1414,35 @@ fn node_change_with_evidence(kind: ChangeKind, id: &str, evidence: Vec<String>) 
         subject: Subject::Node(id.to_string()),
         evidence,
         related_change_ids: Vec::new(),
+        edge_ids: None,
     }
 }
 
-fn edge_change(kind: ChangeKind, id: &str) -> Change {
-    edge_change_with_evidence(kind, id, Vec::new())
+fn edge_change(
+    kind: ChangeKind,
+    subject_id: &str,
+    before_id: Option<&str>,
+    after_id: Option<&str>,
+) -> Change {
+    edge_change_with_evidence(kind, subject_id, before_id, after_id, Vec::new())
 }
 
-fn edge_change_with_evidence(kind: ChangeKind, id: &str, evidence: Vec<String>) -> Change {
+fn edge_change_with_evidence(
+    kind: ChangeKind,
+    subject_id: &str,
+    before_id: Option<&str>,
+    after_id: Option<&str>,
+    evidence: Vec<String>,
+) -> Change {
     Change {
         kind,
-        subject: Subject::Edge(id.to_string()),
+        subject: Subject::Edge(subject_id.to_string()),
         evidence,
         related_change_ids: Vec::new(),
+        edge_ids: Some(EdgeIds {
+            before_id: before_id.map(str::to_string),
+            after_id: after_id.map(str::to_string),
+        }),
     }
 }
 
@@ -1405,7 +1452,13 @@ fn edge_change_for_match_with_evidence(
     mut evidence: Vec<String>,
 ) -> Change {
     evidence.extend(edge_match_evidence(edge_match));
-    edge_change_with_evidence(kind, edge_match.after_id.as_str(), evidence)
+    edge_change_with_evidence(
+        kind,
+        &edge_match.after_id,
+        Some(&edge_match.before_id),
+        Some(&edge_match.after_id),
+        evidence,
+    )
 }
 
 fn subgraph_change(kind: ChangeKind, id: &str) -> Change {
@@ -1418,5 +1471,6 @@ fn subgraph_change_with_evidence(kind: ChangeKind, id: &str, evidence: Vec<Strin
         subject: Subject::Subgraph(id.to_string()),
         evidence,
         related_change_ids: Vec::new(),
+        edge_ids: None,
     }
 }

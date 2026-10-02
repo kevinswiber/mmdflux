@@ -299,6 +299,7 @@
 //!   supporting view vocabulary)
 //! - new fields on early-surface structs marked `#[non_exhaustive]` (including
 //!   `mmds::events::ModelEvent`, `mmds::diff::Change`, `mmds::diff::Diff`,
+//!   `mmds::diff::EdgeIds`,
 //!   `mmds::MmdsTokenError`, and `views::ViewSpec`)
 //!
 //! What is not covered:
