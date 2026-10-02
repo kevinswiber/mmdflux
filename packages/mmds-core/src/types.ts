@@ -197,6 +197,7 @@ export interface MmdsNodeStyleEntry {
 export type MmdsSubgraphStyleEntry = MmdsNodeStyleEntry;
 
 export interface MmdsEdgeLabelStyleEntry {
+  stroke?: string;
   "stroke-width"?: string;
   "font-family"?: string;
   "font-size"?: string;

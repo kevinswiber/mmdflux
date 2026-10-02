@@ -887,6 +887,12 @@ fn serialize_node_style_extension(style: &NodeStyle) -> Map<String, Value> {
 
 fn serialize_edge_style_extension(style: &EdgeStyle) -> Map<String, Value> {
     let mut payload = Map::new();
+    if let Some(stroke) = &style.stroke {
+        payload.insert(
+            "stroke".to_string(),
+            Value::String(stroke.raw().to_string()),
+        );
+    }
     if let Some(v) = &style.stroke_width {
         payload.insert("stroke-width".to_string(), Value::String(v.clone()));
     }

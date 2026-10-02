@@ -1140,6 +1140,38 @@ fn mmds_output_matches_locked_node_style_contract_fixture() {
 }
 
 #[test]
+fn mmds_round_trip_preserves_linkstyle_edge_stroke_color() {
+    let input = "graph LR\n  A-->B\n  B-->C\n  linkStyle 1 stroke:#2ea043,stroke-width:3px\n";
+    let json = render_json(input);
+    let output: Value = serde_json::from_str(&json).unwrap();
+    let edge_style = &output["extensions"]["org.mmdflux.node-style.v1"]["edges"]["e1"];
+    assert_eq!(edge_style["stroke"], "#2ea043", "{edge_style}");
+    assert_eq!(edge_style["stroke-width"], "3px", "{edge_style}");
+    assert_schema_valid(output.clone());
+
+    let direct_svg = render_diagram(input, OutputFormat::Svg, &RenderConfig::default()).unwrap();
+    let routed_json = render_json_with_level(input, GeometryLevel::Routed);
+    let replay_svg = render_mmds_input(&routed_json, OutputFormat::Svg, RenderConfig::default());
+    assert_eq!(
+        replay_svg.matches("#2ea043").count(),
+        direct_svg.matches("#2ea043").count(),
+        "SVG replayed from MMDS should color the edge like a direct render: {replay_svg}"
+    );
+
+    let ansi = RenderConfig {
+        text_color_mode: TextColorMode::Ansi,
+        ..RenderConfig::default()
+    };
+    let direct_text = render_diagram(input, OutputFormat::Text, &ansi).unwrap();
+    let replay_text = render_mmds_input(&json, OutputFormat::Text, ansi);
+    assert!(direct_text.contains("38;2;46;160;67"), "{direct_text}");
+    assert!(
+        replay_text.contains("38;2;46;160;67"),
+        "text replayed from MMDS should color the edge: {replay_text}"
+    );
+}
+
+#[test]
 fn mmds_hydration_replays_node_styles_into_svg_and_text_rendering() {
     let svg = render_mmds_input(
         STYLED_MMDS_LAYOUT,

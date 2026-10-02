@@ -342,7 +342,7 @@ MMDS keeps core graph semantics compact while allowing renderer- or adapter-spec
 - `mmds-core-v1` — baseline MMDS core behavior contract.
 - `mmdflux-svg-v1` — SVG-oriented controls and expectations.
 - `mmdflux-text-v1` — text/ASCII-oriented controls and expectations.
-- `mmdflux-node-style-v1` — node style extension contract for `fill`, `stroke`, and `color` replay.
+- `mmdflux-node-style-v1` — style extension contract for node `fill`, `stroke`, and `color` replay, plus edge `linkStyle` stroke color, width and label fonts.
 - `mmdflux-text-metrics-v1` — graph-family text metrics identity and layout text values for deterministic replay.
 - `mmdflux-text-measurements-v1` — measured dynamic text query cache for provider-free SVG replay.
 
@@ -392,6 +392,8 @@ Payload shape:
       },
       "edges": {
         "e0": {
+          "stroke": "#2ea043",
+          "stroke-width": "3px",
           "font-family": "Times New Roman",
           "font-size": "32px",
           "font-style": "normal",
@@ -423,8 +425,11 @@ Rules:
   is omitted, SVG falls back to `rx`, so single-radius styles emit only `rx`
   for byte-identical replay; independent vertical curvature requires an
   explicit `ry` value.
-- Edge-label entries are keyed by MMDS edge id and preserve Mermaid `linkStyle`
-  font tokens for SVG rendering and dynamic text measurement replay.
+- Edge entries are keyed by MMDS edge id and preserve Mermaid `linkStyle`
+  `stroke`, `stroke-width` and font tokens for SVG and text replay and for
+  dynamic text measurement. An edge entry's `stroke` is a raw color token; it is
+  unrelated to the core edge `stroke` field, which carries line style
+  (`solid`, `dotted`, `thick`, `invisible`).
 - Subgraph entries live at `org.mmdflux.node-style.v1.subgraphs`; the historical
   namespace name is retained, but these entries are graph subgraph style
   overrides. Container visual styles replay provider-free. The rule is:

@@ -462,7 +462,7 @@
         },
         "edges": {
           "type": "object",
-          "description": "Edge-ID keyed style overrides replayed into renderer-visible edge label font properties.",
+          "description": "Edge-ID keyed style overrides replayed into renderer-visible edge stroke color, stroke width and label font properties.",
           "additionalProperties": {
             "$ref": "#/$defs/EdgeLabelStyle"
           }
@@ -598,6 +598,11 @@
     "EdgeLabelStyle": {
       "type": "object",
       "properties": {
+        "stroke": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Raw Mermaid linkStyle stroke color token for the edge line and arrowhead. Distinct from the core edge `stroke` field, which is line style."
+        },
         "stroke-width": {
           "type": "string",
           "minLength": 1,

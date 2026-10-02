@@ -291,7 +291,7 @@ fn parse_edge_style_from_extension(
     };
 
     EdgeStyle {
-        stroke: None,
+        stroke: parse_node_style_color(style_object, "stroke"),
         stroke_width: parse_style_string_with_legacy_key(
             style_object,
             "stroke-width",
