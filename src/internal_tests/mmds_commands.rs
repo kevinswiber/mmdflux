@@ -1262,6 +1262,7 @@ fn mmds_command_vocabulary_classifies_all_diff_kinds() {
         ),
         (ChangeKind::ProfileChanged, ChangeKindLayer::Model),
         (ChangeKind::ExtensionChanged, ChangeKindLayer::Model),
+        (ChangeKind::DiagramTypeChanged, ChangeKindLayer::Model),
         (ChangeKind::NodeMoved, ChangeKindLayer::Geometry),
         (ChangeKind::NodeResized, ChangeKindLayer::Geometry),
         (ChangeKind::CanvasResized, ChangeKindLayer::Geometry),
@@ -1281,7 +1282,7 @@ fn mmds_command_vocabulary_classifies_all_diff_kinds() {
 
     // The exhaustive matches in `commands` are the compile-time drift
     // guard. This count keeps the test fixture's explicit variant list honest.
-    assert_eq!(cases.len(), 36);
+    assert_eq!(cases.len(), 37);
 
     for (kind, expected_role) in cases {
         assert_eq!(change_kind_layer(kind), expected_role, "{kind:?}");
@@ -1659,7 +1660,8 @@ fn mmds_command_vocabulary_is_symmetric_with_diff_kinds() {
         let is_geometry = contains_kind(geometry_change_kinds(), kind);
         let is_model = model_event_kinds()
             .iter()
-            .any(|command_kind| model_event_kind_to_change_kind(*command_kind) == kind);
+            .any(|command_kind| model_event_kind_to_change_kind(*command_kind) == kind)
+            || contains_kind(&snapshot_only_model_kinds(), kind);
 
         assert_ne!(is_geometry, is_model, "{kind:?}");
         assert_eq!(kind.is_geometry(), is_geometry, "{kind:?}");
@@ -2058,7 +2060,7 @@ fn tier_a_representative_command_cases() -> Vec<TierARepresentativeCommandCase> 
     ]
 }
 
-fn all_diff_kinds() -> [ChangeKind; 36] {
+fn all_diff_kinds() -> [ChangeKind; 37] {
     [
         ChangeKind::GeometryLevelChanged,
         ChangeKind::DirectionChanged,
@@ -2084,6 +2086,7 @@ fn all_diff_kinds() -> [ChangeKind; 36] {
         ChangeKind::SubgraphVisibilityChanged,
         ChangeKind::ProfileChanged,
         ChangeKind::ExtensionChanged,
+        ChangeKind::DiagramTypeChanged,
         ChangeKind::NodeMoved,
         ChangeKind::NodeResized,
         ChangeKind::CanvasResized,
@@ -2097,6 +2100,12 @@ fn all_diff_kinds() -> [ChangeKind; 36] {
         ChangeKind::PathPortDivergenceChanged,
         ChangeKind::GlobalReflowDetected,
     ]
+}
+
+/// Model changes a snapshot diff can observe that no command produces: a
+/// document's diagram type is fixed when it is materialized.
+fn snapshot_only_model_kinds() -> [ChangeKind; 1] {
+    [ChangeKind::DiagramTypeChanged]
 }
 
 fn geometry_effect_kinds() -> [ChangeKind; 12] {

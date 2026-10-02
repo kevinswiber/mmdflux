@@ -99,6 +99,9 @@ pub struct EdgeIds {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChangeKind {
     GeometryLevelChanged,
+    /// The documents are different diagram types (`metadata.diagram_type`), so the
+    /// remaining changes compare unrelated diagrams.
+    DiagramTypeChanged,
     DirectionChanged,
     EngineChanged,
     NodeAdded,
@@ -169,6 +172,15 @@ impl ChangeKind {
 pub fn diff_documents(before: &Document, after: &Document) -> Diff {
     let mut changes = Vec::new();
 
+    if before.metadata.diagram_type != after.metadata.diagram_type {
+        changes.push(document_change_with_evidence(
+            ChangeKind::DiagramTypeChanged,
+            vec![format!(
+                "before={}; after={}",
+                before.metadata.diagram_type, after.metadata.diagram_type
+            )],
+        ));
+    }
     if before.geometry_level != after.geometry_level {
         changes.push(document_change(ChangeKind::GeometryLevelChanged));
     }

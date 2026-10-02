@@ -412,3 +412,27 @@ fn authored_extension_changes_name_their_namespace() {
         vec![Some("example.a"), Some("example.b")]
     );
 }
+
+#[test]
+fn diagram_type_mismatch_is_a_model_change() {
+    let before = materialize("flowchart LR\napi[API] --> auth[Auth]\n");
+    let after = materialize("classDiagram\nclass api\nclass auth\napi --> auth\n");
+    assert_ne!(before.metadata.diagram_type, after.metadata.diagram_type);
+
+    let diff = diff_documents(&before, &after);
+    let change = diff
+        .changes
+        .first()
+        .expect("the diff should report changes");
+    assert_eq!(change.kind, ChangeKind::DiagramTypeChanged);
+    assert_eq!(change.subject, Subject::Document);
+    assert!(ChangeKind::DiagramTypeChanged.is_model());
+
+    let same = diff_documents(&before, &before);
+    assert!(
+        !same
+            .changes
+            .iter()
+            .any(|c| c.kind == ChangeKind::DiagramTypeChanged)
+    );
+}

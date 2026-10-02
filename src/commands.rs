@@ -306,7 +306,8 @@ pub(crate) fn change_kind_layer(kind: ChangeKind) -> ChangeKindLayer {
         | ChangeKind::SubgraphMembershipChanged
         | ChangeKind::SubgraphVisibilityChanged
         | ChangeKind::ProfileChanged
-        | ChangeKind::ExtensionChanged => ChangeKindLayer::Model,
+        | ChangeKind::ExtensionChanged
+        | ChangeKind::DiagramTypeChanged => ChangeKindLayer::Model,
         ChangeKind::NodeMoved
         | ChangeKind::NodeResized
         | ChangeKind::CanvasResized
