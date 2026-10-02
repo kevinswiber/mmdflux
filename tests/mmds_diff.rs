@@ -358,3 +358,57 @@ fn many_ambiguous_leftover_edges_fall_back_quickly() {
         "diff of {N} ambiguous leftover edges took {elapsed:?}"
     );
 }
+
+fn extension_changes(diff: &mmdflux::mmds::diff::Diff) -> Vec<Option<&str>> {
+    diff.changes
+        .iter()
+        .filter(|c| c.kind == ChangeKind::ExtensionChanged)
+        .map(|c| c.extension_namespace.as_deref())
+        .collect()
+}
+
+#[test]
+fn derived_render_projection_does_not_report_extension_changes() {
+    for (before, after) in [
+        (
+            "graph TD\nA-->B\nB-->C\n",
+            "graph TD\nA-->B\nB-->C\nA-->C\n",
+        ),
+        (
+            "graph TD\nX-->A\nA-->B\nA-->C\nB-->C\n",
+            "graph TD\nX-->A\nA-->B\nA-->C\nB-->X\n",
+        ),
+        ("graph TD\nA-->B\n", "graph TD\nA-->B\nB-->C\nC-->D\n"),
+    ] {
+        let diff = diff_documents(&materialize(before), &materialize(after));
+        assert!(
+            extension_changes(&diff).is_empty(),
+            "{before:?} -> {after:?}: {:?}",
+            diff.changes
+        );
+    }
+}
+
+#[test]
+fn authored_extension_changes_name_their_namespace() {
+    let before = materialize("graph TD\nA-->B\n");
+    let after = materialize("graph TD\nA-->B\nstyle A fill:#f00\n");
+    let diff = diff_documents(&before, &after);
+    assert_eq!(
+        extension_changes(&diff),
+        vec![Some("org.mmdflux.node-style.v1")]
+    );
+
+    let mut custom = after.clone();
+    custom
+        .extensions
+        .insert("example.b".to_string(), serde_json::Map::new());
+    custom
+        .extensions
+        .insert("example.a".to_string(), serde_json::Map::new());
+    let diff = diff_documents(&after, &custom);
+    assert_eq!(
+        extension_changes(&diff),
+        vec![Some("example.a"), Some("example.b")]
+    );
+}

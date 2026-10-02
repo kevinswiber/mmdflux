@@ -14,7 +14,11 @@
 //!
 //! The secondary semantic effects are returned as ordinary flat changes in [`Diff::changes`].
 //! For example, changing subgraph membership can also change a node's parent, and changing
-//! node style extensions can also change the document extension map. Geometry changes are
+//! node style extensions can also change the document extension map. Each changed
+//! extension namespace is its own [`ChangeKind::ExtensionChanged`] change, named by
+//! [`Change::extension_namespace`]; derived render output (`org.mmdflux.render.*` and the
+//! text measurement cache) is not compared, because it is layout data rather than model
+//! state. Geometry changes are
 //! not filtered out; callers can use [`ChangeKind::is_model`] and
 //! [`ChangeKind::is_geometry`] to separate model changes from geometry changes.
 //!
@@ -42,13 +46,15 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde_json::Value;
 
-use super::document::NODE_STYLE_EXTENSION_NAMESPACE;
+use super::document::{NODE_STYLE_EXTENSION_NAMESPACE, TEXT_MEASUREMENTS_EXTENSION_NAMESPACE};
 use super::{Bounds, Document, Edge, Node, Port, Position, Rect, Subgraph, Subject};
 use crate::graph::GeometryLevel;
 use crate::mmds::MmdsToken;
 
 const COORD_EPS: f64 = 0.01;
 const DISPLAY_EPS: f64 = 1.0;
+/// Namespace prefix for extensions that carry derived render output.
+const DERIVED_RENDER_EXTENSION_PREFIX: &str = "org.mmdflux.render.";
 
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
@@ -74,6 +80,8 @@ pub struct Change {
     pub related_change_ids: Vec<usize>,
     /// For an edge change, the edge's id in each document. `None` for other subjects.
     pub edge_ids: Option<EdgeIds>,
+    /// For [`ChangeKind::ExtensionChanged`], the extension namespace that changed.
+    pub extension_namespace: Option<String>,
 }
 
 /// An edge's id in the `before` and `after` documents of a snapshot diff.
@@ -183,8 +191,10 @@ pub fn diff_documents(before: &Document, after: &Document) -> Diff {
     if before.profiles != after.profiles {
         changes.push(document_change(ChangeKind::ProfileChanged));
     }
-    if before.extensions != after.extensions {
-        changes.push(document_change(ChangeKind::ExtensionChanged));
+    for namespace in changed_extension_namespaces(before, after) {
+        let mut change = document_change(ChangeKind::ExtensionChanged);
+        change.extension_namespace = Some(namespace.to_string());
+        changes.push(change);
     }
 
     let before_nodes = nodes_by_id(before);
@@ -270,8 +280,31 @@ fn document_change_with_evidence(kind: ChangeKind, evidence: Vec<String>) -> Cha
         subject: Subject::Document,
         evidence,
         related_change_ids: Vec::new(),
+        extension_namespace: None,
         edge_ids: None,
     }
+}
+
+/// Extension namespaces whose payload differs between the documents, in
+/// namespace order. Derived render output is skipped: the text projection is
+/// layout data that changes with almost any structural edit, and the text
+/// measurement cache follows labels; neither is authored model state.
+fn changed_extension_namespaces<'a>(before: &'a Document, after: &'a Document) -> Vec<&'a str> {
+    before
+        .extensions
+        .keys()
+        .chain(after.extensions.keys())
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .filter(|namespace| !is_derived_extension_namespace(namespace))
+        .filter(|namespace| before.extensions.get(*namespace) != after.extensions.get(*namespace))
+        .collect()
+}
+
+fn is_derived_extension_namespace(namespace: &str) -> bool {
+    namespace.starts_with(DERIVED_RENDER_EXTENSION_PREFIX)
+        || namespace == TEXT_MEASUREMENTS_EXTENSION_NAMESPACE
 }
 
 fn nodes_by_id(output: &Document) -> BTreeMap<String, &Node> {
@@ -312,6 +345,7 @@ fn push_removed_added<T>(
             subject: subject(id.clone()),
             evidence: Vec::new(),
             related_change_ids: Vec::new(),
+            extension_namespace: None,
             edge_ids: None,
         });
     }
@@ -322,6 +356,7 @@ fn push_removed_added<T>(
             subject: subject(id.clone()),
             evidence: Vec::new(),
             related_change_ids: Vec::new(),
+            extension_namespace: None,
             edge_ids: None,
         });
     }
@@ -1480,6 +1515,7 @@ fn node_change_with_evidence(kind: ChangeKind, id: &str, evidence: Vec<String>) 
         subject: Subject::Node(id.to_string()),
         evidence,
         related_change_ids: Vec::new(),
+        extension_namespace: None,
         edge_ids: None,
     }
 }
@@ -1505,6 +1541,7 @@ fn edge_change_with_evidence(
         subject: Subject::Edge(subject_id.to_string()),
         evidence,
         related_change_ids: Vec::new(),
+        extension_namespace: None,
         edge_ids: Some(EdgeIds {
             before_id: before_id.map(str::to_string),
             after_id: after_id.map(str::to_string),
@@ -1537,6 +1574,7 @@ fn subgraph_change_with_evidence(kind: ChangeKind, id: &str, evidence: Vec<Strin
         subject: Subject::Subgraph(id.to_string()),
         evidence,
         related_change_ids: Vec::new(),
+        extension_namespace: None,
         edge_ids: None,
     }
 }
