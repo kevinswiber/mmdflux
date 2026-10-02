@@ -248,6 +248,26 @@
 //! # }
 //! ```
 //!
+//! [`mmds::diff::union::union_document`] puts both sides in one document, with
+//! removed items kept as tagged ghosts. Its geometry is stale, so render it with
+//! [`render_document_with_relayout`], which lays the model out again:
+//!
+//! ```
+//! use mmdflux::mmds::diff::union::{UnionOptions, union_document};
+//! use mmdflux::{OutputFormat, RenderConfig, materialize_diagram, render_document_with_relayout};
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let config = RenderConfig::default();
+//! let before = materialize_diagram("graph TD\n    A --> B[Billing]", &config)?;
+//! let after = materialize_diagram("graph TD\n    A --> C[Auth]", &config)?;
+//!
+//! let union = union_document(&before, &after, &UnionOptions::default());
+//! let text = render_document_with_relayout(&union, OutputFormat::Text, &config)?;
+//! assert!(text.contains("Billing") && text.contains("Auth"));
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! ## Views
 //!
 //! Use [`views`] when an adapter needs a focused read model over a canonical
@@ -300,7 +320,8 @@
 //! - new fields on early-surface structs marked `#[non_exhaustive]` (including
 //!   `mmds::events::ModelEvent`, `mmds::diff::Change`, `mmds::diff::Diff`,
 //!   `mmds::diff::EdgeIds`, `mmds::diff::wire::WireOptions`,
-//!   `mmds::MmdsTokenError`, and `views::ViewSpec`)
+//!   `mmds::diff::union::UnionOptions`, `mmds::MmdsTokenError`, and
+//!   `views::ViewSpec`)
 //!
 //! What is not covered:
 //!
@@ -374,6 +395,8 @@ pub use runtime::materialize_diagram;
 pub use runtime::render_diagram;
 /// Render a parsed graph-family MMDS document.
 pub use runtime::render_document;
+/// Lay out a parsed graph-family MMDS document afresh and render it.
+pub use runtime::render_document_with_relayout;
 /// Validate input and return structured JSON diagnostics.
 pub use runtime::validate_diagram;
 

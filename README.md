@@ -174,6 +174,9 @@ mmdflux diff before.mmd after.mmd
 
 # One line per change; exit 1 when the diagrams differ
 mmdflux diff --format summary --exit-code before.mmd after.mmd
+
+# Draw both versions as one diagram: added, changed and removed items highlighted
+mmdflux diff --emit union before.mmd after.mmd
 ```
 
 A file named `diff` still renders with `mmdflux diff` when the arguments are not a valid diff invocation (no second input or `--pair`); `mmdflux ./diff` always renders it. `help` is always treated as an input filename; use `--help`.

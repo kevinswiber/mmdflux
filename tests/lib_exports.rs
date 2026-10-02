@@ -214,6 +214,9 @@ fn mmds_public_api_surface_is_explicit_before_2_4_0() {
     let _ = mmdflux::render_diagram;
     let _ = mmdflux::materialize_diagram;
     let _ = mmdflux::render_document;
+    let _ = mmdflux::render_document_with_relayout;
+    let _ = mmdflux::mmds::diff::union::union_document;
+    let _ = std::any::type_name::<mmdflux::mmds::diff::union::UnionOptions>();
     let _ = mmdflux::detect_diagram;
     let _ = mmdflux::validate_diagram;
 
@@ -268,6 +271,9 @@ fn early_mmds_surface_is_non_exhaustive() {
     let wire = repo_file("src/mmds/diff/wire.rs");
     assert_non_exhaustive(&wire, "pub enum WireLayer");
     assert_non_exhaustive(&wire, "pub struct WireOptions");
+
+    let union = repo_file("src/mmds/diff/union.rs");
+    assert_non_exhaustive(&union, "pub struct UnionOptions");
 
     let mmds = repo_file("src/mmds/mod.rs");
     assert_non_exhaustive(&mmds, "pub enum Subject");

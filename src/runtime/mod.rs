@@ -192,6 +192,39 @@ pub fn render_document(
     )
 }
 
+/// Lay out a graph-family MMDS document's model afresh and render it.
+///
+/// Unlike [`render_document`], which replays the document's persisted geometry,
+/// this hydrates the nodes, edges, subgraphs and styles, solves a new layout and
+/// renders it the way a direct render of the equivalent Mermaid source would be.
+/// Use it for documents whose geometry is stale or incomplete, such as a
+/// [`crate::mmds::diff::union::union_document`].
+///
+/// The document's engine (`metadata.engine`) wins over `config.layout_engine`.
+/// For [`OutputFormat::Mmds`] the output is regenerated from the model, so
+/// extensions the renderer doesn't produce are not carried over.
+pub fn render_document_with_relayout(
+    document: &crate::mmds::Document,
+    format: OutputFormat,
+    config: &RenderConfig,
+) -> Result<String, RenderError> {
+    validate_render_config(config)?;
+
+    let mut diagram = crate::mmds::from_document(document).map_err(|error| RenderError {
+        message: format!("MMDS validation error: {error}"),
+    })?;
+    let mut config = config.clone();
+    if let Some(engine) = document.metadata.engine.as_deref() {
+        config.layout_engine = Some(engine.parse()?);
+    }
+    graph_family::render_graph_family(
+        &document.metadata.diagram_type,
+        &mut diagram,
+        format,
+        &config,
+    )
+}
+
 fn validate_render_config(config: &RenderConfig) -> Result<(), RenderError> {
     let Some(profile_id) = config.font_metrics_profile.as_deref() else {
         return Ok(());

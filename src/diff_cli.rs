@@ -1,15 +1,19 @@
-//! `mmdflux diff`: compare two diagrams and print the snapshot diff.
+//! `mmdflux diff`: compare two diagrams and print the snapshot diff, or draw
+//! both sides in one highlighted union diagram.
 
-use std::fs;
-use std::io::{self, Read};
+use std::io::{self, IsTerminal, Read};
 use std::path::{Path, PathBuf};
+use std::{env, fs};
 
 use clap::{Args, ValueEnum};
 use mmdflux::graph::GeometryLevel;
 use mmdflux::mmds::Document;
 use mmdflux::mmds::diff::diff_documents;
+use mmdflux::mmds::diff::union::{self, UnionOptions, union_document};
 use mmdflux::mmds::diff::wire::{self, WireLayer, WireOptions};
-use mmdflux::{RenderConfig, materialize_diagram};
+use mmdflux::{
+    ColorWhen, OutputFormat, RenderConfig, materialize_diagram, render_document_with_relayout,
+};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -20,9 +24,11 @@ pub(crate) const EXIT_TROUBLE: i32 = 2;
 
 /// Compare two diagrams and print what changed.
 ///
-/// Each input is Mermaid source or MMDS JSON, detected per input. Exit status
-/// is 0 on success; with --exit-code it is 0 when nothing changed and 1 when
-/// something did. A failed comparison exits with 2.
+/// Each input is Mermaid source or MMDS JSON, detected per input. By default the
+/// changes are printed; with --emit union both diagrams are drawn as one, with
+/// added, changed and removed items highlighted. Exit status is 0 on success;
+/// with --exit-code it is 0 when nothing changed and 1 when something did. A
+/// failed comparison exits with 2.
 #[derive(Debug, Args)]
 #[command(arg_required_else_help = true)]
 pub(crate) struct DiffArgs {
@@ -39,9 +45,22 @@ pub(crate) struct DiffArgs {
     #[arg(long, value_name = "FILE")]
     pair: Option<PathBuf>,
 
-    /// Output format
-    #[arg(short = 'f', long, value_enum, default_value_t = DiffFormat::Json)]
-    format: DiffFormat,
+    /// What to print: the list of changes, or one diagram holding both sides
+    #[arg(long, value_enum, default_value_t = DiffEmit::Changes)]
+    emit: DiffEmit,
+
+    /// Output format: json or summary for changes (default json); text, svg or
+    /// mmds for a union (default text)
+    #[arg(short = 'f', long, value_enum)]
+    format: Option<DiffFormat>,
+
+    /// Prefix union labels with `+ `, `~ ` and `- ` so the result reads without color
+    #[arg(long)]
+    markers: bool,
+
+    /// Union text color policy (off, auto, or always). Explicit --color overrides NO_COLOR.
+    #[arg(long)]
+    color: Option<ColorWhen>,
 
     /// Change layer to report
     #[arg(long, value_enum, default_value_t = DiffLayer::Model)]
@@ -64,12 +83,26 @@ pub(crate) struct DiffArgs {
     force: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+enum DiffEmit {
+    /// The changes between the diagrams (default)
+    Changes,
+    /// One diagram with both sides: removed items kept as ghosts, changes highlighted
+    Union,
+}
+
 #[derive(Clone, Copy, Debug, ValueEnum)]
 enum DiffFormat {
-    /// `mmdflux.diff.v1` JSON (default)
+    /// `mmdflux.diff.v1` JSON (changes)
     Json,
-    /// One line per change, after a count by category
+    /// One line per change, after a count by category (changes)
     Summary,
+    /// Text diagram (union)
+    Text,
+    /// SVG diagram (union)
+    Svg,
+    /// MMDS JSON with `org.mmdflux.diff.v1` tags (union)
+    Mmds,
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -128,6 +161,21 @@ fn compare(args: &DiffArgs) -> Result<(String, bool), String> {
         ));
     }
 
+    if args.emit == DiffEmit::Union {
+        return emit_union(args, &before, &after, &config);
+    }
+
+    let format = match args.format {
+        None | Some(DiffFormat::Json) => DiffFormat::Json,
+        Some(DiffFormat::Summary) => DiffFormat::Summary,
+        Some(other) => {
+            return Err(format!(
+                "-f {} needs --emit union; changes print as json or summary",
+                format_name(other)
+            ));
+        }
+    };
+
     let diff = diff_documents(&before, &after);
     let options = WireOptions::default()
         .with_layer(args.layer.into())
@@ -137,12 +185,101 @@ fn compare(args: &DiffArgs) -> Result<(String, bool), String> {
         .as_array()
         .is_none_or(|changes| changes.is_empty());
 
-    let output = match args.format {
-        DiffFormat::Json => serde_json::to_string_pretty(&wire)
-            .map_err(|error| format!("failed to serialize diff: {error}"))?,
+    let output = match format {
         DiffFormat::Summary => summary(&wire),
+        _ => serde_json::to_string_pretty(&wire)
+            .map_err(|error| format!("failed to serialize diff: {error}"))?,
     };
     Ok((output, changed))
+}
+
+fn format_name(format: DiffFormat) -> &'static str {
+    match format {
+        DiffFormat::Json => "json",
+        DiffFormat::Summary => "summary",
+        DiffFormat::Text => "text",
+        DiffFormat::Svg => "svg",
+        DiffFormat::Mmds => "mmds",
+    }
+}
+
+/// Lay out the union of both diagrams once and render it.
+fn emit_union(
+    args: &DiffArgs,
+    before: &Document,
+    after: &Document,
+    config: &RenderConfig,
+) -> Result<(String, bool), String> {
+    let format = match args.format {
+        None | Some(DiffFormat::Text) => OutputFormat::Text,
+        Some(DiffFormat::Svg) => OutputFormat::Svg,
+        Some(DiffFormat::Mmds) => OutputFormat::Mmds,
+        Some(other) => {
+            return Err(format!(
+                "-f {} prints changes; --emit union prints text, svg or mmds",
+                format_name(other)
+            ));
+        }
+    };
+
+    let options = UnionOptions::default().with_markers(args.markers);
+    let union = union_document(before, after, &options);
+    let tags = union
+        .extensions
+        .get(union::EXTENSION_NAMESPACE)
+        .cloned()
+        .unwrap_or_default();
+    let changed = has_tags(&tags);
+
+    let no_color_env = env::var_os("NO_COLOR");
+    let config = RenderConfig {
+        text_color_mode: crate::resolve_text_color_mode(
+            args.color,
+            io::stdout().is_terminal(),
+            no_color_env.as_deref(),
+        ),
+        ..config.clone()
+    };
+    let rendered = render_document_with_relayout(&union, format, &config)
+        .map_err(|error| format!("union: {error}"))?;
+    if format != OutputFormat::Mmds {
+        return Ok((rendered, changed));
+    }
+
+    // The relayout regenerates the document from its model; put the tags back.
+    // Union edge ids are dense `e0..eN` in array order, which is what the relayout
+    // assigns, so the tags' edge keys still name the same edges.
+    let mut document: Value = serde_json::from_str(&rendered)
+        .map_err(|error| format!("union: invalid MMDS output: {error}"))?;
+    let relaid_edge_ids: Vec<&str> = document["edges"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|edge| edge["id"].as_str())
+        .collect();
+    let union_edge_ids: Vec<&str> = union.edges.iter().map(|edge| edge.id.as_str()).collect();
+    if relaid_edge_ids != union_edge_ids {
+        return Err("union: relayout renumbered edges; cannot attach diff tags".to_string());
+    }
+    document["extensions"][union::EXTENSION_NAMESPACE] = Value::Object(tags);
+    let output = serde_json::to_string_pretty(&document)
+        .map_err(|error| format!("failed to serialize union: {error}"))?;
+    Ok((output, changed))
+}
+
+/// True when the union tagged any node, edge or subgraph.
+fn has_tags(tags: &serde_json::Map<String, Value>) -> bool {
+    let tagged = |section: &str| {
+        tags.get(section)
+            .and_then(Value::as_object)
+            .is_some_and(|entries| !entries.is_empty())
+    };
+    let edge_tagged = tags
+        .get("edges")
+        .and_then(Value::as_object)
+        .is_some_and(|edges| edges.values().any(|edge| edge.get("status").is_some()));
+    tagged("nodes") || tagged("subgraphs") || edge_tagged
 }
 
 fn read_sources(args: &DiffArgs) -> Result<(String, String), String> {

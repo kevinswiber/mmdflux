@@ -842,6 +842,72 @@ fields are additive, and consumers must ignore what they don't recognize.
 Renaming or removing a kind or field, or changing its meaning, requires a new
 schema version.
 
+## Diff Union Documents
+
+`mmdflux diff --emit union` draws both sides of a diff as one diagram, laid out
+once, with removed items kept as ghosts:
+
+```text
+mmdflux diff --emit union [-f text|svg|mmds] [--markers] [--color off|auto|always] <BEFORE> <AFTER>
+```
+
+- `-f text` is the default; `svg` and `mmds` are also available. `-f json` and
+  `-f summary` belong to the default `--emit changes`.
+- `--markers` prefixes tagged labels with `+ `, `~ ` and `- `, so the drawing
+  reads correctly under `NO_COLOR` or in plain text.
+- `--exit-code` exits 1 when anything is tagged.
+
+In Rust, `mmdflux::mmds::diff::union::union_document` builds the union document
+and `mmdflux::render_document_with_relayout` lays it out and renders it. The
+union's own geometry is each item's position on its own side, which is not a
+coherent layout, so render it with a relayout rather than `render_document`.
+
+Contents:
+
+- Every node, edge and subgraph of `after`, plus the nodes, edges and subgraphs
+  only `before` has. A removed item keeps its `before` label, shape and parent
+  when that parent is in the union; otherwise it moves to the top level.
+- Metadata (diagram type, direction, engine) comes from `after`.
+- Removed edges are drawn `dotted`.
+
+Union edge ids: MMDS edge ids are positional, so `before` `e0` and `after` `e0`
+can be different edges, and imported documents may use any ids. Union edges are
+numbered densely, `e0..eN`, in union order: the `after` edges in `after` order,
+then the removed edges in `before` order. For documents mmdflux produced, the
+surviving and added edges keep their `after` ids. Each entry's `before_id` and
+`after_id` give the original ids, and edge styles are keyed by union id. A
+relayout numbers edges the same way, so the tags still apply to its output.
+
+Subgraph `children` lists direct nodes only, as everywhere in MMDS; a removed
+nested subgraph stays inside its parent through its `parent` link, and a removed
+concurrent region stays in its parent's `concurrent_regions`.
+
+Tags live in the `org.mmdflux.diff.v1` extension, keyed by union id. Node and
+subgraph ids are shared by both sides. Every union edge records where it came
+from, and tagged edges carry a `status`:
+
+```json
+{
+  "org.mmdflux.diff.v1": {
+    "nodes": { "C": "changed", "D": "added", "X": "removed" },
+    "edges": {
+      "e0": { "before_id": "e0", "after_id": "e0" },
+      "e2": { "status": "added", "before_id": null, "after_id": "e2" },
+      "e3": { "status": "removed", "before_id": "e2", "after_id": null }
+    },
+    "subgraphs": {}
+  }
+}
+```
+
+- `added`: only in `after`. `removed`: only in `before`. `changed`: in both,
+  with a model change (label, shape, parent, style, or for edges a reconnect,
+  label or style change). Geometry-only changes are not tagged.
+- Default styles go through `org.mmdflux.node-style.v1` and set no fills, so
+  they work on light and dark backgrounds: added `#2ea043`, changed `#d29922`
+  and removed `#8b949e` as stroke and text color. Removed nodes also get
+  `stroke-dasharray: 5 5` in SVG.
+
 ## Coordinate System
 
 MMDS coordinates are unitless coordinate-space values.

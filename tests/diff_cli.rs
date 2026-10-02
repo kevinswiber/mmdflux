@@ -336,3 +336,256 @@ fn diff_maps_initialization_failures_to_exit_status_two() {
         .code(2)
         .stderr(predicate::str::contains("invalid log filter"));
 }
+
+const UNION_BEFORE: &str = "graph TD\nA[Start]-->B[Build]\nB-->C[Old test]\nX[Lint]-->A\n";
+const UNION_AFTER: &str = "graph TD\nA[Start]-->B[Build]\nB-->C[New test]\nB-->D[Deploy]\n";
+
+#[test]
+fn diff_emit_union_draws_both_sides_as_text_by_default() {
+    let dir = TempDir::new("union-text");
+    let before = dir.file("before.mmd", UNION_BEFORE);
+    let after = dir.file("after.mmd", UNION_AFTER);
+
+    let output = mmdflux()
+        .args(["diff", "--emit", "union", "--markers", "--color", "off"])
+        .arg(&before)
+        .arg(&after)
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    for label in ["- Lint", "~ New test", "+ Deploy", "Start", "Build"] {
+        assert!(text.contains(label), "{label} missing:\n{text}");
+    }
+    assert!(
+        !text.contains('\u{1b}'),
+        "--color off should be plain:\n{text}"
+    );
+}
+
+#[test]
+fn diff_emit_union_colors_text_when_asked() {
+    let dir = TempDir::new("union-color");
+    let before = dir.file("before.mmd", UNION_BEFORE);
+    let after = dir.file("after.mmd", UNION_AFTER);
+
+    let output = mmdflux()
+        .args(["diff", "--emit", "union", "--color", "always"])
+        .arg(&before)
+        .arg(&after)
+        .output()
+        .unwrap();
+
+    let text = String::from_utf8(output.stdout).unwrap();
+    // #2ea043 (added) and #8b949e (removed) as 24-bit foreground colors.
+    assert!(text.contains("\u{1b}[38;2;46;160;67m"), "{text}");
+    assert!(text.contains("\u{1b}[38;2;139;148;158m"), "{text}");
+}
+
+#[test]
+fn diff_emit_union_svg_carries_default_styles() {
+    let dir = TempDir::new("union-svg");
+    let before = dir.file("before.mmd", UNION_BEFORE);
+    let after = dir.file("after.mmd", UNION_AFTER);
+
+    mmdflux()
+        .args(["diff", "--emit", "union", "-f", "svg"])
+        .arg(&before)
+        .arg(&after)
+        .assert()
+        .success()
+        .stdout(
+            predicate::str::contains("<svg")
+                .and(predicate::str::contains("#2ea043"))
+                .and(predicate::str::contains("#d29922"))
+                .and(predicate::str::contains("#8b949e")),
+        );
+}
+
+#[test]
+fn diff_emit_union_mmds_is_laid_out_and_tagged() {
+    let dir = TempDir::new("union-mmds");
+    let before = dir.file("before.mmd", UNION_BEFORE);
+    let after = dir.file("after.mmd", UNION_AFTER);
+
+    let union = diff_json(&[
+        "diff",
+        "--emit",
+        "union",
+        "-f",
+        "mmds",
+        before.to_str().unwrap(),
+        after.to_str().unwrap(),
+    ]);
+
+    assert_eq!(union["nodes"].as_array().unwrap().len(), 5);
+    assert_eq!(
+        union["extensions"]["org.mmdflux.diff.v1"]["nodes"],
+        json!({"C": "changed", "D": "added", "X": "removed"})
+    );
+    assert_eq!(
+        union["extensions"]["org.mmdflux.diff.v1"]["edges"]["e3"],
+        json!({"status": "removed", "before_id": "e2", "after_id": null})
+    );
+    let ghost = &union["edges"][3];
+    assert_eq!(
+        (&ghost["source"], &ghost["target"]),
+        (&json!("X"), &json!("A"))
+    );
+    assert_eq!(ghost["stroke"], "dotted");
+
+    // The output is a regular MMDS document: it renders again as-is.
+    let rendered = mmdflux()
+        .args(["-f", "text"])
+        .write_stdin(serde_json::to_string(&union).unwrap())
+        .output()
+        .unwrap();
+    assert!(rendered.status.success());
+    assert!(String::from_utf8_lossy(&rendered.stdout).contains("Lint"));
+}
+
+#[test]
+fn diff_emit_union_exit_code_reports_tagged_items() {
+    let dir = TempDir::new("union-exit");
+    let before = dir.file("before.mmd", UNION_BEFORE);
+    let after = dir.file("after.mmd", UNION_AFTER);
+    let same = dir.file("same.mmd", UNION_AFTER);
+
+    mmdflux()
+        .args(["diff", "--emit", "union", "--exit-code"])
+        .arg(&before)
+        .arg(&after)
+        .assert()
+        .code(1);
+    mmdflux()
+        .args(["diff", "--emit", "union", "--exit-code"])
+        .arg(&after)
+        .arg(&same)
+        .assert()
+        .code(0);
+}
+
+#[test]
+fn diff_rejects_formats_that_do_not_match_emit() {
+    let dir = TempDir::new("union-formats");
+    let before = dir.file("before.mmd", UNION_BEFORE);
+    let after = dir.file("after.mmd", UNION_AFTER);
+
+    mmdflux()
+        .args(["diff", "--emit", "union", "-f", "json"])
+        .arg(&before)
+        .arg(&after)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "--emit union prints text, svg or mmds",
+        ));
+    mmdflux()
+        .args(["diff", "-f", "svg"])
+        .arg(&before)
+        .arg(&after)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("-f svg needs --emit union"));
+}
+
+fn union_pair(before: &str, after: &str, format: &str) -> process::Output {
+    let pair = json!({"before": before, "after": after}).to_string();
+    mmdflux()
+        .args(["diff", "--pair", "-", "--emit", "union", "-f", format])
+        .write_stdin(pair)
+        .output()
+        .unwrap()
+}
+
+fn union_pair_mmds(before: &str, after: &str) -> Value {
+    let output = union_pair(before, after, "mmds");
+    assert!(
+        output.status.success(),
+        "union failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("union output should be MMDS JSON")
+}
+
+/// Materialize `source` as MMDS JSON with its edges renamed to `ids`, as an
+/// imported document with non-positional edge ids might arrive.
+fn mmds_with_edge_ids(source: &str, ids: &[&str]) -> String {
+    let document = mmdflux::materialize_diagram(source, &mmdflux::RenderConfig::default()).unwrap();
+    let mut document = serde_json::to_value(&document).unwrap();
+    let edges = document["edges"].as_array_mut().unwrap();
+    assert_eq!(edges.len(), ids.len());
+    for (edge, id) in edges.iter_mut().zip(ids) {
+        edge["id"] = json!(id);
+    }
+    document.to_string()
+}
+
+#[test]
+fn diff_emit_union_renders_nested_subgraphs_in_every_format() {
+    let nested = "graph TD\nsubgraph Outer\nsubgraph Inner\nA\nend\nend\n";
+    let removed_inner = (
+        "graph TD\nsubgraph Outer\nsubgraph Inner[Gone]\nA\nend\nB\nend\n",
+        "graph TD\nsubgraph Outer\nB\nend\n",
+    );
+    for (before, after) in [(nested, nested), removed_inner] {
+        for format in ["text", "svg", "mmds"] {
+            let output = union_pair(before, after, format);
+            assert!(
+                output.status.success(),
+                "-f {format} failed for {before:?} -> {after:?}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+
+    let union = union_pair_mmds(removed_inner.0, removed_inner.1);
+    assert_eq!(
+        union["extensions"]["org.mmdflux.diff.v1"]["subgraphs"]["Inner"],
+        "removed"
+    );
+}
+
+#[test]
+fn diff_emit_union_mmds_tags_sparse_imported_edges_under_output_ids() {
+    let before = mmds_with_edge_ids("graph TD\nA-->|old|B\n", &["e7"]);
+    let after = mmds_with_edge_ids("graph TD\nA-->|new|B\n", &["e7"]);
+
+    let union = union_pair_mmds(&before, &after);
+
+    let output_ids: Vec<&str> = union["edges"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|edge| edge["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(output_ids, ["e0"]);
+    assert_eq!(
+        union["extensions"]["org.mmdflux.diff.v1"]["edges"],
+        json!({"e0": {"status": "changed", "before_id": "e7", "after_id": "e7"}})
+    );
+}
+
+#[test]
+fn diff_emit_union_mmds_keeps_removed_ghost_apart_from_colliding_after_id() {
+    let before = mmds_with_edge_ids("graph TD\nX-->A\n", &["e0"]);
+    let after = mmds_with_edge_ids("graph TD\nA-->B\n", &["e1"]);
+
+    let union = union_pair_mmds(&before, &after);
+
+    let edges = union["edges"].as_array().unwrap();
+    let tags = &union["extensions"]["org.mmdflux.diff.v1"]["edges"];
+    let styles = &union["extensions"]["org.mmdflux.node-style.v1"]["edges"];
+    assert_eq!(edges.len(), 2);
+    for edge in edges {
+        let id = edge["id"].as_str().unwrap();
+        let (status, color) = if edge["source"] == "A" {
+            ("added", "#2ea043")
+        } else {
+            ("removed", "#8b949e")
+        };
+        assert_eq!(tags[id]["status"], status, "edge {id}: {edge}");
+        assert_eq!(styles[id]["stroke"], color, "edge {id}: {edge}");
+    }
+}

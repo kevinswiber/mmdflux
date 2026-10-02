@@ -42,6 +42,7 @@
 //! The diff is an output comparison. It can say that a route moved, a label moved, or a
 //! fallback edge match was used; it does not provide causal route attribution.
 
+pub mod union;
 pub mod wire;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
