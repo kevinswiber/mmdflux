@@ -3836,3 +3836,87 @@ fn mmds_routed_output_populates_unfit_label_overlap_diagnostics() {
     );
     assert!(overlaps[0].gap_pixels < overlaps[0].label_span_pixels);
 }
+
+const TEXT_REPLAY_PIPELINE: &str = "flowchart TD
+  CLI[CLI entry] --> Parser[Mermaid parser]
+  Parser --> Layout[Layered layout]
+  Layout --> Text[Text renderer]
+  Layout --> SVG[SVG renderer]
+  Layout --> MMDS[MMDS writer]
+  subgraph Output
+    Text
+    SVG
+    MMDS
+  end
+  CLI --> Settings[Settings resolver]
+  Settings --> Layout
+  MMDS --> Diff[Diff engine]
+";
+
+fn text_extent(text: &str) -> (usize, usize) {
+    let lines: Vec<&str> = text.trim_end_matches('\n').lines().collect();
+    let width = lines
+        .iter()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+    (width, lines.len())
+}
+
+fn arrowhead_count(text: &str) -> usize {
+    text.chars()
+        .filter(|c| matches!(c, '▼' | '▲' | '►' | '◄'))
+        .count()
+}
+
+fn assert_text_replay_matches_direct(input: &str) {
+    let direct = render_diagram(input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+    for level in [GeometryLevel::Layout, GeometryLevel::Routed] {
+        let mmds = render_json_with_level(input, level);
+        let replay = render_mmds_input(&mmds, OutputFormat::Text, RenderConfig::default());
+        let (direct_w, direct_h) = text_extent(&direct);
+        let (replay_w, replay_h) = text_extent(&replay);
+        // Replay re-quantizes proportional geometry, so allow some drift;
+        // the regression this guards against was 2-2.6x.
+        assert!(
+            replay_w <= direct_w + direct_w / 5 && replay_h <= direct_h + direct_h / 5,
+            "{level:?} replay is {replay_w}x{replay_h}, direct is {direct_w}x{direct_h}\n\
+             direct:\n{direct}\nreplay:\n{replay}"
+        );
+        assert_eq!(
+            arrowhead_count(&replay),
+            arrowhead_count(&direct),
+            "{level:?} replay lost arrowheads\ndirect:\n{direct}\nreplay:\n{replay}"
+        );
+    }
+}
+
+const TEXT_REPLAY_SERVICE_MAP: &str = "flowchart LR
+  U[User] --> GW[API gateway]
+  subgraph Core
+    GW --> Auth[Auth service]
+    GW --> Orders[Order service]
+    Orders --> Inv[Inventory]
+  end
+  subgraph Data
+    DB[(Postgres)]
+    Cache[(Redis)]
+  end
+  Auth --> Cache
+  Orders --> DB
+  Inv --> DB
+  Orders --> Q[Queue]
+  Q --> Mail[Mailer]
+";
+
+#[test]
+fn text_replay_from_mmds_keeps_direct_text_spacing() {
+    assert_text_replay_matches_direct("graph TD\n  A-->B\n  A-->C\n");
+    assert_text_replay_matches_direct("graph LR\n  A[Start]-->B[Middle step]\n  B-->C[End]\n");
+}
+
+#[test]
+fn text_replay_from_mmds_keeps_subgraph_diagram_compact_with_all_arrowheads() {
+    assert_text_replay_matches_direct(TEXT_REPLAY_PIPELINE);
+    assert_text_replay_matches_direct(TEXT_REPLAY_SERVICE_MAP);
+}

@@ -25,21 +25,46 @@ pub(super) fn compute_grid_positions(layers: &[Vec<String>]) -> HashMap<String, 
     positions
 }
 
+/// A node's size on the character grid and in the layout geometry being scaled.
+///
+/// Grid-measured geometry has the same size in both spaces. Proportional
+/// geometry (for example a hydrated MMDS document) carries pixel sizes, so the
+/// scale must divide by the layout size or the text output stretches.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct ScaleNodeDims {
+    pub grid: (usize, usize),
+    pub layout: (f64, f64),
+}
+
+impl ScaleNodeDims {
+    pub(super) fn new(grid: (usize, usize), layout: (f64, f64)) -> Self {
+        Self { grid, layout }
+    }
+
+    /// Dimensions for grid-measured geometry, where layout size equals grid size.
+    #[cfg(test)]
+    pub(super) fn grid_measured(w: usize, h: usize) -> Self {
+        Self::new((w, h), (w as f64, h as f64))
+    }
+}
+
 /// Compute per-axis ASCII scale factors for translating layout float coordinates
 /// to character grid positions.
 ///
 /// Returns `(scale_x, scale_y)` where each factor maps layout coordinate deltas
-/// to ASCII character deltas along that axis.
+/// to ASCII character deltas along that axis. Numerators use grid sizes and
+/// denominators use layout sizes (`layout_*`), so the node pitch in the layout
+/// maps onto the node pitch on the grid.
 ///
 /// For vertical layouts (TD/BT):
-///   - scale_y (primary) = (max_h + v_spacing) / (max_h + rank_sep)
-///   - scale_x (cross)   = (avg_w + h_spacing) / (avg_w + node_sep)
+///   - scale_y (primary) = (max_h + v_spacing) / (layout_max_h + rank_sep)
+///   - scale_x (cross)   = (avg_w + h_spacing) / (layout_avg_w + node_sep)
 ///
 /// For horizontal layouts (LR/RL):
-///   - scale_x (primary) = (max_w + h_spacing) / (max_w + rank_sep)
-///   - scale_y (cross)   = (avg_h + v_spacing) / (avg_h + node_sep)
+///   - scale_x (primary) = (max_w + h_spacing) / (layout_max_w + rank_sep)
+///   - scale_y (cross)   = (avg_h + v_spacing) / (layout_avg_h + node_sep)
 pub(super) fn compute_grid_scale_factors(
-    node_dims: &HashMap<String, (usize, usize)>,
+    node_dims: &HashMap<String, ScaleNodeDims>,
     rank_sep: f64,
     node_sep: f64,
     v_spacing: usize,
@@ -47,13 +72,31 @@ pub(super) fn compute_grid_scale_factors(
     is_vertical: bool,
     ranks_doubled: bool,
 ) -> (f64, f64) {
-    let (total_w, total_h, max_w, max_h, count) = node_dims.values().fold(
-        (0usize, 0usize, 0usize, 0usize, 0usize),
-        |(tw, th, mw, mh, c), &(w, h)| (tw + w, th + h, mw.max(w), mh.max(h), c + 1),
-    );
-    let count_f = count.max(1) as f64;
-    let avg_w = total_w as f64 / count_f;
-    let avg_h = total_h as f64 / count_f;
+    let count_f = node_dims.len().max(1) as f64;
+    let mut total_w = 0.0;
+    let mut total_h = 0.0;
+    let mut max_w = 0.0_f64;
+    let mut max_h = 0.0_f64;
+    let mut layout_total_w = 0.0;
+    let mut layout_total_h = 0.0;
+    let mut layout_max_w = 0.0_f64;
+    let mut layout_max_h = 0.0_f64;
+    for dims in node_dims.values() {
+        let (w, h) = (dims.grid.0 as f64, dims.grid.1 as f64);
+        let (layout_w, layout_h) = dims.layout;
+        total_w += w;
+        total_h += h;
+        max_w = max_w.max(w);
+        max_h = max_h.max(h);
+        layout_total_w += layout_w;
+        layout_total_h += layout_h;
+        layout_max_w = layout_max_w.max(layout_w);
+        layout_max_h = layout_max_h.max(layout_h);
+    }
+    let avg_w = total_w / count_f;
+    let avg_h = total_h / count_f;
+    let layout_avg_w = layout_total_w / count_f;
+    let layout_avg_h = layout_total_h / count_f;
 
     if is_vertical {
         // When ranks are doubled, the layout positions nodes 2× further apart.
@@ -61,21 +104,21 @@ pub(super) fn compute_grid_scale_factors(
         // This gives scale_primary_new = scale_primary_old / 2, so that
         // (2 * rank_sep) * scale_new = rank_sep * scale_old.
         let effective_rank_sep = if ranks_doubled {
-            max_h as f64 + 2.0 * rank_sep
+            layout_max_h + 2.0 * rank_sep
         } else {
             rank_sep
         };
-        let scale_primary = (max_h as f64 + v_spacing as f64) / (max_h as f64 + effective_rank_sep);
-        let scale_cross = (avg_w + h_spacing as f64) / (avg_w + node_sep);
+        let scale_primary = (max_h + v_spacing as f64) / (layout_max_h + effective_rank_sep);
+        let scale_cross = (avg_w + h_spacing as f64) / (layout_avg_w + node_sep);
         (scale_cross, scale_primary)
     } else {
         let effective_rank_sep = if ranks_doubled {
-            max_w as f64 + 2.0 * rank_sep
+            layout_max_w + 2.0 * rank_sep
         } else {
             rank_sep
         };
-        let scale_primary = (max_w as f64 + h_spacing as f64) / (max_w as f64 + effective_rank_sep);
-        let scale_cross = (avg_h + v_spacing as f64) / (avg_h + node_sep);
+        let scale_primary = (max_w + h_spacing as f64) / (layout_max_w + effective_rank_sep);
+        let scale_cross = (avg_h + v_spacing as f64) / (layout_avg_h + node_sep);
         (scale_primary, scale_cross)
     }
 }

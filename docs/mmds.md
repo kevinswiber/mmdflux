@@ -288,6 +288,10 @@ Practical guidance:
   patterns.
 - The persisted `metadata.bounds` and `subgraph.bounds` reflect the Canonical
   envelope; they are not a viewBox for the Visual SVG.
+- Text and ASCII output from MMDS re-quantize the persisted pixel geometry onto
+  the character grid, keeping its node order and relative positions. The result
+  is close to a direct text render but not identical: spacing can differ by a
+  few cells. For the exact direct text layout, render from the Mermaid source.
 
 ## Document Envelope
 

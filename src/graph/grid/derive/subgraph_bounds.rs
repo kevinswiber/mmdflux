@@ -164,9 +164,24 @@ pub(super) fn shrink_subgraph_vertical_gaps(
             _ => (0, 0),
         };
 
-        // Only shrink; never expand beyond the current gap.
-        let desired_top = min_top_gap.min(top_gap);
-        let desired_bottom = min_bottom_gap.min(bottom_gap);
+        // Shrink to the minimum gap. Expand only on the entry side, where
+        // incoming edges need a row inside the border for their arrowheads;
+        // replayed geometry can arrive with the border flush on its members.
+        let (expand_top_allowed, expand_bottom_allowed) = match direction {
+            Direction::TopDown => (has_incoming, false),
+            Direction::BottomTop => (false, has_incoming),
+            _ => (false, false),
+        };
+        let desired_top = if expand_top_allowed {
+            min_top_gap
+        } else {
+            min_top_gap.min(top_gap)
+        };
+        let desired_bottom = if expand_bottom_allowed {
+            min_bottom_gap
+        } else {
+            min_bottom_gap.min(bottom_gap)
+        };
         let shrink_top = top_gap.saturating_sub(desired_top);
         let shrink_bottom = bottom_gap.saturating_sub(desired_bottom);
         let expand_top = desired_top.saturating_sub(top_gap);
@@ -827,7 +842,30 @@ pub(super) fn ensure_subgraph_contains_members(
     node_bounds: &HashMap<String, NodeBounds>,
     subgraph_bounds: &mut HashMap<String, SubgraphBounds>,
 ) {
+    contain_members(diagram, node_bounds, subgraph_bounds, true);
+}
+
+/// Like [`ensure_subgraph_contains_members`], but leaves direction-override
+/// subgraphs alone. Used before the gap passes, while override bounds are
+/// still waiting for sublayout reconciliation.
+pub(super) fn ensure_plain_subgraphs_contain_members(
+    diagram: &Graph,
+    node_bounds: &HashMap<String, NodeBounds>,
+    subgraph_bounds: &mut HashMap<String, SubgraphBounds>,
+) {
+    contain_members(diagram, node_bounds, subgraph_bounds, false);
+}
+
+fn contain_members(
+    diagram: &Graph,
+    node_bounds: &HashMap<String, NodeBounds>,
+    subgraph_bounds: &mut HashMap<String, SubgraphBounds>,
+    include_overrides: bool,
+) {
     for (sg_id, sg) in &diagram.subgraphs {
+        if !include_overrides && sg.dir.is_some() {
+            continue;
+        }
         let Some(sb) = subgraph_bounds.get_mut(sg_id) else {
             continue;
         };
@@ -846,27 +884,34 @@ pub(super) fn ensure_subgraph_contains_members(
             let Some(nb) = node_bounds.get(member_id.as_str()) else {
                 continue;
             };
-            let nb_right = nb.x + nb.width;
-            let nb_bottom = nb.y + nb.height;
+            // The border must sit outside the member: one column/row beyond
+            // each side, so it never draws over the member's own outline.
+            // Direction-override subgraphs get their bounds from sublayout
+            // reconciliation, which owns their margins.
+            let margin = usize::from(sg.dir.is_none());
+            let left = nb.x.saturating_sub(margin);
+            let top = nb.y.saturating_sub(margin);
+            let right = nb.x + nb.width + margin;
+            let bottom = nb.y + nb.height + margin;
 
-            if nb.x < sb.x {
-                let expand = sb.x - nb.x;
-                sb.x = nb.x;
+            if left < sb.x {
+                let expand = sb.x - left;
+                sb.x = left;
                 sb.width += expand;
                 sg_right = sb.x + sb.width;
             }
-            if nb.y < sb.y {
-                let expand = sb.y - nb.y;
-                sb.y = nb.y;
+            if top < sb.y {
+                let expand = sb.y - top;
+                sb.y = top;
                 sb.height += expand;
                 sg_bottom = sb.y + sb.height;
             }
-            if nb_right > sg_right {
-                sb.width += nb_right - sg_right;
+            if right > sg_right {
+                sb.width += right - sg_right;
                 sg_right = sb.x + sb.width;
             }
-            if nb_bottom > sg_bottom {
-                sb.height += nb_bottom - sg_bottom;
+            if bottom > sg_bottom {
+                sb.height += bottom - sg_bottom;
                 sg_bottom = sb.y + sb.height;
             }
         }

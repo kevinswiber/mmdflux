@@ -105,9 +105,9 @@ fn scale_factors_td_typical() {
     // scale_y (primary) = (3 + 3) / (3 + 50) = 6/53
     // scale_x (cross)   = (9 + 4) / (9 + 50) = 13/59
     let mut dims = HashMap::new();
-    dims.insert("A".into(), (9, 3));
-    dims.insert("B".into(), (7, 3));
-    dims.insert("C".into(), (11, 3));
+    dims.insert("A".into(), ScaleNodeDims::grid_measured(9, 3));
+    dims.insert("B".into(), ScaleNodeDims::grid_measured(7, 3));
+    dims.insert("C".into(), ScaleNodeDims::grid_measured(11, 3));
 
     let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
 
@@ -129,8 +129,8 @@ fn scale_factors_lr_direction_aware() {
     // scale_x (primary) = (9 + 4) / (9 + 50) = 13/59
     // scale_y (cross)   = (3 + 3) / (3 + 6) = 6/9
     let mut dims = HashMap::new();
-    dims.insert("A".into(), (9, 3));
-    dims.insert("B".into(), (9, 3));
+    dims.insert("A".into(), ScaleNodeDims::grid_measured(9, 3));
+    dims.insert("B".into(), ScaleNodeDims::grid_measured(9, 3));
 
     let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 6.0, 3, 4, false, false);
 
@@ -147,9 +147,24 @@ fn scale_factors_lr_direction_aware() {
 }
 
 #[test]
+fn scale_factors_divide_by_layout_size_for_proportional_geometry() {
+    // Proportional geometry: grid 9x3 nodes are 90x54 in the layout.
+    // scale_y (primary) = (3 + 3) / (54 + 50) = 6/104
+    // scale_x (cross)   = (9 + 4) / (90 + 50) = 13/140
+    let mut dims = HashMap::new();
+    dims.insert("A".into(), ScaleNodeDims::new((9, 3), (90.0, 54.0)));
+    dims.insert("B".into(), ScaleNodeDims::new((9, 3), (90.0, 54.0)));
+
+    let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
+
+    assert!((sx - 13.0 / 140.0).abs() < 1e-6, "sx: got {sx}");
+    assert!((sy - 6.0 / 104.0).abs() < 1e-6, "sy: got {sy}");
+}
+
+#[test]
 fn scale_factors_single_node() {
     let mut dims = HashMap::new();
-    dims.insert("X".into(), (5, 3));
+    dims.insert("X".into(), ScaleNodeDims::grid_measured(5, 3));
 
     let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
     assert!(sx > 0.0, "sx should be positive, got {sx}");
@@ -164,8 +179,8 @@ fn scale_factors_halved_for_doubled_ranks() {
     // scale_y = (max_h + v_spacing) / (max_h + eff_rs) = 6/106
     // This is exactly half of the non-doubled scale: 6/53 / 2 = 6/106
     let mut dims = HashMap::new();
-    dims.insert("A".into(), (9, 3));
-    dims.insert("B".into(), (7, 3));
+    dims.insert("A".into(), ScaleNodeDims::grid_measured(9, 3));
+    dims.insert("B".into(), ScaleNodeDims::grid_measured(7, 3));
 
     let (_, sy_normal) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
     let (_, sy_doubled) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, true);
@@ -188,7 +203,7 @@ fn scale_factors_halved_for_doubled_ranks() {
 
 #[test]
 fn scale_factors_empty_nodes() {
-    let dims: HashMap<String, (usize, usize)> = HashMap::new();
+    let dims: HashMap<String, ScaleNodeDims> = HashMap::new();
     let (sx, sy) = compute_grid_scale_factors(&dims, 50.0, 50.0, 3, 4, true, false);
     assert!(sx.is_finite());
     assert!(sy.is_finite());

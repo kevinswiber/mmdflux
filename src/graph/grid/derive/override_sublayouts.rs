@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::super::layout::{GridPos, NodeBounds, SubgraphBounds};
 use super::super::{GridLayoutConfig, OverrideSubgraphProjection};
-use super::quantize::compute_grid_scale_factors;
+use super::quantize::{ScaleNodeDims, compute_grid_scale_factors};
 use super::subgraph_bounds::{
     build_subgraph_incoming_map, build_subgraph_outgoing_map, build_subgraph_parent_map,
 };
@@ -75,9 +75,20 @@ pub(super) fn reconcile_sublayouts_draw(
             })
             .collect();
 
+        let sub_scale_dims: HashMap<String, ScaleNodeDims> = sublayout
+            .nodes
+            .iter()
+            .filter_map(|(id, rect)| {
+                let &dims = sub_node_dims.get(id)?;
+                Some((
+                    id.clone(),
+                    ScaleNodeDims::new(dims, (rect.width, rect.height)),
+                ))
+            })
+            .collect();
         let sub_rank_sep = config.rank_sep + config.cluster_rank_sep;
         let (sub_scale_x, sub_scale_y) = compute_grid_scale_factors(
-            &sub_node_dims,
+            &sub_scale_dims,
             sub_rank_sep,
             config.node_sep,
             config.v_spacing,

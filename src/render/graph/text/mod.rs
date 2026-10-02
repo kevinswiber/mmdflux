@@ -134,8 +134,12 @@ fn apply_subgraph_border_junctions(
         return;
     }
 
-    let should_skip_title_cell =
-        |cell: &Cell| cell.is_subgraph_title && cell.ch != charset.horizontal && cell.ch != ' ';
+    // Title text stays readable, and an arrowhead an edge parked on the
+    // border (no room inside) must not turn back into a junction.
+    let should_skip_title_cell = |cell: &Cell| {
+        (cell.is_subgraph_title && cell.ch != charset.horizontal && cell.ch != ' ')
+            || charset.is_arrow(cell.ch)
+    };
     let conns_all = Connections {
         up: true,
         down: true,
