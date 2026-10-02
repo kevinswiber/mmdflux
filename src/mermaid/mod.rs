@@ -13,6 +13,7 @@ pub(crate) mod theme_hint;
 
 pub use ast::*;
 pub use error::*;
+pub(crate) use flowchart::flowchart_statement_sources;
 pub use flowchart::{
     Flowchart, ParseOptions, parse_flowchart, parse_flowchart_with_options, strip_frontmatter,
 };

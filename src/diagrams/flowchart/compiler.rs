@@ -246,6 +246,28 @@ pub(super) struct IdCollision {
 /// Walk the AST and return every explicit-shape collision occurrence in
 /// document order. Multiple references to the same id produce multiple
 /// entries.
+/// Count the edges a flowchart declares, in the order that assigns
+/// `linkStyle` indexes. Each edge statement adds exactly one graph edge, so
+/// this is the number of valid indexes even when edge resolution later drops
+/// an edge.
+pub(super) fn count_declared_edges(flowchart: &Flowchart) -> usize {
+    fn count(statements: &[Statement]) -> usize {
+        statements
+            .iter()
+            .map(|stmt| match stmt {
+                Statement::Edge(_) => 1,
+                Statement::Subgraph(sg) => count(&sg.statements),
+                Statement::Vertex(_)
+                | Statement::NodeStyle(_)
+                | Statement::ClassDef(_)
+                | Statement::ClassApply(_)
+                | Statement::LinkStyle(_) => 0,
+            })
+            .sum()
+    }
+    count(&flowchart.statements)
+}
+
 pub(super) fn collect_id_collisions(flowchart: &Flowchart) -> Vec<IdCollision> {
     let subgraph_ids = collect_subgraph_ids(&flowchart.statements);
     if subgraph_ids.is_empty() {

@@ -3,13 +3,17 @@
 //! Produces `ParseDiagnostic` warnings for unsupported keywords,
 //! missing subgraph `end` keywords, and strict-mode parse failures.
 
-use crate::diagrams::flowchart::compiler::{IdCollision, collect_id_collisions};
+use crate::diagrams::flowchart::compiler::{
+    IdCollision, collect_id_collisions, count_declared_edges,
+};
 use crate::errors::ParseDiagnostic;
 use crate::graph::style::{
-    parse_classdef_statement, parse_linkstyle_statement, parse_node_style_statement,
+    LinkStyleTarget, parse_classdef_statement, parse_linkstyle_statement,
+    parse_node_style_statement,
 };
 use crate::mermaid::{
-    ParseOptions, parse_flowchart, parse_flowchart_with_options, strip_theme_only_compat_syntax,
+    ParseOptions, flowchart_statement_sources, parse_flowchart, parse_flowchart_with_options,
+    strip_theme_only_compat_syntax,
 };
 
 const STRICT_PARSE_WARNING_PREFIX: &str = "Strict parsing would reject this input:";
@@ -33,38 +37,49 @@ pub(crate) fn collect_all_warnings(input: &str) -> Vec<ParseDiagnostic> {
 }
 
 fn collect_unsupported_warnings(input: &str) -> Vec<ParseDiagnostic> {
+    // Statement boundaries come from the flowchart grammar itself, so `;`
+    // separators, quoted text, shape labels, and edge labels are split exactly
+    // as the parser splits them. Input that does not parse is reported as a
+    // parse error instead, so there is nothing to lint statement-by-statement.
+    let Ok(statements) = flowchart_statement_sources(input) else {
+        return Vec::new();
+    };
+    let edge_count = parse_flowchart(input)
+        .ok()
+        .map(|flowchart| count_declared_edges(&flowchart));
+
     let mut warnings = Vec::new();
+    for source in &statements {
+        let statement = source.text.as_str();
+        let location = (source.line, source.column);
 
-    for (line_num, line) in input.lines().enumerate() {
-        let trimmed = line.trim();
-
-        if ci_starts_with(trimmed, "style ") {
-            warnings.extend(collect_style_warnings(trimmed, line_num + 1));
+        if ci_starts_with(statement, "style ") {
+            warnings.extend(collect_style_warnings(statement, location));
             continue;
         }
 
         // classDef: warn on unsupported CSS properties
-        if ci_starts_with(trimmed, "classDef ") {
-            warnings.extend(collect_classdef_warnings(trimmed, line_num + 1));
+        if ci_starts_with(statement, "classDef ") {
+            warnings.extend(collect_classdef_warnings(statement, location));
             continue;
         }
 
         // class: now supported, skip
-        if ci_starts_with(trimmed, "class ") && !ci_starts_with(trimmed, "classDef") {
+        if ci_starts_with(statement, "class ") && !ci_starts_with(statement, "classDef") {
             continue;
         }
 
         // linkStyle: warn on unsupported properties or invalid indices
-        if ci_starts_with(trimmed, "linkStyle ") {
-            warnings.extend(collect_linkstyle_warnings(trimmed, line_num + 1));
+        if ci_starts_with(statement, "linkStyle ") {
+            warnings.extend(collect_linkstyle_warnings(statement, location, edge_count));
             continue;
         }
 
         for &(prefix, message) in UNSUPPORTED_KEYWORDS {
-            if ci_starts_with(trimmed, prefix) {
+            if ci_starts_with(statement, prefix) {
                 warnings.push(ParseDiagnostic::warning(
-                    Some(line_num + 1),
-                    Some(1),
+                    Some(location.0),
+                    Some(location.1),
                     message.to_string(),
                 ));
                 break;
@@ -75,48 +90,89 @@ fn collect_unsupported_warnings(input: &str) -> Vec<ParseDiagnostic> {
     warnings
 }
 
-fn collect_classdef_warnings(line: &str, line_num: usize) -> Vec<ParseDiagnostic> {
-    match parse_classdef_statement(line) {
+fn collect_classdef_warnings(
+    statement: &str,
+    (line_num, column): (usize, usize),
+) -> Vec<ParseDiagnostic> {
+    match parse_classdef_statement(statement) {
         Some(parsed) => parsed
             .issues
             .into_iter()
-            .map(|issue| ParseDiagnostic::warning(Some(line_num), Some(1), issue.message()))
+            .map(|issue| ParseDiagnostic::warning(Some(line_num), Some(column), issue.message()))
             .collect(),
         None => vec![ParseDiagnostic::warning(
             Some(line_num),
-            Some(1),
+            Some(column),
             "classDef statements must use the form `classDef className key:value,...`".to_string(),
         )],
     }
 }
 
-fn collect_style_warnings(line: &str, line_num: usize) -> Vec<ParseDiagnostic> {
-    match parse_node_style_statement(line) {
+fn collect_style_warnings(
+    statement: &str,
+    (line_num, column): (usize, usize),
+) -> Vec<ParseDiagnostic> {
+    match parse_node_style_statement(statement) {
         Some(parsed) => parsed
             .issues
             .into_iter()
-            .map(|issue| ParseDiagnostic::warning(Some(line_num), Some(1), issue.message()))
+            .map(|issue| ParseDiagnostic::warning(Some(line_num), Some(column), issue.message()))
             .collect(),
         None => vec![ParseDiagnostic::warning(
             Some(line_num),
-            Some(1),
+            Some(column),
             "style statements must use the form `style NODE key:value,...`".to_string(),
         )],
     }
 }
 
-fn collect_linkstyle_warnings(line: &str, line_num: usize) -> Vec<ParseDiagnostic> {
-    match parse_linkstyle_statement(line) {
-        Some(parsed) => parsed
-            .issues
-            .into_iter()
-            .map(|issue| ParseDiagnostic::warning(Some(line_num), Some(1), issue.message()))
-            .collect(),
+fn collect_linkstyle_warnings(
+    statement: &str,
+    (line_num, column): (usize, usize),
+    edge_count: Option<usize>,
+) -> Vec<ParseDiagnostic> {
+    match parse_linkstyle_statement(statement) {
+        Some(parsed) => {
+            let mut warnings: Vec<ParseDiagnostic> = parsed
+                .issues
+                .into_iter()
+                .map(|issue| {
+                    ParseDiagnostic::warning(Some(line_num), Some(column), issue.message())
+                })
+                .collect();
+            if let (LinkStyleTarget::Indices(indices), Some(edge_count)) =
+                (&parsed.target, edge_count)
+            {
+                warnings.extend(indices.iter().filter(|&&index| index >= edge_count).map(
+                    |&index| {
+                        ParseDiagnostic::warning(
+                            Some(line_num),
+                            Some(column),
+                            linkstyle_index_out_of_range_message(index, edge_count),
+                        )
+                    },
+                ));
+            }
+            warnings
+        }
         None => vec![ParseDiagnostic::warning(
             Some(line_num),
-            Some(1),
+            Some(column),
             "linkStyle statements must use the form `linkStyle <target> key:value,...`".to_string(),
         )],
+    }
+}
+
+fn linkstyle_index_out_of_range_message(index: usize, edge_count: usize) -> String {
+    match edge_count {
+        0 => format!("linkStyle index {index} is out of range; the diagram has no edges"),
+        1 => {
+            format!("linkStyle index {index} is out of range; the diagram has 1 edge (valid: 0-0)")
+        }
+        n => format!(
+            "linkStyle index {index} is out of range; the diagram has {n} edges (valid: 0-{})",
+            n - 1
+        ),
     }
 }
 
@@ -396,6 +452,200 @@ mod tests {
             warnings.iter().any(|w| w.message.contains("shape-padding")),
             "unsupported property in classDef should warn: {:?}",
             warnings
+        );
+    }
+
+    fn linkstyle_range_messages(input: &str) -> Vec<(Option<usize>, String)> {
+        collect_unsupported_warnings(input)
+            .into_iter()
+            .filter(|w| w.message.contains("out of range"))
+            .map(|w| (w.line, w.message))
+            .collect()
+    }
+
+    #[test]
+    fn linkstyle_in_range_indices_are_not_warned() {
+        let input =
+            "graph LR\n  A-->B-->C\n  linkStyle 0,1 stroke:#f00\n  linkStyle default stroke:#999\n";
+        assert!(linkstyle_range_messages(input).is_empty());
+    }
+
+    #[test]
+    fn linkstyle_warns_once_per_out_of_range_index() {
+        let input = "graph LR\n  A-->B\n  B-->C\n  linkStyle 1,2,5 stroke:#f00\n";
+        assert_eq!(
+            linkstyle_range_messages(input),
+            vec![
+                (
+                    Some(4),
+                    "linkStyle index 2 is out of range; the diagram has 2 edges (valid: 0-1)"
+                        .to_string()
+                ),
+                (
+                    Some(4),
+                    "linkStyle index 5 is out of range; the diagram has 2 edges (valid: 0-1)"
+                        .to_string()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn linkstyle_range_counts_edges_declared_inside_subgraphs() {
+        let input =
+            "graph LR\n  subgraph S\n    A-->B\n  end\n  B-->C\n  linkStyle 1 stroke:#f00\n";
+        assert!(linkstyle_range_messages(input).is_empty());
+    }
+
+    #[test]
+    fn linkstyle_range_warns_when_diagram_has_no_edges() {
+        let input = "graph LR\n  A\n  linkStyle 0 stroke:#f00\n";
+        assert_eq!(
+            linkstyle_range_messages(input),
+            vec![(
+                Some(3),
+                "linkStyle index 0 is out of range; the diagram has no edges".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn linkstyle_range_checks_statement_after_semicolon() {
+        let input = "graph LR\nA-->B; linkStyle 9 stroke:#f00\n";
+        assert_eq!(
+            linkstyle_range_messages(input),
+            vec![(
+                Some(2),
+                "linkStyle index 9 is out of range; the diagram has 1 edge (valid: 0-0)"
+                    .to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn linkstyle_range_checks_multiple_statements_on_one_line() {
+        let input = "graph LR\nA-->B-->C\nlinkStyle 0 stroke:#f00; linkStyle 4 stroke:#0f0;linkStyle 7 color:red\n";
+        assert_eq!(
+            linkstyle_range_messages(input),
+            vec![
+                (
+                    Some(3),
+                    "linkStyle index 4 is out of range; the diagram has 2 edges (valid: 0-1)"
+                        .to_string()
+                ),
+                (
+                    Some(3),
+                    "linkStyle index 7 is out of range; the diagram has 2 edges (valid: 0-1)"
+                        .to_string()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn linkstyle_range_reports_statement_column() {
+        let input = "graph LR\nA-->B; linkStyle 9 stroke:#f00\n";
+        let columns: Vec<Option<usize>> = collect_unsupported_warnings(input)
+            .into_iter()
+            .filter(|w| w.message.contains("out of range"))
+            .map(|w| w.column)
+            .collect();
+        assert_eq!(columns, vec![Some(8)]);
+    }
+
+    #[test]
+    fn linkstyle_range_ignores_semicolons_in_labels_and_comments() {
+        let input = concat!(
+            "graph LR\n",
+            "A[\"x; linkStyle 9 stroke:#f00\"]-->B\n",
+            "B-->|y; linkStyle 8 stroke:#f00|C\n",
+            "C-->D\n",
+            "%% linkStyle 6 stroke:#f00\n",
+            "linkStyle 3 stroke:#f00\n",
+        );
+        // Only the real statement on the last line is checked; the control
+        // warning also proves the input parsed and edges were counted.
+        assert_eq!(
+            linkstyle_range_messages(input),
+            vec![(
+                Some(6),
+                "linkStyle index 3 is out of range; the diagram has 3 edges (valid: 0-2)"
+                    .to_string()
+            )]
+        );
+    }
+
+    fn linkstyle_range_single(
+        line: usize,
+        index: usize,
+        edges: &str,
+    ) -> Vec<(Option<usize>, String)> {
+        vec![(
+            Some(line),
+            format!("linkStyle index {index} is out of range; the diagram has {edges}"),
+        )]
+    }
+
+    #[test]
+    fn linkstyle_range_ignores_open_brackets_inside_rect_labels() {
+        for label in ["A[text (]", "A[text {]"] {
+            let input = format!("graph LR\n{label}-->B; linkStyle 9 stroke:#f00\n");
+            assert_eq!(
+                linkstyle_range_messages(&input),
+                linkstyle_range_single(2, 9, "1 edge (valid: 0-0)"),
+                "{input}"
+            );
+        }
+    }
+
+    #[test]
+    fn linkstyle_range_ignores_statement_like_asymmetric_label_text() {
+        let input = "graph LR\nA>text; linkStyle 9 stroke:#f00]-->B; linkStyle 4 stroke:#f00\n";
+        let warnings = collect_unsupported_warnings(input);
+        assert_eq!(
+            warnings
+                .iter()
+                .map(|w| (w.line, w.column, w.message.clone()))
+                .collect::<Vec<_>>(),
+            vec![(
+                Some(2),
+                Some(39),
+                "linkStyle index 4 is out of range; the diagram has 1 edge (valid: 0-0)"
+                    .to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn linkstyle_range_ignores_statement_like_inline_edge_text() {
+        let input = "graph LR\nA-- text; linkStyle 9 stroke:#f00 -->B\nlinkStyle 2 stroke:#f00\n";
+        let warnings = collect_unsupported_warnings(input);
+        assert_eq!(
+            warnings
+                .iter()
+                .map(|w| (w.line, w.message.clone()))
+                .collect::<Vec<_>>(),
+            linkstyle_range_single(3, 2, "1 edge (valid: 0-0)")
+        );
+    }
+
+    #[test]
+    fn linkstyle_range_lines_survive_frontmatter_and_stripped_lines() {
+        let input = concat!(
+            "---\n",
+            "title: t\n",
+            "---\n",
+            "%%{init: {}}%%\n",
+            "graph LR\n",
+            "accTitle: stripped by the permissive preprocessor\n",
+            "A-->B\n",
+            "  subgraph S\n",
+            "    B-->C; linkStyle 5 stroke:#f00\n",
+            "  end\n",
+        );
+        assert_eq!(
+            linkstyle_range_messages(input),
+            linkstyle_range_single(9, 5, "2 edges (valid: 0-1)")
         );
     }
 

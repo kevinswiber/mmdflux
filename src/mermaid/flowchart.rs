@@ -89,7 +89,26 @@ pub fn strip_frontmatter(input: &str) -> &str {
 
 /// Pre-process input to strip frontmatter, directives, and unrecognized lines.
 fn preprocess(input: &str) -> String {
+    preprocess_impl(input, false).0
+}
+
+/// Line-preserving variant of [`preprocess`] used to map parser positions back
+/// to the original source.
+///
+/// Lines up to and including the header are handled exactly like
+/// [`preprocess`]; the returned offset is how many source lines were dropped
+/// before the header (frontmatter, directives, preamble). After the header,
+/// every line that [`preprocess`] would strip is replaced with a bare `%%`
+/// comment instead of being removed, so a statement on preprocessed line `n`
+/// sits on source line `n + offset` at the same column.
+fn preprocess_preserving_lines(input: &str) -> (String, usize) {
+    preprocess_impl(input, true)
+}
+
+fn preprocess_impl(input: &str, preserve_lines: bool) -> (String, usize) {
+    let source = input;
     let input = strip_frontmatter(input);
+    let mut line_offset = source[..source.len() - input.len()].matches('\n').count();
     let mut result = String::with_capacity(input.len());
     let mut header_seen = false;
 
@@ -98,6 +117,11 @@ fn preprocess(input: &str) -> String {
 
         // Always strip directives
         if trimmed.starts_with("%%{") && trimmed.ends_with("}%%") {
+            if !header_seen {
+                line_offset += 1;
+            } else if preserve_lines {
+                push_line(&mut result, "%%");
+            }
             continue;
         }
 
@@ -112,6 +136,7 @@ fn preprocess(input: &str) -> String {
                 continue;
             }
             // Strip non-header lines before the header (e.g. accTitle, comments, blanks)
+            line_offset += 1;
             continue;
         }
 
@@ -139,13 +164,86 @@ fn preprocess(input: &str) -> String {
             continue;
         }
 
-        // Unknown line -- strip it
+        // Unknown line -- strip it (or keep its slot as a comment)
+        if preserve_lines {
+            push_line(&mut result, "%%");
+        }
     }
 
     if input.ends_with('\n') && !result.ends_with('\n') {
         result.push('\n');
     }
-    result
+    (result, line_offset)
+}
+
+/// Raw text of one flowchart statement with its position in the original
+/// source, as split by the flowchart grammar.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FlowchartStatementSource {
+    /// 1-based source line of the statement's first character.
+    pub line: usize,
+    /// 1-based column of the statement's first character.
+    pub column: usize,
+    /// The statement text, trimmed of surrounding whitespace.
+    pub text: String,
+}
+
+/// Split permissive flowchart input into its grammar-level statements with
+/// source positions.
+///
+/// Statement boundaries come from the same pest grammar as
+/// [`parse_flowchart`], so `;` separators, quoted text, shape labels, edge
+/// labels, and comments are handled exactly as the parser handles them.
+/// Statements nested inside subgraphs are included (the `subgraph` statement
+/// itself is not). Returns the parse error when the input does not parse.
+pub(crate) fn flowchart_statement_sources(
+    input: &str,
+) -> Result<Vec<FlowchartStatementSource>, ParseError> {
+    let (preprocessed, line_offset) = preprocess_preserving_lines(input);
+    let pairs = FlowchartParser::parse(Rule::flowchart, &preprocessed)
+        .map_err(ParseError::from_pest_error)?;
+
+    let mut sources = Vec::new();
+    for pair in pairs.filter(|p| p.as_rule() == Rule::flowchart) {
+        for inner in pair.into_inner() {
+            if inner.as_rule() == Rule::statement {
+                collect_statement_sources(inner, line_offset, &mut sources);
+            }
+        }
+    }
+    Ok(sources)
+}
+
+fn collect_statement_sources(
+    statement: pest::iterators::Pair<Rule>,
+    line_offset: usize,
+    sources: &mut Vec<FlowchartStatementSource>,
+) {
+    let subgraph = statement
+        .clone()
+        .into_inner()
+        .find(|p| p.as_rule() == Rule::subgraph_stmt);
+    if let Some(subgraph) = subgraph {
+        for body_line in subgraph
+            .into_inner()
+            .filter(|p| p.as_rule() == Rule::subgraph_body_line)
+        {
+            for nested in body_line
+                .into_inner()
+                .filter(|p| p.as_rule() == Rule::statement)
+            {
+                collect_statement_sources(nested, line_offset, sources);
+            }
+        }
+        return;
+    }
+
+    let (line, column) = statement.as_span().start_pos().line_col();
+    sources.push(FlowchartStatementSource {
+        line: line + line_offset,
+        column,
+        text: statement.as_str().trim().to_string(),
+    });
 }
 
 fn push_line(result: &mut String, line: &str) {
@@ -830,6 +928,75 @@ fn shape_from_keyword(keyword: &str, label: String) -> ShapeSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn statement_positions(input: &str) -> Vec<(usize, usize, String)> {
+        flowchart_statement_sources(input)
+            .expect("input should parse")
+            .into_iter()
+            .map(|s| (s.line, s.column, s.text))
+            .collect()
+    }
+
+    #[test]
+    fn statement_sources_split_on_grammar_separators_only() {
+        let input = "graph LR\nA[\"x; y\"]-->|p; q|B; linkStyle 0 color:red ;style A fill:#f00\n";
+        assert_eq!(
+            statement_positions(input),
+            vec![
+                (2, 1, "A[\"x; y\"]-->|p; q|B".to_string()),
+                (2, 22, "linkStyle 0 color:red".to_string()),
+                (2, 45, "style A fill:#f00".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn statement_sources_map_lines_through_stripped_and_nested_lines() {
+        let input = concat!(
+            "---\n",
+            "title: t\n",
+            "---\n",
+            "%%{init: {}}%%\n",
+            "flowchart TD\n",
+            "accTitle: stripped\n",
+            "  subgraph S\n",
+            "  accDescr: stripped\n",
+            "    A-->B\n",
+            "  end\n",
+            "%%{init: {}}%%\n",
+            "  click A foo\n",
+        );
+        assert_eq!(
+            statement_positions(input),
+            vec![
+                (9, 5, "A-->B".to_string()),
+                (12, 3, "click A foo".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn line_preserving_preprocess_parses_like_preprocess() {
+        let input = concat!(
+            "%%{init: {}}%%\n",
+            "graph TD\n",
+            "accTitle: stripped\n",
+            "subgraph S\n",
+            "accDescr: stripped\n",
+            "A-->B\n",
+            "end\n",
+            "B-->C\n",
+        );
+        let parse = |text: &str| {
+            parse_flowchart_with_options(text, &ParseOptions { strict: true })
+                .expect("preprocessed text should parse strictly")
+                .statements
+        };
+        let (preserved, offset) = preprocess_preserving_lines(input);
+        assert_eq!(offset, 1);
+        assert_eq!(preserved.lines().count() + offset, input.lines().count());
+        assert_eq!(parse(&preserved), parse(&preprocess(input)));
+    }
 
     // Strict mode tests (Task 3.2)
     #[test]
