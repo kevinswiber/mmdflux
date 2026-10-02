@@ -259,10 +259,15 @@ fn early_mmds_surface_is_non_exhaustive() {
     assert_non_exhaustive(&events, "pub struct ModelEvent");
     assert_non_exhaustive(&events, "pub enum ModelEventKind");
 
-    let diff = repo_file("src/mmds/diff.rs");
+    let diff = repo_file("src/mmds/diff/mod.rs");
     assert_non_exhaustive(&diff, "pub struct Diff");
     assert_non_exhaustive(&diff, "pub struct Change");
     assert_non_exhaustive(&diff, "pub enum ChangeKind");
+    assert_non_exhaustive(&diff, "pub struct EdgeIds");
+
+    let wire = repo_file("src/mmds/diff/wire.rs");
+    assert_non_exhaustive(&wire, "pub enum WireLayer");
+    assert_non_exhaustive(&wire, "pub struct WireOptions");
 
     let mmds = repo_file("src/mmds/mod.rs");
     assert_non_exhaustive(&mmds, "pub enum Subject");
@@ -395,7 +400,7 @@ fn crate_root_rustdoc_names_public_workflows_without_unreleased_migration_guide(
 #[test]
 fn public_module_rustdocs_name_contract_caveats() {
     let commands = repo_file("src/commands.rs");
-    let diff = repo_file("src/mmds/diff.rs");
+    let diff = repo_file("src/mmds/diff/mod.rs");
     let events = repo_file("src/mmds/events.rs");
     let mmds = repo_file("src/mmds/mod.rs");
     let token = repo_file("src/mmds/token.rs");

@@ -763,6 +763,59 @@ motivation.
 
 The formal JSON Schema is available at [`docs/mmds.schema.json`](./mmds.schema.json).
 
+## Snapshot Diff Wire Format
+
+`mmdflux::mmds::diff::diff_documents` compares two MMDS documents in Rust.
+`mmdflux::mmds::diff::wire::to_json` turns that diff into a versioned JSON
+document for consumers outside a Rust process. Its schema is
+[`docs/mmds-diff.schema.json`](./mmds-diff.schema.json).
+
+```json
+{
+  "schema": "mmdflux.diff.v1",
+  "before_geometry_level": "layout",
+  "after_geometry_level": "layout",
+  "summary": { "added": 1, "removed": 1, "changed": 0, "moved": 0 },
+  "changes": [
+    {
+      "id": 0, "kind": "EdgeRemoved", "category": "removed", "layer": "model",
+      "subject": { "type": "edge", "before_id": "e0", "after_id": null },
+      "before": { "source": "A", "target": "B", "label": null }
+    },
+    {
+      "id": 1, "kind": "EdgeAdded", "category": "added", "layer": "model",
+      "subject": { "type": "edge", "before_id": null, "after_id": "e0" },
+      "after": { "source": "B", "target": "C", "label": "go" }
+    }
+  ]
+}
+```
+
+- `kind` is the stable `ChangeKind` name. `layer` is `model` or `geometry`.
+- `category` groups kinds: `added` (`*Added`), `removed` (`*Removed`), `moved`
+  (`NodeParentChanged`, `SubgraphParentChanged`, `NodeMoved`, `LabelMoved`), and
+  `changed` for everything else. `summary` counts the included changes per
+  category.
+- `subject.type` is `document`, `node`, `edge` or `subgraph`. Edge ids are
+  positional, so an edge subject always carries both `before_id` and
+  `after_id`; either is `null` when the edge is missing on that side. An
+  `ExtensionChanged` document subject names its `extension_namespace`.
+- `before` and `after` hold the subject's describing values on each side where
+  it exists: nodes carry `label`, `shape` and `parent`; edges carry `source`,
+  `target` and `label`; subgraphs carry `title` and `parent`. Document changes
+  carry the compared value for `DiagramTypeChanged` (`diagram_type`),
+  `DirectionChanged` (`direction`), `EngineChanged` (`engine`) and
+  `GeometryLevelChanged` (`geometry_level`).
+- `id` is the change's index in the full diff, so it stays stable when a layer
+  filter drops other changes. `related` lists included changes linked to this
+  one, such as the geometry effects of a relabel.
+- `evidence` appears only when requested and is not format-stable.
+
+Compatibility within `mmdflux.diff.v1`: new kinds, categories, subject types and
+fields are additive, and consumers must ignore what they don't recognize.
+Renaming or removing a kind or field, or changing its meaning, requires a new
+schema version.
+
 ## Coordinate System
 
 MMDS coordinates are unitless coordinate-space values.

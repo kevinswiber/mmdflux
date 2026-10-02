@@ -36,7 +36,7 @@ graph TD
 #[test]
 fn public_mmds_diff_docs_name_snapshot_diff_contract() {
     let source = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/mmds/diff.rs"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/mmds/diff/mod.rs"),
     )
     .expect("diff source should be readable");
 

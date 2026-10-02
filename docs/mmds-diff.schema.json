@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kevinswiber/mmdflux/blob/main/docs/mmds-diff.schema.json",
+  "title": "mmdflux snapshot diff (mmdflux.diff.v1)",
+  "description": "Versioned JSON view of a snapshot diff between two MMDS documents. Within v1, new kinds, categories and fields are additive; consumers must ignore what they do not recognize.",
+  "type": "object",
+  "required": [
+    "schema",
+    "before_geometry_level",
+    "after_geometry_level",
+    "summary",
+    "changes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "mmdflux.diff.v1"
+    },
+    "before_geometry_level": {
+      "$ref": "#/$defs/GeometryLevel"
+    },
+    "after_geometry_level": {
+      "$ref": "#/$defs/GeometryLevel"
+    },
+    "summary": {
+      "type": "object",
+      "description": "Number of included changes in each category.",
+      "required": ["added", "removed", "changed", "moved"],
+      "properties": {
+        "added": { "type": "integer", "minimum": 0 },
+        "removed": { "type": "integer", "minimum": 0 },
+        "changed": { "type": "integer", "minimum": 0 },
+        "moved": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Change"
+      }
+    }
+  },
+  "$defs": {
+    "GeometryLevel": {
+      "type": "string",
+      "description": "MMDS geometry level of a compared document. Known values: layout, routed.",
+      "minLength": 1
+    },
+    "Change": {
+      "type": "object",
+      "required": ["id", "kind", "category", "layer", "subject"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Index of the change in the full diff. Stable when a layer filter drops other changes."
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable change kind name, for example NodeAdded, EdgeReconnected or LabelMoved. New kinds are additive."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Coarse grouping. Known values: added, removed, changed, moved."
+        },
+        "layer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Known values: model (what the diagram says) and geometry (where it is drawn)."
+        },
+        "subject": {
+          "$ref": "#/$defs/Subject"
+        },
+        "before": {
+          "type": "object",
+          "description": "The subject's describing values in the before document, when it exists there."
+        },
+        "after": {
+          "type": "object",
+          "description": "The subject's describing values in the after document, when it exists there."
+        },
+        "related": {
+          "type": "array",
+          "description": "Ids of included changes related to this one, such as geometry effects of a model change.",
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "evidence": {
+          "type": "array",
+          "description": "Diagnostic strings, present only when requested. Not format-stable.",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "Subject": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Known values: document, node, edge, subgraph."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "node" } } },
+          "then": {
+            "required": ["id"],
+            "properties": { "id": { "type": "string" } }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "subgraph" } } },
+          "then": {
+            "required": ["id"],
+            "properties": { "id": { "type": "string" } }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "edge" } } },
+          "then": {
+            "required": ["before_id", "after_id"],
+            "properties": {
+              "before_id": {
+                "type": ["string", "null"],
+                "description": "Edge id in the before document; null when the edge was added."
+              },
+              "after_id": {
+                "type": ["string", "null"],
+                "description": "Edge id in the after document; null when the edge was removed."
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "document" } } },
+          "then": {
+            "properties": {
+              "extension_namespace": {
+                "type": "string",
+                "description": "For ExtensionChanged, the extension namespace that changed."
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

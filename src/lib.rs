@@ -294,12 +294,12 @@
 //! - new variants on the early-surface enums marked `#[non_exhaustive]`
 //!   (including `commands::Command`, `commands::EdgeSelector`,
 //!   `commands::CommandApplyError`, `mmds::events::ModelEventKind`,
-//!   `mmds::diff::ChangeKind`, `mmds::Subject`, `views::ViewStatement`,
-//!   `views::Selector`, `views::ViewEvent`, `views::ViewError`, and the
-//!   supporting view vocabulary)
+//!   `mmds::diff::ChangeKind`, `mmds::diff::wire::WireLayer`, `mmds::Subject`,
+//!   `views::ViewStatement`, `views::Selector`, `views::ViewEvent`,
+//!   `views::ViewError`, and the supporting view vocabulary)
 //! - new fields on early-surface structs marked `#[non_exhaustive]` (including
 //!   `mmds::events::ModelEvent`, `mmds::diff::Change`, `mmds::diff::Diff`,
-//!   `mmds::diff::EdgeIds`,
+//!   `mmds::diff::EdgeIds`, `mmds::diff::wire::WireOptions`,
 //!   `mmds::MmdsTokenError`, and `views::ViewSpec`)
 //!
 //! What is not covered:
