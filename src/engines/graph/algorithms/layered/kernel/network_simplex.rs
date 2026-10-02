@@ -304,17 +304,13 @@ fn calc_cut_value(
             continue;
         }
 
-        let is_out_edge;
-        let other;
-        if e_from == child {
-            is_out_edge = true;
-            other = e_to;
+        let (is_out_edge, other) = if e_from == child {
+            (true, e_to)
         } else if e_to == child {
-            is_out_edge = false;
-            other = e_from;
+            (false, e_from)
         } else {
             continue; // not incident on child
-        }
+        };
 
         if other == parent {
             continue;

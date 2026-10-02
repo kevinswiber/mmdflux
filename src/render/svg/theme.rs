@@ -603,7 +603,7 @@ fn parse_hex_color(input: &str) -> Result<[u8; 3], SvgThemeError> {
         }
         6 => {
             let mut out = [0_u8; 3];
-            for (idx, chunk) in raw.as_bytes().chunks_exact(2).enumerate() {
+            for (idx, chunk) in raw.as_bytes().as_chunks::<2>().0.iter().enumerate() {
                 let chunk = std::str::from_utf8(chunk).map_err(|_| SvgThemeError {
                     message: format!("invalid SVG theme color `{input}`"),
                 })?;
