@@ -574,6 +574,25 @@ fn debug_svg_theme_auto_env_truncates_probe_transcript() {
     let _ = fs::remove_file(path);
 }
 
+#[test]
+fn text_output_without_svg_theme_auto_skips_terminal_probe() {
+    let path = temp_log_path("svg-theme-auto-skipped");
+    let _ = fs::remove_file(&path);
+
+    let output = mmdflux()
+        .args(["--format", "text"])
+        .env("MMDFLUX_DEBUG_SVG_THEME_AUTO", &path)
+        .write_stdin("graph TD\nA-->B")
+        .output()
+        .expect("command should run");
+
+    assert_command_success(&output);
+    assert!(
+        !path.exists(),
+        "terminal appearance probe should not run without --svg-theme-auto"
+    );
+}
+
 // =============================================================================
 // SVG Format Tests
 // =============================================================================

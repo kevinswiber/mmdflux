@@ -513,6 +513,11 @@ fn svg_theme_from_cli_with_appearance(
 }
 
 fn svg_theme_from_cli(cli: &Cli) -> Option<SvgThemeConfig> {
+    // Only probe the terminal when --svg-theme-auto will use the answer. The
+    // OSC 11 probe takes over /dev/tty, which races hosts that own the tty.
+    if cli.svg_theme_auto.is_none() {
+        return svg_theme_from_cli_with_appearance(cli, None, None);
+    }
     svg_theme_from_cli_with_appearance(cli, detect_terminal_appearance(), detect_os_appearance())
 }
 
