@@ -198,3 +198,163 @@ fn related_geometry_links_only_changes_for_the_same_edge() {
         }
     }
 }
+
+fn model_edge_changes(
+    before: &str,
+    after: &str,
+) -> Vec<(ChangeKind, Option<String>, Option<String>)> {
+    let diff = diff_documents(&materialize(before), &materialize(after));
+    let mut changes = diff
+        .changes
+        .iter()
+        .filter(|c| c.kind.is_model() && c.edge_ids.is_some())
+        .map(|c| {
+            let ids = c.edge_ids.as_ref().unwrap();
+            (c.kind, ids.before_id.clone(), ids.after_id.clone())
+        })
+        .collect::<Vec<_>>();
+    changes.sort_by_key(|(kind, b, a)| (format!("{kind:?}"), b.clone(), a.clone()));
+    changes
+}
+
+fn ids(before: Option<&str>, after: Option<&str>) -> (Option<String>, Option<String>) {
+    (before.map(str::to_string), after.map(str::to_string))
+}
+
+#[test]
+fn reconnect_at_a_stable_index_is_reported() {
+    let changes = model_edge_changes(
+        "graph TD\nX-->A\nA-->B\nA-->C\nB-->C\n",
+        "graph TD\nX-->A\nA-->B\nA-->C\nB-->X\n",
+    );
+    let (b, a) = ids(Some("e3"), Some("e3"));
+    assert_eq!(changes, vec![(ChangeKind::EdgeReconnected, b, a)]);
+}
+
+#[test]
+fn reconnect_survives_an_earlier_edge_deletion() {
+    let changes = model_edge_changes(
+        "graph TD\nX-->A\nA-->B\nA-->C\nB-->C\n",
+        "graph TD\nX-->A\nA-->B\nB-->X\nC\n",
+    );
+    let (rb, ra) = ids(Some("e3"), Some("e2"));
+    let (db, da) = ids(Some("e2"), None);
+    assert_eq!(
+        changes,
+        vec![
+            (ChangeKind::EdgeReconnected, rb, ra),
+            (ChangeKind::EdgeRemoved, db, da),
+        ]
+    );
+
+    let diff = diff_documents(
+        &materialize("graph TD\nX-->A\nA-->B\nA-->C\nB-->C\n"),
+        &materialize("graph TD\nX-->A\nA-->B\nB-->X\nC\n"),
+    );
+    let reconnect = diff
+        .changes
+        .iter()
+        .find(|c| c.kind == ChangeKind::EdgeReconnected)
+        .unwrap();
+    assert!(
+        reconnect
+            .evidence
+            .iter()
+            .any(|e| e.contains("matched_by=endpoint_label")),
+        "{reconnect:?}"
+    );
+}
+
+#[test]
+fn reconnect_between_edges_sharing_no_endpoint_is_suppressed() {
+    let changes = model_edge_changes(
+        "graph TD\nX-->A\nA-->B\nA-->C\n",
+        "graph TD\nX-->A\nA-->B\nB-->X\nC\n",
+    );
+    let (rb, ra) = ids(Some("e2"), None);
+    let (ab, aa) = ids(None, Some("e2"));
+    assert_eq!(
+        changes,
+        vec![
+            (ChangeKind::EdgeAdded, ab, aa),
+            (ChangeKind::EdgeRemoved, rb, ra),
+        ]
+    );
+}
+
+#[test]
+fn ambiguous_endpoint_reconnect_falls_back_to_remove_and_add() {
+    // Both removed edges share source A with the added edge, so neither
+    // pairing is unique.
+    let changes = model_edge_changes(
+        "graph TD\nA-->B\nA-->C\nB-->C\nX\n",
+        "graph TD\nB-->C\nA-->X\n",
+    );
+    assert!(
+        changes
+            .iter()
+            .all(|(kind, _, _)| *kind != ChangeKind::EdgeReconnected),
+        "{changes:?}"
+    );
+}
+
+/// Build a document whose nodes are `node_ids` and whose edges are `edges`,
+/// cloning layout fields from a tiny materialized template so the diff sees
+/// well-formed nodes and edges without running layout on a large graph.
+fn synthetic_document(node_ids: &[String], edges: &[(String, String)]) -> mmdflux::mmds::Document {
+    let mut doc = materialize("graph TD\nA-->B\n");
+    let node_template = doc.nodes[0].clone();
+    let edge_template = doc.edges[0].clone();
+    doc.nodes = node_ids
+        .iter()
+        .map(|id| {
+            let mut node = node_template.clone();
+            node.id = id.clone();
+            node.label = id.clone();
+            node
+        })
+        .collect();
+    doc.edges = edges
+        .iter()
+        .enumerate()
+        .map(|(index, (source, target))| {
+            let mut edge = edge_template.clone();
+            edge.id = format!("e{index}");
+            edge.source = source.clone();
+            edge.target = target.clone();
+            edge
+        })
+        .collect();
+    doc
+}
+
+#[test]
+fn many_ambiguous_leftover_edges_fall_back_quickly() {
+    // Every removed edge shares source A with every added edge, so every
+    // before/after pair is a reconnect candidate and none is unique.
+    const N: usize = 200;
+    let mut node_ids = vec!["A".to_string()];
+    node_ids.extend((0..N).map(|i| format!("B{i}")));
+    node_ids.extend((0..N).map(|i| format!("C{i}")));
+    let before_edges = (0..N)
+        .map(|i| ("A".to_string(), format!("B{i}")))
+        .collect::<Vec<_>>();
+    let after_edges = (0..N)
+        .map(|i| ("A".to_string(), format!("C{i}")))
+        .collect::<Vec<_>>();
+    let before = synthetic_document(&node_ids, &before_edges);
+    let after = synthetic_document(&node_ids, &after_edges);
+
+    let started = std::time::Instant::now();
+    let diff = diff_documents(&before, &after);
+    let elapsed = started.elapsed();
+
+    let count = |kind: ChangeKind| diff.changes.iter().filter(|c| c.kind == kind).count();
+    assert_eq!(count(ChangeKind::EdgeReconnected), 0);
+    assert_eq!(count(ChangeKind::EdgeRemoved), N);
+    assert_eq!(count(ChangeKind::EdgeAdded), N);
+    assert!(
+        elapsed < std::time::Duration::from_secs(5),
+        "diff of {N} ambiguous leftover edges took {elapsed:?}"
+    );
+}

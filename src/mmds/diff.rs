@@ -24,6 +24,11 @@
 //! (none when removed). [`Subject::Edge`] keeps a single id: the `before` id for a removed
 //! edge and the `after` id otherwise.
 //!
+//! A [`ChangeKind::EdgeReconnected`] change pairs a removed and an added edge that keep
+//! exactly one endpoint in the same role. It is reported only when that pairing is
+//! unambiguous, either by a shared id or by a shared label and style; otherwise the diff
+//! reports a remove plus an add rather than guess.
+//!
 //! [`Change::related_change_ids`] links geometry effects back to related semantic
 //! changes by index within the same [`Diff::changes`] vector. For edges, only changes
 //! about the same before/after edge pair are linked. [`Change::evidence`]
@@ -33,7 +38,7 @@
 //! The diff is an output comparison. It can say that a route moved, a label moved, or a
 //! fallback edge match was used; it does not provide causal route attribution.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use serde_json::Value;
 
@@ -340,6 +345,7 @@ struct EdgeMatch<'a> {
 enum EdgeMatchMethod {
     Id,
     IdReconnected,
+    EndpointLabel,
     Fallback {
         rule: &'static str,
         candidate_count: usize,
@@ -435,31 +441,62 @@ fn edge_correspondences<'a>(
         matcher.pair_by_declaration_order(&mut before_group, &mut after_group);
     }
 
-    for id in before_unmatched
-        .intersection(&after_unmatched)
-        .cloned()
-        .collect::<Vec<_>>()
-    {
-        let before_edge = before
-            .get(&id)
-            .copied()
-            .expect("same-ID before edge should exist");
-        let after_edge = after
-            .get(&id)
-            .copied()
-            .expect("same-ID after edge should exist");
-        if edge_endpoints_exist_in_both_outputs(before_edge, after_edge, before_nodes, after_nodes)
-        {
-            matches.push(EdgeMatch {
-                before_id: id.clone(),
-                after_id: id.clone(),
-                before: before_edge,
-                after: after_edge,
-                method: EdgeMatchMethod::IdReconnected,
-            });
-            before_unmatched.remove(&id);
-            after_unmatched.remove(&id);
+    // Reconnects. Edge ids are positional, so a shared id alone does not show
+    // that two leftover edges are the same edge: deleting an earlier edge
+    // shifts every later id. A reconnect needs a shared endpoint and an
+    // unambiguous pairing; anything less is reported as a remove plus an add.
+    let reconnect_candidates = |before_unmatched: &BTreeSet<String>,
+                                after_unmatched: &BTreeSet<String>,
+                                same_key: bool| {
+        let mut pairs = Vec::new();
+        for before_id in before_unmatched {
+            let before_edge = before[before_id];
+            for after_id in after_unmatched {
+                let after_edge = after[after_id];
+                if shares_one_endpoint(before_edge, after_edge)
+                    && edge_endpoints_exist_in_both_outputs(
+                        before_edge,
+                        after_edge,
+                        before_nodes,
+                        after_nodes,
+                    )
+                    && (!same_key
+                        || edge_label_style_key(before_edge) == edge_label_style_key(after_edge))
+                {
+                    pairs.push((before_id.clone(), after_id.clone()));
+                }
+            }
         }
+        pairs
+    };
+
+    let candidates = reconnect_candidates(&before_unmatched, &after_unmatched, false);
+    for (before_id, after_id) in unique_pairs(&candidates) {
+        if before_id != after_id {
+            continue;
+        }
+        matches.push(EdgeMatch {
+            before_id: before_id.clone(),
+            after_id: after_id.clone(),
+            before: before[&before_id],
+            after: after[&after_id],
+            method: EdgeMatchMethod::IdReconnected,
+        });
+        before_unmatched.remove(&before_id);
+        after_unmatched.remove(&after_id);
+    }
+
+    let candidates = reconnect_candidates(&before_unmatched, &after_unmatched, true);
+    for (before_id, after_id) in unique_pairs(&candidates) {
+        matches.push(EdgeMatch {
+            before_id: before_id.clone(),
+            after_id: after_id.clone(),
+            before: before[&before_id],
+            after: after[&after_id],
+            method: EdgeMatchMethod::EndpointLabel,
+        });
+        before_unmatched.remove(&before_id);
+        after_unmatched.remove(&after_id);
     }
 
     let removed = before_unmatched
@@ -482,6 +519,31 @@ fn edge_correspondences<'a>(
         removed,
         added,
     }
+}
+
+/// True when the edges keep exactly one endpoint in the same role.
+fn shares_one_endpoint(before: &Edge, after: &Edge) -> bool {
+    (before.source == after.source) != (before.target == after.target)
+}
+
+/// Pairs whose before and after ids each appear in exactly one candidate pair.
+///
+/// Counts each side once up front so the check stays linear in the number of
+/// candidates; ambiguous leftovers can produce a quadratic number of them.
+fn unique_pairs(candidates: &[(String, String)]) -> Vec<(String, String)> {
+    let mut before_counts: HashMap<&str, usize> = HashMap::new();
+    let mut after_counts: HashMap<&str, usize> = HashMap::new();
+    for (before_id, after_id) in candidates {
+        *before_counts.entry(before_id).or_default() += 1;
+        *after_counts.entry(after_id).or_default() += 1;
+    }
+    candidates
+        .iter()
+        .filter(|(before_id, after_id)| {
+            before_counts[before_id.as_str()] == 1 && after_counts[after_id.as_str()] == 1
+        })
+        .cloned()
+        .collect()
 }
 
 fn same_edge_endpoints(before: &Edge, after: &Edge) -> bool {
@@ -663,6 +725,10 @@ fn edge_match_evidence(edge_match: &EdgeMatch<'_>) -> Vec<String> {
         EdgeMatchMethod::Id => Vec::new(),
         EdgeMatchMethod::IdReconnected => vec![format!(
             "matched_by=id_reconnected; before_id={}; after_id={}",
+            edge_match.before_id, edge_match.after_id
+        )],
+        EdgeMatchMethod::EndpointLabel => vec![format!(
+            "matched_by=endpoint_label; before_id={}; after_id={}",
             edge_match.before_id, edge_match.after_id
         )],
         EdgeMatchMethod::Fallback {
