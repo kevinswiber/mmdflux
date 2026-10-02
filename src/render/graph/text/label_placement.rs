@@ -181,20 +181,22 @@ pub(crate) fn compute_label_placements(
         // on-corridor. This keeps ordinary lane-coordinated labels stable while
         // covering the singleton F2 cases and observed two-label forward
         // cases that share the same off-corridor projection shape.
-        let projected = if should_prefer_midpoint_for_forward_edge(
-            routed,
-            geometry,
-            projected,
-            midpoint,
-            label_dims,
-            &footprint,
-            &claimed,
-            &layout.node_bounds,
-        ) {
-            None
-        } else {
-            projected
-        };
+        let projected =
+            if should_prefer_midpoint_for_forward_edge(
+                routed,
+                geometry,
+                projected,
+                midpoint,
+                label_dims,
+                &footprint,
+                &claimed,
+                &layout.node_bounds,
+            ) || projection_favors_parallel_sibling(routed, routed_edges, projected, midpoint)
+            {
+                None
+            } else {
+                projected
+            };
         let Some(candidate_center) = backward_midpoint.or(projected).or(midpoint) else {
             continue;
         };
@@ -256,7 +258,6 @@ pub(crate) fn compute_label_placements(
             final_x.saturating_add(label_dims.0 / 2),
             label_center_from_top(base_y, label_dims.1),
         );
-
         claim_label_cells_into(final_center, label_dims, &mut footprint);
         claimed.push(ClaimedLabel::from_center(final_center, label_dims));
 
@@ -388,6 +389,39 @@ fn should_prefer_midpoint_for_forward_edge(
         && !label_block_hits_load_bearing_cell(midpoint, label_dims, footprint)
         && !label_block_overlaps_claimed(midpoint, label_dims, claimed)
         && !label_rect_overlaps_nodes(midpoint, label_dims, node_bounds)
+}
+
+/// Parallel edges (same endpoints) are drawn as separate lines a cell or two
+/// apart, but their layout label centers can project onto a sibling's line.
+/// The label then reads as belonging to the wrong edge, and `linkStyle N`
+/// colors a line that doesn't carry edge N's label. When the projected cell is
+/// off the edge's own line and at least as close to a sibling's line, and the
+/// Pass-3 midpoint is on the edge's own line, place the label from the
+/// midpoint.
+fn projection_favors_parallel_sibling(
+    routed: &RoutedEdge,
+    routed_edges: &[RoutedEdge],
+    projected: Option<(usize, usize)>,
+    midpoint: Option<(usize, usize)>,
+) -> bool {
+    if routed.is_backward {
+        return false;
+    }
+    let (Some(projected), Some(midpoint)) = (projected, midpoint) else {
+        return false;
+    };
+    if distance_to_segments(midpoint, &routed.segments) > 0.0 {
+        return false;
+    }
+    let own = distance_to_segments(projected, &routed.segments);
+    own > 0.0
+        && routed_edges.iter().any(|sibling| {
+            sibling.edge.index != routed.edge.index
+                && sibling.edge.stroke != Stroke::Invisible
+                && sibling.edge.from == routed.edge.from
+                && sibling.edge.to == routed.edge.to
+                && distance_to_segments(projected, &sibling.segments) <= own
+        })
 }
 
 fn distance_to_segments(point: (usize, usize), segments: &[Segment]) -> f64 {

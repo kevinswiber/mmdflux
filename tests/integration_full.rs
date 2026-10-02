@@ -364,3 +364,74 @@ fn subgraph_direction_mixed_cross_boundary_edge_stays_off_borders() {
         );
     }
 }
+
+/// Row of the text drawing that holds `needle`, which must appear exactly once.
+fn row_of(text: &str, needle: &str) -> usize {
+    let rows: Vec<usize> = text
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| line.contains(needle))
+        .map(|(row, _)| row)
+        .collect();
+    assert_eq!(rows.len(), 1, "{needle:?} should appear once:\n{text}");
+    rows[0]
+}
+
+#[test]
+fn lr_parallel_edge_labels_sit_on_their_own_lines() {
+    let three = render_diagram(
+        "flowchart LR\n  api[API] -->|read| db[(DB)]\n  api -->|admin| db\n  api -->|write| db\n",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
+    let rows = [
+        row_of(&three, "read"),
+        row_of(&three, "admin"),
+        row_of(&three, "write"),
+    ];
+    assert!(
+        rows[0] < rows[1] && rows[1] < rows[2],
+        "labels should follow edge order top to bottom:\n{three}"
+    );
+    for row in rows {
+        assert!(
+            three.lines().nth(row).unwrap().contains('►'),
+            "each label should share a row with its edge's arrow:\n{three}"
+        );
+    }
+
+    let two = render_diagram(
+        "flowchart LR\n  api[API] -->|read| db[(DB)]\n  api -->|write| db\n",
+        OutputFormat::Text,
+        &RenderConfig::default(),
+    )
+    .unwrap();
+    for label in ["read", "write"] {
+        let line = two.lines().nth(row_of(&two, label)).unwrap();
+        assert!(
+            line.contains('►'),
+            "{label} should be on its edge line:\n{two}"
+        );
+    }
+    assert!(row_of(&two, "read") < row_of(&two, "write"), "{two}");
+}
+
+#[test]
+fn lr_parallel_edge_linkstyle_colors_the_line_carrying_its_label() {
+    let ansi = render_diagram(
+        "flowchart LR\n  api[API] -->|read| db[(DB)]\n  api -->|admin| db\n  api -->|write| db\n  linkStyle 1 stroke:#2ea043\n",
+        OutputFormat::Text,
+        &RenderConfig {
+            text_color_mode: mmdflux::TextColorMode::Ansi,
+            ..RenderConfig::default()
+        },
+    )
+    .unwrap();
+    let colored: Vec<&str> = ansi
+        .lines()
+        .filter(|line| line.contains("38;2;46;160;67"))
+        .collect();
+    assert_eq!(colored.len(), 1, "{ansi}");
+    assert!(colored[0].contains("admin"), "{ansi}");
+}
