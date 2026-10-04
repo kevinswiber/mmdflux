@@ -54,7 +54,7 @@ id = "allow-timeline"
 type = "allow"
 [rules.config]
 source = "timeline"
-allowed = []
+allowed = ["format"]
 
 [[rules]]
 id = "allow-simplification"

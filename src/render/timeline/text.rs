@@ -3,6 +3,7 @@
 //! Renders a `SequenceLayout` onto a shared `Canvas` using box-drawing
 //! characters from `CharSet`. Supports both Unicode and ASCII output.
 
+use crate::format::cell_advance_width;
 use crate::graph::Stroke;
 use crate::render::text::CellExtent;
 use crate::render::text::canvas::Canvas;
@@ -129,7 +130,10 @@ pub(crate) fn render_measured(layout: &SequenceLayout, charset: &CharSet) -> (St
 }
 
 fn draw_title(canvas: &mut Canvas, title: &TitleLayout) {
-    let x = canvas.width().saturating_sub(title.text.len()) / 2;
+    let x = canvas
+        .width()
+        .saturating_sub(cell_advance_width(&title.text))
+        / 2;
     canvas.write_str(x, title.y, &title.text);
 }
 
@@ -147,7 +151,7 @@ fn draw_participant_header(canvas: &mut Canvas, p: &ParticipantLayout, cs: &Char
     canvas.set(x, y + 1, cs.vertical);
     canvas.set(x + 1, y + 1, ' ');
     canvas.write_str(x + 2, y + 1, &p.label);
-    canvas.set(x + 2 + p.label.len(), y + 1, ' ');
+    canvas.set(x + 2 + cell_advance_width(&p.label), y + 1, ' ');
     canvas.set(x + w - 1, y + 1, cs.vertical);
 
     canvas.set(x, y + 2, cs.corner_bl);
@@ -189,7 +193,7 @@ fn draw_participant_group_box(
             canvas.set(x, top + 1, ' ');
         }
         let available_width = right.saturating_sub(left + 1);
-        let label_x = left + 1 + available_width.saturating_sub(label.len()) / 2;
+        let label_x = left + 1 + available_width.saturating_sub(cell_advance_width(label)) / 2;
         canvas.write_str(label_x, top + 1, label);
     }
 }
@@ -537,7 +541,7 @@ fn draw_note(
     text: &str,
     cs: &CharSet,
 ) {
-    let min_box_width = text.len() + 4;
+    let min_box_width = cell_advance_width(text) + 4;
 
     let (box_x, box_width) = match placement {
         NotePlacement::LeftOf => {
@@ -577,7 +581,7 @@ fn draw_note(
     for i in 1..box_width - 1 {
         canvas.set(box_x + i, y + 1, ' ');
     }
-    let text_offset = (box_width - 2 - text.len()) / 2;
+    let text_offset = (box_width - 2 - cell_advance_width(text)) / 2;
     canvas.write_str(box_x + 1 + text_offset, y + 1, text);
     canvas.set(box_x + box_width - 1, y + 1, cs.vertical);
 

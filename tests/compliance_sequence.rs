@@ -369,3 +369,63 @@ fn sequence_svg_title_renders() {
     assert!(svg.contains(">Authentication Flow</text>"));
     assert!(svg.contains(">Login request</text>"));
 }
+
+fn text_width(output: &str) -> usize {
+    output
+        .lines()
+        .map(mmdflux::format::display_width)
+        .max()
+        .unwrap_or(0)
+}
+
+#[test]
+fn sequence_text_keeps_long_participant_names_whole() {
+    let output = render_sequence_text("long_participant_names.mmd");
+    for label in [
+        "A participant with a very long display name",
+        "Another participant with a long name too",
+    ] {
+        assert!(output.contains(label), "missing {label:?} in\n{output}");
+    }
+}
+
+#[test]
+fn sequence_text_sizes_cjk_text_in_cells() {
+    let output = render_sequence_text("cjk_participants.mmd");
+    for text in [
+        "部署フロー",
+        "日本語の参加者",
+        "こんにちは世界、元気ですか",
+        "注意してください",
+    ] {
+        assert!(output.contains(text), "missing {text:?} in\n{output}");
+    }
+    // Byte-measured layout drew this 59 cells wide.
+    assert!(
+        text_width(&output) < 59,
+        "{}\n{output}",
+        text_width(&output)
+    );
+}
+
+fn render_sequence_source(input: &str) -> String {
+    mmdflux::render_diagram(input, OutputFormat::Text, &RenderConfig::default())
+        .expect("Failed to render sequence text")
+}
+
+#[test]
+fn sequence_text_keeps_combining_marks_and_joined_emoji_whole() {
+    // Decomposed accents (e + U+0301) and ZWJ-joined emoji take more canvas
+    // cells than their terminal width; boxes must leave room for every one.
+    for label in ["e\u{301}e\u{301}e\u{301}", "👩\u{200d}💻👩\u{200d}💻"] {
+        let input = format!(
+            "sequenceDiagram\nparticipant A as {label}\nparticipant B as Bob\nA->>B: hi\nNote right of A: {label}\n"
+        );
+        let output = render_sequence_source(&input);
+        assert_eq!(
+            output.matches(label).count(),
+            2,
+            "{label:?} not whole in\n{output}"
+        );
+    }
+}

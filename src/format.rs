@@ -32,6 +32,17 @@ pub fn char_display_width(c: char) -> usize {
     UnicodeWidthChar::width(c).unwrap_or(0).max(1)
 }
 
+/// Cells that painting `s` one character at a time with
+/// [`char_display_width`] advances across, as the text canvas does.
+///
+/// Equal to [`display_width`] for ASCII and East Asian wide text, but larger
+/// for combining marks and zero-width joiners, which each take a canvas cell.
+/// Size boxes with this when their text is painted through the canvas so the
+/// text never runs into the border.
+pub fn cell_advance_width(s: &str) -> usize {
+    s.chars().map(char_display_width).sum()
+}
+
 use crate::errors::RenderError;
 
 /// Output format for rendering.
@@ -369,5 +380,19 @@ pub enum TextColorMode {
 impl TextColorMode {
     pub fn uses_ansi(self) -> bool {
         matches!(self, TextColorMode::Ansi)
+    }
+}
+
+#[cfg(test)]
+mod cell_width_tests {
+    use super::{cell_advance_width, display_width};
+
+    #[test]
+    fn cell_advance_width_counts_a_cell_per_combining_mark_and_joiner() {
+        assert_eq!(cell_advance_width("abc"), 3);
+        assert_eq!(cell_advance_width("部署"), 4);
+        assert_eq!(display_width("e\u{301}"), 1);
+        assert_eq!(cell_advance_width("e\u{301}"), 2);
+        assert_eq!(cell_advance_width("👩\u{200d}💻"), 5);
     }
 }

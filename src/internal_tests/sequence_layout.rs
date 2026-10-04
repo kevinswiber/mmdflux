@@ -203,3 +203,28 @@ sequenceDiagram
     assert_eq!(layout.blocks[0].depth, 0);
     assert_eq!(layout.blocks[1].depth, 1);
 }
+
+#[test]
+fn layout_measures_participant_boxes_in_terminal_cells() {
+    let layout = layout_input(
+        "sequenceDiagram\nparticipant A as 日本語の参加者\nparticipant B as Bob\nA->>B: hi",
+    );
+    // Seven wide glyphs are 14 cells; the box adds a border and a space each side.
+    assert_eq!(layout.participants[0].box_width, 18);
+    assert_eq!(layout.participants[1].box_width, 7);
+}
+
+#[test]
+fn layout_keeps_adjacent_participant_boxes_apart() {
+    let layout = layout_input(
+        "sequenceDiagram\nparticipant A as A participant with a very long display name\nparticipant B as Another participant with a long name too\nA->>B: hi\nB-->>A: ok",
+    );
+    for pair in layout.participants.windows(2) {
+        assert!(
+            pair[0].box_x + pair[0].box_width < pair[1].box_x,
+            "boxes overlap: {:?} and {:?}",
+            (pair[0].box_x, pair[0].box_width),
+            (pair[1].box_x, pair[1].box_width)
+        );
+    }
+}

@@ -7,6 +7,7 @@ use super::model::{
     ArrowHead, BlockDividerKind, BlockKind, LineStyle, NotePlacement, Participant, ParticipantBox,
     ParticipantKind, Sequence, SequenceEvent,
 };
+use crate::format::cell_advance_width;
 
 /// Minimum gap between participant centers (characters).
 const MIN_PARTICIPANT_GAP: usize = 20;
@@ -431,7 +432,10 @@ pub fn layout(model: &Sequence) -> SequenceLayout {
 
     let max_block_right = blocks.iter().map(|block| block.right_x).max().unwrap_or(0);
 
-    let title_width = title.as_ref().map(|title| title.text.len()).unwrap_or(0);
+    let title_width = title
+        .as_ref()
+        .map(|title| cell_advance_width(&title.text))
+        .unwrap_or(0);
     let width = max_participant_right
         .max(max_participant_box_right)
         .max(max_row_right)
@@ -528,11 +532,11 @@ fn message_target_x(
 }
 
 fn block_label_len(keyword: &str, label: &str) -> usize {
-    let badge_len = keyword.len() + 2;
+    let badge_len = cell_advance_width(keyword) + 2;
     let text_len = if label.is_empty() {
         badge_len
     } else {
-        badge_len + 1 + label.len()
+        badge_len + 1 + cell_advance_width(label)
     };
     text_len + 3
 }
@@ -569,7 +573,7 @@ fn row_extent(row: &RowLayout, participants: &[ParticipantLayout]) -> (usize, us
             text,
             ..
         } => {
-            let box_width = text.len() + 4;
+            let box_width = cell_advance_width(text) + 4;
             match placement {
                 NotePlacement::LeftOf => {
                     let center_x = participants[participant_indices[0]].center_x;
@@ -604,12 +608,12 @@ fn format_label_len(text: &str, number: &Option<usize>) -> usize {
     match number {
         Some(n) => {
             if text.is_empty() {
-                format!("{n}.").len()
+                cell_advance_width(&format!("{n}."))
             } else {
-                format!("{n}. {text}").len()
+                cell_advance_width(&format!("{n}. {text}"))
             }
         }
-        None => text.len(),
+        None => cell_advance_width(text),
     }
 }
 
@@ -626,8 +630,10 @@ fn compute_participant_gap(model: &Sequence) -> usize {
                 number,
                 ..
             } if from != to => {
-                let prefix_len = number.map(|n| format!("{n}. ").len()).unwrap_or(0);
-                Some(text.len() + prefix_len)
+                let prefix_len = number
+                    .map(|n| cell_advance_width(&format!("{n}. ")))
+                    .unwrap_or(0);
+                Some(cell_advance_width(text) + prefix_len)
             }
             _ => None,
         })
@@ -635,6 +641,13 @@ fn compute_participant_gap(model: &Sequence) -> usize {
         .unwrap_or(0);
 
     (max_label_len + LABEL_PADDING).max(MIN_PARTICIPANT_GAP)
+}
+
+/// Centre-to-centre distance between adjacent participants: the uniform
+/// message gap, widened so the two boxes keep at least one free cell between
+/// them.
+fn participant_center_distance(gap: usize, left_box: usize, right_box: usize) -> usize {
+    gap.max((left_box + right_box).div_ceil(2) + 1)
 }
 
 /// Compute extra left margin needed for left-of notes.
@@ -647,11 +660,12 @@ fn compute_left_note_margin(model: &Sequence) -> usize {
     let mut centers = Vec::with_capacity(model.participants.len());
     let mut x = 1usize;
     for (i, p) in model.participants.iter().enumerate() {
-        let box_width = p.label.len() + 4;
+        let box_width = cell_advance_width(&p.label) + 4;
         centers.push(x + box_width / 2);
         if i < model.participants.len() - 1 {
-            let next_bw = model.participants[i + 1].label.len() + 4;
-            x = centers[i] + MIN_PARTICIPANT_GAP - next_bw / 2;
+            let next_bw = cell_advance_width(&model.participants[i + 1].label) + 4;
+            let distance = participant_center_distance(MIN_PARTICIPANT_GAP, box_width, next_bw);
+            x = (centers[i] + distance).saturating_sub(next_bw / 2);
         }
     }
 
@@ -663,7 +677,7 @@ fn compute_left_note_margin(model: &Sequence) -> usize {
             text,
         } = event
         {
-            let box_width = text.len() + 4;
+            let box_width = cell_advance_width(text) + 4;
             let center_x = centers[indices[0]];
             // The renderer places the box at center_x - (box_width + 1)
             let needed = box_width + 1;
@@ -686,7 +700,7 @@ fn layout_participants(
     let mut x = 1 + left_margin; // left margin + space for left-of notes
 
     for (i, p) in participants.iter().enumerate() {
-        let box_width = p.label.len() + 4; // | + space + label + space + |
+        let box_width = cell_advance_width(&p.label) + 4; // | + space + label + space + |
         let center_x = x + box_width / 2;
 
         result.push(ParticipantLayout {
@@ -702,10 +716,10 @@ fn layout_participants(
         });
 
         if i < participants.len() - 1 {
-            // Next participant starts at center_x + gap - half of next box
-            let next_label_len = participants[i + 1].label.len();
-            let next_box_width = next_label_len + 4;
-            x = center_x + gap - next_box_width / 2;
+            // Next participant starts at its centre minus half its box.
+            let next_box_width = cell_advance_width(&participants[i + 1].label) + 4;
+            let distance = participant_center_distance(gap, box_width, next_box_width);
+            x = (center_x + distance).saturating_sub(next_box_width / 2);
         }
     }
 
@@ -731,7 +745,7 @@ fn layout_participant_boxes(
             let min_width = participant_box
                 .label
                 .as_ref()
-                .map(|label| label.len() + 4)
+                .map(|label| cell_advance_width(label) + 4)
                 .unwrap_or(0)
                 .max(6);
             let current_width = right_x.saturating_sub(left_x) + 1;

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 245.86 308.00" style="max-width: 245.86px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="seq-arrowhead" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#333" />
+    </marker>
+  </defs>
+  <g class="title">
+    <text x="122.93" y="18.00" text-anchor="middle" dominant-baseline="middle" fill="#333">部署フロー</text>
+  </g>
+  <g class="lifelines">
+    <line x1="55.88" y1="88.00" x2="55.88" y2="298.00" stroke="#333" stroke-width="1" stroke-dasharray="5,5" />
+    <line x1="206.87" y1="88.00" x2="206.87" y2="298.00" stroke="#333" stroke-width="1" stroke-dasharray="5,5" />
+  </g>
+  <g class="participants">
+    <rect x="10.00" y="44.00" width="91.76" height="44.00" fill="white" stroke="#333" stroke-width="1" />
+    <text x="55.88" y="66.00" text-anchor="middle" dominant-baseline="middle" fill="#333">日本語の参加者</text>
+    <rect x="177.88" y="44.00" width="57.98" height="44.00" fill="white" stroke="#333" stroke-width="1" />
+    <text x="206.87" y="66.00" text-anchor="middle" dominant-baseline="middle" fill="#333">Bob</text>
+  </g>
+  <g class="events">
+    <line x1="55.88" y1="108.00" x2="206.87" y2="108.00" stroke="#333" stroke-width="1" marker-end="url(#seq-arrowhead)"/>
+    <text x="131.38" y="104.00" text-anchor="middle" dominant-baseline="auto" fill="#333">こんにちは世界、元気ですか</text>
+    <path d="M 45.88 158.00 L 209.87 158.00 L 216.87 165.00 L 216.87 198.00 L 45.88 198.00 Z" fill="#ffffcc" stroke="#333" stroke-width="1" />
+    <path d="M 209.87 158.00 L 209.87 165.00 L 216.87 165.00" fill="none" stroke="#333" stroke-width="1" />
+    <text x="131.38" y="178.00" text-anchor="middle" dominant-baseline="middle" fill="#333">注意してください</text>
+    <line x1="206.87" y1="248.00" x2="55.88" y2="248.00" stroke="#333" stroke-width="1" stroke-dasharray="6,4" marker-end="url(#seq-arrowhead)"/>
+    <text x="131.38" y="244.00" text-anchor="middle" dominant-baseline="auto" fill="#333">ok</text>
+  </g>
+</svg>

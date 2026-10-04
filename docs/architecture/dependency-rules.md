@@ -202,7 +202,8 @@ collapsed back into singleton roots:
 17. **timeline::sequence owns shared sequence runtime types** — Shared
     sequence-family model and layout types live under `src/timeline/sequence/`
     so the final text renderer can depend on a neutral timeline namespace
-    instead of importing `diagrams::sequence`.
+    instead of importing `diagrams::sequence`. Its only dependency is
+    `format`, for measuring text in terminal cells.
 
 ## Adapter Rules
 
