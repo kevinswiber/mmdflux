@@ -133,7 +133,7 @@ fn label_center_from_top(top_y: usize, height: usize) -> usize {
     top_y + height / 2
 }
 
-fn exit_direction_from_segments(segments: &[Segment]) -> AttachDirection {
+pub(super) fn exit_direction_from_segments(segments: &[Segment]) -> AttachDirection {
     match segments.first() {
         Some(Segment::Vertical { y_start, y_end, .. }) if *y_end > *y_start => {
             AttachDirection::Bottom
@@ -915,6 +915,36 @@ fn draw_segment(
     }
 }
 
+/// The glyph the paint path draws for an arrowhead of `arrow_type` entering
+/// a node along `entry_direction`; `None` for `Arrow::None`.
+pub(super) fn arrow_glyph(
+    charset: &CharSet,
+    arrow_type: Arrow,
+    entry_direction: AttachDirection,
+) -> Option<char> {
+    Some(match (arrow_type, entry_direction) {
+        (Arrow::Normal, AttachDirection::Top) => charset.arrow_down,
+        (Arrow::Normal, AttachDirection::Bottom) => charset.arrow_up,
+        (Arrow::Normal, AttachDirection::Left) => charset.arrow_right,
+        (Arrow::Normal, AttachDirection::Right) => charset.arrow_left,
+        (Arrow::Cross, AttachDirection::Top) => charset.arrow_cross_down,
+        (Arrow::Cross, AttachDirection::Bottom) => charset.arrow_cross_up,
+        (Arrow::Cross, AttachDirection::Left) => charset.arrow_cross_right,
+        (Arrow::Cross, AttachDirection::Right) => charset.arrow_cross_left,
+        (Arrow::Circle, AttachDirection::Top) => charset.arrow_circle_down,
+        (Arrow::Circle, AttachDirection::Bottom) => charset.arrow_circle_up,
+        (Arrow::Circle, AttachDirection::Left) => charset.arrow_circle_right,
+        (Arrow::Circle, AttachDirection::Right) => charset.arrow_circle_left,
+        (Arrow::OpenTriangle, AttachDirection::Top) => charset.arrow_open_down,
+        (Arrow::OpenTriangle, AttachDirection::Bottom) => charset.arrow_open_up,
+        (Arrow::OpenTriangle, AttachDirection::Left) => charset.arrow_open_right,
+        (Arrow::OpenTriangle, AttachDirection::Right) => charset.arrow_open_left,
+        (Arrow::Diamond, _) => charset.arrow_diamond,
+        (Arrow::OpenDiamond, _) => charset.arrow_open_diamond,
+        (Arrow::None, _) => return None,
+    })
+}
+
 /// Draw an arrow at the given point based on entry direction.
 ///
 /// The arrow points in the direction the edge is coming from (into the target).
@@ -935,26 +965,8 @@ fn draw_arrow_with_entry(
     }
 
     // Select arrow character based on type and direction
-    let arrow_char = match (arrow_type, entry_direction) {
-        (Arrow::Normal, AttachDirection::Top) => charset.arrow_down,
-        (Arrow::Normal, AttachDirection::Bottom) => charset.arrow_up,
-        (Arrow::Normal, AttachDirection::Left) => charset.arrow_right,
-        (Arrow::Normal, AttachDirection::Right) => charset.arrow_left,
-        (Arrow::Cross, AttachDirection::Top) => charset.arrow_cross_down,
-        (Arrow::Cross, AttachDirection::Bottom) => charset.arrow_cross_up,
-        (Arrow::Cross, AttachDirection::Left) => charset.arrow_cross_right,
-        (Arrow::Cross, AttachDirection::Right) => charset.arrow_cross_left,
-        (Arrow::Circle, AttachDirection::Top) => charset.arrow_circle_down,
-        (Arrow::Circle, AttachDirection::Bottom) => charset.arrow_circle_up,
-        (Arrow::Circle, AttachDirection::Left) => charset.arrow_circle_right,
-        (Arrow::Circle, AttachDirection::Right) => charset.arrow_circle_left,
-        (Arrow::OpenTriangle, AttachDirection::Top) => charset.arrow_open_down,
-        (Arrow::OpenTriangle, AttachDirection::Bottom) => charset.arrow_open_up,
-        (Arrow::OpenTriangle, AttachDirection::Left) => charset.arrow_open_right,
-        (Arrow::OpenTriangle, AttachDirection::Right) => charset.arrow_open_left,
-        (Arrow::Diamond, _) => charset.arrow_diamond,
-        (Arrow::OpenDiamond, _) => charset.arrow_open_diamond,
-        (Arrow::None, _) => return,
+    let Some(arrow_char) = arrow_glyph(charset, arrow_type, entry_direction) else {
+        return;
     };
 
     // If the arrow position is a subgraph title or border cell, nudge it one cell inward
@@ -993,6 +1005,16 @@ fn draw_arrow(canvas: &mut Canvas, point: &Point, direction: Direction, charset:
     };
 
     canvas.set(point.x, point.y, arrow_char);
+}
+
+/// A body edge label as placed on the canvas.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PlacedEdgeLabel {
+    pub(crate) edge_index: usize,
+    pub(crate) x: usize,
+    pub(crate) y: usize,
+    pub(crate) width: usize,
+    pub(crate) height: usize,
 }
 
 /// A placed label's bounding box for collision detection.
@@ -1050,7 +1072,7 @@ pub fn render_all_edges(
         &HashMap::new(),
         &layout,
         None,
-    )
+    );
 }
 
 /// Render all edges with labels via the render-time corridor-aware placer.
@@ -1063,7 +1085,7 @@ pub fn render_all_edges_with_labels(
     edge_containment: &HashMap<usize, (usize, usize)>,
     layout: &GridLayout,
     routed_geometry: Option<&RoutedGraphGeometry>,
-) {
+) -> Vec<PlacedEdgeLabel> {
     // First pass: draw all segments and arrows
     for routed in routed_edges {
         if routed.edge.stroke == Stroke::Invisible {
@@ -1096,6 +1118,7 @@ pub fn render_all_edges_with_labels(
     // `placed_labels` is still tracked so head/tail labels (third pass) can
     // avoid overlapping body labels via `find_safe_label_position`.
     let mut placed_labels: Vec<PlacedLabel> = Vec::new();
+    let mut body_labels: Vec<PlacedEdgeLabel> = Vec::new();
     for routed in routed_edges {
         let Some(effective) = effective_edge_label(&routed.edge) else {
             continue;
@@ -1107,6 +1130,13 @@ pub fn render_all_edges_with_labels(
         let base_x = rt.center.0.saturating_sub(rt.label_dims.0 / 2);
         let base_y = label_top_for_center(rt.center.1, rt.label_dims.1);
         if let Some(p) = draw_label_direct(canvas, label, base_x, base_y, charset, rt.is_backward) {
+            body_labels.push(PlacedEdgeLabel {
+                edge_index: routed.edge.index,
+                x: p.x,
+                y: p.y,
+                width: p.width,
+                height: p.height,
+            });
             placed_labels.push(p);
         }
     }
@@ -1157,6 +1187,8 @@ pub fn render_all_edges_with_labels(
             }
         }
     }
+
+    body_labels
 }
 
 /// Draw a label at an exact position (no centering adjustment).

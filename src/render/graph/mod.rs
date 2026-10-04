@@ -13,6 +13,7 @@ pub(crate) mod svg;
 pub mod text;
 
 pub use self::svg::SvgRenderOptions;
+use self::text::audit::DrawingAudit;
 use crate::format::{OutputFormat, RoutingStyle, TextColorMode, display_width};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
@@ -20,6 +21,7 @@ use crate::graph::measure::{TextMetricsProvider, default_proportional_text_metri
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Direction, Graph};
 use crate::render::svg::theme::ResolvedSvgTheme;
+use crate::render::text::CellExtent;
 use crate::simplification::PathSimplification;
 
 pub(crate) fn edge_routing_from_style(routing_style: RoutingStyle) -> EdgeRouting {
@@ -193,6 +195,16 @@ fn geometry_for_routed_svg(diagram: &Graph, routed: &RoutedGraphGeometry) -> Gra
     }
 }
 
+/// A painted text drawing with its size in terminal cells.
+#[derive(Debug, Clone)]
+#[cfg_attr(not(test), allow(dead_code))] // extent and audit feed the runtime width fit
+pub(crate) struct GraphTextDrawing {
+    pub(crate) text: String,
+    pub(crate) extent: CellExtent,
+    /// Present iff the audit was requested.
+    pub(crate) audit: Option<DrawingAudit>,
+}
+
 /// Render text or ASCII directly from precomputed graph geometry.
 pub fn render_text_from_geometry(
     diagram: &Graph,
@@ -200,6 +212,18 @@ pub fn render_text_from_geometry(
     routed: Option<&RoutedGraphGeometry>,
     options: &TextRenderOptions,
 ) -> String {
+    render_text_from_geometry_measured(diagram, geometry, routed, options, false).text
+}
+
+/// Render text or ASCII from precomputed graph geometry, returning the
+/// painted size in terminal cells and, when `audit` is set, the drawing audit.
+pub(crate) fn render_text_from_geometry_measured(
+    diagram: &Graph,
+    geometry: &GraphGeometry,
+    routed: Option<&RoutedGraphGeometry>,
+    options: &TextRenderOptions,
+    audit: bool,
+) -> GraphTextDrawing {
     let routed_owned;
     let routed = match routed {
         Some(routed) => routed,
@@ -224,7 +248,7 @@ pub fn render_text_from_geometry(
         Some(routed),
         &config,
     );
-    text::render_text_from_grid_layout(diagram, &layout, Some(routed), options)
+    text::render_text_from_grid_layout_measured(diagram, &layout, Some(routed), options, audit)
 }
 
 /// Render a diagram to the configured output format.

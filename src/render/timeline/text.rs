@@ -4,6 +4,7 @@
 //! characters from `CharSet`. Supports both Unicode and ASCII output.
 
 use crate::graph::Stroke;
+use crate::render::text::CellExtent;
 use crate::render::text::canvas::Canvas;
 use crate::render::text::chars::CharSet;
 use crate::render::text::connections::Connections;
@@ -17,8 +18,14 @@ use crate::timeline::sequence::model::{
 
 /// Render a sequence layout to a string.
 pub fn render(layout: &SequenceLayout, charset: &CharSet) -> String {
+    render_measured(layout, charset).0
+}
+
+/// Render a sequence layout to a string together with its painted size in
+/// terminal cells.
+pub(crate) fn render_measured(layout: &SequenceLayout, charset: &CharSet) -> (String, CellExtent) {
     if layout.participants.is_empty() {
-        return String::new();
+        return (String::new(), CellExtent::default());
     }
 
     let mut canvas = Canvas::new(layout.width, layout.height);
@@ -117,7 +124,8 @@ pub fn render(layout: &SequenceLayout, charset: &CharSet) -> String {
         }
     }
 
-    canvas.to_string()
+    let extent = CellExtent::from(canvas.trimmed_extent());
+    (canvas.to_string(), extent)
 }
 
 fn draw_title(canvas: &mut Canvas, title: &TitleLayout) {

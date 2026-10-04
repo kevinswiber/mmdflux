@@ -3,6 +3,7 @@
 //! This module owns the render-side step that consumes graph-owned grid
 //! geometry and paints it onto a character canvas.
 
+pub(crate) mod audit;
 mod edge;
 pub(crate) mod label_placement;
 mod label_util;
@@ -23,21 +24,35 @@ pub(crate) fn required_canvas_size_for_test(
 #[cfg(test)]
 mod regression_tests;
 
-use super::TextRenderOptions;
+use self::audit::AuditInputs;
+use super::{GraphTextDrawing, TextRenderOptions};
 use crate::format::OutputFormat;
 use crate::graph::Graph;
 use crate::graph::geometry::RoutedGraphGeometry;
 use crate::graph::grid::{GridLayout, RoutedEdge, Segment, SubgraphBounds, route_all_edges};
 use crate::render::text::canvas::{Cell, Connections};
-use crate::render::text::{Canvas, CharSet};
+use crate::render::text::{Canvas, CellExtent, CharSet};
 
 /// Render text output from a derived grid layout.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn render_text_from_grid_layout(
     diagram: &Graph,
     layout: &GridLayout,
     routed: Option<&RoutedGraphGeometry>,
     options: &TextRenderOptions,
 ) -> String {
+    render_text_from_grid_layout_measured(diagram, layout, routed, options, false).text
+}
+
+/// Render text output from a derived grid layout, returning the painted size
+/// in terminal cells and, when `audit` is set, the drawing audit.
+pub(crate) fn render_text_from_grid_layout_measured(
+    diagram: &Graph,
+    layout: &GridLayout,
+    routed: Option<&RoutedGraphGeometry>,
+    options: &TextRenderOptions,
+    audit: bool,
+) -> GraphTextDrawing {
     let charset = match options.output_format {
         OutputFormat::Ascii => CharSet::ascii(),
         _ => CharSet::unicode(),
@@ -63,7 +78,7 @@ pub fn render_text_from_grid_layout(
     let edge_containment =
         edge::compute_edge_containment(&diagram.edges, &diagram.subgraphs, &layout.subgraph_bounds);
 
-    edge::render_all_edges_with_labels(
+    let placed_labels = edge::render_all_edges_with_labels(
         &mut canvas,
         &routed_edges,
         &charset,
@@ -80,10 +95,26 @@ pub fn render_text_from_grid_layout(
         &charset,
     );
 
-    if options.text_color_mode.uses_ansi() {
+    let extent = CellExtent::from(canvas.trimmed_extent());
+    let audit = audit.then(|| {
+        audit::audit_drawing(&AuditInputs {
+            diagram,
+            layout,
+            canvas: &canvas,
+            charset: &charset,
+            routed_edges: &routed_edges,
+            placed_labels: &placed_labels,
+        })
+    });
+    let text = if options.text_color_mode.uses_ansi() {
         canvas.to_ansi_string()
     } else {
         canvas.to_string()
+    };
+    GraphTextDrawing {
+        text,
+        extent,
+        audit,
     }
 }
 

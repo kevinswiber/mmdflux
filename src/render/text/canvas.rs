@@ -348,6 +348,56 @@ impl Canvas {
         }
     }
 
+    /// Size of the painted drawing in terminal cells, as `(width, height)`.
+    ///
+    /// Applies the same trimming as the string conversions (outer blank rows,
+    /// trailing blanks and the common indent), except that a wide glyph's
+    /// continuation cell counts toward a row's end: a row ending in a wide
+    /// glyph still occupies both terminal columns. An all-blank canvas is
+    /// `(0, 0)`.
+    pub fn trimmed_extent(&self) -> (usize, usize) {
+        let row_ends: Vec<usize> = self
+            .cells
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .rposition(|cell| cell.ch != ' ' || cell.is_continuation)
+                    .map_or(0, |idx| idx + 1)
+            })
+            .collect();
+
+        let Some(first_non_empty) = row_ends.iter().position(|&end| end > 0) else {
+            return (0, 0);
+        };
+        let last_non_empty = row_ends
+            .iter()
+            .rposition(|&end| end > 0)
+            .unwrap_or(first_non_empty);
+
+        let drawn_rows = || {
+            row_ends[first_non_empty..=last_non_empty]
+                .iter()
+                .enumerate()
+                .filter(|(_, end)| **end > 0)
+                .map(move |(offset, &end)| (first_non_empty + offset, end))
+        };
+        let min_indent = drawn_rows()
+            .map(|(y, end)| {
+                self.cells[y][..end]
+                    .iter()
+                    .take_while(|cell| cell.ch == ' ' && !cell.is_continuation)
+                    .count()
+            })
+            .min()
+            .unwrap_or(0);
+        let width = drawn_rows()
+            .map(|(_, end)| end - min_indent)
+            .max()
+            .unwrap_or(0);
+
+        (width, last_non_empty - first_non_empty + 1)
+    }
+
     /// Convert the canvas to a string with ANSI escapes emitted from cell styles.
     ///
     /// Visible text matches `Canvas::to_string()` after escape stripping.
@@ -550,6 +600,69 @@ mod tests {
 
     fn count_sgr_sequences(input: &str) -> usize {
         input.match_indices("\u{1b}[").count()
+    }
+
+    fn canvas_from_rows(width: usize, rows: &[&str]) -> Canvas {
+        let mut canvas = Canvas::new(width, rows.len());
+        for (y, row) in rows.iter().enumerate() {
+            canvas.write_str(0, y, row);
+        }
+        canvas
+    }
+
+    #[test]
+    fn trimmed_extent_of_blank_canvas_is_zero() {
+        assert_eq!(Canvas::new(0, 0).trimmed_extent(), (0, 0));
+        assert_eq!(Canvas::new(8, 3).trimmed_extent(), (0, 0));
+    }
+
+    #[test]
+    fn trimmed_extent_trims_indent_and_trailing_blanks() {
+        let canvas = canvas_from_rows(10, &["  ab"]);
+        assert_eq!(canvas.trimmed_extent(), (2, 1));
+    }
+
+    #[test]
+    fn trimmed_extent_uses_common_indent_across_rows() {
+        let canvas = canvas_from_rows(10, &["   x", " yyy"]);
+        assert_eq!(canvas.trimmed_extent(), (3, 2));
+    }
+
+    #[test]
+    fn trimmed_extent_excludes_outer_blank_rows_but_keeps_inner_ones() {
+        let canvas = canvas_from_rows(6, &["", "a", "", "b", "", ""]);
+        assert_eq!(canvas.trimmed_extent(), (1, 3));
+    }
+
+    #[test]
+    fn trimmed_extent_counts_trailing_wide_glyph_continuation() {
+        let mut canvas = Canvas::new(6, 1);
+        canvas.write_str(0, 0, "a中");
+        assert_eq!(canvas.trimmed_extent(), (3, 1));
+    }
+
+    #[test]
+    fn trimmed_extent_matches_display_cell_size() {
+        let cases: Vec<Canvas> = vec![
+            canvas_from_rows(12, &["  ┌──┐", "  │中│", "  └──┘"]),
+            canvas_from_rows(12, &["", "   x", "", " 日本語", ""]),
+            canvas_from_rows(5, &["abcde", "  c"]),
+            canvas_from_rows(9, &["    ▼", "  ab中"]),
+        ];
+        for canvas in cases {
+            let text = canvas.to_string();
+            let width = text
+                .lines()
+                .map(crate::format::display_width)
+                .max()
+                .unwrap_or(0);
+            let height = if text.trim().is_empty() {
+                0
+            } else {
+                text.lines().count()
+            };
+            assert_eq!(canvas.trimmed_extent(), (width, height), "{text:?}");
+        }
     }
 
     #[test]

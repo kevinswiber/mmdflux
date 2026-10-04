@@ -14,6 +14,10 @@ pub fn render(layout: &SequenceLayout, charset: &CharSet) -> String {
     text::render(layout, charset)
 }
 
+// Consumed by the runtime width fit.
+#[cfg_attr(not(test), allow(unused_imports))]
+pub(crate) use text::render_measured;
+
 pub fn render_svg(
     model: &Sequence,
     metrics: &ProportionalTextMetrics,
