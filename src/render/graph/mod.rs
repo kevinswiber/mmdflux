@@ -17,6 +17,7 @@ use self::text::audit::DrawingAudit;
 use crate::format::{OutputFormat, RoutingStyle, TextColorMode, display_width};
 use crate::graph::direction_policy::build_node_directions;
 use crate::graph::geometry::{GraphGeometry, LayoutEdge, RoutedGraphGeometry, SelfEdgeGeometry};
+use crate::graph::grid::GridSpacingOverrides;
 use crate::graph::measure::{TextMetricsProvider, default_proportional_text_metrics};
 use crate::graph::routing::{self, EdgeRouting};
 use crate::graph::{Direction, Graph};
@@ -43,6 +44,8 @@ pub struct TextRenderOptions {
     pub use_pinned_ranks: bool,
     #[allow(dead_code)]
     pub path_simplification: PathSimplification,
+    /// Grid compaction overrides used by the width fit; all off by default.
+    pub grid_spacing: GridSpacingOverrides,
 }
 
 impl Default for TextRenderOptions {
@@ -55,6 +58,7 @@ impl Default for TextRenderOptions {
             padding: None,
             use_pinned_ranks: false,
             path_simplification: PathSimplification::default(),
+            grid_spacing: GridSpacingOverrides::default(),
         }
     }
 }
@@ -242,11 +246,12 @@ pub(crate) fn render_text_from_geometry_measured(
         }
     };
     let config = layout_config_for_diagram(diagram, options);
-    let layout = crate::graph::grid::geometry_to_grid_layout_with_routed(
+    let layout = crate::graph::grid::geometry_to_grid_layout_with_spacing(
         diagram,
         geometry,
         Some(routed),
         &config,
+        &options.grid_spacing,
     );
     text::render_text_from_grid_layout_measured(diagram, &layout, Some(routed), options, audit)
 }
@@ -338,6 +343,18 @@ pub(crate) fn layout_config_for_diagram(
     options: &TextRenderOptions,
 ) -> crate::graph::grid::GridLayoutConfig {
     let mut config = crate::graph::grid::GridLayoutConfig::default();
+    if let Some(gaps) = options.grid_spacing.gaps {
+        match diagram.direction {
+            Direction::TopDown | Direction::BottomTop => {
+                config.v_spacing = gaps.rank_gap;
+                config.h_spacing = gaps.node_gap;
+            }
+            Direction::LeftRight | Direction::RightLeft => {
+                config.h_spacing = gaps.rank_gap;
+                config.v_spacing = gaps.node_gap;
+            }
+        }
+    }
 
     let max_label_len = diagram
         .edges
@@ -347,19 +364,27 @@ pub(crate) fn layout_config_for_diagram(
         .max()
         .unwrap_or(0);
 
+    // Label-aware spacing leaves rank gaps to the derive's per-gap repair,
+    // which sizes each gap from the labels that actually sit in it.
+    let label_aware = options.grid_spacing.label_aware;
     match diagram.direction {
         Direction::LeftRight | Direction::RightLeft => {
-            config.h_spacing = config.h_spacing.max(max_label_len + 4);
+            if !label_aware {
+                config.h_spacing = config.h_spacing.max(max_label_len + 4);
+            }
         }
         Direction::TopDown | Direction::BottomTop => {
             if max_label_len > 0 {
-                let (has_branching, left_len, right_len) = branching_label_info(diagram);
+                let (has_branching, left_len, right_len) =
+                    branching_label_info(diagram, label_aware);
                 if has_branching {
-                    config.v_spacing = config.v_spacing.max(5);
+                    if !label_aware {
+                        config.v_spacing = config.v_spacing.max(5);
+                    }
                     config.h_spacing = config.h_spacing.max(left_len.max(right_len) + 4);
                     config.left_label_margin = left_len;
                     config.right_label_margin = right_len;
-                } else {
+                } else if !label_aware {
                     config.v_spacing = config.v_spacing.max(3);
                 }
             }
@@ -389,15 +414,22 @@ pub(crate) fn layout_config_for_diagram(
     config
 }
 
-fn branching_label_info(diagram: &Graph) -> (bool, usize, usize) {
-    let mut labeled_edges_per_source: std::collections::HashMap<&str, Vec<&str>> =
+fn branching_label_info(diagram: &Graph, label_aware: bool) -> (bool, usize, usize) {
+    let label_width = |edge: &crate::graph::Edge, label: &str| {
+        if label_aware {
+            widest_label_line(edge, label)
+        } else {
+            display_width(label)
+        }
+    };
+    let mut labeled_edges_per_source: std::collections::HashMap<&str, Vec<usize>> =
         std::collections::HashMap::new();
     for edge in &diagram.edges {
         if let Some(ref label) = edge.label {
             labeled_edges_per_source
                 .entry(&edge.from)
                 .or_default()
-                .push(label);
+                .push(label_width(edge, label));
         }
     }
 
@@ -405,21 +437,25 @@ fn branching_label_info(diagram: &Graph) -> (bool, usize, usize) {
     let mut max_left = 0;
     let mut max_right = 0;
 
-    for labels in labeled_edges_per_source.values() {
-        if labels.len() >= 2 {
+    for widths in labeled_edges_per_source.values() {
+        if widths.len() >= 2 {
             has_branching = true;
-            max_left = max_left.max(display_width(labels[0]));
-            max_right = max_right.max(
-                labels[1..]
-                    .iter()
-                    .map(|l| display_width(l))
-                    .max()
-                    .unwrap_or(0),
-            );
+            max_left = max_left.max(widths[0]);
+            max_right = max_right.max(widths[1..].iter().copied().max().unwrap_or(0));
         }
     }
 
     (has_branching, max_left, max_right)
+}
+
+/// Widest line of an edge label as drawn: the wrapped lines when the wrap
+/// pass produced them, else the raw `\n`-separated lines.
+fn widest_label_line(edge: &crate::graph::Edge, label: &str) -> usize {
+    match edge.wrapped_label_lines.as_deref() {
+        Some(lines) => lines.iter().map(|line| display_width(line)).max(),
+        None => label.split('\n').map(display_width).max(),
+    }
+    .unwrap_or(0)
 }
 
 // RenderConfig conversion tests live in runtime/config.rs.

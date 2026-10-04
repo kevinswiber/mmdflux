@@ -282,7 +282,7 @@ pub(crate) struct TransformContext {
 /// The default value is the identity projection (scale = 1, no offsets); this
 /// keeps `GridLayout::default()` — and therefore test helpers that synthesize
 /// minimal layouts — byte-identical to previous behavior.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(crate) struct GridProjection {
     pub(crate) layout_min_x: f64,
     pub(crate) layout_min_y: f64,
@@ -292,6 +292,13 @@ pub(crate) struct GridProjection {
     pub(crate) left_label_margin: usize,
     pub(crate) overhang_x: usize,
     pub(crate) overhang_y: usize,
+    /// Optional primary-axis anchors, `(layout coordinate, grid coordinate)`
+    /// sorted by layout coordinate. When present, points are projected on the
+    /// primary axis by piecewise-linear interpolation between anchors so they
+    /// follow per-gap rank repairs; empty keeps the uniform scale.
+    pub(crate) primary_anchors: Vec<(f64, f64)>,
+    /// Whether the primary axis is `y` (TD/BT) rather than `x` (LR/RL).
+    pub(crate) primary_is_y: bool,
 }
 
 impl Default for GridProjection {
@@ -305,6 +312,8 @@ impl Default for GridProjection {
             left_label_margin: 0,
             overhang_x: 0,
             overhang_y: 0,
+            primary_anchors: Vec::new(),
+            primary_is_y: true,
         }
     }
 }
@@ -319,7 +328,38 @@ impl GridProjection {
         let y = ((layout_y - self.layout_min_y) * self.scale_y).round() as usize
             + self.overhang_y
             + self.padding;
-        (x, y)
+        if self.primary_anchors.is_empty() {
+            (x, y)
+        } else if self.primary_is_y {
+            (x, self.anchored(layout_y, self.scale_y))
+        } else {
+            (self.anchored(layout_x, self.scale_x), y)
+        }
+    }
+
+    /// Project a primary-axis layout coordinate through the anchors,
+    /// extrapolating with the uniform `scale` outside their range.
+    fn anchored(&self, layout: f64, scale: f64) -> usize {
+        let anchors = &self.primary_anchors;
+        let (first, last) = (anchors[0], anchors[anchors.len() - 1]);
+        let grid = if layout <= first.0 {
+            first.1 + (layout - first.0) * scale
+        } else if layout >= last.0 {
+            last.1 + (layout - last.0) * scale
+        } else {
+            anchors
+                .windows(2)
+                .find(|pair| layout >= pair[0].0 && layout <= pair[1].0)
+                .map_or(last.1, |pair| {
+                    let ((l0, g0), (l1, g1)) = (pair[0], pair[1]);
+                    if (l1 - l0).abs() < f64::EPSILON {
+                        g0
+                    } else {
+                        g0 + (layout - l0) * (g1 - g0) / (l1 - l0)
+                    }
+                })
+        };
+        grid.round().max(0.0) as usize
     }
 }
 
@@ -334,6 +374,8 @@ impl From<&TransformContext> for GridProjection {
             left_label_margin: ctx.left_label_margin,
             overhang_x: ctx.overhang_x,
             overhang_y: ctx.overhang_y,
+            primary_anchors: Vec::new(),
+            primary_is_y: true,
         }
     }
 }
@@ -372,6 +414,44 @@ impl TransformContext {
 #[cfg(test)]
 mod projection_tests {
     use super::*;
+
+    fn anchored_x_projection() -> GridProjection {
+        GridProjection {
+            scale_x: 0.5,
+            scale_y: 0.25,
+            primary_anchors: vec![(0.0, 2.0), (100.0, 10.0), (200.0, 40.0)],
+            primary_is_y: false,
+            ..GridProjection::default()
+        }
+    }
+
+    #[test]
+    fn anchored_projection_interpolates_between_layer_anchors() {
+        let projection = anchored_x_projection();
+        assert_eq!(projection.project_point(50.0, 0.0).0, 6);
+        assert_eq!(projection.project_point(150.0, 0.0).0, 25);
+    }
+
+    #[test]
+    fn anchored_projection_extrapolates_with_uniform_scale() {
+        let projection = anchored_x_projection();
+        assert_eq!(projection.project_point(220.0, 0.0).0, 50);
+        assert_eq!(projection.project_point(-4.0, 0.0).0, 0);
+    }
+
+    #[test]
+    fn anchored_projection_leaves_cross_axis_uniform() {
+        let projection = anchored_x_projection();
+        let uniform = GridProjection {
+            primary_anchors: Vec::new(),
+            ..anchored_x_projection()
+        };
+        assert_eq!(
+            projection.project_point(150.0, 80.0).1,
+            uniform.project_point(150.0, 80.0).1
+        );
+        assert_eq!(uniform.project_point(150.0, 80.0), (75, 20));
+    }
 
     #[test]
     fn grid_layout_projection_projects_float_point() {

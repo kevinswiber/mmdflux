@@ -11,6 +11,9 @@ mod diagram;
 pub mod direction_policy;
 mod edge;
 pub(crate) mod edge_marker;
+// Consumed by the runtime width fit.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) mod fit_levers;
 pub(crate) mod font_metrics;
 pub mod geometry;
 pub mod grid;

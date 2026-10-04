@@ -23,7 +23,7 @@ use override_sublayouts::{
 };
 use quantize::{
     ScaleNodeDims, collision_repair, compute_grid_positions, compute_grid_scale_factors,
-    compute_layer_starts, rank_gap_repair,
+    compute_layer_starts, rank_gap_repair, rank_gap_repair_per_gap,
 };
 #[cfg(test)]
 use subgraph_bounds::build_children_map;
@@ -43,6 +43,7 @@ use super::layout::{
     CoordTransform, GridLayout, GridProjection, NodeBounds, RawCenter, SelfEdgeDrawData,
     SubgraphBounds, TransformContext,
 };
+use super::spacing::GridSpacingOverrides;
 use crate::graph::geometry::{GraphGeometry, RoutedGraphGeometry};
 use crate::graph::measure::grid_node_dimensions;
 use crate::graph::space::FRect;
@@ -183,6 +184,24 @@ pub fn geometry_to_grid_layout_with_routed(
     geometry: &GraphGeometry,
     routed: Option<&RoutedGraphGeometry>,
     config: &GridLayoutConfig,
+) -> GridLayout {
+    geometry_to_grid_layout_with_spacing(
+        diagram,
+        geometry,
+        routed,
+        config,
+        &GridSpacingOverrides::default(),
+    )
+}
+
+/// [`geometry_to_grid_layout_with_routed`] with crate-private spacing
+/// overrides for text compaction.
+pub(crate) fn geometry_to_grid_layout_with_spacing(
+    diagram: &Graph,
+    geometry: &GraphGeometry,
+    routed: Option<&RoutedGraphGeometry>,
+    config: &GridLayoutConfig,
+    spacing: &GridSpacingOverrides,
 ) -> GridLayout {
     let is_vertical = matches!(diagram.direction, Direction::TopDown | Direction::BottomTop);
     let direction = diagram.direction;
@@ -340,17 +359,23 @@ pub fn geometry_to_grid_layout_with_routed(
             config.v_spacing
         },
     );
-    rank_gap_repair(
-        &layers,
-        &mut draw_positions,
-        &node_dims,
-        is_vertical,
-        if is_vertical {
-            config.v_spacing
-        } else {
-            config.h_spacing
-        },
-    );
+    let base_rank_gap = if is_vertical {
+        config.v_spacing
+    } else {
+        config.h_spacing
+    };
+    if spacing.label_aware {
+        let mins = label_gap_mins(diagram, geometry, &layers, is_vertical, base_rank_gap);
+        rank_gap_repair_per_gap(&layers, &mut draw_positions, &node_dims, is_vertical, &mins);
+    } else {
+        rank_gap_repair(
+            &layers,
+            &mut draw_positions,
+            &node_dims,
+            is_vertical,
+            base_rank_gap,
+        );
+    }
 
     // Update node_bounds after collision repair
     for (id, &(x, y)) in &draw_positions {
@@ -864,7 +889,12 @@ pub fn geometry_to_grid_layout_with_routed(
     // `authoritative_label_positions` are no longer populated here.
     let _ = routed;
 
-    let grid_projection = GridProjection::from(&ctx);
+    let mut grid_projection = GridProjection::from(&ctx);
+    if spacing.label_aware {
+        grid_projection.primary_is_y = is_vertical;
+        grid_projection.primary_anchors =
+            layer_anchors(&layers, geometry, &node_bounds, is_vertical);
+    }
 
     GridLayout {
         grid_positions,
@@ -1820,4 +1850,144 @@ fn point_delta(a: usize, b: usize) -> i8 {
 fn shift_axis(value: usize, delta: isize) -> Option<usize> {
     let shifted = value as isize + delta;
     (shifted >= 0).then_some(shifted as usize)
+}
+
+/// Minimum primary-axis gap per rank gap for label-aware spacing.
+///
+/// `mins[i]` is the gap between layer `i - 1` and layer `i`. Every gap gets at
+/// least `base`; a gap that holds an edge label widens to fit it: the widest
+/// wrapped line plus 4 cells in LR/RL, or the line count plus 2 rows (plus 4
+/// when the source has two or more labeled out-edges) in TD/BT. The gap is
+/// the first one whose far layer centre lies past the engine's label
+/// position, else the gap right after the edge's lower layer.
+fn label_gap_mins(
+    diagram: &Graph,
+    geometry: &GraphGeometry,
+    layers: &[Vec<String>],
+    is_vertical: bool,
+    base: usize,
+) -> Vec<usize> {
+    let mut mins = vec![base; layers.len()];
+    let layer_of: HashMap<&str, usize> = layers
+        .iter()
+        .enumerate()
+        .flat_map(|(i, layer)| layer.iter().map(move |id| (id.as_str(), i)))
+        .collect();
+    let primary_center = |node: &crate::graph::geometry::PositionedNode| {
+        if is_vertical {
+            node.rect.y + node.rect.height / 2.0
+        } else {
+            node.rect.x + node.rect.width / 2.0
+        }
+    };
+    let layer_center: Vec<f64> = layers
+        .iter()
+        .map(|layer| {
+            let centers: Vec<f64> = layer
+                .iter()
+                .filter_map(|id| geometry.nodes.get(id))
+                .map(primary_center)
+                .collect();
+            if centers.is_empty() {
+                0.0
+            } else {
+                centers.iter().sum::<f64>() / centers.len() as f64
+            }
+        })
+        .collect();
+    let has_label =
+        |edge: &crate::graph::Edge| edge.label.as_deref().is_some_and(|l| !l.is_empty());
+    let mut labeled_out: HashMap<&str, usize> = HashMap::new();
+    for edge in diagram.edges.iter().filter(|edge| has_label(edge)) {
+        *labeled_out.entry(edge.from.as_str()).or_default() += 1;
+    }
+
+    for layout_edge in &geometry.edges {
+        let Some(edge) = diagram.edges.get(layout_edge.index) else {
+            continue;
+        };
+        if edge.from == edge.to || !has_label(edge) {
+            continue;
+        }
+        let (Some(&a), Some(&b)) = (
+            layer_of.get(edge.from.as_str()),
+            layer_of.get(edge.to.as_str()),
+        ) else {
+            continue;
+        };
+        if a == b {
+            continue;
+        }
+        let (lo, hi) = (a.min(b), a.max(b));
+        let gap = layout_edge
+            .label_position
+            .map(|point| if is_vertical { point.y } else { point.x })
+            .and_then(|position| (lo + 1..=hi).find(|&i| position < layer_center[i]))
+            .unwrap_or(lo + 1);
+        let lines: Vec<&str> = match edge.wrapped_label_lines.as_deref() {
+            Some(lines) => lines.iter().map(String::as_str).collect(),
+            None => edge
+                .label
+                .as_deref()
+                .unwrap_or_default()
+                .split('\n')
+                .collect(),
+        };
+        let need = if is_vertical {
+            let branching = labeled_out.get(edge.from.as_str()).copied().unwrap_or(0) >= 2;
+            lines.len() + if branching { 4 } else { 2 }
+        } else {
+            lines
+                .iter()
+                .map(|line| crate::format::display_width(line))
+                .max()
+                .unwrap_or(0)
+                + 4
+        };
+        mins[gap] = mins[gap].max(need);
+    }
+    mins
+}
+
+/// One primary-axis anchor per layer after rank-gap repair: the mean layout
+/// centre of the layer's nodes mapped to the mean centre of their grid boxes,
+/// sorted by layout coordinate.
+fn layer_anchors(
+    layers: &[Vec<String>],
+    geometry: &GraphGeometry,
+    node_bounds: &HashMap<String, NodeBounds>,
+    is_vertical: bool,
+) -> Vec<(f64, f64)> {
+    let mut anchors: Vec<(f64, f64)> = layers
+        .iter()
+        .filter_map(|layer| {
+            let centers: Vec<(f64, f64)> = layer
+                .iter()
+                .filter_map(|id| {
+                    let node = geometry.nodes.get(id)?;
+                    let bounds = node_bounds.get(id)?;
+                    Some(if is_vertical {
+                        (
+                            node.rect.y + node.rect.height / 2.0,
+                            bounds.y as f64 + bounds.height as f64 / 2.0,
+                        )
+                    } else {
+                        (
+                            node.rect.x + node.rect.width / 2.0,
+                            bounds.x as f64 + bounds.width as f64 / 2.0,
+                        )
+                    })
+                })
+                .collect();
+            (!centers.is_empty()).then(|| {
+                let count = centers.len() as f64;
+                let (layout, grid) = centers
+                    .iter()
+                    .fold((0.0, 0.0), |(l, g), (cl, cg)| (l + cl, g + cg));
+                (layout / count, grid / count)
+            })
+        })
+        .collect();
+    anchors.sort_by(|a, b| a.0.total_cmp(&b.0));
+    anchors
 }

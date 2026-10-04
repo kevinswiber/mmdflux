@@ -186,6 +186,19 @@ pub(super) fn rank_gap_repair(
     is_vertical: bool,
     min_gap: usize,
 ) {
+    let mins = vec![min_gap; layers.len()];
+    rank_gap_repair_per_gap(layers, draw_positions, node_dims, is_vertical, &mins);
+}
+
+/// [`rank_gap_repair`] with a minimum per gap: `mins[i]` is the gap between
+/// layer `i - 1` and layer `i` (`mins[0]` is unused).
+pub(super) fn rank_gap_repair_per_gap(
+    layers: &[Vec<String>],
+    draw_positions: &mut HashMap<String, (usize, usize)>,
+    node_dims: &HashMap<String, (usize, usize)>,
+    is_vertical: bool,
+    mins: &[usize],
+) {
     if layers.len() <= 1 {
         return;
     }
@@ -212,7 +225,7 @@ pub(super) fn rank_gap_repair(
             .min()
             .unwrap_or(0);
 
-        let required = prev_max + min_gap;
+        let required = prev_max + mins[i];
         if curr_min < required {
             let shift = required - curr_min;
             // Shift all nodes in this layer and all subsequent layers

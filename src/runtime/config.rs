@@ -7,6 +7,7 @@ pub use crate::engines::graph::{
 };
 use crate::format::{CornerStyle, Curve, EdgePreset, OutputFormat, RoutingStyle, TextColorMode};
 use crate::graph::GeometryLevel;
+use crate::graph::grid::GridSpacingOverrides;
 use crate::render::graph::{SvgRenderOptions, TextRenderOptions};
 use crate::simplification::PathSimplification;
 
@@ -122,6 +123,7 @@ impl RenderConfig {
             padding: self.padding,
             use_pinned_ranks: false,
             path_simplification: self.path_simplification,
+            grid_spacing: GridSpacingOverrides::default(),
         }
     }
 

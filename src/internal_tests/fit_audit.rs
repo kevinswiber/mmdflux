@@ -5,18 +5,14 @@ use std::fs;
 use std::path::Path;
 
 use super::fit_measure::{layout_fixture, load_fixture};
+use super::fit_spacing::{draw, gaps};
 use crate::graph::Graph;
 use crate::graph::geometry::GraphGeometry;
-use crate::graph::grid::{GridLayoutConfig, geometry_to_grid_layout_with_routed};
+use crate::graph::grid::GridSpacingOverrides;
 use crate::graph::measure::default_proportional_text_metrics;
-use crate::graph::routing::route_graph_geometry;
 use crate::mmds::{from_document, hydrate_graph_geometry_from_document_with_diagram};
 use crate::render::graph::text::audit::DrawingAudit;
-use crate::render::graph::text::render_text_from_grid_layout_measured;
-use crate::render::graph::{
-    TextRenderOptions, edge_routing_from_style, layout_config_for_diagram,
-    render_text_from_geometry_measured,
-};
+use crate::render::graph::{TextRenderOptions, render_text_from_geometry_measured};
 use crate::{OutputFormat, RenderConfig};
 
 fn graph_fixture_names() -> Vec<String> {
@@ -66,27 +62,6 @@ fn replay_source(input: &str, strip_ranks: bool) -> (Graph, GraphGeometry) {
         projection.node_ranks.clear();
     }
     (graph, geometry)
-}
-
-/// Audit a replayed drawing with an explicit grid config.
-fn audit_with_grid_config(
-    graph: &Graph,
-    geometry: &GraphGeometry,
-    options: &TextRenderOptions,
-    adjust: impl FnOnce(&mut GridLayoutConfig),
-) -> DrawingAudit {
-    let routed = route_graph_geometry(
-        graph,
-        geometry,
-        edge_routing_from_style(options.routing_style),
-        &default_proportional_text_metrics(),
-    );
-    let mut config = layout_config_for_diagram(graph, options);
-    adjust(&mut config);
-    let layout = geometry_to_grid_layout_with_routed(graph, geometry, Some(&routed), &config);
-    render_text_from_grid_layout_measured(graph, &layout, Some(&routed), options, true)
-        .audit
-        .expect("audit requested")
 }
 
 #[test]
@@ -197,14 +172,11 @@ fn fit_audit_rejects_rotate_relative_flip_of_nested_overrides() {
 
 #[test]
 fn fit_audit_rejects_rank_gap_of_one_in_top_down() {
-    let options = text_options();
     for fixture in ["flowchart/fan_in.mmd", "flowchart/bidirectional.mmd"] {
-        let (graph, geometry) = replay_source(&load_fixture(fixture), false);
-        let authored = audit_with_grid_config(&graph, &geometry, &options, |_| {});
-        assert_eq!(authored, audit_of(&graph, &geometry, &options), "{fixture}");
-        let squeezed = audit_with_grid_config(&graph, &geometry, &options, |config| {
-            config.v_spacing = 1;
-        });
+        let authored = draw(fixture, GridSpacingOverrides::default())
+            .audit
+            .expect("audit requested");
+        let squeezed = draw(fixture, gaps(1, 4)).audit.expect("audit requested");
         let regressions = squeezed.regressions_against(&authored);
         assert!(!regressions.is_empty(), "{fixture}: rank gap 1 accepted");
     }

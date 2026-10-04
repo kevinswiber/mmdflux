@@ -72,28 +72,32 @@ pub(crate) fn string_extent(text: &str) -> CellExtent {
     }
 }
 
-/// Parse a graph-family fixture into its payload graph.
-pub(crate) fn fixture_graph(fixture: &str) -> Graph {
-    let input = load_fixture(fixture);
+/// Parse graph-family Mermaid source into its payload graph.
+pub(crate) fn source_graph(input: &str) -> Graph {
     let registry = default_registry();
-    let id = registry.detect(&input).expect("detect");
+    let id = registry.detect(input).expect("detect");
     let parsed = registry
         .create(id)
         .expect("diagram instance")
-        .parse(&input)
+        .parse(input)
         .expect("parse");
     match parsed.into_payload().expect("payload") {
         Diagram::Flowchart(graph) | Diagram::Class(graph) | Diagram::State(graph) => graph,
-        Diagram::Sequence(_) => panic!("{fixture} is not a graph-family fixture"),
+        Diagram::Sequence(_) => panic!("not a graph-family diagram"),
     }
+}
+
+/// Lay graph-family Mermaid source out with the layered engine in grid mode.
+pub(crate) fn layout_source(input: &str) -> (Graph, GraphGeometry) {
+    let graph = source_graph(input);
+    let config = EngineConfig::Layered(RenderConfig::default().layout.into());
+    let geometry = run_layered_layout(&MeasurementMode::Grid, &graph, &config).expect("layout");
+    (graph, geometry)
 }
 
 /// Lay a graph-family fixture out with the layered engine in grid mode.
 pub(crate) fn layout_fixture(fixture: &str) -> (Graph, GraphGeometry) {
-    let graph = fixture_graph(fixture);
-    let config = EngineConfig::Layered(RenderConfig::default().layout.into());
-    let geometry = run_layered_layout(&MeasurementMode::Grid, &graph, &config).expect("layout");
-    (graph, geometry)
+    layout_source(&load_fixture(fixture))
 }
 
 fn measured(

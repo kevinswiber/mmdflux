@@ -13,8 +13,10 @@ mod intersect;
 pub(crate) mod label_placement;
 mod layout;
 mod routing;
+mod spacing;
 
 pub use derive::geometry_to_grid_layout_with_routed;
+pub(crate) use derive::geometry_to_grid_layout_with_spacing;
 #[cfg(test)]
 pub(crate) use intersect::{NodeFace, classify_face, face_extent, face_fixed_coord};
 #[cfg(test)]
@@ -27,6 +29,8 @@ pub use routing::{AttachDirection, Point, RoutedEdge, Segment, route_all_edges};
 pub(crate) use routing::{
     AttachmentOverride, TextPathFamily, compute_attachment_plan, route_edge_with_probe,
 };
+#[cfg_attr(not(test), allow(unused_imports))] // GridGaps is set by the runtime width fit
+pub(crate) use spacing::{GridGaps, GridSpacingOverrides};
 
 pub use crate::graph::projection::OverrideSubgraphProjection;
 
