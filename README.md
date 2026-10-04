@@ -166,6 +166,12 @@ mmdflux --format svg --svg-theme dark --svg-theme-mode dynamic diagram.mmd -o di
 # MMDS JSON output with routed geometry detail
 mmdflux --format mmds --geometry-level routed diagram.mmd
 
+# Fit text output to 80 columns
+mmdflux --max-width 80 diagram.mmd
+
+# Fit to the terminal; exit 3 if nothing fits, and print a JSON fit report to stderr
+mmdflux --max-width "$COLUMNS" --require-fit --fit-report json diagram.mmd
+
 # Lint mode (validate input and print diagnostics)
 mmdflux --lint diagram.mmd
 
@@ -186,6 +192,35 @@ With ANSI enabled, text/ascii output maps Mermaid styling to terminal colors whe
 The SVG output exposes Mermaid-compatible CSS hooks: each subgraph is wrapped in `<g class="cluster {userClasses}" id="{id}">` so external stylesheets can target whole subgraphs and the user classes applied via `class A foo` or `A:::foo`. See [`docs/svg-output.md`](./docs/svg-output.md) for the full hook surface.
 
 See more examples in the sections below.
+
+## Fitting a terminal width
+
+`--max-width <COLS>` keeps text and ASCII output within a column budget.
+A diagram that already fits prints exactly as it would without the flag.
+Otherwise mmdflux tries, in order, label-aware spacing and tighter gaps,
+wrapping edge labels, node labels and class members, and then the
+transposed layout direction (`LR` drawn as `TD` and so on). It keeps the
+first drawing that fits and still shows every label, arrowhead and node
+of the original, and notes the changes on stderr:
+
+```text
+note: fitted to 80 columns: direction LR→TD; 43x47 (as authored 169x9)
+```
+
+- `--fit-direction keep` never changes the layout direction.
+- `--fit-truncate` also allows truncating labels and eliding long class
+  member lists, which lose text, so they are off by default.
+- When nothing fits, the narrowest drawing prints with a warning and exit 0.
+  With `--require-fit`, nothing prints (and `-o` is not written), and
+  mmdflux exits 3.
+- `--fit-report json` prints a JSON report (outcome, size, applied levers,
+  and the range of widths that give the same output) as the last stderr
+  line, even with `-q`.
+- SVG, MMDS and Mermaid output ignore `--max-width` with a warning.
+  Sequence diagrams are measured but not compacted.
+
+The same fit is available from Rust as `render_diagram_fitted` and from
+wasm as `renderFitted`.
 
 ## What It Supports
 
@@ -377,6 +412,9 @@ Most Rust integrations should stay on the high-level runtime facade:
 - `render_document`
 - `detect_diagram`
 - `validate_diagram`
+- `render_diagram_fitted`, `render_document_fitted` and
+  `render_document_with_relayout_fitted` with `FitOptions`, for text fitted
+  to a width budget
 
 Pair those entrypoints with `RenderConfig` and `OutputFormat` unless you are
 building an adapter or tooling layer that needs explicit preparation control.

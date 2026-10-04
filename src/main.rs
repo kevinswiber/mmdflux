@@ -17,14 +17,17 @@ use mmdflux::graph::GeometryLevel;
 use mmdflux::graph::measure::validate_text_metrics_profile_id;
 use mmdflux::simplification::PathSimplification;
 use mmdflux::{
-    ColorWhen, EngineAlgorithmId, LayoutConfig, OutputFormat, Ranker, RenderConfig, SvgThemeConfig,
-    SvgThemeMode, TextColorMode, apply_svg_surface_defaults, detect_diagram, materialize_diagram,
-    render_diagram, render_document, validate_diagram,
+    ColorWhen, DirectionChange, EngineAlgorithmId, FitOptions, FitOutcome, FitReport, Fitted,
+    LayoutConfig, OutputFormat, Ranker, RenderConfig, SvgThemeConfig, SvgThemeMode, TextColorMode,
+    apply_svg_surface_defaults, detect_diagram, materialize_diagram, render_diagram,
+    render_diagram_fitted, render_document, validate_diagram,
 };
 use serde::{Deserialize, Serialize};
 use svg_theme_auto::{SVG_THEME_AUTO_DEFAULT_SPEC, SvgThemeAutoMap, select_auto_theme_name};
 use terminal_appearance::{TerminalAppearance, detect_os_appearance, detect_terminal_appearance};
 
+/// Exit status when `--require-fit` is set and no layout fits `--max-width`.
+const EXIT_NO_FIT: i32 = 3;
 const CURVE_CANONICAL_VALUES: &str = "basis, linear, linear-sharp, linear-rounded";
 const CURVE_ARG_HELP: &str = "SVG curve style (basis, linear, linear-sharp, or linear-rounded). \
      Overrides the curve component of --edge-preset when both are set.";
@@ -224,6 +227,32 @@ struct Cli {
     #[arg(short, long)]
     quiet: bool,
 
+    /// Fit text and ASCII output to this many terminal columns by compacting
+    /// the layout (tighter spacing, wrapped labels, a transposed direction).
+    #[arg(
+        long,
+        value_name = "COLS",
+        value_parser = clap::builder::RangedU64ValueParser::<usize>::new().range(1..),
+        conflicts_with = "lint"
+    )]
+    max_width: Option<usize>,
+
+    /// With --max-width: when nothing fits, print nothing and exit 3.
+    #[arg(long, requires = "max_width", conflicts_with = "lint")]
+    require_fit: bool,
+
+    /// With --max-width: whether the fit may change the layout direction.
+    #[arg(long, value_enum, requires = "max_width", conflicts_with = "lint")]
+    fit_direction: Option<FitDirectionArg>,
+
+    /// With --max-width: allow truncating labels and eliding class members.
+    #[arg(long, requires = "max_width", conflicts_with = "lint")]
+    fit_truncate: bool,
+
+    /// With --max-width: print the fit report to stderr as the last line.
+    #[arg(long, value_enum, requires = "max_width", conflicts_with = "lint")]
+    fit_report: Option<FitReportArg>,
+
     /// Show node IDs alongside labels (e.g., "A: Start")
     #[arg(long)]
     show_ids: bool,
@@ -379,6 +408,29 @@ impl From<FormatArg> for OutputFormat {
             FormatArg::Mermaid => OutputFormat::Mermaid,
         }
     }
+}
+
+#[derive(Clone, Copy, ValueEnum, Debug)]
+enum FitDirectionArg {
+    /// Try a transposed layout direction when it helps (default)
+    Allow,
+    /// Keep the authored direction
+    Keep,
+}
+
+impl From<FitDirectionArg> for DirectionChange {
+    fn from(arg: FitDirectionArg) -> Self {
+        match arg {
+            FitDirectionArg::Allow => DirectionChange::Allow,
+            FitDirectionArg::Keep => DirectionChange::Keep,
+        }
+    }
+}
+
+#[derive(Clone, Copy, ValueEnum, Debug)]
+enum FitReportArg {
+    /// One JSON object
+    Json,
 }
 
 #[derive(Clone, Copy, ValueEnum, Debug)]
@@ -632,6 +684,158 @@ impl Write for SharedLogWriter {
 /// readings never both parse (diff needs two inputs or `--pair`; the legacy
 /// form takes one input and has no `--pair`), so the rule is unambiguous. When
 /// neither parses, the diff subcommand's error is reported.
+fn fit_options_from_cli(cli: &Cli, max_width: usize) -> FitOptions {
+    FitOptions::max_width(max_width)
+        .with_direction_change(cli.fit_direction.map(Into::into).unwrap_or_default())
+        .with_truncation(cli.fit_truncate)
+}
+
+fn format_name(format: OutputFormat) -> &'static str {
+    match format {
+        OutputFormat::Text => "text",
+        OutputFormat::Ascii => "ascii",
+        OutputFormat::Svg => "svg",
+        OutputFormat::Mmds => "mmds",
+        OutputFormat::Mermaid => "mermaid",
+    }
+}
+
+fn joined_levers(report: &FitReport) -> String {
+    report
+        .applied
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// `{w}x{h} ({levers}; as authored {aw}x{ah})`, or `{w}x{h} (as authored)`
+/// when no lever was applied.
+fn fit_size_summary(report: &FitReport) -> String {
+    let size = report.size.expect("a text fit reports its size");
+    let authored = report.as_authored.expect("a text fit reports its size");
+    if report.applied.is_empty() {
+        format!("{}x{} (as authored)", size.width, size.height)
+    } else {
+        format!(
+            "{}x{} ({}; as authored {}x{})",
+            size.width,
+            size.height,
+            joined_levers(report),
+            authored.width,
+            authored.height
+        )
+    }
+}
+
+fn fit_note_line(report: &FitReport, max_width: usize) -> String {
+    let size = report.size.expect("a text fit reports its size");
+    let authored = report.as_authored.expect("a text fit reports its size");
+    format!(
+        "note: fitted to {max_width} columns: {}; {}x{} (as authored {}x{})",
+        joined_levers(report),
+        size.width,
+        size.height,
+        authored.width,
+        authored.height
+    )
+}
+
+fn fit_warning_line(report: &FitReport, max_width: usize) -> String {
+    format!(
+        "warning: no layout fits --max-width {max_width}; printed the narrowest, {}",
+        fit_size_summary(report)
+    )
+}
+
+fn fit_error_line(report: &FitReport, max_width: usize) -> String {
+    format!(
+        "Error: no layout fits --max-width {max_width}; narrowest is {}",
+        fit_size_summary(report)
+    )
+}
+
+fn fit_debug_lines(report: &FitReport) -> Vec<String> {
+    report
+        .trail
+        .iter()
+        .enumerate()
+        .map(|(index, attempt)| {
+            let levers = if attempt.levers.is_empty() {
+                "as authored".to_string()
+            } else {
+                attempt
+                    .levers
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
+            format!(
+                "fit attempt {}: {levers} -> {}x{} valid={} fits={}",
+                index + 1,
+                attempt.size.width,
+                attempt.size.height,
+                attempt.valid,
+                attempt.fits
+            )
+        })
+        .collect()
+}
+
+fn print_fit_report_json(cli: &Cli, report: &FitReport) {
+    if cli.fit_report.is_some() {
+        eprintln!(
+            "{}",
+            serde_json::to_string(report).expect("fit report serialization should succeed")
+        );
+    }
+}
+
+/// Render text or ASCII fitted to `--max-width`, write it, and print the
+/// stderr lines of the fit contract. Exits 3 on a `--require-fit` miss.
+fn run_fitted(
+    cli: &Cli,
+    input: &str,
+    format: OutputFormat,
+    config: &RenderConfig,
+    max_width: usize,
+) -> io::Result<()> {
+    let fit = fit_options_from_cli(cli, max_width);
+    let fitted: Fitted = match render_diagram_fitted(input, format, config, &fit) {
+        Ok(fitted) => fitted,
+        Err(error) => {
+            eprintln!("Error: {error}");
+            std::process::exit(1);
+        }
+    };
+    let (output, report) = (fitted.output, fitted.report);
+    if cli.debug {
+        for line in fit_debug_lines(&report) {
+            eprintln!("{line}");
+        }
+    }
+    let best_attempt = report.outcome == FitOutcome::BestAttempt;
+    if best_attempt && cli.require_fit {
+        eprintln!("{}", fit_error_line(&report, max_width));
+        print_fit_report_json(cli, &report);
+        std::process::exit(EXIT_NO_FIT);
+    }
+    match &cli.output {
+        Some(path) => fs::write(path, &output)?,
+        None => print!("{output}"),
+    }
+    if !cli.quiet {
+        match report.outcome {
+            FitOutcome::Fitted => eprintln!("{}", fit_note_line(&report, max_width)),
+            FitOutcome::BestAttempt => eprintln!("{}", fit_warning_line(&report, max_width)),
+            _ => {}
+        }
+    }
+    print_fit_report_json(cli, &report);
+    Ok(())
+}
+
 fn parse_cli() -> Cli {
     let args: Vec<OsString> = env::args_os().collect();
     match Cli::try_parse_from(&args) {
@@ -838,6 +1042,18 @@ fn main() -> io::Result<()> {
                 message: w.message.clone(),
             };
             eprintln!("{diag}");
+        }
+    }
+
+    if let Some(max_width) = cli.max_width {
+        if matches!(format, OutputFormat::Text | OutputFormat::Ascii) {
+            return run_fitted(&cli, &input, format, &config, max_width);
+        }
+        if !cli.quiet {
+            eprintln!(
+                "warning: --max-width applies to text and ascii output; ignored for {}",
+                format_name(format)
+            );
         }
     }
 

@@ -144,6 +144,9 @@ GENERATE_CLASS_SVG_SNAPSHOTS=1 cargo nextest run --test compliance_class -E 'tes
 
 # Sequence
 GENERATE_SEQUENCE_TEXT_SNAPSHOTS=1 cargo nextest run --test compliance_sequence -E 'test(sequence_text_snapshots)'
+
+# Fit ladder (outcome and levers per fixture at 40 and 80 columns)
+GENERATE_FIT_SNAPSHOTS=1 cargo nextest run --test fit_corpus
 ```
 
 ## Debug Infrastructure

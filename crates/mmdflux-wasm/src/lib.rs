@@ -7,7 +7,8 @@ use mmdflux::dynamic_text_metrics::{
 use mmdflux::errors::RenderError;
 use mmdflux::format::OutputFormat;
 use mmdflux::{
-    RenderConfig, RuntimeConfigInput, apply_svg_surface_defaults, detect_diagram, render_diagram,
+    FitConfigInput, FitOptions, Fitted, RenderConfig, RuntimeConfigInput,
+    apply_svg_surface_defaults, detect_diagram, render_diagram, render_diagram_fitted,
     validate_diagram,
 };
 use wasm_bindgen::JsCast;
@@ -24,6 +25,24 @@ pub fn render(input: &str, format: &str, config_json: &str) -> Result<String, Js
     let config = parse_render_config(format, config_json)?;
 
     render_diagram(input, format, &config).map_err(|err| js_error(err.message))
+}
+
+/// Render fitted to a width budget. `fit_json` takes `maxWidth`, `maxHeight`,
+/// `fitDirection` (`"allow"` or `"keep"`) and `truncate`; the result is
+/// `{"output": ..., "fit": <fit report>}`.
+#[wasm_bindgen(js_name = renderFitted)]
+pub fn render_fitted(
+    input: &str,
+    format: &str,
+    config_json: &str,
+    fit_json: &str,
+) -> Result<String, JsError> {
+    let format = parse_output_format(format)?;
+    let config = parse_render_config(format, config_json)?;
+    let fit = parse_fit_options(fit_json).map_err(|err| js_error(err.message))?;
+    let fitted =
+        render_diagram_fitted(input, format, &config, &fit).map_err(|err| js_error(err.message))?;
+    Ok(fitted_response_json(&fitted))
 }
 
 #[wasm_bindgen(js_name = browserTextMetricsRequest)]
@@ -109,6 +128,20 @@ fn parse_render_config(format: OutputFormat, config_json: &str) -> Result<Render
     // Wasm forces flux-layered for SVG.
     apply_svg_surface_defaults(format, &mut config, true);
     Ok(config)
+}
+
+fn parse_fit_options(fit_json: &str) -> Result<FitOptions, RenderError> {
+    if fit_json.trim().is_empty() {
+        return Ok(FitOptions::default());
+    }
+    let input: FitConfigInput = serde_json::from_str(fit_json).map_err(|error| RenderError {
+        message: format!("invalid fit_json: {error}"),
+    })?;
+    input.into_fit_options()
+}
+
+fn fitted_response_json(fitted: &Fitted) -> String {
+    serde_json::json!({ "output": fitted.output, "fit": fitted.report }).to_string()
 }
 
 fn parse_resolver_config(config_json: &str) -> Result<RenderConfig, JsError> {
@@ -262,6 +295,7 @@ mod tests {
             &str,
             &js_sys::Function,
         ) -> Result<String, JsError> = render_with_browser_text_metrics;
+        let _render_fitted: fn(&str, &str, &str, &str) -> Result<String, JsError> = render_fitted;
         let _detect: fn(&str) -> Option<String> = detect;
         let _version: fn() -> String = version;
     }
@@ -509,6 +543,47 @@ mod tests {
             config.layout_engine,
             Some(EngineAlgorithmId::new(EngineId::Flux, AlgorithmId::Layered))
         );
+    }
+
+    #[test]
+    fn parse_fit_options_accepts_empty_and_camel_case_json() {
+        assert_eq!(parse_fit_options("").unwrap(), FitOptions::default());
+        assert_eq!(
+            parse_fit_options(r#"{"maxWidth":80}"#).unwrap(),
+            FitOptions::max_width(80)
+        );
+    }
+
+    #[test]
+    fn parse_fit_options_rejects_unknown_keys_and_zero_budgets() {
+        let err = parse_fit_options(r#"{"maxWidht":80}"#).unwrap_err();
+        assert!(err.message.contains("invalid fit_json"), "{err}");
+        let err = parse_fit_options(r#"{"maxWidth":0}"#).unwrap_err();
+        assert!(
+            err.message.contains("max width must be at least 1"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn fitted_response_json_carries_output_and_report() {
+        let input = "graph LR\n\
+            A[A long first node label] -->|a long edge label| B[Another long node label]\n\
+            B --> C[A third long node label]";
+        let fitted = render_diagram_fitted(
+            input,
+            OutputFormat::Text,
+            &RenderConfig::default(),
+            &parse_fit_options(r#"{"maxWidth":40}"#).unwrap(),
+        )
+        .unwrap();
+        let value: serde_json::Value =
+            serde_json::from_str(&fitted_response_json(&fitted)).unwrap();
+        assert_eq!(value["output"], fitted.output.as_str());
+        for key in ["outcome", "size", "applied", "stableFor"] {
+            assert!(value["fit"].get(key).is_some(), "missing fit.{key}");
+        }
+        assert!(value["fit"].get("trail").is_none());
     }
 
     #[test]

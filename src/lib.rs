@@ -14,6 +14,7 @@
 //! - [`render_document`] — render an already-parsed [`mmds::Document`]
 //! - [`detect_diagram`] — detect the diagram type without rendering
 //! - [`validate_diagram`] — parse and return structured JSON diagnostics
+//! - [`render_diagram_fitted`] — render text fitted to a width budget
 //! - [`OutputFormat`] — `Text`, `Ascii`, `Svg`, or `Mmds`
 //! - [`RenderConfig`] — layout engine, routing, padding, color, and more
 //!
@@ -70,6 +71,34 @@
 //!
 //! let output = render_diagram("graph LR\n    A-->B-->C", OutputFormat::Text, &config).unwrap();
 //! println!("{output}");
+//! ```
+//!
+//! ## Fitting a terminal width
+//!
+//! [`render_diagram_fitted`] renders text or ASCII within a width budget. It
+//! compacts the layout only as far as needed (spacing, label wrapping, then a
+//! transposed direction) and reports what it did in a [`FitReport`]. With no
+//! budget, or when the as-authored drawing fits, the output equals
+//! [`render_diagram`]'s.
+//!
+//! ```
+//! use mmdflux::{FitOptions, FitOutcome, OutputFormat, RenderConfig, render_diagram_fitted};
+//!
+//! let input = "graph LR\n    A[Collect the inputs] -->|validated| B[Render every diagram] \
+//!              -->|written| C[Publish the results]";
+//! let fitted = render_diagram_fitted(
+//!     input,
+//!     OutputFormat::Text,
+//!     &RenderConfig::default(),
+//!     &FitOptions::max_width(40),
+//! )
+//! .unwrap();
+//!
+//! assert_eq!(fitted.report.outcome, FitOutcome::Fitted);
+//! assert!(fitted.output.lines().all(|line| line.chars().count() <= 40));
+//! for lever in &fitted.report.applied {
+//!     println!("{lever}"); // e.g. "direction LR→TD"
+//! }
 //! ```
 //!
 //! ## Validation
@@ -331,8 +360,15 @@
 //!   (for example, `Command::AddNode { ... }`) is still breaking; individual
 //!   variants are not currently marked `#[non_exhaustive]`.
 //! - The runtime facade (`render_diagram`, `materialize_diagram`,
-//!   `render_document`, `detect_diagram`, `validate_diagram`, `OutputFormat`,
-//!   `RenderConfig`, `RenderError`) follows standard SemVer.
+//!   `render_document`, `detect_diagram`, `validate_diagram`, the fitted
+//!   entry points `render_diagram_fitted`, `render_document_fitted` and
+//!   `render_document_with_relayout_fitted`, `OutputFormat`, `RenderConfig`,
+//!   `RenderError`) follows standard SemVer.
+//! - The fit types `FitOptions`, `FitReport`, `FitLever`, `FitOutcome`,
+//!   `FitLeverScope`, `FitBudget`, `CellSize`, `StableRange`, `FitAttempt`,
+//!   `Fitted` and `DirectionChange` are `#[non_exhaustive]`: new fields and
+//!   variants land in minor versions. `FitConfigInput` is a deserialization
+//!   target like `RuntimeConfigInput` and is not `#[non_exhaustive]`.
 //! - `views::TraversalDirection` is intentionally exhaustive because its
 //!   vocabulary is closed.
 

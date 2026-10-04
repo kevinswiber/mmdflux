@@ -111,7 +111,9 @@ pub enum DirectionChange {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Fitted {
+    /// The rendered output.
     pub output: String,
+    /// How the output was chosen.
     pub report: FitReport,
 }
 
@@ -122,6 +124,7 @@ pub struct Fitted {
 pub struct FitReport {
     /// The budget asked for.
     pub budget: FitBudget,
+    /// Whether the output fits, and how.
     pub outcome: FitOutcome,
     /// Size of the output; `None` only when the fit was not applied.
     pub size: Option<CellSize>,
@@ -134,9 +137,12 @@ pub struct FitReport {
     pub authored_direction: Option<Direction>,
     /// Direction actually drawn; same `None` rule as `authored_direction`.
     pub direction: Option<Direction>,
-    /// Width budgets that give this same output; `None` when a height budget
-    /// was given or the fit was not applied.
+    /// The range of width budgets that give this same output, so a caller
+    /// can skip re-rendering while a resized terminal stays inside it. For a
+    /// best attempt it is every width narrower than the narrowest drawing.
+    /// `None` when a height budget was given or the fit was not applied.
     pub stable_for: Option<StableRange>,
+    /// Which levers were available.
     pub lever_scope: FitLeverScope,
     /// Renders performed.
     pub attempts: u32,
@@ -152,7 +158,9 @@ pub struct FitReport {
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
 pub struct FitBudget {
+    /// Width budget in terminal cells.
     pub max_width: Option<usize>,
+    /// Height budget in rows.
     pub max_height: Option<usize>,
 }
 
@@ -160,7 +168,9 @@ pub struct FitBudget {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub struct CellSize {
+    /// Columns, counting wide glyphs as two.
     pub width: usize,
+    /// Rows.
     pub height: usize,
 }
 
@@ -169,6 +179,7 @@ pub struct CellSize {
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
 pub struct StableRange {
+    /// The narrowest budget that gives the same output.
     pub min_width: usize,
     /// `None` when every wider budget gives the same output.
     pub max_width: Option<usize>,
@@ -206,10 +217,13 @@ pub enum FitLeverScope {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct FitAttempt {
+    /// Levers the candidate applied, in canonical order.
     pub levers: Vec<FitLever>,
+    /// Size of the candidate's drawing.
     pub size: CellSize,
     /// Whether the drawing kept everything the as-authored drawing showed.
     pub valid: bool,
+    /// Whether the candidate is valid and within the budget.
     pub fits: bool,
 }
 

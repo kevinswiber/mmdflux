@@ -104,6 +104,40 @@ Notes:
 - Legacy keys such as `edgeRouting`, `edgeStyle`, `svgEdgeCurve`, and
   `svgEdgeCurveRadius` are rejected.
 
+## Fitted Text Rendering
+
+`renderFitted(input, format, configJson, fitJson)` renders text or ASCII
+fitted to a width budget, the same fit as the CLI's `--max-width`. It
+returns a JSON string:
+
+```json
+{"output": "...", "fit": {"budget": {"maxWidth": 80, "maxHeight": null},
+ "outcome": "fitted", "size": {"width": 43, "height": 47},
+ "asAuthored": {"width": 169, "height": 9},
+ "applied": [{"lever": "direction", "from": "LR", "to": "TD"}],
+ "authoredDirection": "LR", "direction": "TD",
+ "stableFor": {"minWidth": 43, "maxWidth": 100},
+ "leverScope": "full", "attempts": 6, "solves": 3}}
+```
+
+`fitJson` is strict camelCase JSON (unknown keys are rejected; an empty
+string means no budget):
+
+| Key | Type | Meaning |
+| --- | ---- | ------- |
+| `maxWidth` | integer ≥ 1 | width budget in terminal cells |
+| `maxHeight` | integer ≥ 1 | height budget in rows |
+| `fitDirection` | `"allow"` \| `"keep"` | whether the layout direction may change (default `"allow"`) |
+| `truncate` | boolean | allow label truncation and class member elision (default `false`) |
+
+`fit.outcome` is `asAuthored`, `fitted`, `bestAttempt` (nothing fits;
+`output` is the narrowest valid drawing) or `notApplied` (SVG, MMDS and
+Mermaid formats, rendered exactly as `render` would). `fit.stableFor` is
+the range of `maxWidth` values that give the same output, so a caller can
+skip re-rendering while a resized terminal stays inside it. `configJson`
+is the same contract as `render`. Detect support with
+`typeof wasm.renderFitted === "function"`.
+
 ## Browser Text Metrics
 
 The existing `render` export remains static and deterministic. It never calls
