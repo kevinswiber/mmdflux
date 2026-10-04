@@ -1,0 +1,15 @@
+this is a rather long edge    ┌───────┐
+label that will wrap onto     < Check >
+          lines               └───────┘
+             ┌─────────────────┘     └────────────────┐
+             │                                        │
+             │                                        │
+             │                                        │
+             │                                        │
+             │                                        │
+             │                                        │
+             │                                       no
+             ▼                                        ▼
+       ┌──────────┐                              ┌─────────┐
+       │ Yes path │                              │ No path │
+       └──────────┘                              └─────────┘

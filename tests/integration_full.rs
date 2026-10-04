@@ -435,3 +435,51 @@ fn lr_parallel_edge_linkstyle_colors_the_line_carrying_its_label() {
     assert_eq!(colored.len(), 1, "{ansi}");
     assert!(colored[0].contains("admin"), "{ansi}");
 }
+
+fn text_width(output: &str) -> usize {
+    output
+        .lines()
+        .map(mmdflux::format::display_width)
+        .max()
+        .unwrap_or(0)
+}
+
+fn assert_label_words_present(output: &str, label: &str) {
+    for word in label.split_whitespace() {
+        assert!(output.contains(word), "missing {word:?} in\n{output}");
+    }
+}
+
+const WRAPPING_EDGE_LABEL: &str = "this is a rather long edge label that will wrap onto lines";
+
+#[test]
+fn left_right_long_edge_label_sizes_its_gap_from_wrapped_lines() {
+    let input = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/flowchart/lr_long_edge_label.mmd"),
+    )
+    .unwrap();
+    let output = render_diagram(&input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+    assert_label_words_present(&output, WRAPPING_EDGE_LABEL);
+    assert!(
+        text_width(&output) <= 170,
+        "{}\n{output}",
+        text_width(&output)
+    );
+}
+
+#[test]
+fn top_down_branching_long_edge_label_sizes_its_gap_from_wrapped_lines() {
+    let input = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/flowchart/td_branch_long_edge_label.mmd"),
+    )
+    .unwrap();
+    let output = render_diagram(&input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+    assert_label_words_present(&output, WRAPPING_EDGE_LABEL);
+    assert!(
+        text_width(&output) <= 66,
+        "{}\n{output}",
+        text_width(&output)
+    );
+}

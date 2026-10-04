@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 305.20 323.35" style="max-width: 305.20px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,0.00)">
+    <g class="edgePaths">
+      <path d="M139.77,92.75 L71.12,257.66" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M168.98,92.75 L237.64,257.66" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <polygon points="154.38,8.00 204.05,57.68 154.38,107.35 104.70,57.68" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="154.38" y="57.68" text-anchor="middle" dominant-baseline="middle" fill="#333">Check</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="8.00" y="261.35" width="123.16" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="69.58" y="288.35" text-anchor="middle" dominant-baseline="middle" fill="#333">Yes path</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="181.16" y="261.35" width="116.04" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="239.18" y="288.35" text-anchor="middle" dominant-baseline="middle" fill="#333">No path</text>
+      </g>
+    </g>
+    <g class="edgeLabels">
+      <rect x="20.37" y="109.35" width="183.22" height="76.00" fill="white" />
+      <text x="111.98" y="123.35" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a rather long edge</text>
+      <text x="111.98" y="147.35" text-anchor="middle" dominant-baseline="middle" fill="#333">label that will wrap onto</text>
+      <text x="111.98" y="171.35" text-anchor="middle" dominant-baseline="middle" fill="#333">lines</text>
+      <rect x="183.88" y="210.35" width="25.80" height="28.00" fill="white" />
+      <text x="196.78" y="224.35" text-anchor="middle" dominant-baseline="middle" fill="#333">no</text>
+    </g>
+  </g>
+</svg>

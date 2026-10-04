@@ -20,7 +20,7 @@ fit/lr_long_chain	fitted	17x51	direction LR→TD
 fit/lr_pipeline	fitted	63x55	direction LR→TD
 fit/lr_request_flow	fitted	47x63	direction LR→TD
 fit/lr_subgraphs	fitted	74x49	direction LR→TD, label-aware spacing, gaps rank 2 node 1, edge labels wrapped at 10
-fit/state_order	asAuthored	69x53	-
+fit/state_order	asAuthored	61x53	-
 fit/td_decision	fitted	80x52	label-aware spacing, gaps rank 2 node 1, edge labels wrapped at 10, node labels wrapped at 24
 fit/td_services_fan	fitted	80x19	label-aware spacing, gaps rank 2 node 1
 fit/td_subgraph_dirs	asAuthored	62x22	-
@@ -95,6 +95,7 @@ flowchart/labeled_edges	asAuthored	39x35	-
 flowchart/left_right	asAuthored	59x3	-
 flowchart/linkstyle-basic	asAuthored	10x15	-
 flowchart/long_reciprocal_labels	asAuthored	27x12	-
+flowchart/lr_long_edge_label	fitted	75x3	label-aware spacing
 flowchart/mixed_shape_chain	asAuthored	12x21	-
 flowchart/multi_edge	asAuthored	5x9	-
 flowchart/multi_edge_labeled	asAuthored	10x23	-
@@ -143,6 +144,7 @@ flowchart/subgraph_numeric_id	asAuthored	13x34	-
 flowchart/subgraph_to_subgraph_edge	asAuthored	26x34	-
 flowchart/subgraph_user_class	asAuthored	19x11	-
 flowchart/system-architecture	fitted	79x46	direction LR→TD
+flowchart/td_branch_long_edge_label	asAuthored	60x15	-
 flowchart/three_parallel_labels	asAuthored	13x15	-
 flowchart/unicode_identifiers	asAuthored	53x3	-
 flowchart/very_narrow_fan_in	asAuthored	32x9	-

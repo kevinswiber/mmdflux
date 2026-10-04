@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 764.86 92.00" style="max-width: 764.86px; background-color: transparent;" font-family="&quot;trebuchet ms&quot;, verdana, arial, sans-serif" font-size="16.00">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10.00 10.00" refX="5.00" refY="5.00" markerWidth="8.00" markerHeight="8.00" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 10.00 5.00 L 0 10.00 z" fill="#333" />
+    </marker>
+  </defs>
+  <g transform="translate(0.00,-2.50)">
+    <g class="edgePaths">
+      <path d="M101.79,48.50 L126.79,48.50 L313.01,48.50 L359.01,48.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M470.14,48.50 L516.14,48.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+      <path d="M608.61,48.50 L654.61,48.50" stroke="#333" stroke-width="1.00" fill="none" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowhead)" />
+    </g>
+    <g class="nodes">
+      <g class="node default" id="A" data-id="A" data-look="classic">
+        <rect x="8.00" y="21.50" width="93.79" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="54.89" y="48.50" text-anchor="middle" dominant-baseline="middle" fill="#333">Start</text>
+      </g>
+      <g class="node default" id="B" data-id="B" data-look="classic">
+        <rect x="363.01" y="21.50" width="107.13" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="416.57" y="48.50" text-anchor="middle" dominant-baseline="middle" fill="#333">Middle</text>
+      </g>
+      <g class="node default" id="C" data-id="C" data-look="classic">
+        <rect x="520.14" y="21.50" width="88.47" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="564.38" y="48.50" text-anchor="middle" dominant-baseline="middle" fill="#333">End</text>
+      </g>
+      <g class="node default" id="D" data-id="D" data-look="classic">
+        <rect x="658.61" y="21.50" width="98.25" height="54.00" fill="white" stroke="#333" stroke-width="1.00" stroke-linejoin="round" />
+        <text x="707.73" y="48.50" text-anchor="middle" dominant-baseline="middle" fill="#333">Done</text>
+      </g>
+    </g>
+    <g class="edgeLabels">
+      <rect x="138.79" y="10.50" width="183.22" height="76.00" fill="white" />
+      <text x="230.40" y="24.50" text-anchor="middle" dominant-baseline="middle" fill="#333">this is a rather long edge</text>
+      <text x="230.40" y="48.50" text-anchor="middle" dominant-baseline="middle" fill="#333">label that will wrap onto</text>
+      <text x="230.40" y="72.50" text-anchor="middle" dominant-baseline="middle" fill="#333">lines</text>
+    </g>
+  </g>
+</svg>

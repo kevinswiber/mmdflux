@@ -95,6 +95,7 @@ flowchart/labeled_edges	asAuthored	39x35	-
 flowchart/left_right	fitted	18x15	direction LR→TD
 flowchart/linkstyle-basic	asAuthored	10x15	-
 flowchart/long_reciprocal_labels	asAuthored	27x12	-
+flowchart/lr_long_edge_label	fitted	26x24	direction LR→TD
 flowchart/mixed_shape_chain	asAuthored	12x21	-
 flowchart/multi_edge	asAuthored	5x9	-
 flowchart/multi_edge_labeled	asAuthored	10x23	-
@@ -143,6 +144,7 @@ flowchart/subgraph_numeric_id	asAuthored	13x34	-
 flowchart/subgraph_to_subgraph_edge	asAuthored	26x34	-
 flowchart/subgraph_user_class	asAuthored	19x11	-
 flowchart/system-architecture	bestAttempt	54x46	direction LR→TD, label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/td_branch_long_edge_label	fitted	37x16	label-aware spacing, gaps rank 2 node 1, edge labels wrapped at 10
 flowchart/three_parallel_labels	asAuthored	13x15	-
 flowchart/unicode_identifiers	fitted	11x21	direction LR→TD
 flowchart/very_narrow_fan_in	asAuthored	32x9	-

@@ -359,8 +359,11 @@ pub(crate) fn layout_config_for_diagram(
     let max_label_len = diagram
         .edges
         .iter()
-        .filter_map(|e| e.label.as_ref())
-        .map(|label| label.split('\n').map(display_width).max().unwrap_or(0))
+        .filter_map(|edge| {
+            edge.label
+                .as_deref()
+                .map(|label| widest_label_line(edge, label))
+        })
         .max()
         .unwrap_or(0);
 
@@ -369,14 +372,13 @@ pub(crate) fn layout_config_for_diagram(
     let label_aware = options.grid_spacing.label_aware;
     match diagram.direction {
         Direction::LeftRight | Direction::RightLeft => {
-            if !label_aware {
+            if !label_aware && max_label_len > 0 {
                 config.h_spacing = config.h_spacing.max(max_label_len + 4);
             }
         }
         Direction::TopDown | Direction::BottomTop => {
             if max_label_len > 0 {
-                let (has_branching, left_len, right_len) =
-                    branching_label_info(diagram, label_aware);
+                let (has_branching, left_len, right_len) = branching_label_info(diagram);
                 if has_branching {
                     if !label_aware {
                         config.v_spacing = config.v_spacing.max(5);
@@ -414,14 +416,7 @@ pub(crate) fn layout_config_for_diagram(
     config
 }
 
-fn branching_label_info(diagram: &Graph, label_aware: bool) -> (bool, usize, usize) {
-    let label_width = |edge: &crate::graph::Edge, label: &str| {
-        if label_aware {
-            widest_label_line(edge, label)
-        } else {
-            display_width(label)
-        }
-    };
+fn branching_label_info(diagram: &Graph) -> (bool, usize, usize) {
     let mut labeled_edges_per_source: std::collections::HashMap<&str, Vec<usize>> =
         std::collections::HashMap::new();
     for edge in &diagram.edges {
@@ -429,7 +424,7 @@ fn branching_label_info(diagram: &Graph, label_aware: bool) -> (bool, usize, usi
             labeled_edges_per_source
                 .entry(&edge.from)
                 .or_default()
-                .push(label_width(edge, label));
+                .push(widest_label_line(edge, label));
         }
     }
 
@@ -459,3 +454,92 @@ fn widest_label_line(edge: &crate::graph::Edge, label: &str) -> usize {
 }
 
 // RenderConfig conversion tests live in runtime/config.rs.
+
+#[cfg(test)]
+mod label_gap_tests {
+    use super::{TextRenderOptions, layout_config_for_diagram};
+    use crate::graph::grid::{GridGaps, GridSpacingOverrides};
+    use crate::graph::{Direction, Edge, Graph, Node};
+
+    fn graph(direction: Direction, edges: Vec<Edge>) -> Graph {
+        let mut graph = Graph::new(direction);
+        for id in ["A", "B", "C"] {
+            graph.add_node(Node::new(id));
+        }
+        for edge in edges {
+            graph.add_edge(edge);
+        }
+        graph
+    }
+
+    fn wrapped(from: &str, to: &str, label: &str, lines: &[&str]) -> Edge {
+        let mut edge = Edge::new(from, to).with_label(label);
+        edge.wrapped_label_lines = Some(lines.iter().map(|line| line.to_string()).collect());
+        edge
+    }
+
+    fn one_cell_gaps() -> TextRenderOptions {
+        TextRenderOptions {
+            grid_spacing: GridSpacingOverrides {
+                label_aware: false,
+                gaps: Some(GridGaps {
+                    rank_gap: 1,
+                    node_gap: 1,
+                }),
+            },
+            ..TextRenderOptions::default()
+        }
+    }
+
+    #[test]
+    fn left_right_label_floor_applies_only_when_a_label_exists() {
+        let unlabeled = graph(Direction::LeftRight, vec![Edge::new("A", "B")]);
+        assert_eq!(
+            layout_config_for_diagram(&unlabeled, &one_cell_gaps()).h_spacing,
+            1
+        );
+        let labeled = graph(
+            Direction::LeftRight,
+            vec![wrapped("A", "B", "abc", &["abc"])],
+        );
+        assert_eq!(
+            layout_config_for_diagram(&labeled, &one_cell_gaps()).h_spacing,
+            7
+        );
+    }
+
+    #[test]
+    fn left_right_label_gap_uses_wrapped_lines() {
+        let diagram = graph(
+            Direction::LeftRight,
+            vec![wrapped(
+                "A",
+                "B",
+                "a long label that wraps",
+                &["a long", "label that", "wraps"],
+            )],
+        );
+        let config = layout_config_for_diagram(&diagram, &TextRenderOptions::default());
+        assert_eq!(config.h_spacing, "label that".len() + 4);
+    }
+
+    #[test]
+    fn top_down_branch_margins_use_wrapped_lines() {
+        let diagram = graph(
+            Direction::TopDown,
+            vec![
+                wrapped("A", "B", "a long left label", &["a long", "left label"]),
+                wrapped(
+                    "A",
+                    "C",
+                    "a long right label here",
+                    &["a long right", "label here"],
+                ),
+            ],
+        );
+        let config = layout_config_for_diagram(&diagram, &TextRenderOptions::default());
+        assert_eq!(config.left_label_margin, "left label".len());
+        assert_eq!(config.right_label_margin, "a long right".len());
+        assert_eq!(config.h_spacing, "a long right".len() + 4);
+    }
+}
