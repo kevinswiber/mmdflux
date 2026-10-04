@@ -1,0 +1,9 @@
+flowchart TD
+    Start[User submits the signup form] --> Validate{Is the email address valid?}
+    Validate -->|no, show inline error| Start
+    Validate -->|yes| Exists{Does an account already exist?}
+    Exists -->|yes| Login[Redirect to the login page with a hint]
+    Exists -->|no| Create[Create the account and send a verification email]
+    Create --> Verify{Did the user click the link within 24 hours?}
+    Verify -->|yes| Active[Mark the account as active]
+    Verify -->|no| Expire[Expire the token and allow a resend]

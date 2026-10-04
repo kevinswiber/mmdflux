@@ -18,8 +18,10 @@ use crate::graph::measure::{
 use crate::graph::{GeometryLevel, Graph};
 use crate::mmds::Document;
 use crate::render::graph::{
-    SvgRenderOptions, render_svg_from_geometry_with_theme_routing_and_metrics,
+    GraphTextDrawing, SvgRenderOptions, TextRenderOptions,
+    render_svg_from_geometry_with_theme_routing_and_metrics,
     render_svg_from_routed_geometry_with_theme_and_metrics, render_text_from_geometry,
+    render_text_from_geometry_measured,
 };
 use crate::runtime::config::RenderConfig;
 use crate::runtime::resolve_configured_svg_theme;
@@ -144,6 +146,43 @@ pub(in crate::runtime) fn render_graph_family_mmds_with_provider_and_measurement
 struct GraphFamilyRenderResult {
     solve: GraphSolveResult,
     text_metrics: ResolvedTextMetrics,
+}
+
+/// One engine solve of a graph-family diagram for text output, kept so
+/// several renders can reuse it.
+pub(in crate::runtime) struct TextSolve {
+    solve: GraphSolveResult,
+}
+
+/// Solve a graph-family diagram for text or ASCII output, exactly as
+/// [`render_graph_family`] does before painting.
+pub(in crate::runtime) fn solve_graph_family_text(
+    diagram_id: &str,
+    diagram: &mut Graph,
+    format: OutputFormat,
+    config: &RenderConfig,
+) -> Result<TextSolve, RenderError> {
+    let render_result = solve_graph_family_for_render(diagram_id, diagram, format, config)?;
+    Ok(TextSolve {
+        solve: render_result.solve,
+    })
+}
+
+/// Paint a solved graph-family diagram as text, returning its cell extent
+/// and, when `audit` is set, the drawing audit.
+pub(in crate::runtime) fn render_graph_family_text(
+    diagram: &Graph,
+    solve: &TextSolve,
+    options: &TextRenderOptions,
+    audit: bool,
+) -> GraphTextDrawing {
+    render_text_from_geometry_measured(
+        diagram,
+        &solve.solve.geometry,
+        solve.solve.routed.as_ref(),
+        options,
+        audit,
+    )
 }
 
 fn solve_graph_family_for_render(

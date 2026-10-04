@@ -375,6 +375,8 @@ pub use runtime::config::{
     LabelDummyPlacement, LabelDummyRouting, LayoutConfig, LayoutDirection, Ranker,
     SubgraphTitleMargin,
 };
+/// Serde-friendly fit options input for JSON consumers (Wasm, API).
+pub use runtime::config_input::FitConfigInput;
 /// Serde-friendly config input for JSON consumers (Wasm, API).
 pub use runtime::config_input::RuntimeConfigInput;
 /// Apply default SVG surface settings (curve, engine) when format is SVG.
@@ -386,6 +388,12 @@ pub use runtime::detect_diagram;
 #[cfg(feature = "unstable-text-metrics-provider")]
 #[doc(hidden)]
 pub use runtime::dynamic_text_metrics;
+/// Fit text output to a width budget ([`render_diagram_fitted`] and friends).
+pub use runtime::fit::{
+    CellSize, DirectionChange, FitAttempt, FitBudget, FitLever, FitLeverScope, FitOptions,
+    FitOutcome, FitReport, Fitted, StableRange, render_diagram_fitted, render_document_fitted,
+    render_document_with_relayout_fitted,
+};
 /// Direct graph-in / geometry-out layout facade
 /// ([`layout::layout_graph`], [`layout::LaidOutGraph`]).
 pub use runtime::layout;

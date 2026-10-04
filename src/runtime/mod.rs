@@ -11,6 +11,7 @@ pub mod config_input;
 #[doc(hidden)]
 pub mod dynamic_text_metrics;
 
+pub mod fit;
 pub(crate) mod graph_family;
 pub mod layout;
 pub(crate) mod mmds;
@@ -90,14 +91,26 @@ pub fn render_diagram(
 
     let effective_config = effective_render_config(input, format, config);
 
-    let registry = default_registry();
-
     render_span.record("frontend", "mermaid");
+    let payload = parse_mermaid_payload(input, format, |diagram_id| {
+        render_span.record("diagram_type", diagram_id);
+        tracing::debug!(event = "render", "render_diagram");
+    })?;
+    payload::render_payload(payload, format, &effective_config)
+}
+
+/// Detect, check format support, and parse Mermaid input into its payload.
+/// `on_detect` runs once the diagram type is known.
+fn parse_mermaid_payload(
+    input: &str,
+    format: OutputFormat,
+    on_detect: impl FnOnce(&'static str),
+) -> Result<crate::payload::Diagram, RenderError> {
+    let registry = default_registry();
     let diagram_id = registry.detect(input).ok_or_else(|| RenderError {
         message: "unknown diagram type".to_string(),
     })?;
-    render_span.record("diagram_type", diagram_id);
-    tracing::debug!(event = "render", "render_diagram");
+    on_detect(diagram_id);
 
     // Check format support and engine policy before creating an instance.
     if !registry.supports_format(diagram_id, format) {
@@ -114,8 +127,38 @@ pub fn render_diagram(
         message: format!("parse error: {error}"),
     })?;
 
-    let payload = parsed.into_payload()?;
-    payload::render_payload(payload, format, &effective_config)
+    parsed.into_payload()
+}
+
+/// Text input parsed for a render, before any presentation preparation.
+pub(in crate::runtime) enum PreparedInput {
+    Mmds(crate::mmds::Document),
+    Mermaid {
+        /// The unprepared payload; `show_ids` has not been applied.
+        payload: crate::payload::Diagram,
+        effective_config: Box<RenderConfig>,
+    },
+}
+
+/// Detect the frontend and parse `input` the way [`render_diagram`] does,
+/// returning the unprepared payload for Mermaid input.
+pub(in crate::runtime) fn prepare_input(
+    input: &str,
+    format: OutputFormat,
+    config: &RenderConfig,
+) -> Result<PreparedInput, RenderError> {
+    if matches!(detect_input_frontend(input), Some(InputFrontend::Mmds)) {
+        let document = crate::mmds::parse_input(input).map_err(|error| RenderError {
+            message: format!("parse error: {error}"),
+        })?;
+        return Ok(PreparedInput::Mmds(document));
+    }
+    let effective_config = effective_render_config(input, format, config);
+    let payload = parse_mermaid_payload(input, format, |_| {})?;
+    Ok(PreparedInput::Mermaid {
+        payload,
+        effective_config: Box::new(effective_config),
+    })
 }
 
 /// Detect, parse, solve, and materialize graph-family text input as MMDS.

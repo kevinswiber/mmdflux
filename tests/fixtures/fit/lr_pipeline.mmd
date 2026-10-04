@@ -1,0 +1,8 @@
+flowchart LR
+    A[Developer pushes commit] --> B[CI runs unit tests]
+    B --> C[Build container image]
+    C --> D[Push image to registry]
+    D --> E[Deploy to staging cluster]
+    E --> F{Smoke tests pass?}
+    F -->|yes| G[Promote to production]
+    F -->|no| H[Roll back and alert on-call]

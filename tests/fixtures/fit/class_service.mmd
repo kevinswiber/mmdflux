@@ -1,0 +1,20 @@
+classDiagram
+    class OrderService {
+        +createOrder(customerId: String, items: List~LineItem~) Order
+        +cancelOrder(orderId: String, reason: CancellationReason) void
+        +listOrdersForCustomer(customerId: String, page: int) List~Order~
+        -validateInventory(items: List~LineItem~) boolean
+    }
+    class PaymentGateway {
+        <<interface>>
+        +authorize(amount: Money, card: CardToken) AuthorizationResult
+        +capture(authorizationId: String) CaptureResult
+    }
+    class Order {
+        +String id
+        +String customerId
+        +List~LineItem~ items
+        +OrderStatus status
+    }
+    OrderService --> PaymentGateway : uses
+    OrderService --> Order : creates

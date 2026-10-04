@@ -473,6 +473,22 @@ fn crate_root_reexports_curated_runtime_and_value_types() {
             "detect_diagram",
             "render_diagram",
             "validate_diagram",
+            // Fitted text rendering.
+            "FitConfigInput",
+            "CellSize",
+            "DirectionChange",
+            "FitAttempt",
+            "FitBudget",
+            "FitLever",
+            "FitLeverScope",
+            "FitOptions",
+            "FitOutcome",
+            "FitReport",
+            "Fitted",
+            "StableRange",
+            "render_diagram_fitted",
+            "render_document_fitted",
+            "render_document_with_relayout_fitted",
         ],
     );
 

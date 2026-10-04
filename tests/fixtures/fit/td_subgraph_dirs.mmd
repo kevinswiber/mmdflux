@@ -1,0 +1,11 @@
+flowchart TD
+    subgraph Ingest[Ingestion layer]
+        direction LR
+        Kafka[Kafka topic] --> Parser[Event parser] --> Validator[Schema validator]
+    end
+    subgraph Store[Storage layer]
+        direction LR
+        Lake[Data lake] --> Warehouse[Warehouse tables]
+    end
+    Validator --> Lake
+    Warehouse --> Dash[Dashboards]

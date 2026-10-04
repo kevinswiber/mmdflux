@@ -12,6 +12,7 @@ use serde_json::{Map, Value};
 use crate::errors::RenderError;
 use crate::format::OutputFormat;
 use crate::graph::GeometryLevel;
+use crate::graph::grid::GridSpacingOverrides;
 use crate::graph::measure::{
     GraphTextStyleKey, LEGACY_MMDS_TEXT_METRICS_PROFILE_ID, ResolvedTextMetrics,
     TextMetricsLayoutDescriptor, TextMetricsProfileConfig, TextMetricsProfileDescriptor,
@@ -23,9 +24,10 @@ use crate::mmds::{
     hydrate_routed_geometry_from_document_with_provider, parse_input, resolve_logical_diagram_id,
 };
 use crate::render::graph::{
-    SvgRenderOptions, TextRenderOptions, edge_routing_from_style,
+    GraphTextDrawing, SvgRenderOptions, TextRenderOptions, edge_routing_from_style,
     render_svg_from_geometry_with_theme_routing_and_metrics,
     render_svg_from_routed_geometry_with_theme_and_metrics, render_text_from_geometry,
+    render_text_from_geometry_measured,
 };
 use crate::render::svg::theme::ResolvedSvgTheme;
 use crate::views::VIEW_EXTENSION_NAMESPACE;
@@ -154,41 +156,22 @@ fn render_document_with_replay_provider(
     text_metrics: &dyn TextMetricsProvider,
     from_extension: bool,
 ) -> Result<String, RenderError> {
-    let mut diagram = from_document(payload).map_err(display_error)?;
-    let has_routed_geometry = payload.geometry_level == GeometryLevel::Routed;
-
-    // MMDS replay path runs the wrap pass so the hydrated graph's edge labels
-    // carry the same `wrapped_label_lines` artifact the original render would
-    // have. `wrapped_label_lines` is
-    // `#[serde(skip)]` on the Edge, so round-tripping through MMDS drops
-    // it; rehydrating it here keeps the SVG/text replay in lockstep with
-    // the direct runtime render. New MMDS payloads persist the metrics
-    // identity and layout-time values under the text-metrics extension; older
-    // payloads fall back to the compatibility profile.
-    crate::graph::label_wrap::prepare_wrapped_labels_with_provider(
-        &mut diagram.edges,
-        text_metrics,
-        text_metrics_descriptor.layout_text.edge_label_max_width,
-    );
-
-    let geometry = hydrate_graph_geometry_from_document_with_diagram(payload, &diagram)
-        .map_err(display_error)?;
-    let routed = has_routed_geometry
-        .then(|| hydrate_routed_geometry_from_document_with_provider(payload, text_metrics))
-        .transpose()
-        .map_err(display_error)?;
+    let (diagram, geometry, routed) =
+        hydrate_replay(payload, text_metrics_descriptor, text_metrics)?;
 
     match format {
         OutputFormat::Text | OutputFormat::Ascii => {
-            let mut options = text_options.clone();
-            options.output_format = format;
-            options.use_pinned_ranks =
-                options.use_pinned_ranks || is_shared_coordinates_view(payload);
+            let replay = TextReplay {
+                options: replay_text_options(payload, format, text_options),
+                diagram,
+                geometry,
+                routed,
+            };
             Ok(render_text_from_geometry(
-                &diagram,
-                &geometry,
-                routed.as_ref(),
-                &options,
+                &replay.diagram,
+                &replay.geometry,
+                replay.routed.as_ref(),
+                &replay.options,
             ))
         }
         OutputFormat::Svg => {
@@ -218,6 +201,113 @@ fn render_document_with_replay_provider(
             message: format!("{format} output is not supported for {diagram_id} diagrams"),
         }),
     }
+}
+
+type HydratedReplay = (
+    crate::graph::Graph,
+    crate::graph::geometry::GraphGeometry,
+    Option<crate::graph::geometry::RoutedGraphGeometry>,
+);
+
+/// Hydrate a document's graph, layout geometry and (for routed documents)
+/// routed geometry for replay.
+fn hydrate_replay(
+    payload: &Document,
+    text_metrics_descriptor: &TextMetricsProfileDescriptor,
+    text_metrics: &dyn TextMetricsProvider,
+) -> Result<HydratedReplay, RenderError> {
+    let mut diagram = from_document(payload).map_err(display_error)?;
+    let has_routed_geometry = payload.geometry_level == GeometryLevel::Routed;
+
+    // MMDS replay path runs the wrap pass so the hydrated graph's edge labels
+    // carry the same `wrapped_label_lines` artifact the original render would
+    // have. `wrapped_label_lines` is
+    // `#[serde(skip)]` on the Edge, so round-tripping through MMDS drops
+    // it; rehydrating it here keeps the SVG/text replay in lockstep with
+    // the direct runtime render. New MMDS payloads persist the metrics
+    // identity and layout-time values under the text-metrics extension; older
+    // payloads fall back to the compatibility profile.
+    crate::graph::label_wrap::prepare_wrapped_labels_with_provider(
+        &mut diagram.edges,
+        text_metrics,
+        text_metrics_descriptor.layout_text.edge_label_max_width,
+    );
+
+    let geometry = hydrate_graph_geometry_from_document_with_diagram(payload, &diagram)
+        .map_err(display_error)?;
+    let routed = has_routed_geometry
+        .then(|| hydrate_routed_geometry_from_document_with_provider(payload, text_metrics))
+        .transpose()
+        .map_err(display_error)?;
+
+    Ok((diagram, geometry, routed))
+}
+
+/// Text options for replaying a document, as [`render_document`] uses them.
+fn replay_text_options(
+    payload: &Document,
+    format: OutputFormat,
+    text_options: &TextRenderOptions,
+) -> TextRenderOptions {
+    let mut options = text_options.clone();
+    options.output_format = format;
+    options.use_pinned_ranks = options.use_pinned_ranks || is_shared_coordinates_view(payload);
+    options
+}
+
+/// A document hydrated once for text replay so several renders with
+/// different grid spacing can reuse it.
+pub(in crate::runtime) struct TextReplay {
+    diagram: crate::graph::Graph,
+    geometry: crate::graph::geometry::GraphGeometry,
+    routed: Option<crate::graph::geometry::RoutedGraphGeometry>,
+    options: TextRenderOptions,
+}
+
+/// Hydrate a document for text or ASCII replay, applying the same checks and
+/// metrics resolution as [`render_document`].
+pub(in crate::runtime) fn prepare_text_replay(
+    document: &Document,
+    format: OutputFormat,
+    text_options: &TextRenderOptions,
+    requested_text_metrics_profile: Option<&str>,
+) -> Result<TextReplay, RenderError> {
+    resolve_logical_diagram_id(document)?;
+    match resolve_text_metrics_for_replay(document, format, requested_text_metrics_profile)? {
+        ReplayTextMetrics::Static { resolved, .. } => {
+            let (diagram, geometry, routed) =
+                hydrate_replay(document, &resolved.descriptor, &resolved.metrics)?;
+            Ok(TextReplay {
+                options: replay_text_options(document, format, text_options),
+                diagram,
+                geometry,
+                routed,
+            })
+        }
+        ReplayTextMetrics::Dynamic { descriptor, .. } => Err(
+            dynamic_text_metrics_provider_required(&descriptor.profile_id),
+        ),
+    }
+}
+
+/// Paint a prepared text replay with `grid_spacing`, returning its cell
+/// extent and, when `audit` is set, the drawing audit.
+pub(in crate::runtime) fn render_text_replay(
+    replay: &TextReplay,
+    grid_spacing: GridSpacingOverrides,
+    audit: bool,
+) -> GraphTextDrawing {
+    let options = TextRenderOptions {
+        grid_spacing,
+        ..replay.options.clone()
+    };
+    render_text_from_geometry_measured(
+        &replay.diagram,
+        &replay.geometry,
+        replay.routed.as_ref(),
+        &options,
+        audit,
+    )
 }
 
 #[cfg(feature = "unstable-text-metrics-provider")]

@@ -1,0 +1,10 @@
+flowchart TD
+    Gateway[API Gateway] --> Auth[Auth Service]
+    Gateway --> Users[User Service]
+    Gateway --> Orders[Order Service]
+    Gateway --> Payments[Payment Service]
+    Gateway --> Inventory[Inventory Service]
+    Gateway --> Notifications[Notification Service]
+    Orders --> Payments
+    Orders --> Inventory
+    Payments --> Notifications

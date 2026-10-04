@@ -1,0 +1,8 @@
+flowchart LR
+    Client[Browser client] -->|HTTPS request| LB[Load balancer]
+    LB -->|round robin| API1[API server 1]
+    LB -->|round robin| API2[API server 2]
+    API1 -->|read through| Cache[(Redis cache)]
+    API2 -->|read through| Cache
+    Cache -->|cache miss| DB[(Postgres primary)]
+    DB -->|async replication| Replica[(Read replica)]

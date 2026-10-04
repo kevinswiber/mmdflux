@@ -1,0 +1,161 @@
+class/all_relations	fitted	30x39	direction TD→LR, label-aware spacing
+class/animal_hierarchy	fitted	40x26	direction TD→LR, label-aware spacing, gaps rank 2 node 1, class members wrapped at 16
+class/cardinality_labels	asAuthored	23x12	-
+class/class_labels	asAuthored	20x12	-
+class/direction_bt	asAuthored	5x15	-
+class/direction_lr	asAuthored	23x3	-
+class/direction_rl	asAuthored	23x3	-
+class/direction_tb	asAuthored	5x15	-
+class/inheritance_chain	asAuthored	26x15	-
+class/interface_realization	asAuthored	35x14	-
+class/lollipop_interfaces	asAuthored	25x14	-
+class/members	asAuthored	17x25	-
+class/namespaces	asAuthored	31x35	-
+class/relationships	asAuthored	13x30	-
+class/simple	asAuthored	10x9	-
+class/two_way_relations	asAuthored	5x15	-
+class/user_lollipop_repro	asAuthored	24x21	-
+fit/class_service	bestAttempt	62x44	label-aware spacing, gaps rank 2 node 1, class members wrapped at 16
+fit/lr_long_chain	fitted	17x51	direction LR→TD
+fit/lr_pipeline	fitted	39x43	direction LR→TD, label-aware spacing, gaps rank 2 node 1, node labels wrapped at 16
+fit/lr_request_flow	fitted	37x50	direction LR→TD, label-aware spacing, gaps rank 2 node 1, edge labels wrapped at 10, node labels wrapped at 10
+fit/lr_subgraphs	bestAttempt	65x57	direction LR→TD, label-aware spacing, gaps rank 2 node 1, edge labels wrapped at 10, node labels wrapped at 10
+fit/state_order	fitted	37x38	label-aware spacing, gaps rank 2 node 1, edge labels wrapped at 10
+fit/td_decision	bestAttempt	53x68	label-aware spacing, gaps rank 2 node 1, edge labels wrapped at 10, node labels wrapped at 10
+fit/td_services_fan	bestAttempt	65x22	direction TD→LR, label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+fit/td_subgraph_dirs	fitted	21x52	subgraph directions relaxed, label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/ampersand	asAuthored	28x15	-
+flowchart/architecture_graph_lr_intrusion	fitted	32x22	direction LR→TD
+flowchart/architecture_graph_lr_terminal_contracts	bestAttempt	381x56	label-aware spacing, gaps rank 2 node 2
+flowchart/backward_corridor_overlap	asAuthored	18x15	-
+flowchart/backward_corridor_overlap_lr	asAuthored	23x11	-
+flowchart/backward_in_subgraph	asAuthored	17x11	-
+flowchart/backward_in_subgraph_lr	asAuthored	23x5	-
+flowchart/backward_label_asymmetric_markers	asAuthored	27x12	-
+flowchart/backward_loop_lr	fitted	40x45	direction LR→TD, label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/backward_port_spread	asAuthored	20x27	-
+flowchart/backward_target_spread	asAuthored	22x21	-
+flowchart/bidirectional	asAuthored	5x21	-
+flowchart/bidirectional_arrows	asAuthored	5x21	-
+flowchart/bottom_top	asAuthored	14x15	-
+flowchart/br_line_breaks	asAuthored	10x25	-
+flowchart/br_line_breaks_bracketed	asAuthored	22x23	-
+flowchart/callgraph_feedback_cycle	bestAttempt	44x89	label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/chain	asAuthored	10x21	-
+flowchart/ci_pipeline	fitted	39x36	direction LR→TD, label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/cjk_labels	fitted	27x23	direction LR→TD
+flowchart/cjk_subgraph	asAuthored	18x17	-
+flowchart/classdef_class_stmt	asAuthored	5x15	-
+flowchart/classdef_precedence	asAuthored	5x9	-
+flowchart/compat_class_annotation	asAuthored	19x23	-
+flowchart/compat_directive	asAuthored	25x23	-
+flowchart/compat_frontmatter	asAuthored	5x15	-
+flowchart/compat_hyphenated_ids	asAuthored	13x24	-
+flowchart/compat_invisible_edge	asAuthored	9x15	-
+flowchart/compat_kitchen_sink	asAuthored	33x31	-
+flowchart/compat_no_direction	asAuthored	9x9	-
+flowchart/compat_numeric_ids	asAuthored	37x3	-
+flowchart/complex	bestAttempt	60x41	label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/compound_backward_cross_boundary	bestAttempt	67x70	label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/compound_backward_disconnected	asAuthored	40x42	-
+flowchart/criss_cross	asAuthored	14x15	-
+flowchart/cross_circle_arrows	asAuthored	5x27	-
+flowchart/crossing_minimize	bestAttempt	60x41	label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/decision	asAuthored	31x23	-
+flowchart/diamond_backward	asAuthored	14x15	-
+flowchart/diamond_fan	asAuthored	21x15	-
+flowchart/diamond_fan_out	asAuthored	36x9	-
+flowchart/direction_override	asAuthored	38x21	-
+flowchart/double_skip	asAuthored	22x21	-
+flowchart/edge_styles	fitted	40x8	label-aware spacing, gaps rank 2 node 1
+flowchart/external_node_subgraph	bestAttempt	52x29	label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/fan_in	fitted	40x8	label-aware spacing, gaps rank 2 node 2
+flowchart/fan_in_backward_channel_conflict	fitted	39x30	direction TD→LR
+flowchart/fan_in_lr	asAuthored	23x15	-
+flowchart/fan_out	fitted	40x8	label-aware spacing, gaps rank 2 node 2
+flowchart/fan_out_lr	asAuthored	23x21	-
+flowchart/five_fan_in	fitted	36x8	label-aware spacing, gaps rank 2 node 2
+flowchart/five_fan_in_diamond	fitted	36x8	label-aware spacing, gaps rank 2 node 2
+flowchart/five_fan_in_lr	asAuthored	20x27	-
+flowchart/five_fan_out	fitted	27x27	direction TD→LR
+flowchart/five_fan_out_diamond	fitted	27x27	direction TD→LR
+flowchart/five_fan_out_lr	asAuthored	27x27	-
+flowchart/flowchart_code_flow	bestAttempt	1177x244	label-aware spacing, gaps rank 2 node 1
+flowchart/git_workflow	fitted	22x30	direction LR→TD
+flowchart/git_workflow_td	asAuthored	22x30	-
+flowchart/hexagon_flow	asAuthored	22x15	-
+flowchart/http_request	fitted	37x32	label-aware spacing, gaps rank 2 node 1, edge labels wrapped at 10, node labels wrapped at 10
+flowchart/inline_edge_labels	asAuthored	10x39	-
+flowchart/inline_label_flowchart	bestAttempt	124x102	label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/label_clamp_bt_review	asAuthored	8x14	-
+flowchart/label_clamp_rl_review	asAuthored	28x3	-
+flowchart/label_spacing	asAuthored	22x15	-
+flowchart/labeled_edges	asAuthored	39x35	-
+flowchart/left_right	fitted	18x15	direction LR→TD
+flowchart/linkstyle-basic	asAuthored	10x15	-
+flowchart/long_reciprocal_labels	asAuthored	27x12	-
+flowchart/mixed_shape_chain	asAuthored	12x21	-
+flowchart/multi_edge	asAuthored	5x9	-
+flowchart/multi_edge_labeled	asAuthored	10x23	-
+flowchart/multi_subgraph	fitted	16x34	direction LR→TD
+flowchart/multi_subgraph_direction_override	asAuthored	25x32	-
+flowchart/multiple_cycles	asAuthored	13x15	-
+flowchart/narrow_fan_in	asAuthored	23x9	-
+flowchart/nested_subgraph	asAuthored	27x24	-
+flowchart/nested_subgraph_edge	fitted	39x32	label-aware spacing, gaps rank 2 node 2
+flowchart/nested_subgraph_only	asAuthored	19x13	-
+flowchart/nested_subgraph_parallel_labels	asAuthored	27x33	-
+flowchart/nested_with_siblings	fitted	17x36	direction LR→TD
+flowchart/right_left	asAuthored	39x3	-
+flowchart/self_loop	asAuthored	15x3	-
+flowchart/self_loop_labeled	asAuthored	16x23	-
+flowchart/self_loop_with_others	asAuthored	15x15	-
+flowchart/shapes	asAuthored	18x15	-
+flowchart/shapes_basic	asAuthored	14x39	-
+flowchart/shapes_degenerate	asAuthored	9x45	-
+flowchart/shapes_document	asAuthored	10x27	-
+flowchart/shapes_junction	asAuthored	17x1	-
+flowchart/shapes_special	asAuthored	10x4	-
+flowchart/simple	asAuthored	9x9	-
+flowchart/simple_cycle	asAuthored	12x15	-
+flowchart/simple_subgraph	asAuthored	16x22	-
+flowchart/skip_edge_collision	asAuthored	15x21	-
+flowchart/stacked_fan_in	asAuthored	11x15	-
+flowchart/style-basic	asAuthored	9x3	-
+flowchart/style-precedence	asAuthored	9x3	-
+flowchart/subgraph_as_node_edge	asAuthored	20x33	-
+flowchart/subgraph_direction_cross_boundary	asAuthored	24x33	-
+flowchart/subgraph_direction_isolated	asAuthored	33x16	-
+flowchart/subgraph_direction_lr	asAuthored	38x21	-
+flowchart/subgraph_direction_mixed	asAuthored	21x19	-
+flowchart/subgraph_direction_nested	asAuthored	27x18	-
+flowchart/subgraph_direction_nested_both	asAuthored	24x21	-
+flowchart/subgraph_direction_nested_mixed	asAuthored	31x20	-
+flowchart/subgraph_edges	asAuthored	30x22	-
+flowchart/subgraph_edges_bottom_top	asAuthored	30x22	-
+flowchart/subgraph_multi_word_title	asAuthored	30x39	-
+flowchart/subgraph_nested_classes	asAuthored	17x24	-
+flowchart/subgraph_node_id_collision	fitted	30x17	direction LR→TD
+flowchart/subgraph_node_id_collision_reverse_order	fitted	30x17	direction LR→TD
+flowchart/subgraph_numeric_id	asAuthored	13x34	-
+flowchart/subgraph_to_subgraph_edge	asAuthored	26x34	-
+flowchart/subgraph_user_class	asAuthored	19x11	-
+flowchart/system-architecture	bestAttempt	54x46	direction LR→TD, label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+flowchart/three_parallel_labels	asAuthored	13x15	-
+flowchart/unicode_identifiers	fitted	11x21	direction LR→TD
+flowchart/very_narrow_fan_in	asAuthored	32x9	-
+state/cjk_labels	asAuthored	27x37	-
+state/classdef_basic	asAuthored	21x25	-
+state/classdef_composite	asAuthored	13x17	-
+state/composite	asAuthored	21x43	-
+state/concurrent	asAuthored	40x54	-
+state/concurrent_nested	bestAttempt	51x41	label-aware spacing, gaps rank 2 node 1
+state/concurrent_three	bestAttempt	104x38	-
+state/descriptions	asAuthored	24x22	-
+state/direction_lr	asAuthored	37x3	-
+state/multiline_descriptions	asAuthored	27x17	-
+state/notes	fitted	31x13	label-aware spacing, gaps rank 2 node 1, node labels wrapped at 10
+state/pseudo_states	asAuthored	27x53	-
+state/self_transition	asAuthored	20x25	-
+state/simple	asAuthored	10x19	-
+state/transitions	asAuthored	33x37	-

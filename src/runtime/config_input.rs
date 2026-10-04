@@ -17,6 +17,7 @@ use crate::graph::measure::{
     validate_text_metrics_profile_id,
 };
 use crate::runtime::config::{GraphTextStyleConfig, RenderConfig, SvgThemeConfig, SvgThemeMode};
+use crate::runtime::fit::{DirectionChange, FitOptions};
 use crate::simplification::PathSimplification;
 
 /// Serde-friendly render config accepted from JSON callers.
@@ -425,6 +426,39 @@ pub fn apply_svg_surface_defaults(
 
     if config.layout_engine.unwrap_or(default_svg_engine()) == default_svg_engine() {
         config.edge_preset = Some(EdgePreset::SmoothStep);
+    }
+}
+
+/// Serde-friendly fit options accepted from JSON callers.
+///
+/// Mirrors [`FitOptions`] with camelCase keys (`maxWidth`, `maxHeight`,
+/// `fitDirection`, `truncate`). Call
+/// [`into_fit_options`](Self::into_fit_options) to validate and convert.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default, rename_all = "camelCase", deny_unknown_fields)]
+pub struct FitConfigInput {
+    pub max_width: Option<usize>,
+    pub max_height: Option<usize>,
+    /// `"allow"` or `"keep"`.
+    pub fit_direction: Option<DirectionChange>,
+    pub truncate: Option<bool>,
+}
+
+impl FitConfigInput {
+    /// Validate and convert into [`FitOptions`].
+    ///
+    /// # Errors
+    ///
+    /// A `maxWidth` or `maxHeight` of 0.
+    pub fn into_fit_options(self) -> Result<FitOptions, RenderError> {
+        let options = FitOptions {
+            max_width: self.max_width,
+            max_height: self.max_height,
+            direction_change: self.fit_direction.unwrap_or_default(),
+            truncation: self.truncate.unwrap_or(false),
+        };
+        options.validate()?;
+        Ok(options)
     }
 }
 

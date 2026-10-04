@@ -1,0 +1,15 @@
+flowchart LR
+    subgraph Frontend
+        UI[React app] --> State[Redux store]
+    end
+    subgraph Backend
+        API[REST API] --> Worker[Background worker]
+        API --> DB[(Database)]
+    end
+    subgraph External
+        Stripe[Stripe payments]
+        Mail[Email provider]
+    end
+    State -->|fetch| API
+    Worker -->|charge| Stripe
+    Worker -->|send receipt| Mail
