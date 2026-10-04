@@ -29,4 +29,5 @@ mod layered_kernel_bend;
 mod render_time_placer;
 mod sequence_layout;
 mod subgraph_render_fixture;
+mod text_layer_grouping;
 mod wrap_pipeline;

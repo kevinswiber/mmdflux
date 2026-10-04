@@ -13,9 +13,11 @@ fn pinned_rank_fixture(node_ranks: HashMap<String, i32>) -> (Graph, GraphGeometr
     }
 
     let nodes = HashMap::from([
+        // Rank tops within the layer-key tolerance, so coordinate binning
+        // puts all three in one layer and only pinned ranks separate them.
         ("A".to_string(), positioned_node("A", 0.0, 0.0)),
-        ("B".to_string(), positioned_node("B", 20.0, 10.0)),
-        ("C".to_string(), positioned_node("C", 40.0, 20.0)),
+        ("B".to_string(), positioned_node("B", 20.0, 0.2)),
+        ("C".to_string(), positioned_node("C", 40.0, 0.4)),
     ]);
 
     let geometry = GraphGeometry {
@@ -979,4 +981,25 @@ graph TD
         rendered.contains("loop2"),
         "loop2 label missing from render:\n{rendered}"
     );
+}
+
+#[test]
+fn rank_aligned_primary_uses_the_edge_each_direction_aligns_ranks_on() {
+    let rect = FRect::new(10.0, 20.0, 30.0, 40.0);
+    assert_eq!(rank_aligned_primary(&rect, Direction::TopDown), 20.0);
+    assert_eq!(rank_aligned_primary(&rect, Direction::BottomTop), 60.0);
+    assert_eq!(rank_aligned_primary(&rect, Direction::LeftRight), 10.0);
+    assert_eq!(rank_aligned_primary(&rect, Direction::RightLeft), 40.0);
+}
+
+#[test]
+fn coordinate_layers_split_only_past_the_layer_key_tolerance() {
+    let coords = |keys: &[f64]| -> Vec<(String, f64, f64)> {
+        keys.iter()
+            .enumerate()
+            .map(|(i, &key)| (format!("n{i}"), key, 0.0))
+            .collect()
+    };
+    assert_eq!(coordinate_layers(&coords(&[0.0, 0.4])).len(), 1);
+    assert_eq!(coordinate_layers(&coords(&[0.0, 0.6])).len(), 2);
 }

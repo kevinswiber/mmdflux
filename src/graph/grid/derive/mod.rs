@@ -116,13 +116,27 @@ fn expand_canvas_bounds(
     }
 }
 
+/// Largest primary-axis difference between nodes grouped into one text layer.
+const LAYER_KEY_TOLERANCE: f64 = 0.5;
+
+/// The node edge its rank is aligned on: ranks are top/left aligned, and BT/RL
+/// layouts are mirrored, so their ranks share the bottom/right edge instead.
+fn rank_aligned_primary(rect: &FRect, direction: Direction) -> f64 {
+    match direction {
+        Direction::TopDown => rect.y,
+        Direction::BottomTop => rect.y + rect.height,
+        Direction::LeftRight => rect.x,
+        Direction::RightLeft => rect.x + rect.width,
+    }
+}
+
 fn coordinate_layers(layer_coords: &[(String, f64, f64)]) -> Vec<Vec<String>> {
     let mut layers: Vec<Vec<String>> = Vec::new();
     let mut current_layer: Vec<String> = Vec::new();
     let mut last_primary: Option<f64> = None;
     for (id, primary, _) in layer_coords {
         if let Some(last) = last_primary
-            && (*primary - last).abs() > 25.0
+            && (*primary - last).abs() > LAYER_KEY_TOLERANCE
             && !current_layer.is_empty()
         {
             layers.push(std::mem::take(&mut current_layer));
@@ -215,11 +229,7 @@ pub(crate) fn geometry_to_grid_layout_with_spacing(
         .iter()
         .filter(|(id, _)| !subgraph_ids.contains(id.as_str()))
         .map(|(id, pos_node)| {
-            let primary = if is_vertical {
-                pos_node.rect.y
-            } else {
-                pos_node.rect.x
-            };
+            let primary = rank_aligned_primary(&pos_node.rect, direction);
             let secondary = if is_vertical {
                 pos_node.rect.x
             } else {

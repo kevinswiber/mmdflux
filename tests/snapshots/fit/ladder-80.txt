@@ -40,6 +40,7 @@ flowchart/bidirectional_arrows	asAuthored	5x21	-
 flowchart/bottom_top	asAuthored	14x15	-
 flowchart/br_line_breaks	asAuthored	10x25	-
 flowchart/br_line_breaks_bracketed	asAuthored	22x23	-
+flowchart/bt_mixed_rank_sizes	asAuthored	16x60	-
 flowchart/callgraph_feedback_cycle	fitted	79x63	label-aware spacing, gaps rank 2 node 1
 flowchart/chain	asAuthored	10x21	-
 flowchart/ci_pipeline	fitted	43x47	direction LR→TD
@@ -107,6 +108,7 @@ flowchart/nested_subgraph_only	asAuthored	19x13	-
 flowchart/nested_subgraph_parallel_labels	asAuthored	27x33	-
 flowchart/nested_with_siblings	asAuthored	77x7	-
 flowchart/right_left	asAuthored	39x3	-
+flowchart/rl_mixed_rank_sizes	fitted	53x9	label-aware spacing, gaps rank 2 node 1, node labels wrapped at 24
 flowchart/self_loop	asAuthored	15x3	-
 flowchart/self_loop_labeled	asAuthored	16x23	-
 flowchart/self_loop_with_others	asAuthored	15x15	-
@@ -149,7 +151,7 @@ state/classdef_basic	asAuthored	21x25	-
 state/classdef_composite	asAuthored	13x17	-
 state/composite	asAuthored	21x43	-
 state/concurrent	asAuthored	40x54	-
-state/concurrent_nested	asAuthored	67x48	-
+state/concurrent_nested	asAuthored	67x53	-
 state/concurrent_three	bestAttempt	104x38	-
 state/descriptions	asAuthored	24x22	-
 state/direction_lr	asAuthored	37x3	-
