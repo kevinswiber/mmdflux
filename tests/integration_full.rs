@@ -483,3 +483,27 @@ fn top_down_branching_long_edge_label_sizes_its_gap_from_wrapped_lines() {
         text_width(&output)
     );
 }
+
+#[test]
+fn subgraph_title_sizes_its_frame_in_terminal_cells() {
+    let input = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/flowchart/cjk_subgraph_long_title.mmd"),
+    )
+    .unwrap();
+    let output = render_diagram(&input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+    let top = output.lines().next().unwrap();
+    assert!(top.contains("部署流程图标题"), "{output}");
+    // Seven wide glyphs are 14 cells; the frame adds 6 around the title.
+    assert_eq!(mmdflux::format::display_width(top), 20, "{output}");
+}
+
+#[test]
+fn subgraph_title_keeps_combining_marks_whole() {
+    // e + U+0301 takes a canvas cell per char; the frame must leave room.
+    let title = "e\u{301}e\u{301}e\u{301}";
+    let input = format!("graph TD\n  subgraph s[{title}]\n    A\n  end\n");
+    let output = render_diagram(&input, OutputFormat::Text, &RenderConfig::default()).unwrap();
+    let top = output.lines().next().unwrap();
+    assert!(top.contains(&format!(" {title} ")), "{output}");
+}

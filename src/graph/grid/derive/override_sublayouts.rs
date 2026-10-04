@@ -11,6 +11,7 @@ use super::quantize::{ScaleNodeDims, compute_grid_scale_factors};
 use super::subgraph_bounds::{
     build_subgraph_incoming_map, build_subgraph_outgoing_map, build_subgraph_parent_map,
 };
+use crate::format::cell_advance_width;
 use crate::graph::measure::grid_node_dimensions;
 use crate::graph::{Direction, Graph};
 
@@ -207,7 +208,7 @@ pub(super) fn reconcile_sublayouts_draw(
 
         // Enforce title-width minimum
         let min_title_width = if !sg.title.trim().is_empty() {
-            sg.title.len() + 6
+            cell_advance_width(&sg.title) + 6
         } else {
             0
         };
@@ -1189,7 +1190,7 @@ pub(super) fn layout_compound_parent_members(
 
         // Enforce title minimum width.
         let min_title_width = if !sg.title.trim().is_empty() {
-            sg.title.len() + 6
+            cell_advance_width(&sg.title) + 6
         } else {
             0
         };

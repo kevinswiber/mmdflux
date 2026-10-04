@@ -45,7 +45,8 @@ flowchart/callgraph_feedback_cycle	fitted	79x63	label-aware spacing, gaps rank 2
 flowchart/chain	asAuthored	10x21	-
 flowchart/ci_pipeline	fitted	43x47	direction LR→TD
 flowchart/cjk_labels	asAuthored	52x10	-
-flowchart/cjk_subgraph	asAuthored	18x17	-
+flowchart/cjk_subgraph	asAuthored	16x17	-
+flowchart/cjk_subgraph_long_title	asAuthored	20x11	-
 flowchart/classdef_class_stmt	asAuthored	5x15	-
 flowchart/classdef_precedence	asAuthored	5x9	-
 flowchart/compat_class_annotation	asAuthored	19x23	-

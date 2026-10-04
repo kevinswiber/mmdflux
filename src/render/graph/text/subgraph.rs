@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::format::{char_display_width, display_width};
+use crate::format::{cell_advance_width, char_display_width};
 use crate::graph::grid::SubgraphBounds;
 use crate::render::text::canvas::Canvas;
 use crate::render::text::chars::CharSet;
@@ -10,7 +10,7 @@ use crate::render::text::chars::CharSet;
 /// Truncate `s` so its total terminal-column width fits in `max_width`.
 ///
 /// A width-2 character is dropped rather than split, so the result is always
-/// `display_width(...) <= max_width`.
+/// `cell_advance_width(...) <= max_width`.
 fn truncate_to_display_width(s: &str, max_width: usize) -> String {
     let mut out = String::new();
     let mut width = 0usize;
@@ -62,12 +62,12 @@ pub fn render_subgraph_borders(
         let inner_width = w.saturating_sub(2); // space between corners
         let has_visible_title = !bounds.title.is_empty() && !bounds.title.trim().is_empty();
         if has_visible_title && inner_width >= 5 {
-            // Title section: "─ Title ─" = display_width(title) + 4 cells overhead.
-            // Widths are in terminal columns so East Asian wide characters
-            // reserve the two cells the terminal will paint.
+            // Title section: "─ Title ─" = title cells + 4 cells overhead.
+            // Title cells are what write_str advances across, so East Asian
+            // wide characters reserve two cells and combining marks one.
             let max_title_width = inner_width.saturating_sub(4);
             let title = truncate_to_display_width(&bounds.title, max_title_width);
-            let title_width = display_width(&title);
+            let title_width = cell_advance_width(&title);
             let title_section_len = title_width + 4;
             let left_fill = (inner_width.saturating_sub(title_section_len)) / 2;
 

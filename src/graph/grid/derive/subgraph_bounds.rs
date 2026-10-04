@@ -7,6 +7,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::super::layout::CoordTransform;
+use crate::format::cell_advance_width;
 use crate::graph::grid::{NodeBounds, SubgraphBounds};
 use crate::graph::space::FRect;
 use crate::graph::{Direction, Edge, Graph, Subgraph};
@@ -55,7 +56,7 @@ pub(super) fn subgraph_bounds_to_draw(
         // Overhead: 2 corners + "─ " prefix (2) + " ─" suffix (2) = 6
         let has_visible_title = !sg.title.trim().is_empty();
         let min_title_width = if has_visible_title {
-            sg.title.len() + 6
+            cell_advance_width(&sg.title) + 6
         } else {
             0
         };
@@ -412,8 +413,8 @@ pub(super) fn shrink_subgraph_horizontal_gaps(
 
         let inner_width = bounds.width.saturating_sub(2);
         let visible_title_len = if !bounds.title.trim().is_empty() && inner_width >= 5 {
-            let max_title_len = inner_width.saturating_sub(4);
-            bounds.title.len().min(max_title_len)
+            let max_title_width = inner_width.saturating_sub(4);
+            cell_advance_width(&bounds.title).min(max_title_width)
         } else {
             0
         };
@@ -721,7 +722,11 @@ pub(super) fn clip_and_repair_override_subgraph_bounds(
         // But if a sibling node constrains max_right, accept a narrower
         // subgraph — the rendering will auto-truncate the title to fit.
         let has_title = !bounds.title.trim().is_empty();
-        let min_title_width = if has_title { bounds.title.len() + 6 } else { 0 };
+        let min_title_width = if has_title {
+            cell_advance_width(&bounds.title) + 6
+        } else {
+            0
+        };
         let sibling_constrained = max_right < bounds.x + bounds.width;
         let mut new_x = new_x;
         if !sibling_constrained && new_w < min_title_width {
@@ -1055,7 +1060,7 @@ fn max_internal_edge_label_width(edges: &[Edge], members: &HashSet<&str>) -> usi
         .map(|label| {
             label
                 .split('\n')
-                .map(crate::format::display_width)
+                .map(crate::format::cell_advance_width)
                 .max()
                 .unwrap_or(0)
         })
