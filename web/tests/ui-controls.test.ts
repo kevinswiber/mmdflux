@@ -7,6 +7,11 @@ async function flushTasks(): Promise<void> {
   await Promise.resolve();
 }
 
+// Keeps a test's format and fit settings out of the shared jsdom localStorage.
+function createDetachedStorage() {
+  return { getItem: () => null, setItem: () => {} };
+}
+
 function createFakeRenderClient() {
   const render = vi.fn(async (request) => ({
     seq: request.seq,
@@ -20,6 +25,17 @@ function createFakeRenderClient() {
       seq: request.seq,
       format: "svg",
       output: `svg:${request.input}`,
+    })),
+    renderFitted: vi.fn(async (request) => ({
+      seq: request.seq,
+      format: request.format,
+      output: `fitted:${request.input}`,
+      fit: {
+        outcome: "fitted",
+        size: { width: 38, height: 20 },
+        asAuthored: { width: 62, height: 14 },
+        applied: [{ lever: "labelAwareSpacing" }],
+      },
     })),
     validate: vi.fn(async () => '{"valid":true}'),
     terminate: vi.fn(),
@@ -90,6 +106,130 @@ describe("format-aware controls", () => {
     svgTab.click();
     expect(edgePresetSelect.disabled).toBe(false);
     expect(pathSimplificationSelect.disabled).toBe(false);
+  });
+
+  it("limits the max width controls to text output", () => {
+    const root = document.createElement("div");
+    renderApp(root, {
+      renderClientFactory: () => createFakeRenderClient(),
+      debounceMs: 0,
+      stateStorage: createDetachedStorage(),
+    });
+
+    const textTab = root.querySelector<HTMLButtonElement>(
+      'button[data-format="text"]',
+    );
+    const svgTab = root.querySelector<HTMLButtonElement>(
+      'button[data-format="svg"]',
+    );
+    const maxWidthInput =
+      root.querySelector<HTMLInputElement>("[data-max-width]");
+    const keepDirection = root.querySelector<HTMLInputElement>(
+      "[data-fit-keep-direction]",
+    );
+    const truncate = root.querySelector<HTMLInputElement>(
+      "[data-fit-truncate]",
+    );
+    const help = root.querySelector<HTMLElement>("[data-help-max-width]");
+    if (
+      !textTab ||
+      !svgTab ||
+      !maxWidthInput ||
+      !keepDirection ||
+      !truncate ||
+      !help
+    ) {
+      throw new Error("expected max width controls");
+    }
+
+    svgTab.click();
+    expect(maxWidthInput.disabled).toBe(true);
+    expect(keepDirection.disabled).toBe(true);
+    expect(truncate.disabled).toBe(true);
+    expect(help.textContent).toContain("text output only");
+
+    textTab.click();
+    expect(maxWidthInput.disabled).toBe(false);
+    expect(keepDirection.disabled).toBe(false);
+    expect(truncate.disabled).toBe(false);
+  });
+
+  it("renders text through the fitted render once a max width is set", async () => {
+    const root = document.createElement("div");
+    const renderClient = createFakeRenderClient();
+    renderApp(root, {
+      renderClientFactory: () => renderClient,
+      debounceMs: 0,
+      stateStorage: createDetachedStorage(),
+    });
+
+    const textTab = root.querySelector<HTMLButtonElement>(
+      'button[data-format="text"]',
+    );
+    const svgTab = root.querySelector<HTMLButtonElement>(
+      'button[data-format="svg"]',
+    );
+    const maxWidthInput =
+      root.querySelector<HTMLInputElement>("[data-max-width]");
+    const keepDirection = root.querySelector<HTMLInputElement>(
+      "[data-fit-keep-direction]",
+    );
+    const truncate = root.querySelector<HTMLInputElement>(
+      "[data-fit-truncate]",
+    );
+    const fitStatus = root.querySelector<HTMLElement>("[data-fit-status]");
+    if (
+      !textTab ||
+      !svgTab ||
+      !maxWidthInput ||
+      !keepDirection ||
+      !truncate ||
+      !fitStatus
+    ) {
+      throw new Error("expected max width controls and fit status");
+    }
+
+    textTab.click();
+    await flushTasks();
+    expect(renderClient.renderFitted).not.toHaveBeenCalled();
+    expect(fitStatus.hidden).toBe(true);
+
+    maxWidthInput.value = "40";
+    maxWidthInput.dispatchEvent(new Event("input"));
+    await flushTasks();
+
+    expect(renderClient.renderFitted).toHaveBeenLastCalledWith(
+      expect.objectContaining({ format: "text", fitJson: '{"maxWidth":40}' }),
+    );
+    expect(fitStatus.hidden).toBe(false);
+    expect(fitStatus.textContent).toBe(
+      "Fitted to 40 columns: label-aware spacing; 38×20 (as authored 62×14).",
+    );
+
+    keepDirection.checked = true;
+    keepDirection.dispatchEvent(new Event("change"));
+    truncate.checked = true;
+    truncate.dispatchEvent(new Event("change"));
+    await flushTasks();
+    expect(
+      JSON.parse(renderClient.renderFitted.mock.lastCall?.[0].fitJson ?? ""),
+    ).toEqual({ maxWidth: 40, fitDirection: "keep", truncate: true });
+
+    renderClient.render.mockClear();
+    renderClient.renderFitted.mockClear();
+    svgTab.click();
+    await flushTasks();
+    expect(renderClient.renderFitted).not.toHaveBeenCalled();
+    expect(fitStatus.hidden).toBe(true);
+
+    textTab.click();
+    await flushTasks();
+    renderClient.renderFitted.mockClear();
+    maxWidthInput.value = "";
+    maxWidthInput.dispatchEvent(new Event("input"));
+    await flushTasks();
+    expect(renderClient.renderFitted).not.toHaveBeenCalled();
+    expect(fitStatus.hidden).toBe(true);
   });
 
   it("toggles advanced panel without scheduling a render", () => {

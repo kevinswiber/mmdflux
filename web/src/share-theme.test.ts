@@ -3,6 +3,7 @@ import {
   DEFAULT_SHARE_RENDER_SETTINGS,
   decodeShareState,
   encodeShareState,
+  normalizeShareRenderSettings,
 } from "./share";
 import { resolveTheme } from "./theme";
 
@@ -16,6 +17,9 @@ describe("share state", () => {
         ...DEFAULT_SHARE_RENDER_SETTINGS,
         layoutEngine: "mermaid-layered" as const,
         edgePreset: "basis" as const,
+        maxWidth: 40,
+        fitDirection: "keep" as const,
+        fitTruncate: true,
       },
     };
 
@@ -63,6 +67,22 @@ describe("share state", () => {
     const decoded = decodeShareState(hash);
     expect(decoded?.renderSettings.pathSimplification).toBe("lossless");
     expect(decoded?.textPreviewMode).toBe("plain");
+  });
+
+  it("drops max width budgets that are not positive whole numbers", () => {
+    for (const maxWidth of [0, -4, 12.5, "40", null]) {
+      expect(
+        normalizeShareRenderSettings({ maxWidth }).maxWidth,
+        String(maxWidth),
+      ).toBeNull();
+    }
+    expect(normalizeShareRenderSettings({ maxWidth: 40 }).maxWidth).toBe(40);
+    expect(
+      normalizeShareRenderSettings({ fitDirection: "sideways" }).fitDirection,
+    ).toBe("allow");
+    expect(
+      normalizeShareRenderSettings({ fitTruncate: "yes" }).fitTruncate,
+    ).toBe(false);
   });
 });
 

@@ -60,6 +60,7 @@ describe("renderApp", () => {
       render: vi.fn(),
       renderWithBrowserTextMetrics: vi.fn(),
       resolveBrowserTextMetricsRequest: vi.fn(),
+      renderFitted: vi.fn(),
       validate: vi.fn(),
       terminate: vi.fn(),
     };
@@ -105,6 +106,9 @@ describe("renderApp", () => {
           }),
           resolveBrowserTextMetricsRequest: async () => ({ required: false }),
           validate: async () => '{"valid":true}',
+          renderFitted: async () => {
+            throw new Error("unexpected fitted render");
+          },
           terminate: () => {},
         }),
         stateStorage: {
@@ -171,6 +175,9 @@ describe("renderApp", () => {
           renderWithBrowserTextMetrics,
           resolveBrowserTextMetricsRequest,
           validate: async () => '{"valid":true}',
+          renderFitted: async () => {
+            throw new Error("unexpected fitted render");
+          },
           terminate: () => {},
         }),
         debounceMs: 0,
@@ -237,6 +244,9 @@ describe("renderApp", () => {
           renderWithBrowserTextMetrics,
           resolveBrowserTextMetricsRequest,
           validate: async () => '{"valid":true}',
+          renderFitted: async () => {
+            throw new Error("unexpected fitted render");
+          },
           terminate: () => {},
         }),
         debounceMs: 0,
@@ -285,6 +295,9 @@ describe("renderApp", () => {
           renderWithBrowserTextMetrics,
           resolveBrowserTextMetricsRequest: async () => ({ required: false }),
           validate: async () => '{"valid":true}',
+          renderFitted: async () => {
+            throw new Error("unexpected fitted render");
+          },
           terminate: () => {},
         }),
         mainThreadRendererFactory: () => ({
@@ -388,6 +401,9 @@ describe("renderApp", () => {
           renderWithBrowserTextMetrics,
           resolveBrowserTextMetricsRequest: async () => ({ required: false }),
           validate: async () => '{"valid":true}',
+          renderFitted: async () => {
+            throw new Error("unexpected fitted render");
+          },
           terminate: () => {},
         }),
         mainThreadRendererFactory: () => ({

@@ -10,6 +10,7 @@ export type ShareEdgePreset =
 export type ShareGeometryLevel = "layout" | "routed";
 export type SharePathSimplification = "none" | "lossless" | "lossy" | "minimal";
 export type ShareTextPreviewMode = "plain" | "styled" | "ansi";
+export type ShareFitDirection = "allow" | "keep";
 type LegacySharePathDetail = "full" | "compact" | "simplified" | "endpoints";
 
 export interface ShareRenderSettings {
@@ -17,6 +18,10 @@ export interface ShareRenderSettings {
   edgePreset: ShareEdgePreset;
   geometryLevel: ShareGeometryLevel;
   pathSimplification: SharePathSimplification;
+  /** Text width budget in terminal cells; `null` renders unfitted. */
+  maxWidth: number | null;
+  fitDirection: ShareFitDirection;
+  fitTruncate: boolean;
 }
 
 export const DEFAULT_SHARE_RENDER_SETTINGS: ShareRenderSettings = {
@@ -24,6 +29,9 @@ export const DEFAULT_SHARE_RENDER_SETTINGS: ShareRenderSettings = {
   edgePreset: "auto",
   geometryLevel: "layout",
   pathSimplification: "lossless",
+  maxWidth: null,
+  fitDirection: "allow",
+  fitTruncate: false,
 };
 
 export interface ShareState {
@@ -101,6 +109,12 @@ function isPathSimplification(value: string): value is SharePathSimplification {
     value === "lossy" ||
     value === "minimal"
   );
+}
+
+export function normalizeMaxWidth(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1
+    ? value
+    : null;
 }
 
 function isTextPreviewMode(value: string): value is ShareTextPreviewMode {
@@ -182,6 +196,9 @@ export function normalizeShareRenderSettings(
     edgePreset,
     geometryLevel,
     pathSimplification,
+    maxWidth: normalizeMaxWidth(settings.maxWidth),
+    fitDirection: settings.fitDirection === "keep" ? "keep" : "allow",
+    fitTruncate: settings.fitTruncate === true,
   };
 }
 

@@ -32,6 +32,12 @@ function createFakeRenderClient() {
       format: "svg",
       output: `svg:${request.input}`,
     })),
+    renderFitted: vi.fn(async (request) => ({
+      seq: request.seq,
+      format: request.format,
+      output: `fitted:${request.input}`,
+      fit: { outcome: "asAuthored", size: null, asAuthored: null, applied: [] },
+    })),
     validate: vi.fn(async () => '{"valid":true}'),
     terminate: vi.fn(),
   } satisfies RenderWorkerClient;
@@ -372,6 +378,51 @@ describe("playground state persistence", () => {
         'button[data-text-preview-mode="ansi"]',
       );
       expect(restoredAnsiButton?.classList.contains("is-active")).toBe(true);
+    } finally {
+      history.replaceState(null, "", window.location.pathname);
+    }
+  });
+
+  it("restores max width settings from a share URL", async () => {
+    const shareHash = encodeShareState({
+      input: "graph LR\nA-->B",
+      format: "text",
+      textPreviewMode: "plain",
+      renderSettings: {
+        layoutEngine: "auto",
+        edgePreset: "auto",
+        geometryLevel: "layout",
+        pathSimplification: "lossless",
+        maxWidth: 32,
+        fitDirection: "keep",
+        fitTruncate: false,
+      },
+    });
+    const renderClient = createFakeRenderClient();
+
+    try {
+      history.replaceState(null, "", `#${shareHash}`);
+
+      const root = document.createElement("div");
+      renderApp(root, {
+        renderClientFactory: () => renderClient,
+        debounceMs: 0,
+        stateStorage: createMemoryStorage(),
+      });
+
+      await flushTasks();
+
+      expect(
+        root.querySelector<HTMLInputElement>("[data-max-width]")?.value,
+      ).toBe("32");
+      expect(
+        root.querySelector<HTMLInputElement>("[data-fit-keep-direction]")
+          ?.checked,
+      ).toBe(true);
+      expect(renderClient.render).not.toHaveBeenCalled();
+      expect(
+        JSON.parse(renderClient.renderFitted.mock.calls[0]?.[0].fitJson ?? ""),
+      ).toEqual({ maxWidth: 32, fitDirection: "keep" });
     } finally {
       history.replaceState(null, "", window.location.pathname);
     }

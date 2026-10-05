@@ -3,7 +3,8 @@ export type PlaygroundFormat = "text" | "svg" | "mmds";
 export type RenderControlId =
   | "layoutEngine"
   | "edgePreset"
-  | "pathSimplification";
+  | "pathSimplification"
+  | "maxWidth";
 
 interface RenderControlCapability {
   description: string;
@@ -26,6 +27,12 @@ const CONTROL_CAPABILITIES: Record<RenderControlId, RenderControlCapability> = {
     description: "Control how aggressively route paths are simplified.",
     supportedFormats: ["svg", "mmds"],
     reasonWhenDisabled: "Path simplification applies to SVG and MMDS output.",
+  },
+  maxWidth: {
+    description:
+      "Fit text output to a column budget by compacting the layout. Leave blank to render as authored.",
+    supportedFormats: ["text"],
+    reasonWhenDisabled: "Max width applies to text output only.",
   },
 };
 

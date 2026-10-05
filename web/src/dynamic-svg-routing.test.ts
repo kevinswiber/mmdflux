@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderPlaygroundRequest } from "./services/dynamic-svg-routing";
 import type {
   BrowserTextMetricsRenderRequest,
+  FittedRenderRequest,
   RenderRequest,
   RenderResponse,
   RenderWorkerClient,
@@ -34,6 +35,16 @@ function renderClientFixture(
     resolveBrowserTextMetricsRequest: vi.fn(async () => ({
       required: false,
     })),
+    renderFitted: vi.fn(async (request: FittedRenderRequest) => ({
+      ...responseFor(request),
+      output: "fitted-output",
+      fit: {
+        outcome: "fitted" as const,
+        size: null,
+        asAuthored: null,
+        applied: [],
+      },
+    })),
     validate: vi.fn(async () => '{"valid":true}'),
     terminate: vi.fn(),
     ...overrides,
@@ -41,6 +52,26 @@ function renderClientFixture(
 }
 
 describe("renderPlaygroundRequest", () => {
+  it("routes text requests with a fit budget through the fitted render", async () => {
+    const client = renderClientFixture();
+    const request = {
+      seq: 3,
+      input: "graph LR\nA-->B",
+      format: "text" as const,
+      configJson: "{}",
+      fitJson: '{"maxWidth":40}',
+    };
+
+    await expect(renderPlaygroundRequest(client, request)).resolves.toEqual({
+      seq: 3,
+      format: "text",
+      output: "fitted-output",
+      fit: { outcome: "fitted", size: null, asAuthored: null, applied: [] },
+    });
+    expect(client.renderFitted).toHaveBeenCalledWith(request);
+    expect(client.render).not.toHaveBeenCalled();
+  });
+
   it("routes required browser metrics through dynamic render", async () => {
     const client = renderClientFixture({
       resolveBrowserTextMetricsRequest: vi.fn(async () => ({

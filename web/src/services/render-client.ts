@@ -8,18 +8,37 @@ import {
   type WorkerRequestMessage,
   type WorkerResponseMessage,
 } from "@mmds/browser-text-metrics/worker-protocol";
+import type { FitReport } from "../fit-report";
+import {
+  FITTED_RENDER_REQUEST,
+  FITTED_RENDER_RESULT,
+  type FittedRenderRequestMessage,
+  type FittedRenderResultMessage,
+} from "./fitted-worker";
 
 export interface RenderRequest {
   seq: number;
   input: string;
   format: WorkerOutputFormat;
   configJson?: string;
+  /** Fit options for `renderFitted`; set only when a width budget applies. */
+  fitJson?: string;
 }
 
 export interface RenderResponse {
   seq: number;
   format: WorkerOutputFormat;
   output: string;
+  /** How a fitted render chose its output. */
+  fit?: FitReport;
+}
+
+export interface FittedRenderRequest extends RenderRequest {
+  fitJson: string;
+}
+
+export interface FittedRenderResponse extends RenderResponse {
+  fit: FitReport;
 }
 
 export interface BrowserTextMetricsRenderRequest {
@@ -46,6 +65,12 @@ interface PendingRenderRequest {
   timeoutHandle?: ReturnType<typeof setTimeout>;
 }
 
+interface PendingFittedRenderRequest {
+  kind: "renderFitted";
+  resolve: (response: FittedRenderResponse) => void;
+  reject: (error: Error) => void;
+}
+
 interface PendingValidateRequest {
   kind: "validate";
   resolve: (resultJson: string) => void;
@@ -60,11 +85,13 @@ interface PendingBrowserTextMetricsDecisionRequest {
 
 type PendingRequest =
   | PendingRenderRequest
+  | PendingFittedRenderRequest
   | PendingValidateRequest
   | PendingBrowserTextMetricsDecisionRequest;
 
 export interface RenderWorkerClient {
   render: (request: RenderRequest) => Promise<RenderResponse>;
+  renderFitted: (request: FittedRenderRequest) => Promise<FittedRenderResponse>;
   renderWithBrowserTextMetrics: (
     request: BrowserTextMetricsRenderRequest,
   ) => Promise<RenderResponse>;
@@ -100,7 +127,9 @@ export function createRenderWorkerClient(
     options.dynamicMetricsWorkerTimeoutMs ?? 5_000;
   let nextValidationSeq = -1;
 
-  worker.onmessage = (event: MessageEvent<WorkerResponseMessage>) => {
+  worker.onmessage = (
+    event: MessageEvent<WorkerResponseMessage | FittedRenderResultMessage>,
+  ) => {
     const response = event.data;
     const pendingRequest = pending.get(response.seq);
     if (!pendingRequest) {
@@ -110,6 +139,23 @@ export function createRenderWorkerClient(
     pending.delete(response.seq);
     if (pendingRequest.kind === "render" && pendingRequest.timeoutHandle) {
       clearTimeout(pendingRequest.timeoutHandle);
+    }
+
+    if (response.type === FITTED_RENDER_RESULT) {
+      if (pendingRequest.kind !== "renderFitted") {
+        pendingRequest.reject(
+          new Error("worker returned fitted output for another request"),
+        );
+        return;
+      }
+
+      pendingRequest.resolve({
+        seq: response.seq,
+        format: response.format,
+        output: response.output,
+        fit: response.fit,
+      });
+      return;
     }
 
     if (response.type === "result") {
@@ -190,6 +236,34 @@ export function createRenderWorkerClient(
           pending.delete(currentSeq);
           reject(
             new Error(`failed to post render request: ${toMessage(error)}`),
+          );
+        }
+      });
+    },
+    renderFitted: (request) => {
+      const currentSeq = request.seq;
+
+      return new Promise<FittedRenderResponse>((resolve, reject) => {
+        const message: FittedRenderRequestMessage = {
+          version: PROTOCOL_VERSION,
+          type: FITTED_RENDER_REQUEST,
+          seq: currentSeq,
+          input: request.input,
+          format: request.format,
+          configJson: request.configJson ?? "{}",
+          fitJson: request.fitJson,
+        };
+
+        pending.set(currentSeq, { kind: "renderFitted", resolve, reject });
+
+        try {
+          worker.postMessage(message);
+        } catch (error) {
+          pending.delete(currentSeq);
+          reject(
+            new Error(
+              `failed to post fitted render request: ${toMessage(error)}`,
+            ),
           );
         }
       });

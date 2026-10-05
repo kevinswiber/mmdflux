@@ -3,13 +3,20 @@ import type {
   WorkerRequestMessage,
   WorkerResponseMessage,
 } from "@mmds/browser-text-metrics/worker-protocol";
+import {
+  createFittedRenderHandler,
+  type FittedRenderResultMessage,
+  isFittedRenderRequestMessage,
+} from "./services/fitted-worker";
 import { loadWasmModule } from "./wasm-module";
 
 export { createWorkerRequestHandler };
 export type { WorkerRequestMessage, WorkerResponseMessage };
 
 interface WorkerScope {
-  postMessage: (message: WorkerResponseMessage) => void;
+  postMessage: (
+    message: WorkerResponseMessage | FittedRenderResultMessage,
+  ) => void;
   onmessage: ((event: MessageEvent<WorkerRequestMessage>) => void) | null;
 }
 
@@ -43,7 +50,17 @@ if (workerScope) {
     },
   });
 
+  const fittedHandler = createFittedRenderHandler({
+    loadWasmModule,
+    postMessage: (message) => {
+      workerScope.postMessage(message);
+    },
+  });
+
   workerScope.onmessage = (event: MessageEvent<WorkerRequestMessage>) => {
-    void handler(event.data);
+    const message: unknown = event.data;
+    void (isFittedRenderRequestMessage(message)
+      ? fittedHandler(message)
+      : handler(message));
   };
 }

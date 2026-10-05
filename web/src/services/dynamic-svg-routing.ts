@@ -10,6 +10,10 @@ export async function renderPlaygroundRequest(
   client: RenderWorkerClient,
   request: RenderRequest,
 ): Promise<RenderResponse> {
+  if (request.fitJson !== undefined) {
+    return client.renderFitted({ ...request, fitJson: request.fitJson });
+  }
+
   if (
     !isDynamicRenderOutputFormat(request.format) ||
     !mayNeedBrowserTextMetrics(request)

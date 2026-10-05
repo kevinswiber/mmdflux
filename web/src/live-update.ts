@@ -1,9 +1,11 @@
 import type { WorkerOutputFormat } from "@mmds/browser-text-metrics/worker-protocol";
+import type { FitReport } from "./fit-report";
 
 export interface LiveUpdateRequest {
   input: string;
   format: WorkerOutputFormat;
   configJson: string;
+  fitJson?: string;
 }
 
 export interface LiveUpdateRenderRequest extends LiveUpdateRequest {
@@ -14,6 +16,7 @@ export interface LiveUpdateRenderResult {
   seq: number;
   format: WorkerOutputFormat;
   output: string;
+  fit?: FitReport;
 }
 
 export type LiveUpdateDebounceSetting =
@@ -67,6 +70,7 @@ export function createLiveUpdateController(
         input: request.input,
         format: request.format,
         configJson: request.configJson,
+        fitJson: request.fitJson,
       })
       .then((result) => {
         if (result.seq !== latestSeq) {

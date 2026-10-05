@@ -12,6 +12,7 @@ import {
   PLAYGROUND_EXAMPLES,
 } from "../examples";
 import { createSnippetGalleryController } from "../features/snippet-gallery";
+import { describeFitReport, type FitReport, fitJsonFor } from "../fit-report";
 import {
   helpText,
   isSupported,
@@ -45,6 +46,7 @@ import {
 } from "../services/share-state";
 import {
   DEFAULT_SHARE_RENDER_SETTINGS,
+  normalizeMaxWidth,
   type ShareEdgePreset,
   type ShareLayoutEngine,
   type SharePathSimplification,
@@ -61,7 +63,7 @@ import {
 
 interface RenderControlBinding {
   control: RenderControlId;
-  select: HTMLSelectElement;
+  fields: Array<HTMLSelectElement | HTMLInputElement>;
   help: HTMLElement;
   container: HTMLElement;
 }
@@ -464,6 +466,15 @@ export function renderApp(
             </select>
             <p class="render-help" data-help-path-simplification></p>
           </div>
+          <div class="render-setting" data-setting="maxWidth">
+            <label for="max-width-input">Max Width</label>
+            <input id="max-width-input" type="number" min="1" step="1" inputmode="numeric" placeholder="Off" data-max-width />
+            <div class="render-checks">
+              <label class="render-check"><input type="checkbox" data-fit-keep-direction /> Keep direction</label>
+              <label class="render-check"><input type="checkbox" data-fit-truncate /> Allow truncation</label>
+            </div>
+            <p class="render-help" data-help-max-width></p>
+          </div>
         </div>
       </section>
 
@@ -490,6 +501,7 @@ export function renderApp(
             </div>
           </div>
           <p class="share-status" data-share-status hidden></p>
+          <p class="fit-status" data-fit-status hidden></p>
           <div class="preview-stage" data-preview-stage>
             <div class="preview-controls-overlay" data-preview-controls-overlay hidden>
               <button
@@ -536,6 +548,7 @@ export function renderApp(
   const editorStatus = root.querySelector<HTMLElement>("[data-editor-status]");
   const previewError = root.querySelector<HTMLElement>("[data-preview-error]");
   const shareStatus = root.querySelector<HTMLElement>("[data-share-status]");
+  const fitStatus = root.querySelector<HTMLElement>("[data-fit-status]");
   const shareButton = root.querySelector<HTMLButtonElement>("[data-share]");
   const themeToggleButton = root.querySelector<HTMLButtonElement>(
     "[data-theme-toggle]",
@@ -563,6 +576,14 @@ export function renderApp(
   const pathSimplificationSelect = root.querySelector<HTMLSelectElement>(
     "[data-path-simplification]",
   );
+  const maxWidthInput =
+    root.querySelector<HTMLInputElement>("[data-max-width]");
+  const fitKeepDirectionCheckbox = root.querySelector<HTMLInputElement>(
+    "[data-fit-keep-direction]",
+  );
+  const fitTruncateCheckbox = root.querySelector<HTMLInputElement>(
+    "[data-fit-truncate]",
+  );
 
   const layoutHelp = root.querySelector<HTMLElement>(
     "[data-help-layout-engine]",
@@ -571,6 +592,7 @@ export function renderApp(
   const pathHelp = root.querySelector<HTMLElement>(
     "[data-help-path-simplification]",
   );
+  const maxWidthHelp = root.querySelector<HTMLElement>("[data-help-max-width]");
 
   const layoutSetting = root.querySelector<HTMLElement>(
     '[data-setting="layoutEngine"]',
@@ -580,6 +602,9 @@ export function renderApp(
   );
   const pathSetting = root.querySelector<HTMLElement>(
     '[data-setting="pathSimplification"]',
+  );
+  const maxWidthSetting = root.querySelector<HTMLElement>(
+    '[data-setting="maxWidth"]',
   );
 
   const previewControlsOverlayRoot = root.querySelector<HTMLElement>(
@@ -626,6 +651,7 @@ export function renderApp(
     !editorStatus ||
     !previewError ||
     !shareStatus ||
+    !fitStatus ||
     !shareButton ||
     !themeToggleButton ||
     !exampleSelect ||
@@ -636,12 +662,17 @@ export function renderApp(
     !layoutEngineSelect ||
     !edgePresetSelect ||
     !pathSimplificationSelect ||
+    !maxWidthInput ||
+    !fitKeepDirectionCheckbox ||
+    !fitTruncateCheckbox ||
     !layoutHelp ||
     !edgeHelp ||
     !pathHelp ||
+    !maxWidthHelp ||
     !layoutSetting ||
     !edgeSetting ||
     !pathSetting ||
+    !maxWidthSetting ||
     !previewControlsOverlayRoot ||
     !previewControlsToggleButton ||
     !previewControlsRoot ||
@@ -724,21 +755,27 @@ export function renderApp(
   const renderControlBindings: RenderControlBinding[] = [
     {
       control: "layoutEngine",
-      select: layoutEngineSelect,
+      fields: [layoutEngineSelect],
       help: layoutHelp,
       container: layoutSetting,
     },
     {
       control: "edgePreset",
-      select: edgePresetSelect,
+      fields: [edgePresetSelect],
       help: edgeHelp,
       container: edgeSetting,
     },
     {
       control: "pathSimplification",
-      select: pathSimplificationSelect,
+      fields: [pathSimplificationSelect],
       help: pathHelp,
       container: pathSetting,
+    },
+    {
+      control: "maxWidth",
+      fields: [maxWidthInput, fitKeepDirectionCheckbox, fitTruncateCheckbox],
+      help: maxWidthHelp,
+      container: maxWidthSetting,
     },
   ];
 
@@ -781,13 +818,19 @@ export function renderApp(
     layoutEngineSelect.value = renderSettings.layoutEngine;
     edgePresetSelect.value = renderSettings.edgePreset;
     pathSimplificationSelect.value = renderSettings.pathSimplification;
+    maxWidthInput.value =
+      renderSettings.maxWidth === null ? "" : String(renderSettings.maxWidth);
+    fitKeepDirectionCheckbox.checked = renderSettings.fitDirection === "keep";
+    fitTruncateCheckbox.checked = renderSettings.fitTruncate;
   };
 
   const applyRenderControlState = (): void => {
     const { format } = stateStore.getState();
     for (const binding of renderControlBindings) {
       const supported = isSupported(format, binding.control);
-      binding.select.disabled = !supported;
+      for (const field of binding.fields) {
+        field.disabled = !supported;
+      }
       binding.help.textContent = helpText(format, binding.control);
       binding.container.classList.toggle("is-disabled", !supported);
     }
@@ -833,6 +876,24 @@ export function renderApp(
     }
 
     return JSON.stringify(config);
+  };
+
+  const currentFitJson = (): string | undefined => {
+    const { format, renderSettings } = stateStore.getState();
+    if (format !== "text") {
+      return undefined;
+    }
+    return fitJsonFor(renderSettings) ?? undefined;
+  };
+
+  const showFitStatus = (fit: FitReport | undefined): void => {
+    const { format, renderSettings } = stateStore.getState();
+    const message =
+      fit && format === "text" && renderSettings.maxWidth !== null
+        ? describeFitReport(fit, renderSettings.maxWidth)
+        : null;
+    fitStatus.hidden = message === null;
+    fitStatus.textContent = message ?? "";
   };
 
   const currentSvgConfigJson = (): string => {
@@ -959,10 +1020,12 @@ export function renderApp(
         format: response.format,
         output: response.output,
       });
+      showFitStatus(response.fit);
       previewControls.onResult(response.format);
     },
     onError: (message) => {
       preview.showError(message);
+      showFitStatus(undefined);
       previewControls.onResult("text");
     },
   });
@@ -1052,6 +1115,7 @@ export function renderApp(
       input: inputOverride ?? currentState.input,
       format: currentState.format,
       configJson: currentConfigJson(),
+      fitJson: currentFitJson(),
     });
   };
 
@@ -1152,6 +1216,36 @@ export function renderApp(
       persistCurrentState();
       scheduleRender();
     }
+  });
+
+  maxWidthInput.addEventListener("input", () => {
+    const raw = maxWidthInput.value.trim();
+    const maxWidth = raw === "" ? null : normalizeMaxWidth(Number(raw));
+    if (raw !== "" && maxWidth === null) {
+      return;
+    }
+    if (maxWidth === stateStore.getState().renderSettings.maxWidth) {
+      return;
+    }
+    stateStore.updateRenderSettings({ maxWidth });
+    persistCurrentState();
+    scheduleRender();
+  });
+
+  fitKeepDirectionCheckbox.addEventListener("change", () => {
+    stateStore.updateRenderSettings({
+      fitDirection: fitKeepDirectionCheckbox.checked ? "keep" : "allow",
+    });
+    persistCurrentState();
+    scheduleRender();
+  });
+
+  fitTruncateCheckbox.addEventListener("change", () => {
+    stateStore.updateRenderSettings({
+      fitTruncate: fitTruncateCheckbox.checked,
+    });
+    persistCurrentState();
+    scheduleRender();
   });
 
   themeToggleButton.addEventListener("click", () => {

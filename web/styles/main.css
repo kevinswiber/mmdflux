@@ -196,7 +196,8 @@ body {
 }
 
 .example-picker select,
-.render-setting select {
+.render-setting select,
+.render-setting input[type="number"] {
   border: 1px solid var(--surface-border);
   border-radius: 10px;
   padding: 0.36rem 0.55rem;
@@ -215,6 +216,7 @@ body {
 
 .example-picker select:focus-visible,
 .render-setting select:focus-visible,
+.render-setting input:focus-visible,
 .toolbar-button:focus-visible,
 .preview-controls-toggle:focus-visible,
 .preview-toolbar-button:focus-visible,
@@ -366,7 +368,7 @@ body {
 
 .render-settings-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.8rem;
 }
 
@@ -392,6 +394,23 @@ body {
   color: var(--text-muted);
   font-size: 0.77rem;
   line-height: 1.35;
+}
+
+.render-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+}
+
+.render-setting .render-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-main);
+  font-size: 0.84rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .render-setting.is-disabled {
@@ -492,6 +511,7 @@ body {
 }
 
 .share-status,
+.fit-status,
 .editor-status,
 .preview-error {
   margin: 0;
@@ -501,6 +521,7 @@ body {
 }
 
 .share-status,
+.fit-status,
 .editor-status {
   border: 1px solid var(--status-border);
   background: var(--status-bg);
@@ -513,7 +534,8 @@ body {
   color: var(--error-text);
 }
 
-.share-status {
+.share-status,
+.fit-status {
   margin: 0 0 0.7rem;
 }
 
@@ -523,6 +545,7 @@ body {
 }
 
 .share-status[hidden],
+.fit-status[hidden],
 .editor-status[hidden],
 .preview-error[hidden] {
   display: none;

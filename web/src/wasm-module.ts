@@ -6,6 +6,12 @@ export interface WasmModule {
     configJson: string,
   ) => string;
   render: (input: string, format: string, configJson: string) => string;
+  renderFitted: (
+    input: string,
+    format: string,
+    configJson: string,
+    fitJson: string,
+  ) => string;
   renderWithBrowserTextMetrics: (
     input: string,
     format: string,
